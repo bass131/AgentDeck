@@ -22,7 +22,7 @@
   --shadow-card:4px 4px 16px rgba(0,0,0,.32);
   --radius-card:8px;
   --ease-pop1:cubic-bezier(.85,.14,.29,.99); --ease-pop2:cubic-bezier(.71,.45,.36,1.31);
-  --fs-cap:12.5px; --fs-sm:13.5px; --fs-body:15px; --fs-say:16px; --fs-h:19px;
+  --fs-cap:12.5px; --fs-sm:13.5px; --fs-body:15px; --fs-say:16px; --fs-h:22px;
   --g-ink:var(--bg);
   --sp-1:4px; --sp-2:8px; --sp-3:12px; --sp-4:16px; --sp-5:24px; --sp-6:32px; --sp-7:48px;
   --maxw:1280px; --gutter:32px;
@@ -154,12 +154,63 @@ kbd{font-family:var(--mono); font-size:11.5px; padding:1px 6px; border:1px solid
 .now::before{content:""; position:absolute; z-index:-1; top:0; right:calc(var(--gutter) * -1); width:min(560px, 70%); height:220px; pointer-events:none;
   background:repeating-linear-gradient(118deg, transparent 0 46px, var(--accent-line) 46px 47px), repeating-linear-gradient(28deg, transparent 0 94px, var(--accent-line) 94px 95px);
   -webkit-mask-image:radial-gradient(110% 95% at 100% 0%, #000 0%, transparent 68%); mask-image:radial-gradient(110% 95% at 100% 0%, #000 0%, transparent 68%)}
-.q{display:grid; grid-template-columns:10.5em minmax(0,1fr); gap:6px var(--sp-5); padding:var(--sp-4) 0; border-top:1px solid var(--rule)}
+.q{display:grid; grid-template-columns:10.5em minmax(0,1fr); gap:6px var(--sp-5); padding:var(--sp-5) 0; border-top:1px solid var(--rule)}
 .q:first-child{border-top:2px solid var(--ink)}
-.q-k{font-size:var(--fs-sm); font-weight:700; color:var(--ink-3); line-height:1.5; padding-top:.35em; letter-spacing:-0.01em}
-.q-a{min-width:0; display:grid; justify-items:start; gap:6px}
-.q-line{font-size:clamp(18px, 2.6cqi, 21px); font-weight:700; line-height:1.4; letter-spacing:-0.02em; text-wrap:pretty; max-width:40em}
-.q-doing .q-line{font-size:clamp(23px, 4cqi, 34px); font-weight:780; line-height:1.28; letter-spacing:-0.03em}
+.q-k{font-size:var(--fs-body); font-weight:750; color:var(--ink-2); line-height:1.5; padding-top:.3em; letter-spacing:-0.015em}
+.q-a{min-width:0; display:grid; justify-items:start; gap:8px}
+.q-line{font-size:clamp(19px, 2.8cqi, 23px); font-weight:750; line-height:1.4; letter-spacing:-0.022em; text-wrap:pretty; max-width:40em}
+.q-doing .q-line{font-size:clamp(24px, 4.2cqi, 36px); font-weight:800; line-height:1.24; letter-spacing:-0.032em}
+/* 「지금 하는 일」 큰 카드: 상태가 면·테두리·큰 모양·글자로 보인다(판단은 chime.js doingTone).
+   진행 중=파랑, 내 손 필요=노랑, 멈춤=빨강, 완료=초록, 대기=회색 점선, 확인 안 됨=빗금. 색만이 아니라 모양과 낱말을 늘 함께 쓴다 */
+.q.doing-card{grid-template-columns:56px minmax(0,1fr) auto; grid-template-areas:"glyph head ring" "glyph body ring"; gap:4px var(--sp-4); align-items:start; margin:var(--sp-2) 0 var(--sp-4); padding:22px 26px 20px 22px}
+.doing-card{border:1.5px solid var(--rule-2); border-radius:12px; background:var(--surface); box-shadow:var(--shadow-card)}
+.q.doing-card:first-child{border-top-width:1.5px}
+.doing-card .q-a{grid-area:body}
+.doing-head{grid-area:head; display:flex; align-items:center; flex-wrap:wrap; gap:6px 10px}
+.doing-head .q-k{padding-top:0}
+.doing-glyph{grid-area:glyph; display:grid; place-items:center; width:56px; height:56px; border-radius:50%; background:var(--bg)}
+.doing-glyph .g{width:40px; height:40px}
+.doing-word{display:inline-flex; align-items:center; height:26px; padding:0 12px; border-radius:999px; font-size:13px; font-weight:750; border:1.5px solid currentColor; white-space:nowrap}
+.doing-card.tone-live{border-color:var(--info); background:linear-gradient(120deg, var(--info-tint), transparent 72%), var(--surface); box-shadow:inset 6px 0 0 var(--info), var(--shadow-card)}
+.doing-card.tone-todo{border-color:var(--todo-text); background:linear-gradient(120deg, var(--todo-tint), transparent 78%), var(--surface); box-shadow:inset 6px 0 0 var(--todo), var(--shadow-card)}
+.doing-card.tone-stop{border-color:var(--broken); background:linear-gradient(120deg, var(--broken-tint), transparent 78%), var(--surface); box-shadow:inset 6px 0 0 var(--broken), var(--shadow-card)}
+.doing-card.tone-done{border-color:var(--ok); background:linear-gradient(120deg, var(--ok-tint), transparent 72%), var(--surface); box-shadow:inset 6px 0 0 var(--ok), var(--shadow-card)}
+.doing-card.tone-rest{border-color:var(--ink-3); border-style:dashed}
+.doing-card.tone-unknown{background-image:var(--hatch); border-style:dashed}
+.tone-live .doing-word{color:var(--info); background:var(--info-tint)}
+.tone-todo .doing-word{color:var(--todo-ink); background:var(--todo); border-color:var(--todo)}
+.tone-stop .doing-word{color:var(--broken-ink); background:var(--broken); border-color:var(--broken)}
+.tone-stop .doing-glyph .g{--g-ink:#FFFFFF}
+.tone-done .doing-word{color:var(--ok); background:var(--ok-tint)}
+.tone-rest .doing-word, .tone-unknown .doing-word{color:var(--ink-3); border-style:dashed}
+/* 단계 진척 링: 초록 호는 완료 몫, 파랑 호(멈춤이면 빨강)는 지금 단계 하나, 회색 바탕 원은 남은 몫 */
+.doing-ring{grid-area:ring; display:grid; justify-items:center; gap:6px; align-self:center; padding-left:var(--sp-2)}
+.ring{position:relative; width:96px; height:96px; margin:0; display:grid; place-items:center}
+.ring svg{position:absolute; inset:0; width:100%; height:100%; transform:rotate(-90deg)}
+.ring circle{fill:none; stroke-width:6.5}
+.ring .ring-track{stroke:color-mix(in srgb, var(--ink) 12%, transparent)}
+.ring .ring-done{stroke:var(--ok)}
+.ring .ring-now{stroke:var(--info)}
+.ring.is-stopped .ring-now{stroke:var(--broken)}
+.ring figcaption{position:relative; display:flex; align-items:baseline; gap:3px; line-height:1}
+.ring figcaption .num, .ring figcaption b{font-size:30px; font-weight:800; letter-spacing:-0.03em; color:var(--ink)}
+.ring figcaption small{font-size:13px; font-weight:650; color:var(--ink-3)}
+.ring.is-unknown{border-radius:50%; background:var(--hatch); border:1.5px dashed var(--rule-2)}
+.ring-cap{font-size:var(--fs-cap); font-weight:650; color:var(--ink-2); white-space:nowrap}
+/* 숫자 카드: 어디쯤의 goal 수(완료·지금·남음)와 단계 영역의 검증 기록 수(통과·실패·사용자 입력) */
+.stats{display:flex; flex-wrap:wrap; gap:8px; margin:2px 0}
+.stat{display:grid; gap:2px; min-width:84px; padding:8px 14px 9px; border:1px solid var(--rule-2); border-radius:var(--radius-card); background:var(--surface)}
+.stat dt{font-size:var(--fs-cap); font-weight:650; color:var(--ink-3); white-space:nowrap}
+.stat dd{margin:0; font-size:28px; font-weight:800; line-height:1.1; letter-spacing:-0.025em; color:var(--ink); font-variant-numeric:tabular-nums}
+.stat.is-done, .stat.is-pass{border-color:color-mix(in srgb, var(--ok) 45%, transparent); background:var(--ok-tint); box-shadow:inset 0 3px 0 var(--ok)}
+.stat.is-done dd, .stat.is-pass dd{color:var(--ok)}
+.stat.is-now{border-color:var(--info); background:var(--info-tint); box-shadow:inset 0 3px 0 var(--info)}
+.stat.is-now dd{color:var(--info)}
+.stat.is-left{border-style:dashed}
+.stat.is-fail{border-color:var(--broken); background:var(--broken-tint); box-shadow:inset 0 3px 0 var(--broken)}
+.stat.is-fail dd{color:var(--broken-text)}
+.stat.is-zero dd{color:var(--ink-2)}
+.stat.is-unknown{background:var(--hatch)}
 .q-sub{display:flex; align-items:baseline; gap:9px; font-size:var(--fs-say); color:var(--ink-2); text-wrap:pretty; max-width:44em}
 .q-sub .g{flex:none; align-self:center; width:12px; height:12px}
 .q-sub small{margin-left:4px}
@@ -201,16 +252,20 @@ button.sound-state b{font-weight:700; text-decoration:underline; text-underline-
 .sound-chip:hover{background:var(--todo); color:var(--todo-ink); border-color:var(--todo)}
 .sound-chip:active{transform:scale(.97)}
 /* 전체 중 어디쯤: goal 칩 한 줄. 위치가 곧 진척이다(완료=초록 바탕, 지금=파랑 채움, 남음=점선) */
-.track{display:flex; flex-wrap:wrap; gap:4px; margin-top:4px}
-.tk{display:grid; grid-template-columns:auto auto; align-items:center; gap:0 5px; min-width:58px; padding:5px 9px 5px 7px; border-radius:6px; border:1px solid var(--rule-2); line-height:1.2; cursor:default}
-.tk-mark .g{width:12px; height:12px; display:block}
+.track{display:flex; flex-wrap:wrap; align-items:center; gap:6px; margin-top:4px}
+.tk{display:grid; grid-template-columns:auto auto; align-items:center; gap:0 6px; min-width:62px; padding:6px 10px 6px 8px; border-radius:var(--radius-card); border:1px solid var(--rule-2); background:var(--surface); line-height:1.2; cursor:default}
+.tk-mark .g{width:13px; height:13px; display:block}
 .tk-id{font-size:var(--fs-sm); font-weight:750; letter-spacing:-0.01em; font-variant-numeric:tabular-nums}
 .tk-sub{grid-column:2; font-size:11.5px; color:var(--ink-3); white-space:nowrap}
-.tk.is-done{background:var(--ok-tint); border-color:color-mix(in srgb, var(--ok) 35%, transparent)}
-.tk.is-here{background:var(--info); border-color:var(--info); color:var(--bg); padding-right:12px}
-.tk.is-here .tk-sub{color:var(--bg); font-weight:700}
+/* 완료 칩: 초록 면과 왼쪽 초록 선. 지금 칩: 파랑 채움에 크기와 바깥 고리를 더해 줄에서 가장 먼저 보인다 */
+.tk.is-done{background:var(--ok-tint); border-color:color-mix(in srgb, var(--ok) 40%, transparent); box-shadow:inset 3px 0 0 var(--ok)}
+.tk.is-done .tk-sub{color:var(--ink-2)}
+.tk.is-here{background:var(--info); border-color:var(--info); color:var(--bg); padding:9px 16px 9px 11px; box-shadow:0 0 0 4px var(--info-tint), var(--shadow-card)}
+.tk.is-here .tk-id{font-size:var(--fs-say); font-weight:800}
+.tk.is-here .tk-mark .g{width:15px; height:15px}
+.tk.is-here .tk-sub{color:var(--bg); font-weight:750}
 .tk.is-here .g-current{color:var(--bg)}
-.tk.is-left{border-style:dashed; color:var(--ink-3)}
+.tk.is-left{border-style:dashed; color:var(--ink-3); background:none}
 .tk.is-current:not(.is-here), .tk.is-draft{border-color:var(--info); color:var(--info)}
 .tk.is-unknown{background:var(--hatch)}
 .goal-names{display:grid; gap:2px}
@@ -226,7 +281,16 @@ button.sound-state b{font-weight:700; text-decoration:underline; text-underline-
   .q{grid-template-columns:minmax(0,1fr); gap:4px; padding:var(--sp-3) 0}
   .q-k{padding-top:0; font-size:var(--fs-cap)}
   .q-sub{font-size:var(--fs-body)}
+  .q.doing-card{grid-template-columns:36px minmax(0,1fr) auto; grid-template-areas:"glyph head ring" "body body body"; gap:8px 12px; padding:14px 16px 14px 14px; margin:var(--sp-1) 0 var(--sp-2)}
+  .doing-glyph{width:36px; height:36px} .doing-glyph .g{width:26px; height:26px}
+  .doing-head{align-self:center}
+  .doing-ring{grid-template-columns:auto; padding-left:0}
+  .ring{width:56px; height:56px}
+  .ring figcaption .num, .ring figcaption b{font-size:19px} .ring figcaption small{font-size:11px}
+  .ring-cap{display:none}
+  .stat{min-width:64px; padding:6px 10px 7px} .stat dd{font-size:22px}
   .tk{min-width:0; padding:4px 7px 4px 6px}
+  .tk.is-here{padding:6px 11px 6px 8px}
   .tk-sub{display:none}
   .tk.is-here .tk-sub{display:block}
   .goal-names li{grid-template-columns:14px 3.2em minmax(0,1fr)} .goal-names small{grid-column:3}
@@ -241,7 +305,7 @@ main{padding-bottom:96px}
 .area{position:relative; min-width:0}
 .step > *, .q-a > *{min-width:0; max-width:100%}
 .area-head{display:flex; align-items:center; justify-content:space-between; gap:var(--sp-2) var(--sp-3); flex-wrap:wrap; border-top:2px solid var(--ink); padding-top:var(--sp-3); margin-bottom:var(--sp-2)}
-.area-head h2{font-size:var(--fs-h); font-weight:750; letter-spacing:-0.022em}
+.area-head h2{font-size:var(--fs-h); font-weight:800; letter-spacing:-0.025em}
 .area-sum{display:flex; align-items:center; gap:4px 12px; flex-wrap:wrap; font-size:13px; color:var(--ink-3)}
 .count{display:inline-flex; align-items:center; gap:5px; font-weight:600; color:var(--ink-2)}
 .count .num{color:var(--ink)}
@@ -283,9 +347,12 @@ details[open] > summary .chev{transform:rotate(45deg)}
 .sents li::before{content:""; position:absolute; left:1px; top:.68em; width:5px; height:5px; border-radius:50%; background:var(--ink-3)}
 
 /* ---------- 이 goal의 단계: 짧은 이름 한 줄씩, 원문은 눌러서 ---------- */
-.goal-intro{display:grid; gap:4px; margin-bottom:var(--sp-2)}
+.goal-intro{display:grid; gap:6px; margin-bottom:var(--sp-3)}
 .goal-name{font-size:var(--fs-say); font-weight:650; color:var(--ink); text-wrap:pretty}
-.goal-rec{font-size:var(--fs-sm); color:var(--ink-2)} .goal-rec .num{font-weight:650; color:var(--ink)}
+.goal-rec{display:flex; align-items:center; flex-wrap:wrap; gap:6px 12px; font-size:var(--fs-sm); color:var(--ink-2); margin:4px 0 2px}
+.rec-h{font-size:var(--fs-sm); font-weight:750; color:var(--ink-2)}
+.rec-last{font-size:var(--fs-sm); color:var(--ink-2)}
+.goal-rec .stats{margin:0}
 .goal-intro .fold.raw{margin-top:0}
 .steps{position:relative; margin-top:var(--sp-2)}
 .step{display:grid; grid-template-columns:24px minmax(0,1fr); gap:0 10px; padding:6px 0; position:relative}

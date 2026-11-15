@@ -142,6 +142,8 @@ const isFresh = (at, now, min = FRESH_MIN) => { const t = parseAt(at); return t 
 function handNow(now) { return (SUM().hand || []).filter(h => !h.fresh || isFresh(h.at, now, h.fresh)); }
 /* 알림 판단 모듈(chime.js, classic script). 없으면(옛 서버가 내준 페이지) 알림만 빠지고 화면은 그대로다 */
 const CH = globalThis.AgentDeckChime || null;
+/* 화면 모양의 판단(같은 chime.js의 전역 AgentDeckView): 큰 카드 상태, 진척 링, 등장 대상. 없으면 예전 모양으로 그린다 */
+const VIEW = globalThis.AgentDeckView || null;
 /* 응답을 마치고 조용한 분 수: 사실은 서버(summary.activity.quiet), 5분 넘게인지는 화면 시계로 chime.js가 정한다 */
 const quietNow = now => CH ? CH.quietMinutes(SUM().activity?.quiet, now) : null;
 /* 참고할 것: 멈춤은 아니지만 알아 두면 좋은 사실. 「내 손」 아래 작은 줄로만 둔다.
@@ -350,8 +352,23 @@ function doingBlock(now) {
     a ? (a.of > 1 ? `자동 검사 기록 최근 ${a.of}건 중 ${a.count}건이 ${KIND_WORD[a.kind] || a.kind}` : `자동 검사 기록의 마지막 기록(${KIND_WORD[a.kind] || a.kind})`) : null].filter(Boolean);
   const why = !d.text && d.why ? `<p class="q-sub is-quiet">${G.unknown}<span>${esc(d.why)}</span></p>` : '';
   const raw = a?.detail ? fold('raw-activity', '근거 원문', `<p class="raw-h">가장 최근 ${esc(KIND_WORD[a.kind] || '')} 기록</p><p class="rawtext mono">${esc(a.detail)}</p>${srcLink({ path: st.vm.hooks.path })}`, 'raw') : '';
-  return `<div class="q q-doing"${fxAttr('focus')}><h2 class="q-k">지금 하는 일</h2><div class="q-a"><p class="q-line">${line}</p>${why}${act}
-    <p class="q-src">근거: ${src.map(esc).join(' · ') || '없음'}</p>${raw}</div></div>`;
+  /* 큰 카드: 상태(멈춤 → 내 손 필요 → 완료 → 진행 중, 그 밖은 회색)가 면·테두리·큰 모양·글자로 보인다. 판단은 chime.js doingTone */
+  const t = VIEW ? VIEW.doingTone({ hand: handLevel(now), phases: P }) : null;
+  const tone = t ? ` tone-${t.tone}` : '', enterAt = t ? ` data-enter="doing" data-state="${esc(t.tone)}"` : '';
+  return `<div class="q q-doing doing-card${tone}"${fxAttr('focus')}${enterAt}>${t ? `<span class="doing-glyph" aria-hidden="true">${G[t.glyph]}</span>` : ''}
+    <div class="doing-head"><h2 class="q-k">지금 하는 일</h2>${t ? `<span class="doing-word">${esc(t.word)}</span>` : ''}</div>
+    <div class="q-a"><p class="q-line">${line}</p>${why}${act}
+    <p class="q-src">근거: ${src.map(esc).join(' · ') || '없음'}</p>${raw}</div>${ringBlock(P)}</div>`;
+}
+/* 지금 goal의 단계 진척 링: 초록은 완료 몫, 파랑(멈춤이면 빨강)은 지금 단계 하나. 못 읽었으면 0이 아니라 빗금이다 */
+function ringBlock(P) {
+  if (!VIEW) return '';
+  const r = VIEW.stepRing(P);
+  if (!r) return `<div class="doing-ring"><figure class="ring is-unknown" aria-hidden="true"><figcaption><b>?</b></figcaption></figure><p class="ring-cap">단계 미확인</p></div>`;
+  const arc = (cls, len, at) => `<circle class="${cls}" cx="32" cy="32" r="27" pathLength="100" stroke-dasharray="${len} 100" stroke-dashoffset="${-at}"/>`;
+  return `<div class="doing-ring" data-enter="ring" data-state="${r.done}/${r.total}/${r.now}"><figure class="ring${r.stopped ? ' is-stopped' : ''}" role="img" aria-label="${r.total}단계 중 ${r.done}개 완료">
+    <svg viewBox="0 0 64 64" aria-hidden="true">${arc('ring-track', 100, 0)}${r.donePct ? arc('ring-done', r.donePct, 0) : ''}${r.nowPct ? arc('ring-now', r.nowPct, r.donePct) : ''}</svg>
+    <figcaption aria-hidden="true">${num('rg-done', r.done)}<small>/ ${esc(r.total)}</small></figcaption></figure><p class="ring-cap">${r.total}단계 중 ${r.done}개 완료</p></div>`;
 }
 function handBlock(now) {
   const S = SUM(), hand = handNow(now), notes = notesNow(now), lv = handLevel(now);
@@ -368,11 +385,14 @@ function whereBlock() {
   if (Gs?.status === 'ok' && Gs.items.length) {
     const cur = Gs.items.find(g => g.current);
     const say = `goal ${Gs.total}개 중 ${Gs.done}개 완료${Gs.doing ? `, 지금 ${cur ? cur.id : Gs.doing + '개'}` : ''}, 남은 goal ${Gs.left}개${Gs.unknown ? ` (상태를 읽지 못한 goal ${Gs.unknown}개)` : ''}`;
-    const chip = g => `<li class="tk is-${g.state}${g.current ? ' is-here' : ''}" title="${esc(`${g.id} ${g.name} — ${GOAL_WORD[g.state]}${g.pr ? ` (PR ${g.pr})` : ''}`)}"><span class="tk-mark" aria-hidden="true">${G[{ done: 'done', current: 'current', draft: 'current', left: 'waiting', unknown: 'unknown' }[g.state]]}</span><span class="tk-id">${esc(g.id)}</span><span class="tk-sub">${g.current ? '지금' : g.pr ? `PR ${esc(g.pr)}` : g.state === 'left' ? '남음' : esc(GOAL_WORD[g.state])}</span>${g.current || g.pr ? `<span class="sr">${esc(GOAL_WORD[g.state])}</span>` : ''}</li>`;
+    const chip = g => `<li class="tk is-${g.state}${g.current ? ' is-here' : ''}" data-enter="${esc(g.id)}" data-state="${esc(g.state)}${g.current ? '-here' : ''}" title="${esc(`${g.id} ${g.name} — ${GOAL_WORD[g.state]}${g.pr ? ` (PR ${g.pr})` : ''}`)}"><span class="tk-mark" aria-hidden="true">${G[{ done: 'done', current: 'current', draft: 'current', left: 'waiting', unknown: 'unknown' }[g.state]]}</span><span class="tk-id">${esc(g.id)}</span><span class="tk-sub">${g.current ? '지금' : g.pr ? `PR ${esc(g.pr)}` : g.state === 'left' ? '남음' : esc(GOAL_WORD[g.state])}</span>${g.current || g.pr ? `<span class="sr">${esc(GOAL_WORD[g.state])}</span>` : ''}</li>`;
     const list = fold('goal-list', 'goal 이름 모두 보기', `<ol class="goal-names">${Gs.items.map(g => `<li class="is-${g.state}">${G[{ done: 'done', current: 'current', draft: 'current', left: 'waiting', unknown: 'unknown' }[g.state]]}<b>${esc(g.id)}</b><span>${md(g.name)}</span><small>${g.current ? '지금' : esc(GOAL_WORD[g.state])}${g.pr ? ` · PR ${esc(g.pr)}` : ''}</small></li>`).join('')}</ol>
       <p class="q-src">근거: ${esc(P.planPath ? P.planPath.slice(0, P.planPath.lastIndexOf('/') + 1) : '')} 의 goal 문서 머리말 「상태:」, 아직 파일이 없는 goal은 계획 문서의 goal 목록</p>`, 'raw');
+    /* 숫자 카드: 완료(초록) · 지금(파랑) · 남음(회색 점선). 값은 위 문장과 같은 goal 목록에서 온다 */
+    const stat = (cls, label, v) => `<div class="stat ${cls}"><dt>${label}</dt><dd>${v}</dd></div>`;
+    const stats = `<dl class="stats" aria-label="goal 진척">${stat('is-done', '완료', num('gl-done', Gs.done))}${stat(Gs.doing ? 'is-now' : 'is-zero', '지금', cur ? esc(cur.id) : num('gl-doing', Gs.doing))}${stat('is-left', '남음', num('gl-left', Gs.left))}${Gs.unknown ? stat('is-unknown', '상태 미확인', num('gl-unknown', Gs.unknown)) : ''}</dl>`;
     return `<div class="q q-where"${fxAttr('goals')}><h2 class="q-k">전체 중 어디쯤</h2><div class="q-a"><p class="q-line">${md(Gs.milestoneName || vm.milestone.title || '')}</p>
-      <p class="q-sub">${esc(say)}</p><ol class="track" aria-label="마일스톤 안 goal 진행">${Gs.items.map(chip).join('')}</ol>${list}</div></div>`;
+      ${stats}<p class="q-sub">${esc(say)}</p><ol class="track" aria-label="마일스톤 안 goal 진행">${Gs.items.map(chip).join('')}</ol>${list}</div></div>`;
   }
   /* 다중 파일 형식이거나 goal 목록을 못 읽었을 때: 단계 수로만 말한다 */
   const n = P.status === 'ok' ? P.items.length : null, done = P.status === 'ok' ? P.items.filter(p => p.flow === 'done').length : null;
@@ -381,6 +401,25 @@ function whereBlock() {
 }
 function renderNow(now) {
   paint($('#now'), doingBlock(now) + handBlock(now) + whereBlock());
+  enter();
+}
+/* 등장 동작: 큰 카드·진척 링·goal 칩이 처음 보일 때와 상태가 바뀔 때만 한 번 움직인다.
+   paint()는 글자 하나만 달라도 「지금」을 새로 쓰므로 CSS animation이 아니라, 기억한 [키, 상태]와 비교해(chime.js enterKeys) play()로 건다.
+   play()는 동작 줄이기와 숨은 탭에서 아무것도 하지 않는다 */
+let enterSeen = null;
+function enter() {
+  if (!VIEW) return;
+  const box = $('#now'), els = new Map($$('[data-enter]', box).map(el => [el.dataset.enter, el]));
+  const r = VIEW.enterKeys(enterSeen, [...els].map(([k, el]) => [k, el.dataset.state || '']));
+  enterSeen = r.seen;
+  let i = 0;
+  for (const k of r.enter) {
+    const el = els.get(k);
+    if (k === 'doing') play(el, [{ transform: 'scale(.98)', opacity: .55 }, { transform: 'none', opacity: 1 }], { duration: 460, easing: EASE1 });
+    else if (k === 'ring') for (const arc of $$('.ring-done, .ring-now', el)) play(arc, [{ strokeDasharray: '0 100' }, { strokeDasharray: arc.getAttribute('stroke-dasharray') }], { duration: 820, easing: EASE1 });
+    else play(el, el.classList.contains('is-here') ? [{ transform: 'translateY(8px) scale(.85)', opacity: 0 }, { transform: 'scale(1.08)', opacity: 1, offset: .65 }, { transform: 'none' }]
+      : [{ transform: 'translateY(8px)', opacity: 0 }, { transform: 'none', opacity: 1 }], { duration: 420, delay: Math.min(i++, 20) * 28, easing: EASE1, fill: 'backwards' });
+  }
 }
 
 /* ---------- 이 goal의 단계 ---------- */
@@ -395,7 +434,10 @@ function recordLine(r, now) {
   const total = r.pass + r.fail + r.userInput;
   if (!total) return '검증 기록은 아직 없어요.';
   const at = r.last && parseAt(r.last.at);
-  return `검증 기록: 통과 ${num('g-pass', r.pass)} · 실패 ${num('g-fail', r.fail)} · 사용자 입력 ${num('g-ui', r.userInput)}${r.last ? `. 마지막은 ${at ? relSpan(at) + ' ' : ''}${esc(markerWord(r.last.marker))}` : ''}`;
+  /* 숫자 카드: 통과는 초록, 실패는 빨강(0이면 둘 다 회색), 사용자 입력은 회색(질문일 수도 받은 답일 수도 있다) */
+  const stat = (cls, label, v) => `<div class="stat ${cls}"><dt>${label}</dt><dd>${v}</dd></div>`;
+  return `<span class="rec-h">검증 기록</span><dl class="stats is-rec">${stat(r.pass ? 'is-pass' : 'is-zero', '통과', num('g-pass', r.pass))}${stat(r.fail ? 'is-fail' : 'is-zero', '실패', num('g-fail', r.fail))}${stat('is-zero', '사용자 입력', num('g-ui', r.userInput))}</dl>`
+    + (r.last ? `<span class="rec-last">마지막은 ${at ? relSpan(at) + ' ' : ''}${esc(markerWord(r.last.marker))}</span>` : '');
 }
 function goalStepRow(p, P) {
   const k = 'phase:' + p.num, here = p.num === P.current, nextUp = !P.current && p.num === P.next;
@@ -440,7 +482,7 @@ function renderPhases(now) {
     const rawRec = r?.last ? `<p class="raw-h">마지막 기록 줄 <span class="chip">${esc(markerWord(r.last.marker))}</span>${at ? ` <time datetime="${esc(r.last.at)}">${fWhen(at, now)}</time>` : ''}</p><p class="rawtext">${md(r.last.text)}</p>${srcLink({ path: r.last.file, line: r.last.line })}` : srcLink(r?.ref || P.goal.ref);
     intro = `<div class="goal-intro">${cur ? `<p class="goal-name">${md(cur.name)}</p>` : ''}
       ${aim ? fold('goal-aim', '이 goal의 목표 원문', sents(aim.sentences) + srcLink({ path: aim.path, line: aim.line }), 'raw') : ''}
-      <p class="goal-rec"${fxAttr('phases-rec')}>${recordLine(r, now)}${P.goal.status ? ` <small>머리말 상태: ${md(P.goal.status)}</small>` : ''}</p>${fold('raw-goal-rec', '마지막 검증 기록 원문', rawRec, 'raw')}</div>`;
+      <div class="goal-rec"${fxAttr('phases-rec')}>${recordLine(r, now)}${P.goal.status ? ` <small>머리말 상태: ${md(P.goal.status)}</small>` : ''}</div>${fold('raw-goal-rec', '마지막 검증 기록 원문', rawRec, 'raw')}</div>`;
   }
   const rows = P.items.map(p => P.format === 'goal' ? goalStepRow(p, P) : phaseRow(p, now, limit)).join('');
   const basis = P.format === 'goal' ? 'goal 문서 「진척 단계」의 표시를 그대로 읽어요. [x]는 완료, [&gt;]는 진행 중, [ ]는 남음이에요. 단계 이름은 줄표 앞부분만 보이고, 눌러서 원문을 펼쳐요.'

@@ -39,7 +39,8 @@ const SKIP_DIRS = new Set(['node_modules', 'dist', 'out', 'coverage', '.git'])
 // M05 G10: 428 → 427. window.setBounds 채널을 지우며 그 신뢰경계 sanitizer와 테스트 main/window-bounds-sanitize.test.ts(15건)를 함께 지웠다 — 받는 채널이 없어 공격 면도 없다(goal 결정 대장 [AI]).
 // M05 G11: 427 → 428. credentials 파일 읽기 한 곳(10_Engine/credentials)과 두 소비처 기본 경로를 고정하는 main/credentials.test.ts를 더했다.
 // M05 G11: 428 → 429. frontmatter 파서 한 곳(11_Settings/frontmatter)과 skills·commands 공통 동작을 고정하는 main/frontmatter.test.ts를 더했다.
-const BASELINE_TEST_FILES = 429
+// M05 G11: 429 → 430. 비활성 오버레이 한 곳(11_Settings/disabledOverlay)과 skills·mcp 공통 동작을 고정하는 main/disabledOverlay.test.ts를 더했다.
+const BASELINE_TEST_FILES = 430
 
 function collectTestFiles(dir: string, acc: string[] = []): string[] {
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {

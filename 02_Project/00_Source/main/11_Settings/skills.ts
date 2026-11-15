@@ -9,6 +9,7 @@ import { homedir as nodeHomedir } from 'node:os'
 import { app } from 'electron'
 import type { SkillInfo } from '../../shared/ipcContract'
 import { parseFrontmatter } from './frontmatter'
+import { createDisabledOverlay } from './disabledOverlay'
 
 export interface SkillsDeps {
   homedir?: () => string
@@ -69,23 +70,6 @@ function discoverSkills(
   return skills
 }
 
-function readDisabled(
-  overlayPath: string,
-  readFileFn: (filePath: string) => string
-): Set<string> {
-  try {
-    const raw = readFileFn(overlayPath)
-    const j: unknown = JSON.parse(raw)
-    const list = (j as Record<string, unknown>)?.disabled
-    if (!Array.isArray(list)) return new Set()
-    return new Set(
-      list.filter((s): s is string => typeof s === 'string')
-    )
-  } catch {
-    return new Set()
-  }
-}
-
 export function createSkillsStore(deps?: SkillsDeps): SkillsStore {
 
   const homedirFn: () => string = deps?.homedir
@@ -110,13 +94,15 @@ export function createSkillsStore(deps?: SkillsDeps): SkillsStore {
     return join(homedirFn(), '.claude', 'skills')
   }
 
-  function getOverlayPath(): string {
-    return join(getUserDataFn(), 'skills-disabled.json')
-  }
+  const overlay = createDisabledOverlay('skills-disabled.json', {
+    getUserData: getUserDataFn,
+    readFile: readFileFn,
+    writeFile: writeFileFn,
+    mkdirSync: mkdirSyncFn,
+  })
 
   function listSkills(workspaceRoot: string | null): SkillInfo[] {
-    const overlayPath = getOverlayPath()
-    const disabled = readDisabled(overlayPath, readFileFn)
+    const disabled = overlay.readDisabled()
 
     const globalSkillsDir = getGlobalSkillsDir()
     const globalSkills = discoverSkills(globalSkillsDir, 'global', disabled, {
@@ -139,32 +125,11 @@ export function createSkillsStore(deps?: SkillsDeps): SkillsStore {
   }
 
   function setSkillEnabled(name: string, enabled: boolean): boolean {
-    if (typeof name !== 'string' || name.trim().length === 0) {
-      return false
-    }
-
-    const overlayPath = getOverlayPath()
-    const set = readDisabled(overlayPath, readFileFn)
-
-    if (enabled) {
-      set.delete(name)
-    } else {
-      set.add(name)
-    }
-
-    try {
-      const userDataDir = getUserDataFn()
-      mkdirSyncFn(userDataDir)
-      writeFileFn(overlayPath, JSON.stringify({ disabled: [...set].sort() }, null, 2))
-      return true
-    } catch {
-      return false
-    }
+    return overlay.setEnabled(name, enabled)
   }
 
   function disabledSkillOverrides(): Record<string, 'off'> | null {
-    const overlayPath = getOverlayPath()
-    const set = readDisabled(overlayPath, readFileFn)
+    const set = overlay.readDisabled()
 
     if (set.size === 0) return null
 

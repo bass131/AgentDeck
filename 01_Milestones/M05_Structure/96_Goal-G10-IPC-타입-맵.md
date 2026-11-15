@@ -1,6 +1,6 @@
 # M05 G10 — IPC 타입 맵과 renderer 클라이언트
 
-- 마일스톤: M05 구조 감사와 도메인별 재편 (로드맵 2번) · 작성: 2026-11-14 · 상태: 병합 대기 (PR 51, base는 G9c 브랜치) · 검증 강도: 강(main·preload·renderer 계약 변경)
+- 마일스톤: M05 구조 감사와 도메인별 재편 (로드맵 2번) · 작성: 2026-11-14 · 상태: 종결 (PR 51 병합, master `9ea34b1b`) · 검증 강도: 강(main·preload·renderer 계약 변경)
 - 작업 브랜치: `chore/m05-g10-ipc-typemap` — 사용자 부재 중이라 G9c 브랜치(`chore/m05-g9c-session-registry`, PR 49, 미병합) 위에 쌓았다. PR base도 G9c 브랜치다.
 - 출발점: `12_G1-재편-계획.md`의 G10 절, `11_G1-감사-보고서.md`의 IPC 실측(채널 73개, 3중 손 맞춤, namespace 어긋남 14개, 안 쓰는 채널 3개).
 
@@ -61,6 +61,7 @@ DoD
 - FAIL 2026-11-15T18:22:35+09:00 — 기록 편집 뒤 커밋 전 하드 게이트 재실행에서 `test:hooks`가 exit 1이었다. `state-race.test.mjs`의 RC-02·RC-04가 「임계구간 겹침 판정불능(null)」으로 깨졌다 — 손실은 매번 재현되지만 두 프로세스 timeline 중 하나를 못 읽는 회차가 섞인다(`fixtures/race-concurrent/run.cjs:113`). 시도는 파일 단독 재실행 13회(통과 4)와 `test:hooks` 전체 재실행 5회(통과 1)다. G10 diff는 `.claude/`에 0줄이고 같은 트리의 첫 게이트는 통과했으므로 노트북 환경의 판정 장치 불안정으로 보고 Backlog 58로 분리했다. 판정 장치라 이 goal에서는 고치지 않는다. 노트북 세션.
 - PASS 2026-11-15T18:22:35+09:00 — 하드 게이트 재실행. `typecheck:node`·`typecheck:web`·`lint`·`build` exit 0, `test:hooks`는 위 FAIL 뒤 다섯 번째 전체 재실행에서 exit 0이다. 바뀐 것은 문서 두 개(이 goal 문서, Backlog)뿐이다. 노트북 세션.
 - PASS 2026-11-15T18:23:45+09:00 — 8단계. 커밋 `75bc700d`를 `-u origin chore/m05-g10-ipc-typemap`으로 push했고(로컬·원격 해시 일치), PR 51을 base `chore/m05-g9c-session-registry`로 만들었다. 본문에 sanitizer 삭제, `npm test` 판정, `state-race` 불안정을 공개했다. 사용자가 복귀해 있으므로 병합 승인을 요청하고 멈춘다. 노트북 세션.
+- PASS 2026-11-15T18:50:48+09:00 — 종결. 사용자가 「PR 49·51 병합해」로 승인했다. PR 49 병합 뒤 PR 51의 base를 master로 바꾸고(변경 파일 228개로 G10만 남음) merge commit으로 병합했다(master `9ea34b1b`). 노트북 세션.
 
 ## 결정 대장
 

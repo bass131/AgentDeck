@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { IPC_CHANNELS } from '../../../02_Project/00_Source/shared/ipcContract'
-import type { EngineUpdateInfo } from '../../../02_Project/00_Source/shared/ipcContract'
+import { IPC_CHANNELS } from '../../../../02_Project/00_Source/shared/ipcContract'
+import type { EngineUpdateInfo } from '../../../../02_Project/00_Source/shared/ipcContract'
 
 describe('ENGINE_CHECK_UPDATE 채널 상수', () => {
   it('IPC_CHANNELS.ENGINE_CHECK_UPDATE 가 정확한 문자열로 존재한다', () => {

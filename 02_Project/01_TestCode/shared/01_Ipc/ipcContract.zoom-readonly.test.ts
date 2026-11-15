@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeAll } from 'vitest'
-import { IPC_CHANNELS, ZOOM_FACTOR_RANGE } from '../../../02_Project/00_Source/shared/ipcContract'
+import { IPC_CHANNELS, ZOOM_FACTOR_RANGE } from '../../../../02_Project/00_Source/shared/ipcContract'
 
 const h = vi.hoisted(() => {
   const exposed: { api?: Record<string, unknown> } = {}
@@ -30,7 +30,7 @@ vi.mock('electron', () => ({
 }))
 
 beforeAll(async () => {
-  await import('../../../02_Project/00_Source/preload/index')
+  await import('../../../../02_Project/00_Source/preload/index')
 })
 
 describe('ZOOM_FACTOR_RANGE 범위상수 (shared, 신규 IPC 채널 0)', () => {

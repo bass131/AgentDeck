@@ -1,6 +1,7 @@
+// 작업 ID: gap1-p13 · 옛 이름 gap1-p13-set-mode-contract.test.ts
 import { describe, it, expect, vi, beforeAll, beforeEach } from 'vitest'
 import { AGENT_CHANNELS } from '@shared/03_Agent/agent'
-import { IPC_CHANNELS } from '../../../02_Project/00_Source/shared/ipcContract'
+import { IPC_CHANNELS } from '../../../../02_Project/00_Source/shared/ipcContract'
 
 const PINNED_CHANNEL = 'agent.setMode'
 
@@ -34,7 +35,7 @@ vi.mock('electron', () => ({
 }))
 
 beforeAll(async () => {
-  await import('../../../02_Project/00_Source/preload/index')
+  await import('../../../../02_Project/00_Source/preload/index')
 })
 
 beforeEach(() => {

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeAll, beforeEach } from 'vitest'
-import { ZOOM_FACTOR_RANGE, ZOOM_FACTOR_STEP } from '../../../02_Project/00_Source/shared/ipcContract'
+import { ZOOM_FACTOR_RANGE, ZOOM_FACTOR_STEP } from '../../../../02_Project/00_Source/shared/ipcContract'
 
 const h = vi.hoisted(() => {
   const exposed: { api?: Record<string, unknown> } = {}
@@ -31,7 +31,7 @@ vi.mock('electron', () => ({
 }))
 
 beforeAll(async () => {
-  await import('../../../02_Project/00_Source/preload/index')
+  await import('../../../../02_Project/00_Source/preload/index')
 })
 
 beforeEach(() => {

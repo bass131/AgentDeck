@@ -1,10 +1,11 @@
+// 작업 ID: cp1-p01 · 옛 이름 cp1-p01-list-root-contract.test.ts
 import { describe, it, expect, vi, beforeAll, beforeEach } from 'vitest'
-import { IPC_CHANNELS } from '../../../02_Project/00_Source/shared/ipcContract'
+import { IPC_CHANNELS } from '../../../../02_Project/00_Source/shared/ipcContract'
 import type {
   SkillListRequest,
   CommandListRequest,
   AgentRunRequest,
-} from '../../../02_Project/00_Source/shared/ipcContract'
+} from '../../../../02_Project/00_Source/shared/ipcContract'
 
 describe('SkillListRequest 타입 계약 (CP1 P01, additive)', () => {
   it('root 없이도 유효하다 (빈 객체 — 기존 무인자 호출과 동등)', () => {
@@ -99,7 +100,7 @@ vi.mock('electron', () => ({
 }))
 
 beforeAll(async () => {
-  await import('../../../02_Project/00_Source/preload/index')
+  await import('../../../../02_Project/00_Source/preload/index')
 })
 
 beforeEach(() => {

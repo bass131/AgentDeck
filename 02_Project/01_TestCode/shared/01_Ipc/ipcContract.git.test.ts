@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { IPC_CHANNELS } from '../../../02_Project/00_Source/shared/ipcContract'
+import { IPC_CHANNELS } from '../../../../02_Project/00_Source/shared/ipcContract'
 import type {
   GitFileStatus,
   GitChange,
@@ -26,7 +26,7 @@ import type {
   GitPullRequest,
   GitPullResponse,
   DiffLine,
-} from '../../../02_Project/00_Source/shared/ipcContract'
+} from '../../../../02_Project/00_Source/shared/ipcContract'
 
 describe('git IPC_CHANNELS 9채널', () => {
   it('GIT_ROOT 채널이 정확한 문자열로 존재한다', () => {

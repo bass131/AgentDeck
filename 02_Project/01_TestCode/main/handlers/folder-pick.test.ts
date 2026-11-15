@@ -27,13 +27,14 @@ import { registerReferenceHandlers } from '@main/01_Ipc/handlers/reference'
 import { registerFsHandlers } from '@main/01_Ipc/handlers/fs'
 import { createRootRegistry } from '@main/07_Workspace/roots'
 import { pickDirectory } from '@main/07_Workspace/pickFolder'
-import { IPC_CHANNELS } from '../../../../02_Project/00_Source/shared/ipcContract'
+import { IPC_CHANNELS, WORKSPACE_ROOT_ID } from '../../../../02_Project/00_Source/shared/ipcContract'
 
 const ENV_KEYS = ['AGENTDECK_E2E_WORKSPACE', 'AGENTDECK_E2E_REFERENCE', 'AGENTDECK_E2E_PICK_FOLDER'] as const
 const FAKE_WIN = { id: 'win' } as never
 
 let dir: string
 let state: { win: unknown; currentWorkspaceRoot: string | null }
+let roots: ReturnType<typeof createRootRegistry>
 const saved: Record<string, string | undefined> = {}
 
 function call(channel: string, req?: unknown): Promise<unknown> {
@@ -50,7 +51,7 @@ beforeEach(() => {
   h.handlers.clear()
   h.showOpenDialog.mockReset()
   state = { win: null, currentWorkspaceRoot: null }
-  const roots = createRootRegistry()
+  roots = createRootRegistry()
   const deps = { state: state as never, roots }
   registerWorkspaceHandlers(deps)
   registerReferenceHandlers(deps)
@@ -160,9 +161,10 @@ describe('pickDirectory() — 한 곳으로 모은 대화상자 (M05 G11)', () =
 })
 
 describe('workspace.open — 성공하면 현재 루트를 기록한다', () => {
-  it('state.currentWorkspaceRoot에 `/` 경로가 들어간다', async () => {
+  // 루트 원천은 roots로 본다 — currentWorkspaceRoot는 G11 7단계(원천 하나)에서 없어질 수 있다
+  it('roots의 작업 공간 루트에 `/` 경로가 들어간다', async () => {
     h.showOpenDialog.mockResolvedValue({ canceled: false, filePaths: [dir] })
     await call(IPC_CHANNELS.WORKSPACE_OPEN, {})
-    expect(state.currentWorkspaceRoot).toBe(fwd(dir))
+    expect(roots.get(WORKSPACE_ROOT_ID)?.path).toBe(fwd(dir))
   })
 })

@@ -10,7 +10,7 @@ export const HEADER = 'X-AgentDeck-Dashboard';
 // U+2028·U+2029는 코드 포인트로 만든다. 원문에 보이지 않는 글자를 두지 않는다.
 const LINE_SEP = String.fromCharCode(0x2028), PARA_SEP = String.fromCharCode(0x2029);
 export const scriptJSON = value => JSON.stringify(value).replace(/</g, '\\u003c').replaceAll(LINE_SEP, '\\u2028').replaceAll(PARA_SEP, '\\u2029');
-const types = { '/app.js': 'text/javascript; charset=utf-8', '/styles.css': 'text/css; charset=utf-8',
+const types = { '/app.js': 'text/javascript; charset=utf-8', '/chime.js': 'text/javascript; charset=utf-8', '/styles.css': 'text/css; charset=utf-8',
   '/fonts/PretendardVariable.woff2': 'font/woff2' };
 
 // 읽기 전용 현황판 서버. 저장소에 쓰는 API와 임의 파일 열기 API는 없다.

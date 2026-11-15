@@ -219,13 +219,17 @@ function heuristicGate() {
   deny('휴리스틱', '테스트-미동반-차단', `소스 편집이 테스트 동반 없이 ${STREAK_LIMIT}회째에 이르려 한다 (완료 ${streak}회 + 이번 시도, 임계 ${STREAK_LIMIT}회) — 이 편집을 차단한다 (2026-08-08 사용자 개정, 경고→차단 승격). 재개 경로: 이 변경을 커버하는 테스트를 02_Project/01_TestCode/에 먼저 두거나, \`npm run test\`로 Green을 만들어 카운터를 리셋한 뒤 재시도하라`, { file: rel, streak, limit: STREAK_LIMIT });
 }
 
-// 테스트 인정 경로 — 두 표면이다 (M02 Phase 1 Step 7, Backlog 11번 전반부).
+// 테스트 인정 경로 — 세 표면이다 (M02 Phase 1 Step 7, Backlog 11번 전반부, M05 H4 2a).
 //   ① 앱 테스트: 02_Project/01_TestCode/ 아래 (vitest include와 동일 — 종전 유일 표면)
 //   ② 훅 테스트: .claude/hooks/ 아래의 *.test.mjs·cjs·js (훅 자체를 고칠 때의 동반 테스트 거처)
+//   ③ 현황판 시험: 99_Others/Dashboard/test/ 아래의 *.test.mjs·cjs·js (`node --test` 표면, M05 H4)
 // ②가 빠져 있던 동안은 하네스 수리가 자충수였다 — 훅 테스트를 손질해도 카운터가 리셋되지 않아
-// 훅 소스 편집 3회째가 차단됐다. 함수 선언인 이유는 호이스팅이다 (호출부가 모듈 상단에 있다).
+// 훅 소스 편집 3회째가 차단됐다. ③도 같은 자충수였다(M05 H4 2단계, Backlog 59). 현황판의 다른 .mjs·.js는
+// 계속 소스로 센다. 함수 선언인 이유는 호이스팅이다 (호출부가 모듈 상단에 있다).
 function isTestPath(rel) {
-  return rel.startsWith(TEST_PREFIX) || /^\.claude\/hooks\/(?:[^/]+\/)*[^/]+\.test\.(?:mjs|cjs|js)$/.test(rel);
+  return rel.startsWith(TEST_PREFIX)
+    || /^\.claude\/hooks\/(?:[^/]+\/)*[^/]+\.test\.(?:mjs|cjs|js)$/.test(rel)
+    || /^99_others\/dashboard\/test\/(?:[^/]+\/)*[^/]+\.test\.(?:mjs|cjs|js)$/.test(rel);
 }
 
 // ---- ② 휴리스틱 (사후 카운터) — 미동반 연속 카운터의 증가·리셋을 자기 스코프에 유지한다 (차단 판정은 사전 게이트 몫) ----

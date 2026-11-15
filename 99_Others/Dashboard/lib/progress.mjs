@@ -135,14 +135,29 @@ export function activityKind(e) {
   return null;
 }
 
+// ---- 응답 마침 뒤 조용함: hook-log의 마지막 기록(활동으로 세지 않는 기록까지 모두 친다)이 응답 마침이면 그 시각을 준다 ----
+// 응답 마침은 surface-probe의 Stop이다. 같은 Stop에 stop-gate도 기록을 남기고 두 훅의 기록 순서는 보장되지 않으므로,
+// 기록 끝에 이어진 Stop 기록 묶음 안에 surface-probe가 있으면 응답 마침으로 본다.
+// 걸린 시간은 화면 시계가 잰다(public/chime.js quietMinutes). after분을 넘게 조용하면 알아 두면 좋은 사실 줄이다.
+// 알림음·탭 제목 배지 대상이 아니다. hook-log로는 사용자 답을 기다리는지, 배경 작업을 기다리는지 가를 수 없다.
+export const QUIET_AFTER_MIN = 5;
+export function judgeQuiet(entries) {
+  const E = entries || [];
+  let i = E.length - 1, probe = null;
+  for (; i >= 0 && E[i]?.event === 'Stop'; i--) if (!probe && E[i].hook === 'surface-probe') probe = E[i];
+  if (!probe || !probe.at) return null;
+  return { at: probe.at, session: probe.session, after: QUIET_AFTER_MIN };
+}
+
 // 가장 최근 「마침」 뒤의 활동 window개에서 가장 많은 종류를 고른다. 같으면 더 최근 것이다.
+// quiet는 judgeQuiet의 값이다. 마지막 기록이 응답 마침이면 마지막 활동도 응답 마침이라 그 갈래에만 붙는다.
 export function summarizeActivity(entries, { window = 8 } = {}) {
   const acts = (entries || []).map(e => ({ e, kind: activityKind(e) })).filter(a => a.kind);
   if (!acts.length) return null;
   const last = acts.at(-1);
   if (last.kind === 'stop') {
     const actor = last.e.actor === 'sub' ? 'sub' : 'main';
-    return { kind: 'stop', actor, at: last.e.at, session: last.e.session, count: 1, of: 1, detail: null,
+    return { kind: 'stop', actor, at: last.e.at, session: last.e.session, count: 1, of: 1, detail: null, quiet: judgeQuiet(entries),
       say: `${ACTOR[actor]} ${ACTIVITY.stop[0]}`, sayPast: `${ACTOR[actor]} ${ACTIVITY.stop[1]}` };
   }
   const stopAt = acts.map(a => a.kind).lastIndexOf('stop');
@@ -178,21 +193,29 @@ export function doingLine({ goal, phases }) {
 
 // ---- 내 손이 필요한 일: 원문에 적힌 사실만으로 정한다. 없으면 빈 목록이고 화면은 「없음」이라고 쓴다 ----
 // level: stop(멈춤 — 답하기 전엔 진행하지 않음) · todo(사용자가 할 일). fresh가 있는 항목은 그 분 안에서만 보인다(화면 시계로 판정).
+// key: 알림 키. 같은 사실이면 같은 키다(알림음은 키마다 한 번 — public/chime.js, docs/알림.md).
+//   단계 번호와 결정 대장 게이트는 goal마다 되풀이되므로 goal 문서 경로를 키에 넣는다.
+//   멈춤은 사용자 입력 줄 수를, 결정 대장 게이트는 사용자 결정 수를 넣는다. 사용자가 답한 뒤 다시 막히면 새 사실이다.
+//   병합 대기는 goal 문서 경로만 쓴다(PR 번호가 나중에 붙어도 같은 사실). 사용자 입력 줄은 줄 번호 대신 그 줄의 시각으로 가른다.
+const keyOf = (...parts) => parts.filter(p => p != null && p !== '').join(':');
 export function judgeHand({ phases, ledger, hooks, failLimit = 3 }) {
   const out = [], P = phases;
   if (P?.status === 'ok') {
     const stopped = P.items.find(p => p.flow === 'stopped');
     const rec = P.format === 'goal' ? P.record : stopped?.record;
-    if (stopped) out.push({ id: 'stopped', level: 'stop', say: `${stopped.label ?? stopped.num}단계에서 실패가 ${rec?.failSinceUserInput ?? failLimit}번 쌓여 멈췄어요. 무엇이 막혔는지 보고 메인 세션에 어떻게 할지 답해 주세요.`,
+    const doc = P.format === 'goal' ? P.goal?.ref?.path : null;
+    if (stopped) out.push({ id: 'stopped', key: keyOf('stopped', doc ?? stopped.ref?.path ?? rec?.ref?.path, stopped.label ?? stopped.num, `u${rec?.userInput ?? 0}`), level: 'stop',
+      say: `${stopped.label ?? stopped.num}단계에서 실패가 ${rec?.failSinceUserInput ?? failLimit}번 쌓여 멈췄어요. 무엇이 막혔는지 보고 메인 세션에 어떻게 할지 답해 주세요.`,
       source: '검증 기록 — 마지막 사용자 입력 뒤 실패 수', ref: rec?.ref || null });
     if (P.format === 'goal') {
       const G = P.goal, cur = P.items.find(p => p.num === P.current);
-      if (G.statusWord === '병합 대기') { const pr = prOf(G.status); out.push({ id: 'merge', level: 'todo', say: `${pr ? `PR ${pr}` : 'PR'}의 병합을 승인해 주세요.`, source: 'goal 문서 머리말 「상태: 병합 대기」', ref: G.ref }); }
-      else if (!G.closed && cur && /병합\s*승인/.test(cur.name)) out.push({ id: 'merge-step', level: 'todo', say: '지금 단계에 병합 승인 요청이 들어 있어요. 요청이 오면 PR을 보고 승인해 주세요.', source: `goal 문서 진척 단계 ${cur.label ?? cur.num}`, ref: cur.ref });
-      if (G.waitingUser) out.push({ id: 'question', level: 'todo', say: '마지막 검증 기록이 사용자 입력 줄이에요. 답을 기다리는 질문인지 확인해 주세요.', quote: P.record?.last?.text ?? null, source: 'goal 문서 검증 기록의 마지막 줄', ref: P.record?.last ? { path: P.record.last.file, line: P.record.last.line } : null });
+      if (G.statusWord === '병합 대기') { const pr = prOf(G.status); out.push({ id: 'merge', key: keyOf('merge', doc ?? G.ref?.path), level: 'todo', say: `${pr ? `PR ${pr}` : 'PR'}의 병합을 승인해 주세요.`, source: 'goal 문서 머리말 「상태: 병합 대기」', ref: G.ref }); }
+      else if (!G.closed && cur && /병합\s*승인/.test(cur.name)) out.push({ id: 'merge-step', key: keyOf('merge-step', doc, cur.label ?? cur.num), level: 'todo', say: '지금 단계에 병합 승인 요청이 들어 있어요. 요청이 오면 PR을 보고 승인해 주세요.', source: `goal 문서 진척 단계 ${cur.label ?? cur.num}`, ref: cur.ref });
+      if (G.waitingUser) { const last = P.record?.last;
+        out.push({ id: 'question', key: keyOf('question', last?.file ?? doc, last?.at ?? last?.line), level: 'todo', say: '마지막 검증 기록이 사용자 입력 줄이에요. 답을 기다리는 질문인지 확인해 주세요.', quote: last?.text ?? null, source: 'goal 문서 검증 기록의 마지막 줄', ref: last ? { path: last.file, line: last.line } : null }); }
     }
   }
-  if (ledger?.status === 'ok' && ledger.gate !== 'clear') out.push({ id: 'ledger', level: 'stop',
+  if (ledger?.status === 'ok' && ledger.gate !== 'clear') out.push({ id: 'ledger', key: keyOf('ledger', ledger.ref?.path, ledger.gate, `u${ledger.userSide ?? 0}`), level: 'stop',
     say: ledger.gate === 'immediate' ? '되돌리기 어려운 결정을 AI가 혼자 내린 기록이 있어 새 워커를 띄울 수 없어요. 결정 기록을 보고 판단해 주세요.'
       : `AI가 혼자 내린 결정(${ledger.tally.AI}건)이 사용자 결정(${ledger.userSide}건)보다 많아 새 워커를 띄울 수 없어요. 결정 기록을 보고 판단해 주세요.`,
     source: 'goal 문서 결정 대장', ref: ledger.ref || null });
@@ -200,7 +223,7 @@ export function judgeHand({ phases, ledger, hooks, failLimit = 3 }) {
   if (hooks?.status === 'ok') {
     const E = hooks.entries, i = E.map(e => e.hook === 'cmd-guard' && e.verdict === 'ask').lastIndexOf(true);
     if (i >= 0 && !E.slice(i + 1).some(e => e.session === E[i].session))
-      out.push({ id: 'ask', level: 'todo', say: '명령을 실행해도 되는지 승인을 물었어요. 승인 창을 확인해 주세요.', quote: E[i].detail, at: E[i].at, fresh: 10, source: '자동 검사 기록 — 명령 승인 질문 뒤 같은 세션 기록 없음' });
+      out.push({ id: 'ask', key: keyOf('ask', E[i].at), level: 'todo', say: '명령을 실행해도 되는지 승인을 물었어요. 승인 창을 확인해 주세요.', quote: E[i].detail, at: E[i].at, fresh: 10, source: '자동 검사 기록 — 명령 승인 질문 뒤 같은 세션 기록 없음' });
   }
   return out;
 }

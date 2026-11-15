@@ -138,6 +138,10 @@ const FRESH_MIN = 10;
 const SUM = () => st.vm.summary || { doing: { text: null }, activity: null, hand: [], chores: [] };
 const isFresh = (at, now, min = FRESH_MIN) => { const t = parseAt(at); return t != null && now - t >= 0 && now - t < min * 60000; };
 function handNow(now) { return (SUM().hand || []).filter(h => !h.fresh || isFresh(h.at, now, h.fresh)); }
+/* 알림 판단 모듈(chime.js, classic script). 없으면(옛 서버가 내준 페이지) 알림만 빠지고 화면은 그대로다 */
+const CH = globalThis.AgentDeckChime || null;
+/* 응답을 마치고 조용한 분 수: 사실은 서버(summary.activity.quiet), 5분 넘게인지는 화면 시계로 chime.js가 정한다 */
+const quietNow = now => CH ? CH.quietMinutes(SUM().activity?.quiet, now) : null;
 /* 참고할 것: 멈춤은 아니지만 알아 두면 좋은 사실. 「내 손」 아래 작은 줄로만 둔다 */
 function notesNow(now) {
   const vm = st.vm, P = vm.phases, H = vm.hooks, R = vm.rules, out = [];
@@ -153,12 +157,108 @@ function notesNow(now) {
     const last = H.entries.filter(e => e.deny).at(-1);
     if (last && isFresh(last.at, now)) out.push(`${relSpan(parseAt(last.at))} 자동 검사가 작업 하나를 막았어요. <a href="#hooks">${esc(last.say || `${last.hook} ${last.verdict}`)}</a>`);
   }
+  const quiet = quietNow(now);
+  if (quiet != null) out.push(`응답을 마치고 ${esc(quiet)}분째 조용해요 — 답을 기다리거나 배경 작업 중일 수 있어요.`);
   const failedSrc = vm.sources.filter(s => s.status === 'failed').length;
   if (failedSrc) out.push(`원문 ${failedSrc}개를 읽지 못했어요. <a href="#sources" data-open="sources">어떤 원문인지 보기</a>`);
   return out;
 }
 const handLevel = now => { const h = handNow(now); return h.some(x => x.level === 'stop') ? 'stop' : h.length ? 'todo' : 'ok'; };
 const HAND_G = { stop: 'block', todo: 'note', ok: 'ok' };
+/* 「지금」 영역 가운데 시간이 지나기만 해도 바뀌는 것(fresh 만료, 조용함 분 수). 시계가 이것이 바뀔 때만 영역을 다시 그린다 */
+const nowSig = now => JSON.stringify([handNow(now).map(h => h.key ?? h.id), quietNow(now)]);
+
+/* ---------- 알림: 알림음과 탭 제목 배지 (판단은 chime.js, 설명은 docs/알림.md) ----------
+   보이는 「내 손이 필요한 일」 항목(fresh 필터 뒤)의 키 가운데 새로 들어온 키만 한 번 울린다. 조용함 줄은 대상이 아니다.
+   소리는 Web Audio로 합성한 두 음(약 0.6초)이고 「동작 줄이기」 설정과 무관하다. 브라우저가 자동 재생을 막으면
+   「소리 켜기」 칩이 「내 손이 필요한 일」 안에 나온다. 페이지의 첫 클릭·키 입력 때 허용을 미리 받아 둔다.
+   관찰 표지(<html>의 data-*): chime-count는 울려야 했던 순간의 수(막혀도 센다), chime-last는 그때의 키(JSON),
+   chime-blocked는 마지막 시도 뒤 소리가 막혀 있는지(1 막힘 · 0 재생됨 · pending 판정 중 · unsupported Web Audio 없음) */
+const BASE_TITLE = document.title;
+const pageStorage = () => { try { return localStorage; } catch { return null; } };
+const chimeMemory = CH ? CH.createChimeMemory(pageStorage()) : null;
+const sound = { ctx: null, blocked: false };
+let chimeSig = null;
+function notify(now) {
+  if (!CH) return;
+  const hand = handNow(now), title = CH.badgeTitle(BASE_TITLE, hand);
+  if (document.title !== title) document.title = title;
+  const keys = CH.handKeys(hand), sig = JSON.stringify(keys);
+  if (sig === chimeSig) return;
+  chimeSig = sig;
+  const ring = chimeMemory.see(keys);
+  if (ring.length) chime(ring);
+}
+function chime(keys) {
+  const d = document.documentElement.dataset;
+  d.chimeCount = String((Number(d.chimeCount) || 0) + 1);
+  d.chimeLast = JSON.stringify(keys);
+  d.chimeBlocked = 'pending';
+  playChime().then(r => { if (r === 'unsupported') d.chimeBlocked = 'unsupported'; }, () => { d.chimeBlocked = 'unsupported'; });
+}
+function audioCtx() {
+  if (sound.ctx) return sound.ctx;
+  const AC = globalThis.AudioContext || globalThis.webkitAudioContext;
+  if (!AC) return null;
+  try { sound.ctx = new AC(); } catch { return null; }
+  return sound.ctx;
+}
+/* resume()은 자동 재생 정책에 막혀도 거절하지 않고 기다리기만 할 수 있다. 그래서 기다리지 않고 상태(state)로 판정한다 */
+function running(ctx, ms = 300) {
+  if (ctx.state === 'running') return Promise.resolve(true);
+  return new Promise(resolve => {
+    let done = false;
+    const onState = () => { if (ctx.state === 'running') finish(); };
+    const timer = setTimeout(() => finish(), ms);
+    function finish() { if (done) return; done = true; clearTimeout(timer); ctx.removeEventListener?.('statechange', onState); resolve(ctx.state === 'running'); }
+    ctx.addEventListener?.('statechange', onState);
+    try { ctx.resume().then(finish, finish); } catch { finish(); }
+  });
+}
+/* 두 음: G5(784Hz) 0.26초, 0.2초 뒤 D6(1175Hz) 0.4초. 컨텍스트가 돌고 있을 때만 예약한다(멈춘 채 예약하면 나중에 몰아서 난다) */
+function tones(ctx) {
+  const t0 = ctx.currentTime + 0.02;
+  for (const [freq, at, len] of [[784, 0, 0.26], [1175, 0.2, 0.4]]) {
+    const osc = ctx.createOscillator(), gain = ctx.createGain(), t = t0 + at;
+    osc.type = 'sine'; osc.frequency.setValueAtTime(freq, t);
+    gain.gain.setValueAtTime(0.0001, t);
+    gain.gain.exponentialRampToValueAtTime(0.22, t + 0.015);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + len);
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.start(t); osc.stop(t + len + 0.03);
+  }
+}
+async function playChime() {
+  const ctx = audioCtx();
+  if (!ctx) return 'unsupported';
+  if (!(await running(ctx))) { setSoundBlocked(true); return 'blocked'; }
+  tones(ctx); setSoundBlocked(false);
+  return 'played';
+}
+function setSoundBlocked(on) {
+  const d = document.documentElement.dataset;
+  if (d.chimeCount) d.chimeBlocked = on ? '1' : '0';
+  if (sound.blocked === on) return;
+  sound.blocked = on;
+  const now = Date.now(); renderNow(now); fillRel(now);
+}
+/* 「소리 켜기」: 누르는 것이 사용자 조작이라 resume이 허용된다. 켜지면 한 번 울리고 칩이 사라진다 */
+function soundOn() {
+  const ctx = audioCtx();
+  if (!ctx) return;
+  running(ctx, 1500).then(ok => { if (!ok) return; tones(ctx); setSoundBlocked(false); });
+}
+/* 첫 클릭·키 입력 때 허용을 미리 받는다. 칩을 누른 것은 칩 쪽(soundOn)에 맡긴다 */
+function primeSound(e) {
+  if (e.target?.closest?.('[data-sound-on]')) return;
+  const ctx = audioCtx();
+  if (!ctx) return;
+  if (ctx.state === 'running') { if (sound.blocked) setSoundBlocked(false); return; }
+  running(ctx, 1000).then(ok => { if (ok) setSoundBlocked(false); });
+}
+document.addEventListener('click', e => { if (e.target?.closest?.('[data-sound-on]')) { e.preventDefault(); soundOn(); } else primeSound(e); }, true);
+document.addEventListener('keydown', primeSound, true);
+const soundChip = () => sound.blocked ? `<p class="q-sub">${G.note}<span>브라우저가 알림음을 막았어요. <button type="button" class="btn" data-sound-on title="누르면 소리를 켜고 알림음을 한 번 들려줘요">소리 켜기</button></span></p>` : '';
 
 /* ---------- 상단 띠 ---------- */
 const SLOTS = ['conn', 'collected', 'mini', 'failed'], slotHtml = new Map();
@@ -230,7 +330,8 @@ function handBlock(now) {
     : `<p class="q-line is-none">${G.ok}<span>없음</span></p>`;
   const chores = S.chores?.length ? fold('chores', `급하지 않은 정리 일 ${S.chores.length}개 <small>인수인계 메모에 「사용자 몫」으로 적힌 문장</small>`, sents(S.chores) + (S.choresRef ? srcLink(S.choresRef) : ''), 'raw') : '';
   const noteHtml = notes.length ? `<ul class="q-notes">${notes.map(n => `<li>${G.note}<span>${n}</span></li>`).join('')}</ul>` : '';
-  return `<div class="q q-hand is-${lv}"${fxAttr('hand')}><h2 class="q-k">내 손이 필요한 일</h2><div class="q-a">${items}${noteHtml}${chores}</div></div>`;
+  st.nowSig = nowSig(now);
+  return `<div class="q q-hand is-${lv}"${fxAttr('hand')}><h2 class="q-k">내 손이 필요한 일</h2><div class="q-a">${items}${soundChip()}${noteHtml}${chores}</div></div>`;
 }
 const GOAL_WORD = { done: '완료', current: '진행 중', draft: '초안', left: '남음', unknown: '상태 미확인' };
 function whereBlock() {
@@ -474,6 +575,8 @@ function render() {
     try { fn(now); } catch (error) { console.error('[AgentDeck 현황판] 그리기 실패', fn.name, error); }
   }
   fillRel(now);
+  /* 알림은 스냅샷마다 판정한다. 탭이 숨어 있어도 스냅샷은 그리므로 여기서 울린다 */
+  try { notify(now); } catch (error) { console.error('[AgentDeck 현황판] 알림 실패', error); }
 }
 function markFresh(keys) {
   const areas = new Set();
@@ -506,7 +609,14 @@ function beat() {
   const now = Date.now();
   /* 푸시가 없으면 1분마다 전체를 다시 그린다(시간에 묶인 판정의 안전망). 같은 내용이면 화면은 그대로다 */
   if (now - st.renderedAt >= 60000 && now - st.lastPushAt > 8000) render();
-  else { renderStrip(now); fillRel(now); }
+  else {
+    renderStrip(now);
+    /* fresh 만료와 조용함 분 수는 시간만 지나도 바뀐다. 바뀌었을 때만 「지금」을 다시 그리고, 탭 제목 배지도 함께 맞춘다.
+       여기서 던지면 다음 박자 예약이 빠져 시계와 연결 감시가 멈추므로 감싼다 */
+    try { const sig = nowSig(now); if (sig !== st.nowSig) { st.nowSig = sig; renderNow(now); } } catch (error) { console.error('[AgentDeck 현황판] 그리기 실패', 'renderNow', error); }
+    fillRel(now);
+    try { notify(now); } catch (error) { console.error('[AgentDeck 현황판] 알림 실패', error); }
+  }
   beatTimer = setTimeout(beat, 1000 - Date.now() % 1000 + 10);
 }
 document.addEventListener('visibilitychange', () => {

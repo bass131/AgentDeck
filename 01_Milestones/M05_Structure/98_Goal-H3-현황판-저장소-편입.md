@@ -26,8 +26,8 @@
 - [x] 2. `git subtree add --prefix=99_Others/Dashboard C:/Dev/AgentDeck_Dashboard feat/dashboard-redesign`
 - [x] 3. README의 `C:\Dev\AgentDeck_Dashboard` 경로를 새 위치로 갱신
 - [x] 4. 검증 — 현황판 `node --test`, 하드 게이트 다섯 종, 새 위치에서 서버 응답
-- [>] 5. 커밋, push, PR 생성, 병합 승인 요청(사용자 자리에 있음)
-- [ ] 6. 병합 뒤 master를 G9c·G10 브랜치에 병합 커밋으로 받고(포인터·pin 충돌은 각 브랜치 쪽으로) push
+- [x] 5. 커밋, push, PR 생성, 병합 승인 요청(사용자 자리에 있음)
+- [x] 6. 병합 뒤 master를 G9c·G10 브랜치에 병합 커밋으로 받고(포인터·pin 충돌은 각 브랜치 쪽으로) push
 
 실행 단계 일괄 승인 대상 (사용자 문답으로 승인됐다)
 
@@ -42,6 +42,7 @@ DoD
 검증 기록
 
 - PASS 2026-11-15T16:48:20+09:00 — 1~4단계. subtree 병합 커밋 `2b08b783`의 둘째 부모가 현황판 `06d87ac6`이라 원래 커밋이 `git log`에 남는다(경로가 루트였던 커밋이라 `git log -- 99_Others/Dashboard`에는 병합 커밋만 보인다). 새 위치 `node --test` 56건 통과·건너뜀 0(drift 시험은 `config.local.json`이 있어야 돌아서 옛 파일과 같은 내용으로 만들었고, `.gitignore`가 막는 것을 확인했다). 하드 게이트 다섯 종 exit 0. 새 위치 서버(pid 14000, `99_Others\Dashboard\server.mjs`)가 4319에서 200으로 응답했다. diff는 `99_Others/Dashboard/` 46파일, 이 문서, 포인터 한 줄, pin뿐이다. 세션 df394581.
+- PASS 2026-11-15T16:51:04+09:00 — 5~6단계. PR 50을 사용자 승인으로 merge commit 병합했다(master `74665745`). master를 G9c 브랜치에 받았고(`7ece0239`, 포인터·pin은 G9c 쪽 값), G10 브랜치는 master 대신 G9c 브랜치를 받아 base가 G9c인 PR diff에 `99_Others/` 변화가 0이다. G10 브랜치에서 하드 게이트 다섯 종 exit 0이다. G9c 쪽 병합 커밋은 기본 메시지라 Co-Authored-By 줄이 빠졌다(push 뒤라 고치지 않음). 세션 df394581.
 
 ## 결정 대장
 

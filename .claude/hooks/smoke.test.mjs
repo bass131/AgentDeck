@@ -199,6 +199,23 @@ try {
     r = run(H, srcEdit('smoke-33b', 'PreToolUse'))
     expectSilent('리셋 뒤 소스 편집은 다시 열린다', r, 'tdd-guard')
 
+    // 현황판 시험 경로 (M05 H4 2a) — 99_Others/Dashboard/test/의 *.test.*는 테스트, 같은 폴더의 다른 .mjs는 소스다
+    const DASH_SRC = join(MIRROR, '99_Others', 'Dashboard', 'lib', 'probe.mjs')
+    const DASH_TEST = join(MIRROR, '99_Others', 'Dashboard', 'test', 'probe.test.mjs')
+    const dashEdit = (sid, ev) => edit(sid, ev, DASH_SRC, 'const probe = 0;', 'const probe = 1;')
+    r = run(H, dashEdit('smoke-33d', 'PostToolUse'))
+    expectLine('현황판 lib .mjs 편집 1회 → 소스로 센다', r, 'tdd-guard', '통과', '연속-미달')
+    r = run(H, dashEdit('smoke-33d', 'PostToolUse'))
+    expectLine('현황판 lib .mjs 편집 2회 → 소스로 센다', r, 'tdd-guard', '통과', '연속-미달')
+    r = run(H, dashEdit('smoke-33d', 'PreToolUse'))
+    expectLine('현황판 lib .mjs 3회째 시도 → deny', r, 'tdd-guard', 'deny', '테스트-미동반-차단')
+    r = run(H, edit('smoke-33d', 'PreToolUse', DASH_TEST, 'a', 'b'))
+    expectLine('장전 상태의 현황판 시험 편집 → 치유 경로 allow', r, 'tdd-guard', 'allow', '치유-경로-테스트')
+    r = run(H, edit('smoke-33d', 'PostToolUse', DASH_TEST, 'a', 'b'))
+    expectLine('현황판 시험 편집 → 카운터 리셋', r, 'tdd-guard', '리셋', '테스트-편집')
+    r = run(H, dashEdit('smoke-33d', 'PreToolUse'))
+    expectSilent('현황판 시험 리셋 뒤 소스 편집은 다시 열린다', r, 'tdd-guard')
+
     r = run(H, bashOut('smoke-33c', RED_OUT))
     expectLine('vitest Red → 무기록 (증거 아님)', r, 'tdd-guard', '무기록', 'vitest-red')
   }

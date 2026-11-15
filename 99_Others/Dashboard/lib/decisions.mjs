@@ -84,8 +84,9 @@ export function parseBoard(raw) {
 }
 
 // 페이지가 그린 목록과 서버의 지금 목록이 같은지 보는 서명. 답의 뜻을 바꾸는 칸만 넣는다.
+// 상세 글(detail)도 넣는다. 사용자는 읽은 글을 보고 답하므로, 글이 고쳐졌으면 화면에 그린 목록은 낡은 것이다. 시각 칸은 넣지 않는다.
 export function decisionSig(items) {
-  const rows = (items || []).map(d => [d.id, d.kind, d.title, d.options.map(o => [o.key, o.label, o.effect]), d.recommended, d.pr]);
+  const rows = (items || []).map(d => [d.id, d.kind, d.title, d.options.map(o => [o.key, o.label, o.effect]), d.recommended, d.pr, d.detail ?? []]);
   return createHash('sha256').update(JSON.stringify(rows)).digest('hex').slice(0, 16);
 }
 

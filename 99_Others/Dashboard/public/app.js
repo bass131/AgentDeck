@@ -686,7 +686,7 @@ function sendBox() {
   const ready = !!(p && !p.pending && p.text && !p.refusal);
   const merge = [...dec.picks.keys()].some(id => decList().items.find(d => d.id === id)?.kind === 'merge');
   const result = !res ? '' : res.phase === 'sending' ? '<p class="send-result">넣는 중이에요…</p>'
-    : res.phase === 'inserted' ? `<p class="send-result is-done">${G.ok}<span>메인 입력창에 넣었어요. 메인 pane에서 Enter를 눌러야 전달돼요.</span></p>`
+    : res.phase === 'inserted' ? `<p class="send-result is-done">${G.ok}<span>메인 입력창에 넣었어요. 메인 pane에서 Enter를 눌러야 전달돼요.${res.note ? ' ' + esc(res.note) : ''}</span></p>`
     : res.phase === 'clipboard' ? `<p class="send-result is-todo">${G.note}<span>${res.reason ? esc(res.reason) + ' ' : ''}문장을 복사했어요. 메인 입력창에 붙여 넣고 Enter를 눌러 주세요.</span></p>`
     : res.phase === 'manual' ? `<p class="send-result is-todo">${G.note}<span>${res.reason ? esc(res.reason) + ' ' : ''}복사하지 못했어요. 아래 글을 직접 복사해 주세요.</span></p><textarea class="send-manual" readonly rows="2">${esc(res.line)}</textarea>`
     : `<p class="send-result is-todo">${G.note}<span>${esc(res.reason)}</span></p>`;
@@ -709,7 +709,7 @@ function renderDecide() {
   box.hidden = !show;
   if (!show) { dec.listKey = null; return; }
   paint($('#decide-sum'), `<span>${items.length ? `${num('dec-n', items.length)}건이 답을 기다려요` : '기다리는 결정이 없어요'}</span>${D.status === 'failed' ? tag(D.kept ? '보드를 읽지 못해 직전 목록이에요' : '보드를 읽지 못했어요', 'tag-broken') : ''}`);
-  const listKey = JSON.stringify([D.sig, D.status, D.kept, (D.warnings || []).length, [...dec.picks]]);
+  const listKey = DEC.cardsKey(D, dec.picks);
   if (listKey !== dec.listKey) {
     const active = document.activeElement, focusId = active?.dataset?.comment ?? null, sel = focusId != null ? [active.selectionStart, active.selectionEnd] : null;
     const failed = D.status === 'failed' ? `<p class="dec-warn">${G.block}<span>${esc(srcOf('decisions')?.error || '결정 보드를 읽지 못했어요.')}${D.kept ? ' 화면은 직전에 읽은 목록이에요.' : ''}</span></p>` : '';
@@ -749,7 +749,8 @@ async function sendLine() {
   let r;
   try { r = await postAnswer('send', shown); } catch { r = { ok: false, copy: true, line: dec.preview?.text ?? '', reason: '서버에 닿지 못했어요. 메인 입력창을 먼저 확인해 주세요.' }; }
   if (dec.result !== pending) return;
-  if (r.ok) dec.result = { phase: 'inserted', line: r.line, ids };
+  /* 서버가 고쳐 고름 표지를 붙여 넣었으면(corrected) note가 앞 문장이 입력창에 남아 있을 수 있다고 알린다 */
+  if (r.ok) dec.result = { phase: 'inserted', line: r.line, note: r.note || '', ids };
   else if (r.copy && r.line) {
     const ok = await copyText(r.line);
     if (dec.result !== pending) return;
@@ -759,13 +760,17 @@ async function sendLine() {
   renderDecide();
   if (dec.result?.phase === 'manual') $('#decide .send-manual')?.select();
 }
-/* 새 목록에 고른 답을 맞춘다. 답한 결정이 모두 목록에서 빠지면 결과 줄도 지운다 */
-function decReconcile() {
+/* 새 목록에 고른 답을 맞춘다. prev는 바뀌기 전 목록이다 — 같은 키라도 선택지 글이 바뀐 고름을 버린다.
+   답한 결정이 모두 목록에서 빠지면 결과 줄도 지운다 */
+function decReconcile(prev) {
   if (!DEC) return;
-  const items = decList().items, r = DEC.reconcilePicks(items, dec.picks, dec.comments);
+  const items = decList().items, r = DEC.reconcilePicks(items, dec.picks, dec.comments, prev);
   dec.picks = r.picks; dec.comments = r.comments;
   if (dec.result && dec.result.phase !== 'sending' && !dec.result.ids.some(id => items.some(d => d.id === id))) { dec.result = null; toast('답한 결정이 목록에서 정리됐어요.'); }
-  if (r.dropped.length) toast(`지금 고를 수 없게 된 선택을 지웠어요: ${r.dropped.join(', ')}`);
+  /* 토스트는 앞 것을 덮으므로 두 알림을 한 번에 보인다 */
+  const notes = [r.dropped.length ? `지금 고를 수 없게 된 선택을 지웠어요: ${r.dropped.join(', ')}` : '',
+    r.changed.length ? `선택지 글이 바뀌어 고른 것을 지웠어요. 바뀐 글을 읽고 다시 골라 주세요: ${r.changed.join(', ')}` : ''].filter(Boolean);
+  if (notes.length) toast(notes.join(' · '));
   if (!dec.picks.size) dec.preview = null;
 }
 
@@ -795,10 +800,12 @@ function applySnapshot(next) {
   for (const k of changed) st.changedUntil.set(k, now + 60000);
   const fresh = changed.length || removed || next.revision !== st.vm.revision;
   const decChanged = changed.includes('decisions');
+  /* 바뀌기 전 결정 목록. 같은 키의 선택지 글이 바뀌었는지 보려고 st.vm을 바꾸기 전에 잡는다 */
+  const prevDecisions = st.vm.decisions?.items || [];
   st.vm = next; st.prevSig = after; st.lastPushAt = now;
   if (fresh) st.lastChange = { count: counted.length + removed, hooks: changed.filter(k => k.startsWith('hook:')).length, at: now };
   /* 결정 목록이 바뀌면 고른 답을 새 목록에 맞추고, 남은 고름이 있으면 문장을 다시 묻는다(서버 서명이 바뀌었으므로) */
-  if (decChanged) decReconcile();
+  if (decChanged) decReconcile(prevDecisions);
   render();
   if (decChanged && dec.picks.size) schedulePreview();
   try {

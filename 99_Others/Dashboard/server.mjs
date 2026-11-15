@@ -13,6 +13,9 @@ export const HEADER = 'X-AgentDeck-Dashboard';
 export const TOKEN_HEADER = 'x-dashboard-token';
 export const BODY_MAX = 64 * 1024;
 export const ANSWER_PATHS = Object.freeze({ '/api/answer/preview': false, '/api/answer/send': true });
+// 이 서버가 앞에 문장을 넣은 뒤 다른 문장을 넣을 때 앞에 붙이는 고정 글. 입력창에 앞 문장이 남아 있어도 두 문장이 붙지 않고,
+// 메인이 마지막 문장을 답으로 읽게 한다(docs/결정-응답.md 「문장」).
+export const CORRECTION = ' / 고쳐 고름 — ';
 // U+2028·U+2029는 코드 포인트로 만든다. 원문에 보이지 않는 글자를 두지 않는다.
 const LINE_SEP = String.fromCharCode(0x2028), PARA_SEP = String.fromCharCode(0x2029);
 export const scriptJSON = value => JSON.stringify(value).replace(/</g, '\\u003c').replaceAll(LINE_SEP, '\\u2028').replaceAll(PARA_SEP, '\\u2029');
@@ -29,8 +32,11 @@ export async function createDashboard(config, { collectFn = collect, watchFn, de
   const token = randomBytes(32).toString('hex');
   const handle = validHandle(config.mainTerminalHandle);
   let vm, revision = 0, watchError = null, pending = false, collecting = null, closed = false, origin = null;
-  // 마지막으로 넣은 문장과 넣는 중인지. 같은 고름을 두 번 넣거나 겹쳐 넣으면 입력창에 줄이 쌓인다.
-  let typed = null, sending = false;
+  // 마지막으로 넣은 문장(typed, 표지 없는 문장), 그것이 들어갔는지 확실한지(typedSure), 넣는 중인지(sending).
+  // 같은 고름을 두 번 넣거나 겹쳐 넣으면 입력창에 줄이 쌓인다. typed는 결정 목록 서명이 바뀌면 지운다.
+  // everTyped는 이 서버 수명 동안 무엇이든 넣었는지(들어갔을 수 있음 포함)다. 목록이 바뀌어도 지우지 않는다 —
+  // 사용자가 Enter를 안 눌렀으면 입력창에 앞 문장이 남아 있어서, 다음 문장은 고쳐 고름 표지(CORRECTION)를 앞에 붙여 넣는다.
+  let typed = null, typedSure = false, everTyped = false, sending = false;
   function push() {
     const data = `event: snapshot\nid: ${vm.revision}\ndata: ${JSON.stringify(vm)}\n\n`;
     for (const client of clients) {
@@ -51,7 +57,11 @@ export async function createDashboard(config, { collectFn = collect, watchFn, de
           if (closed) break;
           // 넣기 버튼을 보일지만 알린다. handle 자체는 페이지에 싣지 않는다.
           next.answer = { canType: !!handle };
-          next.revision = ++revision; vm = next; push();
+          const before = currentList().sig;
+          next.revision = ++revision; vm = next;
+          // 목록이 바뀌면 같은 문장 표시를 지운다. 바뀐 목록에서 같은 문장은 다른 답일 수 있다.
+          if (currentList().sig !== before) { typed = null; typedSure = false; }
+          push();
         } catch {
           if (!vm) throw new Error('최초 수집에 실패했어요. repoPath와 접근 권한을 확인해 주세요.');
           vm = { ...vm, revision: ++revision, sources: [...vm.sources.filter(s => s.id !== 'collection'),
@@ -70,7 +80,7 @@ export async function createDashboard(config, { collectFn = collect, watchFn, de
 
   function json(response, status, value) { response.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8' }); response.end(JSON.stringify(value)); }
   // 서명은 서버의 지금 목록에서만 계산한다. 페이지가 보낸 서명은 비교 대상일 뿐이다.
-  const currentList = () => { const items = Array.isArray(vm?.decisions?.items) ? vm.decisions.items : []; return { items, sig: decisionSig(items) }; };
+  function currentList() { const items = Array.isArray(vm?.decisions?.items) ? vm.decisions.items : []; return { items, sig: decisionSig(items) }; }
   // 토큰은 길이를 먼저 비교한다(timingSafeEqual은 길이가 다르면 던진다). Origin은 정확히 이 서버여야 하고, 없어도 거절한다.
   function authorized(request) {
     if (request.headers.origin !== origin) return false;
@@ -104,18 +114,32 @@ export async function createDashboard(config, { collectFn = collect, watchFn, de
     if (result.refusal) return json(response, 409, { ok: false, reason: result.refusal, stale: !!result.stale });
     const line = result.text;
     if (!send) return json(response, 200, { ok: true, line, canType: !!handle });
-    // 페이지가 「보낼 문장」 칸에 보인 문장(expect)과 지금 만든 문장이 다르면 넣지 않는다 — 화면에 안 보인 글은 터미널로 가지 않는다
+    // 페이지가 「보낼 문장」 칸에 보인 문장(expect)과 지금 만든 문장이 다르면 넣지 않는다 — 화면에 안 보인 글은 터미널로 가지 않는다.
+    // 예외는 고쳐 고름 표지(CORRECTION) 하나다. 서버가 붙이는 고정 글이고, 넣은 뒤 결과 줄(note)이 그 사실을 알린다.
     if (typeof body.expect !== 'string' || body.expect !== line) return json(response, 409, { ok: false, stale: true, reason: '화면의 문장이 최신이 아니에요. 「보낼 문장」을 다시 확인하고 눌러 주세요.' });
     if (sending) return json(response, 409, { ok: false, reason: '앞 문장을 넣는 중이에요. 메인 입력창을 확인해 주세요.' });
-    if (typed === line) return json(response, 409, { ok: false, line, reason: '같은 문장을 이미 넣었어요. 메인 pane에서 Enter만 누르면 돼요.' });
+    if (typed === line) return json(response, 409, { ok: false, line, reason: typedSure ? '같은 문장을 이미 넣었어요. 메인 pane에서 Enter만 누르면 돼요.'
+      : '같은 문장을 넣었는지 확인하지 못했어요. 다시 넣으면 쌓일 수 있어 넣지 않았어요. 메인 입력창을 보고, 비어 있으면 문장을 복사해 붙여 넣어 주세요.' });
     if (!handle) return json(response, 200, { ok: false, copy: true, line, reason: '설정에 메인 handle이 없거나 형식이 맞지 않아 넣지 않았어요. 문장을 복사해 메인 입력창에 붙여 넣어 주세요.' });
     sending = true;
-    // 넣기 실패가 「글은 들어갔는데 응답만 깨진」 경우일 수 있으니, 부르기 전에 같은 문장 표시를 남긴다 — 다시 눌러도 쌓이지 않는다
-    typed = line;
-    try { await type(handle, line); }
-    catch { return json(response, 200, { ok: false, copy: true, line, reason: '메인 입력창에 넣었는지 확인하지 못했고, 다시 시도하지 않았어요. 입력창을 보고, 안 들어갔으면 문장을 복사해 붙여 넣어 주세요.' }); }
+    // 넣기 실패가 「글은 들어갔는데 응답만 깨진」 경우일 수 있으니, 부르기 전에 같은 문장 표시를 남긴다.
+    // 글이 안 들어간 것이 확실한 실패(definite)면 앞 값으로 되돌린다. 그 사이 목록이 바뀌어 표시가 지워졌으면 건드리지 않는다.
+    const prev = { typed, typedSure, everTyped }, corrected = everTyped;
+    typed = line; typedSure = false; everTyped = true;
+    try { await type(handle, corrected ? CORRECTION + line : line); }
+    catch (e) {
+      if (e?.definite === true) {
+        if (typed === line) ({ typed, typedSure } = prev);
+        everTyped = prev.everTyped;
+        return json(response, 200, { ok: false, copy: true, line, reason: '메인 입력창에 넣지 못했어요. 아무것도 들어가지 않았으니 다시 눌러도 되고, 문장을 복사해 붙여 넣어도 돼요.' });
+      }
+      return json(response, 200, { ok: false, copy: true, uncertain: true, line, reason: '메인 입력창에 넣었는지 확인하지 못했어요(시간 초과이거나 응답을 읽지 못함). 글이 들어갔을 수 있어 다시 시도하지 않았어요. 메인 입력창을 먼저 보고, 안 들어갔으면 문장을 복사해 붙여 넣어 주세요.' });
+    }
     finally { sending = false; }
-    return json(response, 200, { ok: true, via: 'input', line });
+    if (typed === line) typedSure = true;
+    if (!corrected) return json(response, 200, { ok: true, via: 'input', line });
+    return json(response, 200, { ok: true, via: 'input', line, corrected: true,
+      note: '앞에 넣은 문장이 메인 입력창에 남아 있을 수 있어, 「고쳐 고름」 표지를 붙여 뒤에 넣었어요. 메인은 마지막 문장을 답으로 읽어요. 앞 문장을 지우고 Enter를 눌러도 돼요.' });
   }
   const server = http.createServer(async (request, response) => {
     response.setHeader('Cache-Control', 'no-store');
@@ -124,7 +148,9 @@ export async function createDashboard(config, { collectFn = collect, watchFn, de
     response.setHeader('Referrer-Policy', 'no-referrer');
     // 다른 Host 값(DNS rebinding 포함)은 거부한다.
     if (request.headers.host !== new URL(origin).host) return json(response, 403, { ok: false, reason: '허용되지 않은 현황판 주소예요.' });
-    const url = new URL(request.url, origin);
+    // `//[` 같은 요청 줄은 URL 파서가 던진다. 처리기 밖으로 새면 서버 프로세스가 죽으므로 여기서 400으로 답한다.
+    let url;
+    try { url = new URL(request.url, origin); } catch { return json(response, 400, { ok: false, reason: '요청 주소를 읽지 못했어요.' }); }
     try {
       if (Object.hasOwn(ANSWER_PATHS, url.pathname)) {
         if (request.method !== 'POST') { response.setHeader('Allow', 'POST'); return json(response, 405, { ok: false, reason: '결정 응답은 POST로만 받아요.' }); }

@@ -95,6 +95,13 @@ test('selectable and pick keys: a waiting entry with options offers A·B and C; 
   assert.deepEqual(pickKeys(bare), ['C']);
 });
 
+test('signature: the detail text is part of it — the user answers on what they read, so an edited detail makes the drawn list stale', () => {
+  const items = parseBoard(board(entry())).items;
+  assert.notEqual(decisionSig(parseBoard(board(entry({ detail: ['## 무엇을 정하나', '- 고친 본문'] }))).items), decisionSig(items));
+  assert.notEqual(decisionSig(parseBoard(board(entry({ options: [opt('A', '그대로 둔다', '바뀐 효과'), opt('B', '다음 goal에서 합친다')] }))).items), decisionSig(items), '효과 글도 서명에 든다');
+  assert.equal(decisionSig(parseBoard(board(entry({ updatedAt: '2026-11-16T05:00:00+09:00' }))).items), decisionSig(items), '시각만 바뀌면 서명은 그대로다');
+});
+
 test('signature: same list same signature; any title, option, key, order or recommendation change moves it', () => {
   const items = parseBoard(board(entry(), entry({ id: 'second', title: '둘째 결정' }))).items;
   const sig = decisionSig(items);

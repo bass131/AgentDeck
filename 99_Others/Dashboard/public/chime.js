@@ -155,22 +155,32 @@ function decisionHand(decisions) {
 }
 // 서버 pickKeys와 같은 규칙: 선택지가 있으면 그 키들, 언제나 C(코멘트).
 const pickable = d => [...((d && d.options) || []).map(o => o.key), 'C'];
-// 새 목록에 맞춰 고른 답을 정리한다. 목록에서 빠진 결정의 고름과 코멘트는 버리고, 남은 결정에서 사라진 키는 이름을 남긴다.
+// 새 목록에 맞춰 고른 답을 정리한다. 목록에서 빠진 결정의 고름과 코멘트는 버리고, 남은 결정에서 사라진 키는 이름을 남긴다(dropped).
+// prev(앞 목록)를 주면, 같은 키라도 고른 선택지의 이름이나 효과 글이 바뀐 고름도 버리고 이름을 남긴다(changed).
+// 사용자는 바뀌기 전의 글을 보고 골랐다. C(코멘트)는 선택지 글과 무관해 그대로 둔다.
 // 받은 Map은 바꾸지 않는다. 서버는 이런 고름을 거절하므로, 몰래 두면 넣기가 화면과 다르게 실패한다.
-function reconcilePicks(items, picks, comments) {
-  const byId = new Map((items || []).map(d => [d.id, d]));
-  const nextPicks = new Map(), nextComments = new Map(), dropped = [];
+function reconcilePicks(items, picks, comments, prev) {
+  const byId = new Map((items || []).map(d => [d.id, d])), before = new Map((prev || []).map(d => [d && d.id, d]));
+  const optionOf = (d, key) => ((d && d.options) || []).find(o => o.key === key);
+  const nextPicks = new Map(), nextComments = new Map(), dropped = [], changed = [];
   for (const [id, key] of picks || []) {
     const d = byId.get(id);
     if (!d) continue;
-    if (pickable(d).includes(key)) nextPicks.set(id, key); else dropped.push(`${d.title} ${key}`);
+    if (!pickable(d).includes(key)) { dropped.push(`${d.title} ${key}`); continue; }
+    const was = key === 'C' ? null : optionOf(before.get(id), key), now = optionOf(d, key);
+    if (was && now && (was.label !== now.label || (was.effect ?? '') !== (now.effect ?? ''))) { changed.push(`${d.title} ${key}`); continue; }
+    nextPicks.set(id, key);
   }
   for (const [id, t] of comments || []) if (byId.has(id)) nextComments.set(id, t);
-  return { picks: nextPicks, comments: nextComments, dropped };
+  return { picks: nextPicks, comments: nextComments, dropped, changed };
 }
+// 결정 카드를 다시 칠할지 정하는 키. 서명·읽기 상태·고름에 더해 상세 글과 보드 경고의 글까지 넣는다 —
+// 상세 글이나 경고 글만 고쳐져도 화면이 옛 글을 보이지 않게 한다. 같은 목록과 고름이면 같은 키라서 입력 중인 칸을 건드리지 않는다.
+const cardsKey = (D, picks) => JSON.stringify([D && D.sig, D && D.status, D && D.kept,
+  ((D && D.warnings) || []).map(w => [w && w.where, w && w.what]), ((D && D.items) || []).map(d => [d && d.id, (d && d.detail) || []]), [...(picks || [])]]);
 // 요청 본문: 페이지가 그린 목록의 서명과 id별 키·코멘트다. 문장은 서버가 만든다.
 // send만 「보낼 문장」 칸에 보인 문장을 expect로 붙인다 — 서버는 그것을 넣지 않고 자기 문장과 같은지만 본다.
 const answerBody = (sig, picks, comments, expect) => ({ sig, picks: Object.fromEntries(picks || []), comments: Object.fromEntries(comments || []), ...(typeof expect === 'string' ? { expect } : {}) });
 
-globalThis.AgentDeckDecide = Object.freeze({ decisionHand, pickable, reconcilePicks, answerBody });
+globalThis.AgentDeckDecide = Object.freeze({ decisionHand, pickable, reconcilePicks, cardsKey, answerBody });
 })();

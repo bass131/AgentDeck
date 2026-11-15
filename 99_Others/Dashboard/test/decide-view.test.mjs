@@ -15,7 +15,7 @@ test('the decide module is frozen, pure and separate from the chime and view mod
   assert.ok(Object.isFrozen(D));
   assert.notEqual(D, C);
   assert.notEqual(D, globalThis.AgentDeckView);
-  for (const fn of ['decisionHand', 'reconcilePicks', 'answerBody', 'pickable']) assert.equal(typeof D[fn], 'function', fn);
+  for (const fn of ['decisionHand', 'reconcilePicks', 'answerBody', 'pickable', 'cardsKey']) assert.equal(typeof D[fn], 'function', fn);
 });
 
 test('decision hand items: one yellow item per waiting decision, keyed decision:<id>, so the H4 chime rings for a new id only', () => {
@@ -49,6 +49,50 @@ test('reconcile: picks on decisions that left the list or keys no longer offered
   // 목록에서 빠진 결정은 이름을 알 수 없어 조용히 빠지고, 남은 결정에서 사라진 키만 이름으로 알린다
   assert.deepEqual(r.dropped, ['shrunk 제목 B']);
   assert.equal(picks.size, 3, '받은 Map은 바꾸지 않는다');
+});
+
+test('reconcile: a pick whose option label or effect changed under the same key is dropped and named; C picks and unchanged options stay', () => {
+  const o = (label, effect) => [{ key: 'A', label, effect }, { key: 'B', label: '나', effect: '' }];
+  const was = [item('lab', { options: o('가', '하나') }), item('eff', { options: o('가', '하나') }), item('same', { options: o('가', '하나') }), item('cmt', { options: o('가', '하나') })];
+  const now = [item('lab', { options: o('바뀐 가', '하나') }), item('eff', { options: o('가', '바뀐 효과') }), item('same', { options: o('가', '하나') }), item('cmt', { options: o('바뀐 가', '바뀐 효과') })];
+  const picks = new Map([['lab', 'A'], ['eff', 'A'], ['same', 'A'], ['cmt', 'C']]), comments = new Map([['cmt', '글']]);
+  const r = D.reconcilePicks(now, picks, comments, was);
+  assert.deepEqual([...r.picks], [['same', 'A'], ['cmt', 'C']], '글이 바뀐 선택지의 고름은 버린다. C는 선택지 글과 무관하다');
+  assert.deepEqual(r.changed, ['lab 제목 A', 'eff 제목 A']);
+  assert.deepEqual(r.dropped, []);
+  assert.deepEqual([...r.comments], [['cmt', '글']]);
+  // 앞 목록에 없던 결정(새로 들어옴)이나 앞 목록에 없던 키는 비교할 글이 없어 키만 본다
+  assert.deepEqual([...D.reconcilePicks(now, new Map([['same', 'B']]), new Map(), [item('same', { options: [{ key: 'A', label: '가' }] })]).picks], [['same', 'B']]);
+  assert.deepEqual([...D.reconcilePicks(now, new Map([['lab', 'A']]), new Map(), []).picks], [['lab', 'A']]);
+  // 앞 목록을 모르면(첫 스냅샷) 키만 본다
+  assert.deepEqual([...D.reconcilePicks(now, picks, comments).picks].length, 4);
+  assert.deepEqual(D.reconcilePicks(now, picks, comments).changed, []);
+});
+
+test('cards key: a detail-only or warning-text-only change repaints the cards; the same list and picks keep the key', () => {
+  const base = { ...list(item('a', { detail: ['## 무엇을 정하나', '- 본문'] })), kept: false, warnings: [{ where: 'a', what: '경고 하나' }] };
+  const picks = new Map([['a', 'A']]);
+  const k = D.cardsKey(base, picks);
+  assert.equal(typeof k, 'string');
+  assert.equal(D.cardsKey(structuredClone(base), new Map(picks)), k, '같은 목록과 고름이면 다시 칠하지 않는다');
+  assert.notEqual(D.cardsKey({ ...base, items: [item('a', { detail: ['## 무엇을 정하나', '- 고친 본문'] })] }, picks), k, '상세 글만 바뀌어도 다시 칠한다');
+  assert.notEqual(D.cardsKey({ ...base, warnings: [{ where: 'a', what: '경고 글이 바뀜' }] }, picks), k, '경고 글만 바뀌어도 다시 칠한다');
+  assert.notEqual(D.cardsKey(base, new Map([['a', 'B']])), k);
+  assert.notEqual(D.cardsKey({ ...base, sig: 'other' }, picks), k);
+  assert.notEqual(D.cardsKey({ ...base, status: 'failed', kept: true }, picks), k);
+  assert.equal(typeof D.cardsKey({}, new Map()), 'string', '빈 목록도 키를 준다');
+});
+
+test('app.js: the card repaint key, the changed-option notice and the correction note are wired', async () => {
+  const app = await read('../public/app.js');
+  const body = name => app.slice(app.indexOf(`function ${name}(`), app.indexOf('\n}\n', app.indexOf(`function ${name}(`)));
+  assert.match(body('renderDecide'), /DEC\.cardsKey\(D, dec\.picks\)/, '다시 칠하기 키는 순수 함수가 정한다');
+  assert.match(body('applySnapshot'), /const prevDecisions = st\.vm\.decisions\?\.items[^;]*;[\s\S]*st\.vm = next;[\s\S]*decReconcile\(prevDecisions\)/, '앞 목록은 st.vm을 바꾸기 전에 잡는다');
+  assert.match(body('decReconcile'), /DEC\.reconcilePicks\(items, dec\.picks, dec\.comments, prev\)/);
+  assert.match(body('decReconcile'), /r\.changed\.length \? `선택지 글이 바뀌어 고른 것을 지웠어요/, '글이 바뀐 고름은 이름을 알리고 지운다');
+  assert.match(body('decReconcile'), /toast\(notes\.join\(/, '토스트는 앞 것을 덮으므로 두 알림을 한 번에 보인다');
+  assert.match(body('sendLine'), /note: r\.note/, '고쳐 고름 표지를 붙여 넣었으면 결과 줄에 알린다');
+  assert.match(body('sendBox'), /res\.phase === 'inserted' \? [^\n]*res\.note \? [^\n]*esc\(res\.note\)/, '넣은 결과 줄이 서버 note를 이스케이프해 보인다');
 });
 
 test('answer body: the drawn signature, picks and comments by id — the server composes; the shown sentence rides only as expect on send', () => {
@@ -92,7 +136,7 @@ test('app.js: posts ids and keys with the page token, shows the server sentence,
   assert.match(body('renderDecide'), /listKey/, '목록이 그대로면 카드를 다시 칠하지 않는다');
   assert.match(body('renderDecide'), /restoreFocus|selectionStart/, '다시 칠하면 입력 중인 칸과 커서를 되돌린다');
   assert.match(app, /addEventListener\('input'/);
-  assert.match(body('applySnapshot'), /decReconcile\(\)/, '목록이 바뀌면 고른 답을 새 목록에 맞춘다');
+  assert.match(body('applySnapshot'), /decReconcile\(prevDecisions\)/, '목록이 바뀌면 고른 답을 새 목록에 맞춘다');
   assert.match(body('render'), /renderDecide/, '스냅샷마다 결정 영역을 판단한다(같으면 칠하지 않는다)');
   assert.doesNotMatch(app, /\.innerHTML = [^;]*dec\.comments/, '코멘트는 innerHTML로 꽂지 않는다(이스케이프한 value 속성만)');
   // 문장은 서버의 응답에서만 온다(r.line). 페이지에 문장을 짓는 코드가 없다

@@ -134,8 +134,68 @@ test('send: types the server sentence once into the configured handle; the same 
   const again = await answer(app, 'send', body);
   assert.equal(again.status, 409);
   assert.equal(app.state.typed.length, 1);
-  assert.equal((await answer(app, 'send', await withExpect(app, pick(app, { 'g11-version-compare': 'B' })))).status, 200, '다른 문장은 넣는다');
+  // 다른 문장은 넣되, 앞 문장 뒤에 이어 붙지 않게 고쳐 고름 표지를 앞에 붙인다. 화면 문장(expect)과 같은 문장 판정은 표지 없는 문장으로 한다
+  const lineB = '현황판 결정 응답: 1) 엔진 버전 비교 두 함수를 합칠지 → B 합친다';
+  const bodyB = await withExpect(app, pick(app, { 'g11-version-compare': 'B' }));
+  assert.equal(bodyB.expect, lineB);
+  const b = await answer(app, 'send', bodyB);
+  assert.deepEqual([b.status, b.json.ok, b.json.line, b.json.corrected], [200, true, lineB, true], '다른 문장은 넣는다');
+  assert.match(b.json.note, /앞 문장/);
+  assert.match(b.json.note, /마지막/);
+  assert.deepEqual(app.state.typed[1], [HANDLE, ' / 고쳐 고름 — ' + lineB]);
+  assert.equal((await answer(app, 'send', bodyB)).status, 409, '고친 문장도 두 번은 넣지 않는다');
   assert.equal(app.state.typed.length, 2);
+});
+
+test('send: a definite failure (nothing landed) clears the same-sentence mark, so a retry types again without a correction marker', async t => {
+  let tries = 0;
+  const typed = [];
+  const app = await appFor(t, { type: async (h, text) => { tries++; if (tries === 1) throw Object.assign(new Error('terminal gone'), { definite: true }); typed.push(text); return { ok: true }; } });
+  const body = await withExpect(app, pick(app, { 'g11-version-compare': 'A' }));
+  const r = await answer(app, 'send', body);
+  assert.deepEqual([r.status, r.json.ok, r.json.copy, r.json.uncertain ?? false], [200, false, true, false]);
+  assert.match(r.json.reason, /넣지 못했어요/);
+  assert.match(r.json.reason, /다시 눌러도/);
+  const again = await answer(app, 'send', body);
+  assert.deepEqual([again.status, again.json.ok, again.json.corrected ?? false, tries], [200, true, false, 2], '확실한 실패 뒤에는 거짓 409 없이 다시 넣는다');
+  assert.deepEqual(typed, ['현황판 결정 응답: 1) 엔진 버전 비교 두 함수를 합칠지 → A 그대로 둔다'], '아무것도 들어가지 않았으니 표지 없이 넣는다');
+});
+
+test('send: an uncertain failure (timeout, unreadable answer, untagged error) keeps the mark and says to check the main input', async t => {
+  for (const error of [Object.assign(new Error('시간 초과'), { uncertain: true }), new Error('orca 오류')]) {
+    let tries = 0;
+    const app = await appFor(t, { type: async () => { tries++; throw error; } });
+    const body = await withExpect(app, pick(app, { 'g11-version-compare': 'A' }));
+    const r = await answer(app, 'send', body);
+    assert.deepEqual([r.status, r.json.ok, r.json.copy, r.json.uncertain, tries], [200, false, true, true, 1], error.message);
+    assert.match(r.json.reason, /확인하지 못했어요/);
+    assert.match(r.json.reason, /다시 시도하지 않았어요/);
+    assert.match(r.json.reason, /메인 입력창/);
+    const again = await answer(app, 'send', body);
+    assert.deepEqual([again.status, tries], [409, 1], '글이 들어갔을 수 있으니 같은 문장은 다시 넣지 않는다');
+    assert.match(again.json.reason, /확인하지 못했/);
+    assert.doesNotMatch(again.json.reason, /Enter만 누르면/, '들어갔는지 모르는데 「이미 넣었어요」라고 하지 않는다');
+  }
+});
+
+test('send: a changed decision list clears the same-sentence mark; the next send still carries the correction marker', async t => {
+  const app = await appFor(t);
+  const line = '현황판 결정 응답: 1) 엔진 버전 비교 두 함수를 합칠지 → A 그대로 둔다';
+  assert.equal((await answer(app, 'send', await withExpect(app, pick(app, { 'g11-version-compare': 'A' })))).status, 200);
+  app.state.list = listOf({ ...first, detail: ['## 무엇을 정하나', '- 고친 상세 글'] }, second); await app.refresh();
+  const r = await answer(app, 'send', await withExpect(app, pick(app, { 'g11-version-compare': 'A' })));
+  assert.deepEqual([r.status, r.json.ok, r.json.corrected], [200, true, true], '목록이 바뀌면 같은 문장 표시를 지운다');
+  assert.deepEqual(app.state.typed.map(x => x[1]), [line, ' / 고쳐 고름 — ' + line], '입력창에 앞 문장이 남아 있을 수 있어 표지는 서버 수명 동안 유지한다');
+});
+
+test('a request URL the parser rejects is 400, and the server keeps answering', async t => {
+  const app = await appFor(t);
+  for (const p of ['//[', '//[::1', '//a:b@[']) {
+    const r = await request(app, { method: 'GET', path: p });
+    assert.equal(r.status, 400, p);
+    assert.equal(r.json.ok, false);
+  }
+  assert.equal((await fetch(app.origin)).status, 200, '서버가 살아 있다');
 });
 
 test('send: a sentence other than the one the page showed (or none) is 409 — nothing unseen reaches the terminal', async t => {
@@ -170,15 +230,26 @@ test('send: no handle or a malformed one means copy only; a failed type is not r
     assert.match(r.json.reason, /복사/);
     assert.deepEqual(app.state.typed, []);
   }
+  // 넣기 실패는 한 번만 부르고 다시 시도하지 않는다. 확실한 실패와 불확실한 실패의 뒤처리는 아래 두 시험이 본다
   let tries = 0;
-  const app = await appFor(t, { type: async () => { tries++; throw new Error('orca 오류'); } });
-  const body = await withExpect(app, pick(app, { 'g11-version-compare': 'A' }));
-  const r = await answer(app, 'send', body);
+  const app = await appFor(t, { type: async () => { tries++; throw Object.assign(new Error('orca 오류'), { definite: true }); } });
+  const r = await answer(app, 'send', await withExpect(app, pick(app, { 'g11-version-compare': 'A' })));
   assert.deepEqual([r.status, r.json.ok, r.json.copy, tries], [200, false, true, 1]);
-  assert.match(r.json.reason, /다시 시도하지 않았어요/);
-  // 실패가 「글은 들어갔는데 응답만 깨진」 경우일 수 있다. 같은 문장을 다시 누르면 쌓이지 않게 409로 거절한다
-  const again = await answer(app, 'send', body);
-  assert.deepEqual([again.status, tries], [409, 1]);
+  assert.match(r.json.reason, /복사/);
+});
+
+test('deliver: ok:false, a non-zero exit, a missing orca and a refused input are definite; a timeout or unreadable output is uncertain', async () => {
+  const fail = (error, stdout = '') => (cmd, args, opts, cb) => setImmediate(() => cb(error, stdout, ''));
+  const kind = async p => { try { await p; } catch (e) { return [e.definite === true, e.uncertain === true]; } return null; };
+  const DEF = [true, false], UNSURE = [false, true];
+  assert.deepEqual(await kind(typeIntoTerminal(HANDLE, '문장', { execFileFn: fail(null, '{"ok":false,"error":{"message":"terminal gone"}}') })), DEF);
+  assert.deepEqual(await kind(typeIntoTerminal(HANDLE, '문장', { execFileFn: fail(Object.assign(new Error('Command failed'), { code: 1 })) })), DEF);
+  assert.deepEqual(await kind(typeIntoTerminal(HANDLE, '문장', { execFileFn: fail(Object.assign(new Error('spawn orca ENOENT'), { code: 'ENOENT' })) })), DEF);
+  assert.deepEqual(await kind(typeIntoTerminal('term_bad', '문장', { execFileFn: fail(null, '{"ok":true}') })), DEF);
+  assert.deepEqual(await kind(typeIntoTerminal(HANDLE, '', { execFileFn: fail(null, '{"ok":true}') })), DEF);
+  // execFile의 timeout은 자식을 죽이고 killed·signal을 단다. 글이 이미 PTY에 갔을 수 있다
+  assert.deepEqual(await kind(typeIntoTerminal(HANDLE, '문장', { execFileFn: fail(Object.assign(new Error('timeout'), { killed: true, signal: 'SIGTERM', code: null })) })), UNSURE);
+  assert.deepEqual(await kind(typeIntoTerminal(HANDLE, '문장', { execFileFn: fail(null, 'not json') })), UNSURE);
 });
 
 test('only the two answer paths take POST; every other method and path stays 405 or 404', async t => {

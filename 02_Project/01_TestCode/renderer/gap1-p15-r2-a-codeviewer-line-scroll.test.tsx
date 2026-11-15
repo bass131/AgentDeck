@@ -2,7 +2,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, act, cleanup } from '@testing-library/react'
 import type { ComponentType } from 'react'
-import { adaptFlatApi } from './helpers/windowApiMock'
+import { adaptFlatApi } from './00_Helpers/windowApiMock'
 
 const mockApi = {
   workspaceOpen: vi.fn().mockResolvedValue({ rootPath: null, tree: null }),

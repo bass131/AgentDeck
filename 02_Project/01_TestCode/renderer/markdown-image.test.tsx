@@ -4,7 +4,7 @@ import { render, act, cleanup, fireEvent } from '@testing-library/react'
 
 import { MarkdownView } from '@renderer/05_Conversation/MarkdownView'
 import { ImagePreview } from '@renderer/07_Workspace'
-import { adaptFlatApi } from './helpers/windowApiMock'
+import { adaptFlatApi } from './00_Helpers/windowApiMock'
 
 const mockFsRead = vi.fn()
 const mockApi = {

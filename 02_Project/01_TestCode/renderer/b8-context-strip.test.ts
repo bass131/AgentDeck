@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, it, expect, vi, beforeEach, afterEach, afterAll } from 'vitest'
-import { adaptFlatApi } from './helpers/windowApiMock'
+import { adaptFlatApi } from './00_Helpers/windowApiMock'
 
 const FIXED_NOW_MS = new Date('2025-06-15T09:00:00.000Z').getTime()
 vi.useFakeTimers()

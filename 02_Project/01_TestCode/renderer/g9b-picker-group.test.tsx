@@ -3,7 +3,7 @@
 // P1: 널 가드는 멀티 쪽(옵션에 현재 값이 없어도 깨지지 않는다), P2: 문구는 단일 쪽(aria 「모드 선택」).
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, cleanup, fireEvent } from '@testing-library/react'
-import { adaptFlatApi } from './helpers/windowApiMock'
+import { adaptFlatApi } from './00_Helpers/windowApiMock'
 
 afterEach(() => cleanup())
 

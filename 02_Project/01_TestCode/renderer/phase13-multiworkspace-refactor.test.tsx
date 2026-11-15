@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import React from 'react'
-import { adaptFlatApi } from './helpers/windowApiMock'
+import { adaptFlatApi } from './00_Helpers/windowApiMock'
 
 beforeEach(() => {
   Object.defineProperty(window, 'api', {

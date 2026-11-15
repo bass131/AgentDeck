@@ -4,7 +4,7 @@
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
 import { render, cleanup, fireEvent, act } from '@testing-library/react'
 import type { JSX } from 'react'
-import { adaptFlatApi } from './helpers/windowApiMock'
+import { adaptFlatApi } from './00_Helpers/windowApiMock'
 
 afterEach(() => cleanup())
 

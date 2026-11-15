@@ -5,7 +5,7 @@ import {
   __resetReplModeDefaultForTests,
 } from '@renderer/05_Conversation/replModeDefault'
 import { makeInitialState } from '@renderer/05_Conversation/state/reducer'
-import { adaptFlatApi } from './helpers/windowApiMock'
+import { adaptFlatApi } from './00_Helpers/windowApiMock'
 
 const recordLegacy = {
   id: 'conv-legacy-migrate',

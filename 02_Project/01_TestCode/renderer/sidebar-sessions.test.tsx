@@ -9,7 +9,7 @@ import {
 } from '@testing-library/react'
 import { useAppStore } from '@renderer/00_App/appStore'
 import type { ConversationRecord } from '../../../02_Project/00_Source/shared/ipcContract'
-import { adaptFlatApi } from './helpers/windowApiMock'
+import { adaptFlatApi } from './00_Helpers/windowApiMock'
 
 const SAMPLE_AS_RECORDS: ConversationRecord[] = [
   { id: 'sess-1', title: 'AuthService 리팩터링', messages: [], backendId: 'claude-code', createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z' },

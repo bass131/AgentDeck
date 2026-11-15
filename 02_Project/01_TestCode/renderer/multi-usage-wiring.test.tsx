@@ -2,7 +2,7 @@
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
 import { render, act, cleanup, waitFor } from '@testing-library/react'
 import { useAppStore } from '@renderer/00_App/appStore'
-import { adaptFlatApi } from './helpers/windowApiMock'
+import { adaptFlatApi } from './00_Helpers/windowApiMock'
 
 const mockApi = {
   windowMinimize: vi.fn(),

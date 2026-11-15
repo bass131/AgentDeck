@@ -4,8 +4,8 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, act, cleanup } from '@testing-library/react'
 import React from 'react'
 import type { PersistedMultiState } from '../../../02_Project/00_Source/shared/ipcContract'
-import { makeMultiCmdMocks } from './helpers/multiCmdMock'
-import { adaptFlatApi } from './helpers/windowApiMock'
+import { makeMultiCmdMocks } from './00_Helpers/multiCmdMock'
+import { adaptFlatApi } from './00_Helpers/windowApiMock'
 
 let _disk: PersistedMultiState | null = null
 

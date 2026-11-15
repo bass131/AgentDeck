@@ -2,7 +2,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, cleanup, act, fireEvent } from '@testing-library/react'
 import type { AgentEventPayload } from '../../../02_Project/00_Source/shared/ipcContract'
-import { adaptFlatApi } from './helpers/windowApiMock'
+import { adaptFlatApi } from './00_Helpers/windowApiMock'
 
 let capturedCallback: ((payload: AgentEventPayload) => void) | null = null
 

@@ -2,7 +2,7 @@
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
 import { render, fireEvent, cleanup, act } from '@testing-library/react'
 import { Composer } from '@renderer/05_Conversation/Composer'
-import { adaptFlatApi } from './helpers/windowApiMock'
+import { adaptFlatApi } from './00_Helpers/windowApiMock'
 
 beforeEach(() => {
   (window as unknown as Record<string, unknown>).api = adaptFlatApi({

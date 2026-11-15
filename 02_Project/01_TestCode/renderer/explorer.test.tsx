@@ -2,7 +2,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, cleanup, act } from '@testing-library/react'
 import type { FileTreeNode } from '../../../02_Project/00_Source/shared/ipcContract'
-import { adaptFlatApi } from './helpers/windowApiMock'
+import { adaptFlatApi } from './00_Helpers/windowApiMock'
 
 const mockFsListDir = vi.fn().mockImplementation(({ relDir }: { relDir: string }) => {
   if (relDir === '') {

@@ -10,7 +10,7 @@ import {
   applyAgentEvent,
   makeInitialState,
 } from '@renderer/05_Conversation/state/reducer'
-import { adaptFlatApi } from '../renderer/helpers/windowApiMock'
+import { adaptFlatApi } from '../renderer/00_Helpers/windowApiMock'
 
 function allThreadToolCards(state: AppState) {
   return state.thread

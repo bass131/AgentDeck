@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, afterEach, vi, beforeEach } from 'vitest'
 import { render, cleanup, act, fireEvent } from '@testing-library/react'
-import { adaptFlatApi } from './helpers/windowApiMock'
+import { adaptFlatApi } from './00_Helpers/windowApiMock'
 
 afterEach(() => cleanup())
 

@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, act, cleanup } from '@testing-library/react'
 import { makeInitialState } from '@renderer/05_Conversation/state/reducer'
 import type { ThreadItem } from '@renderer/05_Conversation/state/threadTypes'
-import { adaptFlatApi } from './helpers/windowApiMock'
+import { adaptFlatApi } from './00_Helpers/windowApiMock'
 
 const mockApi = {
   conversationLoad: vi.fn(async () => ({ conversations: [] })),

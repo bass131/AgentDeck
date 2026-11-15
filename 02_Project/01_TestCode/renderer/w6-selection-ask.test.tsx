@@ -2,7 +2,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, act, cleanup, screen, fireEvent } from '@testing-library/react'
 import React from 'react'
-import { adaptFlatApi } from './helpers/windowApiMock'
+import { adaptFlatApi } from './00_Helpers/windowApiMock'
 
 vi.mock('react-dom', async (importOriginal) => {
   const actual = await importOriginal<typeof import('react-dom')>()

@@ -4,7 +4,7 @@ import { buildConversationSavePayload } from '@renderer/06_Sessions/state/conver
 import type { ConversationPayloadSource } from '@renderer/06_Sessions/state/conversationPayload'
 import type { ThreadItem } from '@renderer/05_Conversation/state/threadTypes'
 import { __resetBackgroundRunsForTests } from '@renderer/03_Agent/state/backgroundRuns'
-import { adaptFlatApi } from './helpers/windowApiMock'
+import { adaptFlatApi } from './00_Helpers/windowApiMock'
 
 // eslint-disable-next-line prefer-const
 let capturedAgentRun: { [k: string]: unknown } | null = null

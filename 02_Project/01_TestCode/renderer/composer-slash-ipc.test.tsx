@@ -3,7 +3,7 @@ import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
 import { render, fireEvent, cleanup, waitFor } from '@testing-library/react'
 import { Composer } from '@renderer/05_Conversation/Composer'
 import type { SlashCommandInfo, SkillInfo } from '../../../02_Project/00_Source/shared/ipcContract'
-import { adaptFlatApi } from './helpers/windowApiMock'
+import { adaptFlatApi } from './00_Helpers/windowApiMock'
 
 const SAMPLE_COMMANDS: SlashCommandInfo[] = [
   { name: 'ask',            description: '본 대화와 분리된 임시 질문', scope: 'builtin' },

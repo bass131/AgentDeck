@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { makeInitialState, applyAgentEvent } from '@renderer/05_Conversation/state/reducer'
 import type { AppState } from '@renderer/05_Conversation/state/reducer'
 import type { AgentEventPayload } from '../../../02_Project/00_Source/shared/ipcContract'
-import { adaptFlatApi } from './helpers/windowApiMock'
+import { adaptFlatApi } from './00_Helpers/windowApiMock'
 
 const mockInterrupt = vi.fn(async () => ({ ok: true }))
 const mockAbort = vi.fn(async () => ({ ok: true }))

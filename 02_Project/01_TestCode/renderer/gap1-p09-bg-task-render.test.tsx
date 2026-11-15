@@ -6,7 +6,7 @@ import type { AppState, ToolCard } from '@renderer/05_Conversation/state/reducer
 import type { ThreadItem } from '@renderer/05_Conversation/state/threadTypes'
 import type { AgentEventPayload } from '@shared/03_Agent/agent'
 import { ToolCallCard } from '@renderer/05_Conversation/ToolCallCard'
-import { adaptFlatApi } from './helpers/windowApiMock'
+import { adaptFlatApi } from './00_Helpers/windowApiMock'
 
 const mockApi = {
   agentTaskStop: vi.fn().mockResolvedValue({ accepted: true }),

@@ -2,7 +2,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, cleanup, act, fireEvent } from '@testing-library/react'
 import type { AgentQuestion } from '../../../02_Project/00_Source/shared/agentEvents'
-import { adaptFlatApi } from './helpers/windowApiMock'
+import { adaptFlatApi } from './00_Helpers/windowApiMock'
 
 const SAMPLE_QUESTIONS: AgentQuestion[] = [
   {

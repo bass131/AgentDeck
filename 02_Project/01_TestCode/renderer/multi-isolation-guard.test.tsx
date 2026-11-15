@@ -2,7 +2,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, act, cleanup } from '@testing-library/react'
 import { useAppStore } from '@renderer/00_App/appStore'
-import { adaptFlatApi } from './helpers/windowApiMock'
+import { adaptFlatApi } from './00_Helpers/windowApiMock'
 
 let liveHandler: ((payload: { runId: string; event: { type: string } }) => void) | null = null
 const mockUnsubscribe = vi.fn(() => {

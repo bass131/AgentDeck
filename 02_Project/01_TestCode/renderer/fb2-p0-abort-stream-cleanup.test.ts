@@ -7,7 +7,7 @@ import {
 import { makeInitialState } from '@renderer/05_Conversation/state/reducer'
 import { panelReducerFn } from '@renderer/03_Agent/state/panelSession'
 import type { ThreadItem } from '@renderer/05_Conversation/state/threadTypes'
-import { adaptFlatApi } from './helpers/windowApiMock'
+import { adaptFlatApi } from './00_Helpers/windowApiMock'
 
 let agentAbortCallCount = 0
 

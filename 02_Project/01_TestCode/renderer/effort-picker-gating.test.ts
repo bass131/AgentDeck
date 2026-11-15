@@ -14,7 +14,7 @@ import { Picker as ComposerPickerPicker } from '@renderer/05_Conversation/Compos
 import { ComposerBar } from '@renderer/05_Conversation/ComposerBar'
 import { PickerGroup } from '@renderer/05_Conversation/PickerGroup'
 import { MODEL_EFFORT_LEVELS, type EffortLevel } from '@shared/03_Agent/models/modelEffort'
-import { adaptFlatApi } from './helpers/windowApiMock'
+import { adaptFlatApi } from './00_Helpers/windowApiMock'
 
 Object.defineProperty(window, 'api', { value: adaptFlatApi({}), writable: true, configurable: true })
 

@@ -2,7 +2,7 @@
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
 import { render, screen, fireEvent, cleanup, act } from '@testing-library/react'
 import { Composer } from '@renderer/05_Conversation/Composer'
-import { adaptFlatApi } from './helpers/windowApiMock'
+import { adaptFlatApi } from './00_Helpers/windowApiMock'
 
 // 멘션 팔레트 고정 데이터 — 지운 lib/composerSampleData.ts의 SAMPLE_MENTION_TREE에서 file 경로만 뽑은 값과 같다(순서 포함).
 const SAMPLE_FILES: string[] = [

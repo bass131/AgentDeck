@@ -1,0 +1,6 @@
+{"ts":"2026-11-11T09:00:00+09:00","hook":"cmd-guard","event":"PreToolUse","verdict":"allow","rule":null,"reason":"차단 규칙 미발동","cmd":"git status"}
+{"ts":"2026-11-11T09:01:00+09:00","hook":"cmd-guard","event":"PreToolUse","verdict":"deny","rule":"rm-재귀","reason":"재귀 삭제 차단","cmd":"rm -rf x"}
+not json
+{"ts":"2026-11-11T09:02:00+09:00","hook":"stop-gate","event":"Stop","verdict":"block","rule":"마감-요약-미실측","reason":"요약 없음"}
+{"ts":"2026-11-11T09:03:00+09:00","hook":"tdd-guard","event":"PreToolUse","verdict":"리셋","rule":"테스트-편집","file":"a.test.mjs"}
+{"ts":"2026-11-11T09:04:00+09:00","hook":"cmd-guard","event":"PreToolUse","verdict":"ask","rule":"git-push","cmd":"git push"}

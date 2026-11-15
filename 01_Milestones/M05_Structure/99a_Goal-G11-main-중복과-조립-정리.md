@@ -16,8 +16,8 @@ main 프로세스에서 같은 일을 하는 코드가 위치마다 한 곳으�
   - 조립 지점 하나 — `main/index.ts`, 컨텍스트의 전역 싱글톤(지금 `00_App/context.ts`), IPC 등록부에 흩어진 조립을 `00_App` 한 곳으로 모은다. `ClaudeCodeBackend`가 호출마다 skills·MCP store를 새로 만드는 것을 조립 지점이 만든 하나로 바꾼다.
   - 워크스페이스 루트 원천 하나 — `currentWorkspaceRoot`와 `roots` 두 원천을 하나로.
   - 권한 모드 매핑 표 하나 — 네 벌을 한 모듈의 표로 모으고, 시작 시 의미와 실행 중 전환 의미가 다른 값(`auto`)은 표 안에 두 칸으로 그대로 둔다.
-- **건드릴 곳**: `02_Project/00_Source/main/`(조립·중복 위치만, 도메인 동작은 그대로), 대응 테스트(`02_Project/01_TestCode/`), `collection-baseline.test.ts`, 이 goal 문서, `98_Management/01_GateState/gate-config.json`의 `planPath` 한 줄(판정 장치 — 1단계), work-pin, Backlog, H3·H4 goal 문서의 상태 줄과 종결 기록.
-- **하지 않을 것**: 권한 모드 값·의미 변경(M06), renderer·preload·shared 계약 변경, IPC 채널 추가·변경, 저장 형식 변경, 테스트 이름·배치 규칙(G12), 판정 장치 변경(포인터 한 줄 말고), 새 기능, `99_Others/Dashboard/`, CSS.
+- **건드릴 곳**: `02_Project/00_Source/main/`(조립·중복 위치만, 도메인 동작은 그대로), 대응 테스트(`02_Project/01_TestCode/`), `collection-baseline.test.ts`, 이 goal 문서, `98_Management/01_GateState/gate-config.json`의 `planPath` 한 줄(판정 장치 — 1단계), work-pin, Backlog, H3·H4 goal 문서의 상태 줄과 종결 기록. 2b단계에 한해 `.claude/hooks/state-race.test.mjs`·`fixtures/race-concurrent/run.cjs`·`_lib/state-store.cjs`(판정 장치 — 불안정 수리).
+- **하지 않을 것**: 권한 모드 값·의미 변경(M06), renderer·preload·shared 계약 변경, IPC 채널 추가·변경, 저장 형식 변경, 테스트 이름·배치 규칙(G12), 판정 장치 변경(포인터 한 줄과 2b단계 말고 — 잠금 의미론과 RC 판정 기준은 바꾸지 않는다), 새 기능, `99_Others/Dashboard/`, CSS.
 - **완료조건**
   - 재실측 표의 중복 위치 쌍마다 구현이 한 곳만 남는다(전후 grep 결과를 검증 기록이나 부속 문서에 둔다).
   - store 인스턴스가 이중으로 생기지 않는다 — 같은 앱 수명에서 `ClaudeCodeBackend` 실행을 두 번 해도 skills·MCP store가 같은 인스턴스임을 테스트가 고정한다.
@@ -32,7 +32,8 @@ main 프로세스에서 같은 일을 하는 코드가 위치마다 한 곳으�
 
 - [x] 1. 이 goal 문서, 포인터 전환(`98_Management/01_GateState/gate-config.json`의 `planPath`), pin 갱신, H3·H4 종결 표기
 - [x] 2. 재실측 — 중복 일곱 쌍의 지금 위치·차이·호출부, 조립 지점과 싱글톤·이중 인스턴스, 워크스페이스 루트 원천, 권한 모드 표 네 벌의 값, 규모와 커밋 순서, 분할 필요 여부
-- [>] 3. 구현 1 — 중복 일곱 쌍 통합(동작 무변경, 구조)
+- [x] 2b. 판정 장치 — `state-race` RC-02·RC-04 불안정 수리(Backlog 58). 원인을 실측으로 확정하고, Red 대본이 겹침·손실을 판정불능 없이 결정적으로 읽게 한다. 완료: 노트북에서 `state-race.test.mjs` 단독 20회 연속 통과, `test:hooks` 전체 exit 0
+- [>] 3. 구현 1 — 중복 여섯 쌍 통합(동작 무변경, 구조 — 버전 비교 쌍은 결정 대장대로 제외)
 - [ ] 4. 구현 2 — 조립 지점 `00_App` 하나, store 이중 생성 제거, 워크스페이스 루트 원천 하나
 - [ ] 5. 구현 3 — 권한 모드 매핑 표 하나(값 유지)
 - [ ] 6. 강 등급 검증 — 구현 문맥 없는 검수자(`reviewer`, fable), 하드 게이트 다섯 종, `npm test` master 대조, 빌드 CSS sha
@@ -54,6 +55,8 @@ DoD
 
 - PASS 2026-11-15T20:59:15+09:00 — 1단계. 이 goal 문서를 쓰고 `planPath`를 이 문서로 옮겼다(SessionStart가 새 경로를 실존으로 읽었다). pin의 현재 goal을 G11로 바꿨고, H3·H4 머리말 상태를 「종결」로 고쳐 종결 줄을 남겼다. 노트북 세션.
 - PASS 2026-11-15T21:18:35+09:00 — 2단계. 읽기 전용 워커가 `99b_G11-재실측.md`(106줄)를 썼다. 메인 세션이 대조한 사실: SDK 버전 읽기 두 벌(`ClaudeCodeBackend.ts:18`·`engineState.ts`), 권한 모드 표 네 벌(`runArgs.ts:10-16` auto→acceptEdits, `claudeAgentRun.ts:31-36` auto→auto, `claudeStream.ts:128-134` 역매핑, `agent.ts:27` 화이트리스트 — 넷 다 main), `cmpVer`(`Number`)와 `compareDesc`(`parseInt`)의 pre-release 차이, `ConversationStore`는 한 번 생성·참조 공유. 버전 비교 쌍은 합치지 않기로 결정 대장에 적었다(Backlog 61). goal의 Backlog 번호(9→4)와 컨텍스트 경로(`00_App/context.ts`)를 고쳤다. 노트북 세션.
+- USER-INPUT 2026-11-15T21:31:07+09:00 — 3단계 구현 워커의 첫 편집이 편집 계획 게이트의 주도권 판정(`[AI] 4 > [USER] 3`)에 막혔다(편집 0, 커밋 0). 선택지형 문답 네 안건을 냈고, 사용자는 `state-race` 안건에만 「깨지는 부분도 같이 고치기」로 답했다. 그 줄을 [USER]로 전환하고 2b단계를 더했다. 버전 비교·SDK 폴백 안건은 [AI]로 남는다(`[AI] 3 ≤ [USER] 4`). 노트북 세션.
+- PASS 2026-11-15T21:34:52+09:00 — 2b단계. 원인 실측: 고치기 전 단독 6회 중 2회 판정불능이었고, 진단 출력으로 본 timeline에서 한 프로세스의 rename이 `EPERM: operation not permitted`로 실패해 `renameAt`이 없었다(Windows는 같은 대상으로의 동시 rename을 거부한다). 손실은 매번 성립했다. 수리: `run.cjs`가 쓰기 실패 쪽의 임계구간 끝을 `writeAt`(보수적 하한)으로 잡고 `writeFailed`를 세며, 테스트가 판정불능일 때 timeline과 오류를 출력한다. 잠금 의미론·RC 판정 기준·`state-store.cjs`는 그대로다. 수리 뒤 단독 20회 연속 통과(그중 7회는 rename 충돌이 실제로 난 실행), 하드 게이트 다섯 종 exit 0. Backlog 58 해소. 노트북 세션.
 
 ## 결정 대장
 
@@ -62,5 +65,5 @@ DoD
 - [USER] 메인 세션은 기존 AgentDeck 작업을 이어 가고, 현황판 다듬기는 보조 세션에 맡긴다 — 「메인 세션은 기존 에이전트 덱 작업 이어서 진행해줘」 (2026-11-15)
 - [AI] 버전 비교 쌍(`engineCheckUpdate.ts` `cmpVer` ⇄ `engineVersions.ts` `compareDesc`)은 합치지 않는다. `cmpVer`는 `Number`라 `0.3.201-rc.1` 같은 pre-release에서 NaN을 내 갱신 알림이 꺼지고, `compareDesc`는 `parseInt`라 0으로 읽는다 — 합치면 「도메인 동작은 그대로」를 어긴다. DoD의 「합치지 않은 위치는 근거가 적혀 있다」로 처리하고, pre-release 비교 결함은 Backlog에 남긴다. 완료조건 문구는 바꾸지 않고 PR과 병합 요청에 이 예외를 밝힌다 (2026-11-15)
 - [AI] SDK 폴백 값 `0.3.186`→설치본 버전은 폴백 경로에서만 보이는 값 변경이라 구조 커밋과 따로 두고, 값을 고정한 기존 테스트와 드리프트 고정 테스트를 함께 고친다. Backlog 4의 해소다 (2026-11-15)
-- [AI] 하드 게이트의 `state-race` RC-02·RC-04 불안정(Backlog 58)은 그 둘만 깨졌을 때 한 번 다시 돌려 통과하면 PASS 줄 안에 「첫 실행 RC-02·RC-04만 실패, 재실행 exit 0」으로 적는다. 다른 시험이 깨지거나 재실행도 깨지면 FAIL 줄이다 (2026-11-15)
+- [USER] 하드 게이트의 `state-race` RC-02·RC-04 불안정(Backlog 58)을 재실행 규칙으로 덮지 않고 이 goal에서 고친다 — 처음 [AI]로 「재실행 통과면 PASS 줄 안에 공개」를 정했으나, 선택지형 문답에 사용자가 「깨지는 부분도 같이 고치기, 매번 불필요한 FAIL이 생기면 noise다」로 답했다. 2b단계를 더하는 범위 변경이고 판정 장치 편집은 그 단계에 명시된 세 파일로 한정한다 (2026-11-15T21:31:07+09:00)
 - [AI] `ConversationStore`는 `index.ts:55`가 한 번 만들고 `setStore`로 `00_App/context.ts`에 같은 참조를 넘긴다 — 이중 인스턴스가 아니라 소유자가 둘인 것이라 조립 커밋에서 소유자를 하나로 줄인다 (2026-11-15)

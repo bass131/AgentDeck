@@ -31,7 +31,10 @@ function race(mode) {
   // 실측치를 통과·실패와 무관하게 남긴다 — 검증 기록에 옮겨 적는 수치의 출처다
   if (summary) {
     console.log(`  [${mode}] 생존구간 겹침 ${Math.round(summary.liveOverlapMs)}ms · 임계구간 겹침 ${summary.criticalOverlapMs === null ? '판정불능' : Math.round(summary.criticalOverlapMs) + 'ms'}`
-      + ` · 생존 ${JSON.stringify(summary.survivors)} · 손실 ${JSON.stringify(summary.lost)} · global ${summary.globalSurvived}`)
+      + ` · 생존 ${JSON.stringify(summary.survivors)} · 손실 ${JSON.stringify(summary.lost)} · global ${summary.globalSurvived}`
+      + (summary.writeFailed ? ` · 쓰기 실패 ${summary.writeFailed}건(동시 rename 거부)` : ''))
+    // 판정불능이면 원인(어느 timeline에 무엇이 빠졌고 어떤 오류였는지)을 숨기지 않는다 (Backlog 58)
+    if (summary.criticalOverlapMs === null) console.log(`  [${mode}] 판정불능 원인 timeline ${JSON.stringify(summary.timelines)}`)
   }
   return { code: p.status, summary, stdout: p.stdout ?? '', stderr: p.stderr ?? '' }
 }

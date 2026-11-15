@@ -645,7 +645,8 @@ function renderSources() {
 /* ---------- 결정이 필요한 일: 결정 카드와 보낼 문장 (M05 H7, docs/결정-응답.md) ----------
    문장은 서버가 id와 키로 만든다(POST /api/answer/preview). 페이지는 받은 문장을 보이기만 하고, 「넣기」는 서버가 메인 입력창에 글만 넣는다.
    Enter는 누르지 않는다. 카드는 「지금」 밖의 자기 영역(#decide)에만 칠한다. 「지금」의 초 단위 다시 칠하기가 입력 중인 코멘트를 건드리지 않게 하려는 것이다.
-   카드 목록은 목록 서명이나 고름이 바뀔 때만 다시 칠하고(listKey), 그때도 입력 중인 칸과 커서를 되돌린다. 코멘트를 치는 동안에는 「보낼 문장」 칸만 바뀐다 */
+   카드 목록은 다시 칠하기 키(listKey = chime.js cardsKey: 목록 서명·읽기 상태·고름·상세 글·경고 글)가 바뀔 때만 다시 칠하고,
+   그때도 입력 중인 칸과 커서를 되돌린다. 코멘트를 치는 동안에는 「보낼 문장」 칸만 바뀐다 */
 const dec = { picks: new Map(), comments: new Map(), preview: null, result: null, seq: 0, timer: null, listKey: null };
 const decList = () => { const D = st.vm.decisions; return D && Array.isArray(D.items) ? D : { status: 'absent', items: [], sig: null, warnings: [] }; };
 const CHECK = svg('<path d="m3.5 8.4 3 3 6-6.6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>', 'g-check');

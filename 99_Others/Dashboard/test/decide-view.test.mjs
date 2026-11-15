@@ -15,7 +15,7 @@ test('the decide module is frozen, pure and separate from the chime and view mod
   assert.ok(Object.isFrozen(D));
   assert.notEqual(D, C);
   assert.notEqual(D, globalThis.AgentDeckView);
-  for (const fn of ['decisionHand', 'reconcilePicks', 'answerBody', 'pickable', 'cardsKey']) assert.equal(typeof D[fn], 'function', fn);
+  for (const fn of ['decisionHand', 'handShown', 'reconcilePicks', 'answerBody', 'pickable', 'cardsKey']) assert.equal(typeof D[fn], 'function', fn);
 });
 
 test('decision hand items: one yellow item per waiting decision, keyed decision:<id>, so the H4 chime rings for a new id only', () => {
@@ -120,6 +120,46 @@ test('index.html: the decision section sits right under 「지금」 and outside
   assert.match(html, /<section class="now" id="now"[^>]*><\/section>\s*<section class="decide" id="decide"[^>]*>/);
   assert.match(html, /<div id="decide-list"><\/div>/);
   assert.match(html, /<div class="send" id="decide-send"[^>]*><\/div>/);
+  // H8(사용자 「결정요청 UI는 지금하는일 UI 바로 밑에」): 「지금 하는 일」 → 결정 요청 → 「내 손」·「어디쯤」(#brief) 순서다
+  assert.match(html, /<section class="decide" id="decide"[\s\S]*?<\/section>\s*<section class="brief" id="brief"[^>]*><\/section>\s*<div class="board">/);
+});
+
+// H8(Backlog 70): 같은 결정이 「내 손」 한 줄과 결정 카드로 두 번 보이지 않게, 표시용으로만 결정 항목을 가른다.
+test('hand display: decision items leave the hand list (the cards above show them) but are still counted; facts stay', () => {
+  const fact = { key: 'merge:PR9', level: 'todo', say: '병합을 승인해 주세요' }, stop = { key: 'stop:3', level: 'stop', say: '멈췄어요' };
+  const decs = D.decisionHand(list(item('a'), item('b')));
+  const both = D.handShown([fact, ...decs, stop]);
+  assert.deepEqual(both.facts, [fact, stop], '사실 항목은 순서 그대로 남는다');
+  assert.equal(both.decisions, 2);
+  assert.match(both.note, /결정 요청 2건/);
+  const only = D.handShown(decs);
+  assert.deepEqual(only.facts, []);
+  assert.match(only.note, /결정 요청 2건/, '결정만 있으면 「없음」이 아니라 결정 요청을 가리키는 줄');
+  assert.notEqual(only.note, both.note, '사실이 있을 때와 없을 때 문장이 다르다');
+  assert.deepEqual(D.handShown([fact]), { facts: [fact], decisions: 0, note: null });
+  assert.deepEqual(D.handShown([]), { facts: [], decisions: 0, note: null });
+  assert.deepEqual(D.handShown(null), { facts: [], decisions: 0, note: null });
+  // 알림음·탭 제목 배지·띠의 손 줄은 표시와 무관하게 결정을 그대로 센다
+  assert.equal(C.badgeTitle('t', [fact, ...decs]), '(3) t');
+  assert.doesNotMatch(decs[0].source, /아래/, '결정 카드는 이제 손 목록 위에 있다');
+});
+
+test('app.js: 「지금」 paints only the doing card; hand and where go to #brief (made if an old page lacks it); the hand list shows facts only', async () => {
+  const app = await read('../public/app.js');
+  const body = name => app.slice(app.indexOf(`function ${name}(`), app.indexOf('\n}\n', app.indexOf(`function ${name}(`)));
+  assert.match(body('renderNow'), /paint\(\$\('#now'\), doingBlock\(now\)\)/);
+  assert.match(body('renderNow'), /paint\(briefBox\(\), handBlock\(now\) \+ whereBlock\(\)\)/);
+  assert.match(body('briefBox'), /createElement\('section'\)/, '옛 index.html(4319를 다시 켜기 전)에서도 영역을 만든다');
+  assert.match(body('handBlock'), /DEC\.handShown\(hand\)/, '표시는 순수 함수가 가른다');
+  assert.match(body('handBlock'), /handLevel\(now\)/, '머리 색은 결정까지 센 손 수준 그대로다');
+  assert.ok(body('handBlock').indexOf('is-defer') < body('handBlock').indexOf('is-none'), '결정만 기다리면 초록 「없음」보다 결정 요청을 가리키는 줄이 먼저다');
+  assert.match(body('handBlock'), /href="#decide"/, '그 줄은 결정 요청 영역으로 간다');
+  assert.match(body('enter'), /#brief/, '띠 칸의 등장 동작도 고른다');
+  // 결정이 없으면 결정 요청 영역은 숨지 않고 한 줄로 조용히 남는다(자리가 늘 같아야 「지금 하는 일」 바로 밑이라는 배치가 읽힌다)
+  assert.match(body('renderDecide'), /box\.hidden = !DEC;/);
+  assert.match(body('renderDecide'), /classList\.toggle\('is-empty', empty\)/);
+  assert.match(body('renderDecide'), /기다리는 결정이 없어요/);
+  assert.match(app, /k === 'hand' \|\| k === 'goals' \? 'brief'|\(hand\|goals\)\$\/\.test\(k\) \? 'brief'/, '바뀐 손·어디쯤은 #brief 머리 선으로 알린다');
 });
 
 test('app.js: posts ids and keys with the page token, shows the server sentence, never presses Enter, and keeps comment typing out of repaints', async () => {

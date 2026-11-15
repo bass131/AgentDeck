@@ -104,14 +104,17 @@ export async function createDashboard(config, { collectFn = collect, watchFn, de
     if (result.refusal) return json(response, 409, { ok: false, reason: result.refusal, stale: !!result.stale });
     const line = result.text;
     if (!send) return json(response, 200, { ok: true, line, canType: !!handle });
+    // 페이지가 「보낼 문장」 칸에 보인 문장(expect)과 지금 만든 문장이 다르면 넣지 않는다 — 화면에 안 보인 글은 터미널로 가지 않는다
+    if (typeof body.expect !== 'string' || body.expect !== line) return json(response, 409, { ok: false, stale: true, reason: '화면의 문장이 최신이 아니에요. 「보낼 문장」을 다시 확인하고 눌러 주세요.' });
     if (sending) return json(response, 409, { ok: false, reason: '앞 문장을 넣는 중이에요. 메인 입력창을 확인해 주세요.' });
     if (typed === line) return json(response, 409, { ok: false, line, reason: '같은 문장을 이미 넣었어요. 메인 pane에서 Enter만 누르면 돼요.' });
     if (!handle) return json(response, 200, { ok: false, copy: true, line, reason: '설정에 메인 handle이 없거나 형식이 맞지 않아 넣지 않았어요. 문장을 복사해 메인 입력창에 붙여 넣어 주세요.' });
     sending = true;
+    // 넣기 실패가 「글은 들어갔는데 응답만 깨진」 경우일 수 있으니, 부르기 전에 같은 문장 표시를 남긴다 — 다시 눌러도 쌓이지 않는다
+    typed = line;
     try { await type(handle, line); }
     catch { return json(response, 200, { ok: false, copy: true, line, reason: '메인 입력창에 넣었는지 확인하지 못했고, 다시 시도하지 않았어요. 입력창을 보고, 안 들어갔으면 문장을 복사해 붙여 넣어 주세요.' }); }
     finally { sending = false; }
-    typed = line;
     return json(response, 200, { ok: true, via: 'input', line });
   }
   const server = http.createServer(async (request, response) => {

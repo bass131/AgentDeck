@@ -168,8 +168,9 @@ function reconcilePicks(items, picks, comments) {
   for (const [id, t] of comments || []) if (byId.has(id)) nextComments.set(id, t);
   return { picks: nextPicks, comments: nextComments, dropped };
 }
-// 요청 본문: 페이지가 그린 목록의 서명과 id별 키·코멘트뿐이다. 문장 칸은 없다.
-const answerBody = (sig, picks, comments) => ({ sig, picks: Object.fromEntries(picks || []), comments: Object.fromEntries(comments || []) });
+// 요청 본문: 페이지가 그린 목록의 서명과 id별 키·코멘트다. 문장은 서버가 만든다.
+// send만 「보낼 문장」 칸에 보인 문장을 expect로 붙인다 — 서버는 그것을 넣지 않고 자기 문장과 같은지만 본다.
+const answerBody = (sig, picks, comments, expect) => ({ sig, picks: Object.fromEntries(picks || []), comments: Object.fromEntries(comments || []), ...(typeof expect === 'string' ? { expect } : {}) });
 
 globalThis.AgentDeckDecide = Object.freeze({ decisionHand, pickable, reconcilePicks, answerBody });
 })();

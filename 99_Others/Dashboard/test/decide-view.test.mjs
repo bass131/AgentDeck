@@ -51,10 +51,24 @@ test('reconcile: picks on decisions that left the list or keys no longer offered
   assert.equal(picks.size, 3, '받은 Map은 바꾸지 않는다');
 });
 
-test('answer body: the drawn signature, picks and comments by id — never a sentence of the page', () => {
+test('answer body: the drawn signature, picks and comments by id — the server composes; the shown sentence rides only as expect on send', () => {
   const body = D.answerBody('sig1', new Map([['a', 'C']]), new Map([['a', '코멘트']]));
   assert.deepEqual(body, { sig: 'sig1', picks: { a: 'C' }, comments: { a: '코멘트' } });
-  assert.ok(!('line' in body) && !('text' in body));
+  assert.ok(!('line' in body) && !('text' in body) && !('expect' in body));
+  // send는 「보낼 문장」 칸에 보인 문장을 expect로 붙인다. 서버는 그것을 넣지 않고 자기 문장과 같은지만 본다
+  const sent = D.answerBody('sig1', new Map([['a', 'A']]), new Map(), '현황판 결정 응답: 1) 가 → A 나');
+  assert.equal(sent.expect, '현황판 결정 응답: 1) 가 → A 나');
+});
+
+test('send waits for the preview: the button is off while a preview is pending and the page sends the shown sentence as expect', async () => {
+  const app = await read('../public/app.js');
+  const body = name => app.slice(app.indexOf(`function ${name}(`), app.indexOf('\n}\n', app.indexOf(`function ${name}(`)));
+  assert.match(body('sendLine'), /!dec\.preview \|\| dec\.preview\.pending/, '미리보기가 없거나 기다리는 중이면 넣지 않는다');
+  assert.match(body('sendLine'), /postAnswer\('send', shown\)/, '보인 문장을 expect로 보낸다');
+  assert.ok(body('sendLine').indexOf('dec.preview.pending') < body('sendLine').indexOf("postAnswer('send'"), '기다림 검사가 보내기보다 앞이다');
+  // 입력 이벤트가 클릭보다 먼저 와서 schedulePreview가 pending으로 그리므로, 버튼은 미리보기를 기다리는 동안 꺼져 있다
+  assert.match(body('schedulePreview'), /dec\.preview = dec\.picks\.size \? \{ pending: true \} : null;\n  renderDecide\(\);/);
+  assert.match(body('sendBox'), /const ready = !!\(p && !p\.pending/);
 });
 
 test('index.html: the decision section sits right under 「지금」 and outside it, so the per-second repaint of 「지금」 never touches a comment being typed', async () => {

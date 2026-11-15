@@ -51,6 +51,8 @@ function request(app, { method = 'POST', path: p = '/api/answer/preview', header
 const goodHeaders = app => ({ 'Content-Type': 'application/json', Origin: app.origin, 'X-Dashboard-Token': app.token });
 const answer = (app, p, body, headers = goodHeaders(app)) => request(app, { path: '/api/answer/' + p, headers, body: JSON.stringify(body) });
 const pick = (app, picks, comments) => ({ sig: app.state.list.sig, picks, comments });
+// send는 페이지가 화면에 보인 문장(expect)을 함께 보낸다. 서버 문장과 다르면 넣지 않는다.
+const withExpect = async (app, body) => ({ ...body, expect: (await answer(app, 'preview', body)).json.line });
 
 test('the page carries a random token per server start; snapshots and SSE never carry it; canType follows the handle', async t => {
   const a = await appFor(t), b = await appFor(t, { handle: null });
@@ -125,24 +127,35 @@ test('409 stale: the page drew another list, including after the board changed u
 
 test('send: types the server sentence once into the configured handle; the same sentence again is 409', async t => {
   const app = await appFor(t);
-  const body = pick(app, { 'g11-version-compare': 'A' });
+  const body = await withExpect(app, pick(app, { 'g11-version-compare': 'A' }));
   const r = await answer(app, 'send', body);
   assert.deepEqual([r.status, r.json], [200, { ok: true, via: 'input', line: '현황판 결정 응답: 1) 엔진 버전 비교 두 함수를 합칠지 → A 그대로 둔다' }]);
   assert.deepEqual(app.state.typed, [[HANDLE, '현황판 결정 응답: 1) 엔진 버전 비교 두 함수를 합칠지 → A 그대로 둔다']]);
   const again = await answer(app, 'send', body);
   assert.equal(again.status, 409);
   assert.equal(app.state.typed.length, 1);
-  assert.equal((await answer(app, 'send', pick(app, { 'g11-version-compare': 'B' }))).status, 200, '다른 문장은 넣는다');
+  assert.equal((await answer(app, 'send', await withExpect(app, pick(app, { 'g11-version-compare': 'B' })))).status, 200, '다른 문장은 넣는다');
   assert.equal(app.state.typed.length, 2);
+});
+
+test('send: a sentence other than the one the page showed (or none) is 409 — nothing unseen reaches the terminal', async t => {
+  const app = await appFor(t);
+  const body = pick(app, { 'g11-version-compare': 'A' });
+  for (const expect of [undefined, '', '현황판 결정 응답: 1) 엔진 버전 비교 두 함수를 합칠지 → B 합친다']) {
+    const r = await answer(app, 'send', expect === undefined ? body : { ...body, expect });
+    assert.deepEqual([r.status, r.json.stale], [409, true], String(expect));
+  }
+  assert.deepEqual(app.state.typed, []);
 });
 
 test('send: a second send while the first is still typing is 409 and does not stack a line', async t => {
   let release;
   const calls = [];
   const app = await appFor(t, { type: (h, text) => { calls.push(text); return new Promise(r => { release = r; }); } });
-  const firstSend = answer(app, 'send', pick(app, { 'g11-version-compare': 'A' }));
+  const bodyA = await withExpect(app, pick(app, { 'g11-version-compare': 'A' })), bodyB = await withExpect(app, pick(app, { 'g11-version-compare': 'B' }));
+  const firstSend = answer(app, 'send', bodyA);
   while (!calls.length) await new Promise(r => setTimeout(r, 5));
-  const overlap = await answer(app, 'send', pick(app, { 'g11-version-compare': 'B' }));
+  const overlap = await answer(app, 'send', bodyB);
   assert.equal(overlap.status, 409);
   release({ ok: true });
   assert.equal((await firstSend).status, 200);
@@ -152,16 +165,20 @@ test('send: a second send while the first is still typing is 409 and does not st
 test('send: no handle or a malformed one means copy only; a failed type is not retried and also falls back to copy', async t => {
   for (const handle of [null, undefined, '', 'term_NOT-A-UUID; rm -rf', 'TERM_00000000-1111-4222-8333-444444444444']) {
     const app = await appFor(t, { handle });
-    const r = await answer(app, 'send', pick(app, { 'g11-version-compare': 'A' }));
+    const r = await answer(app, 'send', await withExpect(app, pick(app, { 'g11-version-compare': 'A' })));
     assert.deepEqual([r.status, r.json.ok, r.json.copy, r.json.line], [200, false, true, '현황판 결정 응답: 1) 엔진 버전 비교 두 함수를 합칠지 → A 그대로 둔다'], String(handle));
     assert.match(r.json.reason, /복사/);
     assert.deepEqual(app.state.typed, []);
   }
   let tries = 0;
   const app = await appFor(t, { type: async () => { tries++; throw new Error('orca 오류'); } });
-  const r = await answer(app, 'send', pick(app, { 'g11-version-compare': 'A' }));
+  const body = await withExpect(app, pick(app, { 'g11-version-compare': 'A' }));
+  const r = await answer(app, 'send', body);
   assert.deepEqual([r.status, r.json.ok, r.json.copy, tries], [200, false, true, 1]);
   assert.match(r.json.reason, /다시 시도하지 않았어요/);
+  // 실패가 「글은 들어갔는데 응답만 깨진」 경우일 수 있다. 같은 문장을 다시 누르면 쌓이지 않게 409로 거절한다
+  const again = await answer(app, 'send', body);
+  assert.deepEqual([again.status, tries], [409, 1]);
 });
 
 test('only the two answer paths take POST; every other method and path stays 405 or 404', async t => {

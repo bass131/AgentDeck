@@ -720,9 +720,9 @@ function renderDecide() {
   }
   paint($('#decide-send'), items.length || dec.result ? sendBox() : '');
 }
-async function postAnswer(kind) {
+async function postAnswer(kind, expect) {
   const D = decList();
-  const r = await fetch('/api/answer/' + kind, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Dashboard-Token': BOOT.token }, body: JSON.stringify(DEC.answerBody(D.sig, dec.picks, dec.comments)) });
+  const r = await fetch('/api/answer/' + kind, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Dashboard-Token': BOOT.token }, body: JSON.stringify(DEC.answerBody(D.sig, dec.picks, dec.comments, expect)) });
   try { return await r.json(); } catch { return { ok: false, reason: `서버가 읽을 수 없는 답을 줬어요 (${r.status}).` }; }
 }
 /* 고름이나 코멘트가 바뀌면 150ms 뒤 서버에 문장을 묻는다. 늦게 온 앞 답은 버린다(seq) */
@@ -742,10 +742,12 @@ function schedulePreview() {
 }
 /* 넣기: 서버가 넣지 못했거나(handle 없음) 넣기가 실패하면 받은 문장을 복사로 넘긴다. 서버는 다시 시도하지 않는다 */
 async function sendLine() {
-  const ids = [...dec.picks.keys()], pending = { phase: 'sending', ids };
+  // 「보낼 문장」 칸에 보인 문장만 보낸다. 미리보기가 없거나 기다리는 중이면 아무것도 하지 않는다(서버도 expect가 다르면 409)
+  if (!dec.preview || dec.preview.pending || !dec.preview.text) return;
+  const shown = dec.preview.text, ids = [...dec.picks.keys()], pending = { phase: 'sending', ids };
   dec.result = pending; renderDecide();
   let r;
-  try { r = await postAnswer('send'); } catch { r = { ok: false, copy: true, line: dec.preview?.text ?? '', reason: '서버에 닿지 못했어요. 메인 입력창을 먼저 확인해 주세요.' }; }
+  try { r = await postAnswer('send', shown); } catch { r = { ok: false, copy: true, line: dec.preview?.text ?? '', reason: '서버에 닿지 못했어요. 메인 입력창을 먼저 확인해 주세요.' }; }
   if (dec.result !== pending) return;
   if (r.ok) dec.result = { phase: 'inserted', line: r.line, ids };
   else if (r.copy && r.line) {

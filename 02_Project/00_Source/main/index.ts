@@ -4,6 +4,7 @@ import { createConversationStore } from './06_Sessions/store'
 import type { ConversationStore } from './06_Sessions/store'
 import { registerIpc, setStore, initMultiStore, disposeAllRuns, getPrefsStore } from './01_Ipc/index'
 import { restoreBootZoom } from './12_Window/zoom'
+import { getUserDataDir } from './02_Common/userData'
 
 function createWindow(): BrowserWindow {
   const { width: areaW, height: areaH } = screen.getPrimaryDisplay().workAreaSize
@@ -51,7 +52,7 @@ let _store: ConversationStore | null = null
 
 app.whenReady().then(() => {
   try {
-    const chatsDir = join(app.getPath('userData'), 'chats')
+    const chatsDir = join(getUserDataDir(), 'chats')
     _store = createConversationStore(chatsDir)
     setStore(_store)
   } catch (err) {
@@ -63,7 +64,7 @@ app.whenReady().then(() => {
   }
 
   try {
-    initMultiStore(app.getPath('userData'))
+    initMultiStore(getUserDataDir())
   } catch (err) {
     console.error('[main] multiStore 초기화 실패 — 멀티 세션 영속 비활성:', err)
   }

@@ -6,7 +6,7 @@ import {
 } from 'node:fs'
 import { join } from 'node:path'
 import { homedir as nodeHomedir } from 'node:os'
-import { app } from 'electron'
+import { getUserDataDir } from '@main/02_Common/userData'
 import type { SkillInfo } from '../../shared/ipcContract'
 import { parseFrontmatter } from './frontmatter'
 import { createDisabledOverlay } from './disabledOverlay'
@@ -76,7 +76,7 @@ export function createSkillsStore(deps?: SkillsDeps): SkillsStore {
     ?? (() => nodeHomedir())
 
   const getUserDataFn: () => string = deps?.getUserData
-    ?? (() => app.getPath('userData'))
+    ?? (() => getUserDataDir())
 
   const readdirFn = deps?.readdir
     ?? ((dir: string) => nodeReaddirSync(dir, { withFileTypes: true }) as Array<{ name: string; isDirectory: () => boolean }>)

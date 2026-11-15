@@ -1,6 +1,6 @@
 import { readFile as nodeReadFile, writeFile as nodeWriteFile } from 'node:fs/promises'
 import { join } from 'node:path'
-import { app } from 'electron'
+import { getUserDataDir } from '@main/02_Common/userData'
 import type { UiPrefs } from '../../shared/ipcContract'
 
 export interface PrefsDeps {
@@ -21,7 +21,7 @@ export function createPrefsStore(deps?: PrefsDeps): PrefsStore {
   } else if (deps?.readFile || deps?.writeFile) {
     resolvedPath = '<injected>'
   } else {
-    resolvedPath = join(app.getPath('userData'), 'ui-prefs.json')
+    resolvedPath = join(getUserDataDir(), 'ui-prefs.json')
   }
 
   const readFileFn: () => Promise<string> = deps?.readFile

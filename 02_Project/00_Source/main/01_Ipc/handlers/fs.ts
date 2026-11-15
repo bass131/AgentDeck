@@ -1,6 +1,6 @@
-import { app } from 'electron'
 import type { BrowserWindow } from 'electron'
 import { pickDirectory } from '@main/07_Workspace/pickFolder'
+import { getUserDataDir } from '@main/02_Common/userData'
 import { existsSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { IPC_CHANNELS, WORKSPACE_ROOT_ID } from '../../../shared/ipcContract'
@@ -115,7 +115,7 @@ export function registerFsHandlers(deps: FsHandlerDeps): void {
       return { path: '' }
     }
     try {
-      const dir = join(app.getPath('userData'), 'attachments')
+      const dir = join(getUserDataDir(), 'attachments')
       const path = await saveImageBytes(dir, req.bytes, typeof req.ext === 'string' ? req.ext : 'png')
       return { path }
     } catch {

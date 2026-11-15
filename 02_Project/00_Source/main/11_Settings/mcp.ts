@@ -5,7 +5,7 @@ import {
 } from 'node:fs'
 import { join } from 'node:path'
 import { homedir as nodeHomedir } from 'node:os'
-import { app } from 'electron'
+import { getUserDataDir } from '@main/02_Common/userData'
 import type { McpServerInfo } from '../../shared/ipcContract'
 import { createDisabledOverlay } from './disabledOverlay'
 
@@ -101,7 +101,7 @@ export function createMcpStore(deps?: McpDeps): McpStore {
   const homedirFn: () => string = deps?.homedir ?? (() => nodeHomedir())
 
   const getUserDataFn: () => string =
-    deps?.getUserData ?? (() => app.getPath('userData'))
+    deps?.getUserData ?? (() => getUserDataDir())
 
   const readFileFn =
     deps?.readFile ?? ((filePath: string) => nodeReadFileSync(filePath, 'utf8'))

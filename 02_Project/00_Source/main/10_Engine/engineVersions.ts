@@ -4,6 +4,7 @@ import fsp from 'node:fs/promises'
 import { spawn } from 'node:child_process'
 import { pathToFileURL } from 'node:url'
 import { app } from 'electron'
+import { getUserDataDir } from '@main/02_Common/userData'
 import type { EngineVersionState, EngineInstallProgress } from '../../shared/ipcContract'
 
 const PACKAGE = '@anthropic-ai/claude-agent-sdk'
@@ -13,7 +14,7 @@ const SEMVER_RE = /^\d+\.\d+\.\d+(-[\w.]+)?$/
 function getUserDataPath(overrideUserData?: string): string {
   if (overrideUserData) return overrideUserData
   try {
-    return app.getPath('userData')
+    return getUserDataDir()
   } catch {
     throw new Error(
       'engineVersions: electron userData 경로를 가져올 수 없습니다(app.getPath 실패 — ' +

@@ -197,8 +197,19 @@ test('sound state: one value drives the data-chime-blocked marker and the small 
 test('strip hand line: the first shown item, a stop first when there is one, and how many more', () => {
   assert.equal(stripHand([]), null);
   assert.equal(stripHand(null), null);
-  assert.deepEqual(stripHand([{ level: 'todo', say: 'PR 52의 병합을 승인해 주세요.' }]), { level: 'todo', say: 'PR 52의 병합을 승인해 주세요.', more: 0 });
-  assert.deepEqual(stripHand([{ level: 'todo', say: '가' }, { level: 'stop', say: '나' }, null]), { level: 'stop', say: '나', more: 1 });
+  assert.deepEqual(stripHand([{ level: 'todo', say: 'PR 52의 병합을 승인해 주세요.' }]), { level: 'todo', say: 'PR 52의 병합을 승인해 주세요.', more: 0, to: '#brief' });
+  assert.deepEqual(stripHand([{ level: 'todo', say: '가' }, { level: 'stop', say: '나' }, null]), { level: 'stop', say: '나', more: 1, to: '#brief' });
+});
+
+// H8: 「내 손」 목록은 결정 요청 밑(#brief)으로 옮겼고, 결정 항목은 「결정 요청」 카드(#decide)에만 보인다.
+// 그래서 띠의 손 줄은 고른 항목이 결정이면 카드로, 아니면 「내 손」 목록으로 간다(#now는 이제 큰 카드뿐이다).
+test('strip hand line: jumps to the decision cards for a decision item, to the hand list otherwise', async () => {
+  const app = (await readFile(new URL('../public/app.js', import.meta.url), 'utf8')).replace(/\r\n/g, '\n');
+  const body = name => app.slice(app.indexOf(`function ${name}(`), app.indexOf('\n}\n', app.indexOf(`function ${name}(`)));
+  assert.equal(stripHand([{ key: 'decision:x', level: 'todo', say: '결정' }, { key: 'merge:52', level: 'todo', say: '병합' }]).to, '#decide');
+  assert.equal(stripHand([{ key: 'merge:52', level: 'todo', say: '병합' }, { key: 'decision:x', level: 'todo', say: '결정' }]).to, '#brief');
+  assert.equal(stripHand([{ key: 'decision:x', level: 'todo', say: '결정' }, { key: 'stop:2', level: 'stop', say: '멈춤' }]).to, '#brief', '멈춤이 이기면 멈춤 항목이 있는 목록으로');
+  assert.match(body('renderStrip'), /class="mini-hand is-\$\{h\.level\}" href="\$\{h\.to\}"/);
 });
 
 test('quiet line: minutes only after more than 5 minutes past the stop, measured by the page clock', () => {

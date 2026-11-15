@@ -318,7 +318,7 @@ function renderStrip(now) {
   if (st.heroGone) {
     const lv = handLevel(now), d = SUM().doing, h = CH?.stripHand(handNow(now)) ?? null;
     mini = `<a class="mini" href="#now">${h ? G.quiet : G[HAND_G[lv]]}<span>${d?.text ? md(d.text) : '지금 하는 일 확인 안 됨'}</span>${!h && lv !== 'ok' ? `<b>${lv === 'stop' ? '멈춤' : '할 일 있음'}</b>` : ''}</a>`;
-    if (h) mini += `<a class="mini-hand is-${h.level}" href="#now" title="${esc(h.say)}">${G[HAND_G[h.level]]}<b>${h.level === 'stop' ? '멈춤' : '내 손 필요'}</b><span>${esc(h.say)}</span>${h.more ? `<small>외 ${esc(h.more)}건</small>` : ''}</a>`;
+    if (h) mini += `<a class="mini-hand is-${h.level}" href="${h.to}" title="${esc(h.say)}">${G[HAND_G[h.level]]}<b>${h.level === 'stop' ? '멈춤' : '내 손 필요'}</b><span>${esc(h.say)}</span>${h.more ? `<small>외 ${esc(h.more)}건</small>` : ''}</a>`;
   }
   stripSlot('mini', mini);
   const failed = vm.sources.filter(s => s.status === 'failed').length;

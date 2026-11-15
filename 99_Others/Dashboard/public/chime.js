@@ -82,11 +82,13 @@ const soundMark = state => SOUND_MARK[state] ?? null;
 const soundBadge = state => (SOUND_BADGE[state] ? { ...SOUND_BADGE[state] } : null);
 
 // 상단 띠의 손 줄: 보이는 항목 가운데 멈춤(stop)이 있으면 그 첫 항목, 없으면 첫 항목의 문장과 나머지 수.
+// to는 누르면 갈 곳이다 — 결정 항목은 「결정 요청」 카드(#decide), 나머지는 「내 손」 목록(#brief)이다(H8).
 function stripHand(items) {
   const list = (items || []).filter(Boolean);
   if (!list.length) return null;
-  const stop = list.find(h => h.level === 'stop');
-  return { level: stop ? 'stop' : 'todo', say: String((stop ?? list[0]).say ?? ''), more: list.length - 1 };
+  const stop = list.find(h => h.level === 'stop'), pick = stop ?? list[0];
+  const to = typeof pick.key === 'string' && pick.key.startsWith('decision:') ? '#decide' : '#brief';
+  return { level: stop ? 'stop' : 'todo', say: String(pick.say ?? ''), more: list.length - 1, to };
 }
 
 globalThis.AgentDeckChime = Object.freeze({ RUNG_KEY, RUNG_MAX, QUIET_AFTER_MIN, handKeys, chimeStep, readRung, writeRung, createChimeMemory, badgeTitle, quietMinutes, soundMark, soundBadge, stripHand });

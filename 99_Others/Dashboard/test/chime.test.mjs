@@ -54,6 +54,8 @@ test('app.js placement: the strip carries the hand line, the hand head carries t
   assert.match(body('renderStrip'), /CH\?\.stripHand\(/);
   assert.match(body('renderStrip'), /class="mini-hand is-\$\{/);
   assert.match(body('renderStrip'), /<span>\$\{esc\(h\.say\)\}<\/span>/, '띠의 손 줄은 원문 문장을 이스케이프해 그대로 쓴다');
+  // 「지금 하는 일」 알약의 모양: 손 줄이 따로 있으면 회색 점(중립), 없으면 예전대로 손 수준의 모양(없음=초록 ✓)
+  assert.match(body('renderStrip'), /\$\{h \? G\.quiet : G\[HAND_G\[lv\]\]\}/, '종결·모두 마침 옆에 진행 중 고리를 달지 않는다');
   assert.match(body('handBlock'), /soundState\(\)/);
   assert.match(body('handBlock'), /soundChip\(\)/);
   assert.match(body('notesNow'), /kind: 'quiet'/);

@@ -370,6 +370,10 @@ describe('F13-02: 일괄 폴더 → FolderSwitchDialog', () => {
     const batchBtn = screen.getByText('일괄 폴더').closest('button')!
     await act(async () => { fireEvent.click(batchBtn) })
     expect(container.querySelector('.set-dialog-overlay')).toBeTruthy()
+    // G9c: 패널 문구는 MultiWorkspace가 message로 넘긴다 — 옛 multi prop과 같은 본문이다.
+    expect(container.querySelector('.sd-msg')?.textContent).toBe(
+      '모든 패널의 작업 폴더가 src(으)로 바뀝니다. 대화가 진행 중인 패널은 내용이 지워지고 새 대화로 시작됩니다.'
+    )
   })
 
   it('FolderSwitchDialog에 취소 버튼이 있다', async () => {

@@ -1,4 +1,6 @@
-import { memo, useState, useMemo, useEffect, useRef, type JSX } from 'react'
+import { memo, useState, useMemo, useEffect, useRef, useSyncExternalStore, type JSX } from 'react'
+import { sessionRegistry } from '@renderer/03_Agent/state/sessionRegistry'
+import { convKey, panelPrefix } from '@renderer/03_Agent/state/sessionKeys'
 import {
   useAppStore,
   selectWorkspaceMode,
@@ -60,25 +62,38 @@ function menuH(hasPrompt: boolean): number {
   return hasPrompt ? 127 : 92
 }
 
-function toSessionSummary(
-  rec: ConversationRecord,
-  conversationId: string | null,
-  isRunning: boolean,
-): SessionSummary {
-  const active = rec.id === conversationId
+// 실행 표시(B1, G9c) — 세션 레지스트리 기준이다. 대화는 isRunning(convKey(id))와 같은 판정으로, 활성 대화면
+// 전경 저장 칸(store isRunning), 아니면 레지스트리의 배경 항목을 본다. 멀티 세션은 패널 키 가운데 하나라도
+// 실행 중이면 running이다. runningKeys는 실행 중인 레지스트리 항목 키 집합이다.
+function conversationRunning(
+  id: string,
+  activeId: string | null,
+  activeRunning: boolean,
+  runningKeys: ReadonlySet<string>,
+): boolean {
+  return id === activeId ? activeRunning : runningKeys.has(convKey(id))
+}
+
+function anyPanelRunning(multiSessionId: string, runningKeys: ReadonlySet<string>): boolean {
+  const prefix = panelPrefix(multiSessionId)
+  for (const k of runningKeys) if (k.startsWith(prefix)) return true
+  return false
+}
+
+function toSessionSummary(rec: ConversationRecord, running: boolean): SessionSummary {
   return {
     id: rec.id,
     title: rec.title || '새 채팅',
-    status: (active && isRunning) ? 'running' : 'idle',
+    status: running ? 'running' : 'idle',
     hasPrompt: false,
   }
 }
 
-function toMultiSessionSummary(ms: MultiSessionSummary, _activeId: string): SessionSummary {
+function toMultiSessionSummary(ms: MultiSessionSummary, running: boolean): SessionSummary {
   return {
     id: ms.id,
     title: ms.title || '새 작업',
-    status: 'idle',
+    status: running ? 'running' : 'idle',
     hasPrompt: false,
   }
 }
@@ -377,13 +392,16 @@ function SidebarInner({ onCollapse, onOpenSettings }: SidebarProps): JSX.Element
 
   const profile = useAppStore(selectProfile)
 
+  const runningKeys = useSyncExternalStore(sessionRegistry.subscribe, sessionRegistry.runningKeys)
+
   const singleSessions = useMemo(
-    () => conversations.map((rec) => toSessionSummary(rec, conversationId, isRunning)),
-    [conversations, conversationId, isRunning],
+    () => conversations.map((rec) =>
+      toSessionSummary(rec, conversationRunning(rec.id, conversationId, isRunning, runningKeys))),
+    [conversations, conversationId, isRunning, runningKeys],
   )
   const multiSessionsAsSummary = useMemo(
-    () => multiSessions.map((ms) => toMultiSessionSummary(ms, activeMultiSessionId)),
-    [multiSessions, activeMultiSessionId],
+    () => multiSessions.map((ms) => toMultiSessionSummary(ms, anyPanelRunning(ms.id, runningKeys))),
+    [multiSessions, runningKeys],
   )
 
   const sessions = mode === 'multi' ? multiSessionsAsSummary : singleSessions

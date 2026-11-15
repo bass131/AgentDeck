@@ -10,14 +10,14 @@ afterEach(() => {
 describe('appStore — pickerMode state', () => {
   beforeEach(async () => {
     const { useAppStore } = await import('@renderer/00_App/appStore')
-    const { DEFAULT_MODE_SINGLE } = await import('@renderer/03_Agent/pickerOptions')
-    useAppStore.setState({ pickerMode: DEFAULT_MODE_SINGLE })
+    const { DEFAULT_MODE_CONVERSATION } = await import('@renderer/03_Agent/pickerOptions')
+    useAppStore.setState({ pickerMode: DEFAULT_MODE_CONVERSATION })
   })
 
-  it('초기값이 DEFAULT_MODE_SINGLE(auto)임', async () => {
+  it('초기값이 DEFAULT_MODE_CONVERSATION(auto)임', async () => {
     const { useAppStore, selectPickerMode } = await import('@renderer/00_App/appStore')
-    const { DEFAULT_MODE_SINGLE } = await import('@renderer/03_Agent/pickerOptions')
-    expect(selectPickerMode(useAppStore.getState())).toBe(DEFAULT_MODE_SINGLE)
+    const { DEFAULT_MODE_CONVERSATION } = await import('@renderer/03_Agent/pickerOptions')
+    expect(selectPickerMode(useAppStore.getState())).toBe(DEFAULT_MODE_CONVERSATION)
   })
 
   it('setPickerMode("plan") → pickerMode가 "plan"이 됨', async () => {
@@ -83,8 +83,8 @@ describe('Composer — pickerMode store 연동', () => {
     }
 
     const { useAppStore } = await import('@renderer/00_App/appStore')
-    const { DEFAULT_MODE_SINGLE } = await import('@renderer/03_Agent/pickerOptions')
-    useAppStore.setState({ pickerMode: DEFAULT_MODE_SINGLE })
+    const { DEFAULT_MODE_CONVERSATION } = await import('@renderer/03_Agent/pickerOptions')
+    useAppStore.setState({ pickerMode: DEFAULT_MODE_CONVERSATION })
   })
 
   it('마운트 시 Picker 모드 트리거에 store mode(auto) 반영', async () => {
@@ -156,10 +156,10 @@ describe('Shell 단축키 — Shift+Tab → cyclePickerMode', () => {
   it('Shift+Tab keydown → cyclePickerMode 호출 (모드 변경)', async () => {
     const { useGlobalShortcuts } = await import('@renderer/12_Window/useGlobalShortcuts')
     const { useAppStore, selectPickerMode } = await import('@renderer/00_App/appStore')
-    const { MODES, DEFAULT_MODE_SINGLE } = await import('@renderer/03_Agent/pickerOptions')
+    const { MODES, DEFAULT_MODE_CONVERSATION } = await import('@renderer/03_Agent/pickerOptions')
 
-    useAppStore.setState({ pickerMode: DEFAULT_MODE_SINGLE })
-    expect(selectPickerMode(useAppStore.getState())).toBe(DEFAULT_MODE_SINGLE)
+    useAppStore.setState({ pickerMode: DEFAULT_MODE_CONVERSATION })
+    expect(selectPickerMode(useAppStore.getState())).toBe(DEFAULT_MODE_CONVERSATION)
 
     const cyclePickerMode = vi.fn(() => {
       useAppStore.getState().cyclePickerMode()
@@ -175,7 +175,7 @@ describe('Shell 단축키 — Shift+Tab → cyclePickerMode', () => {
     })
 
     expect(cyclePickerMode).toHaveBeenCalledOnce()
-    const autoIdx = MODES.findIndex((m) => m.id === DEFAULT_MODE_SINGLE)
+    const autoIdx = MODES.findIndex((m) => m.id === DEFAULT_MODE_CONVERSATION)
     const nextId = MODES[autoIdx + 1].id
     expect(selectPickerMode(useAppStore.getState())).toBe(nextId)
   })

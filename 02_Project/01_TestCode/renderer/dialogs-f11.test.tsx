@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react'
+import type { ReactNode } from 'react'
 import { useAppStore } from '@renderer/00_App/appStore'
 import type { ConversationRecord } from '../../../02_Project/00_Source/shared/ipcContract'
 
@@ -179,10 +180,11 @@ describe('F11-02: PromptModal', () => {
 })
 
 describe('F11-02: FolderSwitchDialog', () => {
+  // G9c: 단일·멀티 multi prop을 지우고 본문을 호출부가 넘기는 message prop으로 바꿨다.
   async function renderFolderSwitch(overrides: Partial<{
     from: string
     to: string
-    multi: boolean
+    message: (names: { from: string; to: string }) => ReactNode
     onCancel: () => void
     onConfirm: () => void
   }> = {}) {
@@ -190,7 +192,6 @@ describe('F11-02: FolderSwitchDialog', () => {
     const props = {
       from: '/home/user/project-a',
       to: '/home/user/project-b',
-      multi: false,
       onCancel: vi.fn(),
       onConfirm: vi.fn(),
       ...overrides,
@@ -217,11 +218,15 @@ describe('F11-02: FolderSwitchDialog', () => {
     expect(msg.textContent).toContain('project-b')
   })
 
-  it('multi=true → 멀티 메시지 표시 (from 미표시)', async () => {
-    const { container } = await renderFolderSwitch({ multi: true, to: '/b/project-b' })
+  it('message prop → 호출부 본문 표시 (from 미표시, 폴더 이름은 basename으로 받는다)', async () => {
+    const { container } = await renderFolderSwitch({
+      to: '/b/project-b',
+      message: ({ to }) => <>모든 패널의 작업 폴더가 <b>{to}</b>(으)로 바뀝니다.</>,
+    })
     const msg = container.querySelector('.sd-msg')!
     expect(msg.textContent).toContain('project-b')
     expect(msg.textContent).toContain('모든 패널')
+    expect(msg.textContent).not.toContain('project-a')
   })
 
   it('취소 버튼 클릭 → onCancel 호출', async () => {

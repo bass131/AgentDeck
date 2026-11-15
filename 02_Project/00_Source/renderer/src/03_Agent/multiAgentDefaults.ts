@@ -1,4 +1,4 @@
-import { DEFAULT_MODEL, DEFAULT_EFFORT, DEFAULT_MODE_MULTI } from '@renderer/03_Agent/pickerOptions'
+import { DEFAULT_MODEL, DEFAULT_EFFORT, DEFAULT_MODE_PANEL } from '@renderer/03_Agent/pickerOptions'
 
 export type AgentStatus = 'idle' | 'analyzing' | 'working' | 'done' | 'error'
 
@@ -23,7 +23,7 @@ export interface PickerState {
 export const DEFAULT_PICKER: PickerState = {
   model: DEFAULT_MODEL,
   effort: DEFAULT_EFFORT,
-  mode: DEFAULT_MODE_MULTI,
+  mode: DEFAULT_MODE_PANEL,
 }
 
 export interface SamplePanel {

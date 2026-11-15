@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { useAppStore } from '@renderer/00_App/appStore'
+import { __resetBackgroundRunsForTests } from '@renderer/03_Agent/state/backgroundRuns'
 import type {
   ConversationRecord,
   AgentEventPayload,
@@ -87,7 +88,7 @@ describe('switch-continuity — P3c 백그라운드 라우팅 영속: bg done/se
   beforeEach(() => {
     capturedHandler = null
     conversationSaveMock.mockClear()
-    useAppStore.setState({ bgRuns: {} } as Parameters<typeof useAppStore.setState>[0])
+    __resetBackgroundRunsForTests()
     setupRunningA()
   })
 

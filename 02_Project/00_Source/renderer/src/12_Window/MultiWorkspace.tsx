@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef, type JSX } from 'react'
 import { IconGrid, IconFolder, IconChevDown } from '@renderer/02_Common/icons'
-import { FolderSwitchDialog } from '@renderer/07_Workspace/file'
+import { FolderSwitchDialog, type FolderSwitchMessage } from '@renderer/07_Workspace/file'
 import { PromptModal } from '@renderer/03_Agent/prompt'
 import {
   COLS,
@@ -25,6 +25,14 @@ import './MultiWorkspace.css'
 export { PanelView } from '@renderer/05_Conversation/PanelView'
 
 const SLOTS_ALL = SLOTS
+
+// 일괄 폴더 변경 창의 패널 문구 — 폴더 변경 창 본문은 호출부가 넘긴다(G9c, 옛 multi prop).
+const batchFolderMessage: FolderSwitchMessage = ({ to }) => (
+  <>
+    모든 패널의 작업 폴더가 <b>{to}</b>(으)로 바뀝니다. 대화가 진행 중인 패널은 내용이
+    지워지고 새 대화로 시작됩니다.
+  </>
+)
 
 // 펼침 닫기 Esc가 양보하는 질문 UI — QuestionModal의 창과 내려둔 pill.
 const QUESTION_UI_SELECTOR = '.q-overlay, .q-mini-pill'
@@ -261,7 +269,7 @@ export function MultiWorkspace({ onSlashAsk, onOpenImage }: MultiWorkspaceProps 
         <FolderSwitchDialog
           from={''}
           to={SAMPLE_BATCH_TO}
-          multi={true}
+          message={batchFolderMessage}
           onCancel={() => setBatchFolderOpen(false)}
           onConfirm={() => {
             setBatchFolderOpen(false)

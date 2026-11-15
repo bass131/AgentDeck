@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { useAppStore } from '@renderer/00_App/appStore'
+import { __backgroundRunOf } from '@renderer/03_Agent/state/backgroundRuns'
 import type { ConversationRecord, AgentEventPayload } from '../../../02_Project/00_Source/shared/ipcContract'
 import type { ThreadItem } from '@renderer/05_Conversation/state/threadTypes'
 import type { AttachedImage } from '@renderer/00_App/state/types'
@@ -262,6 +263,6 @@ describe('switch-continuity — P3b-2 "새 대화" seamless: newConversation도 
     const after = useAppStore.getState()
     expect(after.conversationId).toBeNull()
     expect(threadTexts(after.thread)).toEqual([])
-    expect('A' in after.bgRuns).toBe(false)
+    expect(__backgroundRunOf('A')).toBeUndefined()
   })
 })

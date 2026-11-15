@@ -13,5 +13,6 @@ export { default as FileModal } from './FileModal'
 export type { FileModalProps } from './FileModal'
 
 export { FolderSwitchDialog } from './FolderSwitchDialog'
+export type { FolderSwitchMessage } from './FolderSwitchDialog'
 
 export { RecentFiles } from './RecentFiles'

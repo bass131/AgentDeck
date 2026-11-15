@@ -7,6 +7,7 @@ import {
   sessionLoopDisplayRegistry,
   applyLoopDisplayEventFallback,
 } from '@renderer/03_Agent/state/loopDisplay'
+import { __backgroundRunOf, __resetBackgroundRunsForTests } from '@renderer/03_Agent/state/backgroundRuns'
 import type { ConversationRecord, AgentEventPayload } from '../../../02_Project/00_Source/shared/ipcContract'
 import { installWindowApi } from './helpers/windowApiMock'
 
@@ -44,10 +45,10 @@ const LOOP = [{ id: 'cc1', summary: '매분 상태 점검', interval: 'Every min
 beforeEach(() => {
   capturedHandler = null
   __resetSessionLoopDisplayForTests()
+  __resetBackgroundRunsForTests()
   useAppStore.setState({
     conversationId: null,
     currentRunId: null,
-    bgRuns: {},
     activeLoops: [],
     loopsStoppedNotice: false,
     pendingCommand: null,
@@ -73,10 +74,10 @@ describe('BF3 Phase 07 경계 ⓐ — bgRuns cap(8) 초과 축출 후 복귀 시
     for (let i = 0; i < 7; i++) {
       await leaveTo(`conv-${i + 1}`)
     }
-    expect('A' in useAppStore.getState().bgRuns).toBe(true)
+    expect(__backgroundRunOf('A') !== undefined).toBe(true)
 
     await leaveTo('conv-8')
-    expect('A' in useAppStore.getState().bgRuns).toBe(false)
+    expect(__backgroundRunOf('A') !== undefined).toBe(false)
 
     await useAppStore.getState().selectConversation('A')
 
@@ -99,7 +100,7 @@ describe('BF3 Phase 07 경계 ⓐ — bgRuns cap(8) 초과 축출 후 복귀 시
       await leaveTo(`conv-${i + 1}`)
     }
     await leaveTo('conv-8')
-    expect('B' in useAppStore.getState().bgRuns).toBe(false)
+    expect(__backgroundRunOf('B') !== undefined).toBe(false)
 
     await useAppStore.getState().selectConversation('B')
     const after = useAppStore.getState()
@@ -119,7 +120,7 @@ describe('BF3 Phase 07 경계 ⓐ — bgRuns cap(8) 초과 축출 후 복귀 시
       await leaveTo(`conv-${i + 1}`)
     }
     await leaveTo('conv-8')
-    expect('A' in useAppStore.getState().bgRuns).toBe(false)
+    expect(__backgroundRunOf('A') !== undefined).toBe(false)
 
     __resetSessionLoopDisplayForTests()
 
@@ -158,9 +159,9 @@ describe('BF3 Phase 07 경계 ⓐ — bgRuns cap(8) 초과 축출 후 복귀 시
     for (let i = 0; i < 7; i++) {
       await leaveTo(`conv-${i + 1}`)
     }
-    expect('A' in useAppStore.getState().bgRuns).toBe(true)
+    expect(__backgroundRunOf('A') !== undefined).toBe(true)
     await leaveTo('conv-8')
-    expect('A' in useAppStore.getState().bgRuns).toBe(false)
+    expect(__backgroundRunOf('A') !== undefined).toBe(false)
 
     expect(capturedHandler).toBeTruthy()
     capturedHandler!({ runId: 'run-a', event: { type: 'loops', loops: [] } })
@@ -185,7 +186,7 @@ describe('BF3 Phase 07 경계 ⓐ — bgRuns cap(8) 초과 축출 후 복귀 시
       await leaveTo(`conv-${i + 1}`)
     }
     await leaveTo('conv-8')
-    expect('A' in useAppStore.getState().bgRuns).toBe(false)
+    expect(__backgroundRunOf('A') !== undefined).toBe(false)
 
     capturedHandler!({ runId: 'run-a', event: { type: 'loops', loops: [] } })
 
@@ -279,14 +280,14 @@ describe('BF3 Phase 07 — 2차 봉합: background-started 순수 크론(leave �
     expect(capturedHandler).toBeTruthy()
     capturedHandler!({ runId: 'run-a', event: { type: 'loops', loops: LOOP } })
     expect(__getSessionRunRoutingSizeForTests()).toBeGreaterThan(0)
-    expect(useAppStore.getState().bgRuns['A']?.activeLoops).toEqual(LOOP)
+    expect(__backgroundRunOf('A')?.activeLoops).toEqual(LOOP)
 
     for (let i = 0; i < 7; i++) {
       await leaveTo(`conv-${i + 1}`)
     }
-    expect('A' in useAppStore.getState().bgRuns).toBe(true)
+    expect(__backgroundRunOf('A') !== undefined).toBe(true)
     await leaveTo('conv-8')
-    expect('A' in useAppStore.getState().bgRuns).toBe(false)
+    expect(__backgroundRunOf('A') !== undefined).toBe(false)
 
     capturedHandler!({ runId: 'run-a', event: { type: 'loops', loops: [] } })
 

@@ -251,12 +251,14 @@ import {
   panelReducerFn,
 } from '@renderer/03_Agent/state/panelSession'
 import { GOAL_BANNER_STALE_THRESHOLD_MS } from '@renderer/03_Agent/state/staleWatchdog'
+import { __backgroundRunOf, __resetBackgroundRunsForTests } from '@renderer/03_Agent/state/backgroundRuns'
 
 describe('appStore — goalRun 터미널 리셋 (abort / dead-run)', () => {
   beforeEach(() => {
+    __resetBackgroundRunsForTests()
     useAppStore.setState({
       conversationId: null, currentRunId: null, runGeneration: null, isRunning: false,
-      thread: [], bgRuns: {}, pendingCommand: null, activeLoops: [], loopsStoppedNotice: false,
+      thread: [], pendingCommand: null, activeLoops: [], loopsStoppedNotice: false,
       autonomyActive: false, lastActivityAt: null, bannerStale: false, staleDismissed: false,
       goalRun: null,
     } as Parameters<typeof useAppStore.setState>[0])
@@ -292,9 +294,10 @@ describe('appStore — goalRun 터미널 리셋 (abort / dead-run)', () => {
 describe('appStore — stale-watchdog 게이트가 goalRun 존재로 전환(autonomyActive 무관)', () => {
   beforeEach(() => {
     vi.useFakeTimers()
+    __resetBackgroundRunsForTests()
     useAppStore.setState({
       conversationId: null, currentRunId: null, runGeneration: null, isRunning: false,
-      thread: [], bgRuns: {}, autonomyActive: false, lastActivityAt: null, bannerStale: false,
+      thread: [], autonomyActive: false, lastActivityAt: null, bannerStale: false,
       staleDismissed: false, loopsStoppedNotice: false, pendingCommand: null, activeLoops: [],
       goalRun: null,
     } as Parameters<typeof useAppStore.setState>[0])
@@ -329,8 +332,9 @@ describe('appStore — 경로2(bgHit) write-through goalRun 스레딩 회귀 (re
   beforeEach(() => {
     runIdCounter = 0
     capturedHandler = null
+    __resetBackgroundRunsForTests()
     useAppStore.setState({
-      conversationId: null, currentRunId: null, bgRuns: {}, goalRun: null,
+      conversationId: null, currentRunId: null, goalRun: null,
       autonomyActive: false, lastActivityAt: null, bannerStale: false, staleDismissed: false,
       activeLoops: [], loopsStoppedNotice: false, pendingCommand: null,
     } as Parameters<typeof useAppStore.setState>[0])
@@ -344,12 +348,12 @@ describe('appStore — 경로2(bgHit) write-through goalRun 스레딩 회귀 (re
     expect(useAppStore.getState().goalRun).not.toBeNull()
 
     await useAppStore.getState().selectConversation('B')
-    expect('A' in useAppStore.getState().bgRuns).toBe(true)
+    expect(__backgroundRunOf('A') !== undefined).toBe(true)
 
     expect(capturedHandler).toBeTruthy()
     capturedHandler!({ runId: runA, event: { type: 'text', delta: '다음 턴', messageId: 'm2' } })
     capturedHandler!({ runId: runA, event: { type: 'done' } })
-    expect(useAppStore.getState().bgRuns['A']?.goalRun).not.toBeNull()
+    expect(__backgroundRunOf('A')?.goalRun).not.toBeNull()
 
     async function leaveTo(next: string): Promise<void> {
       useAppStore.setState({ currentRunId: `run-${next}-prev` } as Parameters<typeof useAppStore.setState>[0])
@@ -359,7 +363,7 @@ describe('appStore — 경로2(bgHit) write-through goalRun 스레딩 회귀 (re
     for (let i = 0; i < 8; i++) {
       await leaveTo(`conv-${i + 1}`)
     }
-    expect('A' in useAppStore.getState().bgRuns).toBe(false)
+    expect(__backgroundRunOf('A') !== undefined).toBe(false)
 
     await useAppStore.getState().selectConversation('A')
     const after = useAppStore.getState()

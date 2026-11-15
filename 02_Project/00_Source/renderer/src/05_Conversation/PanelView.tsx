@@ -29,7 +29,8 @@ import {
   computeTaskScope,
   type AttachedImage,
 } from '@renderer/00_App/appStore'
-import { makePanelSlotKey, type PanelSessionHookResult } from '@renderer/03_Agent/state/panelSession'
+import type { PanelSessionHookResult } from '@renderer/03_Agent/state/panelSession'
+import { panelKey } from '@renderer/03_Agent/state/sessionKeys'
 import { requestLiveModeSwitch, requestLiveModelSwitch } from './state/composer'
 import { useUltracodeToggle } from '@renderer/03_Agent/state/ultracodeToggle'
 import { MODES } from '@renderer/03_Agent/pickerOptions'
@@ -128,8 +129,10 @@ export const PanelView = memo(function PanelView({
       setPicker({ ...picker, mode: enginePickerMode })
     }
   }, [enginePickerMode, picker, setPicker])
+  // UltraCode 범위 = 이 패널의 세션 레지스트리 키(G9c). usePanelSlot이 돌려준 키를 쓰고, 키 없는 가짜 세션
+  // (화면 하네스)만 활성 멀티 세션과 슬롯으로 같은 키를 만든다.
   const activeMultiSessionId = useAppStore(selectActiveMultiSessionId)
-  const panelSessionKey = makePanelSlotKey(activeMultiSessionId, slot)
+  const panelSessionKey = session.key ?? panelKey(activeMultiSessionId, slot)
 
   const [orchestration, setOrchestration] = useUltracodeToggle(panelSessionKey)
 

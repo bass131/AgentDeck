@@ -142,7 +142,9 @@ test('send: types the server sentence once into the configured handle; the same 
   assert.deepEqual([b.status, b.json.ok, b.json.line, b.json.corrected], [200, true, lineB, true], '다른 문장은 넣는다');
   assert.match(b.json.note, /앞 문장/);
   assert.match(b.json.note, /마지막/);
-  assert.deepEqual(app.state.typed[1], [HANDLE, ' / 고쳐 고름 — ' + lineB]);
+  assert.deepEqual(app.state.typed[1], [HANDLE, '【고쳐 고름】 ' + lineB]);
+  // 표지는 선택 창의 키(숫자·글자·빈칸)나 명령 메뉴를 여는 `/`로 시작하면 안 된다 — 첫 글자가 키가 아닌 글자다
+  assert.match(app.state.typed[1][1], /^[^\s/0-9A-Za-z]/);
   assert.equal((await answer(app, 'send', bodyB)).status, 409, '고친 문장도 두 번은 넣지 않는다');
   assert.equal(app.state.typed.length, 2);
 });
@@ -185,7 +187,7 @@ test('send: a changed decision list clears the same-sentence mark; the next send
   app.state.list = listOf({ ...first, detail: ['## 무엇을 정하나', '- 고친 상세 글'] }, second); await app.refresh();
   const r = await answer(app, 'send', await withExpect(app, pick(app, { 'g11-version-compare': 'A' })));
   assert.deepEqual([r.status, r.json.ok, r.json.corrected], [200, true, true], '목록이 바뀌면 같은 문장 표시를 지운다');
-  assert.deepEqual(app.state.typed.map(x => x[1]), [line, ' / 고쳐 고름 — ' + line], '입력창에 앞 문장이 남아 있을 수 있어 표지는 서버 수명 동안 유지한다');
+  assert.deepEqual(app.state.typed.map(x => x[1]), [line, '【고쳐 고름】 ' + line], '입력창에 앞 문장이 남아 있을 수 있어 표지는 서버 수명 동안 유지한다');
 });
 
 test('a request URL the parser rejects is 400, and the server keeps answering', async t => {

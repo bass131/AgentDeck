@@ -15,7 +15,8 @@ export const BODY_MAX = 64 * 1024;
 export const ANSWER_PATHS = Object.freeze({ '/api/answer/preview': false, '/api/answer/send': true });
 // 이 서버가 앞에 문장을 넣은 뒤 다른 문장을 넣을 때 앞에 붙이는 고정 글. 입력창에 앞 문장이 남아 있어도 두 문장이 붙지 않고,
 // 메인이 마지막 문장을 답으로 읽게 한다(docs/결정-응답.md 「문장」).
-export const CORRECTION = ' / 고쳐 고름 — ';
+// 첫 글자는 선택 창의 키(숫자·글자·빈칸)도, 빈 프롬프트에서 명령 메뉴를 여는 `/`도 아니어야 한다.
+export const CORRECTION = '【고쳐 고름】 ';
 // U+2028·U+2029는 코드 포인트로 만든다. 원문에 보이지 않는 글자를 두지 않는다.
 const LINE_SEP = String.fromCharCode(0x2028), PARA_SEP = String.fromCharCode(0x2029);
 export const scriptJSON = value => JSON.stringify(value).replace(/</g, '\\u003c').replaceAll(LINE_SEP, '\\u2028').replaceAll(PARA_SEP, '\\u2029');

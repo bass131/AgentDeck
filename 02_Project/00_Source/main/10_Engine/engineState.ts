@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
-import { join, dirname } from 'node:path'
+import { join } from 'node:path'
 import { homedir } from 'node:os'
-import { createRequire } from 'node:module'
+import { readInstalledSdkVersion, SDK_VERSION_FALLBACK } from './sdkVersion'
 import type { EngineState, BackendId } from '../../shared/ipcContract'
 
 export const ENGINE_STATE_BACKEND_ID: BackendId = 'claude-code'
@@ -15,33 +15,8 @@ async function defaultIsAvailable(): Promise<boolean> {
   }
 }
 
-const ENGINE_STATE_SDK_VERSION_FALLBACK = '0.3.186'
-
-export function readInstalledSdkVersion(): string | null {
-  try {
-    const require = createRequire(import.meta.url)
-    let dir = dirname(require.resolve('@anthropic-ai/claude-agent-sdk'))
-    for (let i = 0; i < 8; i++) {
-      try {
-        const pkg = JSON.parse(readFileSync(join(dir, 'package.json'), 'utf8'))
-        if (pkg?.name === '@anthropic-ai/claude-agent-sdk') {
-          const ver: unknown = pkg.version
-          return typeof ver === 'string' && ver.length > 0 ? ver : null
-        }
-      } catch {
-      }
-      const parent = dirname(dir)
-      if (parent === dir) break
-      dir = parent
-    }
-    return null
-  } catch {
-    return null
-  }
-}
-
 async function defaultGetVersion(): Promise<string | null> {
-  return readInstalledSdkVersion() ?? ENGINE_STATE_SDK_VERSION_FALLBACK
+  return readInstalledSdkVersion() ?? SDK_VERSION_FALLBACK
 }
 
 function defaultReadCredentials(): string | null {

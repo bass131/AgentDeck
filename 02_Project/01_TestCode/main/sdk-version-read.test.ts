@@ -1,8 +1,9 @@
 import { describe, test, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { readInstalledSdkVersion as readFromBackend } from '@main/04_Claude/ClaudeCodeBackend'
-import { readInstalledSdkVersion as readFromEngineState } from '@main/10_Engine/engineState'
+import { readInstalledSdkVersion, SDK_VERSION_FALLBACK } from '@main/10_Engine/sdkVersion'
+import { ClaudeCodeBackend } from '@main/04_Claude/ClaudeCodeBackend'
+import { getEngineState } from '@main/10_Engine/engineState'
 
 function realInstalledVersion(): string {
   const p = join(
@@ -23,19 +24,36 @@ describe('SDK package.json 실 읽기 (exports 제약 우회) — 회귀 가드'
     expect(real).toMatch(/^\d+\.\d+\.\d+/)
   })
 
-  test('ClaudeCodeBackend.readInstalledSdkVersion()이 실 버전을 읽는다(폴백 아님)', () => {
-    const v = readFromBackend()
+  test('readInstalledSdkVersion()이 실 버전을 읽는다(폴백 아님)', () => {
+    const v = readInstalledSdkVersion()
     expect(v).not.toBeNull()
     expect(v).toBe(real)
   })
 
-  test('engine-state.readInstalledSdkVersion()이 실 버전을 읽는다(폴백 아님)', () => {
-    const v = readFromEngineState()
-    expect(v).not.toBeNull()
+  test('폴백 상수는 semver 문자열이다', () => {
+    expect(SDK_VERSION_FALLBACK).toMatch(/^\d+\.\d+\.\d+$/)
+  })
+
+  test('폴백 상수 값은 모으기 전 두 벌과 같다(구조 커밋에서 값 무변경)', () => {
+    expect(SDK_VERSION_FALLBACK).toBe('0.3.186')
+  })
+})
+
+// M05 G11: 두 벌이던 리더를 10_Engine/sdkVersion 하나로 모았다. 두 소비처가 같은 리더를 쓰는지 소비처 쪽에서 고정한다.
+describe('두 소비처가 같은 리더를 거친다 (M05 G11)', () => {
+  const real = realInstalledVersion()
+
+  test('ClaudeCodeBackend.version() 기본 경로 — 활성 엔진이 없으면 설치본 버전', async () => {
+    const v = await new ClaudeCodeBackend().version()
     expect(v).toBe(real)
   })
 
-  test('두 리더가 동일 버전을 보고한다(드리프트 0)', () => {
-    expect(readFromBackend()).toBe(readFromEngineState())
+  test('getEngineState() 기본 getVersion — 설치본 버전', async () => {
+    const state = await getEngineState({
+      isAvailable: async () => true,
+      readCredentials: () => null,
+      env: {},
+    })
+    expect(state.version).toBe(real)
   })
 })

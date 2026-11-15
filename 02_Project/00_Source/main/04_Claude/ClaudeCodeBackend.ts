@@ -1,42 +1,15 @@
-import { createRequire } from 'node:module'
-import { readFileSync } from 'node:fs'
-import { dirname, join } from 'node:path'
 import { getDefaultQueryFn } from './queryFn'
 import { ClaudeAgentRun } from './run/claudeAgentRun'
 import { createSkillsStore } from '@main/11_Settings/skills'
 import { createMcpStore } from '@main/11_Settings/mcp'
+import { readInstalledSdkVersion, SDK_VERSION_FALLBACK } from '@main/10_Engine/sdkVersion'
 import type { QueryFn } from './queryFn'
 import type { AgentBackend, AgentRun, AgentRunInput } from '@main/03_Agent/AgentBackend'
 import type { SlashCommandInfo } from '../../shared/ipcContract'
 
 export type { QueryFn } from './queryFn'
 
-const SDK_VERSION = '0.3.186'
-
 const NPM_REGISTRY_URL = 'https://registry.npmjs.org/@anthropic-ai/claude-agent-sdk'
-
-export function readInstalledSdkVersion(): string | null {
-  try {
-    const require = createRequire(import.meta.url)
-    let dir = dirname(require.resolve('@anthropic-ai/claude-agent-sdk'))
-    for (let i = 0; i < 8; i++) {
-      try {
-        const pkg = JSON.parse(readFileSync(join(dir, 'package.json'), 'utf8'))
-        if (pkg?.name === '@anthropic-ai/claude-agent-sdk') {
-          const ver: unknown = pkg.version
-          return typeof ver === 'string' && ver.length > 0 ? ver : null
-        }
-      } catch {
-      }
-      const parent = dirname(dir)
-      if (parent === dir) break
-      dir = parent
-    }
-    return null
-  } catch {
-    return null
-  }
-}
 
 export interface ClaudeCodeBackendDeps {
   fetchImpl?: typeof fetch
@@ -103,9 +76,9 @@ export class ClaudeCodeBackend implements AgentBackend {
       if (typeof ver === 'string' && ver.length > 0) {
         return ver
       }
-      return SDK_VERSION
+      return SDK_VERSION_FALLBACK
     } catch {
-      return SDK_VERSION
+      return SDK_VERSION_FALLBACK
     }
   }
 

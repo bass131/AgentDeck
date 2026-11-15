@@ -8,6 +8,7 @@ import { join } from 'node:path'
 import { homedir as nodeHomedir } from 'node:os'
 import { app } from 'electron'
 import type { SkillInfo } from '../../shared/ipcContract'
+import { parseFrontmatter } from './frontmatter'
 
 export interface SkillsDeps {
   homedir?: () => string
@@ -24,29 +25,6 @@ export interface SkillsStore {
   setSkillEnabled(name: string, enabled: boolean): boolean
 
   disabledSkillOverrides(): Record<string, 'off'> | null
-}
-
-function parseFrontmatter(text: string): { name?: string; description?: string } {
-  const body = text.replace(/^\uFEFF/, '')
-
-  const m = /^---\r?\n([\s\S]*?)\r?\n---/.exec(body)
-  if (!m) return {}
-
-  const out: Record<string, string> = {}
-  for (const line of m[1].split(/\r?\n/)) {
-    const kv = /^([A-Za-z0-9_-]+)\s*:\s*(.*)$/.exec(line)
-    if (!kv) continue
-    let v = kv[2].trim()
-    if (
-      (v.startsWith('"') && v.endsWith('"')) ||
-      (v.startsWith("'") && v.endsWith("'"))
-    ) {
-      v = v.slice(1, -1)
-    }
-    if (!(kv[1] in out)) out[kv[1]] = v
-  }
-
-  return { name: out.name, description: out.description }
 }
 
 function discoverSkills(

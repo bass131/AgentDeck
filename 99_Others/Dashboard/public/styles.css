@@ -162,7 +162,7 @@ kbd{font-family:var(--mono); font-size:11.5px; padding:1px 6px; border:1px solid
 .q-doing .q-line{font-size:clamp(24px, 4.2cqi, 36px); font-weight:800; line-height:1.24; letter-spacing:-0.032em}
 /* 「지금 하는 일」 큰 카드: 상태가 면·테두리·큰 모양·글자로 보인다(판단은 chime.js doingTone).
    진행 중=파랑, 내 손 필요=노랑, 멈춤=빨강, 완료=초록, 대기=회색 점선, 확인 안 됨=빗금. 색만이 아니라 모양과 낱말을 늘 함께 쓴다 */
-.q.doing-card{grid-template-columns:56px minmax(0,1fr) auto; grid-template-areas:"glyph head ring" "glyph body ring"; gap:4px var(--sp-4); align-items:start; margin:var(--sp-2) 0 var(--sp-4); padding:22px 26px 20px 22px}
+.q.doing-card{grid-template-columns:56px minmax(0,1fr) auto; grid-template-areas:"glyph head ring" "glyph body ring"; gap:4px var(--sp-4); align-items:start; margin:var(--sp-2) 0 var(--sp-4); padding:22px 26px 20px 22px; border-color:var(--rule-2)}
 .doing-card{border:1.5px solid var(--rule-2); border-radius:12px; background:var(--surface); box-shadow:var(--shadow-card)}
 .q.doing-card:first-child{border-top-width:1.5px}
 .doing-card .q-a{grid-area:body}
@@ -176,7 +176,7 @@ kbd{font-family:var(--mono); font-size:11.5px; padding:1px 6px; border:1px solid
 .doing-card.tone-stop{border-color:var(--broken); background:linear-gradient(120deg, var(--broken-tint), transparent 78%), var(--surface); box-shadow:inset 6px 0 0 var(--broken), var(--shadow-card)}
 .doing-card.tone-done{border-color:var(--ok); background:linear-gradient(120deg, var(--ok-tint), transparent 72%), var(--surface); box-shadow:inset 6px 0 0 var(--ok), var(--shadow-card)}
 .doing-card.tone-rest{border-color:var(--ink-3); border-style:dashed}
-.doing-card.tone-unknown{background-image:var(--hatch); border-style:dashed}
+.doing-card.tone-unknown{background-image:var(--hatch); border-style:dashed; border-color:var(--rule-2)}
 .tone-live .doing-word{color:var(--info); background:var(--info-tint)}
 .tone-todo .doing-word{color:var(--todo-ink); background:var(--todo); border-color:var(--todo)}
 .tone-stop .doing-word{color:var(--broken-ink); background:var(--broken); border-color:var(--broken)}

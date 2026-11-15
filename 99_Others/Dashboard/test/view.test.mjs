@@ -140,6 +140,8 @@ test('styles: the doing card and goal chips use only the existing colour meaning
   for (const sel of ['.doing-card', '.tk', '.tk.is-here', '.ring', '.stat']) assert.doesNotMatch(rule(sel), /animation\s*:/, `${sel}에는 CSS 동작이 없다`);
   // 「지금」 영역의 첫 줄 규칙(.q:first-child의 검정 윗선)이 카드 윗변 색을 덮지 않는다. 두께만 맞춘다
   assert.doesNotMatch(rule('.q.doing-card:first-child'), /var\(/);
+  // 그래서 상태마다 테두리 색을 스스로 정한다. 확인 안 됨과 상태 없는 카드도 검정 윗선이 남지 않는다
+  for (const sel of ['.doing-card.tone-unknown', '.q.doing-card']) assert.match(rule(sel), /border-color:var\(--rule-2\)/, sel);
   // 지금 goal 칩이 줄에서 가장 눈에 띈다: 파랑 채움에 바깥 고리. 남은 goal은 면 없이 점선이다
   assert.match(rule('.tk.is-here'), /box-shadow:0 0 0 \d+px var\(--info-tint\)/);
   assert.match(rule('.tk.is-left'), /border-style:dashed[^}]*background:none/);

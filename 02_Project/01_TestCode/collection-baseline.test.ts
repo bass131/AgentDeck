@@ -45,7 +45,8 @@ const SKIP_DIRS = new Set(['node_modules', 'dist', 'out', 'coverage', '.git'])
 // M05 G11: 432 → 433. 권한 모드 표 한 곳(04_Claude/permissionModes)과 실물 진입점 넷(시작·실행 중·역매핑·화이트리스트)의 값을 고정하는 main/permissionModes.test.ts를 더했다.
 // M05 G11: 433 → 434. 워크스페이스 루트 원천 하나(roots, 접근자 getWorkspaceRootPath)와 루트를 읽는 네 채널을 고정하는 main/handlers/workspace-root-source.test.ts를 더했다.
 // M05 G11: 434 → 435. 조립 지점 00_App 하나(ConversationStore 소유자, skills·MCP store 같은 인스턴스, 기동·종료 배선)를 실물 모듈로 고정하는 main/appAssembly.test.ts를 더했다.
-const BASELINE_TEST_FILES = 435
+// M05 G12: 435 → 436. 테스트 배치 가드(작업 ID 이름 0, 제자리 밖 테스트는 <프로세스>/NN_Domain/ 아래, agents/ 비움) testLayout.guard.test.ts를 더했다.
+const BASELINE_TEST_FILES = 436
 
 function collectTestFiles(dir: string, acc: string[] = []): string[] {
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {

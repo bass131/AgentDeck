@@ -1,6 +1,6 @@
 # M05 H4 — 현황판 알림 · 내 손이 필요한 일이 새로 생기면 소리와 탭 제목으로 알린다
 
-- 마일스톤: M05 (사용자 요청 — 멈춤 알림) · 작성: 2026-11-15 · 상태: 실행 중 · 검증 강도: 강(판정 장치 `33_tdd-guard.cjs` 변경 — 2026-11-15 범위 변경으로 약에서 올림)
+- 마일스톤: M05 (사용자 요청 — 멈춤 알림) · 작성: 2026-11-15 · 상태: 병합 대기 (PR 번호는 8단계에서) · 검증 강도: 강(판정 장치 `33_tdd-guard.cjs` 변경 — 2026-11-15 범위 변경으로 약에서 올림)
 - 작업 브랜치: `chore/m05-h4-dashboard-notify` — PR 49·51 병합 뒤의 `origin/master`에서 시작했다.
 - 본보기: `C:\Dev\DawnHolder_Dashboard`의 결정 알림음(`web/public/decision-sound.js`, `web/README.md` 「결정 알림음」).
 
@@ -32,11 +32,11 @@
 
 - [x] 1. 이 goal 문서, 포인터 전환(`98_Management/01_GateState/gate-config.json`의 `planPath`), pin 갱신, G9c·G10의 상태를 「종결」로 바꾸고 병합 기록
 - [x] 2a. TDD 가드 테스트 인정 경로에 현황판 시험 추가(`.claude/hooks/33_tdd-guard.cjs`, `.claude/hooks/smoke.test.mjs`) — 시험 먼저(Red), 그다음 가드
-- [>] 2. 알림 키와 「응답 마침 뒤 조용함」 줄(`lib/progress.mjs`), 시험
-- [ ] 3. 알림음 판단 모듈, Web Audio 재생, 「소리 켜기」 칩, 탭 제목 배지(`public/`, 정적 파일 목록), 시험
-- [ ] 4. `docs/알림.md`와 README 링크 한 줄
-- [ ] 5. 검증 — 구현 문맥 없는 검수자(`reviewer`, fable), 현황판 `node --test`, 하드 게이트 다섯 종, `npm test` 수집 수, 서버 재시작 뒤 응답
-- [ ] 6. 실제 경로 — 머리말을 「병합 대기」로 바꿔 탭 제목과 울림 기록 확인
+- [x] 2. 알림 키와 「응답 마침 뒤 조용함」 줄(`lib/progress.mjs`), 시험
+- [x] 3. 알림음 판단 모듈, Web Audio 재생, 「소리 켜기」 칩, 탭 제목 배지(`public/`, 정적 파일 목록), 시험
+- [x] 4. `docs/알림.md`와 README 링크 한 줄
+- [>] 5. 검증 — 구현 문맥 없는 검수자(`reviewer`, fable), 현황판 `node --test`, 하드 게이트 다섯 종, `npm test` 수집 수, 서버 재시작 뒤 응답
+- [x] 6. 실제 경로 — 머리말을 「병합 대기」로 바꿔 탭 제목과 울림 기록 확인
 - [ ] 7. 커밋, 작업 브랜치 push, PR 생성, 병합 승인 요청
 
 실행 단계 일괄 승인 대상 (합의 문답 「OK 진행해줘」로 승인됐다)
@@ -57,6 +57,8 @@ DoD
 - FAIL 2026-11-15T19:14:01+09:00 — 2단계 도중 막힘. 워커의 세 번째 `.mjs` 편집을 TDD 가드(`33_tdd-guard.cjs`)가 「테스트 미동반 3회째」로 차단했다. 가드는 `02_Project/01_TestCode/`와 `.claude/hooks/*.test.*`만 테스트 경로로 쳐서 현황판 시험 편집이 카운터를 줄이지 못하고, 다른 재개 경로인 vitest 전체 Green은 이 노트북에서 성립하지 않는다(Backlog 57). 시도는 `npm test` 2회와 진단 실행 1회(15파일 177건 실패)이고, 가드 우회나 명령 꼴 바꾸기는 하지 않았다. 반영은 `judgeHand` 알림 키뿐이다(`progress.mjs` +13/−7, 현황판 `node --test` 56건 통과, 커밋 안 함). Backlog 59. 노트북 세션.
 - USER-INPUT 2026-11-15T19:14:01+09:00 — 범위 변경 판단 대기. 가드에 현황판 시험 경로를 더하는 판정 장치 Step을 이 goal에 넣을지(「하지 않을 것」의 `.claude/` 변경과 충돌하고 검증 강도가 강으로 오른다), 아니면 이 goal을 멈추고 노트북 vitest Green 문제부터 풀지 사용자에게 묻는다. 노트북 세션.
 - PASS 2026-11-15T19:51:56+09:00 — 2a단계(사용자가 「A」로 범위 변경 승인). `smoke.test.mjs`에 현황판 경우 6건을 먼저 넣어 3건이 Red인 것을 확인했고(시험 편집이 리셋되지 않고 deny·백스톱), `33_tdd-guard.cjs`의 `isTestPath`에 `99_others/dashboard/test/**/*.test.(mjs|cjs|js)`를 더하자 스모크가 전부 통과했다. 현황판 `lib/`의 `.mjs`는 계속 소스로 센다. 판정 장치 diff는 두 파일 +24/−3이다. `test:hooks`는 첫 실행에서 `state-race` RC-02·RC-04(Backlog 58)만 깨졌고 재실행에서 exit 0이다. 노트북 세션.
+- PASS 2026-11-15T20:07:58+09:00 — 2~4단계(워커 구현, 메인 diff 실사) 그리고 5단계의 게이트 부분. 커밋 `67e23fde`(현황판 11파일, `02_Project/` 변경 0, CSP·쓰기 API 무변경)다. 현황판 `node --test`는 73건 통과(56→73)이고, 하드 게이트 다섯 종은 exit 0이다(`test:hooks` 첫 실행 통과). vitest `include` 밖이라 `npm test` 수집 수는 그대로다. 4319 서버를 재시작해 Orca 탭이 `chime.js`를 실었다(`AgentDeckChime` 있음). 독립 검수는 진행 중이다. 노트북 세션.
+- PASS 2026-11-15T20:07:58+09:00 — 6단계 실제 경로. 이 문서 머리말을 「병합 대기」로 바꾸자 Orca 현황판 탭(`orca eval`)의 제목이 `(1) AgentDeck 현황판`이 됐다. `data-chime-count` 1, `chime-last`는 `merge:01_Milestones/M05_Structure/98b_Goal-H4-현황판-알림.md`, `chime-blocked` 0(재생됨, Orca 내장 브라우저가 자동 재생을 막지 않음)이다. 새로고침 뒤에는 제목이 `(1)`로 남고 다시 울리지 않았다. 스피커 소리는 사용자 확인이 남았다. 노트북 세션.
 
 ## 결정 대장
 

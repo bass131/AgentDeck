@@ -9,11 +9,13 @@ import path from 'node:path'
 const h = vi.hoisted(() => ({
   userData: '',
   conversationStores: [] as { close: () => void }[],
+  handlers: new Map<string, (...args: unknown[]) => unknown>(),
+  handleCalls: 0,
 }))
 
 vi.mock('electron', () => ({
-  app: { getPath: () => h.userData, getAppPath: () => h.userData },
-  ipcMain: { handle: (): void => {} },
+  app: { getPath: () => h.userData, getAppPath: () => h.userData, getVersion: () => '0.0.0' },
+  ipcMain: { handle: (ch: string, fn: (...a: unknown[]) => unknown): void => { h.handleCalls++; h.handlers.set(ch, fn) } },
   dialog: {},
 }))
 
@@ -86,8 +88,13 @@ import {
   initStores,
   getSkillsStore,
   getMcpStore,
+  ipcState,
+  runManager,
 } from '@main/00_App/context'
 import { getBackend } from '@main/00_App/registry'
+import { startApp, attachWindow, stopApp } from '@main/00_App/bootstrap'
+import { getMultiStorePath } from '@main/06_Sessions/multiStore'
+import { IPC_CHANNELS } from '../../../02_Project/00_Source/shared/ipcContract'
 
 const MAIN_DIR = path.resolve(__dirname, '../../00_Source/main')
 const fwd = (p: string): string => p.replace(/\\/g, '/')
@@ -194,5 +201,87 @@ describe('skills·MCP store — 같은 앱 수명에서 실행 두 번이 조립
     const defs = ['11_Settings/skills.ts', '11_Settings/mcp.ts']
     expect(callersOf(/\bcreateSkillsStore\(|\bcreateMcpStore\(/).filter((r) => !defs.includes(r))).toEqual(['00_App/context.ts'])
     expect(callersOf(/from '@main\/11_Settings\/(skills|mcp)'/).filter((r) => r.startsWith('04_Claude/'))).toEqual([])
+  })
+})
+
+// 기동 순서는 옮기기 전과 같다: 대화 저장소 → multi 경로 → (진입점이 창 생성) → 창 붙이기(win 대입, 첫 번째면 store 다섯·LSP·핸들러 등록)
+describe('기동·종료 배선 — 00_App/bootstrap 한 곳 (M05 G11 4단계)', () => {
+  const calls = (fn: unknown): number => vi.mocked(fn as () => unknown).mock.calls.length
+
+  it('startApp은 저장소와 multi 경로만, 첫 attachWindow가 store·핸들러를 한 번 조립하고, 다음 창은 win만 바꾼다', () => {
+    const conv0 = calls(createConversationStore)
+    const skills0 = calls(createSkillsStore)
+    h.handlers.clear()
+
+    startApp()
+    expect(calls(createConversationStore) - conv0).toBe(1)
+    expect(vi.mocked(createConversationStore).mock.calls.at(-1)).toEqual([path.join(h.userData, 'chats')])
+    expect(ipcState.multiStorePath).toBe(getMultiStorePath(h.userData))
+    expect(calls(createSkillsStore) - skills0).toBe(0)
+    expect(h.handlers.size).toBe(0)
+
+    const win1 = { id: 1 } as never
+    attachWindow(win1)
+    expect(ipcState.win).toBe(win1)
+    expect(calls(createSkillsStore) - skills0).toBe(1)
+    for (const ch of [IPC_CHANNELS.WORKSPACE_OPEN, IPC_CHANNELS.AGENT_RUN, IPC_CHANNELS.CONVERSATION_LOAD, IPC_CHANNELS.SKILL_LIST, IPC_CHANNELS.LSP_STATUS]) {
+      expect(h.handlers.has(ch)).toBe(true)
+    }
+
+    const win2 = { id: 2 } as never
+    const handleCalls = h.handleCalls
+    attachWindow(win2)
+    expect(ipcState.win).toBe(win2)
+    expect(h.handleCalls).toBe(handleCalls)
+    expect(calls(createSkillsStore) - skills0).toBe(1)
+    expect(calls(createConversationStore) - conv0).toBe(1)
+  })
+
+  it('settings 배선의 현재 루트는 roots를 읽는다(workspace.open 뒤 root 없는 skill 목록)', async () => {
+    // 조립은 앞 사례에서 끝났다 — 핸들러는 그때 등록됐다
+    const open = h.handlers.get(IPC_CHANNELS.WORKSPACE_OPEN)
+    if (!open) throw new Error('앞 사례가 핸들러를 등록해야 한다')
+    const skills = getSkillsStore()!
+    const listSkills = vi.spyOn(skills, 'listSkills').mockReturnValue([])
+    await open({}, { folderPath: h.userData })
+    await h.handlers.get(IPC_CHANNELS.SKILL_LIST)!({}, {})
+    expect(listSkills).toHaveBeenCalledWith(fwd(h.userData))
+  })
+
+  it('stopApp은 실행을 모두 닫고 쥔 대화 저장소를 닫는다', () => {
+    startApp()
+    const s = h.conversationStores.at(-1)!
+    const closeAll = vi.spyOn(runManager, 'closeAll')
+    stopApp()
+    expect(closeAll).toHaveBeenCalledTimes(1)
+    expect(s.close).toHaveBeenCalledTimes(1)
+  })
+
+  it('조립 팩토리(store·roots·runManager·LSP·백엔드)를 부르는 곳은 00_App 안뿐이다', () => {
+    const FACTORY = /\b(create(Conversation|Prefs|Profile|Skills|Mcp|Commands)Store|createRootRegistry|createRunManager|initLspManager)\(|new (ClaudeCodeBackend|CodexBackend)\b/
+    const outside = mainSources()
+      .filter((f) => !f.rel.startsWith('00_App/'))
+      // 정의 줄과 문자열 리터럴 안(오류 안내 문구)은 호출이 아니다
+      .filter((f) => f.src.split('\n').some((line) => FACTORY.test(line.replace(/'[^']*'/g, "''")) && !/^\s*export function/.test(line)))
+      .map((f) => f.rel)
+    expect(outside).toEqual([])
+  })
+
+  it('01_Ipc는 받은 deps로 등록만 한다 — 00_App의 상태를 import하지 않고 1회 가드·store 초기화를 쥐지 않는다', () => {
+    const ipc = mainSources().filter((f) => f.rel.startsWith('01_Ipc/'))
+    expect(ipc.filter((f) => /00_App\/(context|bootstrap)'/.test(f.src)).map((f) => f.rel)).toEqual([])
+    const index = ipc.find((f) => f.rel === '01_Ipc/index.ts')!.src
+    expect(index).not.toMatch(/_registered|initStores|initLsp|ipcState/)
+  })
+
+  it('진입점 index.ts는 창 생성과 수명주기만 쥔다 — 01_Ipc를 직접 부르지 않고 조립은 00_App/bootstrap에 맡긴다', () => {
+    const src = mainSources().find((f) => f.rel === 'index.ts')!.src
+    const from = [...src.matchAll(/from '([^']+)'/g)].map((m) => m[1])
+    expect(from.filter((s) => !['electron', 'path', './00_App/bootstrap', './00_App/context', './12_Window/zoom'].includes(s))).toEqual([])
+    expect(src).toMatch(/\bstartApp\(\)/)
+    expect(src).toMatch(/\battachWindow\(/)
+    expect(src).toMatch(/\bstopApp\(\)/)
+    // 남기는 예외: 창(BrowserWindow) 생성은 진입점에 둔다 — 수명주기(activate)와 같이 다니는 Electron 표면이다
+    expect(callersOf(/new BrowserWindow\(/)).toEqual(['index.ts'])
   })
 })

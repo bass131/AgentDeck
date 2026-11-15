@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { ClaudeCodeBackend } from '@main/04_Claude/ClaudeCodeBackend'
+import { SDK_VERSION_FALLBACK } from '@main/10_Engine/sdkVersion'
 
 type FetchImpl = typeof fetch
 
@@ -127,12 +128,14 @@ describe('ClaudeCodeBackend.version()', () => {
     expect(result).toBe('1.2.3')
   })
 
-  it('resolvePackageVersion 주입이 실패(throw) → fallback SDK_VERSION(0.3.186)', async () => {
+  // 폴백 값 자체는 sdk-version-read.test.ts의 드리프트 테스트가 package.json 의존 명세에 묶는다 (M05 G11, Backlog 4).
+  it('resolvePackageVersion 주입이 실패(throw) → 폴백 상수 SDK_VERSION_FALLBACK', async () => {
     const backend = new ClaudeCodeBackend(undefined, undefined, undefined, {
       resolvePackageVersion: makeFailPkgVersionProvider()
     })
     const result = await backend.version()
-    expect(result).toBe('0.3.186')
+    expect(result).toBe(SDK_VERSION_FALLBACK)
+    expect(result).toBe('0.3.201')
   })
 
   it('resolvePackageVersion 미주입(기본값) → null 아님(버전 문자열 반환)', async () => {

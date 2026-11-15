@@ -5,6 +5,7 @@ import {
 import { join, extname, basename } from 'node:path'
 import { homedir as nodeHomedir } from 'node:os'
 import type { SlashCommandInfo } from '../../shared/ipcContract'
+import { parseFrontmatter } from './frontmatter'
 
 export const BUILTIN_SLASH_COMMANDS: SlashCommandInfo[] = [
   {
@@ -62,32 +63,6 @@ export interface CommandsDeps {
 
 export interface CommandsStore {
   listSlashCommands(workspaceRoot: string | null): SlashCommandInfo[]
-}
-
-function parseFrontmatter(text: string): { description?: string; argumentHint?: string } {
-  const body = text.replace(/^\uFEFF/, '')
-
-  const m = /^---\r?\n([\s\S]*?)\r?\n---/.exec(body)
-  if (!m) return {}
-
-  const out: Record<string, string> = {}
-  for (const line of m[1].split(/\r?\n/)) {
-    const kv = /^([A-Za-z0-9_-]+)\s*:\s*(.*)$/.exec(line)
-    if (!kv) continue
-    let v = kv[2].trim()
-    if (
-      (v.startsWith('"') && v.endsWith('"')) ||
-      (v.startsWith("'") && v.endsWith("'"))
-    ) {
-      v = v.slice(1, -1)
-    }
-    if (!(kv[1] in out)) out[kv[1]] = v
-  }
-
-  return {
-    description: out['description'],
-    argumentHint: out['argument-hint'],
-  }
 }
 
 const MAX_COMMAND_SCAN_DEPTH = 8
@@ -150,6 +125,7 @@ function discoverCommandsRecursive(
     }
 
     const fm = parseFrontmatter(raw)
+    const argumentHint = fm['argument-hint']
 
     const info: SlashCommandInfo = {
       name,
@@ -157,8 +133,8 @@ function discoverCommandsRecursive(
       scope,
     }
 
-    if (fm.argumentHint !== undefined) {
-      info.argHint = fm.argumentHint.trim()
+    if (argumentHint !== undefined) {
+      info.argHint = argumentHint.trim()
     }
 
     commands.push(info)

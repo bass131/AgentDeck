@@ -23,8 +23,7 @@ import { normalizeSystemPrompt } from '../normalize'
 import { handle } from '../handle'
 import { getBackend } from '@main/00_App/registry'
 import { resolveSetModelRequest } from '@main/04_Claude/runArgs'
-
-const LIVE_MODE_WHITELIST = ['normal', 'plan', 'acceptEdits', 'auto'] as const
+import { LIVE_MODE_WHITELIST } from '@main/04_Claude/permissionModes'
 
 export interface AgentHandlerDeps {
   state: { win: BrowserWindow | null }
@@ -112,7 +111,7 @@ export function registerAgentHandlers(deps: AgentHandlerDeps): void {
     if (!req?.runId || typeof req.runId !== 'string' || req.runId.trim() === '') {
       return { ok: false }
     }
-    if (typeof req.mode !== 'string' || !(LIVE_MODE_WHITELIST as readonly string[]).includes(req.mode)) {
+    if (typeof req.mode !== 'string' || !LIVE_MODE_WHITELIST.includes(req.mode)) {
       return { ok: false }
     }
     return { ok: runManager.setMode(req.runId, req.mode) }

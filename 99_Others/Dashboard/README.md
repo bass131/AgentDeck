@@ -4,11 +4,12 @@ AgentDeck 저장소에서 지금 어떤 작업이 어디까지 왔는지를 한 
 Node 로컬 서버가 저장소 파일과 읽기 전용 git 명령을 읽고, 변경을 열린 화면에 SSE로 보낸다.
 npm 의존성은 없다. Node 내장 모듈만 쓰며 Windows의 Node 24.15.0에서 확인했다.
 구조와 시각 언어는 `C:\Dev\Second_Brain_Dashboard`(본보기)를 따른다. 색의 뜻과 토큰은 본보기 `design/DESIGN.md` 3·4절과 같다.
+원래 별도 저장소(`C:\Dev\AgentDeck_Dashboard`)였고, 2026-11-15 M05 H3에서 커밋 이력째 이 폴더로 편입했다.
 
 ## Orca에서 열기
 
 ```powershell
-Set-Location C:\Dev\AgentDeck_Dashboard
+Set-Location C:\Dev\AgentDeck\99_Others\Dashboard
 node open-in-orca.mjs
 ```
 
@@ -197,8 +198,8 @@ Phase 파일 하나를 못 읽으면 plan-gate처럼 Phase 흐름과 결정 대�
 본보기와 같은 글꼴을 쓰려면 사용자가 직접 복사한다(OFL 라이선스 파일도 함께).
 
 ```powershell
-New-Item -ItemType Directory -Force C:\Dev\AgentDeck_Dashboard\public\fonts | Out-Null
-Copy-Item C:\Dev\Second_Brain_Dashboard\public\fonts\PretendardVariable.woff2, C:\Dev\Second_Brain_Dashboard\public\fonts\OFL.txt C:\Dev\AgentDeck_Dashboard\public\fonts\
+New-Item -ItemType Directory -Force C:\Dev\AgentDeck\99_Others\Dashboard\public\fonts | Out-Null
+Copy-Item C:\Dev\Second_Brain_Dashboard\public\fonts\PretendardVariable.woff2, C:\Dev\Second_Brain_Dashboard\public\fonts\OFL.txt C:\Dev\AgentDeck\99_Others\Dashboard\public\fonts\
 ```
 
 ## 로그·종료
@@ -211,13 +212,13 @@ Copy-Item C:\Dev\Second_Brain_Dashboard\public\fonts\PretendardVariable.woff2, C
 ```powershell
 $state = Get-Content "$env:LOCALAPPDATA\AgentDeckDashboard\server.json" -Raw | ConvertFrom-Json
 $proc = Get-CimInstance Win32_Process -Filter "ProcessId=$($state.pid)"
-if ($proc.Name -eq 'node.exe' -and $proc.CommandLine -like '*AgentDeck_Dashboard*server.mjs*') { Stop-Process -Id $state.pid }
+if ($proc.Name -eq 'node.exe' -and $proc.CommandLine -like '*99_Others*Dashboard*server.mjs*') { Stop-Process -Id $state.pid }
 ```
 
 ## 시험
 
 ```powershell
-Set-Location C:\Dev\AgentDeck_Dashboard
+Set-Location C:\Dev\AgentDeck\99_Others\Dashboard
 node --test
 ```
 

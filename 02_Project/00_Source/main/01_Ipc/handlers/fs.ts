@@ -1,5 +1,6 @@
-import { dialog, app } from 'electron'
+import { app } from 'electron'
 import type { BrowserWindow } from 'electron'
+import { pickDirectory } from '@main/07_Workspace/pickFolder'
 import { existsSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { IPC_CHANNELS, WORKSPACE_ROOT_ID } from '../../../shared/ipcContract'
@@ -123,17 +124,8 @@ export function registerFsHandlers(deps: FsHandlerDeps): void {
   })
 
   handle(IPC_CHANNELS.DIALOG_PICK_FOLDER, async (): Promise<PickFolderResponse> => {
-    let folderPath: string | null = null
-
-    if (process.env.AGENTDECK_E2E_PICK_FOLDER) {
-      folderPath = process.env.AGENTDECK_E2E_PICK_FOLDER.replace(/\\/g, '/')
-    } else {
-      const result = state.win
-        ? await dialog.showOpenDialog(state.win, { properties: ['openDirectory'] })
-        : await dialog.showOpenDialog({ properties: ['openDirectory'] })
-      if (result.canceled || result.filePaths.length === 0) return { path: null }
-      folderPath = result.filePaths[0].replace(/\\/g, '/')
-    }
+    const folderPath = await pickDirectory(state.win, 'AGENTDECK_E2E_PICK_FOLDER')
+    if (folderPath === null) return { path: null }
 
     try {
       if (!existsSync(folderPath) || !statSync(folderPath).isDirectory()) return { path: null }

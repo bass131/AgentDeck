@@ -40,7 +40,8 @@ const SKIP_DIRS = new Set(['node_modules', 'dist', 'out', 'coverage', '.git'])
 // M05 G11: 427 → 428. credentials 파일 읽기 한 곳(10_Engine/credentials)과 두 소비처 기본 경로를 고정하는 main/credentials.test.ts를 더했다.
 // M05 G11: 428 → 429. frontmatter 파서 한 곳(11_Settings/frontmatter)과 skills·commands 공통 동작을 고정하는 main/frontmatter.test.ts를 더했다.
 // M05 G11: 429 → 430. 비활성 오버레이 한 곳(11_Settings/disabledOverlay)과 skills·mcp 공통 동작을 고정하는 main/disabledOverlay.test.ts를 더했다.
-const BASELINE_TEST_FILES = 430
+// M05 G11: 430 → 431. 폴더 선택 대화상자 한 곳(07_Workspace/pickFolder)과 실물 핸들러 셋의 동작을 고정하는 main/handlers/folder-pick.test.ts를 더했다.
+const BASELINE_TEST_FILES = 431
 
 function collectTestFiles(dir: string, acc: string[] = []): string[] {
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {

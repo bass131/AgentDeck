@@ -1,4 +1,3 @@
-import { dialog } from 'electron'
 import { handle } from '../handle'
 import type { BrowserWindow } from 'electron'
 import { isAbsolute } from 'node:path'
@@ -9,6 +8,7 @@ import type {
   WorkspaceTreeResponse,
 } from '../../../shared/ipcContract'
 import { buildTree, validateWorkspaceRoot } from '@main/07_Workspace/workspace'
+import { pickDirectory } from '@main/07_Workspace/pickFolder'
 import type { RootRegistry } from '@main/07_Workspace/roots'
 
 export interface WorkspaceHandlerDeps {
@@ -30,16 +30,12 @@ export function registerWorkspaceHandlers(deps: WorkspaceHandlerDeps): void {
         return { rootPath: null, tree: null }
       }
       rootPath = req.folderPath.replace(/\\/g, '/')
-    } else if (process.env.AGENTDECK_E2E_WORKSPACE) {
-      rootPath = process.env.AGENTDECK_E2E_WORKSPACE.replace(/\\/g, '/')
     } else {
-      const result = state.win
-        ? await dialog.showOpenDialog(state.win, { properties: ['openDirectory'] })
-        : await dialog.showOpenDialog({ properties: ['openDirectory'] })
-      if (result.canceled || result.filePaths.length === 0) {
+      const picked = await pickDirectory(state.win, 'AGENTDECK_E2E_WORKSPACE')
+      if (picked === null) {
         return { rootPath: null, tree: null }
       }
-      rootPath = result.filePaths[0].replace(/\\/g, '/')
+      rootPath = picked
     }
 
     try {

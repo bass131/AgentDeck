@@ -148,18 +148,23 @@ test('hand keys: the same fact gives the same key; a step number or a gate in an
   const goal = (statusWord, items, cur, extra = {}, doc = 'g.md') => ({ status: 'ok', format: 'goal', items, current: cur,
     record: { section: true, failSinceUserInput: 0, userInput: 0, last: null, ...extra.record }, goal: { status: statusWord, statusWord, closed: false, waitingUser: false, ref: { path: doc, line: 3 }, ...extra.goal } });
   const keys = h => h.map(x => x.key);
-  assert.deepEqual(keys(judgeHand({ phases: goal('병합 대기', [], null, { goal: { status: '병합 대기 (PR 49)' } }) })), ['merge:PR49']);
+  // 병합 대기는 goal 문서 하나의 사실이다 — 머리말에 PR 번호가 나중에 붙어도 같은 키라 다시 울리지 않는다(H4 검수 비차단 1)
+  assert.deepEqual(keys(judgeHand({ phases: goal('병합 대기', [], null, { goal: { status: '병합 대기 (PR 49)' } }) })), ['merge:g.md']);
   assert.deepEqual(keys(judgeHand({ phases: goal('병합 대기', [], null) })), ['merge:g.md']);
+  assert.deepEqual(keys(judgeHand({ phases: goal('병합 대기', [], null, { goal: { status: '병합 대기 (PR 49)' } }, 'h.md') })), ['merge:h.md']);
   const mergeStep = doc => keys(judgeHand({ phases: goal('실행 중', [step(7, 'current', '커밋, push, PR 생성, 병합 승인 요청')], 7, {}, doc) }));
   assert.deepEqual(mergeStep('g.md'), ['merge-step:g.md:7']);
   assert.deepEqual(mergeStep('h.md'), ['merge-step:h.md:7'], '다음 goal의 같은 단계 번호는 다른 사실이다');
-  const q = judgeHand({ phases: goal('실행 중', [step(2, 'current', 'b')], 2, { goal: { waitingUser: true }, record: { last: { marker: 'USER-INPUT', text: '?', file: 'g.md', line: 40 } } }) });
-  assert.deepEqual(keys(q), ['question:g.md:40']);
+  // 사용자 입력 줄은 그 줄의 시각으로 가른다 — 위쪽에 줄이 더해져 줄 번호가 밀려도 같은 사실이다(H4 검수 비차단 2)
+  const q = (line, at) => keys(judgeHand({ phases: goal('실행 중', [step(2, 'current', 'b')], 2, { goal: { waitingUser: true }, record: { last: { marker: 'USER-INPUT', at, text: '?', file: 'g.md', line } } }) }));
+  assert.deepEqual([q(40, '2026-11-15T19:14:01+09:00'), q(41, '2026-11-15T19:14:01+09:00')], [['question:g.md:2026-11-15T19:14:01+09:00'], ['question:g.md:2026-11-15T19:14:01+09:00']]);
+  assert.deepEqual(q(40, null), ['question:g.md:40'], '시각이 없는 줄은 줄 번호로 가른다');
   // 멈춤: 실패 수가 더 늘어도 같은 사실이고, 사용자가 답한 뒤(USER-INPUT 줄이 늘어난 뒤) 다시 멈추면 새 사실이다
   const stop = (fails, userInput) => keys(judgeHand({ phases: goal('실행 중', [step(2, 'stopped', 'b')], 2, { record: { failSinceUserInput: fails, userInput } }) }));
   assert.deepEqual([stop(3, 0), stop(4, 0), stop(3, 1)], [['stopped:g.md:2:u0'], ['stopped:g.md:2:u0'], ['stopped:g.md:2:u1']]);
-  const ledger = path => keys(judgeHand({ ledger: { status: 'ok', gate: 'ask', tally: { AI: 3 }, userSide: 1, ref: { path, line: 9 } } }));
-  assert.deepEqual([ledger('g.md'), ledger('h.md')], [['ledger:g.md:ask'], ['ledger:h.md:ask']]);
+  // 결정 대장 게이트: 사용자 결정 수를 넣는다 — 사용자가 결정을 더해 풀린 뒤 다시 막히면 새 사실이다(H4 검수 비차단 3)
+  const ledger = (path, userSide = 1) => keys(judgeHand({ ledger: { status: 'ok', gate: 'ask', tally: { AI: 3 }, userSide, ref: { path, line: 9 } } }));
+  assert.deepEqual([ledger('g.md'), ledger('h.md'), ledger('g.md', 2)], [['ledger:g.md:ask:u1'], ['ledger:h.md:ask:u1'], ['ledger:g.md:ask:u2']]);
   const ask = judgeHand({ hooks: { status: 'ok', entries: entries([line({ hook: 'cmd-guard', verdict: 'ask', agent_id: null, cmd: 'git push' })]) } });
   assert.deepEqual(keys(ask), ['ask:2026-11-11T09:59:00+09:00']);
   // 같은 입력을 두 번 판정하면 키도 같다(스냅샷이 다시 와도 같은 사실)
@@ -170,7 +175,7 @@ test('hand keys: the same fact gives the same key; a step number or a gate in an
 
 test('hand keys from the real collector carry the document path; the ledger reference the ledger key uses is there', async () => {
   const G3 = await load('30_Goal-G3-입력-대기.md'), G4 = await load('40_Goal-G4-실패-누적.md');
-  assert.deepEqual(G3.summary.hand.map(h => h.key), [`question:${DIR}/30_Goal-G3-입력-대기.md:21`]);
+  assert.deepEqual(G3.summary.hand.map(h => h.key), [`question:${DIR}/30_Goal-G3-입력-대기.md:2026-11-11T09:15:00+09:00`]);
   assert.deepEqual(G4.summary.hand.map(h => h.key), [`stopped:${DIR}/40_Goal-G4-실패-누적.md:2:u1`]);
   assert.deepEqual(G4.ledger.ref, { path: `${DIR}/40_Goal-G4-실패-누적.md`, line: 25 });
   // 다중 파일 형식의 멈춤은 그 Phase 파일 경로로 가른다
@@ -189,7 +194,11 @@ test('quiet after a stop: only when the very last record is surface-probe\'s Sto
   const after = entries([line({ hook: 'surface-probe', event: 'Stop', agent_id: null }), line({ hook: 'pass-watcher', event: 'PostToolUse', verdict: '무장전' })]);
   assert.equal(judgeQuiet(after), null);
   assert.equal(summarizeActivity(after).quiet, null);
-  assert.equal(judgeQuiet(entries([line({ hook: 'surface-probe', event: 'Stop' }), line({ hook: 'stop-gate', event: 'Stop' })])), null);
+  // 같은 Stop 묶음의 두 훅은 기록 순서가 보장되지 않는다 — 끝의 Stop 묶음에 surface-probe가 있으면 조용함이다(H4 검수 비차단 8)
+  const reordered = entries([line({ hook: 'surface-probe', event: 'Stop' }), line({ hook: 'stop-gate', event: 'Stop' })]);
+  assert.deepEqual(judgeQuiet(reordered), { at: reordered[0].at, session: reordered[0].session, after: 5 });
+  assert.equal(judgeQuiet(entries([line({ hook: 'stop-gate', event: 'Stop' })])), null, 'surface-probe 없는 Stop은 응답 마침이 아니다');
+  assert.equal(judgeQuiet(entries([line({ hook: 'surface-probe', event: 'Stop' }), line({ hook: 'cmd-guard', agent_id: null, cmd: 'ls' }), line({ hook: 'stop-gate', event: 'Stop' })])), null, '끝 묶음 앞의 응답 마침은 지난 일이다');
   assert.equal(judgeQuiet(entries([line({ hook: 'cmd-guard', agent_id: 'a1', cmd: 'ls' })])), null);
   assert.deepEqual([judgeQuiet([]), judgeQuiet(null)], [null, null]);
 });

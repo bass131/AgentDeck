@@ -215,6 +215,11 @@ try {
     expectLine('현황판 시험 편집 → 카운터 리셋', r, 'tdd-guard', '리셋', '테스트-편집')
     r = run(H, dashEdit('smoke-33d', 'PreToolUse'))
     expectSilent('현황판 시험 리셋 뒤 소스 편집은 다시 열린다', r, 'tdd-guard')
+    // 경계 음성 — test/ 안의 .test.* 아닌 파일, test/ 밖의 .test.*는 테스트가 아니다(소스로 센다)
+    r = run(H, edit('smoke-33e', 'PostToolUse', join(MIRROR, '99_Others', 'Dashboard', 'test', 'helpers.mjs'), 'a', 'b'))
+    expectLine('현황판 test/helpers.mjs 편집 → 소스로 센다', r, 'tdd-guard', '통과', '연속-미달')
+    r = run(H, edit('smoke-33e', 'PostToolUse', join(MIRROR, '99_Others', 'Dashboard', 'lib', 'x.test.mjs'), 'a', 'b'))
+    expectLine('현황판 lib/x.test.mjs 편집 → 소스로 센다', r, 'tdd-guard', '통과', '연속-미달')
 
     r = run(H, bashOut('smoke-33c', RED_OUT))
     expectLine('vitest Red → 무기록 (증거 아님)', r, 'tdd-guard', '무기록', 'vitest-red')

@@ -68,5 +68,25 @@ function quietMinutes(quiet, now) {
   return gone > after * 60000 ? Math.floor(gone / 60000) : null;
 }
 
-globalThis.AgentDeckChime = Object.freeze({ RUNG_KEY, RUNG_MAX, QUIET_AFTER_MIN, handKeys, chimeStep, readRung, writeRung, createChimeMemory, badgeTitle, quietMinutes });
+// 알림음 상태 하나(on 재생됨 · blocked 막힘 · pending 판정 중 · unsupported Web Audio 없음)가 두 곳을 정한다.
+// soundMark는 관찰 표지 data-chime-blocked 값이고(H4와 같은 뜻), soundBadge는 「내 손이 필요한 일」 머리 아래 작은 표시다.
+// pending이나 모르는 값이면 soundBadge는 null이다. 화면은 보이던 표시를 그대로 두어, 깜빡이지 않고 확인 전에 「켜짐」이라 쓰지 않는다.
+const SOUND_MARK = Object.freeze({ on: '0', blocked: '1', pending: 'pending', unsupported: 'unsupported' });
+const SOUND_BADGE = Object.freeze({
+  on: Object.freeze({ state: 'on', text: '알림음 켜짐', title: '새 항목이 들어오면 알림음이 한 번 나요' }),
+  blocked: Object.freeze({ state: 'blocked', text: '알림음 막힘', title: '브라우저가 소리를 막았어요. 누르면 소리를 켜고 한 번 들려줘요' }),
+  unsupported: Object.freeze({ state: 'unsupported', text: '알림음 없음', title: '이 브라우저는 Web Audio가 없어 소리 없이 지나가요. 탭 제목 배지는 그대로예요' }),
+});
+const soundMark = state => SOUND_MARK[state] ?? null;
+const soundBadge = state => (SOUND_BADGE[state] ? { ...SOUND_BADGE[state] } : null);
+
+// 상단 띠의 손 줄: 보이는 항목 가운데 멈춤(stop)이 있으면 그 첫 항목, 없으면 첫 항목의 문장과 나머지 수.
+function stripHand(items) {
+  const list = (items || []).filter(Boolean);
+  if (!list.length) return null;
+  const stop = list.find(h => h.level === 'stop');
+  return { level: stop ? 'stop' : 'todo', say: String((stop ?? list[0]).say ?? ''), more: list.length - 1 };
+}
+
+globalThis.AgentDeckChime = Object.freeze({ RUNG_KEY, RUNG_MAX, QUIET_AFTER_MIN, handKeys, chimeStep, readRung, writeRung, createChimeMemory, badgeTitle, quietMinutes, soundMark, soundBadge, stripHand });
 })();

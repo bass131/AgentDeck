@@ -13,6 +13,9 @@ export interface PendingPermission {
   toolName: string
   summary: string
   planReview?: PlanReviewPayload
+  // M06 G3 — 모드와 관계없이 사람에게 올린 호출의 표지와 사유 원문(없을 수 있다). 표지가 있으면 카드가 명령 전문을 보이고 「항상 허용」을 숨긴다.
+  escalated?: true
+  askReason?: string
 }
 
 export interface PendingQuestion {

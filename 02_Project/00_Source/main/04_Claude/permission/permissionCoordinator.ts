@@ -16,11 +16,36 @@ export type PermissionResult =
   | { behavior: 'allow'; updatedInput: Record<string, unknown>; updatedPermissions?: unknown[] }
   | { behavior: 'deny'; message: string }
 
+export interface CanUseToolOptions {
+  signal?: AbortSignal
+  toolUseID?: string
+  decisionReason?: string
+  suggestions?: unknown[]
+}
+
 export type CanUseToolFn = (
   toolName: string,
   input: Record<string, unknown>,
-  options?: { signal?: AbortSignal; toolUseID?: string }
+  options?: CanUseToolOptions
 ) => Promise<PermissionResult>
+
+// 사람에게 올릴 호출의 판별 (M06 G3). 공개 타입(sdk.d.ts의 CanUseTool)의 options에는 훅 유래를 알리는 필드가 없다.
+// 블랙박스 실측(독립 clone, default·acceptEdits·bypassPermissions·실행 중 auto)에서
+//   훅 ask는 suggestions가 언제나 없었다. decisionReason은 settings allow 규칙과 겹친 `git push origin HEAD:master`에만 왔고,
+//   settings ask 규칙과 겹친 `gh release --help`·`npm publish --help`에는 오지 않았다.
+//   일반 질의는 언제나 규칙 제안이 한 개 이상 붙어 왔다. 사유는 없을 수 있었다(default의 Write).
+// 그래서 사유가 아니라 규칙 제안으로 가른다. 제안이 비어 있지 않은 배열이 아니면 모드와 관계없이 카드로 보낸다(fail-closed).
+// 민감 파일 안전 검사(suggestions: [])와 옵션 없는 호출도 여기에 걸린다 — 모르는 꼴은 허용으로 떨어지지 않는다.
+export interface Escalation {
+  reason?: string
+}
+
+export function escalationOf(options?: CanUseToolOptions): Escalation | undefined {
+  const suggestions = options?.suggestions
+  if (Array.isArray(suggestions) && suggestions.length > 0) return undefined
+  const reason = options?.decisionReason
+  return typeof reason === 'string' && reason.trim() !== '' ? { reason } : {}
+}
 
 export function parseQuestions(input: Record<string, unknown>): AgentQuestion[] {
   const raw = Array.isArray(input['questions']) ? input['questions'] : []
@@ -64,8 +89,16 @@ function oneLine(s: string, max: number): string {
   return t.length > max ? t.slice(0, max - 1) + '…' : t
 }
 
-export function permissionSummary(toolName: string, input: Record<string, unknown>): string {
-  if (toolName === 'Bash') return `명령 실행: ${oneLine(String(input['command'] ?? ''), 80)}`
+// fullCommand: 가드가 물은 Bash 카드는 명령을 자르지도 줄바꿈을 지우지도 않는다 (M06 G3 — 80자 자르기가 push·master를 가렸다).
+export function permissionSummary(
+  toolName: string,
+  input: Record<string, unknown>,
+  opts?: { fullCommand?: boolean }
+): string {
+  if (toolName === 'Bash') {
+    const command = String(input['command'] ?? '')
+    return `명령 실행: ${opts?.fullCommand ? command.trim() : oneLine(command, 80)}`
+  }
   if (toolName === 'Write') return `파일 생성: ${String(input['file_path'] ?? '')}`
   if (toolName === 'Edit' || toolName === 'MultiEdit') return `파일 편집: ${String(input['file_path'] ?? '')}`
   if (toolName === 'ExitPlanMode') return `계획 검토: ${planTitle(input['plan'])}`
@@ -111,7 +144,7 @@ export class PermissionCoordinator {
     return async (
       toolName: string,
       input: Record<string, unknown>,
-      options?: { signal?: AbortSignal; toolUseID?: string }
+      options?: CanUseToolOptions
     ): Promise<PermissionResult> => {
       const currentMode = getMode()
       if (toolName === 'AskUserQuestion') {
@@ -125,6 +158,12 @@ export class PermissionCoordinator {
           return { behavior: 'deny', message: '오케스트레이션 모드가 꺼져 있습니다.' }
         }
         return this._requestPermission(toolName, input, options)
+      }
+
+      // 규칙 제안 없는 호출은 모드·READONLY 분기보다 먼저 사람에게 올린다 (M06 G3 — auto·bypass 조기 허용이 가드 ask를 삼켰다).
+      const escalation = escalationOf(options)
+      if (escalation !== undefined) {
+        return this._requestPermission(toolName, input, options, escalation)
       }
 
       if (currentMode === 'auto' || currentMode === 'bypass') {
@@ -146,10 +185,13 @@ export class PermissionCoordinator {
   private async _requestPermission(
     toolName: string,
     input: Record<string, unknown>,
-    options?: { signal?: AbortSignal; toolUseID?: string }
+    options?: CanUseToolOptions,
+    escalation?: Escalation
   ): Promise<PermissionResult> {
     const requestId = `perm-${++this._permCounter}`
-    const summary = permissionSummary(toolName, input)
+    const escalated = escalation !== undefined
+    const askReason = escalation?.reason
+    const summary = permissionSummary(toolName, input, { fullCommand: escalated })
 
     const response = await new Promise<RunResponse>((resolve) => {
       this._waiters.set(requestId, resolve)
@@ -164,6 +206,8 @@ export class PermissionCoordinator {
         requestId,
         toolName,
         summary,
+        ...(escalated ? { escalated: true as const } : {}),
+        ...(askReason !== undefined ? { askReason } : {}),
         ...(toolName === 'ExitPlanMode'
           ? {
               planReview: {
@@ -187,7 +231,8 @@ export class PermissionCoordinator {
         ? [{ type: 'setMode', mode: 'acceptEdits', destination: 'session' }]
         : []
 
-    if (behavior === 'allow_always') {
+    // 사람에게 올린 호출에는 「항상 허용」이 없다 — 카드가 버튼을 숨기고, 여기서도 도구 단위 세션 규칙을 내지 않는다.
+    if (behavior === 'allow_always' && !escalated) {
       return {
         behavior: 'allow',
         updatedInput: input,

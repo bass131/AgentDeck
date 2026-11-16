@@ -133,8 +133,11 @@ function mkStreamEvent() {
 type CanUseToolFn = (
   toolName: string,
   input: Record<string, unknown>,
-  opts: { signal: AbortSignal; toolUseID: string }
+  opts: { signal: AbortSignal; toolUseID: string; suggestions?: unknown[] }
 ) => Promise<{ behavior: string; updatedInput: unknown }>
+
+// M06 G3 — 일반 질의의 실측 꼴: SDK는 규칙 제안을 한 개 이상 붙여 보낸다. 제안 없는 호출은 모드와 관계없이 카드로 간다.
+const SUGG: unknown[] = [{ type: 'addRules', rules: [{ toolName: 'Bash' }], behavior: 'allow', destination: 'session' }]
 
 describe('ClaudeCodeBackend — SDK query 전환 (Phase 21b)', () => {
   describe('② 정상 실행 — mock query → AgentEvent 스트림', () => {
@@ -328,7 +331,7 @@ describe('ClaudeCodeBackend — SDK query 전환 (Phase 21b)', () => {
       if (capturedCanUseTool) {
         const signal = new AbortController().signal
         for (const tool of ['Read', 'Glob', 'Grep', 'WebFetch']) {
-          const result = await capturedCanUseTool(tool, {}, { signal, toolUseID: 'test' })
+          const result = await capturedCanUseTool(tool, {}, { signal, toolUseID: 'test', suggestions: SUGG })
           expect(result.behavior).toBe('allow')
         }
       }
@@ -346,7 +349,7 @@ describe('ClaudeCodeBackend — SDK query 전환 (Phase 21b)', () => {
       if (capturedCanUseTool) {
         const signal = new AbortController().signal
         for (const tool of ['Bash', 'Write', 'Edit']) {
-          const result = await capturedCanUseTool(tool, { command: 'x' }, { signal, toolUseID: 'test' })
+          const result = await capturedCanUseTool(tool, { command: 'x' }, { signal, toolUseID: 'test', suggestions: SUGG })
           expect(result.behavior).toBe('allow')
         }
       }

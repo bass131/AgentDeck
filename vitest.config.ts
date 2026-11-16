@@ -16,6 +16,8 @@ export default defineConfig({
     environment: 'node',
     include: ['02_Project/01_TestCode/**/*.test.ts', '02_Project/01_TestCode/**/*.test.tsx'],
     globals: false,
+    // 이 기계의 콜드 import(렌더러 마크다운 스택)가 기본 5초를 넘어 시간 초과한다 — M05 Backlog 57, M06 G3 [USER]
+    testTimeout: 30000,
     globalSetup: ['02_Project/01_TestCode/globalSetup.ts'],
     css: false,
     server: {

@@ -73,6 +73,58 @@
   box-shadow: var(--recess);
 }
 
+/* M06 G3 — 가드가 물은 호출의 카드: 사유 줄과 명령 전문. 접힘은 높이만 줄이고 글자는 DOM에 남긴다. */
+.perm-card-reason {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 8px 12px;
+  border-radius: 9px;
+  background: var(--warn-soft);
+  border: 1px solid var(--line-2);
+  border-left: 3px solid var(--warn);
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+
+.perm-card-reason-label {
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--text-2);
+}
+
+.perm-card-reason-text.empty {
+  color: var(--text-3);
+}
+
+.perm-card-opt:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+.perm-card-opt:disabled:hover {
+  border-color: var(--line-2);
+  background: var(--surface);
+}
+
+.perm-card-lock-hint {
+  grid-column: 1 / -1;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--warn);
+}
+
+.perm-card-sum-full {
+  white-space: pre-wrap;
+  max-height: 320px;
+}
+
+.perm-card-sum-full.collapsed {
+  max-height: 6.4em;
+  overflow: hidden;
+}
+
 .perm-card-opts {
   display: grid;
   grid-template-columns: repeat(3, 1fr);

@@ -38,8 +38,8 @@
 - [x] 5. 모델 목록 공급자와 IPC 만들기
 - [x] 6. 선택기·노력 메뉴·계기 고치기, 손 표 정리
 - [x] 7. 실제 앱으로 재기 — 선택기 innerText, 네 모델 한 턴씩, 옛 대화 열기
-- [>] 8. 독립 검수와 최종 검증
-- [ ] 9. PR 올리고 병합 승인 요청
+- [x] 8. 독립 검수와 최종 검증
+- [>] 9. PR 올리고 병합 승인 요청
 
 실행 단계 일괄 승인 대상 (사용자 「A로 가」·「이참에 SDK도 업데이트 해줘」·「좋아, 그렇게 진행해줘」)
 
@@ -62,6 +62,7 @@ DoD
 - PASS 2026-11-16T17:04:29+09:00 4·5단계 — main 공급자(`modelListProvider.ts`)가 프롬프트 없는 Query로 `supportedModels()`만 묻고 `userData/model-list.json`에 캐시하며, 실패하면 캐시 → 최소 목록 4행으로 물러나 `agent.listModels`로 낸다. 실패하는 테스트 먼저(신규·재작성 5파일 20건 Red) 뒤 Green, 공급자 테스트는 SDK 실패·깨진 캐시·빈 응답·캐시 경로 없음에서도 목록이 뜨는 것을 고정한다(커밋 `f79db6ef`).
 - PASS 2026-11-16T17:04:29+09:00 6단계 — 선택기·노력 메뉴가 SDK 목록의 `displayName`·`supportedEffortLevels`로 그려지고 「최소」·`thinking: disabled` 경로를 지웠다. 계기는 주 모델의 `modelUsage.contextWindow`를 쓴다. 저장은 정식 ID로 하며(`d6a521d8`), 배경 run 저장이 model 없이 와도 기존 값을 유지하고, 기록 재적재 예산은 대화가 잰 창을 실행 요청의 `contextWindow`로 받아 정한다(모르면 200K 기준) — 구현 워커가 남긴 배경 저장 결함과, 손 표 삭제로 200K 모델 예산이 1M 기준이 된 회귀를 메인이 고쳤다(`0be9101e`, 새 테스트 Red 확인 뒤 Green). 소스의 모델 ID 손 목록은 `knownModels.ts` 8~11줄 한 곳뿐이다(grep 4줄). 하드 게이트 다섯 종 exit 0, `npm run test` 435 통과·6 건너뜀, 5865건 통과·실패 0.
 - PASS 2026-11-16T17:04:29+09:00 7단계 — 독립 clone(`d6a521d8`)·로컬 bare origin·임시 userData로 실앱을 띄워, 선택기 innerText 13행(「Opus 5.5 / Fable 5.2 / Sonnet 5.5 / Haiku 5.5 / Fable 5.1 / Haiku 4.5 / … / Sonnet 4.6」)과 노력 메뉴 다섯 단계(「최소」 없음), 캐시 14행을 확인했다. 최신 네 모델을 하나씩 골라 한 턴씩 응답했고(`G4_TURN_1..4_OK`, 저장 `claude-opus-5-5`·`claude-fable-5-2`·`claude-sonnet-5-5`·`claude-haiku-5-5`), 옛 ID `claude-haiku-4-5`로 저장된 대화가 「Haiku 4.5」로 열려 이어졌다(계기 200K, 저장 model 유지). 한 회차에서 Fable 턴이 서버 `529 Overloaded`로 실패해 재실행에서 통과했다. 승인 카드는 뜨지 않았다. `0be9101e`의 두 수정은 실앱으로 다시 재지 않았고 단위 테스트로만 고정했다.
+- PASS 2026-11-16T17:25:57+09:00 8단계 — 구현 문맥 없는 검수자(reviewer, 내부 미열람 명시)가 `c635ef75..0be9101e`를 PASS로 판정했다(blocker·major 0, minor 8). 그 가운데 셋을 메인이 고쳤다(`7c8f1685`, 새 테스트 Red 6건 확인 뒤 Green): scope `local` 거절 폴백은 주 모델을 바꾸지 않는다, 목록 세션은 `persistSession: false`와 `Query.close()`로 기록·자식 프로세스를 남기지 않는다, 옛 「최소」는 max가 아니라 low로 읽는다. 나머지 minor는 Backlog 16~19로 뺐다. 최종 하드 게이트 다섯 종 exit 0, `npm run test` 435 통과·6 건너뜀, 5870건 통과·실패 0.
 
 ## 결정 대장
 

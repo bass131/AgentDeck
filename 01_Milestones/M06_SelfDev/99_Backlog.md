@@ -18,3 +18,7 @@ M05에서 넘어온 항목은 `M05_Structure/99_Backlog.md`가 계속 소유합�
 13. 모델 목록 공급자는 한 번 받은 결과를 기억해서, 앱 시작 때 목록 요청이 실패해 최소 목록으로 떴으면 재시작 전까지 다시 묻지 않는다. 다시 묻기 버튼이나 지연 재시도 후보 (G4 구현 보고).
 14. `pickerOptions.audit-fix.test.tsx`의 beforeAll이 이 기계에서 10초 hook 타임아웃을 가끔 넘는다(변경 전 12.9초 실측). 기본 `hookTimeout`도 `testTimeout`처럼 올릴지 (G4 구현 보고).
 15. 저장된 별칭 `opus`가 이제 SDK 목록대로 Opus 5.5로 풀린다(예전 손 표는 4.8). `ContextStrip`이 받는 `selectedModel`을 쓰지 않는다 (G4 구현 보고).
+16. 모델 목록이 최소 목록으로만 떴을 때(목록 실패·앱 시작 직후 최대 20초) 저장된 `claude-opus-5`는 effort 메뉴가 켜져 보여도 effort가 안 실리고, 저장된 짧은 별칭 `opus`·`sonnet`은 model 키가 빠져 SDK 기본 모델로 돈다 (G4 검수 1-3·1-4).
+17. 새 대화 기본 모델이 SDK 목록의 `default` 행이 아니라 손으로 적은 `claude-opus-5-5`다 — 「사람 손은 SDK 갱신 하나」가 기본값에는 아직 참이 아니다 (G4 검수 1-6).
+18. 기록 재적재 예산은 지금 고른 모델이 아니라 직전 턴이 잰 창을 따른다(1M로 잰 대화를 200K 모델로 바꿔 세션 없이 보내면 넘칠 수 있다). 캐시 파일 행의 `value`에 길이·문자 제한이 없다 (G4 검수 1-7·1-8).
+19. Dependabot PR은 `package.json`만 올린다 — `SDK_VERSION_FALLBACK`과 그 테스트 기댓값을 손으로 같이 올려야 하고, PR 검사 워크플로가 없다. `claudeStream.ts`의 접미 벗기기가 `modelList.ts`와 복제다 (G4 검수 메모).

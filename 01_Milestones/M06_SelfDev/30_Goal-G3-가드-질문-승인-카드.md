@@ -29,7 +29,7 @@ AgentDeck 앱 경유 세션에서, 저장소의 위험 명령 가드 훅이 `ask
 - [x] 5. 승인 카드 고치기 — 명령 전문(접기·펼치기)과 가드 사유, 가드 질문엔 「항상 허용」 숨김
 - [x] 6. 실제 앱으로 다시 재기 — G1 사례를 clone에서 다시 돌려 카드·거부·bare ref 확인, 가드 안 묻는 명령은 그대로
 - [x] 7. 독립 검수와 최종 검증 — 구현 문맥 없는 검수자, 하드 게이트 다섯 종, `npm test`(30초 타임아웃)
-- [ ] 8. PR 올리고 병합 승인 요청 — 커밋, 작업 브랜치 push, PR 생성. PR 60과 함께 승인을 묻는다
+- [x] 8. PR 올리고 병합 승인 요청 — 커밋, 작업 브랜치 push, PR 생성. PR 60과 함께 승인을 묻는다
 
 실행 단계 일괄 승인 대상 (사용자 「그럼 병합 먼저 하지말고 픽스 진행해줘」)
 
@@ -58,6 +58,7 @@ DoD
 - FAIL 2026-11-16T13:32:53+09:00 7단계 — 구현 문맥 없는 검수자 판정 FAIL, 블로커 1건: 실측 근거가 settings의 allow 규칙에 걸리는 `git push origin HEAD:master` 한 꼴뿐이고, settings의 ask 규칙과 겹치는 가드 질문(`gh pr merge`·`gh release`·`npm publish`·`npm run package`)은 콜백에 사유가 오는지 확인되지 않았다. 판별이 사유 없음에서 허용으로 떨어져(fail-open) 그 경우 `자동`·`Bypass`에서 카드 없이 실행될 수 있다. 시도한 것: 단위 테스트 38건·권한 관련 86건 통과, 실제 앱 push 19사례. 다음 시도: `gh release --help`·`npm publish --help`를 블랙박스로 재고, 결과와 무관하게 사유 없음을 허용으로 떨어뜨리지 않는 판별을 검토한다. minor 6건(접힘 단언 공백, 접힌 채 허용, 비가드 사유의 「가드 사유」 라벨, 엔진 버전 차이, 내용 없는 단언, 범위 문구 밖 reducer 배선 2파일)은 함께 본다. 검수자는 금지 통지 전에 SDK 번들 내부를 읽었다고 밝혔고, 판정에는 그 내용을 쓰지 않았다.
 - PASS 2026-11-16T14:21:09+09:00 7단계 블로커 수정 — 블랙박스 실측(SDK 0.3.201, 공개 타입과 반환값만, 내부 미열람)에서 settings ask 규칙과 겹치는 가드 질문 `gh release --help`·`npm publish --help`는 네 모드 모두 콜백에 `decisionReason`도 `suggestions`도 없이 왔다 — 블로커 실재 확인. 일반 질의(Bash·Write·Read·WebFetch·WebSearch)는 콜백에 올 때 늘 제안 1개 이상이었다. 판별을 「제안이 비어 있지 않은 배열이 아니면 모드 무관 카드」로 바꾸고(커밋 1d3bb9e2), 라벨은 중립 「확인이 필요한 이유」, 사유 없을 때 대체 문구, 접힌 긴 명령은 펼치기 전 허용 잠금(71e2d33a·5d8cfdf9). 실제 앱 재측정: 자동·Bypass `gh release`와 자동 push·220자 push 카드 뜸·거부·bare `master` 없음, `git status`·`git config`는 카드 없이 실행. 메인 세션 `npm run test` 431 통과·6 건너뜀, 5827건 통과·실패 0, 하드 게이트 다섯 종 exit 0. 독립 재검수는 아직이다.
 - PASS 2026-11-16T14:52:51+09:00 7단계 — 구현 문맥 없는 새 검수자 판정 PASS(블로커 없음, SDK·CLI 내부 미열람 명시). 병합 전 조건 둘을 닫았다. ① major: 재분류 테스트 5개가 옵션 없이 불려 escalation 경로로 통과하던 것을 일반 질의 꼴로 고치고 `escalated` 부재를 단언했다(커밋 1e3a9221, 8건 통과, 하드 게이트 다섯 종 exit 0). ② 블랙박스 실측(SDK 0.3.201, 반환값만): 세션에 Bash 전체 허용 규칙을 넣은 뒤에도 `git push origin HEAD:master` 가드 ask는 `default`·`acceptEdits` 모두 콜백에 제안 없이 왔다(대조 명령 `git config`는 콜백 없이 실행). settings 규칙과 안 겹치는 가드 ask 3종(`git update-ref -d`·`gh repo edit --help`·`cd . && git push …`)은 네 모드 12회 모두 콜백에 제안 없이, 사유는 훅 원문으로 왔다. 일반 질의 중 제안 없이 온 것은 plan 모드 `ExitPlanMode`뿐이고 이 경로는 원래도 계획 카드였다(렌더러는 `planReview` 카드를 올린 카드로 보지 않는다). minor 지적은 Backlog 11·12로 옮겼다.
+- PASS 2026-11-16T14:53:39+09:00 8단계 — `-u origin fix/m06-g3-guard-ask-card`로 push하고 PR 61(https://github.com/bass131/AgentDeck/pull/61)을 만들었다. PR 60(G1) 위의 브랜치라 G1 커밋을 포함한다. 병합 승인은 현황판 결정 보드로 PR 60과 함께 요청한다.
 
 ## 결정 대장
 

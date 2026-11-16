@@ -33,6 +33,8 @@ export interface AgentRunRequest {
   resumeSessionId?: string
   persistent?: boolean
   sessionKey?: string
+  // 대화가 마지막으로 잰 컨텍스트 창 — main이 기록 재적재 예산을 정한다 (M06 G4)
+  contextWindow?: number
 }
 
 // 첫 턴 전의 컨텍스트 창 기본값 하나 (M06 G4) — 턴이 끝나면 결과의 modelUsage.contextWindow가 대신한다.

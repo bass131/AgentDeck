@@ -77,9 +77,13 @@ export function registerAgentHandlers(deps: AgentHandlerDeps): void {
       ? req.sessionKey
       : undefined
 
+    const contextWindow = typeof req.contextWindow === 'number' && Number.isFinite(req.contextWindow) && req.contextWindow > 0
+      ? req.contextWindow
+      : undefined
+
     const runId = await runManager.start(
       backend,
-      { messages: req.messages, workspaceRoot, model, effort, mode, systemPrompt, orchestration, resumeSessionId, persistent, sessionKey },
+      { messages: req.messages, workspaceRoot, model, effort, mode, systemPrompt, orchestration, resumeSessionId, persistent, sessionKey, contextWindow },
       (event, eventRunId) => {
         const payload: AgentEventPayload = { runId: eventRunId, event }
         if (state.win && !state.win.isDestroyed()) {

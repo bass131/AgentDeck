@@ -72,6 +72,17 @@ describe('GAP1 P02 — ConversationStore model 라운드트립', () => {
     expect(store.load('conv-model-overwrite')?.model).toBe('opus')
   })
 
+  // M06 G4: 배경 run의 저장 payload에는 model이 없다 — 그 저장이 전경에서 고른 모델을 지우면 안 된다.
+  it('model 없이 다시 저장하면 기존 model을 유지한다 (배경 저장 경로)', () => {
+    const rec = makeRecord({ id: 'conv-model-keep', model: 'claude-fable-5-2' })
+    store.save(rec)
+    const { model: _drop, ...withoutModel } = rec
+    store.save({ ...withoutModel, messages: [...rec.messages, { role: 'user', content: 'again' }] })
+    const loaded = store.load('conv-model-keep')
+    expect(loaded?.model).toBe('claude-fable-5-2')
+    expect(loaded?.messages).toHaveLength(3)
+  })
+
   it('재기동 영속: save(model)→close→새 store→load model (디스크 왕복)', () => {
     const rec = makeRecord({ id: 'conv-model-restart', model: 'haiku' })
     store.save(rec)

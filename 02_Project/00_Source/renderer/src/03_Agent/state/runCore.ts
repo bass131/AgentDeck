@@ -28,6 +28,8 @@ export interface SendOptions {
   resumeSessionId?: string
   persistent?: boolean
   sessionKey?: string
+  // 대화가 마지막으로 잰 컨텍스트 창 — main이 기록 재적재 예산을 정한다 (M06 G4)
+  contextWindow?: number
 }
 
 export function buildAgentRunArgs(
@@ -45,6 +47,7 @@ export function buildAgentRunArgs(
     resumeSessionId: opts?.resumeSessionId,
     ...(opts?.persistent ? { persistent: true } : {}),
     ...(opts?.sessionKey !== undefined ? { sessionKey: opts.sessionKey } : {}),
+    ...(opts?.contextWindow !== undefined ? { contextWindow: opts.contextWindow } : {}),
   }
 }
 
@@ -64,6 +67,7 @@ export interface RunTarget {
   resumeSessionId?: string
   persistent?: boolean
   sessionKey?: string
+  contextWindow?: number
 }
 
 export interface RunSendInput {

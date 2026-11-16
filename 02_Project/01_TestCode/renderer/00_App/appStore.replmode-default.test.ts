@@ -81,6 +81,25 @@ describe('LR2-01 T2: 명시적 setReplMode(false) → 단발+resume 페이로드
     expect(cap.sessionKey).toBeUndefined()
     expect(cap.resumeSessionId).toBe('sess-prev')
   })
+
+  // M06 G4: 대화가 마지막으로 잰 컨텍스트 창을 실행 요청에 싣는다 — main이 기록 재적재 예산을 그 창으로 정한다.
+  it('lastContextWindow 보유 상태에서 sendMessage → contextWindow 포함', async () => {
+    useAppStore.getState().setReplMode(false)
+    useAppStore.setState({ sessionId: 'sess-prev', lastContextWindow: 200_000 } as Parameters<typeof useAppStore.setState>[0])
+
+    await useAppStore.getState().sendMessage('안녕')
+
+    expect(getCapture().contextWindow).toBe(200_000)
+  })
+
+  it('lastContextWindow가 없으면 contextWindow 키를 싣지 않는다', async () => {
+    useAppStore.getState().setReplMode(false)
+    useAppStore.setState({ sessionId: 'sess-prev', lastContextWindow: undefined } as Parameters<typeof useAppStore.setState>[0])
+
+    await useAppStore.getState().sendMessage('안녕')
+
+    expect('contextWindow' in getCapture()).toBe(false)
+  })
 })
 
 describe('LR2-01 T3: 명시적 setReplMode(true) → held-open 페이로드', () => {

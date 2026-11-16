@@ -175,6 +175,7 @@ export { panelReducer as panelReducerFn }
 function panelRunTarget(key: string, before: PanelSessionState): RunTarget {
   return {
     resumeSessionId: before.sessionId,
+    ...(before.lastContextWindow !== undefined ? { contextWindow: before.lastContextWindow } : {}),
     ...(before.replMode ? { persistent: true, sessionKey: key } : {}),
   }
 }

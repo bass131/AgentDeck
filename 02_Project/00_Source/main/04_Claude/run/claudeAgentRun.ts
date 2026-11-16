@@ -11,20 +11,12 @@ import { IdleCloseGovernor } from './idleCloseGovernor'
 import type { QueryFn, PersistentQueryFn } from '../queryFn'
 import type { AgentRun, AgentRunInput, RunResponse } from '@main/03_Agent/AgentBackend'
 import type { AgentEvent, AgentEventDone } from '@shared/agentEvents'
-import { DEFAULT_CONTEXT_WINDOW } from '@shared/ipcContract'
+import { contextFallbackBudget } from '../buildPrompt'
 import type { SlashCommandInfo } from '@shared/ipcContract'
 
 export { IDLE_CLOSE_GRACE_MS } from './idleCloseGovernor'
 
 export const MAX_CONSECUTIVE_AUTONOMOUS_TURNS = 100
-
-const CONTEXT_FALLBACK_RESERVE_TOKENS = 20_000
-
-// 이어받을 세션 없이 대화 기록을 프롬프트로 다시 실을 때의 예산 — 실행 전이라 창을 모르므로 기본값 하나다 (M06 G4).
-// 모델별 손 표를 지웠다 — 200K 창 모델에서도 예산은 기본값 기준이다(옛 표는 그 모델들에 더 작은 예산을 줬다).
-function computeContextFallbackBudget(): number {
-  return Math.max(DEFAULT_CONTEXT_WINDOW - CONTEXT_FALLBACK_RESERVE_TOKENS, 0)
-}
 
 export class ClaudeAgentRun implements AgentRun {
   readonly events: AsyncIterable<AgentEvent>
@@ -315,7 +307,7 @@ export class ClaudeAgentRun implements AgentRun {
     try {
       const prompt = buildModelContextPrompt(this._req.messages, {
         resumeSessionId: this._req.resumeSessionId,
-        contextBudgetTokens: computeContextFallbackBudget(),
+        contextBudgetTokens: contextFallbackBudget(this._req.contextWindow),
       })
 
       if (!prompt) {
@@ -438,7 +430,7 @@ export class ClaudeAgentRun implements AgentRun {
     try {
       const initialPrompt = buildModelContextPrompt(this._req.messages, {
         resumeSessionId: this._req.resumeSessionId,
-        contextBudgetTokens: computeContextFallbackBudget(),
+        contextBudgetTokens: contextFallbackBudget(this._req.contextWindow),
       })
 
       if (!initialPrompt) {

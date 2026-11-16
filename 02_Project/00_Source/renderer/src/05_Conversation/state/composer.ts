@@ -1,8 +1,9 @@
 import type { StateCreator } from 'zustand'
 import { MODES, DEFAULT_MODE_CONVERSATION, DEFAULT_MODEL } from '@renderer/03_Agent/pickerOptions'
-import { normalizeModel } from '@shared/03_Agent/models/knownModels'
+import { normalizeModel, FALLBACK_MODELS } from '@shared/03_Agent/models/knownModels'
+import type { ModelRow } from '@shared/03_Agent/models/modelList'
 import { filesToAttachedImages } from '../imageAttach'
-import { ipc } from '@renderer/01_Ipc'
+import { ipc, hasBridge } from '@renderer/01_Ipc'
 import type { AppStore, AttachedImage, QueuedMessage } from '@renderer/00_App/state/types'
 import { runReducer } from '@renderer/03_Agent/state/runReducer'
 
@@ -26,16 +27,17 @@ export function requestLiveModeSwitch(
   }
 }
 
-function isLiveSwitchable(model: string): boolean {
-  return normalizeModel(model) !== undefined
+function isLiveSwitchable(model: string, rows: readonly ModelRow[]): boolean {
+  return normalizeModel(model, rows) !== undefined
 }
 
 export function requestLiveModelSwitch(
   runId: string | null | undefined,
   replMode: boolean,
   model: string,
+  rows: readonly ModelRow[] = FALLBACK_MODELS,
 ): void {
-  if (!replMode || !runId || !isLiveSwitchable(model)) return
+  if (!replMode || !runId || !isLiveSwitchable(model, rows)) return
   try {
     void ipc.agent.setModel({ runId, model }).catch(() => {
     })
@@ -45,6 +47,8 @@ export function requestLiveModelSwitch(
 
 export interface ComposerState {
   selectedModel: string
+  // 선택기가 그리는 모델 목록 (M06 G4) — main의 agent.listModels가 준 SDK 목록. 오기 전에는 최소 목록이다.
+  modelRows: ModelRow[]
   pickerMode: string
   projectFiles: string[]
   attachedImages: AttachedImage[]
@@ -53,6 +57,7 @@ export interface ComposerState {
 
 export interface ComposerActions {
   setSelectedModel: (modelId: string) => void
+  loadModelRows: () => Promise<void>
   setPickerMode: (mode: string) => void
   cyclePickerMode: () => void
   loadProjectFiles: () => Promise<void>
@@ -66,6 +71,7 @@ export interface ComposerActions {
 
 export const createComposerSlice: StateCreator<AppStore, [], [], ComposerState & ComposerActions> = (set, get) => ({
   selectedModel: DEFAULT_MODEL,
+  modelRows: [...FALLBACK_MODELS],
   pickerMode: DEFAULT_MODE_CONVERSATION,
   projectFiles: [],
   attachedImages: [],
@@ -74,8 +80,18 @@ export const createComposerSlice: StateCreator<AppStore, [], [], ComposerState &
   setSelectedModel: (modelId) => {
     if (modelId === get().selectedModel) return
     set({ selectedModel: modelId })
-    const { replMode, currentRunId } = get()
-    requestLiveModelSwitch(currentRunId, replMode, modelId)
+    const { replMode, currentRunId, modelRows } = get()
+    requestLiveModelSwitch(currentRunId, replMode, modelId, modelRows)
+  },
+
+  // 앱 시작 때 한 번 부른다. 실패하거나 빈 응답이면 지금 목록(최소 목록)을 그대로 둔다.
+  loadModelRows: async () => {
+    if (!hasBridge() || typeof ipc.agent.listModels !== 'function') return
+    try {
+      const res = await ipc.agent.listModels()
+      if (res && Array.isArray(res.models) && res.models.length > 0) set({ modelRows: res.models })
+    } catch {
+    }
   },
 
   setPickerMode: (mode) => {

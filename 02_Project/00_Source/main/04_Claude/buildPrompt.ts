@@ -8,6 +8,17 @@ export interface BuildModelContextPromptOptions {
   contextBudgetTokens: number
 }
 
+// 이어받을 세션 없이 대화 기록을 프롬프트로 다시 실을 때의 예산 (M06 G4).
+// 대화가 마지막으로 잰 창(modelUsage.contextWindow)을 따르고, 모르면 가장 작은 창 기준으로 보수적으로 잡는다.
+const CONTEXT_FALLBACK_RESERVE_TOKENS = 20_000
+const UNKNOWN_WINDOW_TOKENS = 200_000
+
+export function contextFallbackBudget(measuredWindow: number | undefined): number {
+  const valid = typeof measuredWindow === 'number' && Number.isFinite(measuredWindow) && measuredWindow > 0
+  const windowTokens = valid ? measuredWindow : UNKNOWN_WINDOW_TOKENS
+  return Math.max(windowTokens - CONTEXT_FALLBACK_RESERVE_TOKENS, 0)
+}
+
 const PREAMBLE_HEADER = '이전 대화 맥락:\n'
 const PREAMBLE_FOOTER = '\n\n현재 메시지: '
 

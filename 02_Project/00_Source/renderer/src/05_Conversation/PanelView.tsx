@@ -115,7 +115,7 @@ export const PanelView = memo(function PanelView({
       requestLiveModeSwitch(panelRunId, replMode, p.mode)
     }
     if (p.model !== picker.model) {
-      requestLiveModelSwitch(panelRunId, replMode, p.model)
+      requestLiveModelSwitch(panelRunId, replMode, p.model, useAppStore.getState().modelRows)
     }
     setPicker(p)
   }, [picker, setPicker, panelRunId, replMode])
@@ -139,7 +139,7 @@ export const PanelView = memo(function PanelView({
   const status = LIVE_STATUS_META[liveStatus(session)]
   const cwdLabel = workspaceRoot ? basename(workspaceRoot) : (panel.cwd ? basename(panel.cwd) : '폴더 선택')
 
-  const gauge = calcGauge(session.state.lastUsage, picker.model, session.state.lastContextWindow)
+  const gauge = calcGauge(session.state.lastUsage, session.state.lastContextWindow)
   const ctxPct = gauge.pct
 
   const {

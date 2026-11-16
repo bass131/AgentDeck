@@ -51,6 +51,7 @@ export { selectWorkspaceMode } from '@renderer/12_Window/windowMode'
 export const selectLastUsage = (s: AppStore): TokenUsage | undefined => s.lastUsage
 export const selectLastContextWindow = (s: AppStore): number | undefined => s.lastContextWindow
 export const selectSelectedModel = (s: AppStore): string => s.selectedModel
+export const selectModelRows = (s: AppStore): AppStore['modelRows'] => s.modelRows
 
 export const selectPickerMode = (s: AppStore): string => s.pickerMode
 

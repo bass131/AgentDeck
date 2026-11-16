@@ -1,5 +1,24 @@
 import { describe, it, expect } from 'vitest'
-import { buildModelContextPrompt } from '@main/04_Claude/buildPrompt'
+import { buildModelContextPrompt, contextFallbackBudget } from '@main/04_Claude/buildPrompt'
+
+// M06 G4: 모델별 창 손 표를 지운 뒤, 다시 싣는 대화 기록의 예산은 대화가 마지막으로 잰 창을 따른다.
+// 모르면 가장 작은 창(200K) 기준으로 보수적으로 잡는다 — 200K 모델에 1M 예산을 주면 요청이 창을 넘는다.
+describe('contextFallbackBudget', () => {
+  it('잰 창 200K → 예약분을 뺀 180K', () => {
+    expect(contextFallbackBudget(200_000)).toBe(180_000)
+  })
+  it('잰 창 1M → 980K', () => {
+    expect(contextFallbackBudget(1_000_000)).toBe(980_000)
+  })
+  it('창을 모르면 200K 기준 180K', () => {
+    expect(contextFallbackBudget(undefined)).toBe(180_000)
+  })
+  it('잘못된 값(0·음수·NaN·문자열)은 모르는 것으로 본다', () => {
+    for (const bad of [0, -1, Number.NaN, '1000000' as unknown as number]) {
+      expect(contextFallbackBudget(bad)).toBe(180_000)
+    }
+  })
+})
 
 describe('buildModelContextPrompt', () => {
 

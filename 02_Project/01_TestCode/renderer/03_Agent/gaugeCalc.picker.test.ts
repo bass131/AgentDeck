@@ -117,102 +117,49 @@ import { calcGauge } from '@renderer/03_Agent/gaugeCalc'
 import { DEFAULT_CONTEXT_WINDOW } from '../../../../02_Project/00_Source/shared/ipcContract'
 
 describe('(c) 게이지 계산 — used / window / pct', () => {
-  it('usage 없으면 used=0, pct=0', () => {
-    const result = calcGauge(undefined, 'opus')
+  // M06 G4: 모델별 창 표를 지웠다 — 첫 턴 전에는 기본값 하나, 턴 뒤에는 결과의 contextWindow다.
+  it('usage 없으면 used=0, pct=0, 창은 기본값', () => {
+    const result = calcGauge(undefined)
     expect(result.used).toBe(0)
     expect(result.pct).toBe(0)
-    expect(result.window).toBe(1_000_000)
+    expect(result.window).toBe(DEFAULT_CONTEXT_WINDOW)
   })
 
-  it('opus: 500+300 = 800 used / 1M window → pct=0 (< 1%)', () => {
-    const result = calcGauge({ inputTokens: 500, outputTokens: 300 }, 'opus')
+  it('첫 턴 전: 500+300 = 800 used / 기본 1M → pct=0 (< 1%)', () => {
+    const result = calcGauge({ inputTokens: 500, outputTokens: 300 })
     expect(result.used).toBe(800)
     expect(result.window).toBe(1_000_000)
     expect(result.pct).toBe(0)
   })
 
-  it('haiku: 200K window — 100K input + 100K output = 200K → pct=100', () => {
-    const result = calcGauge({ inputTokens: 100_000, outputTokens: 100_000 }, 'haiku')
-    expect(result.window).toBe(200_000)
-    expect(result.used).toBe(200_000)
-    expect(result.pct).toBe(100)
-  })
-
-  it('haiku: 50K + 50K = 100K → pct=50', () => {
-    const result = calcGauge({ inputTokens: 50_000, outputTokens: 50_000 }, 'haiku')
-    expect(result.pct).toBe(50)
-  })
-
-  it('미지 모델 id → DEFAULT_CONTEXT_WINDOW(1M) fallback', () => {
-    const result = calcGauge({ inputTokens: 100, outputTokens: 100 }, 'unknown-model')
-    expect(result.window).toBe(DEFAULT_CONTEXT_WINDOW)
-    expect(result.window).toBe(1_000_000)
-  })
-
-  it('modelId undefined → DEFAULT_CONTEXT_WINDOW(1M) fallback', () => {
-    const result = calcGauge({ inputTokens: 100, outputTokens: 100 }, undefined)
-    expect(result.window).toBe(1_000_000)
-  })
-
   it('pct 100 초과 방지 — used > window 시 100으로 clamp', () => {
-    const result = calcGauge({ inputTokens: 1_500_000, outputTokens: 0 }, 'opus')
+    const result = calcGauge({ inputTokens: 1_500_000, outputTokens: 0 })
     expect(result.pct).toBe(100)
-  })
-
-  it('sonnet: 1M window', () => {
-    const result = calcGauge({ inputTokens: 250_000, outputTokens: 250_000 }, 'sonnet')
-    expect(result.window).toBe(1_000_000)
-    expect(result.pct).toBe(50)
-  })
-
-  it('fable: 1M window', () => {
-    const result = calcGauge({ inputTokens: 0, outputTokens: 0 }, 'fable')
-    expect(result.window).toBe(1_000_000)
-    expect(result.pct).toBe(0)
   })
 })
 
-describe('(d) calcGauge — contextWindow 3rd arg (Phase 21c)', () => {
-  it('(a) contextWindow 양수 → 모델 룩업 무시, contextWindow를 window로 사용', () => {
-    const result = calcGauge({ inputTokens: 25_000, outputTokens: 25_000 }, 'opus', 200_000)
+describe('(d) calcGauge — 턴 결과의 contextWindow', () => {
+  it('contextWindow 양수 → 그 값을 창으로 쓴다', () => {
+    const result = calcGauge({ inputTokens: 25_000, outputTokens: 25_000 }, 200_000)
     expect(result.window).toBe(200_000)
     expect(result.pct).toBe(25)
   })
 
-  it('(a) contextWindow 양수 — pct는 contextWindow 기준으로 산출', () => {
-    const result = calcGauge({ inputTokens: 50_000, outputTokens: 0 }, 'haiku', 200_000)
-    expect(result.window).toBe(200_000)
-    expect(result.pct).toBe(25)
-  })
-
-  it('(b) contextWindow undefined → MODEL_CONTEXT_WINDOW[opus]=1M (회귀)', () => {
-    const withUndefined = calcGauge({ inputTokens: 500, outputTokens: 300 }, 'opus', undefined)
-    const twoArg = calcGauge({ inputTokens: 500, outputTokens: 300 }, 'opus')
-    expect(withUndefined.window).toBe(twoArg.window)
-    expect(withUndefined.pct).toBe(twoArg.pct)
-    expect(withUndefined.window).toBe(1_000_000)
-  })
-
-  it('(b) contextWindow 미전달(2-arg) → haiku 200K fallback 그대로', () => {
-    const result = calcGauge({ inputTokens: 100_000, outputTokens: 100_000 }, 'haiku')
-    expect(result.window).toBe(200_000)
+  it('200K 창 — 100K + 100K = 200K → pct=100', () => {
+    const result = calcGauge({ inputTokens: 100_000, outputTokens: 100_000 }, 200_000)
     expect(result.pct).toBe(100)
   })
 
-  it('(c) contextWindow 0 → 모델 룩업 fallback (0으로 나누기 방지)', () => {
-    const result = calcGauge({ inputTokens: 100, outputTokens: 100 }, 'opus', 0)
-    expect(result.window).toBe(1_000_000)
+  it('contextWindow undefined → 기본값', () => {
+    expect(calcGauge({ inputTokens: 500, outputTokens: 300 }, undefined).window).toBe(DEFAULT_CONTEXT_WINDOW)
   })
 
-  it('(c) contextWindow 음수 → 모델 룩업 fallback', () => {
-    const result = calcGauge({ inputTokens: 100, outputTokens: 100 }, 'haiku', -1)
-    expect(result.window).toBe(200_000)
-  })
-
-  it('(c) contextWindow 0이면 pct가 0 (divided-by-zero guard)', () => {
-    const result = calcGauge({ inputTokens: 100, outputTokens: 100 }, 'opus', 0)
-    expect(result.pct).toBeGreaterThanOrEqual(0)
-    expect(result.pct).toBeLessThanOrEqual(100)
+  it('contextWindow 0·음수 → 기본값 (0으로 나누기 방지)', () => {
+    expect(calcGauge({ inputTokens: 100, outputTokens: 100 }, 0).window).toBe(1_000_000)
+    expect(calcGauge({ inputTokens: 100, outputTokens: 100 }, -1).window).toBe(1_000_000)
+    const r = calcGauge({ inputTokens: 100, outputTokens: 100 }, 0)
+    expect(r.pct).toBeGreaterThanOrEqual(0)
+    expect(r.pct).toBeLessThanOrEqual(100)
   })
 })
 

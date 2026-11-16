@@ -57,6 +57,11 @@ export class RunEventNormalizer {
 
   resetStreaming(): void { this._streamedThisMsg = false }
 
+  // 계기가 턴 결과 modelUsage에서 고를 주 모델 (M06 G4) — init의 model, 거절 폴백, 실행 중 전환이 바꾼다.
+  private _mainModel: string | undefined
+
+  setMainModel(model: string): void { this._mainModel = model }
+
   process(msg: unknown, turnOrigin: 'user' | 'cron' = 'cron'): NormResult {
     const events: AgentEvent[] = []
     let foundDone: AgentEventDone | null = null
@@ -64,9 +69,23 @@ export class RunEventNormalizer {
     if (
       msg !== null && typeof msg === 'object' &&
       (msg as Record<string, unknown>)['type'] === 'system' &&
+      (msg as Record<string, unknown>)['subtype'] === 'init' &&
+      typeof (msg as Record<string, unknown>)['model'] === 'string'
+    ) {
+      this._mainModel = (msg as Record<string, unknown>)['model'] as string
+    }
+
+    if (
+      msg !== null && typeof msg === 'object' &&
+      (msg as Record<string, unknown>)['type'] === 'system' &&
       (msg as Record<string, unknown>)['subtype'] === 'model_refusal_fallback'
     ) {
       const raw = msg as Record<string, unknown>
+      // scope 'local'(서브에이전트 등)은 그 응답만 폴백했고 세션 모델은 그대로다 — 공개 타입 SDKModelRefusalFallbackMessage.
+      const sessionScope = raw['scope'] !== 'local'
+      if (sessionScope && typeof raw['fallback_model'] === 'string' && raw['fallback_model'].length > 0) {
+        this._mainModel = raw['fallback_model']
+      }
       if (this._pendingFallbackNotices > 0) {
         this._pendingFallbackNotices--
       } else {
@@ -131,7 +150,7 @@ export class RunEventNormalizer {
       }
     }
 
-    for (const event of mapClaudeStreamLine(msg)) {
+    for (const event of mapClaudeStreamLine(msg, { mainModel: this._mainModel })) {
 
       if (event.type === 'done') {
         foundDone = event

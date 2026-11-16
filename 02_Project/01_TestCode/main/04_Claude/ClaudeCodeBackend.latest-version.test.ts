@@ -135,7 +135,7 @@ describe('ClaudeCodeBackend.version()', () => {
     })
     const result = await backend.version()
     expect(result).toBe(SDK_VERSION_FALLBACK)
-    expect(result).toBe('0.3.201')
+    expect(result).toBe('0.3.325')
   })
 
   it('resolvePackageVersion 미주입(기본값) → null 아님(버전 문자열 반환)', async () => {

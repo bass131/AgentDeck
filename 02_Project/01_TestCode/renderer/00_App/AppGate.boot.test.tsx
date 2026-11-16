@@ -291,3 +291,26 @@ describe('기존 회귀 — Shell 마운트 정상', () => {
     expect(container.querySelector('.win')).toBeTruthy()
   })
 })
+
+// M06 G4: 앱 시작 때 main에 모델 목록을 한 번 묻는다 — 선택기는 그 SDK 목록으로 그린다.
+describe('부트 — 모델 목록 받기', () => {
+  it('AppGate가 뜨면 agent.listModels를 한 번 부르고 store 목록을 바꾼다', async () => {
+    const rows = [{ value: 'claude-nova-1', displayName: 'Nova 1', description: '', supportedEffortLevels: [] }]
+    const listModels = vi.fn().mockResolvedValue({ models: rows, source: 'sdk' })
+    Object.defineProperty(window, 'api', {
+      value: adaptFlatApi({ ...baseApi, agentListModels: listModels }),
+      writable: true,
+      configurable: true,
+    })
+    mockGetProfile.mockResolvedValue(null)
+    vi.resetModules()
+    const { AppGate } = await import('@renderer/00_App/AppGate')
+    const { useAppStore } = await import('@renderer/00_App/appStore')
+    await act(async () => {
+      render(<AppGate />)
+    })
+    expect(listModels).toHaveBeenCalledTimes(1)
+    expect(useAppStore.getState().modelRows).toEqual(rows)
+    Object.defineProperty(window, 'api', { value: adaptFlatApi(baseApi), writable: true, configurable: true })
+  })
+})

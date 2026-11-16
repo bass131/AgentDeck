@@ -1,22 +1,28 @@
-import { PICKER_MODELS, type PickerModel } from '@shared/03_Agent/models/knownModels'
+import { FALLBACK_MODELS, DEFAULT_MODEL_ID } from '@shared/03_Agent/models/knownModels'
 import {
-  MODEL_EFFORT_LEVELS,
-  EFFORT_LEVELS,
+  canonicalModelId,
+  effortLevelsFor,
+  findModelRow,
+  pickerModelRows,
+  type ModelRow
+} from '@shared/03_Agent/models/modelList'
+import {
+  DEFAULT_EFFORT_LEVEL,
   clampEffort,
-  supportsEffort,
-  type EffortLevel,
-  type EffortLevelTable
+  readEffortLevel,
+  type EffortLevel
 } from '@shared/03_Agent/models/modelEffort'
+import { modelFamilyColor, modelLabel } from './modelLabel'
 
 export interface ModelOption {
-  id: PickerModel
+  id: string
   label: string
   desc: string
   color: string
 }
 
 export interface EffortOption {
-  id: EffortLevel | 'minimal'
+  id: EffortLevel
   label: string
   desc: string
 }
@@ -30,37 +36,30 @@ export interface ModeOption {
   warn?: boolean
 }
 
-export const MODELS: ModelOption[] = [
-  {
-    id: 'claude-opus-5',
-    label: 'Opus 5',
-    desc: '코딩·에이전트 최상위 · 복잡한 작업',
-    color: 'var(--violet)'
-  },
-  {
-    id: 'claude-sonnet-5',
-    label: 'Sonnet 5',
-    desc: '균형 · 일상 작업',
-    color: 'var(--blue)'
-  },
-  {
-    id: 'claude-haiku-4-5',
-    label: 'Haiku 4.5',
-    desc: '빠른 응답 · 가벼운 질문',
-    color: 'var(--teal)'
-  },
-  {
-    id: 'claude-fable-5',
-    label: 'Fable 5',
-    desc: '가장 어렵고 오래 걸리는 작업',
-    color: 'var(--gold)'
-  }
-]
+const NEUTRAL_MODEL_COLOR = 'var(--text-3)'
 
-if (MODELS.length !== PICKER_MODELS.length) {
-  throw new Error(
-    `MODELS(${MODELS.length})와 PICKER_MODELS(${PICKER_MODELS.length}) 길이 불일치`
-  )
+// 모델 선택기 옵션 (M06 G4) — main이 준 SDK 목록에서 그린다. 옵션 id는 정식 ID라 고르면 그 값이 저장된다.
+// 지금 값이 목록 어느 행과도 맞지 않으면(목록에서 빠진 옛 모델) 그 값 자체를 한 줄 더해 첫 행으로 둔갑하지 않게 한다.
+export function modelOptionsFor(rows: readonly ModelRow[], currentValue?: string): ModelOption[] {
+  const options: ModelOption[] = pickerModelRows(rows).map((row) => {
+    const id = canonicalModelId(row)
+    return { id, label: row.displayName, desc: row.description, color: modelFamilyColor(id) ?? NEUTRAL_MODEL_COLOR }
+  })
+  if (currentValue && findModelRow(rows, currentValue) === undefined) {
+    options.push({
+      id: currentValue,
+      label: modelLabel(currentValue) ?? currentValue,
+      desc: '저장된 모델 · 지금 목록에 없음',
+      color: modelFamilyColor(currentValue) ?? NEUTRAL_MODEL_COLOR
+    })
+  }
+  return options
+}
+
+// 저장값(정식·별칭·옛 짧은 ID)을 선택기 옵션 id로 맞춘다. 저장값은 바꾸지 않는다.
+export function pickerModelValue(rows: readonly ModelRow[], value: string): string {
+  const row = findModelRow(rows, value)
+  return row ? canonicalModelId(row) : value
 }
 
 export const EFFORTS: EffortOption[] = [
@@ -68,8 +67,7 @@ export const EFFORTS: EffortOption[] = [
   { id: 'xhigh', label: '매우 높음', desc: '더 깊은 추론' },
   { id: 'high', label: '높음', desc: '깊은 추론' },
   { id: 'medium', label: '보통', desc: '보통 추론' },
-  { id: 'low', label: '낮음', desc: '가벼운 추론' },
-  { id: 'minimal', label: '최소', desc: '확장사고 끔' }
+  { id: 'low', label: '낮음', desc: '가벼운 추론' }
 ]
 
 export const MODES: ModeOption[] = [
@@ -80,9 +78,9 @@ export const MODES: ModeOption[] = [
   { id: 'bypass', label: 'Bypass', desc: '모든 권한 확인 건너뛰기', color: 'var(--red)', icon: 'warn', warn: true }
 ]
 
-export const DEFAULT_MODEL: PickerModel = 'claude-opus-5'
+export const DEFAULT_MODEL: string = DEFAULT_MODEL_ID
 
-export const DEFAULT_EFFORT: EffortLevel | 'minimal' = 'max'
+export const DEFAULT_EFFORT: EffortLevel = DEFAULT_EFFORT_LEVEL
 
 // 기본 실행 모드(P4) — 대화는 auto, 멀티 패널은 bypass. 제품 기본값이라 G9 내내 값을 바꾸지 않는다.
 // 이름만 단일·멀티에서 세션 종류(대화·패널)로 바꿨다(G9c).
@@ -95,28 +93,24 @@ export interface EffortPickerState {
   displayValue: string
 }
 
+// effort 메뉴 — 목록 행의 supportedEffortLevels로 그린다. 저장값은 readEffortLevel로 읽는다(옛 「최소」는 low).
+// main의 실행 인자 검사도 같은 규칙이라 보이는 값과 보내는 값이 같다.
 export function effortPickerFor(
   modelId: string,
   selectedEffort: string,
-  table: EffortLevelTable = MODEL_EFFORT_LEVELS
+  rows: readonly ModelRow[] = FALLBACK_MODELS
 ): EffortPickerState {
-  const allowed = table[modelId]
+  const selected: EffortLevel = readEffortLevel(selectedEffort)
+  const allowed = effortLevelsFor(rows, modelId)
 
   if (allowed === undefined) {
-    return { options: EFFORTS, disabled: false, displayValue: selectedEffort }
+    return { options: EFFORTS, disabled: false, displayValue: selected }
   }
 
   if (allowed.length === 0) {
-    return { options: EFFORTS, disabled: true, displayValue: selectedEffort }
+    return { options: EFFORTS, disabled: true, displayValue: selected }
   }
 
-  const options = EFFORTS.filter((o) => o.id === 'minimal' || allowed.includes(o.id))
-  const clamped =
-    selectedEffort === 'minimal' || !(EFFORT_LEVELS as readonly string[]).includes(selectedEffort)
-      ? selectedEffort
-      : clampEffort(modelId, selectedEffort as EffortLevel, table) ?? selectedEffort
-
-  return { options, disabled: false, displayValue: clamped }
+  const options = EFFORTS.filter((o) => allowed.includes(o.id))
+  return { options, disabled: false, displayValue: clampEffort(allowed, selected) ?? selected }
 }
-
-export { supportsEffort }

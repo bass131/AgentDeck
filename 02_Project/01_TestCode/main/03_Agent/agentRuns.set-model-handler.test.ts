@@ -1,11 +1,22 @@
 // 작업 ID: lm1 · 옛 이름 lm1-set-model-handler.test.ts
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { createRunManager } from '@main/03_Agent/agentRuns'
 import type { RunManager } from '@main/03_Agent/agentRuns'
 import type { AgentBackend, AgentRun, AgentRunInput } from '@main/03_Agent/AgentBackend'
 import type { AgentEvent } from '../../../../02_Project/00_Source/shared/agentEvents'
 import type { BackendId } from '../../../../02_Project/00_Source/shared/ipcContract'
-import { KNOWN_MODELS, resolveSetModelRequest } from '@main/04_Claude/runArgs'
+import { resolveSetModelRequest } from '@main/04_Claude/runArgs'
+import { setCurrentModelRows } from '@main/04_Claude/modelListProvider'
+import { FALLBACK_MODELS } from '@shared/03_Agent/models/knownModels'
+import { SDK_MODEL_ROWS } from '../../shared/00_Helpers/sdkModelRows'
+
+// M06 G4: 모델 값은 꼴 검사로 통과하고, 짧은 별칭은 main의 현재 SDK 목록에 있을 때만 받는다(옛 세대 매핑 없음).
+beforeEach(() => {
+  setCurrentModelRows(SDK_MODEL_ROWS)
+})
+afterEach(() => {
+  setCurrentModelRows(FALLBACK_MODELS)
+})
 
 type RunWithSetModel = AgentRun & { setModel?: (modelId: string) => void }
 type ManagerWithSetModel = RunManager & { setModel?: (runId: string, model: string) => boolean }
@@ -170,8 +181,9 @@ describe('LM1 P03 핸들러 guard — model KNOWN_MODELS 화이트리스트 (COR
     expect(calls).toHaveLength(0)
   })
 
-  it('① KNOWN_MODELS 전종(full ID) → 정규화가 항등이라 인자 그대로 위임 + ok 미러 (G10 ack 통일, 옛 accepted)', () => {
-    for (const model of KNOWN_MODELS) {
+  it('① SDK 목록의 모든 값(별칭·정식 ID)과 목록 밖 새 ID → 인자 그대로 위임 + ok 미러 (G10 ack 통일, 옛 accepted)', () => {
+    const models = [...SDK_MODEL_ROWS.map((r) => r.value), ...SDK_MODEL_ROWS.map((r) => r.resolvedModel ?? r.value), 'claude-nova-9']
+    for (const model of models) {
       const { delegate, calls } = makeRecordingDelegate(true)
       expect(handleSetModel({ runId: 'run-abc', model }, delegate)).toEqual({ ok: true })
       expect(calls).toEqual([{ runId: 'run-abc', model }])
@@ -181,7 +193,13 @@ describe('LM1 P03 핸들러 guard — model KNOWN_MODELS 화이트리스트 (COR
   it("⑤ delegate가 false(미존재/완료 run) → ok:false (검증 통과해도 라우팅 실패 반영)", () => {
     const { delegate, calls } = makeRecordingDelegate(false)
     expect(handleSetModel({ runId: 'run-gone', model: 'haiku' }, delegate)).toEqual({ ok: false })
-    expect(calls).toEqual([{ runId: 'run-gone', model: 'claude-haiku-4-5' }])
+    expect(calls).toEqual([{ runId: 'run-gone', model: 'haiku' }])
+  })
+
+  it('⑦ 목록에 없는 짧은 별칭은 거절한다', () => {
+    const { delegate, calls } = makeRecordingDelegate(true)
+    expect(handleSetModel({ runId: 'run-1', model: 'nova' }, delegate)).toEqual({ ok: false })
+    expect(calls).toHaveLength(0)
   })
 
   it('⑥ 비정상 입력(null·중첩객체·number)에도 throw 금지 — 항상 응답 반환', () => {
@@ -201,7 +219,7 @@ describe('LM1 P03 핸들러 guard — 실 RunManager 경유 (RED)', () => {
 
     const result = handleSetModel({ runId, model: 'haiku' }, manager)
     expect(result).toEqual({ ok: true })
-    expect(modelCalls).toEqual(['claude-haiku-4-5'])
+    expect(modelCalls).toEqual(['haiku'])
   })
 
   it('⑤ 미존재 runId는 검증을 통과해도 ok:false(존재 검증 — 임의 통과 0)', () => {

@@ -40,6 +40,7 @@ export const API_ROUTES = {
     taskStop: call(IPC_CHANNELS.AGENT_TASK_STOP),
     setMode: call(IPC_CHANNELS.AGENT_SET_MODE),
     setModel: call(IPC_CHANNELS.AGENT_SET_MODEL),
+    listModels: call0(IPC_CHANNELS.AGENT_LIST_MODELS),
     permissionRespond: call(IPC_CHANNELS.PERMISSION_RESPOND),
     questionRespond: call(IPC_CHANNELS.QUESTION_RESPOND),
     onEvent: push(IPC_CHANNELS.AGENT_EVENT),

@@ -21,6 +21,7 @@ describe('ipc-contract', () => {
       'agent.run',
       'agent.abort',
       'agent.event',
+      'agent.listModels',
       'fs.diff',
       'conversation.load',
       'conversation.save'

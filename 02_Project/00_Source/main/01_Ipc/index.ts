@@ -7,6 +7,7 @@ import type { ProfileStore } from '@main/11_Settings/profile'
 import type { SkillsStore } from '@main/11_Settings/skills'
 import type { McpStore } from '@main/11_Settings/mcp'
 import type { CommandsStore } from '@main/11_Settings/commands'
+import type { ModelListResponse } from '@shared/ipcContract'
 import { registerWorkspaceHandlers } from './handlers/workspace'
 import { registerAgentHandlers } from './handlers/agent'
 import { registerFsHandlers } from './handlers/fs'
@@ -34,6 +35,7 @@ export interface IpcDeps {
   getPrefsStore: () => PrefsStore | null
   getProfileStore: () => ProfileStore | null
   getMultiStorePath: () => string | null
+  getModelList?: () => Promise<ModelListResponse>
 }
 
 export function registerIpc(deps: IpcDeps): void {
@@ -42,7 +44,7 @@ export function registerIpc(deps: IpcDeps): void {
   registerWindowHandlers()
 
   registerWorkspaceHandlers({ state, roots })
-  registerAgentHandlers({ state, runManager })
+  registerAgentHandlers({ state, runManager, getModelList: deps.getModelList })
   registerFsHandlers({ state, roots })
   registerConversationHandlers({ getStore: deps.getStore })
   registerReferenceHandlers({ state, roots })

@@ -25,4 +25,19 @@ describe('ContextStrip', () => {
     const { container } = render(<ContextStrip />)
     expect(container.querySelector('.ctx-strip')).toBeTruthy()
   })
+
+  // M06 G4: 계기 창은 모델 ID가 아니라 턴 결과의 contextWindow에서 온다 — 모델 값과 무관하다.
+  it('턴 뒤 계기는 결과의 contextWindow 기준이다 — 100K/200K → 50%', () => {
+    const { container } = render(
+      <ContextStrip lastUsage={{ inputTokens: 60_000, outputTokens: 40_000 }} selectedModel="claude-opus-5-5" lastContextWindow={200_000} />
+    )
+    expect(container.querySelector('.cc-pct')?.textContent).toBe('50%')
+  })
+
+  it('첫 턴 전(창 미상)에는 기본 창 하나 — 모델이 무엇이든 같은 값', () => {
+    const a = render(<ContextStrip lastUsage={{ inputTokens: 100_000, outputTokens: 0 }} selectedModel="claude-haiku-4-5" />)
+    const b = render(<ContextStrip lastUsage={{ inputTokens: 100_000, outputTokens: 0 }} selectedModel="claude-opus-5-5" />)
+    expect(a.container.querySelector('.cc-pct')?.textContent).toBe('10%')
+    expect(b.container.querySelector('.cc-pct')?.textContent).toBe('10%')
+  })
 })

@@ -2,7 +2,10 @@
 import { describe, it, expect, vi } from 'vitest'
 import { render, fireEvent, within } from '@testing-library/react'
 import { Picker } from '@renderer/05_Conversation/ComposerPicker'
-import { MODELS, EFFORTS } from '@renderer/03_Agent/pickerOptions'
+import { modelOptionsFor, EFFORTS } from '@renderer/03_Agent/pickerOptions'
+import { FALLBACK_MODELS } from '@shared/03_Agent/models/knownModels'
+
+const MODELS = modelOptionsFor(FALLBACK_MODELS)
 
 describe('Picker', () => {
   it('버튼 클릭 → .pick-menu 열림', () => {

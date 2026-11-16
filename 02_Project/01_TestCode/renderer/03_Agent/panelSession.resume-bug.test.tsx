@@ -118,4 +118,47 @@ describe('멀티패널 resume 체인 — 정상성 (회귀 방어)', () => {
 
     second.unmount()
   })
+
+  // M06 G4: 복원된 패널이 마지막으로 잰 컨텍스트 창을 다음 실행 요청에 싣는다.
+  it('복원된 lastContextWindow가 다음 send의 contextWindow로 주입', async () => {
+    const ACTIVE_ID = 'sess-g4-cw'
+    _disk = {
+      version: 2,
+      activeSessionId: ACTIVE_ID,
+      sessions: [{
+        id: ACTIVE_ID,
+        title: '',
+        count: 6,
+        panels: [{
+          title: '',
+          picker: { model: 'claude-haiku-4-5', effort: 'high', mode: 'normal' },
+          // 복원은 메시지가 있는 스냅샷만 한다(useMultiPersist)
+          snapshot: {
+            messages: [{ id: 'm1', role: 'user', text: '앞선 질문' }, { id: 'm2', role: 'assistant', text: '앞선 답' }],
+            seq: 2,
+            sessionId: 'sess-g4-prev',
+            lastContextWindow: 200_000,
+          },
+        }],
+      }],
+    }
+
+    const view = renderHook(() => useHarness(ACTIVE_ID))
+    await waitForRestore()
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 20))
+    })
+    expect(view.result.current.sessions[0].state.sessionId).toBe('sess-g4-prev')
+    expect(view.result.current.sessions[0].state.lastContextWindow).toBe(200_000)
+
+    await act(async () => {
+      await view.result.current.sessions[0].send('이어서')
+    })
+    expect(mockAgentRun).toHaveBeenCalledTimes(1)
+    const sentReq = mockAgentRun.mock.calls[0][0] as { contextWindow?: number; resumeSessionId?: string }
+    expect(sentReq.contextWindow).toBe(200_000)
+    expect(sentReq.resumeSessionId).toBe('sess-g4-prev')
+
+    view.unmount()
+  })
 })

@@ -53,7 +53,12 @@ const SKIP_DIRS = new Set(['node_modules', 'dist', 'out', 'coverage', '.git'])
 // M06 G3: 434 → 435. 가드가 물은 호출의 카드 경로·명령 전문·「항상 허용」 없음을 고정하는 main/04_Claude/permissionCoordinator.guard-ask.test.ts를 더했다.
 // M06 G3: 435 → 437. 사유가 reducer를 지나는지 보는 renderer/05_Conversation/reducer.guard-ask.test.ts와
 // 카드 표시(명령 전문·사유·「항상 허용」 없음)를 보는 renderer/03_Agent/PermissionCard.guard-ask.test.tsx를 더했다.
-const BASELINE_TEST_FILES = 437
+// M06 G4: 437 → 440. 모델 목록 자동화 — main 공급자(SDK 목록·캐시·최소 목록, 턴 없는 목록 요청, IPC)를 고정하는
+// main/04_Claude/modelListProvider.test.ts, 계기가 주 모델 항목의 창을 고르는지 보는 main/04_Claude/claudeStream.context-window.test.ts,
+// 선택기·effort 메뉴가 SDK 목록으로 그려지고 정식 ID를 넘기는지 보는 renderer/05_Conversation/PickerGroup.model-list.test.tsx를 더했다.
+// M06 G4: 440 → 441. 실앱 확인에서 conversation.save 핸들러가 model을 버리는 것이 드러나, 그 저장을 고정하는
+// main/01_Ipc/conversation.model-persist.test.ts를 더했다.
+const BASELINE_TEST_FILES = 441
 
 function collectTestFiles(dir: string, acc: string[] = []): string[] {
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {

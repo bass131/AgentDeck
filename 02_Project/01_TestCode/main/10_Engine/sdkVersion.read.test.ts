@@ -34,7 +34,7 @@ describe('SDK package.json 실 읽기 (exports 제약 우회) — 회귀 가드'
     expect(SDK_VERSION_FALLBACK).toMatch(/^\d+\.\d+\.\d+$/)
   })
 
-  // Backlog 4: 폴백이 0.3.186에 묶여 설치본(0.3.201)보다 낡아 있었다. 의존 명세가 바뀌면 이 테스트가 폴백 갱신을 요구한다.
+  // Backlog 4: 폴백이 0.3.186에 묶여 설치본(0.3.201)보다 낡아 있었다. M06 G4에서 0.3.325로 올렸다. 의존 명세가 바뀌면 이 테스트가 폴백 갱신을 요구한다.
   test('폴백 상수 = package.json 의존 명세에서 접두 기호를 뗀 값(드리프트 고정)', () => {
     const rootPkg = JSON.parse(readFileSync(join(process.cwd(), 'package.json'), 'utf8'))
     const spec: unknown = rootPkg.dependencies?.['@anthropic-ai/claude-agent-sdk']

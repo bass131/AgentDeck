@@ -222,7 +222,8 @@ export function createConversationStore(dir: string): ConversationStore {
       const lastUsage = sanitizeUsage(record.lastUsage)
       const subagents = sanitizeSubagents(record.subagents)
       const replMode = typeof record.replMode === 'boolean' ? record.replMode : undefined
-      const model = sanitizeModel(record.model)
+      // model이 없는 저장(배경 run의 done/session 저장)은 기존 선택을 지우지 않는다 (M06 G4).
+      const model = sanitizeModel(record.model) ?? sanitizeModel(existing?.model)
 
       const chatData: ChatFile = {
         id,

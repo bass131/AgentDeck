@@ -2,8 +2,7 @@ import { RunEventNormalizer, nextRunTag } from '../stream/eventNormalizer'
 import { PermissionCoordinator } from '../permission/permissionCoordinator'
 import { buildClaudeSdkOptions, makeRefusalFallbackHandler } from '../sdkOptions'
 import { getDefaultQueryFn, captureSupportedCommands } from '../queryFn'
-import { normalizeModel } from '../runArgs'
-import type { KnownModel } from '../runArgs'
+import { normalizeRunModel } from '../runArgs'
 import { LIVE_MODE_TO_SDK } from '../permissionModes'
 import { buildModelContextPrompt } from '../buildPrompt'
 import { BgTaskObserver } from './bgTaskObserver'
@@ -12,22 +11,12 @@ import { IdleCloseGovernor } from './idleCloseGovernor'
 import type { QueryFn, PersistentQueryFn } from '../queryFn'
 import type { AgentRun, AgentRunInput, RunResponse } from '@main/03_Agent/AgentBackend'
 import type { AgentEvent, AgentEventDone } from '@shared/agentEvents'
-import { MODEL_CONTEXT_WINDOW, DEFAULT_CONTEXT_WINDOW } from '@shared/ipcContract'
+import { contextFallbackBudget } from '../buildPrompt'
 import type { SlashCommandInfo } from '@shared/ipcContract'
 
 export { IDLE_CLOSE_GRACE_MS } from './idleCloseGovernor'
 
 export const MAX_CONSECUTIVE_AUTONOMOUS_TURNS = 100
-
-const CONTEXT_FALLBACK_RESERVE_TOKENS = 20_000
-
-function computeContextFallbackBudget(model: string | undefined): number {
-  const knownModel: KnownModel | undefined = normalizeModel(model)
-  const windowTokens =
-    (knownModel !== undefined ? MODEL_CONTEXT_WINDOW[knownModel] : undefined) ??
-    DEFAULT_CONTEXT_WINDOW
-  return Math.max(windowTokens - CONTEXT_FALLBACK_RESERVE_TOKENS, 0)
-}
 
 export class ClaudeAgentRun implements AgentRun {
   readonly events: AsyncIterable<AgentEvent>
@@ -96,7 +85,7 @@ export class ClaudeAgentRun implements AgentRun {
     this._mcpDeniedProvider = mcpDeniedProvider
     this._onCommandsCaptured = onCommandsCaptured
     this._currentOrchestration = req.orchestration === true
-    this._currentModel = normalizeModel(req.model) ?? null
+    this._currentModel = normalizeRunModel(req.model) ?? null
     this._perm = new PermissionCoordinator((e) => this._push(e))
     this._bgTaskObserver = new BgTaskObserver((e) => this._push(e))
     this._idleGovernor = new IdleCloseGovernor({
@@ -171,19 +160,24 @@ export class ClaudeAgentRun implements AgentRun {
 
   setModel(modelId: string): void {
     if (this._req.persistent !== true) return
-    const resolved = normalizeModel(modelId)
+    const resolved = normalizeRunModel(modelId)
     if (resolved === undefined) return
     if (resolved === this._currentModel) return
     const handle = this._queryHandle
     if (!handle || typeof handle.setModel !== 'function') return
     const prev = this._currentModel
     this._currentModel = resolved
+    // 계기가 다음 턴 결과에서 새 주 모델의 창을 고르게 한다 (M06 G4). 전환이 거절되면 되돌린다.
+    this._normalizer.setMainModel(resolved)
+    const rollback = (): void => {
+      if (this._currentModel !== resolved) return
+      this._currentModel = prev
+      if (prev !== null) this._normalizer.setMainModel(prev)
+    }
     try {
-      void Promise.resolve(handle.setModel(resolved)).catch(() => {
-        if (this._currentModel === resolved) this._currentModel = prev
-      })
+      void Promise.resolve(handle.setModel(resolved)).catch(rollback)
     } catch {
-      if (this._currentModel === resolved) this._currentModel = prev
+      rollback()
     }
   }
 
@@ -313,7 +307,7 @@ export class ClaudeAgentRun implements AgentRun {
     try {
       const prompt = buildModelContextPrompt(this._req.messages, {
         resumeSessionId: this._req.resumeSessionId,
-        contextBudgetTokens: computeContextFallbackBudget(this._req.model),
+        contextBudgetTokens: contextFallbackBudget(this._req.contextWindow),
       })
 
       if (!prompt) {
@@ -436,7 +430,7 @@ export class ClaudeAgentRun implements AgentRun {
     try {
       const initialPrompt = buildModelContextPrompt(this._req.messages, {
         resumeSessionId: this._req.resumeSessionId,
-        contextBudgetTokens: computeContextFallbackBudget(this._req.model),
+        contextBudgetTokens: contextFallbackBudget(this._req.contextWindow),
       })
 
       if (!initialPrompt) {

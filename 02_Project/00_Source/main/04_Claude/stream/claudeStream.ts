@@ -349,20 +349,46 @@ function mapUsage(usageRaw: unknown): TokenUsage | undefined {
   return usage
 }
 
-function windowFromModelUsage(modelUsage: unknown): number | undefined {
+function stripWireSuffixes(id: string): string {
+  return id.replace(/\[[^\]]*\]$/, '').replace(/-\d{8}$/, '')
+}
+
+function contextTokensOf(entry: Record<string, unknown>): number {
+  const n = (k: string): number => (isNumber(entry[k]) ? (entry[k] as number) : 0)
+  return n('inputTokens') + n('cacheReadInputTokens') + n('cacheCreationInputTokens')
+}
+
+// 턴 결과 modelUsage에서 주 모델 항목의 contextWindow를 고른다 (M06 G4).
+// 턴마다 보조 모델 항목이 함께 오고 그 창이 주 모델보다 클 수 있어(실측), 첫 항목도 최대 창도 쓰지 않는다.
+// 맞추는 순서: 키 일치 → canonicalModel 일치 → 접미를 벗긴 값 일치. 주 모델을 모르거나 안 맞으면
+// 대화 맥락(입력+캐시 토큰)을 가장 많이 실은 항목을 주 모델로 본다.
+export function contextWindowFromModelUsage(modelUsage: unknown, mainModel?: string): number | undefined {
   if (!isObject(modelUsage)) return undefined
-  let maxWindow: number | undefined
+  const entries: [string, Record<string, unknown>][] = []
   for (const key of Object.keys(modelUsage)) {
     const entry = modelUsage[key]
-    if (!isObject(entry)) continue
-    const cw = entry['contextWindow']
-    if (isNumber(cw)) {
-      if (maxWindow === undefined || cw > maxWindow) {
-        maxWindow = cw
-      }
-    }
+    if (isObject(entry) && isNumber(entry['contextWindow']) && entry['contextWindow'] > 0) entries.push([key, entry])
   }
-  return maxWindow
+  if (entries.length === 0) return undefined
+
+  if (mainModel) {
+    const bare = stripWireSuffixes(mainModel)
+    const canonicalOf = (e: Record<string, unknown>): string | undefined =>
+      isString(e['canonicalModel']) ? e['canonicalModel'] : undefined
+    const hit =
+      entries.find(([k]) => k === mainModel) ??
+      entries.find(([, e]) => canonicalOf(e) === mainModel) ??
+      entries.find(([k, e]) => stripWireSuffixes(k) === bare || stripWireSuffixes(canonicalOf(e) ?? '') === bare)
+    if (hit) return hit[1]['contextWindow'] as number
+  }
+
+  let best = entries[0]
+  for (const e of entries) if (contextTokensOf(e[1]) > contextTokensOf(best[1])) best = e
+  return best[1]['contextWindow'] as number
+}
+
+export interface StreamLineContext {
+  mainModel?: string
 }
 
 function isSuccess(obj: Record<string, unknown>): boolean {
@@ -389,7 +415,7 @@ function extractErrorMessage(obj: Record<string, unknown>): string {
   return 'Unknown error from agent'
 }
 
-export function mapClaudeStreamLine(obj: unknown): AgentEvent[] {
+export function mapClaudeStreamLine(obj: unknown, ctx: StreamLineContext = {}): AgentEvent[] {
   if (!isObject(obj)) return []
 
   const type = obj['type']
@@ -428,7 +454,7 @@ export function mapClaudeStreamLine(obj: unknown): AgentEvent[] {
     case 'result': {
       if (isSuccess(obj)) {
         const usage = mapUsage(obj['usage'])
-        const contextWindow = windowFromModelUsage(obj['modelUsage'])
+        const contextWindow = contextWindowFromModelUsage(obj['modelUsage'], ctx.mainModel)
         const done: AgentEvent = {
           type: 'done',
           ...(usage ? { usage } : {}),

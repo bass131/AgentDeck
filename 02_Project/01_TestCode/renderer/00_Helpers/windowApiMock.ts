@@ -37,6 +37,7 @@ export const FLAT_ROUTES = {
   agentTaskStop: { group: 'agent', action: 'taskStop' },
   agentSetMode: { group: 'agent', action: 'setMode' },
   agentSetModel: { group: 'agent', action: 'setModel' },
+  agentListModels: { group: 'agent', action: 'listModels' },
   permissionRespond: { group: 'agent', action: 'permissionRespond' },
   questionRespond: { group: 'agent', action: 'questionRespond' },
   onAgentEvent: { group: 'agent', action: 'onEvent' },
@@ -175,6 +176,8 @@ const DEFAULT_RESULTS: { [C in InvokeChannel]?: ResOf<C> } = {
   'agent.taskStop': { ok: true },
   'agent.setMode': { ok: true },
   'agent.setModel': { ok: true },
+  // 빈 목록이면 store는 최소 목록을 그대로 둔다(M06 G4).
+  'agent.listModels': { models: [], source: 'builtin' },
   'agent.permissionRespond': { ok: true },
   'agent.questionRespond': { ok: true },
   'fs.diff': { filePath: '', lines: [] },

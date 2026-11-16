@@ -41,6 +41,35 @@ async function applyOrchestrationNormalize(raw: unknown): Promise<unknown> {
   return captured.orchestration
 }
 
+async function captureRunInput(extra: Record<string, unknown>): Promise<AgentRunInput> {
+  let captured: AgentRunInput | undefined
+  const runManager = {
+    start: async (_backend: AgentBackend, input: AgentRunInput): Promise<string> => {
+      captured = input
+      return 'run-cw'
+    },
+  }
+  h.handlers.clear()
+  registerAgentHandlers({ state: { win: null }, runManager: runManager as unknown as RunManager })
+  const handler = h.handlers.get(IPC_CHANNELS.AGENT_RUN)
+  if (!handler) throw new Error('AGENT_RUN 핸들러가 등록되지 않았다')
+  await handler({} as never, { messages: [{ role: 'user', content: 'hello' }], ...extra })
+  if (!captured) throw new Error('runManager.start가 호출되지 않았다')
+  return captured
+}
+
+// M06 G4: 마지막으로 잰 컨텍스트 창은 양의 유한수만 main 실행 입력으로 넘어간다.
+describe('contextWindow 정규화 (M06 G4)', () => {
+  it('양의 정수는 그대로 넘긴다', async () => {
+    expect((await captureRunInput({ contextWindow: 200_000 })).contextWindow).toBe(200_000)
+  })
+  it('미전달·0·음수·NaN·문자열은 undefined', async () => {
+    for (const bad of [undefined, 0, -5, Number.NaN, '200000']) {
+      expect((await captureRunInput({ contextWindow: bad })).contextWindow).toBeUndefined()
+    }
+  })
+})
+
 function makeFakeRun(captured?: { req?: AgentRunInput }): AgentRun {
   return {
     events: (async function* () {

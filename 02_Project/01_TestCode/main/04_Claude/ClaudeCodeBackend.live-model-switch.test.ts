@@ -58,13 +58,13 @@ async function waitFor(pred: () => boolean, timeoutMs = 3000): Promise<void> {
 const tick = (): Promise<void> => new Promise((r) => setTimeout(r, 5))
 
 describe('LM1 P02 ① persistent run setModel — 정규화 위임', () => {
-  it("persistent run에서 setModel('haiku') → SDK 핸들에 'claude-haiku-4-5' 1회", async () => {
+  it("persistent run에서 setModel('claude-haiku-5-5') → SDK 핸들에 'claude-haiku-5-5' 1회", async () => {
     const calls: string[] = []
     const backend = new ClaudeCodeBackend(makeSetModelQueryFn(calls))
     const run = backend.start({
       messages: [{ role: 'user', content: '지속 세션 모델 전환' }],
       persistent: true,
-      model: 'sonnet',
+      model: 'claude-sonnet-5-5',
     }) as RunWithSetModel
 
     const events: AgentEvent[] = []
@@ -74,14 +74,14 @@ describe('LM1 P02 ① persistent run setModel — 정규화 위임', () => {
     try {
       await waitFor(() => events.some((e) => e.type === 'done'))
       expect(typeof run.setModel).toBe('function')
-      run.setModel?.('haiku')
+      run.setModel?.('claude-haiku-5-5')
       await tick()
     } finally {
       run.abort()
       await consume
     }
 
-    expect(calls).toEqual(['claude-haiku-4-5'])
+    expect(calls).toEqual(['claude-haiku-5-5'])
   })
 })
 
@@ -110,7 +110,7 @@ describe('LM1 P02 ② 단발 run setModel — 위임 0 no-op', () => {
     const backend = new ClaudeCodeBackend(queryFn)
     const run = backend.start({
       messages: [{ role: 'user', content: '단발 실행' }],
-      model: 'sonnet',
+      model: 'claude-sonnet-5-5',
     }) as RunWithSetModel
 
     const events: AgentEvent[] = []
@@ -122,8 +122,8 @@ describe('LM1 P02 ② 단발 run setModel — 위임 0 no-op', () => {
       await waitFor(() => pumpStarted)
       expect(typeof run.setModel).toBe('function')
       expect(() => {
-        run.setModel?.('haiku')
-        run.setModel?.('haiku')
+        run.setModel?.('claude-haiku-5-5')
+        run.setModel?.('claude-haiku-5-5')
       }).not.toThrow()
     } finally {
       release()
@@ -143,7 +143,7 @@ describe('LM1 P02 ③ change-guard — 같은 값 위임 0', () => {
       const run = backend.start({
         messages: [{ role: 'user', content: '동일 모델 재요청' }],
         persistent: true,
-        model: 'haiku',
+        model: 'claude-haiku-5-5',
       }) as RunWithSetModel
       const events: AgentEvent[] = []
       const consume = (async () => {
@@ -151,7 +151,7 @@ describe('LM1 P02 ③ change-guard — 같은 값 위임 0', () => {
       })()
       try {
         await waitFor(() => events.some((e) => e.type === 'done'))
-        run.setModel?.('haiku')
+        run.setModel?.('claude-haiku-5-5')
         await tick()
       } finally {
         run.abort()
@@ -166,7 +166,7 @@ describe('LM1 P02 ③ change-guard — 같은 값 위임 0', () => {
       const run = backend.start({
         messages: [{ role: 'user', content: '전환 후 동일값 재호출' }],
         persistent: true,
-        model: 'sonnet',
+        model: 'claude-sonnet-5-5',
       }) as RunWithSetModel
       const events: AgentEvent[] = []
       const consume = (async () => {
@@ -174,15 +174,15 @@ describe('LM1 P02 ③ change-guard — 같은 값 위임 0', () => {
       })()
       try {
         await waitFor(() => events.some((e) => e.type === 'done'))
-        run.setModel?.('haiku')
+        run.setModel?.('claude-haiku-5-5')
         await tick()
-        run.setModel?.('haiku')
+        run.setModel?.('claude-haiku-5-5')
         await tick()
       } finally {
         run.abort()
         await consume
       }
-      expect(calls).toEqual(['claude-haiku-4-5'])
+      expect(calls).toEqual(['claude-haiku-5-5'])
     }
   })
 })
@@ -194,7 +194,7 @@ describe('LM1 P02 ④ 미지 모델 id — 위임 0', () => {
     const run = backend.start({
       messages: [{ role: 'user', content: '미지 모델 필터' }],
       persistent: true,
-      model: 'sonnet',
+      model: 'claude-sonnet-5-5',
     }) as RunWithSetModel
     const events: AgentEvent[] = []
     const consume = (async () => {
@@ -204,13 +204,13 @@ describe('LM1 P02 ④ 미지 모델 id — 위임 0', () => {
       await waitFor(() => events.some((e) => e.type === 'done'))
       run.setModel?.('gpt-5')
       run.setModel?.('claude')
-      run.setModel?.('haiku')
+      run.setModel?.('claude-haiku-5-5')
       await tick()
     } finally {
       run.abort()
       await consume
     }
-    expect(calls).toEqual(['claude-haiku-4-5'])
+    expect(calls).toEqual(['claude-haiku-5-5'])
   })
 })
 
@@ -220,22 +220,22 @@ describe('LM1 P02 ⑤ 핸들 미캡처 호출 — no-op·no-throw (GREEN 핀)', 
     const run = backend.start({
       messages: [{ role: 'user', content: '즉시 전환 시도' }],
       persistent: true,
-      model: 'sonnet',
+      model: 'claude-sonnet-5-5',
     }) as RunWithSetModel
-    expect(() => run.setModel?.('haiku')).not.toThrow()
+    expect(() => run.setModel?.('claude-haiku-5-5')).not.toThrow()
     run.abort()
     for await (const e of run.events) void e
   })
 })
 
 describe('LM1 P02 ⑥ reject 롤백 — 재호출 재위임', () => {
-  it("핸들 setModel reject 시 같은 값('haiku') 재호출이 다시 위임된다(총 2회)", async () => {
+  it("핸들 setModel reject 시 같은 값('claude-haiku-5-5') 재호출이 다시 위임된다(총 2회)", async () => {
     const calls: string[] = []
     const backend = new ClaudeCodeBackend(makeSetModelQueryFn(calls, { rejecting: true }))
     const run = backend.start({
       messages: [{ role: 'user', content: '위임 실패 롤백' }],
       persistent: true,
-      model: 'sonnet',
+      model: 'claude-sonnet-5-5',
     }) as RunWithSetModel
     const events: AgentEvent[] = []
     const consume = (async () => {
@@ -243,14 +243,55 @@ describe('LM1 P02 ⑥ reject 롤백 — 재호출 재위임', () => {
     })()
     try {
       await waitFor(() => events.some((e) => e.type === 'done'))
-      run.setModel?.('haiku')
+      run.setModel?.('claude-haiku-5-5')
       await tick()
-      run.setModel?.('haiku')
+      run.setModel?.('claude-haiku-5-5')
       await tick()
     } finally {
       run.abort()
       await consume
     }
-    expect(calls).toEqual(['claude-haiku-4-5', 'claude-haiku-4-5'])
+    expect(calls).toEqual(['claude-haiku-5-5', 'claude-haiku-5-5'])
+  })
+})
+
+// M06 G4: 계기는 턴 결과에서 주 모델 항목의 창을 고른다 — 실행 중 전환 뒤에는 새 주 모델을 따라간다.
+describe('M06 G4 — setModel 뒤 done.contextWindow는 새 주 모델의 창', () => {
+  function usage(contextWindow: number, inputTokens: number): Record<string, unknown> {
+    return { inputTokens, outputTokens: 1, cacheReadInputTokens: 0, cacheCreationInputTokens: 0, webSearchRequests: 0, costUSD: 0, contextWindow, maxOutputTokens: 1 }
+  }
+
+  it('init 모델 → 전환한 옛 ID(200K) 항목을 고르고, 맥락 토큰이 더 큰 보조 항목(1M)을 고르지 않는다', async () => {
+    const queryFn: QueryFn = (p) => {
+      const gen = (async function* () {
+        const input = (p.prompt as unknown as AsyncIterable<unknown>)[Symbol.asyncIterator]()
+        yield { type: 'system', subtype: 'init', session_id: 'sess-g4', model: 'claude-sonnet-5-5' }
+        if ((await input.next()).done) return
+        yield { ...mkResult('turn1'), modelUsage: { 'claude-sonnet-5-5': usage(1_000_000, 9_000), 'claude-haiku-5-5': usage(1_000_000, 100) } }
+        if ((await input.next()).done) return
+        yield { ...mkResult('turn2'), modelUsage: { 'claude-haiku-5-5': usage(1_000_000, 50_000), 'claude-haiku-4-5': usage(200_000, 9_000) } }
+        await input.next()
+      })()
+      return Object.assign(gen, { setModel: (): unknown => undefined })
+    }
+    const run = new ClaudeCodeBackend(queryFn).start({
+      messages: [{ role: 'user', content: '첫 턴' }],
+      persistent: true,
+      model: 'claude-sonnet-5-5',
+    }) as RunWithSetModel
+    const done: AgentEvent[] = []
+    const consume = (async () => {
+      for await (const e of run.events) if (e.type === 'done') done.push(e)
+    })()
+    try {
+      await waitFor(() => done.length >= 1)
+      run.setModel?.('claude-haiku-4-5')
+      run.push('둘째 턴')
+      await waitFor(() => done.length >= 2)
+    } finally {
+      run.abort()
+      await consume
+    }
+    expect(done.map((e) => (e as { contextWindow?: number }).contextWindow)).toEqual([1_000_000, 200_000])
   })
 })

@@ -12,6 +12,8 @@ export interface AgentRunInput {
   resumeSessionId?: string
   persistent?: boolean
   sessionKey?: string
+  // 대화가 마지막으로 잰 컨텍스트 창 — 기록을 다시 실을 때의 예산에 쓴다 (M06 G4)
+  contextWindow?: number
 }
 
 export type RunResponse =

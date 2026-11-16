@@ -1,0 +1,14 @@
+# SDK 갱신 알림 (M06 G4) — 모델 목록은 앱에 든 Agent SDK의 supportedModels()가 주므로,
+# 새 모델을 앱에 들이는 사람 손은 SDK 버전 올리기 하나다. 새 버전이 나오면 Dependabot이 PR로 알린다.
+# 범위는 그 패키지 하나로 좁힌다(다른 의존성 갱신 PR을 만들지 않는다).
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    allow:
+      - dependency-name: "@anthropic-ai/claude-agent-sdk"
+    open-pull-requests-limit: 2
+    commit-message:
+      prefix: "chore(deps)"

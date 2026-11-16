@@ -10,6 +10,7 @@ import { PickerGroup } from '@renderer/05_Conversation/PickerGroup'
 import { MODES, DEFAULT_MODEL, DEFAULT_EFFORT } from '@renderer/03_Agent/pickerOptions'
 import * as composerMod from '@renderer/05_Conversation/state/composer'
 import type { AgentEventPayload } from '../../../../02_Project/00_Source/shared/ipcContract'
+import { SDK_MODEL_ROWS } from '../../shared/00_Helpers/sdkModelRows'
 
 const mockApi = {
   conversationLoad: async () => ({ conversations: [] }),
@@ -42,6 +43,7 @@ async function getStore() {
 
 type Store = Awaited<ReturnType<typeof getStore>>
 
+// M06 G4: 짧은 별칭('haiku'·'sonnet')은 SDK 목록에 그 별칭 행이 있을 때만 받는다 — 실측 목록을 깐다.
 function resetStore(useAppStore: Store, patch: Record<string, unknown> = {}) {
   mockApi.agentSetModel.mockClear()
   resetAppStore(useAppStore, {
@@ -50,6 +52,7 @@ function resetStore(useAppStore: Store, patch: Record<string, unknown> = {}) {
     isRunning: false,
     replMode: true,
     selectedModel: DEFAULT_MODEL,
+    modelRows: SDK_MODEL_ROWS,
     ...patch,
   })
 }
@@ -150,10 +153,10 @@ describe('LM1 P04 ⑦ requestLiveModelSwitch — 단일 출처 게이트 (RED)',
   })
 
   it('게이트 3조건 충족(replMode+runId+유효 model) → agentSetModel({runId, model}) 1회', () => {
-    requestLiveModelSwitch?.('panel-run-1', true, 'haiku')
+    requestLiveModelSwitch?.('panel-run-1', true, 'claude-haiku-5-5')
 
     expect(mockApi.agentSetModel).toHaveBeenCalledTimes(1)
-    expect(mockApi.agentSetModel).toHaveBeenCalledWith({ runId: 'panel-run-1', model: 'haiku' })
+    expect(mockApi.agentSetModel).toHaveBeenCalledWith({ runId: 'panel-run-1', model: 'claude-haiku-5-5' })
   })
 })
 

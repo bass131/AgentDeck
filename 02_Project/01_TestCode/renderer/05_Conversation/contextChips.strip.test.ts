@@ -167,7 +167,7 @@ import { calcGauge } from '@renderer/03_Agent/gaugeCalc'
 
 describe('(d) 기존 컨텍스트 게이지 회귀', () => {
   it('현재 컨텍스트 칩의 pct/detail은 calcGauge 결과와 일치한다', () => {
-    const gauge = calcGauge({ inputTokens: 100_000, outputTokens: 100_000 }, 'haiku')
+    const gauge = calcGauge({ inputTokens: 100_000, outputTokens: 100_000 }, 200_000)
     const usage: UsageInfo = { fiveHour: null, weekly: null }
     const chips = buildChips(gauge, usage)
 
@@ -178,7 +178,7 @@ describe('(d) 기존 컨텍스트 게이지 회귀', () => {
   })
 
   it('usage가 있어도 현재 컨텍스트 칩(0번)은 영향받지 않는다', () => {
-    const gauge = calcGauge({ inputTokens: 500_000, outputTokens: 0 }, 'opus')
+    const gauge = calcGauge({ inputTokens: 500_000, outputTokens: 0 })
     const usage: UsageInfo = {
       fiveHour: { pct: 99, resetsAt: Math.floor(Date.now() / 1000) + 100 },
       weekly: { pct: 88, resetsAt: null },

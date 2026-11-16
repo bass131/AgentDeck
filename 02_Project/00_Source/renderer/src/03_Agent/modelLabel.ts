@@ -1,11 +1,13 @@
-import { KNOWN_MODELS } from '@shared/03_Agent/models/knownModels'
-import { MODELS } from './pickerOptions'
+// 패밀리별 색 표 — 모델 ID 표가 아니라 패밀리 이름 표다 (M06 G4). 선택기 점·서브에이전트 배지가 같이 쓴다.
+// 여기 없는 새 패밀리는 라벨이 원문 그대로, 색은 중립이다. 선택기 라벨은 SDK displayName을 쓰므로 영향이 없다.
+export const MODEL_FAMILY_COLORS: Readonly<Record<string, string>> = {
+  opus: 'var(--violet)',
+  sonnet: 'var(--blue)',
+  haiku: 'var(--teal)',
+  fable: 'var(--gold)',
+}
 
-const FAMILIES: readonly string[] = [
-  ...new Set(
-    KNOWN_MODELS.map((id) => id.split('-')[1]).filter((f): f is string => Boolean(f))
-  )
-]
+const FAMILIES: readonly string[] = Object.keys(MODEL_FAMILY_COLORS)
 
 function escapeRegExp(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
@@ -28,8 +30,7 @@ export function modelFamilyColor(id: string | undefined): string | undefined {
   if (!id) return undefined
   const m = buildModelIdPattern().exec(id)
   if (!m) return undefined
-  const family = m[1].toLowerCase()
-  return MODELS.find((opt) => opt.id.split('-')[1] === family)?.color
+  return MODEL_FAMILY_COLORS[m[1].toLowerCase()]
 }
 
 export function isBareModelAlias(id: string | undefined): boolean {

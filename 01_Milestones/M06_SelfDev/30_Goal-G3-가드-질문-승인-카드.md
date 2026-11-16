@@ -49,6 +49,8 @@ DoD
 
 검증 기록
 
+- FAIL 2026-11-16T13:32:53+09:00 7단계 — 구현 문맥 없는 검수자 판정 FAIL, 블로커 1건: 실측 근거가 settings의 allow 규칙에 걸리는 `git push origin HEAD:master` 한 꼴뿐이고, settings의 ask 규칙과 겹치는 가드 질문(`gh pr merge`·`gh release`·`npm publish`·`npm run package`)은 콜백에 사유가 오는지 확인되지 않았다. 판별이 사유 없음에서 허용으로 떨어져(fail-open) 그 경우 `자동`·`Bypass`에서 카드 없이 실행될 수 있다. 시도한 것: 단위 테스트 38건·권한 관련 86건 통과, 실제 앱 push 19사례. 다음 시도: `gh release --help`·`npm publish --help`를 블랙박스로 재고, 결과와 무관하게 사유 없음을 허용으로 떨어뜨리지 않는 판별을 검토한다. minor 6건(접힘 단언 공백, 접힌 채 허용, 비가드 사유의 「가드 사유」 라벨, 엔진 버전 차이, 내용 없는 단언, 범위 문구 밖 reducer 배선 2파일)은 함께 본다. 검수자는 금지 통지 전에 SDK 번들 내부를 읽었다고 밝혔고, 판정에는 그 내용을 쓰지 않았다.
+
 ## 결정 대장
 
 - [USER] PR 60 병합보다 이 픽스를 먼저 한다 — 가드 질문이 `자동`·`Bypass`에서 무시되는 지점(`permissionCoordinator.ts:130-132`) 설명 뒤 「그럼 병합 먼저 하지말고 픽스 진행해줘」 (2026-11-16)

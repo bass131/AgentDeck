@@ -10,12 +10,14 @@
 ## 범위
 
 - **만들 것**
-  - 가드의 세그먼트 분할에서 따옴표 밖과 큰따옴표 안의 `\`+LF, `\`+CRLF를 줄 이음으로 지운다. 작은따옴표 안에서는 셸처럼 글자 그대로 둔다.
+  - 따옴표 밖과 큰따옴표 안의 `\`+LF, `\`+CRLF를 줄 이음으로 읽는다. 작은따옴표 안에서는 셸처럼 글자 그대로 둔다.
   - 줄 이음 꼴의 판정 테스트 — 이어 쓰지 않은 같은 명령과 판정이 같아야 한다. 지금 「감수」로 묶인 줄 이음 행은 실제 판정으로 고친다.
-- **건드릴 곳**: `.claude/hooks/dangerous-cmd-guard.mjs`의 `splitSegments`와 머리 주석, `.claude/hooks/dangerous-cmd-guard.test.mjs`, 필요하면 `cmd-guard-equivalence.test.mjs`와 그 사람용 기준표.
-- **하지 않을 것**: M05 H1이 감수로 남긴 다른 꼴(`2>&1`의 `&`, 주석, `\X` 해제, `$'…'`, 제어 구문 머리, 변수·명령 치환) — H1에서 셸 전처리를 넓힐수록 회귀가 난 기록이 있다(H1 검증 기록 FAIL 23:08·23:43). 앱 소스, `.claude/settings.json`, 다른 훅.
+  - (범위 확대, [USER] 2026-11-16 결정 B) 원문 읽기 옆에 **bash식 논리 줄 판독**을 둔다 — 줄 이음을 잇고, 주석을 버리고, heredoc 본문을 bash처럼 소비하고(따옴표 친 구분자는 원문 그대로, 없는 구분자는 줄 이음 뒤 종결자 판정), 셸에 먹이는 본문만 명령으로 다시 읽는다. 판정은 원문 읽기와 논리 줄 판독의 합집합이다.
+- **건드릴 곳**: `.claude/hooks/dangerous-cmd-guard.mjs`의 `contextsOf`와 새 논리 줄 판독 함수, 머리 주석, `.claude/hooks/dangerous-cmd-guard.test.mjs`, 필요하면 `cmd-guard-equivalence.test.mjs`와 그 사람용 기준표.
+- **하지 않을 것**: 원문 읽기(①~④, `stripExemptHeredocBodies`·`splitSegments`·`tokenize`)는 바꾸지 않는다 — H1에서 이 판독을 고칠수록 회귀가 났다(H1 검증 기록 FAIL 23:08·23:43). 원문 읽기에 남은 H1 감수 꼴(`2>&1`의 `&`, `\X` 해제, 제어 구문 머리, 변수·명령 치환의 실행 내용)은 그대로다. 앱 소스, `.claude/settings.json`, 다른 훅.
 - **완료조건**
-  - Backlog 8 원형 `git -c a=b \⏎ -c c=d push origin HEAD:master`가 ask다. 줄 이음으로 쓴 master push·강제 push·원격 삭제·`--mirror`가 이어 쓰지 않은 꼴과 같은 판정을 받는다(LF·CRLF 둘 다).
+  - Backlog 8 원형 `git -c a=b \⏎ -c c=d push origin HEAD:master`가 ask다. 줄 이음으로 쓴 master push·강제 push·원격 삭제·`--mirror`가 이어 쓰지 않은 꼴과 같은 판정을 받는다(LF·CRLF 둘 다). 대상은 bash가 셸 명령으로 실행하는 글(명령 줄과 셸에 먹이는 heredoc 본문)에서 bash가 실제로 잇는 자리다 — heredoc 커밋 뒤에 이어 쓴 꼴을 포함한다.
+  - 어떤 입력도 G5 이전 가드(`39e81a4c`)보다 약한 판정을 받지 않는다.
   - 작은따옴표 안의 `\`+개행은 잇지 않는다. heredoc 커밋·PR 본문의 기존 오탐 방지 행과 `reset --hard` 판정에 회귀가 없다 — `npm run test:hooks` 전부 통과.
   - 구현 문맥 없는 검수자 PASS, 하드 게이트 다섯 종 exit 0, `npm test` 실패 0.
 
@@ -27,8 +29,11 @@
 - [x] 2. 실패하는 테스트 먼저 쓰기 — 줄 이음 꼴의 기대 판정을 `dangerous-cmd-guard.test.mjs`에 넣고 Red 확인
 - [x] 3. 가드 고치기 — `.claude/hooks/dangerous-cmd-guard.mjs`의 `splitSegments`에서 줄 이음을 지우고 머리 주석의 한계 문구를 고친다
 - [x] 4. 회귀 확인 — `npm run test:hooks` 전부, 하드 게이트, `npm test`
-- [>] 5. 독립 검수와 최종 검증
-- [ ] 6. PR 올리고 병합 승인 요청
+- [x] 5. 독립 검수 1·2차 — 둘 다 FAIL, 사용자 결정 B로 범위를 넓혔다
+- [>] 6. 논리 줄 판독 — `contextsOf`의 이은 읽기를 bash식 논리 줄 판독으로 바꾼다(줄 이음·주석·heredoc 본문 소비·셸에 먹이는 본문 재귀)
+- [ ] 7. 판별 테스트와 회귀 확인 — 검수 두 번이 찾은 꼴, 변이 다섯을 가르는 입력, 검수자 대조 도구로 옛 가드 대비 약해짐 0건, 하드 게이트, `npm test`
+- [ ] 8. 3차 독립 검수와 최종 검증
+- [ ] 9. PR 올리고 병합 승인 요청
 
 실행 단계 일괄 승인 대상 (사용자 「Backlog 8 가드 구멍 goal 진행해줘」)
 
@@ -51,5 +56,7 @@ DoD
 
 - [USER] Backlog 8(가드가 `\` 줄 이음 여러 줄 명령을 놓치는 구멍)을 다음 goal로 진행한다 — 「Backlog 8 가드 구멍 goal 진행해줘」 (2026-11-16)
 - [AI] 범위를 줄 이음 하나로 좁힌다 — M05 H1이 줄 이음·주석·리다이렉트·이스케이프 해제를 한꺼번에 넣었다가 두 번 불통과하고 되돌렸다. 줄 이음은 셸 규칙이 단순하고(따옴표 밖·큰따옴표 안에서만 지운다) Backlog 8의 원형이 이 꼴이다. 나머지는 H1의 감수 판정([USER] 2026-11-13)을 그대로 둔다 (2026-11-16)
+- [USER] 재검수 FAIL 뒤 범위 결정 — 감수(A)가 아니라 범위를 넓혀 heredoc 판독을 고친다(B). 「현황판 결정 응답: 1) G5: heredoc 커밋 뒤에 이어 쓴 push를 못 잡는 꼴을 감수할지 → B 범위를 넓혀 heredoc 판독을 고친다」 (2026-11-16)
+- [AI] 결정 B의 구현 — 원문 읽기는 그대로 두고, 원문 전체를 잇던 두 번째 읽기를 bash식 논리 줄 판독으로 바꾼다. 셸에 먹이지 않는 heredoc 본문은 논리 줄 판독에서 명령으로 읽지 않는다(bash가 실행하지 않는 글이고, 원문 읽기가 종전의 보수적 판정을 그대로 낸다). 합집합이라 옛 가드보다 약해질 수 없다 (2026-11-16)
 
 출처 태그는 네 가지다 — `[USER]`·`[USER·위임]`·`[AI]`·`[AI·비가역]`.

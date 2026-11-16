@@ -163,6 +163,30 @@ describe('fetchModelRowsWithoutTurn — 프롬프트 없이 목록만 묻는다'
     expect(seen.options?.['model']).toBeUndefined()
   })
 
+  // G4 검수: 앱을 켤 때마다 ~/.claude/projects에 목록용 세션 기록을 남기지 않는다(공개 옵션 persistSession).
+  it('세션 기록을 디스크에 남기지 않는다(persistSession: false)', async () => {
+    const { queryFn, seen } = fakeQuery(Promise.resolve(SDK_MODEL_ROWS_RAW))
+    await fetchModelRowsWithoutTurn(queryFn, { cwd: dir, timeoutMs: 1000 })
+    expect(seen.options?.['persistSession']).toBe(false)
+  })
+
+  // G4 검수: 공개 타입의 Query.close()는 CLI 자식 프로세스까지 끝낸다 — 성공·시간 초과 모두 부른다.
+  it('끝나면 close()로 자식 프로세스를 정리한다(성공·시간 초과)', async () => {
+    for (const rows of [Promise.resolve(SDK_MODEL_ROWS_RAW), new Promise(() => {})]) {
+      let closed = 0
+      const { queryFn } = fakeQuery(rows)
+      const withClose = (p: { prompt: AsyncIterable<unknown>; options?: unknown }): unknown =>
+        Object.assign(queryFn(p) as object, { close: () => { closed++ } })
+      await fetchModelRowsWithoutTurn(withClose, { cwd: dir, timeoutMs: 30 }).catch(() => {})
+      expect(closed).toBe(1)
+    }
+  })
+
+  it('close()가 없는 엔진 핸들이어도 목록을 돌려준다', async () => {
+    const { queryFn } = fakeQuery(Promise.resolve(SDK_MODEL_ROWS_RAW))
+    await expect(fetchModelRowsWithoutTurn(queryFn, { cwd: dir, timeoutMs: 1000 })).resolves.toBe(SDK_MODEL_ROWS_RAW)
+  })
+
   it('끊기 전에는 입력이 아무것도 내지 않는다(대기 중)', async () => {
     let release: (v: unknown) => void = () => {}
     const { queryFn, seen } = fakeQuery(new Promise((r) => { release = r }))

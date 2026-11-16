@@ -106,9 +106,10 @@ describe('effort 메뉴 — supportedEffortLevels로 그린다', () => {
     expect(openOptions(container, 'Effort 선택')).not.toContain('최소')
   })
 
-  it("옛 저장값 'minimal'은 기본 단계(최대)로 보인다", () => {
+  // G4 검수 1-2: 옛 「최소」는 가장 싼 설정이었으므로 「낮음」으로 읽는다.
+  it("옛 저장값 'minimal'은 「낮음」으로 보인다", () => {
     const { container } = render(createElement(PickerGroup, props({ effort: 'minimal' }) as never))
-    expect(valueOf(container, 'Effort 선택')).toBe('최대')
+    expect(valueOf(container, 'Effort 선택')).toBe('낮음')
   })
 
   it('Opus 4.6은 xhigh가 없는 목록대로 그린다', () => {

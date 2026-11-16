@@ -44,6 +44,7 @@ export async function fetchModelRowsWithoutTurn(queryFn: ListingQueryFn, opts: N
   }
 
   let timer: ReturnType<typeof setTimeout> | undefined
+  let closeHandle: (() => void) | undefined
   try {
     const handle = queryFn({
       prompt: noPrompt,
@@ -51,9 +52,14 @@ export async function fetchModelRowsWithoutTurn(queryFn: ListingQueryFn, opts: N
         cwd: opts.cwd,
         abortController,
         settingSources: [],
+        // 목록만 묻는 세션은 ~/.claude/projects에 기록을 남기지 않는다.
+        persistSession: false,
         ...(opts.env ? { env: opts.env } : {}),
       },
-    }) as (AsyncIterable<unknown> & { supportedModels?: () => Promise<unknown> }) | null
+    }) as (AsyncIterable<unknown> & { supportedModels?: () => Promise<unknown>; close?: () => void }) | null
+
+    // 공개 타입의 Query.close()는 CLI 자식 프로세스까지 끝낸다 — 끝날 때 abort와 함께 부른다.
+    if (handle && typeof handle.close === 'function') closeHandle = () => handle.close!()
 
     if (handle && typeof (handle as AsyncIterable<unknown>)[Symbol.asyncIterator] === 'function') {
       void (async () => {
@@ -75,6 +81,11 @@ export async function fetchModelRowsWithoutTurn(queryFn: ListingQueryFn, opts: N
     if (timer !== undefined) clearTimeout(timer)
     abortController.abort()
     release()
+    try {
+      closeHandle?.()
+    } catch {
+      // 이미 끝난 세션의 close 실패는 무시한다.
+    }
   }
 }
 

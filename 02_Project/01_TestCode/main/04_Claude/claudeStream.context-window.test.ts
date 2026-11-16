@@ -90,6 +90,14 @@ describe('RunEventNormalizer — 주 모델을 추적해 계기에 넘긴다', (
     expect(n.process(resultLine(HAIKU45_TURN), 'user').done?.contextWindow).toBe(200_000)
   })
 
+  // 공개 타입: scope 'local'은 서브에이전트 등 그 응답만 폴백했고 세션 모델은 그대로다 (G4 검수 1-1).
+  it("scope 'local' 거절 폴백은 주 모델을 바꾸지 않는다", () => {
+    const n = new RunEventNormalizer('t5')
+    n.process({ type: 'system', subtype: 'init', session_id: 's5', model: 'claude-haiku-4-5' })
+    n.process({ type: 'system', subtype: 'model_refusal_fallback', scope: 'local', original_model: 'claude-haiku-4-5', fallback_model: 'claude-haiku-5-5' })
+    expect(n.process(resultLine(HAIKU45_TURN), 'user').done?.contextWindow).toBe(200_000)
+  })
+
   it('실행 중 모델 전환(setMainModel)을 따라간다', () => {
     const n = new RunEventNormalizer('t3')
     n.process({ type: 'system', subtype: 'init', session_id: 's3', model: 'claude-haiku-5-5' })

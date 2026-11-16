@@ -1,7 +1,6 @@
 import {
-  DEFAULT_EFFORT_LEVEL,
   clampEffort,
-  isEffortLevel,
+  readEffortLevel,
   type EffortLevel
 } from '@shared/03_Agent/models/modelEffort'
 import { normalizeModel } from '@shared/03_Agent/models/knownModels'
@@ -16,10 +15,10 @@ export interface QueryOptionsPatch {
 }
 
 // effort는 SDK 목록 행의 supportedEffortLevels 안으로만 보낸다 (M06 G4).
-// 단계가 아닌 저장값(옛 「최소」 등)은 기본 단계로 본다 — 선택기가 보여 주는 값과 같다. 사고 끄기 경로는 없다.
+// 저장값은 readEffortLevel로 읽는다(옛 「최소」는 low) — 선택기가 보여 주는 값과 같다. 사고 끄기 경로는 없다.
 // 모델이 목록 어느 행과도 맞지 않으면 effort를 붙이지 않는다(받는지 모르는 값을 보내지 않는다).
 function reasoningEffort(effort: string, model: string | undefined, rows: readonly ModelRow[]): EffortLevel | undefined {
-  const requested: EffortLevel = isEffortLevel(effort) ? effort : DEFAULT_EFFORT_LEVEL
+  const requested: EffortLevel = readEffortLevel(effort)
   if (model === undefined) return requested
   const row = findModelRow(rows, model)
   if (row === undefined) return undefined

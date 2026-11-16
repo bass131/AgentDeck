@@ -74,8 +74,11 @@ describe('effortPickerFor — 일부 레벨만 받는 모델(합성)', () => {
     expect(effortPickerFor(PARTIAL, 'low', SYNTH_ROWS).displayValue).toBe('low')
   })
 
-  it("옛 저장값 'minimal'은 기본 단계를 클램프해 보인다", () => {
-    expect(effortPickerFor(PARTIAL, 'minimal', SYNTH_ROWS).displayValue).toBe('high')
+  // main과 같은 규칙 — 옛 「최소」는 low로 보인다(G4 검수 1-2).
+  it("옛 저장값 'minimal'은 low로 보인다", () => {
+    expect(effortPickerFor(PARTIAL, 'minimal', SYNTH_ROWS).displayValue).toBe('low')
+    expect(effortPickerFor(PARTIAL, 'turbo', SYNTH_ROWS).displayValue).toBe('high')
+    expect(effortPickerFor(OPUS5, 'minimal', SYNTH_ROWS).displayValue).toBe('low')
   })
 
   it('저장값을 파괴하지 않는다 — 모델을 되돌리면 원래 값이 복원된다', () => {

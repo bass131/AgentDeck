@@ -9,7 +9,7 @@ import {
 import {
   DEFAULT_EFFORT_LEVEL,
   clampEffort,
-  isEffortLevel,
+  readEffortLevel,
   type EffortLevel
 } from '@shared/03_Agent/models/modelEffort'
 import { modelFamilyColor, modelLabel } from './modelLabel'
@@ -93,14 +93,14 @@ export interface EffortPickerState {
   displayValue: string
 }
 
-// effort 메뉴 — 목록 행의 supportedEffortLevels로 그린다. 단계가 아닌 저장값(옛 「최소」)은 기본 단계로 본다.
+// effort 메뉴 — 목록 행의 supportedEffortLevels로 그린다. 저장값은 readEffortLevel로 읽는다(옛 「최소」는 low).
 // main의 실행 인자 검사도 같은 규칙이라 보이는 값과 보내는 값이 같다.
 export function effortPickerFor(
   modelId: string,
   selectedEffort: string,
   rows: readonly ModelRow[] = FALLBACK_MODELS
 ): EffortPickerState {
-  const selected: EffortLevel = isEffortLevel(selectedEffort) ? selectedEffort : DEFAULT_EFFORT
+  const selected: EffortLevel = readEffortLevel(selectedEffort)
   const allowed = effortLevelsFor(rows, modelId)
 
   if (allowed === undefined) {

@@ -8,7 +8,17 @@ import {
   sanitizeModelRows,
   effortLevelsFor,
 } from '@shared/03_Agent/models/modelList'
-import { EFFORT_LEVELS, clampEffort, isEffortLevel } from '@shared/03_Agent/models/modelEffort'
+import { EFFORT_LEVELS, clampEffort, isEffortLevel, readEffortLevel } from '@shared/03_Agent/models/modelEffort'
+
+// G4 검수 1-2: 옛 「최소」는 가장 싼 설정이었으므로 low로 읽는다. 다른 비단계 값은 기본 단계(max).
+describe('readEffortLevel', () => {
+  it('단계는 그대로, minimal은 low, 그 밖은 max', () => {
+    expect(readEffortLevel('medium')).toBe('medium')
+    expect(readEffortLevel('minimal')).toBe('low')
+    expect(readEffortLevel('turbo')).toBe('max')
+    expect(readEffortLevel(undefined)).toBe('max')
+  })
+})
 import * as agentContract from '@shared/03_Agent/agent'
 import { SDK_MODEL_ROWS, SDK_MODEL_ROWS_RAW } from '../00_Helpers/sdkModelRows'
 

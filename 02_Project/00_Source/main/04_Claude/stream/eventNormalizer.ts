@@ -81,7 +81,9 @@ export class RunEventNormalizer {
       (msg as Record<string, unknown>)['subtype'] === 'model_refusal_fallback'
     ) {
       const raw = msg as Record<string, unknown>
-      if (typeof raw['fallback_model'] === 'string' && raw['fallback_model'].length > 0) {
+      // scope 'local'(서브에이전트 등)은 그 응답만 폴백했고 세션 모델은 그대로다 — 공개 타입 SDKModelRefusalFallbackMessage.
+      const sessionScope = raw['scope'] !== 'local'
+      if (sessionScope && typeof raw['fallback_model'] === 'string' && raw['fallback_model'].length > 0) {
         this._mainModel = raw['fallback_model']
       }
       if (this._pendingFallbackNotices > 0) {

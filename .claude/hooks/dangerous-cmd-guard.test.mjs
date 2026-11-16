@@ -820,7 +820,7 @@ try {
   }
   // G5 4차 검수 FAIL — [이어 쓴 꼴, 한 줄 꼴] 쌍. bash는 둘 다 위험 명령을 실행한다(검수자 실측). 판정이 같고 무출력이 아니어야 한다.
   // 원인 여섯 갈래: 이스케이프된 글자를 낱말 경계로 읽음(`a\ #b`), 닫히지 않는 `((`, heredoc이 아닌 `<<`(`for((…<<=1))`·`a[1<<2]`),
-  // 묶음 밖에서 셸로 가는 `cat` 본문, 백틱 안 heredoc, `${ }` 안 작은따옴표. 꼴이 아니라 줄 이음 구간 판독이 함께 닫는다.
+  // 묶음 밖에서 셸로 가는 `cat` 본문, 백틱 안 heredoc, `${ }` 안 작은따옴표. 셋째 판독(줄 이음 구간 판독)이 이 꼴들을 읽는다.
   for (const [cont, one] of [
     ["x=\"$(echo ${y:-'}'})\"\ngit push \\\n --force origin chore/x", "x=\"$(echo ${y:-'}'})\"\ngit push --force origin chore/x"],
     ["{ echo '#!/bin/bash'; cat <<'EOF'; } > run.sh\ngit push \\\n --force origin chore/x\nEOF\nbash run.sh", "{ echo '#!/bin/bash'; cat <<'EOF'; } > run.sh\ngit push --force origin chore/x\nEOF\nbash run.sh"],
@@ -861,6 +861,55 @@ try {
     const got = decision(cont)
     const want = decision(one)
     r.check(`${label(cont)} → 한 줄 꼴(${want})과 같은 판정`, got === want && want !== 'silent', `이어 쓴 꼴 ${got} · 한 줄 꼴 ${want}`)
+  }
+  // G5 5차 검수 FAIL — 줄 이음 구간이 여러 줄 따옴표 문자열의 닫는 줄에서 시작한다(`echo "a⏎b" && git push \⏎ …`).
+  // 줄 이음 구간 판독은 구간 머리를 새 상태로 읽은 글과, 앞 줄들에서 열린 채 남은 따옴표 안으로 읽은 글을 둘 다 낸다.
+  // 구간 머리의 따옴표 상태를 모르면 닫는 따옴표를 여는 것으로 읽는다. bash는 뒤 명령을 실행한다(검수자 실측, LF·CRLF).
+  {
+    const joinLast = (s) => { const k = s.lastIndexOf('\\\n'); return k < 0 ? s : s.slice(0, k) + s.slice(k + 2) }
+    const crlf = (s) => s.split('\n').join('\r\n')
+    for (const cont of [
+      "{ echo set -e; cat <<'EOF'\necho \"a\nb\" && git push \\\n --force origin chore/x\nEOF\n} | bash",
+      "{ echo set -e; cat <<'EOF'\necho \"a\nb\" && git push \\\n origin master\nEOF\n} | bash",
+      "{ echo set -e; cat <<'EOF'\necho \"a\nb\" && git -c user.name=a \\\n  -c user.email=b push origin HEAD:master\nEOF\n} | bash",
+      "{ echo set -e; cat <<'EOF'\necho \"a\nb\" && git push origin \\\n --delete chore/x\nEOF\n} | bash",
+      "{ echo set -e; cat <<'EOF'\necho \"a\nb\" && git push \\\n --mirror\nEOF\n} | bash",
+      "{ echo '#!/bin/bash'; cat <<'EOF'; } > run.sh\necho \"a\nb\" && git push \\\n --force origin chore/x\nEOF\nbash run.sh",
+      "{ echo set -e; cat <<'EOF'\necho 'a\nb' && git push \\\n --force origin chore/x\nEOF\n} | bash",
+      "{ echo set -e; cat <<'EOF'\ngit push origin feat\\\n#1 --force\nEOF\n} | bash",
+      "x=\"$(echo ${y:-'}'})\"\ngit commit -q -m \"subject\n\nbody\" && git -c user.name=a \\\n  -c user.email=b push origin HEAD:master",
+      "[[ abc =~ ((a|b)c) ]]\ngit commit -q -F - <<'EOF'\nfix: don't\nEOF\ngit commit -q -m \"a\nb\" && git push \\\n origin master",
+      "for((i=1;i<64;i<<=1)); do :; done\necho \"a\\\\\"; echo \"c\nd\" && git push \\\n --force origin chore/x",
+      "x=`echo \"a\nb\" && git push \\\n --force origin chore/x`",
+    ]) {
+      for (const c of [cont, crlf(cont)]) {
+        const got = decision(c)
+        const want = decision(joinLast(c.split('\\\r\n').join('\\\n')).split('\n').join(c.includes('\r') ? '\r\n' : '\n').split('\r\r').join('\r'))
+        r.check(`${label(c)} → 한 줄 꼴(${want})과 같은 판정`, got === want && want !== 'silent', `이어 쓴 꼴 ${got} · 한 줄 꼴 ${want}`)
+      }
+    }
+    // 오탐 — 옛 가드도 한 줄 꼴도 무출력이고 bash는 push를 실행하지 않는다
+    for (const cmd of [
+      "gh pr create --title \"fix(M06-G5): guard reads line continuation\" --body \"$(cat <<'EOF'\n## Repro\ngit -c a=b \\\n  -c c=d push origin HEAD:master\nEOF\n)\"",
+      "git commit -m \"fix(M06-G5): guard\" -m \"$(cat <<'EOF'\ngit push \\\n --force origin chore/x\nEOF\n)\"",
+      "git -C \"$PWD\" commit -m \"$(cat <<'EOF'\ngit push \\\n --force origin chore/x\nEOF\n)\"",
+      "[[ abc =~ ((a|b)c) ]]\ngit commit -q -F - <<'EOF'\nfix: guard\n\ngit push --force origin chore/x is blocked\nEOF",
+      "v=$((echo a) | cat)\ngit commit -q -F - <<'EOF'\nfix: guard\n\ngit push origin master is asked\nEOF",
+      "x=$(\ncat <<'EOF'\ngit push \\\n --force origin chore/x\nEOF\n)",   // 원문 읽기가 면제하는 본문 — 줄 이음 구간 판독도 건너뛴다
+      "MSG=\"$(cat <<'EOF'\nRepro:\ngit push \\\n  --force origin chore/x\nEOF\n)\"",   // 따옴표 친 대입의 본문은 글이다(한 줄 꼴도 무출력)
+    ]) expectSilent(cmd)
+    // 같은 줄에서 `))`로 닫히는 `((`·`$((`는 산술이다 — 안의 괄호 묶음과 `<<`를 heredoc으로 읽지 않는다.
+    // 닫히지 않으면 서브셸이다(위 오탐 행의 `[[ =~ ((a|b)c) ]]`·`$((echo a) | cat)`).
+    for (const cmd of [
+      "echo $(( (1+2) << 1 ))\ngit commit -q -F - <<'EOF'\nfix: don't\nEOF\ngit push \\\n origin master",
+      "(( x = (1+2) << 1 ))\ngit commit -q -F - <<'EOF'\nfix: don't\nEOF\ngit push \\\n origin master",
+      "echo $(( 1 +\n 2 ))\ngit push \\\n origin master",   // 여러 줄 산술 — 산술로 못 봐도 뒤 명령은 읽는다
+      "((cd . && true) || echo fail)\ngit commit -q -F - <<'EOF'\nfix: don't\nEOF\ngit push \\\n origin master",
+    ]) expectAsk(cmd)
+    // 줄마다 `\`로 끝나는 따옴표 없는 heredoc 본문 — 본문 줄 잇기가 제곱 시간이면 안 된다
+    const t0 = Date.now()
+    const d = decision('rm -rf dist\nbash <<EOF\n' + 'a\\\n'.repeat(200000) + 'EOF')
+    r.check('줄마다 `\\`인 따옴표 없는 heredoc 본문 20만 줄 → deny, 2초 안', d === 'deny' && Date.now() - t0 < 2000, `실측 ${d} · ${Date.now() - t0}ms`)
   }
   // 연산자 `<<`가 줄 이음으로 갈라진 heredoc 커밋 — 원문 읽기는 한 줄 꼴도 놓치지만(본문의 `'`), bash는 뒤 push를 실행한다
   expectDeny("cat <\\\n<'EOF' | git commit -F -\nit's\nEOF\ngit push \\\n --force origin chore/x")

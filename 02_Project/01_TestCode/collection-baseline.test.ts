@@ -50,7 +50,8 @@ const SKIP_DIRS = new Set(['node_modules', 'dist', 'out', 'coverage', '.git'])
 // 위 줄들의 옛 경로는 그때의 이름이다. 지금 자리는 G12 이동 표(99e·99f·99g)에서 찾는다.
 // M05 G12: 436 → 435. 같은 대상(toolMetaFor) 테스트 renderer/03_Agent/toolKind.sdk-tools.test.ts를 renderer/03_Agent/toolKind.test.ts로 합쳤다(제목 그대로).
 // M05 G12: 435 → 434. 같은 대상(useGlobalShortcuts) 테스트 renderer/12_Window/useGlobalShortcuts.basics.test.tsx를 renderer/12_Window/useGlobalShortcuts.test.tsx로 합쳤다(제목 그대로, afterEach는 오버레이 DOM까지 지우는 쪽 하나).
-const BASELINE_TEST_FILES = 434
+// M06 G3: 434 → 435. 가드가 물은 호출의 카드 경로·명령 전문·「항상 허용」 없음을 고정하는 main/04_Claude/permissionCoordinator.guard-ask.test.ts를 더했다.
+const BASELINE_TEST_FILES = 435
 
 function collectTestFiles(dir: string, acc: string[] = []): string[] {
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {

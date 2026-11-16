@@ -16,11 +16,31 @@ export type PermissionResult =
   | { behavior: 'allow'; updatedInput: Record<string, unknown>; updatedPermissions?: unknown[] }
   | { behavior: 'deny'; message: string }
 
+export interface CanUseToolOptions {
+  signal?: AbortSignal
+  toolUseID?: string
+  decisionReason?: string
+  suggestions?: unknown[]
+}
+
 export type CanUseToolFn = (
   toolName: string,
   input: Record<string, unknown>,
-  options?: { signal?: AbortSignal; toolUseID?: string }
+  options?: CanUseToolOptions
 ) => Promise<PermissionResult>
+
+// 가드가 물은 호출의 판별 (M06 G3). SDK 0.3.201은 전선의 decision_reason_type('hook')을 콜백에 넘기지 않는다.
+// 실측(독립 clone, default·acceptEdits·bypassPermissions·실행 중 auto)에서 훅 ask는 decisionReason에 훅 사유 원문이 오고
+// suggestions가 없었다. 일반 질의는 규칙 제안(addRules·addDirectories 등)이 붙어 왔다.
+// 그래서 「사유가 있고 규칙 제안이 없는 질의」를 사람에게 올린다. 민감 파일 안전 검사(suggestions: [])도 여기에 걸린다 — 안전한 쪽이다.
+// 사유 없이 ask만 낸 훅은 decisionReason이 비어 오므로 걸리지 않는다. 이 저장소의 가드는 언제나 사유를 낸다.
+export function escalatedAskReason(options?: CanUseToolOptions): string | undefined {
+  const reason = options?.decisionReason
+  if (typeof reason !== 'string' || reason.trim() === '') return undefined
+  const suggestions = options?.suggestions
+  if (Array.isArray(suggestions) && suggestions.length > 0) return undefined
+  return reason
+}
 
 export function parseQuestions(input: Record<string, unknown>): AgentQuestion[] {
   const raw = Array.isArray(input['questions']) ? input['questions'] : []
@@ -64,8 +84,16 @@ function oneLine(s: string, max: number): string {
   return t.length > max ? t.slice(0, max - 1) + '…' : t
 }
 
-export function permissionSummary(toolName: string, input: Record<string, unknown>): string {
-  if (toolName === 'Bash') return `명령 실행: ${oneLine(String(input['command'] ?? ''), 80)}`
+// fullCommand: 가드가 물은 Bash 카드는 명령을 자르지도 줄바꿈을 지우지도 않는다 (M06 G3 — 80자 자르기가 push·master를 가렸다).
+export function permissionSummary(
+  toolName: string,
+  input: Record<string, unknown>,
+  opts?: { fullCommand?: boolean }
+): string {
+  if (toolName === 'Bash') {
+    const command = String(input['command'] ?? '')
+    return `명령 실행: ${opts?.fullCommand ? command.trim() : oneLine(command, 80)}`
+  }
   if (toolName === 'Write') return `파일 생성: ${String(input['file_path'] ?? '')}`
   if (toolName === 'Edit' || toolName === 'MultiEdit') return `파일 편집: ${String(input['file_path'] ?? '')}`
   if (toolName === 'ExitPlanMode') return `계획 검토: ${planTitle(input['plan'])}`
@@ -111,7 +139,7 @@ export class PermissionCoordinator {
     return async (
       toolName: string,
       input: Record<string, unknown>,
-      options?: { signal?: AbortSignal; toolUseID?: string }
+      options?: CanUseToolOptions
     ): Promise<PermissionResult> => {
       const currentMode = getMode()
       if (toolName === 'AskUserQuestion') {
@@ -125,6 +153,12 @@ export class PermissionCoordinator {
           return { behavior: 'deny', message: '오케스트레이션 모드가 꺼져 있습니다.' }
         }
         return this._requestPermission(toolName, input, options)
+      }
+
+      // 가드가 물은 호출은 모드·READONLY 분기보다 먼저 사람에게 올린다 (M06 G3 — auto·bypass 조기 허용이 가드 ask를 삼켰다).
+      const askReason = escalatedAskReason(options)
+      if (askReason !== undefined) {
+        return this._requestPermission(toolName, input, options, askReason)
       }
 
       if (currentMode === 'auto' || currentMode === 'bypass') {
@@ -146,10 +180,11 @@ export class PermissionCoordinator {
   private async _requestPermission(
     toolName: string,
     input: Record<string, unknown>,
-    options?: { signal?: AbortSignal; toolUseID?: string }
+    options?: CanUseToolOptions,
+    askReason?: string
   ): Promise<PermissionResult> {
     const requestId = `perm-${++this._permCounter}`
-    const summary = permissionSummary(toolName, input)
+    const summary = permissionSummary(toolName, input, { fullCommand: askReason !== undefined })
 
     const response = await new Promise<RunResponse>((resolve) => {
       this._waiters.set(requestId, resolve)
@@ -164,6 +199,7 @@ export class PermissionCoordinator {
         requestId,
         toolName,
         summary,
+        ...(askReason !== undefined ? { askReason } : {}),
         ...(toolName === 'ExitPlanMode'
           ? {
               planReview: {
@@ -187,7 +223,8 @@ export class PermissionCoordinator {
         ? [{ type: 'setMode', mode: 'acceptEdits', destination: 'session' }]
         : []
 
-    if (behavior === 'allow_always') {
+    // 가드가 물은 호출에는 「항상 허용」이 없다 — 카드가 버튼을 숨기고, 여기서도 도구 단위 세션 규칙을 내지 않는다.
+    if (behavior === 'allow_always' && askReason === undefined) {
       return {
         behavior: 'allow',
         updatedInput: input,

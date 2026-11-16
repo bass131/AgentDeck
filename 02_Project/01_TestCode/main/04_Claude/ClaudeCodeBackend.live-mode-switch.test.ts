@@ -161,7 +161,7 @@ describe('gap1-p13 ① AgentRun.setPermissionMode — query 핸들 위임 (RED)'
 type CapturedCanUseTool = (
   toolName: string,
   input: Record<string, unknown>,
-  opts: { signal: AbortSignal; toolUseID: string }
+  opts: { signal: AbortSignal; toolUseID: string; suggestions?: unknown[] }
 ) => Promise<{ behavior: string }>
 
 describe('gap1-p13 ② 전환 후 다음 canUseTool부터 새 모드 (RED)', () => {
@@ -199,7 +199,12 @@ describe('gap1-p13 ② 전환 후 다음 canUseTool부터 새 모드 (RED)', () 
       setTimeout(() => resolve({ behavior: '__timeout__' }), 300)
     )
     const decision = await Promise.race([
-      cap.canUseTool!('Bash', { command: 'echo p13' }, { signal, toolUseID: 'bash-p13' }),
+      // M06 G3 — 일반 질의의 실측 꼴(규칙 제안 한 개 이상). 제안 없는 호출은 모드와 관계없이 카드로 간다.
+      cap.canUseTool!('Bash', { command: 'echo p13' }, {
+        signal,
+        toolUseID: 'bash-p13',
+        suggestions: [{ type: 'addRules', rules: [{ toolName: 'Bash' }], behavior: 'allow', destination: 'session' }],
+      }),
       sentinel,
     ])
 

@@ -21,6 +21,21 @@ describe('reducer — permission_request askReason 전달', () => {
     expect(s1.pendingPermission?.summary).toBe('명령 실행: git push origin HEAD:master')
   })
 
+  it('escalated 표지는 사유가 없어도 pendingPermission까지 간다 (fail-closed 카드)', () => {
+    const s1 = applyAgentEvent(makeInitialState(), {
+      runId: 'run-g3',
+      event: {
+        type: 'permission_request',
+        requestId: 'perm-3',
+        toolName: 'Bash',
+        summary: '명령 실행: gh release --help',
+        escalated: true,
+      },
+    })
+    expect(s1.pendingPermission?.escalated).toBe(true)
+    expect(s1.pendingPermission?.askReason).toBeUndefined()
+  })
+
   it('askReason 없는 permission_request → pendingPermission.askReason 부재', () => {
     const s1 = applyAgentEvent(makeInitialState(), {
       runId: 'run-g3',
@@ -28,5 +43,6 @@ describe('reducer — permission_request askReason 전달', () => {
     })
     expect(s1.pendingPermission).not.toBeNull()
     expect(s1.pendingPermission?.askReason).toBeUndefined()
+    expect(s1.pendingPermission?.escalated).toBeUndefined()
   })
 })

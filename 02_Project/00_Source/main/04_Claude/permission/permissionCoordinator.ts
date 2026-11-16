@@ -29,17 +29,22 @@ export type CanUseToolFn = (
   options?: CanUseToolOptions
 ) => Promise<PermissionResult>
 
-// 가드가 물은 호출의 판별 (M06 G3). 공개 타입(sdk.d.ts의 CanUseTool)의 options에는 훅 유래를 알리는 필드가 없다.
-// 실측(독립 clone, default·acceptEdits·bypassPermissions·실행 중 auto)에서 훅 ask는 decisionReason에 훅 사유 원문이 오고
-// suggestions가 없었다. 일반 질의는 규칙 제안(addRules·addDirectories 등)이 붙어 왔다.
-// 그래서 「사유가 있고 규칙 제안이 없는 질의」를 사람에게 올린다. 민감 파일 안전 검사(suggestions: [])도 여기에 걸린다 — 안전한 쪽이다.
-// 사유 없이 ask만 낸 훅은 decisionReason이 비어 오므로 걸리지 않는다. 이 저장소의 가드는 언제나 사유를 낸다.
-export function escalatedAskReason(options?: CanUseToolOptions): string | undefined {
-  const reason = options?.decisionReason
-  if (typeof reason !== 'string' || reason.trim() === '') return undefined
+// 사람에게 올릴 호출의 판별 (M06 G3). 공개 타입(sdk.d.ts의 CanUseTool)의 options에는 훅 유래를 알리는 필드가 없다.
+// 블랙박스 실측(독립 clone, default·acceptEdits·bypassPermissions·실행 중 auto)에서
+//   훅 ask는 suggestions가 언제나 없었다. decisionReason은 settings allow 규칙과 겹친 `git push origin HEAD:master`에만 왔고,
+//   settings ask 규칙과 겹친 `gh release --help`·`npm publish --help`에는 오지 않았다.
+//   일반 질의는 언제나 규칙 제안이 한 개 이상 붙어 왔다. 사유는 없을 수 있었다(default의 Write).
+// 그래서 사유가 아니라 규칙 제안으로 가른다. 제안이 비어 있지 않은 배열이 아니면 모드와 관계없이 카드로 보낸다(fail-closed).
+// 민감 파일 안전 검사(suggestions: [])와 옵션 없는 호출도 여기에 걸린다 — 모르는 꼴은 허용으로 떨어지지 않는다.
+export interface Escalation {
+  reason?: string
+}
+
+export function escalationOf(options?: CanUseToolOptions): Escalation | undefined {
   const suggestions = options?.suggestions
   if (Array.isArray(suggestions) && suggestions.length > 0) return undefined
-  return reason
+  const reason = options?.decisionReason
+  return typeof reason === 'string' && reason.trim() !== '' ? { reason } : {}
 }
 
 export function parseQuestions(input: Record<string, unknown>): AgentQuestion[] {
@@ -155,10 +160,10 @@ export class PermissionCoordinator {
         return this._requestPermission(toolName, input, options)
       }
 
-      // 가드가 물은 호출은 모드·READONLY 분기보다 먼저 사람에게 올린다 (M06 G3 — auto·bypass 조기 허용이 가드 ask를 삼켰다).
-      const askReason = escalatedAskReason(options)
-      if (askReason !== undefined) {
-        return this._requestPermission(toolName, input, options, askReason)
+      // 규칙 제안 없는 호출은 모드·READONLY 분기보다 먼저 사람에게 올린다 (M06 G3 — auto·bypass 조기 허용이 가드 ask를 삼켰다).
+      const escalation = escalationOf(options)
+      if (escalation !== undefined) {
+        return this._requestPermission(toolName, input, options, escalation)
       }
 
       if (currentMode === 'auto' || currentMode === 'bypass') {
@@ -181,10 +186,12 @@ export class PermissionCoordinator {
     toolName: string,
     input: Record<string, unknown>,
     options?: CanUseToolOptions,
-    askReason?: string
+    escalation?: Escalation
   ): Promise<PermissionResult> {
     const requestId = `perm-${++this._permCounter}`
-    const summary = permissionSummary(toolName, input, { fullCommand: askReason !== undefined })
+    const escalated = escalation !== undefined
+    const askReason = escalation?.reason
+    const summary = permissionSummary(toolName, input, { fullCommand: escalated })
 
     const response = await new Promise<RunResponse>((resolve) => {
       this._waiters.set(requestId, resolve)
@@ -199,6 +206,7 @@ export class PermissionCoordinator {
         requestId,
         toolName,
         summary,
+        ...(escalated ? { escalated: true as const } : {}),
         ...(askReason !== undefined ? { askReason } : {}),
         ...(toolName === 'ExitPlanMode'
           ? {
@@ -223,8 +231,8 @@ export class PermissionCoordinator {
         ? [{ type: 'setMode', mode: 'acceptEdits', destination: 'session' }]
         : []
 
-    // 가드가 물은 호출에는 「항상 허용」이 없다 — 카드가 버튼을 숨기고, 여기서도 도구 단위 세션 규칙을 내지 않는다.
-    if (behavior === 'allow_always' && askReason === undefined) {
+    // 사람에게 올린 호출에는 「항상 허용」이 없다 — 카드가 버튼을 숨기고, 여기서도 도구 단위 세션 규칙을 내지 않는다.
+    if (behavior === 'allow_always' && !escalated) {
       return {
         behavior: 'allow',
         updatedInput: input,

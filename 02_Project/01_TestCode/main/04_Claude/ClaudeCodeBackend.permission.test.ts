@@ -17,8 +17,11 @@ function mkResultSuccess() {
 type CapturedCanUseTool = (
   toolName: string,
   input: Record<string, unknown>,
-  opts: { signal: AbortSignal; toolUseID: string }
+  opts: { signal: AbortSignal; toolUseID: string; suggestions?: unknown[] }
 ) => Promise<{ behavior: string; updatedInput?: unknown; updatedPermissions?: unknown; message?: string }>
+
+// M06 G3 — 일반 질의의 실측 꼴: SDK는 규칙 제안을 한 개 이상 붙여 보낸다. 제안 없는 호출은 모드와 관계없이 카드로 간다.
+const SUGG: unknown[] = [{ type: 'addRules', rules: [{ toolName: 'Bash' }], behavior: 'allow', destination: 'session' }]
 
 interface Captured {
   canUseTool?: CapturedCanUseTool
@@ -125,7 +128,7 @@ describe('Phase 24c — canUseTool mode별 early-allow (발화 없음)', () => {
     const cut = await captureCanUseTool('auto')
     const signal = new AbortController().signal
     for (const tool of ['Bash', 'Write', 'Edit']) {
-      const r = await cut(tool, { command: 'rm -rf /' }, { signal, toolUseID: 't' })
+      const r = await cut(tool, { command: 'rm -rf /' }, { signal, toolUseID: 't', suggestions: SUGG })
       expect(r.behavior).toBe('allow')
     }
   })
@@ -133,7 +136,7 @@ describe('Phase 24c — canUseTool mode별 early-allow (발화 없음)', () => {
   it('mode=bypass → 모든 도구 allow', async () => {
     const cut = await captureCanUseTool('bypass')
     const signal = new AbortController().signal
-    const r = await cut('Bash', { command: 'ls' }, { signal, toolUseID: 't' })
+    const r = await cut('Bash', { command: 'ls' }, { signal, toolUseID: 't', suggestions: SUGG })
     expect(r.behavior).toBe('allow')
   })
 
@@ -141,7 +144,7 @@ describe('Phase 24c — canUseTool mode별 early-allow (발화 없음)', () => {
     const cut = await captureCanUseTool('normal')
     const signal = new AbortController().signal
     for (const tool of ['Read', 'Glob', 'Grep', 'WebFetch']) {
-      const r = await cut(tool, {}, { signal, toolUseID: 't' })
+      const r = await cut(tool, {}, { signal, toolUseID: 't', suggestions: SUGG })
       expect(r.behavior).toBe('allow')
     }
   })
@@ -149,7 +152,7 @@ describe('Phase 24c — canUseTool mode별 early-allow (발화 없음)', () => {
   it('acceptEdits + non-bash non-mutating → allow (발화 없음)', async () => {
     const cut = await captureCanUseTool('acceptEdits')
     const signal = new AbortController().signal
-    const r = await cut('SomeReadishTool', {}, { signal, toolUseID: 't' })
+    const r = await cut('SomeReadishTool', {}, { signal, toolUseID: 't', suggestions: SUGG })
     expect(r.behavior).toBe('allow')
   })
 
@@ -171,7 +174,7 @@ describe('Phase 24c — 권한 발화 및 respond', () => {
 
     const queryFn = makeCaptureQuery([mkResultSuccess()], cap, async () => {
       const signal = new AbortController().signal
-      const p = cap.canUseTool!('Bash', { command: 'rm file' }, { signal, toolUseID: 'tu-1' })
+      const p = cap.canUseTool!('Bash', { command: 'rm file' }, { signal, toolUseID: 'tu-1', suggestions: SUGG })
       await new Promise(r => setTimeout(r, 10))
       cap.run!.respond('perm-1', { kind: 'permission', behavior })
       cutResult = await p

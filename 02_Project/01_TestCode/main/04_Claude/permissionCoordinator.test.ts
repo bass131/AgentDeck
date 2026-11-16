@@ -13,11 +13,21 @@ function mk(): { coord: PermissionCoordinator; pushed: AgentEvent[] } {
   return { coord, pushed }
 }
 
+// M06 G3 — 일반 질의의 실측 꼴: SDK는 규칙 제안을 한 개 이상 붙여 보낸다. 제안이 없는 호출은 모드와 관계없이 카드로 간다
+// (permissionCoordinator.guard-ask.test.ts). 모드 분기를 보는 아래 테스트는 일반 질의 꼴로 부른다.
+function ordinary(): { signal: AbortSignal; toolUseID: string; suggestions: unknown[] } {
+  return {
+    signal: new AbortController().signal,
+    toolUseID: 't',
+    suggestions: [{ type: 'addRules', rules: [{ toolName: 'Bash' }], behavior: 'allow', destination: 'session' }],
+  }
+}
+
 describe('PermissionCoordinator.makeCanUseTool — early-allow', () => {
   it("mode=auto → push 없이 allow", async () => {
     const { coord, pushed } = mk()
     const canUse = coord.makeCanUseTool('auto', () => false)
-    const r = await canUse('Bash', { command: 'rm -rf /' })
+    const r = await canUse('Bash', { command: 'rm -rf /' }, ordinary())
     expect(r).toEqual({ behavior: 'allow', updatedInput: { command: 'rm -rf /' } })
     expect(pushed).toEqual([])
   })
@@ -25,7 +35,7 @@ describe('PermissionCoordinator.makeCanUseTool — early-allow', () => {
   it('READONLY 도구(Read) → push 없이 allow', async () => {
     const { coord, pushed } = mk()
     const canUse = coord.makeCanUseTool('normal', () => false)
-    const r = await canUse('Read', { file_path: '/x' })
+    const r = await canUse('Read', { file_path: '/x' }, ordinary())
     expect(r.behavior).toBe('allow')
     expect(pushed).toEqual([])
   })
@@ -33,7 +43,7 @@ describe('PermissionCoordinator.makeCanUseTool — early-allow', () => {
   it('acceptEdits + non-bash/non-mutating → allow', async () => {
     const { coord } = mk()
     const canUse = coord.makeCanUseTool('acceptEdits', () => false)
-    const r = await canUse('WebFetch', { url: 'x' })
+    const r = await canUse('WebFetch', { url: 'x' }, ordinary())
     expect(r.behavior).toBe('allow')
   })
 })
@@ -67,7 +77,7 @@ describe('PermissionCoordinator.makeCanUseTool — 권한 요청 흐름', () => 
   it('respond(allow_always) → allow + 세션 규칙', async () => {
     const { coord, pushed } = mk()
     const canUse = coord.makeCanUseTool('normal', () => false)
-    const p = canUse('Bash', { command: 'ls' })
+    const p = canUse('Bash', { command: 'ls' }, ordinary())
     const req = pushed[0] as { requestId: string }
     coord.respond(req.requestId, { kind: 'permission', behavior: 'allow_always' })
     const r = await p

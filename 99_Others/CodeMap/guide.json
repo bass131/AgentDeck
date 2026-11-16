@@ -1,0 +1,173 @@
+{
+  "_about": "손으로 쓴 따라 읽기 투어와 컨벤션 예시. 코드 조각은 줄 번호 대신 anchor(그 줄에 들어 있는 글자)로 찾는다 — 소스가 바뀌어도 extract.mjs가 다시 찾고, 못 찾으면 경고한다. offset은 anchor 줄보다 몇 줄 위에서 시작할지, lines는 몇 줄을 보일지다. 2026-11-16 코드를 따라가며 작성.",
+  "tour": {
+    "title": "메시지 하나가 지나가는 길",
+    "intro": "사용자가 입력창에 글을 쓰고 Enter를 누르면, 글은 화면(renderer) → 다리(preload) → main → Claude SDK로 가고, SDK의 답은 이벤트가 되어 거꾸로 화면까지 돌아온다. 정거장 8개를 순서대로 본다.",
+    "stops": [
+      {
+        "title": "입력창에서 보내기",
+        "node": "renderer/src/05_Conversation/Conversation.tsx::Conversation",
+        "where": "renderer · 05_Conversation · Conversation.tsx — handleSend → sendNow",
+        "does": "입력창 글과 첨부 이미지를 모아 비우고, /clear 같은 특수 명령이 아니면 엔진에 보낼 프롬프트를 만들어 스토어의 sendMessage를 부른다.",
+        "why": "화면 컴포넌트는 「무엇을 보낼지」만 정하고 실제 전송은 스토어 액션에 맡긴다 — 멀티 패널도 같은 엔진 프롬프트 규칙(enginePromptFor)을 쓰도록 계산을 공용 코어로 뺐다고 주석이 말한다.",
+        "snippets": [
+          { "file": "renderer/src/05_Conversation/Conversation.tsx", "anchor": "const handleSend = useCallback((pickerValues?: PickerValues) => {", "lines": 8 },
+          { "file": "renderer/src/05_Conversation/Conversation.tsx", "anchor": "// 엔진 프롬프트 계산은 G9a 코어 하나", "lines": 9 }
+        ]
+      },
+      {
+        "title": "실행 코어가 IPC를 부른다",
+        "node": "renderer/src/03_Agent/state/runCore.ts::createRunCore",
+        "where": "renderer · 03_Agent/state · runtime.ts sendMessage → runCore.ts send",
+        "does": "스레드에 사용자 메시지를 먼저 넣고(ADD_USER_MESSAGE), 지금까지의 대화를 history로 묶어 `ipc.agent.run(...)`을 호출한 뒤 돌아온 runId를 상태에 적는다.",
+        "why": "스토어 액션(runtime.ts)은 얇게 두고 전송·중단 규칙은 createRunCore 하나에 모았다 — 단일 대화와 멀티 패널이 같은 코어를 포트(dispatch·readState)만 바꿔 쓴다.",
+        "snippets": [
+          { "file": "renderer/src/03_Agent/state/runtime.ts", "anchor": "sendMessage: async (text, pickerValues, promptForEngine, displayImages, orchestration) => {", "lines": 8 },
+          { "file": "renderer/src/03_Agent/state/runCore.ts", "anchor": "const history: ConversationMessage[] = [", "lines": 12 }
+        ]
+      },
+      {
+        "title": "preload 다리를 건넌다",
+        "node": "preload/index.ts::routeFn",
+        "where": "preload · index.ts — routeFn, shared/01_Ipc/apiRoutes.ts — API_ROUTES",
+        "does": "renderer의 `ipc.agent.run`은 사실 `window.api.agent.run`이고, preload가 라우트 표를 보고 만든 `ipcRenderer.invoke('agent.run', req)` 함수다.",
+        "why": "renderer는 보안상 Node·Electron API를 직접 못 쓴다. 그래서 preload가 허용된 채널만 함수로 노출하고, 그 목록은 shared의 표(API_ROUTES) 한 곳에서 만든다.",
+        "snippets": [
+          { "file": "shared/01_Ipc/apiRoutes.ts", "anchor": "export const API_ROUTES = {", "lines": 4 },
+          { "file": "preload/index.ts", "anchor": "function routeFn(route: ApiRoute): unknown {", "lines": 9 }
+        ]
+      },
+      {
+        "title": "main의 IPC 처리기",
+        "node": "main/01_Ipc/handlers/agent.ts::registerAgentHandlers",
+        "where": "main · 01_Ipc/handlers · agent.ts — handle(AGENT_RUN)",
+        "does": "요청을 검사(메시지 배열·절대 경로)하고 백엔드를 고른 뒤 runManager.start에 넘긴다. 이벤트가 나올 때마다 `sendPush(… AGENT_EVENT …)`로 화면에 되돌려 보낼 콜백도 함께 준다.",
+        "why": "처리기는 입력 검사와 위임만 하고 실행은 03_Agent에 맡긴다 — 01_Ipc/index.ts 주석대로 「핸들러를 등록만 한다」.",
+        "snippets": [
+          { "file": "main/01_Ipc/handlers/agent.ts", "anchor": "handle(IPC_CHANNELS.AGENT_RUN, async (_e, req: AgentRunRequest): Promise<AgentRunResponse> => {", "lines": 7 },
+          { "file": "main/01_Ipc/handlers/agent.ts", "anchor": "const runId = await runManager.start(", "lines": 12 }
+        ]
+      },
+      {
+        "title": "실행 관리자와 Claude 백엔드",
+        "node": "main/03_Agent/agentRuns.ts::createRunManager",
+        "where": "main · 03_Agent · agentRuns.ts start → 04_Claude · ClaudeCodeBackend.start",
+        "does": "RunManager가 runId를 정하고 `backend.start(req)`로 실행 객체를 만든다. Claude 백엔드는 ClaudeAgentRun을 돌려주고, RunManager는 그 이벤트 스트림을 for await로 읽어 onEvent에 넘긴다.",
+        "why": "AgentBackend 인터페이스 덕분에 RunManager는 Claude·Codex·Echo 중 무엇인지 모른다 — 백엔드 교체가 03_Agent를 건드리지 않는다.",
+        "snippets": [
+          { "file": "main/03_Agent/agentRuns.ts", "anchor": "const runId = sessionKey ?? randomUUID()", "lines": 3 },
+          { "file": "main/03_Agent/agentRuns.ts", "anchor": "for await (const event of run.events) {", "offset": 2, "lines": 9 },
+          { "file": "main/04_Claude/ClaudeCodeBackend.ts", "anchor": "start(req: AgentRunInput): AgentRun {", "lines": 13 }
+        ]
+      },
+      {
+        "title": "SDK 스트림을 앱 이벤트로 해석",
+        "node": "main/04_Claude/stream/claudeStream.ts::mapClaudeStreamLine",
+        "where": "main · 04_Claude/run · ClaudeAgentRun 펌프 → stream · eventNormalizer → claudeStream.mapClaudeStreamLine",
+        "does": "ClaudeAgentRun이 SDK 질의 결과를 for await로 받아 정규화기(eventNormalizer)에 넣고, 정규화기는 mapClaudeStreamLine으로 SDK 메시지(assistant·user·result…)를 AgentEvent(text·tool_call·done…)로 바꾼다.",
+        "why": "SDK 메시지 모양은 SDK 버전마다 바뀔 수 있다. 해석을 stream/ 한 곳에 가두면 화면 쪽은 shared의 AgentEvent 타입만 알면 된다.",
+        "snippets": [
+          { "file": "main/04_Claude/run/claudeAgentRun.ts", "anchor": "for await (const msg of queryIterable) {", "lines": 15 },
+          { "file": "main/04_Claude/stream/claudeStream.ts", "anchor": "export function mapClaudeStreamLine(obj: unknown): AgentEvent[] {", "lines": 15 }
+        ]
+      },
+      {
+        "title": "renderer가 이벤트를 받아 상태를 바꾼다",
+        "node": "renderer/src/03_Agent/state/runReducer.ts::runReducer",
+        "where": "renderer · 03_Agent/state · sessionRegistry → runCore.handleEvent → runReducer → 05_Conversation/state/reducer.applyAgentEvent",
+        "does": "세션 레지스트리가 `ipc.agent.onEvent` 하나만 구독해 이벤트를 대화·패널에 나눠 주고, 실행 코어가 runId를 확인한 뒤 APPLY_EVENT를 보낸다. 리듀서는 이벤트 종류별 처리기(text → handleText)로 새 상태를 만든다.",
+        "why": "구독은 하나(physical)로 두고 「어느 대화의 이벤트인가」 판정은 레지스트리에 모았다 — 배경 대화와 멀티 패널이 같은 push 채널을 함께 쓰기 때문이다.",
+        "snippets": [
+          { "file": "renderer/src/03_Agent/state/sessionRegistry.ts", "anchor": "function dispatchEvent(payload: AgentEventPayload): void {", "lines": 6 },
+          { "file": "renderer/src/03_Agent/state/runCore.ts", "anchor": "const handleEvent = (payload: AgentEventPayload): boolean => {", "lines": 12 },
+          { "file": "renderer/src/03_Agent/state/runReducer.ts", "anchor": "case 'APPLY_EVENT': {", "lines": 5 },
+          { "file": "renderer/src/05_Conversation/state/reducer.ts", "anchor": "case 'text':", "lines": 2 }
+        ]
+      },
+      {
+        "title": "화면에 그린다",
+        "node": "renderer/src/05_Conversation/ThreadView.tsx::ThreadView",
+        "where": "renderer · 05_Conversation · ThreadView → MessageBubble → SmoothMarkdown",
+        "does": "스레드 항목 중 assistant 메시지를 MessageBubble로 그린다. 아직 스트리밍 중인 마지막 메시지는 SmoothMarkdown으로 조금씩 드러내고, 끝난 메시지는 MarkdownView로 그린다.",
+        "why": "상태(thread 배열)만 바뀌면 React가 다시 그린다 — 렌더 컴포넌트는 IPC나 실행 코어를 모르고 스토어 상태만 읽는다.",
+        "snippets": [
+          { "file": "renderer/src/05_Conversation/ThreadView.tsx", "anchor": "if (item.kind === 'msg' && item.role === 'assistant') {", "lines": 15 },
+          { "file": "renderer/src/05_Conversation/MessageBubble.tsx", "anchor": "? <SmoothMarkdown text={content} running={true} />", "offset": 1, "lines": 3 }
+        ]
+      }
+    ]
+  },
+  "conventions": [
+    {
+      "title": "폴더는 번호가 붙은 도메인(NN_Domain)으로 나누고, 같은 번호를 프로세스마다 맞춘다",
+      "file": "renderer/src/00_App/appStore.ts",
+      "node": "renderer/src/00_App/appStore.ts::useAppStore",
+      "body": "main·renderer·shared가 같은 도메인 번호를 쓴다(예: 03_Agent는 main에선 백엔드, shared에선 이벤트 타입, renderer에선 실행 코어). 번호가 빈 곳(04_Claude는 main에만, 09_Lsp는 renderer에 없음)도 있다. 다른 도메인은 `@renderer/07_Workspace/…` 같은 별칭 경로로 가져온다.",
+      "reason": "근거 없음 — 저장소 문서에서 번호 규칙의 이유를 찾지 못했다. 구조로 보면 정렬 순서가 곧 의존 방향(00_App 조립 → 01_Ipc → …)에 가깝다.",
+      "snippets": [ { "file": "renderer/src/00_App/appStore.ts", "anchor": "import { createSystemSlice } from './state/system'", "lines": 10 } ]
+    },
+    {
+      "title": "클래스는 인터페이스를 구현하고, 의존성은 생성자 매개변수로 받는다",
+      "file": "main/04_Claude/ClaudeCodeBackend.ts",
+      "node": "main/04_Claude/ClaudeCodeBackend.ts::ClaudeCodeBackend",
+      "body": "ClaudeCodeBackend는 AgentBackend를 구현한다. 공개 식별자 `readonly id` 하나, 나머지 상태는 `private _필드`, 외부 의존(queryFn·skills·MCP 제공자·fetch)은 모두 생성자 인자(없으면 기본값)로 받는다. 공개 메서드는 인터페이스가 요구하는 것(isAvailable·version·start…)뿐이다.",
+      "reason": "주석: 「skills·MCP provider는 조립 지점(00_App/registry)이 … 지연 함수로 넘긴다 … 이 클래스는 store를 만들지 않는다」 — 조립과 동작을 떼어 테스트에서 가짜를 꽂기 쉽게 한 것으로 보인다.",
+      "snippets": [ { "file": "main/04_Claude/ClaudeCodeBackend.ts", "anchor": "export class ClaudeCodeBackend implements AgentBackend {", "lines": 25 } ]
+    },
+    {
+      "title": "private 멤버는 `private` 키워드와 `_` 접두를 함께 쓴다",
+      "file": "main/04_Claude/permission/permissionCoordinator.ts",
+      "node": "main/04_Claude/permission/permissionCoordinator.ts::PermissionCoordinator",
+      "body": "클래스 멤버 108개 중 100개가 `private _이름` 꼴이다. 키워드만 쓰는 8개는 모두 StdioRpc(main/09_Lsp) 한 클래스이고, ES `#private`는 쓰지 않는다. 생성자 매개변수 속성(`private readonly _push`)도 같은 꼴이다.",
+      "reason": "근거 없음 — 주석이나 문서에 이유가 없다. `_`가 있으면 클래스 밖 코드(테스트 포함)에서 private임이 이름만으로 보인다는 효과는 있다.",
+      "snippets": [ { "file": "main/04_Claude/permission/permissionCoordinator.ts", "anchor": "export class PermissionCoordinator", "lines": 12 } ]
+    },
+    {
+      "title": "상태는 zustand 슬라이스에, 상태 변화 규칙은 순수 리듀서 함수에 둔다",
+      "file": "renderer/src/05_Conversation/state/reducer.ts",
+      "node": "renderer/src/05_Conversation/state/reducer.ts::applyAgentEvent",
+      "body": "스토어는 도메인별 `createXxxSlice`를 합친 것이고, 에이전트 이벤트에 따른 변화는 `(state, event) => 새 state` 꼴의 순수 함수(applyAgentEvent와 reducer/ 아래 handleText 등)로 쓴다. 클래스는 renderer에 하나도 없다.",
+      "reason": "주석: 「스레드 렌더가 읽는 실행 상태 — 단일 store와 패널 상태가 같은 모양(AppState)이라 그대로 넘긴다」(ThreadView), 「실행 액션은 공용 runReducer로 넘기고…」(panelSession) — 같은 리듀서를 단일 대화 스토어와 멀티 패널 상태가 함께 쓰려는 것이다.",
+      "snippets": [ { "file": "renderer/src/05_Conversation/state/reducer.ts", "anchor": "export function applyAgentEvent(", "lines": 14 } ]
+    },
+    {
+      "title": "컴포넌트는 「스토어 어댑터 + 공용 본체」로, 동작은 use… 훅으로 나눈다",
+      "file": "renderer/src/05_Conversation/Composer.tsx",
+      "node": "renderer/src/05_Conversation/Composer.tsx::ComposerInner",
+      "body": "Composer는 스토어에서 선택기 값을 읽어 공용 본체 ComposerView에 넘기기만 한다. 멀티 패널은 PanelView가 패널 상태로 같은 ComposerView를 쓴다. 키 처리·멘션·슬래시·이미지 첨부·예약 전송은 05_Conversation/hooks/의 useXxx 훅으로 뺐다. 컴포넌트는 대부분 `function` 선언 + `memo`로 감싸 export한다.",
+      "reason": "주석: 「단일 대화의 입력창 — store 어댑터다 … 멀티 패널은 PanelView가 패널 상태로 같은 본체를 쓴다」.",
+      "snippets": [ { "file": "renderer/src/05_Conversation/Composer.tsx", "anchor": "// 단일 대화의 입력창 — store 어댑터다.", "lines": 7 } ]
+    },
+    {
+      "title": "IPC 채널은 `도메인.동작` 문자열 상수 + 채널→요청·응답 타입 맵으로 정의한다",
+      "file": "shared/01_Ipc/channelMap.ts",
+      "node": "shared/01_Ipc/channelMap.ts::IpcInvokeMap",
+      "body": "채널 이름은 도메인 파일의 `XXX_CHANNELS` 상수(예: `AGENT_RUN: 'agent.run'`)에 있고, channelMap의 IpcInvokeMap이 채널마다 `{ req; res }`를 정한다. main의 `handle()`, preload 노출, renderer의 `ipc` 타입이 모두 이 맵에서 유도된다.",
+      "reason": "주석: 「채널 맵에서 유도한 핸들러 모양 — 요청·응답이 맵과 어긋나면 typecheck:node가 실패한다」(main/01_Ipc/handle.ts) — 세 프로세스의 계약 어긋남을 컴파일 단계에서 잡으려는 것이다.",
+      "snippets": [
+        { "file": "shared/03_Agent/agent.ts", "anchor": "export const AGENT_CHANNELS = {", "lines": 4 },
+        { "file": "shared/01_Ipc/channelMap.ts", "anchor": "export interface IpcInvokeMap {", "lines": 6 },
+        { "file": "main/01_Ipc/handle.ts", "anchor": "// 채널 맵에서 유도한 핸들러 모양", "lines": 9 }
+      ]
+    },
+    {
+      "title": "같은 일은 「한 곳」에 — 작은 공용 함수와 조립 지점",
+      "file": "main/02_Common/userData.ts",
+      "node": "main/02_Common/userData.ts::getUserDataDir",
+      "body": "userData 경로, credentials 읽기, SDK 버전 읽기, 권한 모드 표처럼 여러 곳이 쓰는 일은 「…의 한 곳」 주석을 단 함수 하나로 모았다. 전역 객체는 조립 지점(main/00_App, renderer/00_App)이 만들고, 다른 도메인은 deps 인자로 받는다(예: registerIpc(deps)).",
+      "reason": "주석: 「electron userData 경로 해석의 한 곳 (M05 G11) — main의 여덟 자리가 이 함수를 부른다」, 「IPC 등록부 — 조립 지점이 만든 객체를 deps로 받아 핸들러를 등록만 한다」.",
+      "snippets": [
+        { "file": "main/02_Common/userData.ts", "anchor": "// electron userData 경로 해석의 한 곳", "lines": 6 },
+        { "file": "main/01_Ipc/index.ts", "anchor": "// IPC 등록부 — 조립 지점", "lines": 6 }
+      ]
+    },
+    {
+      "title": "파일 이름은 내보내는 주인공을 따른다 — 컴포넌트·클래스는 PascalCase, 나머지는 camelCase",
+      "file": "renderer/src/05_Conversation/MessageBubble.tsx",
+      "node": "renderer/src/05_Conversation/MessageBubble.tsx::MessageBubble",
+      "body": "MessageBubble.tsx는 MessageBubble 컴포넌트를, ClaudeCodeBackend.ts는 같은 이름 클래스를 내보낸다. 함수·상수 모음 파일은 camelCase(runCore.ts, claudeStream.ts)다. 예외는 4개뿐이다(AgentBackend.ts — 인터페이스 이름, icons.tsx·resizableModal.tsx·zoom.tsx — 소문자 컴포넌트 파일). 상수는 UPPER_SNAKE, 함수는 camelCase, 훅은 use…다.",
+      "reason": "근거 없음 — 명문 규칙은 없고 통계로 본 관례다(「컨벤션」 보기의 이름 꼴 표 참고).",
+      "snippets": [ { "file": "renderer/src/05_Conversation/MessageBubble.tsx", "anchor": "export const MessageBubble = memo(function MessageBubble(", "lines": 1 } ]
+    }
+  ]
+}

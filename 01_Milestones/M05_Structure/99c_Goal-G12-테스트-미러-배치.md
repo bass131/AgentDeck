@@ -38,7 +38,7 @@
 - [x] 7. 남은 옛 경로 글자 정리 — 테스트 폴더 안 주석·메시지의 옛 경로, `collection-baseline` 정리(e2e·fixtures는 제자리)
 - [x] 8. 같은 대상 테스트 파일 합치기 — 같은 대상·같은 관점 2쌍, 커밋 따로
 - [x] 9. 독립 검수와 최종 검증 — 구현 문맥 없는 검수자(`reviewer`), 하드 게이트 다섯 종, 제목 대조, 헛통과 사냥, rename 상태 실사, CSS sha
-- [ ] 10. PR 올리고 병합 승인 요청 — 커밋, 작업 브랜치 push, PR 생성
+- [x] 10. PR 올리고 병합 승인 요청 — 커밋, 작업 브랜치 push, PR 생성
 
 실행 단계 일괄 승인 대상 (로드맵 합의로 승인됐다 — 헌법 11조 일회 예외)
 
@@ -66,6 +66,7 @@ DoD
 - PASS 2026-11-16T09:12:32+09:00 — 7단계(`8d8c4581`). `01_TestCode` 안 주석·메시지의 옛 테스트 경로 5곳을 고쳤다(`globalSetup` 안내 예시가 `main/10_Engine/engineVersions`를 가리키게 했고, 참조 주석 4곳도 고쳤다). 단언과 제목은 그대로다. `collection-baseline`에는 436이 그대로라는 줄과, 옛 경로 기록은 이동 표에서 찾는다는 줄을 더했다. e2e 안의 옛 이름 글자 2곳은 화면용 데이터라 두었다(e2e는 제자리). 고친 뒤 전체 제목 대조가 같다. `origin/master...HEAD`의 테스트 폴더는 R 435(R100 111, 100% 미만 324, 최저 R080), M 3, A 1(가드), D 0이고 소스 diff는 0이다. 100% 미만 목록은 세션 스크래치 `g12-below100.txt`에 남겼다. 하드 게이트 exit 0, CSS sha256 그대로. 하위 워커.
 - PASS 2026-11-16T09:34:40+09:00 — 8단계(`de4bc13a` toolKind, `eaa8e359` useGlobalShortcuts). `toolKind.sdk-tools`의 describe 하나(13건)를 `toolKind`로, `useGlobalShortcuts.basics`의 describe 넷(8건)을 `useGlobalShortcuts`로 맨 위 수준에 그대로 옮기고 빈 두 파일을 `git rm`했다. 옮긴 줄은 옛 내용(`git show`)과 diff 0이고 제목·단언은 그대로다. afterEach는 남는 파일의 것(cleanup + 오버레이 DOM 제거) 하나만 두었다. 소스 훅에 모듈 상태가 없고, 합친 파일 46건은 단독 실행과 `--sequence.shuffle` 세 번 모두 통과했다. 같은 내용의 `fireKeyDown`과 import는 하나로 합쳤고 첫 줄 주석에 작업 ID와 옛 이름 둘을 적었다. `collection-baseline`은 436→435→434이고 줄마다 사유를 적었다. 제목 대조는 합친 경로를 남는 파일로 바꾸는 대조기(`g12-compare8.cjs`)로 했고, 가드를 뺀 433파일 5,786건(통과 5,774, 스킵 12)이 같다. 합친 두 파일은 20건과 46건이 같고 fullName 중복은 0이다. 전체 실행 434파일 5,793건(가드 7 포함, 실패 0)이 exit 0이다. 하드 게이트는 커밋마다 exit 0이고 소스 diff는 0이다. 하위 워커.
 - PASS 2026-11-16T09:59:10+09:00 — 9단계 독립 검수(구현 문맥 없는 `reviewer`, HEAD `3260ae8b`), 판정 PASS·차단 결함 0. 소스·루트 설정·`.claude/` diff 0(밖 변경은 `gate-config.json` planPath 한 줄). rename 435쌍을 표본이 아니라 전수 대조해 단언·제목·mock·setup 변경 0, 설명 안 된 줄 51개는 테스트 데이터 문자열과 7단계 주석뿐이다. 새 트리 상대 경로 546개를 풀어 실재 확인(없는 31개는 데이터 문자열 30과 부재가 정답인 `PanelPicker.tsx`), `MultiWorkspace.refactor`의 부재 단언 대상 부모 폴더 실재, `__dirname`·`import.meta.url` 24파일 실재. 전체 실행 434파일 5,793건(통과 5,781, 스킵 12, 실패 0)이고 기준 5,786건과 경로·fullName·결과가 같다. 가드는 `origin/master` 트리에 적용하면 172/13/430/321/5/85로 Red, HEAD 0, 가상 위반 경로 8종이 모두 걸린다. 하드 게이트 다섯 종 exit 0, CSS sha256 `090224c4…3006e` 동일. 완료조건 「옮긴 테스트가 모두 R」은 HEAD 기준 R 433·D 2다 — 합치기 입력 2파일이 사라지며 git이 `gap1-p02-toolkind → 03_Agent/toolKind`(R061)로 짝을 바꿔 잡은 것이고, 합치기 전 `8d8c4581`에서는 435쌍 전부 R이다. 100% 미만 목록은 scratchpad의 `g12-below100.txt`(합치기 전 시점)에만 있다. 비차단 지적은 Backlog 77로 보낸다.
+- PASS 2026-11-16T10:00:08+09:00 — 10단계. 작업 브랜치를 `-u origin chore/m05-g12-test-mirror`로 push하고 PR 58(https://github.com/bass131/AgentDeck/pull/58)을 만들었다. 병합 승인은 현황판 결정 보드로 요청한다.
 
 ## 결정 대장
 

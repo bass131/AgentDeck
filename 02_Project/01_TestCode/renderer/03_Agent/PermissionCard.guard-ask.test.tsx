@@ -123,6 +123,15 @@ describe('PermissionCard — 접힌 긴 명령은 펼치기 전에 허용할 수
     expect(onRespond).not.toHaveBeenCalledWith('allow')
   })
 
+  it('200자 이하라도 다섯 줄 명령은 줄 수로 접히고 허용이 잠긴다', async () => {
+    const { PermissionCard } = await import('@renderer/10_Engine')
+    const multi = ['git status --short', 'git log -1 --oneline', 'git branch --show-current', 'git fetch --dry-run', 'git push origin HEAD:master'].join('\n')
+    expect(`명령 실행: ${multi}`.length).toBeLessThanOrEqual(200)
+    const { container } = render(<PermissionCard pending={guardPending(multi)} onRespond={vi.fn()} />)
+    expect((container.querySelector('[data-cmd-full]') as HTMLElement).classList.contains('collapsed')).toBe(true)
+    expect((container.querySelector('[data-perm-choice="allow"]') as HTMLButtonElement).disabled).toBe(true)
+  })
+
   it('펼친 뒤에는 허용 버튼과 숫자 키 1이 다시 허용을 낸다', async () => {
     const { PermissionCard } = await import('@renderer/10_Engine')
     const onRespond = vi.fn()

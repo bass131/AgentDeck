@@ -1,7 +1,7 @@
 // 작업 ID: g9b · 옛 이름 g9b-thread-view.test.tsx
 // @vitest-environment jsdom
 // M05 G9b — 스레드 렌더 하나(ThreadView). 단일 Conversation과 멀티 PanelView가 같은 렌더를 쓴다.
-// 이 파일은 공용 렌더 자체를 고정한다. 패널 쪽 정렬(R1~R7)은 g9b-panel-thread.test.tsx가 맡는다.
+// 이 파일은 공용 렌더 자체를 고정한다. 패널 쪽 정렬(R1~R7)은 03_Agent/panelSession.thread.test.tsx가 맡는다.
 import { describe, it, expect, afterEach } from 'vitest'
 import { render, cleanup } from '@testing-library/react'
 import type { ThreadItem } from '@renderer/05_Conversation/state/threadTypes'

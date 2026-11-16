@@ -46,6 +46,8 @@ const SKIP_DIRS = new Set(['node_modules', 'dist', 'out', 'coverage', '.git'])
 // M05 G11: 433 → 434. 워크스페이스 루트 원천 하나(roots, 접근자 getWorkspaceRootPath)와 루트를 읽는 네 채널을 고정하는 main/handlers/workspace-root-source.test.ts를 더했다.
 // M05 G11: 434 → 435. 조립 지점 00_App 하나(ConversationStore 소유자, skills·MCP store 같은 인스턴스, 기동·종료 배선)를 실물 모듈로 고정하는 main/appAssembly.test.ts를 더했다.
 // M05 G12: 435 → 436. 테스트 배치 가드(작업 ID 이름 0, 제자리 밖 테스트는 <프로세스>/NN_Domain/ 아래, agents/ 비움) testLayout.guard.test.ts를 더했다.
+// M05 G12: 436 그대로. 테스트 430파일을 <프로세스>/NN_Domain/으로 옮기고 이름을 바꿨지만 수는 바뀌지 않는다.
+// 위 줄들의 옛 경로는 그때의 이름이다. 지금 자리는 G12 이동 표(99e·99f·99g)에서 찾는다.
 const BASELINE_TEST_FILES = 436
 
 function collectTestFiles(dir: string, acc: string[] = []): string[] {

@@ -161,7 +161,7 @@ describe('pickDirectory() — 한 곳으로 모은 대화상자 (M05 G11)', () =
 })
 
 describe('workspace.open — 성공하면 현재 루트를 기록한다', () => {
-  // 루트 원천은 roots 하나다(G11 4단계) — 읽는 쪽 고정은 workspace-root-source.test.ts
+  // 루트 원천은 roots 하나다(G11 4단계) — 읽는 쪽 고정은 workspace.root-source.test.ts
   it('roots의 작업 공간 루트에 `/` 경로가 들어간다', async () => {
     h.showOpenDialog.mockResolvedValue({ canceled: false, filePaths: [dir] })
     await call(IPC_CHANNELS.WORKSPACE_OPEN, {})

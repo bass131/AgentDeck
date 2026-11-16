@@ -810,6 +810,7 @@ try {
     const big = [
       'echo ' + '$(echo a) '.repeat(20000) + '\ngit push \\\n --force origin chore/x',
       'x=$(\n' + "cat <<'E'\nb\nE\n".repeat(17000) + ')\ngit push \\\n --force origin chore/x',
+      'rm -rf dist\necho ' + '$(cat <<E) '.repeat(10000) + '\n',   // 4차 검수 — `$(`마다 파이프라인을 다시 훑던 제곱 시간
     ]
     for (const cmd of big) {
       const t0 = Date.now()
@@ -817,6 +818,70 @@ try {
       r.check(`큰 입력 ${cmd.length}자 → deny, 2초 안`, d === 'deny' && Date.now() - t0 < 2000, `실측 ${d} · ${Date.now() - t0}ms`)
     }
   }
+  // G5 4차 검수 FAIL — [이어 쓴 꼴, 한 줄 꼴] 쌍. bash는 둘 다 위험 명령을 실행한다(검수자 실측). 판정이 같고 무출력이 아니어야 한다.
+  // 원인 여섯 갈래: 이스케이프된 글자를 낱말 경계로 읽음(`a\ #b`), 닫히지 않는 `((`, heredoc이 아닌 `<<`(`for((…<<=1))`·`a[1<<2]`),
+  // 묶음 밖에서 셸로 가는 `cat` 본문, 백틱 안 heredoc, `${ }` 안 작은따옴표. 꼴이 아니라 줄 이음 구간 판독이 함께 닫는다.
+  for (const [cont, one] of [
+    ["x=\"$(echo ${y:-'}'})\"\ngit push \\\n --force origin chore/x", "x=\"$(echo ${y:-'}'})\"\ngit push --force origin chore/x"],
+    ["{ echo '#!/bin/bash'; cat <<'EOF'; } > run.sh\ngit push \\\n --force origin chore/x\nEOF\nbash run.sh", "{ echo '#!/bin/bash'; cat <<'EOF'; } > run.sh\ngit push --force origin chore/x\nEOF\nbash run.sh"],
+    ["(cd .; cat <<'EOF' | bash\ngit push \\\n --force origin chore/x\nEOF\n)", "(cd .; cat <<'EOF' | bash\ngit push --force origin chore/x\nEOF\n)"],
+    [". <(echo true; cat <<'EOF'\ngit push \\\n --force origin chore/x\nEOF\n)", ". <(echo true; cat <<'EOF'\ngit push --force origin chore/x\nEOF\n)"],
+    ["x=$(echo true; cat <<'EOF'\ngit push \\\n --force origin chore/x\nEOF\n); bash -c \"$x\"", "x=$(echo true; cat <<'EOF'\ngit push --force origin chore/x\nEOF\n); bash -c \"$x\""],
+    ["bash -c \"$(echo true; cat <<'EOF'\ngit push \\\n --force origin chore/x\nEOF\n)\"", "bash -c \"$(echo true; cat <<'EOF'\ngit push --force origin chore/x\nEOF\n)\""],
+    ["bash -c \"true\n$(cat <<'EOF'\ngit push \\\n --force origin chore/x\nEOF\n)\"", "bash -c \"true\n$(cat <<'EOF'\ngit push --force origin chore/x\nEOF\n)\""],
+    ["echo a\\ #b; git push \\\n origin master", "echo a\\ #b; git push origin master"],
+    ["git commit -m fix\\ #12; git push \\\n --force origin chore/x", "git commit -m fix\\ #12; git push --force origin chore/x"],
+    ["echo a\\\t#b && git push \\\n --force origin chore/x", "echo a\\\t#b && git push --force origin chore/x"],
+    ["ls Track\\ #3.mp3 2>/dev/null; rm \\\n -rf dist", "ls Track\\ #3.mp3 2>/dev/null; rm -rf dist"],
+    ["if [[ abc =~ ((a|b)c) ]]; then :; fi\ngit commit -q -F - <<'EOF'\nfix: don't\nEOF\ngit push \\\n --force origin chore/x", "if [[ abc =~ ((a|b)c) ]]; then :; fi\ngit commit -q -F - <<'EOF'\nfix: don't\nEOF\ngit push --force origin chore/x"],
+    ["((cd . && true) || echo fail)\ngit commit -q -F - <<'EOF'\nfix: don't\nEOF\ngit push \\\n --force origin chore/x", "((cd . && true) || echo fail)\ngit commit -q -F - <<'EOF'\nfix: don't\nEOF\ngit push --force origin chore/x"],
+    ["((cd . && true) || echo fail)\ngit push \\\n --force origin chore/x", "((cd . && true) || echo fail)\ngit push --force origin chore/x"],
+    ["x=$((echo a) | cat)\ncat <<'EOF'\nit's\nEOF\ngit push \\\n origin master", "x=$((echo a) | cat)\ncat <<'EOF'\nit's\nEOF\ngit push origin master"],
+    ["{ echo set -e; cat <<'EOF'\r\ngit push \\\r\n --force origin chore/x\r\nEOF\r\n} | bash", "{ echo set -e; cat <<'EOF'\r\ngit push --force origin chore/x\r\nEOF\r\n} | bash"],
+    ["{ echo set -e; cat <<'EOF'\ngit push \\\n origin master\nEOF\n} | bash", "{ echo set -e; cat <<'EOF'\ngit push origin master\nEOF\n} | bash"],
+    ["{ echo set -e; cat <<'EOF'\ngit push origin \\\n --delete chore/x\nEOF\n} | bash", "{ echo set -e; cat <<'EOF'\ngit push origin --delete chore/x\nEOF\n} | bash"],
+    ["(echo set -e; cat <<'EOF'\ngit push \\\n --mirror\nEOF\n) | sh", "(echo set -e; cat <<'EOF'\ngit push --mirror\nEOF\n) | sh"],
+    ["echo a\\ #b; git push origin \\\n --delete chore/x", "echo a\\ #b; git push origin --delete chore/x"],
+    ["echo a\\ #b; git push \\\n --mirror", "echo a\\ #b; git push --mirror"],
+    ["echo a\\ #b; git push \\\r\n --force origin chore/x", "echo a\\ #b; git push --force origin chore/x"],
+    ["{ echo set -e; cat <<'EOF'\ngit push \\\n --force origin chore/x\nEOF\n} | bash", "{ echo set -e; cat <<'EOF'\ngit push --force origin chore/x\nEOF\n} | bash"],
+    ["(echo set -e; cat <<'EOF'\ngit push \\\n --force origin chore/x\nEOF\n) | sh", "(echo set -e; cat <<'EOF'\ngit push --force origin chore/x\nEOF\n) | sh"],
+    ["{ true && cat <<'EOF'\ngit push \\\n --force origin chore/x\nEOF\n} | bash", "{ true && cat <<'EOF'\ngit push --force origin chore/x\nEOF\n} | bash"],
+    ["bash <<< $(cat <<'EOF'\ngit push \\\n --force origin chore/x\nEOF\n)", "bash <<< $(cat <<'EOF'\ngit push --force origin chore/x\nEOF\n)"],
+    ["bash -c \"`cat <<'EOF'\ngit push \\\n --force origin chore/x\nEOF\n`\"", "bash -c \"`cat <<'EOF'\ngit push --force origin chore/x\nEOF\n`\""],
+    ["bash <(echo true; cat <<'EOF'\ngit push \\\n --force origin chore/x\nEOF\n)", "bash <(echo true; cat <<'EOF'\ngit push --force origin chore/x\nEOF\n)"],
+    ["script=$(cat <<'EOF'\ngit push \\\n --force origin chore/x\nEOF\n)\neval \"$script\"", "script=$(cat <<'EOF'\ngit push --force origin chore/x\nEOF\n)\neval \"$script\""],
+    ["bash <<'A'\nbash <<'B'\nbash <<'C'\nbash <<'D'\nbash <<'E'\nbash <<'F'\nbash <<'G'\nbash <<'H'\nbash <<'I'\ngit push \\\n --force origin chore/x\nI\nH\nG\nF\nE\nD\nC\nB\nA", "bash <<'A'\nbash <<'B'\nbash <<'C'\nbash <<'D'\nbash <<'E'\nbash <<'F'\nbash <<'G'\nbash <<'H'\nbash <<'I'\ngit push --force origin chore/x\nI\nH\nG\nF\nE\nD\nC\nB\nA"],
+    ["for((i=1;i<64;i<<=1)); do :; done\n# note \\\ngit push \\\n --force origin chore/x", "for((i=1;i<64;i<<=1)); do :; done\n# note \\\ngit push --force origin chore/x"],
+    ["a[1<<2]=3\n# note \\\ngit push \\\n --force origin chore/x", "a[1<<2]=3\n# note \\\ngit push --force origin chore/x"],
+    ["echo \\(#x\\); git push \\\n --force origin chore/x", "echo \\(#x\\); git push --force origin chore/x"],
+    ["[[ abc =~ ((a|b)c) ]]\ngit commit -q -F - <<'EOF'\nfix: don't\nEOF\ngit -c user.name=a \\\n  -c user.email=b push origin HEAD:master", "[[ abc =~ ((a|b)c) ]]\ngit commit -q -F - <<'EOF'\nfix: don't\nEOF\ngit -c user.name=a -c user.email=b push origin HEAD:master"],
+    ["echo a\\ #b; git -c user.name=a \\\n  -c user.email=b push origin HEAD:master", "echo a\\ #b; git -c user.name=a -c user.email=b push origin HEAD:master"],
+  ]) {
+    const got = decision(cont)
+    const want = decision(one)
+    r.check(`${label(cont)} → 한 줄 꼴(${want})과 같은 판정`, got === want && want !== 'silent', `이어 쓴 꼴 ${got} · 한 줄 꼴 ${want}`)
+  }
+  // 연산자 `<<`가 줄 이음으로 갈라진 heredoc 커밋 — 원문 읽기는 한 줄 꼴도 놓치지만(본문의 `'`), bash는 뒤 push를 실행한다
+  expectDeny("cat <\\\n<'EOF' | git commit -F -\nit's\nEOF\ngit push \\\n --force origin chore/x")
+  // `$( … )`가 낸 글이 실행되는 자리 — 줄 이음 구간 판독은 이 본문을 건너뛰지 않는다
+  for (const cmd of [
+    "eval \"$(cat <<'EOF'\ngit push \\\n --force origin chore/x\nEOF\n)\"",
+    "bash <<< \"$(cat <<'EOF'\ngit push \\\n --force origin chore/x\nEOF\n)\"",
+    "sudo bash -c \"$(cat <<'EOF'\nrm \\\n -rf dist\nEOF\n)\"",
+    // `$( … )` 안의 묶음이 셸로 간다 — 본문을 먹는 `cat`만 보고 면제하면 안 된다
+    "x=$({ echo; cat <<'EOF'\ngit push \\\n --force origin chore/x\nEOF\n} | bash)",
+    // 논리 줄 판독만 읽는 꼴 — 줄 이음 구간 판독이 대신 읽지 못해 논리 줄 판독의 문맥 추적을 판별한다 (4차 검수의 살아남은 변이, bash 실측)
+    "echo `echo a # c`; git push \\\r\n --force origin chore/x",
+  ]) expectDeny(cmd)
+  for (const cmd of [
+    "((y = 3 # 2))\ngit commit -m \"$(cat <<'EOF'\nsize 5\" wide\nEOF\n)\" && git push \\\n origin master",
+    "cat <<<EOF\ngit commit -m \"$(cat <<'EOF'\nsize 5\" wide\nEOF\n)\" && git push \\\n origin master",
+    "eval \"$(cat <<'Z'\necho `echo a # c`; git push \\\n origin master\nZ\n)\"",
+    "eval \"$(cat <<'Z'\nbash <<'EOF'\ngit push origin master\nEOF\nZ\n)\"",
+    "sudo bash -lc \"$(cat <<'Z'\ncat <<< \"it's\"\necho `echo a # c`; git push \\\n origin master\nZ\n)\"",
+    "echo $'it\\'s'\necho `echo a # c`; git push \\\n origin master",
+  ]) expectAsk(cmd)
   // bash가 잇지 않거나 실행하지 않는 글 — 무출력이다 (작은따옴표 안, 면제 소비자의 본문, 주석 끝)
   for (const cmd of [
     "git push origin 'mas\\\nter'",
@@ -824,6 +889,12 @@ try {
     'git push -u origin feat/x # note \\\ngit log master..HEAD',
     "git add -A && \\\n  git commit -q -F - <<'EOF' && \\\n  git push -u origin fix/x\nfix: don't stop\nEOF",
     "git commit -q -F - <<'EOF'\nfix: guard\n\ngit push --force origin chore/x 꼴을 막는다\nEOF\ngit push -u origin fix/x",
+    // 글 인자 자리의 `$(cat <<'EOF' …)` 본문 — PR·커밋 본문의 재현 명령은 이어 써도 명령이 아니다 (4차 수리의 줄 이음 구간 판독이 건너뛴다)
+    "gh pr create --title \"fix: guard\" --body \"$(cat <<'EOF'\nRepro:\ngit push \\\n  --force origin chore/x\nEOF\n)\"",
+    "git commit -m \"$(cat <<'EOF'\nfix: guard\n\ngit push \\\n --force origin chore/x\nEOF\n)\"",
+    "cat <<'EOF'\ngit push \\\n --force origin chore/x\nEOF",                                   // 원문 읽기가 면제하는 본문
+    "git commit \\\n  -F - <<'EOF'\ngit push \\\n origin master\nEOF",                              // 여는 줄이 이어진 면제 본문 — 논리 줄 판독이 면제한다
+    "git commit -q -F - <<'EOF'\nfix: x\n\ngit push \\\n  --force origin chore/x\nEOF\ngit push -u origin fix/x",
   ]) expectSilent(cmd)
   // 작은따옴표 안의 `\`+개행은 글자 그대로이고, 인용·heredoc 본문의 push 문장은 명령이 아니다.
   for (const cmd of [

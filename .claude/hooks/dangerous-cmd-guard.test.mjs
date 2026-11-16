@@ -737,6 +737,9 @@ try {
     "bash <<'EOF'\n# don't\ngit reset --hard\nEOF",
     // `$(( 1 << 2 ))`의 `<<`는 heredoc이 아니다
     'echo $((1<<2))\ngit push \\\n  --force origin chore/x',
+    // `<<-`는 종결자 줄 앞의 탭을 벗긴다, 한 줄의 heredoc 둘은 본문을 차례로 먹는다
+    'cat <<-EOF\n\tbody\n\tEOF\ngit push \\\n  --force origin chore/x',
+    "cat <<A <<'B'\na\nA\nit's\nB\ngit push \\\n  --force origin chore/x",
     // 큰따옴표 안 `$( … )`의 heredoc 본문은 원문 그대로 소비한다 — 본문의 `"`가 바깥 인용을 닫지 않는다
     "git commit -m \"$(cat <<'EOF'\nsize 5\" wide\nEOF\n)\" && git push \\\n  --force origin chore/x",
     // 변이 판별 — 문맥 하나 안에서도 deny가 ask보다 먼저다, `\\` 짝 뒤 개행은 구분자, `bash -c` 스크립트 안도 잇는다

@@ -724,6 +724,46 @@ try {
     'echo done # next \\\ngh pr merge 12 --squash',
     'echo a # x \\\ngh api -X DELETE repos/o/r/branches/master/protection',
   ]) expectAsk(cmd)
+
+  // G5 2차 검수 FAIL·사용자 결정 B — 논리 줄 판독. heredoc 본문을 bash처럼 소비한 뒤의 명령 줄에서 줄 이음을 읽는다.
+  // 면제 heredoc 커밋 본문의 짝 없는 `'`, 본문 끝 `\`, 여는 줄 이음이 뒤에 이어 쓴 명령을 가리지 않는다 (한 줄 꼴과 같은 판정).
+  for (const cmd of [
+    "git commit -q -F - <<'EOF'\nfix: don't break\nEOF\ngit push \\\n  --force origin chore/x",
+    "cat <<'EOF' | git commit -F -\nit's\nEOF\ngit push \\\n -f",
+    "git commit -q -F - <<'EOF'\ndocs: see C:\\Dev\\\nEOF\ngit reset \\\n  --hard HEAD~1",
+    "git commit -F - <<'EOF' \\\n  --no-verify\nfix: don't break\nEOF\ngit push \\\n  --force origin chore/x",
+    // 셸에 먹이는 본문은 명령이다 — bash가 본문을 스크립트로 읽으며 줄을 잇고 주석을 버린다
+    "bash <<'EOF'\ngit push \\\n  --force origin chore/x\nEOF",
+    "bash <<'EOF'\n# don't\ngit reset --hard\nEOF",
+    // `$(( 1 << 2 ))`의 `<<`는 heredoc이 아니다
+    'echo $((1<<2))\ngit push \\\n  --force origin chore/x',
+    // 큰따옴표 안 `$( … )`의 heredoc 본문은 원문 그대로 소비한다 — 본문의 `"`가 바깥 인용을 닫지 않는다
+    "git commit -m \"$(cat <<'EOF'\nsize 5\" wide\nEOF\n)\" && git push \\\n  --force origin chore/x",
+    // 변이 판별 — 문맥 하나 안에서도 deny가 ask보다 먼저다, `\\` 짝 뒤 개행은 구분자, `bash -c` 스크립트 안도 잇는다
+    'git push origin master \\\n  --force',
+    'echo foo\\\\\ngit push origin master \\\n --force',
+    "bash -c 'git push \\\n --force origin x'",
+  ]) expectDeny(cmd)
+  for (const cmd of [
+    "git commit -q -F - <<'EOF'\nfix: don't break\nEOF\ngit -c user.name=a \\\n  -c user.email=b push origin HEAD:master",
+    "git commit -q -F - <<'EOF'\r\nfix: don't break\r\nEOF\r\ngit push \\\r\n  origin master",
+    "git commit -q -F - <<'EOF'\ndocs: see C:\\Dev\\\nEOF\ngit push \\\n  origin master",
+    "git commit -q -F - <<'EOF'\nfix: don't break\nEOF\ngit push origin \\\n  --delete chore/x",
+    "git commit -q -F - <<'EOF'\nfix: don't break\nEOF\ngit push \\\n  --mirror",
+    "cat <<'EOF' | sh\ngit push \\\n  origin master\nEOF",
+    // 제어 구문 낱말 뒤의 셸도 본문을 먹는다 — `then bash <<EOF`의 본문은 bash가 실행한다
+    "if true; then \\\n  bash <<'EOF'\ngit push origin \\\n  --delete chore/x\nEOF\nfi",
+    'git push origin "mas\\\nter"',
+  ]) expectAsk(cmd)
+  // bash가 잇지 않거나 실행하지 않는 글 — 무출력이다 (작은따옴표 안, 셸에 먹이지 않는 본문, 주석 끝)
+  for (const cmd of [
+    "git push origin 'mas\\\nter'",
+    "gh pr create --title t --body-file - <<'EOF'\nRepro:\ngit push \\\n  --force origin chore/x\nEOF",
+    "gh pr create --base master --title \"t\" --body \"$(cat <<'EOF'\na 5\" screen\nRepro:\ngit push \\\n  --force origin chore/x\nEOF\n)\"",
+    'git push -u origin feat/x # note \\\ngit log master..HEAD',
+    "git add -A && \\\n  git commit -q -F - <<'EOF' && \\\n  git push -u origin fix/x\nfix: don't stop\nEOF",
+    "git commit -q -F - <<'EOF'\nfix: guard\n\ngit push --force origin chore/x 꼴을 막는다\nEOF\ngit push -u origin fix/x",
+  ]) expectSilent(cmd)
   // 작은따옴표 안의 `\`+개행은 글자 그대로이고, 인용·heredoc 본문의 push 문장은 명령이 아니다.
   for (const cmd of [
     "git commit -m 'line one \\\ngit push --force origin master'",

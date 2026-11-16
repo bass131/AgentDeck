@@ -4,14 +4,14 @@
 // 판정 파이프라인은 넷이다 (M02 Phase 2 Step 3~6에서 수리).
 //   ① heredoc 본문 면제 — 본문이 흘러가는 pipeline 전수 소비자를 보고, 실행되지 않는 소비자뿐일 때만 본문을 판정에서 뺀다.
 //   ② 세그먼트 분할 — `&&`·`||`·`;`·`|`·`&`·개행으로 나누되 따옴표 안에서는 나누지 않는다.
-//      원문과, `\`+개행 줄 이음을 이은 글을 둘 다 읽어 합친다(M06 G5 · `joinLineContinuations`).
+//      원문 읽기 옆에 bash식 논리 줄 판독(줄 이음·주석·heredoc 본문 소비)을 더해 합친다(M06 G5 · `logicalLines`).
 //   ③ 토큰화 — 토큰에서 따옴표 문자를 벗긴다. `"rm" -rf`·`git reset "--hard"` 류 인용 우회가 여기서 잡힌다.
 //   ④ 명령 위치 판정 — 규칙은 세그먼트의 머리 토큰(과 래퍼 뒤 토큰)에만 적용한다.
 //      인용문·커밋 메시지 본문에 든 `rm -rf`·`git push`를 명령으로 읽지 않기 위한 오탐 방어다.
 //
 // 확정된 한계 (M02 결정 대장 [USER] 2026-08-10 안건 2 — 기각, 방어 담당은 Claude Code 내장 권한 분류기):
 //   변수 확장(`c=push; git $c`)·`$()` 명령 치환·`cmd /c` 접두는 두 구현 모두 못 잡는다.
-// M06 G5가 줄 이음을 이은 두 번째 읽기 하나만 더했다(원문 읽기와 합집합) — Backlog 8, 범위를 이것 하나로 좁혔다.
+// M06 G5가 bash식 논리 줄 판독을 두 번째 판독으로 더했다(원문 읽기와 합집합, 사용자 결정 B) — Backlog 8.
 // 그 밖의 셸 판독(①~④)은 M05 H1에서 바꾸지 않았다 — 기준 커밋 9910a31 그대로다. 전처리(줄 이음·주석·리다이렉트 토큰)를
 //   넣은 시도가 기존 `reset --hard` 판정을 회귀시키고 정상 heredoc 커밋에 질의·차단을 만들어 되돌렸다
 //   (H1 결정 대장 [AI] 2026-11-13). 이 판독이 못 읽는 꼴의 작업 브랜치 강제 push는 감수 위험이다 ([USER] 2026-11-13).
@@ -321,7 +321,7 @@ const DESTRUCTIVE = [
 //   세그먼트 토큰 어디에든 `master`가 글자로 보이는 push(부분 문자열, 대소문자 무시), `send-pack` 전부,
 //   `-c alias.*`로 감싼 push, 로컬 ref를 덮어쓰는 fetch, 서버 보호를 바꿀 수 있는 `gh api` 쓰기·보호 설정 경로 호출,
 //   `gh repo edit`·`delete`.
-// 가드 판독이 못 읽는 꼴(변수·설정·저장소 상태·리다이렉트로 목적지나 옵션이 가려지는 push)은 무출력이다. 줄 이음은 M06 G5부터 읽는다.
+// 가드 판독이 못 읽는 꼴(변수·설정·저장소 상태·리다이렉트로 목적지나 옵션이 가려지는 push)은 무출력이다. 줄 이음·주석·heredoc 본문은 M06 G5의 논리 줄 판독이 읽는다.
 //   `master`로 가면 서버가 거부하고, 작업 브랜치의 강제 갱신은 그 브랜치 안의 감수 위험이다 ([USER] 2026-11-13).
 // 가드는 여전히 어떤 명령에도 `permissionDecision: "allow"`를 내지 않는다 — 무출력이면 설정의 allow가 적용된다.
 // push 목적지를 저장소 상태로 판정하는 설계는 M04에서 독립 검수를 통과하지 못했다 (ADR-003). 근거와 대체 기록은 —
@@ -531,33 +531,179 @@ function shellScriptsOf(args) {
   return [...at].map((j) => args[j])
 }
 
-// 줄 이음 (M06 G5 · Backlog 8) — 따옴표 밖과 큰따옴표 안의 `\`+LF·`\`+CRLF를 지워 앞뒤를 한 줄로 이은 글.
-//   작은따옴표 안은 글자 그대로다. `\\`+개행은 이스케이프 짝이 먼저 먹어 개행이 남는다.
-// 이은 글은 원문 읽기를 **대신하지 않고 더한다**(합집합). bash가 잇지 않는 자리(주석 끝, 따옴표 친 heredoc 본문)까지
-//   이으면 뒤 명령이 앞 줄에 붙어 사라지기 때문이다(G5 1차 검수 FAIL). 원문 읽기가 그 꼴을 그대로 잡으므로
-//   판정은 옛 가드보다 약해지지 않고, 이은 읽기가 줄 이음으로 가려진 옵션·목적지를 더 잡는다.
-function joinLineContinuations(text) {
-  let out = ''
+// ── 논리 줄 판독 (M06 G5 · Backlog 8 · 사용자 결정 B) ────────────────────────
+// 원문 읽기(①②)는 물리 줄 단위라 `\`+개행 줄 이음을 모르고, 원문 전체를 이으면 bash가 잇지 않는 자리
+// (주석 끝, 따옴표 친 heredoc 본문)까지 이어 뒤 명령이 사라진다(G5 1·2차 검수 FAIL). 그래서 bash처럼 한 번에 읽는
+// 두 번째 판독을 둔다. 판정은 원문 읽기와 이 판독의 합집합이라 옛 가드보다 약해질 수 없다.
+//   - 문맥 쌓기: 작은따옴표·`$'…'`·큰따옴표·`$( … )`·`$(( … ))`. 따옴표 밖과 큰따옴표 안의 `\`+LF·`\`+CRLF는 지운다.
+//     그 밖의 `\X`는 두 글자 그대로 두되 X가 문맥을 바꾸지 않게 건너뛴다.
+//   - 주석: 단어 머리의 `#`(따옴표·산술 밖)부터 줄 끝까지 버린다. 주석 안의 `\`는 줄을 잇지 않는다.
+//   - heredoc: `<<`·`<<-` 뒤 단어가 구분자다(따옴표나 `\`가 섞이면 따옴표 친 구분자). 본문은 연산자가 있는 줄의
+//     개행 뒤에서 읽는다. 따옴표 친 구분자는 원문 줄 그대로, 없는 구분자는 줄 끝 홀수 `\`로 이은 줄로 종결자를 찾는다.
+//   - 본문은 셸에 먹일 때(`bash <<EOF`·`cat <<EOF | sh`)만 명령으로 다시 읽는다. 그 밖의 본문은 bash가 실행하지
+//     않는 글이라 이 판독에서는 버린다 — 원문 읽기가 종전처럼 보수적으로 판정한다.
+// 반환은 따옴표 밖 개행이 없는 논리 줄의 목록이다(`$( … )` 안의 개행은 남는다). 각 줄을 `splitSegments`로 나눈다.
+const HEREDOC_WORD_END = new Set([' ', '\t', '\r', '\n', ';', '&', '|', '<', '>', '(', ')'])
+const COMMENT_AFTER = new Set([' ', '\t', ';', '&', '|', '(', ')', '\n'])
+
+function readHeredocWord(text, j) {
+  let delim = ''
+  let quoted = false
+  while (j < text.length && !HEREDOC_WORD_END.has(text[j])) {
+    const ch = text[j]
+    if (ch === "'" || ch === '"') {
+      quoted = true
+      const end = text.indexOf(ch, j + 1)
+      if (end < 0) { delim += text.slice(j + 1); j = text.length; break }
+      delim += text.slice(j + 1, end)
+      j = end + 1
+      continue
+    }
+    if (ch === '\\' && j + 1 < text.length) { quoted = true; delim += text[j + 1]; j += 2; continue }
+    delim += ch
+    j++
+  }
+  return { delim, quoted, end: j }
+}
+
+const dropCR = (line) => (line.endsWith('\r') ? line.slice(0, -1) : line)
+function endsWithContinuation(line) {
+  const s = dropCR(line)
+  let k = 0
+  while (k < s.length && s[s.length - 1 - k] === '\\') k++
+  return k % 2 === 1
+}
+
+// heredoc 본문 하나를 읽는다 — i는 본문 첫 글자. 종결자 줄 다음 글자의 위치와 본문을 돌려준다.
+function readHeredocBody(text, i, h) {
+  const lines = []
+  while (i < text.length) {
+    const nl = text.indexOf('\n', i)
+    let line = nl < 0 ? text.slice(i) : text.slice(i, nl)
+    let next = nl < 0 ? text.length : nl + 1
+    while (!h.quoted && endsWithContinuation(line) && next < text.length) {
+      const nl2 = text.indexOf('\n', next)
+      line = dropCR(line).slice(0, -1) + (nl2 < 0 ? text.slice(next) : text.slice(next, nl2))
+      next = nl2 < 0 ? text.length : nl2 + 1
+    }
+    i = next
+    const probe = h.dash ? dropCR(line).replace(/^\t+/, '') : dropCR(line)
+    if (probe === h.delim) return { body: lines.join('\n'), next: i }
+    lines.push(line)
+  }
+  return { body: lines.join('\n'), next: i }
+}
+
+// pos 자리를 품은 파이프라인 — `;`·`&&`·`||`·`&`·개행에서 끊고 `|`에서는 끊지 않는다.
+function pipelineAt(text, pos) {
+  let start = 0
   let quote = null
   for (let i = 0; i < text.length; i++) {
     const ch = text[i]
-    if (isEscape(quote, ch, text[i + 1])) { out += ch + text[++i]; continue }
-    if (ch === '\\' && quote !== "'") {
-      if (text[i + 1] === '\n') { i += 1; continue }
-      if (text[i + 1] === '\r' && text[i + 2] === '\n') { i += 2; continue }
-    }
-    if (quote) { out += ch; if (ch === quote) quote = null; continue }
-    if (ch === '"' || ch === "'") quote = ch
-    out += ch
+    if (isEscape(quote, ch, text[i + 1])) { i++; continue }
+    if (quote) { if (ch === quote) quote = null; continue }
+    if (ch === '"' || ch === "'") { quote = ch; continue }
+    let w = 0
+    if (ch === ';' || ch === '\n') w = 1
+    else if (ch === '|' && text[i + 1] === '|') w = 2
+    else if (ch === '&') w = text[i + 1] === '&' ? 2 : (text[i - 1] === '>' || text[i - 1] === '<' ? 0 : 1)
+    if (!w) continue
+    if (i >= pos) return text.slice(start, i)
+    start = i + w
+    i += w - 1
   }
-  return out
+  return text.slice(start)
+}
+
+// 본문을 셸이 먹는가 — 단계 머리의 제어 구문 낱말(`then bash <<EOF`)은 건너뛰고 본다.
+const RESERVED_HEAD = new Set(['if', 'then', 'else', 'elif', 'do', 'while', 'until', '!', '{'])
+function feedsShell(pipeline) {
+  return splitSegments(pipeline).some((stage) => {
+    const toks = tokenize(stage)
+    while (toks.length > 1 && RESERVED_HEAD.has(toks[0])) toks.shift()
+    return commandsOf(toks).some((c) => SHELLS.has(c.base))
+  })
+}
+
+function logicalLines(text, depth = 0) {
+  const units = []
+  const stack = []
+  let cur = ''
+  let pending = []
+  let i = 0
+  const n = text.length
+  while (i < n) {
+    const ch = text[i]
+    const top = stack[stack.length - 1]
+    if (top === "'") { cur += ch; i++; if (ch === "'") stack.pop(); continue }
+    if (top === "$'") {
+      if (ch === '\\' && i + 1 < n) { cur += ch + text[i + 1]; i += 2; continue }
+      cur += ch; i++
+      if (ch === "'") stack.pop()
+      continue
+    }
+    if (ch === '\\') {
+      if (text[i + 1] === '\n') { i += 2; continue }
+      if (text[i + 1] === '\r' && text[i + 2] === '\n') { i += 3; continue }
+      cur += text.slice(i, i + 2); i += 2
+      continue
+    }
+    if (ch === '$' && text[i + 1] === '(') {
+      const arith = text[i + 2] === '('
+      stack.push(arith ? '$((' : '$(')
+      cur += arith ? '$((' : '$('
+      i += arith ? 3 : 2
+      continue
+    }
+    if (top === '"') { cur += ch; i++; if (ch === '"') stack.pop(); continue }
+    if (ch === "'") { stack.push("'"); cur += ch; i++; continue }
+    if (ch === '"') { stack.push('"'); cur += ch; i++; continue }
+    if (ch === '$' && text[i + 1] === "'") { stack.push("$'"); cur += "$'"; i += 2; continue }
+    if (top === '$((' && ch === ')' && text[i + 1] === ')') { stack.pop(); cur += '))'; i += 2; continue }
+    if (top !== undefined && ch === '(') { stack.push('('); cur += ch; i++; continue }
+    if ((top === '$(' || top === '(') && ch === ')') { stack.pop(); cur += ch; i++; continue }
+    const inArith = stack.includes('$((')
+    if (ch === '#' && !inArith && (cur === '' || COMMENT_AFTER.has(cur[cur.length - 1]))) {
+      const nl = text.indexOf('\n', i)
+      i = nl < 0 ? n : nl
+      continue
+    }
+    if (ch === '<' && text[i + 1] === '<' && text[i + 2] !== '<' && cur[cur.length - 1] !== '<' && !inArith) {
+      let j = i + 2
+      const dash = text[j] === '-'
+      if (dash) j++
+      while (text[j] === ' ' || text[j] === '\t') j++
+      const w = readHeredocWord(text, j)
+      if (w.delim) pending.push({ delim: w.delim, quoted: w.quoted, dash, at: cur.length })
+      cur += text.slice(i, w.end)
+      i = w.end
+      continue
+    }
+    if (ch === '\n') {
+      i++
+      for (const h of pending) {
+        const { body, next } = readHeredocBody(text, i, h)
+        i = next
+        if (depth < SHELL_DEPTH_LIMIT && feedsShell(pipelineAt(cur, h.at))) units.push(...logicalLines(body, depth + 1))
+      }
+      pending = []
+      if (stack.length === 0) { units.push(cur); cur = '' } else cur += '\n'
+      continue
+    }
+    cur += ch
+    i++
+  }
+  units.push(cur)
+  return units.filter((u) => u.trim())
 }
 
 function contextsOf(command, depth = 0) {
-  const joined = joinLineContinuations(command)
-  const readings = joined === command ? [command] : [command, joined]
+  const segs = new Set([
+    ...splitSegments(stripExemptHeredocBodies(command)),
+    ...logicalLines(command).flatMap((line) => splitSegments(line)),
+  ])
   const out = []
-  for (const seg of readings.flatMap((text) => splitSegments(stripExemptHeredocBodies(text)))) {
+  for (const seg of segs) {
     const toks = tokenize(seg)
     for (const c of commandsOf(toks)) {
       // seg — 세그먼트의 토큰 전부다 (M05 H1). `master` 글자 판정이 머리의 할당(`GIT_CONFIG_VALUE_0=HEAD:master git push`)까지 보게 한다

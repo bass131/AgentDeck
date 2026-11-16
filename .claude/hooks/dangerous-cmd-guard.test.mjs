@@ -18,7 +18,7 @@
 // push 서버 보호 구획 (M05 H1 · 결정 대장 [USER] 2026-11-13) — `master`의 직접 push·강제 push·삭제는
 // GitHub 서버의 브랜치 보호가 거부한다. 그래서 일반 push는 무출력(silent)이고, 가드는 이중 안전장치로
 // 강제 push 꼴을 차단하고 원격 삭제·일괄 push·`master`가 글자로 보이는 push·`send-pack`을 묻는다.
-// 셸 판독은 기준 커밋 9910a31 그대로다. 그 판독이 못 읽는 꼴(줄 이음·`2>&1` 뒤 옵션·주석·`\X`·`$'…'`·변수·별칭)은
+// 셸 판독은 기준 커밋 9910a31에 줄 이음 하나만 더했다(M06 G5). 그 판독이 못 읽는 꼴(`2>&1` 뒤 옵션·주석·`\X`·`$'…'`·변수·별칭)은
 // 무출력이어도 된다 — `master`로 가면 서버가 거부하고, 작업 브랜치의 강제 갱신은 작업 브랜치 격리로 감수한다
 // (사용자 판정 2026-11-13). 그런 꼴은 expectNoPass로 두고 근거를 단다. 기준 판독이 읽는 강제 push 꼴은 반드시 expectDeny다.
 // `gh api`의 쓰기·보호 설정 호출과 `gh repo edit`·`delete`는 질의다 — 서버 보호를 푸는 경로이기 때문이다.
@@ -258,6 +258,7 @@ try {
   // ── 기준 판독 위의 push 규칙 (M05 H1 · 셸 판독은 기준 커밋 9910a31 그대로) ─────────────
   // 2차 수리의 셸 전처리(줄 이음·주석·리다이렉트 토큰·이스케이프 해제·제어 구문 머리·eval)는 되돌렸다 —
   // 기존 `reset --hard` 판정을 회귀시키고 정상 heredoc 커밋·PR 본문에 질의·차단을 만들었다 (H1 결정 대장 [AI] 2026-11-13).
+  // M06 G5가 그 가운데 줄 이음 하나만 다시 넣었다 — 「줄 이음」 구획과 아래 회귀 방지 구획이 함께 고정한다.
   // 그래서 아래 첫 구획은 기준 판독이 읽는 꼴만 deny로 고정한다. 접두 판독이라 붙인 리다이렉트(`-f>/dev/null`)는 잡힌다.
   console.log('push 규칙 — 기준 판독이 읽는 강제 push 꼴은 차단')
   for (const cmd of [
@@ -298,20 +299,12 @@ try {
   ]) expectDeny(cmd)
 
   // ── 감수 (작업 브랜치 격리로 감수 — 사용자 판정 2026-11-13, master는 서버 보호) ─────────────
-  // 기준 판독은 줄 이음의 개행·`2>&1`의 `&`에서 세그먼트를 끊고, 주석·`\X`·`$'…'`·제어 구문 머리·eval·timeout을
+  // 기준 판독은 `2>&1`의 `&`에서 세그먼트를 끊고, 주석·`\X`·`$'…'`·제어 구문 머리·eval·timeout을
   // 셸처럼 풀지 않는다. 그래서 아래 꼴은 옵션·목적지가 가려져 무출력이다. `master`로 가면 서버 보호가 거부하고,
   // 작업 브랜치의 강제 갱신은 그 브랜치 안의 감수 위험이다. 명시적 통과만 아니면 된다.
+  // 줄 이음 꼴은 M06 G5부터 읽는다 — 「줄 이음」 구획이 정확한 판정으로 고정한다.
   console.log('push 규칙 — 기준 판독이 못 읽는 꼴은 감수 (명시적 통과는 아니다)')
   for (const cmd of [
-    // 줄 이음 — 개행에서 세그먼트가 끊긴다
-    'git push \\\n  --force origin chore/x',
-    'git push \\\n  --force-with-lease origin chore/x',
-    'git push origin chore/x \\\n  -f',
-    'git push origin \\\n  +chore/x',
-    'git push\\\n --force',
-    'git push origin \\\n  --delete chore/x',
-    'git push \\\n --mirror',
-    'git push \\\n origin master',
     // 리다이렉트의 `&` — `2>&1`·`>&2`·`&>`에서 세그먼트가 끊긴다
     'git push origin chore/x 2>&1 --force',
     'git push 2>&1 -f origin chore/x',
@@ -516,8 +509,8 @@ try {
     'git switch -f>/dev/null master',
     'git switch --discard-changes>/dev/null master',
   ]) expectDeny(cmd)
-  // 기준 판독이 못 읽는 꼴(줄 이음·`2>&1` 뒤 옵션) — 로컬 편집 폐기는 로컬 감수 위험이다 (사용자 판정 2026-11-13)
-  for (const cmd of ['git switch \\\n  --discard-changes master', 'git switch master 2>&1 --discard-changes', 'git switch master 2>&1 -f']) {
+  // 기준 판독이 못 읽는 꼴(`2>&1` 뒤 옵션) — 로컬 편집 폐기는 로컬 감수 위험이다 (사용자 판정 2026-11-13). 줄 이음 꼴은 「줄 이음」 구획
+  for (const cmd of ['git switch master 2>&1 --discard-changes', 'git switch master 2>&1 -f']) {
     expectNoPass(cmd)
   }
   for (const cmd of ['git switch -c feature/new', 'git switch master', 'git switch -', 'git switch --detach HEAD~3', 'git switch --no-guess master']) {
@@ -536,7 +529,6 @@ try {
     'git fetch -u origin master:chore/x',
     'git fetch --update-head-ok origin +master:chore/m05-h1-push-server-guard',
   ]) expectAsk(cmd)
-  expectNoPass('git fetch origin \\\n  +master')   // 줄 이음 — 기준 판독이 못 읽는다 (감수)
   for (const cmd of ['git fetch', 'git fetch origin', 'git fetch --prune', 'git fetch --prune origin', 'git fetch origin master',
     'git fetch --prune --prune-tags origin', 'git fetch git@github.com:o/r.git', 'git fetch https://github.com/o/r.git chore/x', 'git fetch --all',
     // 리다이렉트·주석·옵션 값은 refspec이 아니다 (H1 3차 검수 중요 1 — 루프가 습관적으로 붙이는 꼴)
@@ -630,18 +622,12 @@ try {
     'echo \'{"enforce_admins":false}\' | gh api -X PUT repos/o/r/branches/master/protection --input -',
     'gh repo edit o/r --delete-branch-on-merge',
   ]) expectAsk(cmd)
-  // 기준 판독이 못 읽는 꼴 — 줄 이음(GitHub 문서의 표준 꼴)·`2>&1` 뒤 옵션. 서버 보호 설정 변경은 헌법상 사용자 전용이고,
+  // 기준 판독이 못 읽는 꼴 — `2>&1` 뒤 옵션·붙여 쓴 리다이렉트. 서버 보호 설정 변경은 헌법상 사용자 전용이고,
   // 루프는 보호 설정을 바꾸지 않는다. 가드가 못 읽는 꼴은 감수한다 (사용자 판정 2026-11-13).
+  // 줄 이음 꼴(GitHub 문서의 표준 꼴)은 M06 G5부터 읽는다 — 「줄 이음」 구획이 질의로 고정한다.
   for (const cmd of [
-    'gh api \\\n  --method PUT \\\n  -H "Accept: application/vnd.github+json" \\\n  /repos/o/r/branches/master/protection \\\n  --input -',
-    'gh api \\\n  --method DELETE \\\n  /repos/o/r/branches/master/protection',
-    'gh api \\\n  -X DELETE repos/o/r/branches/master/protection/enforce_admins',
-    'gh api\\\n -X DELETE repos/o/r/branches/master/protection',
     'gh api repos/o/r/git/refs/heads/x 2>&1 -X DELETE',
     'gh api repos/o/r/issues 2>&1 -f title=x',
-    'gh repo \\\n edit --visibility private',
-    'gh pr \\\n merge 12',
-    'gh pr merge\\\n 12 --squash',
     'gh pr merge>/dev/null 12',
   ]) expectNoPass(cmd)
   for (const cmd of [
@@ -667,6 +653,56 @@ try {
     'gh repo clone o/r',
     'echo gh api -X PUT repos/o/r/branches/master/protection',
     'git commit -m "gh api -X PUT protection 정리"',
+  ]) expectSilent(cmd)
+
+  // ── 줄 이음 (M06 G5 · Backlog 8) ─────────────────────────────────────────────────────
+  // 셸은 따옴표 밖과 큰따옴표 안의 `\`+개행을 지우고 앞뒤를 한 줄로 잇는다. 가드도 그렇게 읽어,
+  // 이어 쓴 명령은 이어 쓰지 않은 같은 명령과 판정이 같아야 한다. 판정 자체도 고정한다(질의·차단).
+  console.log('줄 이음 — `\\`+개행으로 이어 쓴 명령은 한 줄로 쓴 명령과 판정이 같다 (M06 G5)')
+  const joinContinuations = (cmd) => cmd.replace(/\\\r?\n/g, '')
+  const expectJoined = (cmd, want) => {
+    const joined = decision(joinContinuations(cmd))
+    const got = decision(cmd)
+    r.judge(`${label(cmd)} (한 줄 꼴 ${joined})`, got, want)
+    r.check(`${label(cmd)} → 한 줄 꼴과 같은 판정`, got === joined, `이어 쓴 꼴 ${got} · 한 줄 꼴 ${joined}`)
+  }
+  for (const cmd of [
+    'git -c user.name=a \\\n  -c user.email=b push origin HEAD:master',   // Backlog 8 원형
+    'git -c user.name=a \\\r\n  -c user.email=b push origin HEAD:master', // CRLF
+    'git push \\\n origin master',
+    'git push \\\r\n origin master',
+    'git push origin \\\n  --delete chore/x',
+    'git push \\\n --mirror',
+    'git fetch origin \\\n  +master',
+    'gh pr \\\n merge 12',
+    'gh pr merge\\\n 12 --squash',
+    'gh repo \\\n edit --visibility private',
+    'gh api \\\n  --method PUT \\\n  -H "Accept: application/vnd.github+json" \\\n  /repos/o/r/branches/master/protection \\\n  --input -',
+    'gh api \\\n  --method DELETE \\\n  /repos/o/r/branches/master/protection',
+    'gh api \\\n  -X DELETE repos/o/r/branches/master/protection/enforce_admins',
+    'gh api\\\n -X DELETE repos/o/r/branches/master/protection',
+  ]) expectJoined(cmd, 'ask')
+  for (const cmd of [
+    'git push \\\n  --force origin chore/x',
+    'git push \\\r\n  --force origin chore/x',
+    'git push \\\n  --force-with-lease origin chore/x',
+    'git push origin chore/x \\\n  -f',
+    'git push origin \\\n  +chore/x',
+    'git push\\\n --force',
+    'git switch \\\n  --discard-changes master',
+    'rm \\\n  -rf dist',
+    'git reset \\\n  --hard origin/master',
+    'git commit -m "msg \\\n more" && git push \\\n --force',
+  ]) expectJoined(cmd, 'deny')
+  // 줄 이음이 아닌 꼴 — `\\`는 이스케이프된 백슬래시라 뒤의 개행은 진짜 구분자다(셸과 같다).
+  expectDeny('echo foo\\\\\ngit push --force')
+  // 작은따옴표 안의 `\`+개행은 글자 그대로이고, 인용·heredoc 본문의 push 문장은 명령이 아니다.
+  for (const cmd of [
+    "git commit -m 'line one \\\ngit push --force origin master'",
+    "git commit -F - <<'EOF'\nfix: 설명 \\\ngit push --force origin master\nEOF",
+    'echo "git push \\\n --force"',
+    'git status \\\n  --short',
+    'git push \\\n origin chore/x',
   ]) expectSilent(cmd)
 
   // ── 기준 대비 회귀 방지 (M05 H1 2차 독립 검수 FAIL) ───────────────────────────────────

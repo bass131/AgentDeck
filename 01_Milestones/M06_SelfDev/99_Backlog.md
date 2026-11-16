@@ -10,3 +10,6 @@ M05에서 넘어온 항목은 `M05_Structure/99_Backlog.md`가 계속 소유합�
 5. 앱 안 에이전트가 마감 요약 스탬프에 주입된 세션 시작 시각을 써서, 장전 시각보다 이른 스탬프로 두 번 더 막혔다. 스탬프 지시에 「장전 시각 이후」를 명시하는 안이 있다 (G1 실측 2절).
 6. dev 실행본의 버전 표시는 `AgentDeck 0.1.0`, 빌드본은 `AgentDeck 42.4.1`이다 (G1 실측, 화면).
 7. `Conversation.tsx`와 `Shell.tsx`가 컴포넌트 아닌 export를 같이 내보내 Fast Refresh가 실패하고 갱신이 `AppGate.tsx`까지 올라간다 (G1 실측 5절 dev 로그).
+8. **위험 명령 가드가 `\` 줄 이음 여러 줄 명령을 놓친다.** `git -c … \⏎ -c … push … origin HEAD:master`를 `allow`(「차단 규칙 미발동」)로 판정해, SDK가 일반 질의(제안 포함)로 보내므로 앱 `자동`·`Bypass`에서 카드 없이 실행될 수 있다. 판정 장치(가드 훅) 수정이라 계획 Step이 필요하다 (G3 재실측 clone hook-log 14:00:20).
+9. G3 판별(「제안 없으면 카드」)은 문서에 없는 SDK 동작의 실측에 기댄다. SDK를 올릴 때마다 같은 블랙박스 실측을 다시 돌린다. 훅 응답 이벤트(`includeHookEvents`)에 가드의 `permissionDecision`·사유가 실려 오지만 tool_use id가 없어 지금은 쓰지 않았다 (G3 7단계).
+10. 앱이 사용자 userData의 활성 엔진 버전을 쓰면 번들 0.3.201이 아닌 SDK가 돈다(`main/10_Engine/engineVersions.ts`). G3 실측은 활성 엔진 없는 임시 userData 기준이다 (G3 검수 minor 5).

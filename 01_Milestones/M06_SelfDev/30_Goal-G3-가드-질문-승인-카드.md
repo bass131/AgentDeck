@@ -10,7 +10,7 @@ AgentDeck 앱 경유 세션에서, 저장소의 위험 명령 가드 훅이 `ask
 ## 범위
 
 - **만들 것**: 권한 콜백이 「가드가 물은 호출」을 알아보고 모드와 관계없이 카드로 보내는 처리. 그런 카드는 Bash 명령을 자르지 않고(긴 명령은 접기·펼치기) 가드 사유를 함께 보이며, 「항상 허용」을 내지 않는다(도구 이름 단위로 Bash 전체를 여는 규칙이 가드 질문까지 덮지 않게). 각각의 단위 테스트를 먼저 쓴다.
-- **건드릴 곳**: `02_Project/00_Source/main/04_Claude/permission/permissionCoordinator.ts`와 같은 권한 경로의 이벤트 타입(`shared/` 권한 요청 이벤트), 승인 카드 컴포넌트(`renderer/src/03_Agent/` 쪽 카드), 그 테스트(`02_Project/01_TestCode/`). 실측으로 필요가 확인되면 `main/04_Claude/sdkOptions.ts`·`run/claudeAgentRun.ts`의 권한 배선. 사용자 결정으로 루트 `vitest.config.ts`의 `testTimeout: 30000` 한 줄(M05 Backlog 57).
+- **건드릴 곳**: `02_Project/00_Source/main/04_Claude/permission/permissionCoordinator.ts`와 같은 권한 경로의 이벤트 타입(`shared/` 권한 요청 이벤트), 승인 카드 컴포넌트(`renderer/src/03_Agent/` 쪽 카드), 그 테스트(`02_Project/01_TestCode/`). 실측으로 필요가 확인되면 `main/04_Claude/sdkOptions.ts`·`run/claudeAgentRun.ts`의 권한 배선. 사용자 결정으로 루트 `vitest.config.ts`의 `testTimeout: 30000` 한 줄(M05 Backlog 57). 사유·표지를 카드까지 나르는 렌더러 reducer 배선(`05_Conversation/state/reducer/`의 `types.ts`·`permission.ts`)과, 제안 없는 일반 질의를 쓰던 기존 권한 테스트 픽스처.
 - **하지 않을 것**: 가드 훅·`.claude/settings.json` 등 판정 장치 변경, 권한 모드 기본값 변경, 시작·실행 중 모드 매핑의 의미 정리(M05 Backlog 3), Bypass 실행 중 전환의 표시 어긋남, 카드 시각 디자인 개편, PR 60 병합(사용자가 픽스 뒤로 미뤘다).
 - **완료조건**
   - G1 보고서 3절의 사례(단일·멀티 × `일반`·`자동`·`Bypass` × 새로 시작·턴 사이·턴 안, 그리고 긴 명령)를 같은 방법(독립 clone + 로컬 bare origin + 임시 userData)으로 다시 돌려, 가드 `ask` 줄이 있는 모든 사례에서 카드가 뜨고 거부하면 bare 저장소에 `master`가 생기지 않는다.
@@ -49,7 +49,14 @@ DoD
 
 검증 기록
 
+- PASS 2026-11-16T14:21:09+09:00 2단계 — 저장소 밖 스크립트로 SDK 0.3.201 `query()`를 독립 clone에서 돌렸다(모두 거부하는 콜백). `git push origin HEAD:master` 가드 ask는 `default`·`acceptEdits`·`bypassPermissions`·실행 중 `auto`(sonnet) 모두 콜백에 왔고 `decisionReason`이 가드 사유 원문, `suggestions`는 없었다. 일반 질의는 `suggestions`(addRules 등)가 붙었고, `bypassPermissions`의 `mkdir`은 콜백 없이 실행됐다. (이 단계 기록에서 SDK 번들 내부를 읽어 얻은 서술은 근거에서 뺐다 — 사용자 금지 2026-11-16.)
+- PASS 2026-11-16T14:21:09+09:00 3단계 — 테스트 세 파일을 먼저 썼고 Red 15건(코디네이터 10, reducer 1, 카드 4)을 확인했다. 바뀌지 않아야 할 동작 10건은 처음부터 통과했다.
+- PASS 2026-11-16T14:21:09+09:00 4단계 — 첫 판별(사유 있음 + 제안 없음)이 모드·READONLY 분기보다 먼저 카드로 보내고, 그런 카드의 요약은 명령 전문이며 allow_always에도 addRules를 내지 않는다(커밋 2e8740ee). 판별 자체는 7단계 FAIL 뒤 「제안 없음」으로 바뀌었다(아래).
+- PASS 2026-11-16T14:21:09+09:00 5단계 — 카드가 사유와 명령 전문을 보이고 긴 명령은 접기·펼치기, 선택지는 허용·거부 둘이다(커밋 bb3a237f).
+- PASS 2026-11-16T14:21:09+09:00 6단계 — 고친 빌드(bb3a237f)를 독립 clone + 로컬 bare + 임시 userData로 띄워 단일 10건·멀티 9건(일반·자동·Bypass × 새로 시작·턴 사이·턴 안, 긴 명령)을 돌렸다. cmd-guard `ask` 19줄 모두에 카드가 떴고 innerText에 사유 원문·`HEAD:master`가 있었으며 「항상 허용」은 0건이다. 거부 뒤 bare ref는 끝까지 작업 브랜치 하나다. `git status`는 자동·Bypass 단일·멀티 넷 모두 카드 없이 실행됐다.
+- PASS 2026-11-16T14:21:09+09:00 범위 추가(사용자 결정) — `vitest.config.ts`에 `testTimeout: 30000`을 넣고 `smoke.test.ts`에 그 값을 고정하는 테스트를 더했다(커밋 833baf30).
 - FAIL 2026-11-16T13:32:53+09:00 7단계 — 구현 문맥 없는 검수자 판정 FAIL, 블로커 1건: 실측 근거가 settings의 allow 규칙에 걸리는 `git push origin HEAD:master` 한 꼴뿐이고, settings의 ask 규칙과 겹치는 가드 질문(`gh pr merge`·`gh release`·`npm publish`·`npm run package`)은 콜백에 사유가 오는지 확인되지 않았다. 판별이 사유 없음에서 허용으로 떨어져(fail-open) 그 경우 `자동`·`Bypass`에서 카드 없이 실행될 수 있다. 시도한 것: 단위 테스트 38건·권한 관련 86건 통과, 실제 앱 push 19사례. 다음 시도: `gh release --help`·`npm publish --help`를 블랙박스로 재고, 결과와 무관하게 사유 없음을 허용으로 떨어뜨리지 않는 판별을 검토한다. minor 6건(접힘 단언 공백, 접힌 채 허용, 비가드 사유의 「가드 사유」 라벨, 엔진 버전 차이, 내용 없는 단언, 범위 문구 밖 reducer 배선 2파일)은 함께 본다. 검수자는 금지 통지 전에 SDK 번들 내부를 읽었다고 밝혔고, 판정에는 그 내용을 쓰지 않았다.
+- PASS 2026-11-16T14:21:09+09:00 7단계 블로커 수정 — 블랙박스 실측(SDK 0.3.201, 공개 타입과 반환값만, 내부 미열람)에서 settings ask 규칙과 겹치는 가드 질문 `gh release --help`·`npm publish --help`는 네 모드 모두 콜백에 `decisionReason`도 `suggestions`도 없이 왔다 — 블로커 실재 확인. 일반 질의(Bash·Write·Read·WebFetch·WebSearch)는 콜백에 올 때 늘 제안 1개 이상이었다. 판별을 「제안이 비어 있지 않은 배열이 아니면 모드 무관 카드」로 바꾸고(커밋 1d3bb9e2), 라벨은 중립 「확인이 필요한 이유」, 사유 없을 때 대체 문구, 접힌 긴 명령은 펼치기 전 허용 잠금(71e2d33a·5d8cfdf9). 실제 앱 재측정: 자동·Bypass `gh release`와 자동 push·220자 push 카드 뜸·거부·bare `master` 없음, `git status`·`git config`는 카드 없이 실행. 메인 세션 `npm run test` 431 통과·6 건너뜀, 5827건 통과·실패 0, 하드 게이트 다섯 종 exit 0. 독립 재검수는 아직이다.
 
 ## 결정 대장
 

@@ -17,7 +17,9 @@ import type {
   AgentEventPayload,
   PermissionResponse,
   QuestionResponse,
+  ModelListResponse,
 } from '@shared/ipcContract'
+import { FALLBACK_MODELS } from '@shared/03_Agent/models/knownModels'
 import type { RunManager } from '@main/03_Agent/agentRuns'
 import { normalizeSystemPrompt } from '../normalize'
 import { handle } from '../handle'
@@ -28,10 +30,17 @@ import { LIVE_MODE_WHITELIST } from '@main/04_Claude/permissionModes'
 export interface AgentHandlerDeps {
   state: { win: BrowserWindow | null }
   runManager: RunManager
+  // 모델 목록 공급자 (M06 G4) — 없으면 최소 목록을 builtin으로 준다.
+  getModelList?: () => Promise<ModelListResponse>
 }
 
 export function registerAgentHandlers(deps: AgentHandlerDeps): void {
   const { state, runManager } = deps
+
+  handle(IPC_CHANNELS.AGENT_LIST_MODELS, async (): Promise<ModelListResponse> => {
+    if (deps.getModelList) return deps.getModelList()
+    return { models: [...FALLBACK_MODELS], source: 'builtin' }
+  })
 
   handle(IPC_CHANNELS.AGENT_RUN, async (_e, req: AgentRunRequest): Promise<AgentRunResponse> => {
     if (!Array.isArray(req?.messages)) {

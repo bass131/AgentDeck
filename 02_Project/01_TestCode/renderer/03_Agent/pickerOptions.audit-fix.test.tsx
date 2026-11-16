@@ -32,48 +32,45 @@ const mockApi = {
 Object.defineProperty(window, 'api', { value: adaptFlatApi(mockApi), writable: true, configurable: true })
 
 describe('pickerOptions — 공유 옵션 모듈 (N1~N5)', () => {
-  it('모듈이 존재하고 MODELS/EFFORTS/MODES를 export한다', async () => {
+  it('모듈이 존재하고 modelOptionsFor/EFFORTS/MODES를 export한다', async () => {
     const mod = await import('@renderer/03_Agent/pickerOptions')
-    expect(mod.MODELS).toBeDefined()
+    expect(mod.modelOptionsFor).toBeTypeOf('function')
     expect(mod.EFFORTS).toBeDefined()
     expect(mod.MODES).toBeDefined()
   })
 
-  it('MODELS가 full ID 어휘를 담는다 (짧은 별칭 아님)', async () => {
-    const { MODELS } = await import('@renderer/03_Agent/pickerOptions')
-    const ids = MODELS.map((m) => m.id)
-    expect(ids).toContain('claude-opus-5')
-    expect(ids).toContain('claude-fable-5')
-    expect(ids).toContain('claude-sonnet-5')
-    expect(ids).toContain('claude-haiku-4-5')
+  // M06 G4: 모델 옵션은 손 표가 아니라 목록(최소 목록 또는 SDK 목록)에서 그린다.
+  it('최소 목록 옵션은 정식 ID(짧은 별칭 아님)다', async () => {
+    const { modelOptionsFor } = await import('@renderer/03_Agent/pickerOptions')
+    const { FALLBACK_MODELS } = await import('@shared/03_Agent/models/knownModels')
+    const ids = modelOptionsFor(FALLBACK_MODELS).map((m) => m.id)
+    for (const id of ids) expect(id).toMatch(/^claude-[a-z]+-\d+(?:-\d+)?$/)
+    expect(ids).toHaveLength(4)
   })
 
-  it('라벨은 패밀리명 + 버전이고 패밀리별 색이 유지된다', async () => {
-    const { MODELS } = await import('@renderer/03_Agent/pickerOptions')
-    const expected: Record<string, { label: string; color: RegExp }> = {
-      'claude-opus-5': { label: 'Opus 5', color: /violet/ },
-      'claude-fable-5': { label: 'Fable 5', color: /gold/ },
-      'claude-sonnet-5': { label: 'Sonnet 5', color: /blue/ },
-      'claude-haiku-4-5': { label: 'Haiku 4.5', color: /teal/ }
-    }
-    for (const [id, want] of Object.entries(expected)) {
-      const row = MODELS.find((m) => m.id === id)
-      expect(row, id).toBeDefined()
-      expect(row!.label, id).toBe(want.label)
-      expect(row!.color, id).toMatch(want.color)
+  it('라벨은 목록의 displayName이고 패밀리별 색이 유지된다', async () => {
+    const { modelOptionsFor } = await import('@renderer/03_Agent/pickerOptions')
+    const { FALLBACK_MODELS } = await import('@shared/03_Agent/models/knownModels')
+    const colors: Record<string, RegExp> = { Opus: /violet/, Fable: /gold/, Sonnet: /blue/, Haiku: /teal/ }
+    for (const row of modelOptionsFor(FALLBACK_MODELS)) {
+      const family = row.label.split(' ')[0]
+      expect(row.label, row.id).toMatch(/^[A-Z][a-z]+ \d+(?:\.\d+)?$/)
+      expect(row.color, row.id).toMatch(colors[family])
     }
   })
 
-  it('EFFORTS는 최대(max)/매우 높음(xhigh)/높음(high)/보통(medium)/낮음(low)/최소(minimal) 6개', async () => {
+  it('EFFORTS는 최대(max)/매우 높음(xhigh)/높음(high)/보통(medium)/낮음(low) 5개 — 「최소」는 뺐다(M06 G4)', async () => {
     const { EFFORTS } = await import('@renderer/03_Agent/pickerOptions')
     const ids = EFFORTS.map((e) => e.id)
-    expect(ids).toContain('max')
-    expect(ids).toContain('xhigh')
-    expect(ids).toContain('high')
-    expect(ids).toContain('medium')
-    expect(ids).toContain('low')
-    expect(ids).toContain('minimal')
-    expect(EFFORTS.length).toBe(6)
+    expect(ids).toEqual(['max', 'xhigh', 'high', 'medium', 'low'])
+    expect(ids as string[]).not.toContain('minimal')
+  })
+
+  it('멀티 패널 기본값도 같은 기본 모델이고, 옛 손 표 재수출(MODEL_OPTIONS)이 없다 (M06 G4)', async () => {
+    const mod = await import('@renderer/03_Agent/multiAgentDefaults')
+    const { DEFAULT_MODEL_ID } = await import('@shared/03_Agent/models/knownModels')
+    expect(mod.DEFAULT_PICKER.model).toBe(DEFAULT_MODEL_ID)
+    expect('MODEL_OPTIONS' in mod).toBe(false)
   })
 
   it('EFFORTS max.label="최대", xhigh.label="매우 높음" (N3 수정)', async () => {
@@ -111,7 +108,7 @@ describe('pickerOptions — 공유 옵션 모듈 (N1~N5)', () => {
 
   it('DEFAULT_MODEL/DEFAULT_EFFORT/DEFAULT_MODE 상수 export', async () => {
     const mod = await import('@renderer/03_Agent/pickerOptions')
-    expect(mod.DEFAULT_MODEL).toBe('claude-opus-5')
+    expect(mod.DEFAULT_MODEL).toBe('claude-opus-5-5')
     expect(mod.DEFAULT_EFFORT).toBe('max')
     // G9c: 단일·멀티 이름을 대화·패널 이름으로 바꿨고 값(P4)은 그대로다.
     expect(mod.DEFAULT_MODE_CONVERSATION).toBe('auto')
@@ -142,7 +139,7 @@ describe('MultiWorkspace — RunPickers caption "Effort" (N2)', () => {
 })
 
 describe('Composer — 피커 옵션 pickerOptions import (N3, N4)', () => {
-  it('Composer에서 Fable 5 모델 옵션이 렌더된다', async () => {
+  it('Composer에서 최소 목록 네 모델 옵션이 렌더된다(SDK 목록이 오기 전)', async () => {
     const { Composer } = await import('@renderer/05_Conversation/Composer')
     const { container } = render(
       <Composer value="" onChange={vi.fn()} onSend={vi.fn()} onAbort={vi.fn()} isRunning={false} />
@@ -153,10 +150,10 @@ describe('Composer — 피커 옵션 pickerOptions import (N3, N4)', () => {
     expect(modelBtn).toBeTruthy()
     act(() => { modelBtn!.click() })
     const menuItems = Array.from(container.querySelectorAll('.po-main')).map((el) => el.textContent)
-    expect(menuItems).toContain('Fable 5')
-    expect(menuItems).toContain('Opus 5')
-    expect(menuItems).toContain('Sonnet 5')
-    expect(menuItems).toContain('Haiku 4.5')
+    expect(menuItems).toContain('Fable 5.2')
+    expect(menuItems).toContain('Opus 5.5')
+    expect(menuItems).toContain('Sonnet 5.5')
+    expect(menuItems).toContain('Haiku 5.5')
   })
 
   it('Composer에서 매우 높음(xhigh) effort 옵션이 존재한다', async () => {
@@ -174,13 +171,13 @@ describe('Composer — 피커 옵션 pickerOptions import (N3, N4)', () => {
     expect(menuItems).toContain('최대')
   })
 
-  it('Composer 기본 model=Opus 5 → pick-val에 "Opus 5" 표시', async () => {
+  it('Composer 기본 model=Opus 5.5 → pick-val에 "Opus 5.5" 표시', async () => {
     const { Composer } = await import('@renderer/05_Conversation/Composer')
     const { container } = render(
       <Composer value="" onChange={vi.fn()} onSend={vi.fn()} onAbort={vi.fn()} isRunning={false} />
     )
     const vals = Array.from(container.querySelectorAll('.pick-val')).map((el) => el.textContent)
-    expect(vals).toContain('Opus 5')
+    expect(vals).toContain('Opus 5.5')
   })
 
   it('Composer 기본 effort=max → pick-val에 "최대" 표시', async () => {
@@ -254,14 +251,14 @@ describe('MultiWorkspace — 컨텍스트 1M 표시 (N6)', () => {
 })
 
 describe('MultiWorkspace — 기본 picker 값 (N6)', () => {
-  it('멀티 패널 기본 model → "Opus 5" 표시', async () => {
+  it('멀티 패널 기본 model → "Opus 5.5" 표시', async () => {
     const { useAppStore } = await import('@renderer/00_App/appStore')
     useAppStore.setState({ workspaceMode: 'single' })
     const { MultiWorkspace } = await import('@renderer/12_Window/MultiWorkspace')
     const { container } = render(<MultiWorkspace />)
     const panel = container.querySelector('.ma-panel:not(.ma-placeholder)') as HTMLElement
     const vals = Array.from(panel.querySelectorAll('.pick-val')).map((el) => el.textContent)
-    expect(vals).toContain('Opus 5')
+    expect(vals).toContain('Opus 5.5')
   })
 
   it('멀티 패널 기본 effort → "최대" 표시', async () => {

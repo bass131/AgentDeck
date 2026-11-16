@@ -1,5 +1,4 @@
 import type { AgentEvent } from '../agentEvents'
-import type { KnownModel } from './models/knownModels'
 import type { Ack, BackendId } from '../02_Common/common'
 
 export const AGENT_CHANNELS = {
@@ -9,6 +8,7 @@ export const AGENT_CHANNELS = {
   AGENT_TASK_STOP: 'agent.taskStop',
   AGENT_SET_MODE: 'agent.setMode',
   AGENT_SET_MODEL: 'agent.setModel',
+  AGENT_LIST_MODELS: 'agent.listModels',
   AGENT_EVENT: 'agent.event',
   PERMISSION_RESPOND: 'agent.permissionRespond',
   QUESTION_RESPOND: 'agent.questionRespond',
@@ -35,15 +35,12 @@ export interface AgentRunRequest {
   sessionKey?: string
 }
 
-export const MODEL_CONTEXT_WINDOW: Record<KnownModel, number> = {
-  'claude-opus-5': 1_000_000,
-  'claude-opus-4-8': 1_000_000,
-  'claude-fable-5': 1_000_000,
-  'claude-sonnet-5': 1_000_000,
-  'claude-haiku-4-5': 200_000
-}
-
+// 첫 턴 전의 컨텍스트 창 기본값 하나 (M06 G4) — 턴이 끝나면 결과의 modelUsage.contextWindow가 대신한다.
+// 모델별 손 표는 두지 않는다.
 export const DEFAULT_CONTEXT_WINDOW = 1_000_000
+
+// agent.listModels 응답 — main 공급자가 SDK 목록·캐시·최소 목록 가운데 하나를 준다.
+export type { ModelRow, ModelListResponse, ModelListSource } from './models/modelList'
 
 export interface AgentRunResponse {
   runId: string

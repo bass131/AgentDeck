@@ -147,9 +147,10 @@ function routeCases(): void {
 void routeCases
 
 describe('M05 G10 — IPC 채널 타입 맵', () => {
-  it('채널 수는 재실측 기준에서 미사용 3개를 뺀 수다 (invoke 70-3=67 + push 3)', () => {
-    expect(Object.values(IPC_CHANNELS)).toHaveLength(70)
-    expect(new Set(Object.values(IPC_CHANNELS)).size).toBe(70)
+  // M06 G4: 70 → 71. 모델 목록 채널 agent.listModels(invoke)를 더했다.
+  it('채널 수는 재실측 기준에서 미사용 3개를 빼고 M06 G4의 agent.listModels를 더한 수다 (invoke 67+1=68 + push 3)', () => {
+    expect(Object.values(IPC_CHANNELS)).toHaveLength(71)
+    expect(new Set(Object.values(IPC_CHANNELS)).size).toBe(71)
     const values = Object.values(IPC_CHANNELS) as string[]
     for (const gone of ['window.getBounds', 'window.setBounds', 'engine.versionState']) expect(values).not.toContain(gone)
   })

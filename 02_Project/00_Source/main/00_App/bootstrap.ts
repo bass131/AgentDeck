@@ -19,6 +19,7 @@ import {
   getSkillsStore,
   getMcpStore,
   getCommandsStore,
+  getModelListProvider,
 } from './context'
 
 // main 프로세스의 조립 지점 (M05 G11) — 객체 생성과 배선은 여기서 한 번 일어난다.
@@ -67,6 +68,7 @@ export function attachWindow(win: BrowserWindow): void {
     getPrefsStore,
     getProfileStore,
     getMultiStorePath: () => ipcState.multiStorePath,
+    getModelList: () => getModelListProvider().load(),
   })
 }
 

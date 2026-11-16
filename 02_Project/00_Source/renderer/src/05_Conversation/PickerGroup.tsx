@@ -1,6 +1,7 @@
-import { memo, type JSX } from 'react'
+import { memo, useMemo, type JSX } from 'react'
 import { IconCode, IconTerminal } from '@renderer/02_Common/icons'
-import { MODELS, MODES, effortPickerFor } from '@renderer/03_Agent/pickerOptions'
+import { MODES, effortPickerFor, modelOptionsFor, pickerModelValue } from '@renderer/03_Agent/pickerOptions'
+import { useAppStore, selectModelRows } from '@renderer/00_App/appStore'
 import { Picker } from './ComposerPicker'
 
 // 선택기 묶음 하나(M05 G9b P1·P2) — 단일 입력창 바와 멀티 패널이 같은 묶음을 쓴다.
@@ -32,7 +33,11 @@ function PickerGroupInner({
   setReplMode,
   replLit,
 }: PickerGroupProps): JSX.Element {
-  const effortPicker = effortPickerFor(model, effort)
+  // 모델 목록은 main이 준 SDK 목록이다(M06 G4) — 오기 전에는 store 기본값인 최소 목록이다.
+  const modelRows = useAppStore(selectModelRows)
+  const modelOptions = useMemo(() => modelOptionsFor(modelRows, model), [modelRows, model])
+  const modelValue = pickerModelValue(modelRows, model)
+  const effortPicker = effortPickerFor(model, effort, modelRows)
   const effortTitle = effortPicker.disabled
     ? '이 모델은 effort를 지원하지 않아요'
     : 'Effort는 새 대화(세션)부터 적용됩니다'
@@ -45,8 +50,8 @@ function PickerGroupInner({
       <Picker
         ariaLabel="모델 선택"
         caption="모델"
-        options={MODELS}
-        value={model}
+        options={modelOptions}
+        value={modelValue}
         onChange={setModel}
         dots
         title="모델 변경은 진행 중 REPL 세션에 즉시 적용됩니다 (단발 모드는 새 대화부터)"

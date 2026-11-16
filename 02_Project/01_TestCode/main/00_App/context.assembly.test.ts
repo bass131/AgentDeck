@@ -248,6 +248,17 @@ describe('기동·종료 배선 — 00_App/bootstrap 한 곳 (M05 G11 4단계)',
     expect(listSkills).toHaveBeenCalledWith(fwd(h.userData))
   })
 
+  // M06 G4: 모델 목록 공급자도 조립 지점이 만든다. 첫 요청(앱 시작 때 renderer)에서 SDK에 묻고,
+  // 엔진이 supportedModels()를 내지 않으면(이 파일의 가짜 질의) 최소 목록으로 뜬다 — 캐시는 쓰지 않는다.
+  it('agent.listModels가 배선되고, 목록을 못 받으면 최소 목록(builtin)을 준다', async () => {
+    const list = h.handlers.get(IPC_CHANNELS.AGENT_LIST_MODELS)
+    if (!list) throw new Error('앞 사례가 핸들러를 등록해야 한다')
+    const res = (await list({})) as { source: string; models: unknown[] }
+    expect(res.source).toBe('builtin')
+    expect(res.models.length).toBe(4)
+    expect(fs.existsSync(path.join(h.userData, 'model-list.json'))).toBe(false)
+  })
+
   it('stopApp은 실행을 모두 닫고 쥔 대화 저장소를 닫는다', () => {
     startApp()
     const s = h.conversationStores.at(-1)!

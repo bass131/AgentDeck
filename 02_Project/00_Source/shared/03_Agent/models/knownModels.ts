@@ -1,36 +1,26 @@
-export const PICKER_MODELS = [
-  'claude-opus-5',
-  'claude-fable-5',
-  'claude-sonnet-5',
-  'claude-haiku-4-5'
-] as const
+import { EFFORT_LEVELS } from './modelEffort'
+import type { ModelRow } from './modelList'
 
-export const KNOWN_MODELS = [
-  ...PICKER_MODELS,
-  'claude-opus-4-8'
-] as const
+// 최소 목록 (M06 G4) — SDK가 목록을 못 주고 캐시도 없을 때만 쓰는 마지막 폴백이다.
+// 소스에서 모델 ID를 손으로 적는 곳은 여기 한 곳뿐이다. 평소 목록은 SDK `supportedModels()`가 준다.
+// 값은 SDK 0.3.325의 별칭 행이 풀린 최신 네 모델이다(goal 검증 기록 3단계).
+export const FALLBACK_MODELS: readonly ModelRow[] = [
+  { value: 'claude-opus-5-5', displayName: 'Opus 5.5', description: '코딩·에이전트 최상위 · 복잡한 작업', supportedEffortLevels: [...EFFORT_LEVELS] },
+  { value: 'claude-fable-5-2', displayName: 'Fable 5.2', description: '가장 어렵고 오래 걸리는 작업', supportedEffortLevels: [...EFFORT_LEVELS] },
+  { value: 'claude-sonnet-5-5', displayName: 'Sonnet 5.5', description: '균형 · 일상 작업', supportedEffortLevels: [...EFFORT_LEVELS] },
+  { value: 'claude-haiku-5-5', displayName: 'Haiku 5.5', description: '빠른 응답 · 가벼운 질문', supportedEffortLevels: [...EFFORT_LEVELS] },
+]
 
-export type KnownModel = (typeof KNOWN_MODELS)[number]
+export const DEFAULT_MODEL_ID: string = FALLBACK_MODELS[0].value
 
-export type PickerModel = (typeof PICKER_MODELS)[number]
+// `claude-<이름>(-<마디>)*`에 선택적 「[…]」 표기 — 목록에 아직 없는 새 ID도 통과한다.
+const MODEL_ID_SHAPE = /^claude(?:-[a-z0-9]+)+(?:\[[a-z0-9]+\])?$/
+const MAX_MODEL_ID_LENGTH = 128
 
-export const LEGACY_ALIASES: Readonly<Record<string, KnownModel>> = {
-  opus: 'claude-opus-4-8',
-  fable: 'claude-fable-5',
-  sonnet: 'claude-sonnet-5',
-  haiku: 'claude-haiku-4-5'
-}
-
-function stripWireSuffixes(value: string): string {
-  return value.replace(/\[[^\]]*\]$/, '').replace(/-\d{8}$/, '')
-}
-
-export function normalizeModel(value: string | undefined): KnownModel | undefined {
-  if (value === undefined) return undefined
-  if ((KNOWN_MODELS as readonly string[]).includes(value)) return value as KnownModel
-
-  const stripped = stripWireSuffixes(value)
-  if ((KNOWN_MODELS as readonly string[]).includes(stripped)) return stripped as KnownModel
-
-  return LEGACY_ALIASES[value]
+// 신뢰 밖 문자열(IPC 요청·저장된 대화)을 SDK에 넘겨도 되는 모델 값인지 본다. 표 대조가 아니라 꼴 검사다.
+// 짧은 별칭(value가 `claude-`로 시작하지 않는 행)은 지금 목록에 있을 때만 받는다. 값을 바꾸지 않는다.
+export function normalizeModel(value: unknown, rows: readonly ModelRow[] = FALLBACK_MODELS): string | undefined {
+  if (typeof value !== 'string' || value.length === 0 || value.length > MAX_MODEL_ID_LENGTH) return undefined
+  if (MODEL_ID_SHAPE.test(value)) return value
+  return rows.some((r) => r.value === value) ? value : undefined
 }

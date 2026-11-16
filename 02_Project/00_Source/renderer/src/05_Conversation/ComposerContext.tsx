@@ -11,13 +11,13 @@ interface ContextStripProps {
   usage?: UsageInfo
 }
 
+// selectedModel은 받기만 한다 — 계기 창은 모델이 아니라 턴 결과의 contextWindow에서 온다 (M06 G4).
 export const ContextStrip = memo(function ContextStrip({
   lastUsage,
-  selectedModel,
   lastContextWindow,
   usage,
 }: ContextStripProps): JSX.Element {
-  const gauge = calcGauge(lastUsage, selectedModel, lastContextWindow)
+  const gauge = calcGauge(lastUsage, lastContextWindow)
 
   const effectiveUsage: UsageInfo = usage ?? { fiveHour: null, weekly: null }
   const chips = buildChips(gauge, effectiveUsage)

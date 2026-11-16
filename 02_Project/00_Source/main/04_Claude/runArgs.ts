@@ -1,56 +1,47 @@
 import {
-  MODEL_EFFORT_LEVELS,
-  EFFORT_LEVELS,
+  DEFAULT_EFFORT_LEVEL,
   clampEffort,
-  supportsEffort,
+  isEffortLevel,
   type EffortLevel
 } from '@shared/03_Agent/models/modelEffort'
-import { normalizeModel, type KnownModel } from '@shared/03_Agent/models/knownModels'
+import { normalizeModel } from '@shared/03_Agent/models/knownModels'
+import { findModelRow, type ModelRow } from '@shared/03_Agent/models/modelList'
 import { START_MODE_TO_SDK } from './permissionModes'
-
-type ReasoningPatch =
-  | { effort: EffortLevel; thinking?: never }
-  | { thinking: { type: 'disabled' }; effort?: never }
-  | Record<string, never>
+import { currentModelRows } from './modelListProvider'
 
 export interface QueryOptionsPatch {
   model?: string
   permissionMode?: string
   effort?: EffortLevel
-  thinking?: { type: 'disabled' }
 }
 
-function reasoningPatch(effort: string, model: KnownModel | undefined): ReasoningPatch {
-  if (model !== undefined && !supportsEffort(model)) return {}
-
-  if (effort === 'minimal') {
-    if (model === 'claude-fable-5') return {}
-    return { thinking: { type: 'disabled' } }
-  }
-
-  if (!(EFFORT_LEVELS as readonly string[]).includes(effort)) return {}
-  const requested = effort as EffortLevel
-
-  if (model === undefined) return { effort: requested }
-
-  const clamped = clampEffort(model, requested)
-  return clamped === undefined ? {} : { effort: clamped }
+// effort는 SDK 목록 행의 supportedEffortLevels 안으로만 보낸다 (M06 G4).
+// 단계가 아닌 저장값(옛 「최소」 등)은 기본 단계로 본다 — 선택기가 보여 주는 값과 같다. 사고 끄기 경로는 없다.
+// 모델이 목록 어느 행과도 맞지 않으면 effort를 붙이지 않는다(받는지 모르는 값을 보내지 않는다).
+function reasoningEffort(effort: string, model: string | undefined, rows: readonly ModelRow[]): EffortLevel | undefined {
+  const requested: EffortLevel = isEffortLevel(effort) ? effort : DEFAULT_EFFORT_LEVEL
+  if (model === undefined) return requested
+  const row = findModelRow(rows, model)
+  if (row === undefined) return undefined
+  return clampEffort(row.supportedEffortLevels, requested)
 }
 
-export function buildQueryOptions(opts: {
-  model?: string
-  effort?: string
-  mode?: string
-}): QueryOptionsPatch {
+export function buildQueryOptions(
+  opts: {
+    model?: string
+    effort?: string
+    mode?: string
+  },
+  rows: readonly ModelRow[] = currentModelRows()
+): QueryOptionsPatch {
   const result: QueryOptionsPatch = {}
 
-  const model = normalizeModel(opts.model)
+  const model = normalizeModel(opts.model, rows)
   if (model !== undefined) result.model = model
 
   if (opts.effort !== undefined) {
-    const patch = reasoningPatch(opts.effort, model)
-    if ('effort' in patch && patch.effort !== undefined) result.effort = patch.effort
-    if ('thinking' in patch && patch.thinking !== undefined) result.thinking = patch.thinking
+    const effort = reasoningEffort(opts.effort, model, rows)
+    if (effort !== undefined) result.effort = effort
   }
 
   if (opts.mode !== undefined) {
@@ -61,16 +52,20 @@ export function buildQueryOptions(opts: {
   return result
 }
 
-export function resolveSetModelRequest(req: {
-  runId?: unknown
-  model?: unknown
-}): { runId: string; model: KnownModel } | null {
+export function resolveSetModelRequest(
+  req: {
+    runId?: unknown
+    model?: unknown
+  },
+  rows: readonly ModelRow[] = currentModelRows()
+): { runId: string; model: string } | null {
   if (!req?.runId || typeof req.runId !== 'string' || req.runId.trim() === '') return null
-  const model = typeof req.model === 'string' ? normalizeModel(req.model) : undefined
+  const model = normalizeModel(req.model, rows)
   if (model === undefined) return null
   return { runId: req.runId, model }
 }
 
-export { MODEL_EFFORT_LEVELS, normalizeModel }
-export { KNOWN_MODELS, PICKER_MODELS } from '@shared/03_Agent/models/knownModels'
-export type { KnownModel } from '@shared/03_Agent/models/knownModels'
+// 실행 중 run이 쓰는 모델 값 검사 — main의 현재 목록 기준이다.
+export function normalizeRunModel(value: unknown): string | undefined {
+  return normalizeModel(value, currentModelRows())
+}

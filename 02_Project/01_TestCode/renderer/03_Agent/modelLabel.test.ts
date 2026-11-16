@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest'
-import { modelLabel, modelFamilyColor, isBareModelAlias } from '@renderer/03_Agent/modelLabel'
-import { KNOWN_MODELS } from '@shared/03_Agent/models/knownModels'
-import { MODELS } from '@renderer/03_Agent/pickerOptions'
+import { modelLabel, modelFamilyColor, isBareModelAlias, MODEL_FAMILY_COLORS } from '@renderer/03_Agent/modelLabel'
+import { FALLBACK_MODELS } from '@shared/03_Agent/models/knownModels'
+import { modelOptionsFor } from '@renderer/03_Agent/pickerOptions'
+import { SDK_MODEL_ROWS } from '../../shared/00_Helpers/sdkModelRows'
 
 describe('ML1 — 알려진 모델 ID → 표시명', () => {
   it('claude-opus-4-8 → Opus 4.8', () => {
@@ -97,9 +98,10 @@ describe('ML6 — modelFamilyColor: 패밀리 정체성 색(신규 색 0, picker
   })
 })
 
-describe('ML7 — 패밀리 목록은 어휘(KNOWN_MODELS)에서 파생된다', () => {
-  it('어휘의 모든 모델이 라벨로 변환된다', () => {
-    for (const id of KNOWN_MODELS) {
+// M06 G4: 모델 ID 손 표(KNOWN_MODELS·MODELS)를 지웠다. 패밀리는 색 표(MODEL_FAMILY_COLORS)의 키에서 온다.
+describe('ML7 — 패밀리 목록은 색 표에서 파생된다', () => {
+  it('최소 목록과 SDK 실측 목록의 모든 모델이 라벨로 변환된다', () => {
+    for (const id of [...FALLBACK_MODELS.map((r) => r.value), ...SDK_MODEL_ROWS.map((r) => r.resolvedModel ?? r.value)]) {
       const label = modelLabel(id)
       expect(label, id).toBeDefined()
       expect(label, id).not.toBe(id)
@@ -118,17 +120,12 @@ describe('ML7 — 패밀리 목록은 어휘(KNOWN_MODELS)에서 파생된다', 
   })
 })
 
-describe('ML8 — 색은 picker 팔레트(MODELS)가 단일 출처다', () => {
-  it('MODELS의 색을 바꾸면 modelFamilyColor가 따라온다', () => {
-    const opus = MODELS.find((m) => m.id === 'claude-opus-5')!
-    const original = opus.color
-    opus.color = 'var(--test-only)'
-    try {
-      expect(modelFamilyColor('claude-opus-5')).toBe('var(--test-only)')
-      expect(modelFamilyColor('claude-opus-4-8')).toBe('var(--test-only)')
-    } finally {
-      opus.color = original
+describe('ML8 — 색은 패밀리 색 표가 단일 출처다', () => {
+  it('선택기 옵션의 색과 modelFamilyColor가 같은 표에서 온다', () => {
+    for (const opt of modelOptionsFor(SDK_MODEL_ROWS)) {
+      expect(opt.color, opt.id).toBe(modelFamilyColor(opt.id))
     }
+    expect(MODEL_FAMILY_COLORS['opus']).toBe('var(--violet)')
   })
 })
 

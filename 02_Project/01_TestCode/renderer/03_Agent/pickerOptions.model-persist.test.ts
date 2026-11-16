@@ -133,4 +133,17 @@ describe('GAP1 P02 시나리오 3: loadConversation model 복원(폴백 포함)'
     await expect(useAppStore.getState().loadConversation()).resolves.toBeUndefined()
     expect(useAppStore.getState().selectedModel).toBe(DEFAULT_MODEL)
   })
+
+  // M06 G4: 옛 ID로 저장된 대화는 그 ID 그대로 열리고 이어서 보낼 때도 그 ID로 간다(정식 ID로 몰래 바꾸지 않는다).
+  it('옛 ID(claude-haiku-4-5) 대화 로드 → selectedModel이 그대로이고 다음 실행 요청에 그 값이 실린다', async () => {
+    const oldRecord = { ...recordA, id: 'conv-old', model: 'claude-haiku-4-5' }
+    mockApi.conversationLoad.mockImplementationOnce(async () => ({ conversations: [oldRecord] }))
+    resetStore(useAppStore, DEFAULT_MODEL)
+    await useAppStore.getState().loadConversation()
+    expect(useAppStore.getState().selectedModel).toBe('claude-haiku-4-5')
+    mockApi.agentRun.mockClear()
+    await useAppStore.getState().sendMessage('이어서', { model: useAppStore.getState().selectedModel, effort: 'max', mode: 'auto' })
+    expect(mockApi.agentRun).toHaveBeenCalledTimes(1)
+    expect((mockApi.agentRun.mock.calls[0] as unknown as [{ model?: string }])[0].model).toBe('claude-haiku-4-5')
+  })
 })

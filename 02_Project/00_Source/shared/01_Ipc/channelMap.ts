@@ -18,6 +18,7 @@ import type {
   PermissionResponse,
   QuestionResponse,
   AgentEventPayload,
+  ModelListResponse,
 } from '../03_Agent/agent'
 import type {
   ConversationLoadRequest,
@@ -129,6 +130,7 @@ export interface IpcInvokeMap {
   'agent.taskStop': { req: TaskStopRequest; res: TaskStopResponse }
   'agent.setMode': { req: SetModeRequest; res: SetModeResponse }
   'agent.setModel': { req: SetModelRequest; res: SetModelResponse }
+  'agent.listModels': { req: void; res: ModelListResponse }
   'agent.permissionRespond': { req: PermissionResponse; res: Ack }
   'agent.questionRespond': { req: QuestionResponse; res: Ack }
 

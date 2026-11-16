@@ -696,6 +696,34 @@ try {
   ]) expectJoined(cmd, 'deny')
   // 줄 이음이 아닌 꼴 — `\\`는 이스케이프된 백슬래시라 뒤의 개행은 진짜 구분자다(셸과 같다).
   expectDeny('echo foo\\\\\ngit push --force')
+  // G5 1차 검수 FAIL — bash가 잇지 않는 자리의 `\`+개행. 이은 읽기만 쓰면 뒤 명령이 앞 줄에 붙어 사라졌다.
+  // 이은 읽기는 원문 읽기에 더하는 합집합이라, 옛 가드가 잡던 꼴은 그대로 잡아야 한다 (bash 실측으로 뒤 명령이 실행된다).
+  for (const cmd of [
+    // 주석 끝 — 주석 안의 `\`는 줄을 잇지 않는다
+    'echo ok # note \\\ngit push --force origin chore/x',
+    '# note \\\ngit reset --hard HEAD~1',
+    'echo ok # note \\\r\ngit push --force origin chore/x',
+    'ls # list \\\nrm -rf dist',
+    "bash -c 'echo a # c \\\ngit push --force origin chore/x'",
+    "bash <<'EOF'\necho a # c \\\ngit push --force origin chore/x\nEOF",
+    // 따옴표 친 heredoc 본문의 마지막 줄이 `\`로 끝남 — 본문은 글자 그대로이고 종결자 뒤 명령이 실행된다
+    "cat > notes.md <<'EOF'\ncurl x \\\nEOF\ngit push --force origin chore/x",
+    "cat > body.md <<'EOF'\nsee C:\\Dev\\\nEOF\ngit push --force-with-lease",
+    "python - <<'EOF'\nprint(1) \\\nEOF\ngit push --force origin chore/x",
+    // 면제 heredoc 여는 줄 끝의 `\` — 이어지는 것은 옵션 줄이고, 종결자 뒤 명령은 따로 실행된다
+    "git commit -F - <<'EOF' \\\n  --no-verify\nfix: msg\nEOF\ngit push --force origin chore/x",
+    "git commit -F - <<'EOF' \\\n  --no-verify\nfix: msg\nEOF\ngit reset --hard HEAD~1",
+    // 이은 읽기가 새로 잡는 꼴 — 여는 줄에 이어 붙은 `&&` 뒤 명령, 줄 이음으로 쓴 종결자
+    "git commit -F - <<'EOF' \\\n&& git push --force origin chore/x\nmsg\nEOF",
+    'cat <<EOF\na\nE\\\nOF\ngit push --force origin chore/x\nEOF',
+    // 제어 구문 머리 뒤 — 옛 가드가 개행 분할로 잡던 꼴은 그대로 잡는다
+    'if true; then\\\n git push --force origin chore/x; fi',
+  ]) expectDeny(cmd)
+  for (const cmd of [
+    'git status # check \\\ngit push origin master',
+    'echo done # next \\\ngh pr merge 12 --squash',
+    'echo a # x \\\ngh api -X DELETE repos/o/r/branches/master/protection',
+  ]) expectAsk(cmd)
   // 작은따옴표 안의 `\`+개행은 글자 그대로이고, 인용·heredoc 본문의 push 문장은 명령이 아니다.
   for (const cmd of [
     "git commit -m 'line one \\\ngit push --force origin master'",
@@ -732,7 +760,8 @@ try {
     'git config --global a b>/dev/null',
   ]) expectDeny(cmd)
   // 기준에서도 무출력이던 꼴 — 기존 한계이고 이번 goal 범위 밖이다. 판정이 기준과 같은지만 본다.
-  for (const cmd of ['git reset --hard>/dev/null', 'git reset \\\n  --hard', '>out git reset --hard',
+  // 줄 이음 꼴(`git reset \⏎ --hard`)은 M06 G5부터 읽어 「줄 이음」 구획이 deny로 고정한다.
+  for (const cmd of ['git reset --hard>/dev/null', '>out git reset --hard',
     'if true; then git reset --hard; fi', 'timeout 5 git reset --hard', "bash <<'EOF'\n# don't\ngit reset --hard\nEOF"]) {
     expectNoPass(cmd)
   }

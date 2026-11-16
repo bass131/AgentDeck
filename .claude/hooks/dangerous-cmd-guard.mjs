@@ -3,14 +3,15 @@
 //
 // 판정 파이프라인은 넷이다 (M02 Phase 2 Step 3~6에서 수리).
 //   ① heredoc 본문 면제 — 본문이 흘러가는 pipeline 전수 소비자를 보고, 실행되지 않는 소비자뿐일 때만 본문을 판정에서 뺀다.
-//   ② 세그먼트 분할 — `&&`·`||`·`;`·`|`·`&`·개행으로 나누되 따옴표 안에서는 나누지 않는다. `\`+개행 줄 이음은 잇는다(M06 G5).
+//   ② 세그먼트 분할 — `&&`·`||`·`;`·`|`·`&`·개행으로 나누되 따옴표 안에서는 나누지 않는다.
+//      원문과, `\`+개행 줄 이음을 이은 글을 둘 다 읽어 합친다(M06 G5 · `joinLineContinuations`).
 //   ③ 토큰화 — 토큰에서 따옴표 문자를 벗긴다. `"rm" -rf`·`git reset "--hard"` 류 인용 우회가 여기서 잡힌다.
 //   ④ 명령 위치 판정 — 규칙은 세그먼트의 머리 토큰(과 래퍼 뒤 토큰)에만 적용한다.
 //      인용문·커밋 메시지 본문에 든 `rm -rf`·`git push`를 명령으로 읽지 않기 위한 오탐 방어다.
 //
 // 확정된 한계 (M02 결정 대장 [USER] 2026-08-10 안건 2 — 기각, 방어 담당은 Claude Code 내장 권한 분류기):
 //   변수 확장(`c=push; git $c`)·`$()` 명령 치환·`cmd /c` 접두는 두 구현 모두 못 잡는다.
-// M06 G5가 ② 분할에 줄 이음(따옴표 밖·큰따옴표 안의 `\`+개행 제거) 하나만 더했다 — Backlog 8, 범위를 이것 하나로 좁혔다.
+// M06 G5가 줄 이음을 이은 두 번째 읽기 하나만 더했다(원문 읽기와 합집합) — Backlog 8, 범위를 이것 하나로 좁혔다.
 // 그 밖의 셸 판독(①~④)은 M05 H1에서 바꾸지 않았다 — 기준 커밋 9910a31 그대로다. 전처리(줄 이음·주석·리다이렉트 토큰)를
 //   넣은 시도가 기존 `reset --hard` 판정을 회귀시키고 정상 heredoc 커밋에 질의·차단을 만들어 되돌렸다
 //   (H1 결정 대장 [AI] 2026-11-13). 이 판독이 못 읽는 꼴의 작업 브랜치 강제 push는 감수 위험이다 ([USER] 2026-11-13).
@@ -87,12 +88,6 @@ function splitSegments(text) {
   for (let i = 0; i < text.length; i++) {
     const ch = text[i]
     if (isEscape(quote, ch, text[i + 1])) { cur += ch + text[++i]; continue }
-    // 줄 이음 (M06 G5 · Backlog 8) — 따옴표 밖과 큰따옴표 안의 `\`+LF·`\`+CRLF는 셸처럼 지워 앞뒤를 한 줄로 잇는다.
-    //   작은따옴표 안은 글자 그대로다. `\\`+개행은 위 이스케이프 짝이 먼저 먹으므로 개행이 진짜 구분자로 남는다.
-    if (ch === '\\' && quote !== "'") {
-      if (text[i + 1] === '\n') { i += 1; continue }
-      if (text[i + 1] === '\r' && text[i + 2] === '\n') { i += 2; continue }
-    }
     if (quote) { cur += ch; if (ch === quote) quote = null; continue }
     if (ch === '"' || ch === "'") { quote = ch; cur += ch; continue }
     if (ch === ';' || ch === '\n' || ch === '|' || ch === '&') { segments.push(cur); cur = ''; continue }
@@ -536,9 +531,33 @@ function shellScriptsOf(args) {
   return [...at].map((j) => args[j])
 }
 
+// 줄 이음 (M06 G5 · Backlog 8) — 따옴표 밖과 큰따옴표 안의 `\`+LF·`\`+CRLF를 지워 앞뒤를 한 줄로 이은 글.
+//   작은따옴표 안은 글자 그대로다. `\\`+개행은 이스케이프 짝이 먼저 먹어 개행이 남는다.
+// 이은 글은 원문 읽기를 **대신하지 않고 더한다**(합집합). bash가 잇지 않는 자리(주석 끝, 따옴표 친 heredoc 본문)까지
+//   이으면 뒤 명령이 앞 줄에 붙어 사라지기 때문이다(G5 1차 검수 FAIL). 원문 읽기가 그 꼴을 그대로 잡으므로
+//   판정은 옛 가드보다 약해지지 않고, 이은 읽기가 줄 이음으로 가려진 옵션·목적지를 더 잡는다.
+function joinLineContinuations(text) {
+  let out = ''
+  let quote = null
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i]
+    if (isEscape(quote, ch, text[i + 1])) { out += ch + text[++i]; continue }
+    if (ch === '\\' && quote !== "'") {
+      if (text[i + 1] === '\n') { i += 1; continue }
+      if (text[i + 1] === '\r' && text[i + 2] === '\n') { i += 2; continue }
+    }
+    if (quote) { out += ch; if (ch === quote) quote = null; continue }
+    if (ch === '"' || ch === "'") quote = ch
+    out += ch
+  }
+  return out
+}
+
 function contextsOf(command, depth = 0) {
+  const joined = joinLineContinuations(command)
+  const readings = joined === command ? [command] : [command, joined]
   const out = []
-  for (const seg of splitSegments(stripExemptHeredocBodies(command))) {
+  for (const seg of readings.flatMap((text) => splitSegments(stripExemptHeredocBodies(text)))) {
     const toks = tokenize(seg)
     for (const c of commandsOf(toks)) {
       // seg — 세그먼트의 토큰 전부다 (M05 H1). `master` 글자 판정이 머리의 할당(`GIT_CONFIG_VALUE_0=HEAD:master git push`)까지 보게 한다

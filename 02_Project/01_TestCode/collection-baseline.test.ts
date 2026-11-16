@@ -48,7 +48,8 @@ const SKIP_DIRS = new Set(['node_modules', 'dist', 'out', 'coverage', '.git'])
 // M05 G12: 435 → 436. 테스트 배치 가드(작업 ID 이름 0, 제자리 밖 테스트는 <프로세스>/NN_Domain/ 아래, agents/ 비움) testLayout.guard.test.ts를 더했다.
 // M05 G12: 436 그대로. 테스트 430파일을 <프로세스>/NN_Domain/으로 옮기고 이름을 바꿨지만 수는 바뀌지 않는다.
 // 위 줄들의 옛 경로는 그때의 이름이다. 지금 자리는 G12 이동 표(99e·99f·99g)에서 찾는다.
-const BASELINE_TEST_FILES = 436
+// M05 G12: 436 → 435. 같은 대상(toolMetaFor) 테스트 renderer/03_Agent/toolKind.sdk-tools.test.ts를 renderer/03_Agent/toolKind.test.ts로 합쳤다(제목 그대로).
+const BASELINE_TEST_FILES = 435
 
 function collectTestFiles(dir: string, acc: string[] = []): string[] {
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {

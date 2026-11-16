@@ -4,15 +4,15 @@
 // 판정 파이프라인은 넷이다 (M02 Phase 2 Step 3~6에서 수리).
 //   ① heredoc 본문 면제 — 본문이 흘러가는 pipeline 전수 소비자를 보고, 실행되지 않는 소비자뿐일 때만 본문을 판정에서 뺀다.
 //   ② 세그먼트 분할 — `&&`·`||`·`;`·`|`·`&`·개행으로 나누되 따옴표 안에서는 나누지 않는다.
-//      원문 읽기 옆에 bash식 논리 줄 판독(줄 이음·주석·heredoc 본문 소비, `logicalLines`)과 줄 이음 구간 판독
-//      (`\`로 이어진 물리 줄만 이어 원문 읽기로 다시 읽기, `continuationRuns`)을 더해 셋을 합친다(M06 G5).
+//      원문 읽기 옆에 bash식 논리 줄 판독(줄 이음·주석·heredoc 본문 소비, `logicalLines`)과 이음 지운 원문 읽기
+//      (bash가 잇는 `\`+개행만 지운 글을 원문 읽기로 다시 읽기, `joinedReading`)를 더해 셋을 합친다(M06 G5).
 //   ③ 토큰화 — 토큰에서 따옴표 문자를 벗긴다. `"rm" -rf`·`git reset "--hard"` 류 인용 우회가 여기서 잡힌다.
 //   ④ 명령 위치 판정 — 규칙은 세그먼트의 머리 토큰(과 래퍼 뒤 토큰)에만 적용한다.
 //      인용문·커밋 메시지 본문에 든 `rm -rf`·`git push`를 명령으로 읽지 않기 위한 오탐 방어다.
 //
 // 확정된 한계 (M02 결정 대장 [USER] 2026-08-10 안건 2 — 기각, 방어 담당은 Claude Code 내장 권한 분류기):
 //   변수 확장(`c=push; git $c`)·`$()` 명령 치환·`cmd /c` 접두는 두 구현 모두 못 잡는다.
-// M06 G5가 논리 줄 판독과 줄 이음 구간 판독을 둘째·셋째 판독으로 더했다(원문 읽기와 합집합, 사용자 결정 B) — Backlog 8.
+// M06 G5가 논리 줄 판독과 이음 지운 원문 읽기를 둘째·셋째 판독으로 더했다(원문 읽기와 합집합, 사용자 결정 B) — Backlog 8.
 // 그 밖의 셸 판독(①~④)은 M05 H1에서 바꾸지 않았다 — 기준 커밋 9910a31 그대로다. 전처리(줄 이음·주석·리다이렉트 토큰)를
 //   넣은 시도가 기존 `reset --hard` 판정을 회귀시키고 정상 heredoc 커밋에 질의·차단을 만들어 되돌렸다
 //   (H1 결정 대장 [AI] 2026-11-13). 이 판독이 못 읽는 꼴의 작업 브랜치 강제 push는 감수 위험이다 ([USER] 2026-11-13).
@@ -536,10 +536,9 @@ function shellScriptsOf(args) {
 // ── 논리 줄 판독 (M06 G5 · Backlog 8 · 사용자 결정 B) ────────────────────────
 // 원문 읽기(①②)는 물리 줄 단위라 `\`+개행 줄 이음을 모르고, 원문 전체를 이으면 bash가 잇지 않는 자리
 // (주석 끝, 따옴표 친 heredoc 본문)까지 이어 뒤 명령이 사라진다(G5 1·2차 검수 FAIL). 그래서 bash처럼 한 번에 읽는
-// 두 번째 판독을 둔다. 판정은 원문 읽기·이 판독·줄 이음 구간 판독(`continuationRuns`, 아래)의 합집합이라
+// 두 번째 판독을 둔다. 판정은 원문 읽기·이 판독·이음 지운 원문 읽기(`joinedReading`, 아래)의 합집합이라
 // 옛 가드보다 약해질 수 없다. 이 판독이 문맥을 잘못 짐작해 글을 잃어도(4차 검수의 닫히지 않는 `((`, 묶음 밖 `| bash`)
-// 이어 쓴 명령은 줄 이음 구간 판독이 따로 읽는다. 그 판독도 짐작(구간 머리의 따옴표 상태)을 하므로 짐작이 갈리는 자리는
-// 갈래를 모두 읽는다 — 어느 판독도 다른 판독의 글을 지우지 않는다.
+// 이어 쓴 명령은 이음 지운 원문 읽기가 따로 읽는다. 판독끼리 면제 범위를 주고받지 않는다 — 어느 판독도 다른 판독의 글을 지우지 않는다.
 //   - 문맥 쌓기: 작은따옴표·`$'…'`·큰따옴표·백틱·`${ … }`·`$( … )`·산술(`$(( ))`·`(( ))`·`$[ ]`).
 //     따옴표 밖과 큰따옴표 안의 `\`+LF·`\`+CRLF는 지운다. 그 밖의 `\X`는 두 글자 그대로 두되 X가 문맥을 바꾸지 않게 건너뛰고,
 //     X는 낱말 경계로 치지 않는다(`a\ #b`). 백틱 안은 닫는 백틱까지 글자 그대로다.
@@ -561,21 +560,25 @@ const HEREDOC_DEPTH_LIMIT = 8
 
 // `((`·`$((`가 산술인가 — j는 여는 괄호 둘 다음 위치다. 같은 물리 줄 안에서 괄호 깊이가 붙은 `))`로 0이 되면 산술이다.
 // 닫히지 않으면(`[[ x =~ ((a|b)c) ]]`·`((cd .) || …)`) bash는 서브셸·묶음으로 읽는다 — 산술로 보면 heredoc 판독이 꺼져
-// 커밋 본문을 명령으로 읽었다(5차 검수의 오탐). 줄이 길면 4096자까지만 본다.
+// 커밋 본문을 명령으로 읽었다(5차 검수의 오탐). 바깥 `(`의 짝이 안쪽 `(`의 짝 바로 뒤 `)`면 산술이다.
+// 물리 줄마다 괄호 짝을 한 번만 세어 둔다 — `((`마다 줄을 다시 훑으면 개행 없는 `((` 반복에서 제곱 시간이다(6차 검수).
+let arithMemo = null
 function arithCloses(text, j) {
-  let depth = 2
-  const end = Math.min(text.length, j + 4096)
-  for (let k = j; k < end; k++) {
-    const ch = text[k]
-    if (ch === '\n') return false
-    if (ch === '(') depth++
-    else if (ch === ')') {
-      depth--
-      if (depth === 1 && text[k + 1] === ')') return true
-      if (depth <= 0) return false
+  const o = j - 2
+  if (!arithMemo || arithMemo.text !== text || o < arithMemo.start || o >= arithMemo.end) {
+    const start = o > 0 ? text.lastIndexOf('\n', o - 1) + 1 : 0
+    let end = text.indexOf('\n', o)
+    if (end < 0) end = text.length
+    const match = new Map()
+    const st = []
+    for (let k = start; k < end; k++) {
+      if (text[k] === '(') st.push(k)
+      else if (text[k] === ')' && st.length) match.set(st.pop(), k)
     }
+    arithMemo = { text, start, end, match }
   }
-  return false
+  const inner = arithMemo.match.get(o + 1)
+  return inner !== undefined && arithMemo.match.get(o) === inner + 1
 }
 
 function readHeredocWord(text, j) {
@@ -690,42 +693,16 @@ function atCommandPos(s) {
 }
 // `$(`가 셸 `-c`의 스크립트 자리에 섰는가 — `bash -c "$(cat <<EOF …)"`의 `$( … )`가 낸 글은 스크립트로 실행된다.
 const RE_SHELL_C_ARG = /(?:^|[\s;&|(])(?:[^\s;&|(]*[/\\])?(?:sh|bash|dash|zsh|ksh|ash)(?:\.exe)?(?:\s+[-+][A-Za-z]+)*\s+-[A-Za-z]*c[A-Za-z]*(?:\s+[-+][A-Za-z]+)*\s+"?$/i
-const executesSubst = (tail) => atCommandPos(tail) || RE_SHELL_C_ARG.test(tail)
+// here-string으로 셸에 먹이는 글(`bash <<< "$(cat <<EOF …)"`)도 스크립트로 실행된다.
+const RE_SHELL_HERESTRING = /(?:^|[\s;&|(])(?:[^\s;&|(]*[/\\])?(?:sh|bash|dash|zsh|ksh|ash)(?:\.exe)?(?:\s+[-+][A-Za-z]+)*\s*<<<\s*"?$/i
+const executesSubst = (tail) => atCommandPos(tail) || RE_SHELL_C_ARG.test(tail) || RE_SHELL_HERESTRING.test(tail)
 
 // 버퍼는 둘이다 — `done`은 이 논리 줄에서 앞서 끝난 물리 줄들(따옴표 밖 개행이 `$( … )` 안에 남은 것), `cur`는 지금 물리 줄.
 // 위치는 논리 줄 머리부터 센다(`base` = done 길이). 판독 중에는 `cur`의 글자를 다시 읽지 않고 끝 글자(`last`)와
 // 짧은 꼬리(`tail`)만 따로 든다 — 긴 이어 붙인 문자열의 글자를 읽으면 V8이 매번 전체를 펴서 제곱 시간이 된다.
-// `skip`을 넘기면, 글 인자 자리의 `$( … )`(`git commit -m "$(cat <<EOF …)"`·`gh pr create --body "$(cat <<EOF …)"`) 안에서
-// 면제 소비자만 먹는 본문의 [시작, 끝) 위치를 적는다 — 줄 이음 구간 판독이 그 본문을 명령으로 읽지 않게 한다.
 // 줄 하나에 heredoc이 HEREDOC_MANY개를 넘으면 면제를 따지지 않고 모두 다시 읽는다(4·5차 검수의 큰 입력 시간).
 const HEREDOC_MANY = 8   // 경계 셈은 문맥 머리마다 줄 길이만큼 든다 — 줄이 길고 heredoc이 많으면(5차 검수 160만 자 6초) 셈을 접는다
-// `$(` 앞 꼬리에서 지금 단계의 머리 낱말이 `git`·`gh`인가 — 따옴표·`$( … )` 안의 구분자는 단계를 끊지 않는다.
-// 제목의 `(`·`)`·`$`(`--title "fix(M06-G5): …"`, `-C "$PWD"`)가 있어도 단계를 읽는다(5차 검수의 오탐). 꼬리가 단계 머리까지
-// 닿지 않으면 글 인자로 보지 않는다 — 건너뛰지 않으면 더 읽을 뿐이다.
-function isDataArg(tail) {
-  const st = []
-  let start = -1
-  for (let k = 0; k < tail.length; k++) {
-    const ch = tail[k]
-    const top = st[st.length - 1]
-    if (top === "'") { if (ch === "'") st.pop(); continue }
-    if (ch === '\\') { k++; continue }
-    if (ch === '$' && tail[k + 1] === '(') { st.push('('); k++; continue }
-    if (top === '"') { if (ch === '"') st.pop(); continue }
-    if (ch === '"' || ch === "'") { st.push(ch); continue }
-    if (top === '(') { if (ch === ')') st.pop(); else if (ch === '(') st.push('('); continue }
-    if (';&|\n('.includes(ch)) start = k
-  }
-  if (start < 0 && tail.length >= 256) return false
-  const stage = tail.slice(start + 1).trim()
-  const words = stage.split(/\s+/)
-  // 따옴표 친 대입(`MSG="$(cat <<EOF …)"`)의 본문도 글이다 — 따옴표 없는 대입(`s=$(cat …)` 뒤 `eval "$s"`)은 읽는다
-  if (stage.endsWith('="') && words.every((x) => /^[A-Za-z_][A-Za-z0-9_]*=/.test(x))) return true
-  let w = 0
-  while (w < words.length - 1 && /^[A-Za-z_][A-Za-z0-9_]*=/.test(words[w])) w++
-  return /^(?:git|gh)(?:\.exe)?$/i.test(words[w] ?? '')
-}
-function logicalLines(text, depth = 0, skip = null) {
+function logicalLines(text, depth = 0) {
   const units = []
   const stack = []
   let done = ''
@@ -742,7 +719,7 @@ function logicalLines(text, depth = 0, skip = null) {
   const add = (s) => { if (!s) return; cur += s; last = s[s.length - 1]; grow(s) }
   const push = (t, len) => {
     const cmd = t === '$(' && executesSubst(tail)
-    stack.push({ t, at: base + cur.length + len, cmd, data: t === '$(' && !cmd && isDataArg(tail) })
+    stack.push({ t, at: base + cur.length + len, cmd })
     if (ARITH.has(t)) arith++
     if (t === '"') dq++
   }
@@ -811,7 +788,7 @@ function logicalLines(text, depth = 0, skip = null) {
         for (let k = stack.length - 1; k >= 0; k--) if (stack[k].t === '$(' || stack[k].t === '(') { ctx = stack[k]; break }
         const from = Math.max(ctx ? ctx.at : 0, base) - base   // 지금 물리 줄 안의 위치
         pending.push({ delim: w.delim, quoted: w.quoted, dash, at: cur.length, from,
-          exec: Boolean(ctx && ctx.t === '$(' && ctx.cmd), data: !ctx || Boolean(ctx.t === '$(' && ctx.data) })
+          exec: Boolean(ctx && ctx.t === '$(' && ctx.cmd) })
       }
       add(text.slice(i, w.end).replace(/\\\r?\n/g, ''))
       i = w.end
@@ -825,12 +802,10 @@ function logicalLines(text, depth = 0, skip = null) {
         const exempt = new Map()
         const many = pending.length > HEREDOC_MANY
         for (const h of pending) {
-          const start = i
           const { body, next } = readHeredocBody(text, i, h)
           i = next
           // 깊이 상한에서는 본문을 버리지 않고 글 그대로 낸다 — 판독을 멈춰도 글은 원문 읽기처럼 남는다
           if (depth >= HEREDOC_DEPTH_LIMIT) { units.push(body); continue }
-          if (skip && !many && h.data && !h.exec && allConsumersExempt(line.slice(h.from))) skip.push([start, next])
           if (many) { for (const u of logicalLines(body, depth + 1)) units.push(u); continue }
           if (!ranges.has(h.from)) ranges.set(h.from, pipelineRanges(line.slice(h.from)))
           const r = rangeAt(ranges.get(h.from), h.at - h.from)
@@ -851,146 +826,123 @@ function logicalLines(text, depth = 0, skip = null) {
   return units.filter((u) => u.trim())
 }
 
-// ── 줄 이음 구간 판독 (M06 G5 4차 검수 FAIL) ────────────────────────────────────
-// 세 번째 판독이다. 논리 줄 판독은 문맥(산술·백틱·묶음·면제)을 짐작하다 틀리면 글을 잃었다. 이 판독은 문맥 쌓기를 하지 않고
-// 따옴표 상태만 센다.
-// 이 판독은 원문에서 줄 끝 홀수 `\`로 이어진 물리 줄 구간만 떼어 이어 붙인다 — 원문 읽기가 한 줄 꼴에서 보는 글을
-// 이어 쓴 꼴에서도 보게 하는 것이다. 구간 안의 따옴표 상태는 구간 머리에서 새로 센 것과, 앞 몇 줄에서 열린 채 남은
-// 따옴표 안에서 시작한 것을 둘 다 읽는다(`openQuotesBefore`, 5차 검수).
-// 건너뛰는 줄(구간을 끊는다)은 두 가지다 — 원문 읽기가 면제하는 heredoc 본문과 종결자 줄(`exemptBodyLines`),
-// 논리 줄 판독이 적은 글 인자 자리 `$(cat <<EOF …)`의 면제 본문(`logicalLines`의 `skip`).
-// bash가 잇지 않는 자리 두 곳만 따른다.
-//   - 작은따옴표(`'…'`·`$'…'`)가 열린 채 줄 끝에 온 `\`는 잇지 않는다(`'mas\⏎ter'`).
-//   - 낱말 머리의 `#`(따옴표·`${ }` 밖)부터는 주석이라 그 줄의 `\`는 잇지 않는다. 이스케이프된 글자(`a\ #b`)는 낱말 경계가 아니다.
-// 물리 줄 하나는 구간 하나에만 들어가 한 번 훑기로 끝난다.
-const RUN_WORD_BREAK = new Set([' ', '\t', ';', '&', '|', '(', '<', '>'])
+// ── 이음 지운 원문 읽기 (M06 G5 6차 검수 FAIL) ──────────────────────────────────
+// 세 번째 판독이다. 원문 읽기가 보는 글(면제 heredoc 본문을 지운 글) 전체를 원문 읽기의 따옴표 규칙으로 앞에서부터 한 번
+// 훑으며 bash가 잇는 자리의 `\`+개행만 지우고, 그 글을 원문 읽기(`splitSegments`)에 그대로 넘긴다 — 한 줄 꼴에서 원문 읽기가
+// 보는 글을 이어 쓴 꼴에서도 보게 하는 것이다. 문맥을 잘라 다시 짐작하지 않는다: 따옴표 상태는 글 머리부터 이어 세고
+// (6차 검수 — 거슬러 보기 상한, 따옴표 친 인자 안의 예시 명령), 다른 판독의 면제 범위를 쓰지 않는다(글 인자 판정의 꼬리 절단).
+// bash가 잇지 않는 자리는 잇지 않는다.
+//   - 작은따옴표가 열린 채 줄 끝에 온 `\`(`'mas\⏎ter'`).
+//   - 낱말 머리의 `#`(따옴표 밖)부터의 주석 안. 이스케이프된 글자(`a\ #b`)와 줄 이음 뒤 글자(`feat\⏎#1`)는 낱말 경계가 아니다.
+//   - 원문 읽기가 지운 줄을 사이에 둔 자리 — 지운 본문 너머의 줄과 붙이지 않는다(면제 heredoc 여는 줄 끝의 `\`).
+// 원문 읽기가 한 줄 꼴에서 놓치는 꼴(따옴표 규칙이 bash와 다른 자리)은 이 판독도 같이 놓친다 — 그 꼴은 논리 줄 판독이 읽는다.
+const RUN_WORD_BREAK = new Set([' ', '\t', ';', '&', '|', '(', '<', '>', '\n'])
 
-// `stripExemptHeredocBodies`가 지우는 줄의 번호 — 같은 규칙을 따로 센다(원문 읽기는 고치지 않는다).
-function exemptBodyLines(lines) {
-  const skip = new Set()
-  let i = 0
-  while (i < lines.length) {
-    const line = lines[i++]
-    const delims = heredocDelims(line)
-    if (!delims.length) continue
-    const exempt = allConsumersExempt(line)
-    for (const d of delims) {
-      while (i < lines.length) {
-        const idx = i
-        const raw = lines[i++]
-        const probe = (d.dash ? raw.replace(/^[\t ]+/, '') : raw).replace(/\r$/, '').trim()
-        if (probe === d.delim) { skip.add(idx); break }
-        if (exempt) skip.add(idx)
+// 글 인자 자리의 heredoc — 논리 줄 머리부터 따옴표·`$( … )`를 세어, 첫 `<<`가 `$( … )` 한 겹 안에 있고 그 `$(`가 선
+// 단계의 머리 낱말이 `git`·`gh`이며 `$(` 안이 면제 소비자뿐이면 본문은 글이다(`gh pr create --body "$(cat <<'EOF'`).
+// 원문 읽기는 이 본문을 열린 큰따옴표 안으로 읽어 건너뛰지만, 본문에 짝 없는 `"`(`5" screen`)가 있으면 그 뒤를 명령으로
+// 읽는다 — 이은 글에서 새 오탐이 되지 않게 이 판독만 본문을 뺀다. 줄 전체를 앞에서부터 세며 꼬리를 자르지 않는다(6차 검수).
+// 셸 `-c` 스크립트 안(depth > 0)에서는 쓰지 않는다 — 바깥 셸이 `$( … )`를 먼저 펼쳐 본문이 스크립트가 된다.
+function dataArgHeredoc(line) {
+  const st = []
+  let stageStart = 0
+  for (let k = 0; k < line.length; k++) {
+    const ch = line[k]
+    const top = st.length ? st[st.length - 1].t : undefined
+    if (top === "'") { if (ch === "'") st.pop(); continue }
+    if (ch === '\\') { k++; continue }
+    if (ch === '$' && line[k + 1] === '(') {
+      if (line[k + 2] === '(') return false
+      st.push({ t: '$(', at: k + 2, stage: stageStart }); k++; continue
+    }
+    if (ch === '`') return false
+    if (top === '"') { if (ch === '"') st.pop(); continue }
+    if (ch === '"' || ch === "'") { st.push({ t: ch }); continue }
+    if (ch === '<' && line[k + 1] === '<') {
+      if (line[k + 2] === '<') return false
+      const opens = st.filter((e) => e.t === '$(')
+      if (opens.length !== 1 || top !== '$(') return false
+      const words = line.slice(opens[0].stage, opens[0].at - 2).trim().split(/\s+/)
+      let w = 0
+      while (w < words.length - 1 && RE_ASSIGN.test(words[w])) w++
+      return /^(?:git|gh)(?:\.exe)?$/i.test(words[w] ?? '') && allConsumersExempt(line.slice(opens[0].at))
+    }
+    if (top === '$(' || top === '(') { if (ch === ')') st.pop(); else if (ch === '(') st.push({ t: '(' }); continue }
+    if (st.length === 0 && ';&|('.includes(ch)) stageStart = k + 1
+  }
+  return false
+}
+
+// 이음을 지운 글을 돌려준다. 지운 이음이 없으면 null — 원문 읽기와 같은 글이라 다시 읽지 않는다.
+// bash처럼 줄 이음을 먼저 이어 논리 줄을 만든 뒤 그 논리 줄에서 heredoc을 찾고(`git commit \⏎ -F - <<'EOF'`, `cat <\⏎<'EOF'`),
+// 본문은 `stripExemptHeredocBodies`의 규칙대로 면제면 지우고 아니면 줄로 남긴다. 본문 안의 이음은 본문 안에서만 잇는다.
+function joinedReading(command, depth = 0) {
+  if (!command.includes('\\')) return null
+  const lines = command.split('\n')
+  const parts = []
+  let quote = null
+  let prev = ''
+  let joined = false
+  // 물리 줄 하나를 훑어 따옴표 상태를 옮기고, 줄 끝 `\`가 bash가 잇는 이음인지 돌려준다
+  const scan = (s) => {
+    for (let i = 0; i < s.length; i++) {
+      const ch = s[i]
+      if (quote === "'") { if (ch === "'") quote = null; prev = ch; continue }
+      if (ch === '\\') {
+        if (i === s.length - 1) return true
+        i++; prev = 'x'   // 이스케이프된 글자는 낱말 경계가 아니고 따옴표 상태를 바꾸지 않는다
+        continue
       }
+      if (quote === '"') { if (ch === '"') quote = null; prev = ch; continue }
+      if (ch === '#' && (prev === '' || RUN_WORD_BREAK.has(prev))) return false   // 주석 — 이 줄 끝의 `\`는 잇지 않는다
+      if (ch === '"' || ch === "'") quote = ch
+      prev = ch
     }
+    return false
   }
-  return skip
-}
-
-// 물리 줄 하나를 훑어 따옴표 상태 st = { q, brace, boundary }를 옮긴다. 주석이 시작한 위치(없으면 -1)를 돌려준다.
-function scanRunLine(body, st) {
-  let k = 0
-  while (k < body.length) {
-    const ch = body[k]
-    if (st.q === "'") { if (ch === "'") st.q = null; k++; st.boundary = false; continue }
-    if (st.q === "$'") {
-      if (ch === '\\') k++
-      else if (ch === "'") st.q = null
-      k++; st.boundary = false; continue
-    }
-    if (ch === '\\') { k += 2; st.boundary = false; continue }
-    if (st.q === '"') {
-      if (ch === '"') st.q = null
-      else if (ch === '$' && body[k + 1] === '{') { st.brace++; k++ }
-      else if (ch === '}' && st.brace > 0) st.brace--
-      k++; st.boundary = false; continue
-    }
-    if (ch === '#' && st.boundary && st.brace === 0) return k
-    if (ch === "'") st.q = "'"
-    else if (ch === '"') st.q = '"'
-    else if (ch === '$' && body[k + 1] === "'") { st.q = "$'"; k++ }
-    else if (ch === '$' && body[k + 1] === '{') { st.brace++; k++ }
-    else if (ch === '}' && st.brace > 0) st.brace--
-    st.boundary = RUN_WORD_BREAK.has(ch)
-    k++
-  }
-  return -1
-}
-
-// 줄 s에서 시작하는 구간 하나를 st 상태로 읽는다. 줄 이음은 낱말을 끊지 않아 다음 줄 머리의 낱말 경계는
-// 앞 줄 끝을 따른다(`feat\⏎#1`의 `#`는 주석이 아니다 — 5차 검수).
-function buildRun(lines, s, skip, st) {
-  let joined = ''
-  let count = 0
-  let i = s
-  while (i < lines.length && !skip.has(i)) {
-    const raw = dropCR(lines[i++])
-    const cont = endsWithContinuation(raw)
-    const body = cont ? raw.slice(0, -1) : raw
-    const comment = scanRunLine(body, st)
-    joined += comment >= 0 ? body.slice(0, comment) : body
-    count++
-    // 주석이거나 작은따옴표 안의 `\`이거나 줄 이음이 없으면 구간이 끝난다
-    if (!cont || comment >= 0 || st.q === "'" || st.q === "$'") break
-  }
-  return { joined, count, end: i }
-}
-
-// 구간 머리 줄 s 앞 몇 줄에서 열린 채 남은 따옴표들 — 여러 줄 문자열이 구간 머리에서 닫히는 꼴
-// (`echo "a⏎b" && git push \⏎ …`, 5차 검수). 어디서 문자열이 열렸는지 모르므로 앞 줄 j마다 새로 세어 본 상태를 모두 낸다.
-const RUN_LOOKBACK_LINES = 8
-const RUN_LOOKBACK_CHARS = 4096
-function openQuotesBefore(lines, s, skip) {
-  const seeds = new Set()
-  let chars = 0
-  for (let j = s - 1; j >= 0 && s - j <= RUN_LOOKBACK_LINES && !skip.has(j); j--) {
-    chars += lines[j].length
-    if (chars > RUN_LOOKBACK_CHARS) break
-    const st = { q: null, brace: 0, boundary: true }
-    for (let k = j; k < s; k++) {
-      scanRunLine(dropCR(lines[k]), st)
-      if (st.q === null) st.boundary = true
-    }
-    if (st.q) seeds.add(st.q === "$'" ? "'" : st.q)
-  }
-  return seeds
-}
-
-function continuationRuns(text, ranges) {
-  const lines = text.split('\n')
-  const skip = exemptBodyLines(lines)
-  // 글자 위치 [시작, 끝) 구간을 줄 번호로 바꾼다 — 구간은 앞에서부터 차례로 적혀 있다
-  let off = 0
-  let r = 0
-  for (let k = 0; k < lines.length; k++) {
-    while (r < ranges.length && ranges[r][1] <= off) r++
-    if (r < ranges.length && ranges[r][0] <= off) skip.add(k)
-    off += lines[k].length + 1
-  }
-  const out = []
-  let i = 0
-  while (i < lines.length) {
-    if (skip.has(i)) { i++; continue }
-    const fresh = buildRun(lines, i, skip, { q: null, brace: 0, boundary: true })
-    if (fresh.count > 1 && fresh.joined.trim()) out.push(fresh.joined)
-    // 구간 머리가 앞 줄에서 열린 따옴표 안일 수 있다 — 그 따옴표를 앞에 붙여 다시 읽은 글도 더한다(합집합이라 더하기만 한다)
-    if (endsWithContinuation(dropCR(lines[i]))) {
-      for (const q of openQuotesBefore(lines, i, skip)) {
-        const v = buildRun(lines, i, skip, { q, brace: 0, boundary: false })
-        if (v.count > 1) out.push(q + v.joined)
+  // 줄 묶음을 읽는다. top이면 논리 줄마다 heredoc을 찾고, 본문 줄 묶음은 heredoc을 찾지 않고 같은 규칙으로 잇는다.
+  const run = (arr, top) => {
+    let k = 0
+    let logical = ''
+    let startQuote = quote
+    while (k < arr.length) {
+      const raw = arr[k++]
+      const s = dropCR(raw)
+      if (scan(s) && k < arr.length) { parts.push(s.slice(0, -1)); logical += s.slice(0, -1); joined = true; continue }
+      parts.push(raw, '\n')
+      prev = '\n'
+      logical += raw
+      if (top) {
+        const delims = heredocDelims(logical)
+        if (delims.length) {
+          const exempt = allConsumersExempt(logical)
+            || (depth === 0 && startQuote === null && delims.length === 1 && dataArgHeredoc(dropCR(logical)))
+          for (const d of delims) {
+            const body = []
+            while (k < arr.length) {
+              const b = arr[k++]
+              const probe = (d.dash ? b.replace(/^[\t ]+/, '') : b).replace(/\r$/, '').trim()
+              if (probe === d.delim) break
+              body.push(b)
+            }
+            if (!exempt) run(body, false)
+          }
+        }
       }
+      logical = ''
+      startQuote = quote
     }
-    i = Math.max(fresh.end, i + 1)
   }
-  return out
+  run(lines, true)
+  return joined ? parts.join('') : null
 }
 
 function contextsOf(command, depth = 0) {
   // 문맥을 합칠 때 중복을 접지 않는다 — 옛 가드와 같은 문맥 수를 지나야 큰 입력에서도 판정이 옛 가드보다 약해지지 않는다.
   const segs = splitSegments(stripExemptHeredocBodies(command))
-  const skip = []
-  for (const line of logicalLines(command, 0, skip)) for (const s of splitSegments(line)) segs.push(s)
-  for (const run of continuationRuns(command, skip)) for (const s of splitSegments(run)) segs.push(s)
+  for (const line of logicalLines(command)) for (const s of splitSegments(line)) segs.push(s)
+  const joinedText = joinedReading(command, depth)
+  if (joinedText !== null) for (const s of splitSegments(joinedText)) segs.push(s)
   const out = []
   for (const seg of segs) {
     const toks = tokenize(seg)

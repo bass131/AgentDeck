@@ -27,7 +27,7 @@
 - [x] 3. 코드맵을 저장소로 가져오기 — 옛 폴더를 git 저장소로 묶어(생성물 제외 `.gitignore`) `git subtree add --prefix=99_Others/CodeMap`
 - [x] 4. 저장소 안에서 돌게 고치기 — 소스 경로를 스크립트 위치 기준 상대 경로로, README의 경로와 명령 갱신
 - [x] 5. 검증 — 새 위치에서 다시 만들기와 수치 대조, 절대 경로 0, 생성물 무시, 하드 게이트 다섯 종
-- [ ] 6. PR 올리고 병합 승인 요청 — 커밋, 작업 브랜치 push, PR 생성
+- [x] 6. PR 올리고 병합 승인 요청 — 커밋, 작업 브랜치 push, PR 생성
 
 실행 단계 일괄 승인 대상 (사용자가 「좋아 그렇게 진행해줘」로 방식을 승인했다)
 
@@ -43,6 +43,7 @@ DoD
 
 - PASS 2026-11-16T10:57:26+09:00 — 2단계. 보조 세션 2차 보고(도메인 설명 카드 47, 따라 읽기 8정거장, 컨벤션 예시 8, 오프라인 코드 보기, 3/2/1단 적응형)와 사용자 추가 요청 둘(종류별 묶음·소스 순서 전환, 소유자·영역 구분)을 스크린샷으로 대조했다 — 파일 안 선언이 타입·상수·함수·컴포넌트 묶음과 개수 머리줄로 나뉘고, `createRunManager` 안의 `lastUserContent`가 「내부 함수 · 소유 createRunManager(main › 03_Agent › agentRuns.ts)」로, 반환 객체 메서드가 「반환 객체」 배지로 보이며, 영역 색 띠가 경로·상세·코드 머리에 이어진다. 1차 수치(287파일, 30,447줄, 클래스 15)는 소스 grep과 같다. 보조 페인은 워커 해제 뒤 닫았다.
 - PASS 2026-11-16T11:10:24+09:00 — 3~5단계. 옛 폴더를 git으로 묶고(`a786f24d`, `.gitignore`가 생성물·`shots/`·`REPORT.md` 제외) `git subtree add`로 들였다(`f824b81a`, 8파일). 4단계(`0ec4f1e5`)는 `extract.mjs`의 소스·TypeScript 기본 경로와 출력, `build.mjs`의 읽기를 스크립트 위치 기준으로 바꾸고 README를 「이 폴더 안에서 실행」으로 고쳤다. TDD 가드가 셋째 소스 편집을 막았고, 리셋 경로인 `npm test` Green이 이 기계에서는 5초 타임아웃 182건으로 성립하지 않아(Backlog 57 계열, `--testTimeout=30000`이면 5,781 통과·실패 0) `build.mjs` 쓰기와 `descriptions.json`·`guide.json` 읽기는 cwd 기준으로 남기고 README에 적었다. 새 위치에서 `node extract.mjs && node build.mjs`가 exit 0이고, 생성 시각을 뺀 `codemap.json`이 옛 폴더 결과와 바이트 같다(287파일, 30,447줄). 스크립트 안 절대 경로 0, 생성물은 `git status`에 안 보인다. 하드 게이트 다섯 종 exit 0, diff는 `99_Others/CodeMap/`·이 문서·G12 문서·포인터 한 줄·pin·Backlog뿐이다.
+- PASS 2026-11-16T11:11:09+09:00 — 6단계. `-u origin chore/m05-h9-codemap`으로 push하고 PR 59(https://github.com/bass131/AgentDeck/pull/59)를 만들었다. 병합 승인은 현황판 결정 보드로 요청한다.
 
 ## 결정 대장
 

@@ -18,7 +18,8 @@
 // push 서버 보호 구획 (M05 H1 · 결정 대장 [USER] 2026-11-13) — `master`의 직접 push·강제 push·삭제는
 // GitHub 서버의 브랜치 보호가 거부한다. 그래서 일반 push는 무출력(silent)이고, 가드는 이중 안전장치로
 // 강제 push 꼴을 차단하고 원격 삭제·일괄 push·`master`가 글자로 보이는 push·`send-pack`을 묻는다.
-// 셸 판독은 기준 커밋 9910a31에 줄 이음 하나만 더했다(M06 G5). 그 판독이 못 읽는 꼴(`2>&1` 뒤 옵션·주석·`\X`·`$'…'`·변수·별칭)은
+// 셸 판독은 기준 커밋 9910a31의 원문 읽기 옆에 bash식 논리 줄 판독(줄 이음·주석·heredoc 본문)을 더했다(M06 G5, 합집합).
+// 두 판독이 다 못 읽는 꼴(`2>&1` 뒤 옵션·`\X`·변수·별칭·명령 치환의 실행 내용)은
 // 무출력이어도 된다 — `master`로 가면 서버가 거부하고, 작업 브랜치의 강제 갱신은 작업 브랜치 격리로 감수한다
 // (사용자 판정 2026-11-13). 그런 꼴은 expectNoPass로 두고 근거를 단다. 기준 판독이 읽는 강제 push 꼴은 반드시 expectDeny다.
 // `gh api`의 쓰기·보호 설정 호출과 `gh repo edit`·`delete`는 질의다 — 서버 보호를 푸는 경로이기 때문이다.
@@ -258,7 +259,7 @@ try {
   // ── 기준 판독 위의 push 규칙 (M05 H1 · 셸 판독은 기준 커밋 9910a31 그대로) ─────────────
   // 2차 수리의 셸 전처리(줄 이음·주석·리다이렉트 토큰·이스케이프 해제·제어 구문 머리·eval)는 되돌렸다 —
   // 기존 `reset --hard` 판정을 회귀시키고 정상 heredoc 커밋·PR 본문에 질의·차단을 만들었다 (H1 결정 대장 [AI] 2026-11-13).
-  // M06 G5가 그 가운데 줄 이음 하나만 다시 넣었다 — 「줄 이음」 구획과 아래 회귀 방지 구획이 함께 고정한다.
+  // M06 G5는 원문 읽기를 건드리지 않고 bash식 논리 줄 판독을 두 번째 판독으로 더했다 — 「줄 이음」 구획과 아래 회귀 방지 구획이 함께 고정한다.
   // 그래서 아래 첫 구획은 기준 판독이 읽는 꼴만 deny로 고정한다. 접두 판독이라 붙인 리다이렉트(`-f>/dev/null`)는 잡힌다.
   console.log('push 규칙 — 기준 판독이 읽는 강제 push 꼴은 차단')
   for (const cmd of [
@@ -758,10 +759,67 @@ try {
     "if true; then \\\n  bash <<'EOF'\ngit push origin \\\n  --delete chore/x\nEOF\nfi",
     'git push origin "mas\\\nter"',
   ]) expectAsk(cmd)
-  // bash가 잇지 않거나 실행하지 않는 글 — 무출력이다 (작은따옴표 안, 셸에 먹이지 않는 본문, 주석 끝)
+  // G5 3차 검수 FAIL — 논리 줄 판독이 모르는 문맥에서 글을 버리던 꼴. 고친 뒤에는 한 줄 꼴과 같은 판정이다 (bash 실측).
+  for (const cmd of [
+    // 산술 `(( ))`·`$[ ]` 안의 `<<`는 heredoc이 아니다
+    '((x = 1<<2))\ngit push \\\n --force origin chore/x',
+    'if (( 1<<2 > 3 )); then echo y; fi\ngit push \\\n --force origin chore/x',
+    'echo $[1<<2]\ngit push \\\n --force origin chore/x',
+    // 주석이 아닌 `#` — 백틱 안, `${ }` 안, 낱말 가운데(`$( )`를 닫은 뒤·글자 뒤)
+    'echo `echo a # c`; git push \\\n --force origin chore/x',
+    'l=${l%% #*}; git push \\\n --force origin chore/x',
+    'echo $(echo t)#tag; git push \\\n --force origin chore/x',
+    'echo $((1+2))#tag; git push \\\n --force origin chore/x',
+    'echo a#b; git push \\\n --force origin chore/x',
+    'echo "a # b \' c"\ngit push \\\n --force origin chore/x',
+    "echo $'it\\'s'\ngit push \\\n --force origin chore/x",
+    "x=\"$( (echo a); echo \"it's\" )\"\ngit push \\\n --force origin chore/x",
+    // 본문을 먹는 쪽이 면제 소비자(`cat`·`git commit -F -`)가 아니면 본문을 명령으로 다시 읽는다 — 셸 이름 목록에 기대지 않는다
+    "timeout 60 bash <<'EOF'\ngit push \\\n --force origin chore/x\nEOF",
+    "exec bash <<'EOF'\ngit push \\\n --force origin chore/x\nEOF",
+    "builtin command bash <<'EOF'\ngit push \\\n --force origin chore/x\nEOF",
+    "<<'EOF' bash\ngit push \\\n --force origin chore/x\nEOF",
+    "case a in a) bash <<'EOF'\ngit push \\\n --force origin chore/x\nEOF\n;; esac",
+    "f() { bash <<'EOF'\ngit push \\\n --force origin chore/x\nEOF\n}; f",
+    "cat <<'EOF' |& bash\ngit push \\\n --force origin chore/x\nEOF",
+    "bash &>/dev/null <<'EOF'\ngit push \\\n --force origin chore/x\nEOF",
+    "$SHELL <<'EOF'\ngit push \\\n --force origin chore/x\nEOF",
+    "eval bash <<'EOF'\ngit push \\\n --force origin chore/x\nEOF",
+    "source /dev/stdin <<'EOF'\ngit push \\\n --force origin chore/x\nEOF",
+    "x=$(bash <<'EOF'\ngit push \\\n --force origin chore/x\nEOF\n)",
+    "cat > run.sh <<'EOF'\ngit push \\\n --force origin chore/x\nEOF\nbash run.sh",
+    "gh pr create --title t --body-file - <<'EOF'\nRepro:\ngit push \\\n  --force origin chore/x\nEOF",
+    // 명령 자리의 `$( )`가 내는 글은 실행된다 — `bash -c "$(cat <<EOF …)"`
+    "bash -c \"$(cat <<'EOF'\ngit push \\\n --force origin chore/x\nEOF\n)\"",
+    // 앞 줄이 원문 읽기의 따옴표 상태를 흔들어도 같다 — 셸 `-c` 자리의 `$( … )`는 논리 줄 판독이 실행으로 읽는다
+    "cat > notes.md <<'EOF'\nit's\nEOF\nbash -c \"$(cat <<'XEOF'\ngit push \\\n --force origin chore/x\nXEOF\n)\"",
+    "git commit -m \"$(cat <<'EOF'\nit's 5\" wide\nEOF\n)\"\nsudo bash -lc \"$(cat <<'XEOF'\ngit reset --hard \\\n  HEAD~1\nXEOF\n)\"",
+    // 따옴표 없는 구분자의 본문은 `\\`를 `\`로 푼 뒤 셸이 읽는다, 구분자 낱말 안의 줄 이음, 깊은 중첩, `<<\E`는 따옴표 친 구분자
+    'bash <<EOF\ngit push \\\\\n --force origin chore/x\nEOF',
+    "cat <<E\\\nOF\nit's\nEOF\ngit push \\\n --force origin chore/x",
+    "bash <<'A'\nbash <<'B'\nbash <<'C'\nbash <<'D'\ngit push \\\n --force origin chore/x\nD\nC\nB\nA",
+    "cat <<\\E\nit's \\\nE\ngit push \\\n --force origin chore/x",
+    'cat <<E\na \\\\\nE\ngit push \\\n --force origin chore/x',
+  ]) expectDeny(cmd)
+  for (const cmd of [
+    '(( x = 1 << 2 ))\ngit push \\\n origin master',
+    'echo ${x:-a #b}; git push \\\n origin master',
+  ]) expectAsk(cmd)
+  // 큰 입력은 한 번 훑기로 끝난다 — 줄 하나에 `$( … )`가 많거나 열린 `$(` 안에서 줄마다 heredoc이 있어도 제때 판정한다
+  {
+    const big = [
+      'echo ' + '$(echo a) '.repeat(20000) + '\ngit push \\\n --force origin chore/x',
+      'x=$(\n' + "cat <<'E'\nb\nE\n".repeat(17000) + ')\ngit push \\\n --force origin chore/x',
+    ]
+    for (const cmd of big) {
+      const t0 = Date.now()
+      const d = decision(cmd)
+      r.check(`큰 입력 ${cmd.length}자 → deny, 2초 안`, d === 'deny' && Date.now() - t0 < 2000, `실측 ${d} · ${Date.now() - t0}ms`)
+    }
+  }
+  // bash가 잇지 않거나 실행하지 않는 글 — 무출력이다 (작은따옴표 안, 면제 소비자의 본문, 주석 끝)
   for (const cmd of [
     "git push origin 'mas\\\nter'",
-    "gh pr create --title t --body-file - <<'EOF'\nRepro:\ngit push \\\n  --force origin chore/x\nEOF",
     "gh pr create --base master --title \"t\" --body \"$(cat <<'EOF'\na 5\" screen\nRepro:\ngit push \\\n  --force origin chore/x\nEOF\n)\"",
     'git push -u origin feat/x # note \\\ngit log master..HEAD',
     "git add -A && \\\n  git commit -q -F - <<'EOF' && \\\n  git push -u origin fix/x\nfix: don't stop\nEOF",

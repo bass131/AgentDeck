@@ -321,7 +321,8 @@ const DESTRUCTIVE = [
 //   세그먼트 토큰 어디에든 `master`가 글자로 보이는 push(부분 문자열, 대소문자 무시), `send-pack` 전부,
 //   `-c alias.*`로 감싼 push, 로컬 ref를 덮어쓰는 fetch, 서버 보호를 바꿀 수 있는 `gh api` 쓰기·보호 설정 경로 호출,
 //   `gh repo edit`·`delete`.
-// 가드 판독이 못 읽는 꼴(변수·설정·저장소 상태·리다이렉트로 목적지나 옵션이 가려지는 push)은 무출력이다. 줄 이음·주석·heredoc 본문은 M06 G5의 논리 줄 판독이 읽는다.
+// 가드 판독이 못 읽는 꼴(변수·설정·저장소 상태·리다이렉트로 목적지나 옵션이 가려지는 push)은 무출력이다. `\` 줄 이음으로 가려진 꼴은 M06 G5의 논리 줄 판독이
+//   bash처럼 이어 읽는다(주석·heredoc 본문·산술·`$( … )` 문맥을 따라). 명령 치환의 실행 내용은 여전히 읽지 않는다.
 //   `master`로 가면 서버가 거부하고, 작업 브랜치의 강제 갱신은 그 브랜치 안의 감수 위험이다 ([USER] 2026-11-13).
 // 가드는 여전히 어떤 명령에도 `permissionDecision: "allow"`를 내지 않는다 — 무출력이면 설정의 allow가 적용된다.
 // push 목적지를 저장소 상태로 판정하는 설계는 M04에서 독립 검수를 통과하지 못했다 (ADR-003). 근거와 대체 기록은 —
@@ -535,22 +536,31 @@ function shellScriptsOf(args) {
 // 원문 읽기(①②)는 물리 줄 단위라 `\`+개행 줄 이음을 모르고, 원문 전체를 이으면 bash가 잇지 않는 자리
 // (주석 끝, 따옴표 친 heredoc 본문)까지 이어 뒤 명령이 사라진다(G5 1·2차 검수 FAIL). 그래서 bash처럼 한 번에 읽는
 // 두 번째 판독을 둔다. 판정은 원문 읽기와 이 판독의 합집합이라 옛 가드보다 약해질 수 없다.
-//   - 문맥 쌓기: 작은따옴표·`$'…'`·큰따옴표·`$( … )`·`$(( … ))`. 따옴표 밖과 큰따옴표 안의 `\`+LF·`\`+CRLF는 지운다.
-//     그 밖의 `\X`는 두 글자 그대로 두되 X가 문맥을 바꾸지 않게 건너뛴다.
-//   - 주석: 단어 머리의 `#`(따옴표·산술 밖)부터 줄 끝까지 버린다. 주석 안의 `\`는 줄을 잇지 않는다.
+//   - 문맥 쌓기: 작은따옴표·`$'…'`·큰따옴표·백틱·`${ … }`·`$( … )`·산술(`$(( ))`·`(( ))`·`$[ ]`).
+//     따옴표 밖과 큰따옴표 안의 `\`+LF·`\`+CRLF는 지운다. 그 밖의 `\X`는 두 글자 그대로 두되 X가 문맥을 바꾸지 않게 건너뛴다.
+//     백틱 안은 닫는 백틱까지 글자 그대로다.
+//   - 주석: 낱말 경계 뒤의 `#`(따옴표·`${ }`·산술 밖)부터 줄 끝까지 버린다. 주석 안의 `\`는 줄을 잇지 않는다.
+//     주석인지 애매하면(`$(echo t)#tag`) 글을 남긴다 — 남긴 글은 판정을 약하게 만들지 않는다.
 //   - heredoc: `<<`·`<<-` 뒤 단어가 구분자다(따옴표나 `\`가 섞이면 따옴표 친 구분자). 본문은 연산자가 있는 줄의
 //     개행 뒤에서 읽는다. 따옴표 친 구분자는 원문 줄 그대로, 없는 구분자는 줄 끝 홀수 `\`로 이은 줄로 종결자를 찾는다.
-//   - 본문은 셸에 먹일 때(`bash <<EOF`·`cat <<EOF | sh`)만 명령으로 다시 읽는다. 그 밖의 본문은 bash가 실행하지
-//     않는 글이라 이 판독에서는 버린다 — 원문 읽기가 종전처럼 보수적으로 판정한다.
+//   - 본문은 먹는 쪽이 면제 소비자(`cat`·`tee`, `git commit -F -`)뿐일 때만 버리고, 나머지는 명령으로 다시 읽는다
+//     (G5 3차 검수 FAIL — 셸 이름 목록은 닫히지 않는다). 먹는 쪽은 가장 안쪽 `$( … )` 안의 파이프라인으로 본다.
+//     명령 자리의 `$( … )`(`bash -c "$(cat <<EOF …)"`의 스크립트)가 내는 글은 실행되므로 면제하지 않는다.
 // 반환은 따옴표 밖 개행이 없는 논리 줄의 목록이다(`$( … )` 안의 개행은 남는다). 각 줄을 `splitSegments`로 나눈다.
+// 한 번 훑기다 — 파이프라인 경계는 개행마다 한 번 셈하고 보관한다(3차 검수의 제곱 시간).
 const HEREDOC_WORD_END = new Set([' ', '\t', '\r', '\n', ';', '&', '|', '<', '>', '(', ')'])
-const COMMENT_AFTER = new Set([' ', '\t', ';', '&', '|', '(', ')', '\n'])
+const COMMENT_AFTER = new Set([' ', '\t', ';', '&', '|', '(', '\n'])
+const ARITH = new Set(['$((', '((', '$[', '['])
+const CMD_WORDS = new Set(['then', 'do', 'else', 'elif', 'if', 'while', 'until', 'eval', 'exec', '!', '{'])
+const HEREDOC_DEPTH_LIMIT = 8
 
 function readHeredocWord(text, j) {
   let delim = ''
   let quoted = false
   while (j < text.length && !HEREDOC_WORD_END.has(text[j])) {
     const ch = text[j]
+    if (ch === '\\' && text[j + 1] === '\n') { j += 2; continue }
+    if (ch === '\\' && text[j + 1] === '\r' && text[j + 2] === '\n') { j += 3; continue }
     if (ch === "'" || ch === '"') {
       quoted = true
       const end = text.indexOf(ch, j + 1)
@@ -588,14 +598,17 @@ function readHeredocBody(text, i, h) {
     }
     i = next
     const probe = h.dash ? dropCR(line).replace(/^\t+/, '') : dropCR(line)
-    if (probe === h.delim) return { body: lines.join('\n'), next: i }
+    if (probe === h.delim) return { body: unescapeBody(lines, h), next: i }
     lines.push(line)
   }
-  return { body: lines.join('\n'), next: i }
+  return { body: unescapeBody(lines, h), next: i }
 }
+// 따옴표 없는 구분자의 본문은 셸이 `\\`·`\$`·`` \` ``를 풀어 넘긴다 — 본문을 명령으로 다시 읽을 때 그 글을 쓴다.
+const unescapeBody = (lines, h) => (h.quoted ? lines.join('\n') : lines.join('\n').replace(/\\([\\$`])/g, '$1'))
 
-// pos 자리를 품은 파이프라인 — `;`·`&&`·`||`·`&`·개행에서 끊고 `|`에서는 끊지 않는다.
-function pipelineAt(text, pos) {
+// 파이프라인 경계 — `;`·`&&`·`||`·`&`·개행에서 끊고 `|`·`|&`·`&>`·`>&`에서는 끊지 않는다. [시작, 끝) 목록.
+function pipelineRanges(text) {
+  const out = []
   let start = 0
   let quote = null
   for (let i = 0; i < text.length; i++) {
@@ -606,102 +619,166 @@ function pipelineAt(text, pos) {
     let w = 0
     if (ch === ';' || ch === '\n') w = 1
     else if (ch === '|' && text[i + 1] === '|') w = 2
-    else if (ch === '&') w = text[i + 1] === '&' ? 2 : (text[i - 1] === '>' || text[i - 1] === '<' ? 0 : 1)
+    else if (ch === '&') {
+      if (text[i + 1] === '&') w = 2
+      else if (text[i + 1] === '>' || text[i - 1] === '>' || text[i - 1] === '<' || text[i - 1] === '|') w = 0
+      else w = 1
+    }
     if (!w) continue
-    if (i >= pos) return text.slice(start, i)
+    out.push([start, i])
     start = i + w
     i += w - 1
   }
-  return text.slice(start)
+  out.push([start, text.length])
+  return out
+}
+function rangeAt(ranges, pos) {
+  let lo = 0
+  let hi = ranges.length - 1
+  while (lo < hi) {
+    const mid = (lo + hi + 1) >> 1
+    if (ranges[mid][0] <= pos) lo = mid
+    else hi = mid - 1
+  }
+  return ranges[lo]
 }
 
-// 본문을 셸이 먹는가 — 단계 머리의 제어 구문 낱말(`then bash <<EOF`)은 건너뛰고 본다.
-const RESERVED_HEAD = new Set(['if', 'then', 'else', 'elif', 'do', 'while', 'until', '!', '{'])
-function feedsShell(pipeline) {
-  return splitSegments(pipeline).some((stage) => {
-    const toks = tokenize(stage)
-    while (toks.length > 1 && RESERVED_HEAD.has(toks[0])) toks.shift()
-    return commandsOf(toks).some((c) => SHELLS.has(c.base))
-  })
+// `$(`가 명령 자리에 섰는가 — 그 앞이 비었거나 구분자·제어 구문 낱말이면 `$( … )`가 낸 글이 실행된다.
+function atCommandPos(s) {
+  let k = s.length - 1
+  while (k >= 0 && (s[k] === ' ' || s[k] === '\t' || s[k] === '"')) k--
+  if (k < 0 || ';&|(\n'.includes(s[k])) return true
+  let w = k
+  while (w >= 0 && /[A-Za-z!{]/.test(s[w])) w--
+  return CMD_WORDS.has(s.slice(w + 1, k + 1)) && (w < 0 || ' \t;&|(\n'.includes(s[w]))
 }
+// `$(`가 셸 `-c`의 스크립트 자리에 섰는가 — `bash -c "$(cat <<EOF …)"`의 `$( … )`가 낸 글은 스크립트로 실행된다.
+const RE_SHELL_C_ARG = /(?:^|[\s;&|(])(?:[^\s;&|(]*[/\\])?(?:sh|bash|dash|zsh|ksh|ash)(?:\.exe)?(?:\s+[-+][A-Za-z]+)*\s+-[A-Za-z]*c[A-Za-z]*(?:\s+[-+][A-Za-z]+)*\s+"?$/i
+const executesSubst = (tail) => atCommandPos(tail) || RE_SHELL_C_ARG.test(tail)
 
+// 버퍼는 둘이다 — `done`은 이 논리 줄에서 앞서 끝난 물리 줄들(따옴표 밖 개행이 `$( … )` 안에 남은 것), `cur`는 지금 물리 줄.
+// 위치는 논리 줄 머리부터 센다(`base` = done 길이). 판독 중에는 `cur`의 글자를 다시 읽지 않고 끝 글자(`last`)와
+// 짧은 꼬리(`tail`)만 따로 든다 — 긴 이어 붙인 문자열의 글자를 읽으면 V8이 매번 전체를 펴서 제곱 시간이 된다.
 function logicalLines(text, depth = 0) {
   const units = []
   const stack = []
+  let done = ''
+  let base = 0
   let cur = ''
+  let last = ''
+  let tail = ''
+  let arith = 0
+  let dq = 0
   let pending = []
   let i = 0
   const n = text.length
+  const add = (s) => { if (!s) return; cur += s; last = s[s.length - 1]; tail = (tail + s).slice(-64) }
+  const push = (t, len) => {
+    stack.push({ t, at: base + cur.length + len, cmd: t === '$(' && executesSubst(tail) })
+    if (ARITH.has(t)) arith++
+    if (t === '"') dq++
+  }
+  const pop = () => { const e = stack.pop(); if (ARITH.has(e.t)) arith--; if (e.t === '"') dq-- }
   while (i < n) {
     const ch = text[i]
-    const top = stack[stack.length - 1]
-    if (top === "'") { cur += ch; i++; if (ch === "'") stack.pop(); continue }
-    if (top === "$'") {
-      if (ch === '\\' && i + 1 < n) { cur += ch + text[i + 1]; i += 2; continue }
-      cur += ch; i++
-      if (ch === "'") stack.pop()
+    const top = stack.length ? stack[stack.length - 1].t : undefined
+    if (top === "'") { add(ch); i++; if (ch === "'") pop(); continue }
+    if (top === "$'" || top === '`') {
+      if (ch === '\\' && i + 1 < n) { add(ch + text[i + 1]); i += 2; continue }
+      add(ch); i++
+      if (ch === (top === '`' ? '`' : "'")) pop()
       continue
     }
     if (ch === '\\') {
       if (text[i + 1] === '\n') { i += 2; continue }
       if (text[i + 1] === '\r' && text[i + 2] === '\n') { i += 3; continue }
-      cur += text.slice(i, i + 2); i += 2
+      add(text.slice(i, i + 2)); i += 2
       continue
     }
-    if (ch === '$' && text[i + 1] === '(') {
-      const arith = text[i + 2] === '('
-      stack.push(arith ? '$((' : '$(')
-      cur += arith ? '$((' : '$('
-      i += arith ? 3 : 2
+    if (ch === '$' && (text[i + 1] === '(' || text[i + 1] === '[' || text[i + 1] === '{')) {
+      const t = text[i + 1] === '(' ? (text[i + 2] === '(' ? '$((' : '$(') : '$' + text[i + 1]
+      push(t, t.length)
+      add(t)
+      i += t.length
       continue
     }
-    if (top === '"') { cur += ch; i++; if (ch === '"') stack.pop(); continue }
-    if (ch === "'") { stack.push("'"); cur += ch; i++; continue }
-    if (ch === '"') { stack.push('"'); cur += ch; i++; continue }
-    if (ch === '$' && text[i + 1] === "'") { stack.push("$'"); cur += "$'"; i += 2; continue }
-    if (top === '$((' && ch === ')' && text[i + 1] === ')') { stack.pop(); cur += '))'; i += 2; continue }
-    if (top !== undefined && ch === '(') { stack.push('('); cur += ch; i++; continue }
-    if ((top === '$(' || top === '(') && ch === ')') { stack.pop(); cur += ch; i++; continue }
-    const inArith = stack.includes('$((')
-    if (ch === '#' && !inArith && (cur === '' || COMMENT_AFTER.has(cur[cur.length - 1]))) {
+    if (ch === '`') { push('`', 1); add(ch); i++; continue }
+    if (top === '"') { add(ch); i++; if (ch === '"') pop(); continue }
+    if (top === '${') {
+      if (ch === '}') pop()
+      else if (ch === '"') push('"', 1)
+      else if (ch === "'" && dq === 0) push("'", 1)
+      add(ch); i++
+      continue
+    }
+    if (ch === "'") { push("'", 1); add(ch); i++; continue }
+    if (ch === '"') { push('"', 1); add(ch); i++; continue }
+    if (ch === '$' && text[i + 1] === "'") { push("$'", 2); add("$'"); i += 2; continue }
+    if ((top === '$((' || top === '((') && ch === ')' && text[i + 1] === ')') { pop(); add('))'); i += 2; continue }
+    if ((top === '$[' || top === '[') && (ch === '[' || ch === ']')) {
+      if (ch === '[') push('[', 1)
+      else pop()
+      add(ch); i++
+      continue
+    }
+    const atWord = last === '' || COMMENT_AFTER.has(last)
+    if (ch === '(' && text[i + 1] === '(' && atWord && top !== '$[' && top !== '[') { push('((', 2); add('(('); i += 2; continue }
+    if (top !== undefined && ch === '(') { push('(', 1); add(ch); i++; continue }
+    if ((top === '$(' || top === '(') && ch === ')') { pop(); add(ch); i++; continue }
+    if (ch === '#' && arith === 0 && atWord) {
       const nl = text.indexOf('\n', i)
       i = nl < 0 ? n : nl
       continue
     }
-    if (ch === '<' && text[i + 1] === '<' && text[i + 2] !== '<' && cur[cur.length - 1] !== '<' && !inArith) {
+    if (ch === '<' && text[i + 1] === '<' && text[i + 2] !== '<' && last !== '<' && arith === 0) {
       let j = i + 2
       const dash = text[j] === '-'
       if (dash) j++
       while (text[j] === ' ' || text[j] === '\t') j++
       const w = readHeredocWord(text, j)
-      if (w.delim) pending.push({ delim: w.delim, quoted: w.quoted, dash, at: cur.length })
-      cur += text.slice(i, w.end)
+      if (w.delim) {
+        let ctx = null
+        for (let k = stack.length - 1; k >= 0; k--) if (stack[k].t === '$(' || stack[k].t === '(') { ctx = stack[k]; break }
+        const from = Math.max(ctx ? ctx.at : 0, base) - base   // 지금 물리 줄 안의 위치
+        pending.push({ delim: w.delim, quoted: w.quoted, dash, at: cur.length, from, exec: Boolean(ctx && ctx.t === '$(' && ctx.cmd) })
+      }
+      add(text.slice(i, w.end).replace(/\\\r?\n/g, ''))
       i = w.end
       continue
     }
     if (ch === '\n') {
       i++
-      for (const h of pending) {
-        const { body, next } = readHeredocBody(text, i, h)
-        i = next
-        if (depth < SHELL_DEPTH_LIMIT && feedsShell(pipelineAt(cur, h.at))) units.push(...logicalLines(body, depth + 1))
+      if (pending.length) {
+        const line = cur
+        const ranges = new Map()
+        const exempt = new Map()
+        for (const h of pending) {
+          const { body, next } = readHeredocBody(text, i, h)
+          i = next
+          if (depth >= HEREDOC_DEPTH_LIMIT) continue
+          if (!ranges.has(h.from)) ranges.set(h.from, pipelineRanges(line.slice(h.from)))
+          const r = rangeAt(ranges.get(h.from), h.at - h.from)
+          const key = (h.from + r[0]) + ':' + (h.from + r[1])
+          if (!exempt.has(key)) exempt.set(key, allConsumersExempt(line.slice(h.from + r[0], h.from + r[1])))
+          if (h.exec || !exempt.get(key)) for (const u of logicalLines(body, depth + 1)) units.push(u)
+        }
+        pending = []
       }
-      pending = []
-      if (stack.length === 0) { units.push(cur); cur = '' } else cur += '\n'
+      if (stack.length === 0) { units.push(done + cur); done = ''; base = 0; cur = ''; last = ''; tail = '' }
+      else { done += cur + '\n'; base += cur.length + 1; cur = ''; last = '\n'; tail = (tail + '\n').slice(-64) }
       continue
     }
-    cur += ch
+    add(ch)
     i++
   }
-  units.push(cur)
+  units.push(done + cur)
   return units.filter((u) => u.trim())
 }
 
 function contextsOf(command, depth = 0) {
-  const segs = new Set([
-    ...splitSegments(stripExemptHeredocBodies(command)),
-    ...logicalLines(command).flatMap((line) => splitSegments(line)),
-  ])
+  // 문맥을 합칠 때 중복을 접지 않는다 — 옛 가드와 같은 문맥 수를 지나야 큰 입력에서도 판정이 옛 가드보다 약해지지 않는다.
+  const segs = splitSegments(stripExemptHeredocBodies(command))
+  for (const line of logicalLines(command)) for (const s of splitSegments(line)) segs.push(s)
   const out = []
   for (const seg of segs) {
     const toks = tokenize(seg)

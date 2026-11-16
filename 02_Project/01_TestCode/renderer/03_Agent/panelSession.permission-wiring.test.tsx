@@ -104,6 +104,32 @@ describe('(A) usePanelSlot — respondPermission 계약', () => {
     })
   })
 
+  it('(2b) 가드 질문 permission_request(askReason) → 패널 슬롯 pendingPermission에 사유가 실린다 (M06 G3 멀티 패널 카드)', async () => {
+    const { usePanelSlot } = await import('@renderer/03_Agent/state/panelSession')
+    const { result } = renderHook(() => usePanelSlot('sess-g3-guard', 0))
+
+    await act(async () => {
+      await result.current.send('테스트')
+    })
+    const runId = result.current.state.currentRunId!
+    const askReason = '비가역 작업 — master가 보이는 git push (master 진입 시도). 승인하면 실행되고, 거부하면 실행되지 않습니다.'
+
+    act(() => {
+      emitAgentEvent(runId, {
+        type: 'permission_request', requestId: 'req-g3', toolName: 'Bash',
+        summary: '명령 실행: git push origin HEAD:master', askReason,
+      })
+    })
+
+    expect(result.current.state.pendingPermission).toEqual({
+      runId,
+      requestId: 'req-g3',
+      toolName: 'Bash',
+      summary: '명령 실행: git push origin HEAD:master',
+      askReason,
+    })
+  })
+
   it('(3) respondPermission(behavior) → permissionRespond(runId/requestId/behavior) 호출 + 슬롯 정리', async () => {
     const { usePanelSlot } = await import('@renderer/03_Agent/state/panelSession')
     const { result } = renderHook(() => usePanelSlot('sess-bf3-a', 0))

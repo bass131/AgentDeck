@@ -13,6 +13,7 @@ export function handlePermissionRequest(state: AppState, event: PermissionReques
       toolName: event.toolName,
       summary: event.summary,
       planReview: event.planReview,
+      ...(event.askReason !== undefined ? { askReason: event.askReason } : {}),
     },
   }
 }

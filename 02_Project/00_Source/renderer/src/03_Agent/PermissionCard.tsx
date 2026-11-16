@@ -13,10 +13,30 @@ const PERM_CHOICES: { key: PermissionChoice; label: string; desc: string; color:
   { key: 'deny',         label: '거부',       desc: '이 작업을 실행하지 않아요',              color: 'var(--red)'    },
 ]
 
+// M06 G3 — 가드가 물은 호출에는 「항상 허용」이 없다. 도구 단위 세션 규칙이 Bash 전체를 열어 가드 질문까지 덮기 때문이다.
+const GUARD_CHOICES = PERM_CHOICES.filter((c) => c.key !== 'allow_always')
+
 const PLAN_CHOICES: { key: PermissionChoice; label: string; desc: string; color: string }[] = [
   { key: 'allow', label: '실행 승인', desc: '계획대로 실행을 진행해요', color: 'var(--green)'  },
   { key: 'deny',  label: '계속 계획', desc: '계획을 더 다듬어요',       color: 'var(--accent)' },
 ]
+
+// 이보다 긴 명령은 접힌 채로 시작한다. 접혀도 전문은 DOM에 남는다(높이만 줄인다).
+const LONG_COMMAND_CHARS = 200
+const LONG_COMMAND_LINES = 4
+
+function isLongCommand(summary: string): boolean {
+  return summary.length > LONG_COMMAND_CHARS || summary.split('\n').length > LONG_COMMAND_LINES
+}
+
+function isGuardAsk(pending: PendingPermission): boolean {
+  return pending.planReview == null && typeof pending.askReason === 'string' && pending.askReason.length > 0
+}
+
+function choicesFor(pending: PendingPermission): typeof PERM_CHOICES {
+  if (pending.planReview != null) return PLAN_CHOICES
+  return isGuardAsk(pending) ? GUARD_CHOICES : PERM_CHOICES
+}
 
 function planFileBasename(filePath: string): string {
   return filePath.split(/[\\/]/).filter(Boolean).pop() ?? filePath
@@ -39,8 +59,10 @@ export function PermissionCard({ pending, onRespond }: PermissionCardProps): JSX
   onRespondRef.current = onRespond
 
   const [planOpen, setPlanOpen] = useState(false)
+  const [cmdOpen, setCmdOpen] = useState(false)
   useEffect(() => {
     setPlanOpen(false)
+    setCmdOpen(false)
   }, [pending])
 
   useEffect(() => {
@@ -50,7 +72,7 @@ export function PermissionCard({ pending, onRespond }: PermissionCardProps): JSX
 
     if (!isInputFocused()) el.focus()
 
-    const choices = pending.planReview != null ? PLAN_CHOICES : PERM_CHOICES
+    const choices = choicesFor(pending)
 
     function onKey(e: KeyboardEvent): void {
       if (e.key === 'Escape') {
@@ -72,7 +94,9 @@ export function PermissionCard({ pending, onRespond }: PermissionCardProps): JSX
   const isPlanMode = pending.planReview != null
   const planText = pending.planReview?.plan ?? ''
   const hasPlanBody = planText.length > 0
-  const choices = isPlanMode ? PLAN_CHOICES : PERM_CHOICES
+  const guardAsk = isGuardAsk(pending)
+  const cmdLong = guardAsk && isLongCommand(pending.summary)
+  const choices = choicesFor(pending)
 
   return (
     <div
@@ -83,6 +107,7 @@ export function PermissionCard({ pending, onRespond }: PermissionCardProps): JSX
       aria-label={isPlanMode ? '계획 검토 요청' : '도구 사용 승인 요청'}
       aria-live="polite"
       data-plan-mode={isPlanMode ? true : undefined}
+      data-guard-ask={guardAsk ? true : undefined}
     >
       <div className="perm-card-head">
         <span className="perm-card-ic" aria-hidden="true">
@@ -124,6 +149,34 @@ export function PermissionCard({ pending, onRespond }: PermissionCardProps): JSX
         ) : (
           <div className="perm-card-plan-empty">계획 본문을 가져올 수 없음</div>
         )
+      ) : guardAsk ? (
+        <>
+          <div className="perm-card-reason" data-ask-reason>
+            <span className="perm-card-reason-label">가드 사유</span>
+            <span className="perm-card-reason-text">{pending.askReason}</span>
+          </div>
+          <div
+            className={`perm-card-sum perm-card-sum-full${cmdLong && !cmdOpen ? ' collapsed' : ''}`}
+            data-cmd-full
+          >
+            {pending.summary}
+          </div>
+          {cmdLong && (
+            <button
+              type="button"
+              className={`perm-card-plan-toggle${cmdOpen ? ' open' : ''}`}
+              data-cmd-toggle
+              aria-expanded={cmdOpen}
+              aria-label={cmdOpen ? '명령 전문 접기' : '명령 전문 펼치기'}
+              onClick={() => setCmdOpen((v) => !v)}
+            >
+              <span className="perm-card-plan-toggle-ic" aria-hidden="true">
+                <IconChevDown size={12} />
+              </span>
+              <span>{cmdOpen ? '명령 전문 접기' : '명령 전문 펼치기'}</span>
+            </button>
+          )}
+        </>
       ) : (
         pending.summary && <div className="perm-card-sum">{pending.summary}</div>
       )}

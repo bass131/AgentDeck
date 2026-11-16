@@ -13,6 +13,8 @@ export interface PendingPermission {
   toolName: string
   summary: string
   planReview?: PlanReviewPayload
+  // M06 G3 — 가드가 물은 호출의 사유 원문. 있으면 카드가 명령 전문과 사유를 보이고 「항상 허용」을 숨긴다.
+  askReason?: string
 }
 
 export interface PendingQuestion {

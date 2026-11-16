@@ -59,17 +59,120 @@ describe('PermissionCard — 가드 질문', () => {
     expect(container.querySelector('[data-cmd-toggle]')).toBeNull()
   })
 
-  it('아주 긴 명령은 접힌 채로 시작하고 펼칠 수 있다 — 접혀도 전문은 DOM에 남는다', async () => {
+  it('아주 긴 명령은 접힌 채로 시작하고 펼칠 수 있다 — 접힘 클래스가 실제로 바뀌고, 접혀도 전문은 DOM에 남는다', async () => {
     const { PermissionCard } = await import('@renderer/10_Engine')
     const { container } = render(<PermissionCard pending={guardPending(VERY_LONG_CMD)} onRespond={vi.fn()} />)
     const toggle = container.querySelector('[data-cmd-toggle]') as HTMLElement
     expect(toggle).toBeTruthy()
     expect(toggle.getAttribute('aria-expanded')).toBe('false')
     const cmd = container.querySelector('[data-cmd-full]') as HTMLElement
+    expect(cmd.classList.contains('collapsed')).toBe(true)
     expect(cmd.textContent).toContain(VERY_LONG_CMD)
     fireEvent.click(toggle)
     expect(toggle.getAttribute('aria-expanded')).toBe('true')
-    expect((container.querySelector('[data-cmd-full]') as HTMLElement).textContent).toContain(VERY_LONG_CMD)
+    const opened = container.querySelector('[data-cmd-full]') as HTMLElement
+    expect(opened.classList.contains('collapsed')).toBe(false)
+    expect(opened.textContent).toContain(VERY_LONG_CMD)
+    fireEvent.click(toggle)
+    expect((container.querySelector('[data-cmd-full]') as HTMLElement).classList.contains('collapsed')).toBe(true)
+  })
+
+  it('숫자 키 3은 아무것도 하지 않는다(선택지가 둘뿐)', async () => {
+    const { PermissionCard } = await import('@renderer/10_Engine')
+    const onRespond = vi.fn()
+    const { container } = render(<PermissionCard pending={guardPending(LONG_CMD)} onRespond={onRespond} />)
+    const card = container.querySelector('.perm-card') as HTMLElement
+    await act(async () => {
+      fireEvent.keyDown(card, { key: '3' })
+    })
+    expect(onRespond).not.toHaveBeenCalled()
+  })
+})
+
+describe('PermissionCard — 접힌 긴 명령은 펼치기 전에 허용할 수 없다', () => {
+  it('접힌 동안 허용 버튼이 비활성이고 펼치라는 안내가 보인다. 클릭해도 응답하지 않는다', async () => {
+    const { PermissionCard } = await import('@renderer/10_Engine')
+    const onRespond = vi.fn()
+    const { container } = render(<PermissionCard pending={guardPending(VERY_LONG_CMD)} onRespond={onRespond} />)
+    const allow = container.querySelector('[data-perm-choice="allow"]') as HTMLButtonElement
+    expect(allow.disabled).toBe(true)
+    expect(container.querySelector('[data-allow-locked]')?.textContent).toContain('펼친 뒤')
+    fireEvent.click(allow)
+    expect(onRespond).not.toHaveBeenCalled()
+    const deny = container.querySelector('[data-perm-choice="deny"]') as HTMLButtonElement
+    expect(deny.disabled).toBe(false)
+  })
+
+  it('접힌 동안 숫자 키 1은 아무것도 하지 않고, 2(거부)와 Esc는 그대로다', async () => {
+    const { PermissionCard } = await import('@renderer/10_Engine')
+    const onRespond = vi.fn()
+    const { container } = render(<PermissionCard pending={guardPending(VERY_LONG_CMD)} onRespond={onRespond} />)
+    const card = container.querySelector('.perm-card') as HTMLElement
+    await act(async () => {
+      fireEvent.keyDown(card, { key: '1' })
+    })
+    expect(onRespond).not.toHaveBeenCalled()
+    await act(async () => {
+      fireEvent.keyDown(card, { key: '2' })
+    })
+    expect(onRespond).toHaveBeenLastCalledWith('deny')
+    await act(async () => {
+      fireEvent.keyDown(card, { key: 'Escape' })
+    })
+    expect(onRespond).toHaveBeenCalledTimes(2)
+    expect(onRespond).not.toHaveBeenCalledWith('allow')
+  })
+
+  it('펼친 뒤에는 허용 버튼과 숫자 키 1이 다시 허용을 낸다', async () => {
+    const { PermissionCard } = await import('@renderer/10_Engine')
+    const onRespond = vi.fn()
+    const { container } = render(<PermissionCard pending={guardPending(VERY_LONG_CMD)} onRespond={onRespond} />)
+    fireEvent.click(container.querySelector('[data-cmd-toggle]') as HTMLElement)
+    const allow = container.querySelector('[data-perm-choice="allow"]') as HTMLButtonElement
+    expect(allow.disabled).toBe(false)
+    expect(container.querySelector('[data-allow-locked]')).toBeNull()
+    const card = container.querySelector('.perm-card') as HTMLElement
+    await act(async () => {
+      fireEvent.keyDown(card, { key: '1' })
+    })
+    expect(onRespond).toHaveBeenLastCalledWith('allow')
+    fireEvent.click(allow)
+    expect(onRespond).toHaveBeenCalledTimes(2)
+  })
+})
+
+describe('PermissionCard — 사유 없이 올라온 확인 요청 (fail-closed 경로)', () => {
+  function escalatedNoReason(command: string) {
+    return { runId: 'r', requestId: 'p', toolName: 'Bash', summary: `명령 실행: ${command}`, escalated: true as const }
+  }
+
+  it('사유가 없어도 「항상 허용」이 없고, 중립 라벨과 대체 문구가 보인다', async () => {
+    const { PermissionCard } = await import('@renderer/10_Engine')
+    const { container } = render(<PermissionCard pending={escalatedNoReason('gh release --help')} onRespond={vi.fn()} />)
+    expect(container.querySelector('[data-perm-choice="allow_always"]')).toBeNull()
+    const reason = container.querySelector('[data-ask-reason]') as HTMLElement
+    expect(reason.textContent).toContain('확인이 필요한 이유')
+    expect(reason.textContent).toContain('사유를 보내지 않았')
+    expect(reason.textContent).not.toContain('가드 사유')
+    expect(container.querySelector('[data-cmd-full]')?.textContent).toContain('gh release --help')
+  })
+
+  it('escalated 표지가 있고 사유가 있으면 둘 다 반영된다 — 「항상 허용」 없음, 사유 원문 표시', async () => {
+    const { PermissionCard } = await import('@renderer/10_Engine')
+    const pending = { ...guardPending(LONG_CMD), escalated: true as const }
+    const { container } = render(<PermissionCard pending={pending} onRespond={vi.fn()} />)
+    expect(container.querySelector('[data-perm-choice="allow_always"]')).toBeNull()
+    expect(container.querySelector('[data-ask-reason]')?.textContent).toContain(GUARD_REASON)
+    expect(container.querySelector('[data-guard-ask]')).toBeTruthy()
+  })
+
+  it('사유가 있으면 같은 중립 라벨 아래 사유 원문을 보인다 — 「가드 사유」라고 부르지 않는다', async () => {
+    const { PermissionCard } = await import('@renderer/10_Engine')
+    const { container } = render(<PermissionCard pending={guardPending(LONG_CMD)} onRespond={vi.fn()} />)
+    const reason = container.querySelector('[data-ask-reason]') as HTMLElement
+    expect(reason.textContent).toContain('확인이 필요한 이유')
+    expect(reason.textContent).toContain(GUARD_REASON)
+    expect(reason.textContent).not.toContain('가드 사유')
   })
 })
 

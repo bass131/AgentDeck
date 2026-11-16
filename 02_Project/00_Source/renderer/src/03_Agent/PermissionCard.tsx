@@ -13,7 +13,7 @@ const PERM_CHOICES: { key: PermissionChoice; label: string; desc: string; color:
   { key: 'deny',         label: '거부',       desc: '이 작업을 실행하지 않아요',              color: 'var(--red)'    },
 ]
 
-// M06 G3 — 가드가 물은 호출에는 「항상 허용」이 없다. 도구 단위 세션 규칙이 Bash 전체를 열어 가드 질문까지 덮기 때문이다.
+// M06 G3 — 모드와 관계없이 사람에게 올린 호출에는 「항상 허용」이 없다. 도구 단위 세션 규칙이 Bash 전체를 열어 가드 질문까지 덮기 때문이다.
 const GUARD_CHOICES = PERM_CHOICES.filter((c) => c.key !== 'allow_always')
 
 const PLAN_CHOICES: { key: PermissionChoice; label: string; desc: string; color: string }[] = [
@@ -25,17 +25,24 @@ const PLAN_CHOICES: { key: PermissionChoice; label: string; desc: string; color:
 const LONG_COMMAND_CHARS = 200
 const LONG_COMMAND_LINES = 4
 
+// 사유는 가드가 낸 것일 수도, SDK의 다른 안전 검사가 낸 것일 수도, 아예 없을 수도 있다. 구별할 표지가 없어 한 라벨로 부른다.
+const REASON_LABEL = '확인이 필요한 이유'
+const REASON_FALLBACK = '도구가 사유를 보내지 않았어요. 아래 명령 전문을 보고 판단하세요.'
+const ALLOW_LOCKED_HINT = '명령 전문을 펼친 뒤 허용할 수 있어요'
+
 function isLongCommand(summary: string): boolean {
   return summary.length > LONG_COMMAND_CHARS || summary.split('\n').length > LONG_COMMAND_LINES
 }
 
-function isGuardAsk(pending: PendingPermission): boolean {
-  return pending.planReview == null && typeof pending.askReason === 'string' && pending.askReason.length > 0
+function isEscalated(pending: PendingPermission): boolean {
+  if (pending.planReview != null) return false
+  if (pending.escalated === true) return true
+  return typeof pending.askReason === 'string' && pending.askReason.length > 0
 }
 
 function choicesFor(pending: PendingPermission): typeof PERM_CHOICES {
   if (pending.planReview != null) return PLAN_CHOICES
-  return isGuardAsk(pending) ? GUARD_CHOICES : PERM_CHOICES
+  return isEscalated(pending) ? GUARD_CHOICES : PERM_CHOICES
 }
 
 function planFileBasename(filePath: string): string {
@@ -65,6 +72,13 @@ export function PermissionCard({ pending, onRespond }: PermissionCardProps): JSX
     setCmdOpen(false)
   }, [pending])
 
+  const escalated = pending != null && isEscalated(pending)
+  const cmdLong = escalated && pending != null && isLongCommand(pending.summary)
+  // 접힌 긴 명령은 꼬리가 보이지 않는다 — 펼치기 전에는 허용(버튼·숫자 키)을 막는다. 거부와 Esc는 언제나 열려 있다.
+  const allowLocked = cmdLong && !cmdOpen
+  const allowLockedRef = useRef(allowLocked)
+  allowLockedRef.current = allowLocked
+
   useEffect(() => {
     if (!pending) return
     const el = rootRef.current
@@ -82,7 +96,9 @@ export function PermissionCard({ pending, onRespond }: PermissionCardProps): JSX
       const n = parseInt(e.key, 10)
       if (Number.isInteger(n) && n >= 1 && n <= choices.length) {
         e.preventDefault()
-        onRespondRef.current(choices[n - 1].key)
+        const key = choices[n - 1].key
+        if (key === 'allow' && allowLockedRef.current) return
+        onRespondRef.current(key)
       }
     }
     el.addEventListener('keydown', onKey)
@@ -94,9 +110,8 @@ export function PermissionCard({ pending, onRespond }: PermissionCardProps): JSX
   const isPlanMode = pending.planReview != null
   const planText = pending.planReview?.plan ?? ''
   const hasPlanBody = planText.length > 0
-  const guardAsk = isGuardAsk(pending)
-  const cmdLong = guardAsk && isLongCommand(pending.summary)
   const choices = choicesFor(pending)
+  const reasonText = typeof pending.askReason === 'string' && pending.askReason.length > 0 ? pending.askReason : undefined
 
   return (
     <div
@@ -107,7 +122,7 @@ export function PermissionCard({ pending, onRespond }: PermissionCardProps): JSX
       aria-label={isPlanMode ? '계획 검토 요청' : '도구 사용 승인 요청'}
       aria-live="polite"
       data-plan-mode={isPlanMode ? true : undefined}
-      data-guard-ask={guardAsk ? true : undefined}
+      data-guard-ask={escalated ? true : undefined}
     >
       <div className="perm-card-head">
         <span className="perm-card-ic" aria-hidden="true">
@@ -149,11 +164,11 @@ export function PermissionCard({ pending, onRespond }: PermissionCardProps): JSX
         ) : (
           <div className="perm-card-plan-empty">계획 본문을 가져올 수 없음</div>
         )
-      ) : guardAsk ? (
+      ) : escalated ? (
         <>
           <div className="perm-card-reason" data-ask-reason>
-            <span className="perm-card-reason-label">가드 사유</span>
-            <span className="perm-card-reason-text">{pending.askReason}</span>
+            <span className="perm-card-reason-label">{REASON_LABEL}</span>
+            <span className={`perm-card-reason-text${reasonText ? '' : ' empty'}`}>{reasonText ?? REASON_FALLBACK}</span>
           </div>
           <div
             className={`perm-card-sum perm-card-sum-full${cmdLong && !cmdOpen ? ' collapsed' : ''}`}
@@ -182,25 +197,37 @@ export function PermissionCard({ pending, onRespond }: PermissionCardProps): JSX
       )}
 
       <div className={`perm-card-opts${choices.length === 2 ? ' perm-card-opts-2' : ''}`}>
-        {choices.map((c, i) => (
-          <button
-            key={c.key}
-            type="button"
-            className="perm-card-opt"
-            data-perm-choice={c.key}
-            title={c.desc}
-            aria-label={`${c.label} — ${c.desc}`}
-            onClick={() => onRespond(c.key)}
-          >
-            <span className="q-num" style={{ background: c.color, color: 'var(--on-accent)' }}>
-              {i + 1}
-            </span>
-            <span className="perm-card-opt-text">
-              <span className="perm-card-opt-label">{c.label}</span>
-              <span className="perm-card-opt-desc">{c.desc}</span>
-            </span>
-          </button>
-        ))}
+        {choices.map((c, i) => {
+          const locked = c.key === 'allow' && allowLocked
+          return (
+            <button
+              key={c.key}
+              type="button"
+              className="perm-card-opt"
+              data-perm-choice={c.key}
+              title={locked ? ALLOW_LOCKED_HINT : c.desc}
+              aria-label={`${c.label} — ${locked ? ALLOW_LOCKED_HINT : c.desc}`}
+              disabled={locked}
+              onClick={() => {
+                if (locked) return
+                onRespond(c.key)
+              }}
+            >
+              <span className="q-num" style={{ background: c.color, color: 'var(--on-accent)' }}>
+                {i + 1}
+              </span>
+              <span className="perm-card-opt-text">
+                <span className="perm-card-opt-label">{c.label}</span>
+                <span className="perm-card-opt-desc">{c.desc}</span>
+              </span>
+            </button>
+          )
+        })}
+        {allowLocked && (
+          <span className="perm-card-lock-hint" data-allow-locked>
+            {ALLOW_LOCKED_HINT}
+          </span>
+        )}
         <span className="perm-card-hint">{isPlanMode ? '숫자 키 · Esc 계속 계획' : '숫자 키 · Esc 거부'}</span>
       </div>
     </div>

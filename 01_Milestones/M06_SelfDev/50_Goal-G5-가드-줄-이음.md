@@ -24,10 +24,10 @@
 진척 단계 (완료 `[x]`, 진행 `[>]`, 남음 `[ ]` — 위치 표시일 뿐이고 통과 판정은 검증 기록 줄만 한다)
 
 - [x] 1. goal 문서 준비 — 이 goal 문서, 포인터(`98_Management/01_GateState/gate-config.json`의 `planPath`) 전환, pin 갱신
-- [ ] 2. 실패하는 테스트 먼저 쓰기 — 줄 이음 꼴의 기대 판정을 `dangerous-cmd-guard.test.mjs`에 넣고 Red 확인
-- [ ] 3. 가드 고치기 — `.claude/hooks/dangerous-cmd-guard.mjs`의 `splitSegments`에서 줄 이음을 지우고 머리 주석의 한계 문구를 고친다
-- [ ] 4. 회귀 확인 — `npm run test:hooks` 전부, 하드 게이트, `npm test`
-- [ ] 5. 독립 검수와 최종 검증
+- [x] 2. 실패하는 테스트 먼저 쓰기 — 줄 이음 꼴의 기대 판정을 `dangerous-cmd-guard.test.mjs`에 넣고 Red 확인
+- [x] 3. 가드 고치기 — `.claude/hooks/dangerous-cmd-guard.mjs`의 `splitSegments`에서 줄 이음을 지우고 머리 주석의 한계 문구를 고친다
+- [x] 4. 회귀 확인 — `npm run test:hooks` 전부, 하드 게이트, `npm test`
+- [>] 5. 독립 검수와 최종 검증
 - [ ] 6. PR 올리고 병합 승인 요청
 
 실행 단계 일괄 승인 대상 (사용자 「Backlog 8 가드 구멍 goal 진행해줘」)
@@ -39,6 +39,9 @@ DoD
 - 마크다운 문서 250줄 이하.
 
 검증 기록
+
+- PASS 2026-11-16T18:22:35+09:00 2단계 — `dangerous-cmd-guard.test.mjs`에 「줄 이음」 구획을 넣었다. 이어 쓴 꼴 24건(ask 14·deny 10, LF·CRLF)이 기대 판정과 같고 한 줄 꼴과도 같은지 본다. 고치기 전 실행에서 48건 실패(24건 × 두 단정), 모두 이어 쓴 꼴이 `silent`로 나왔다 — Backlog 8 원형 `git -c user.name=a \⏎ -c user.email=b push origin HEAD:master` 포함. 비판별 대조군(작은따옴표·heredoc 본문·큰따옴표 인용의 push 문장, `\\`+개행)은 그때도 통과했다.
+- PASS 2026-11-16T18:22:35+09:00 3·4단계 — `splitSegments`에서 따옴표 밖·큰따옴표 안의 `\`+LF·`\`+CRLF를 지우게 고쳤다(`a6f0d0cd`). 이스케이프 짝 판독 뒤에 두어 `\\`+개행은 구분자로 남는다. 가드 회귀 러너는 통과 603·실패 0이다(감수 목록에 겹쳐 있던 줄 이음 17행을 옮겨 620에서 줄었다). `npm run test:hooks` 15종 전부 실패 0 — 동등성 기준표 100·수리 표면 55·판정 로그 25, 「회귀 방지 — 정상 heredoc 커밋·PR 본문」과 `reset --hard` 회귀 방지 구획 포함. 하드 게이트 다섯 종 exit 0, `npm test` 435 통과·6 건너뜀·실패 0.
 
 ## 결정 대장
 

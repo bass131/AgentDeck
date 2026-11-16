@@ -29,7 +29,7 @@ export type CanUseToolFn = (
   options?: CanUseToolOptions
 ) => Promise<PermissionResult>
 
-// 가드가 물은 호출의 판별 (M06 G3). SDK 0.3.201은 전선의 decision_reason_type('hook')을 콜백에 넘기지 않는다.
+// 가드가 물은 호출의 판별 (M06 G3). 공개 타입(sdk.d.ts의 CanUseTool)의 options에는 훅 유래를 알리는 필드가 없다.
 // 실측(독립 clone, default·acceptEdits·bypassPermissions·실행 중 auto)에서 훅 ask는 decisionReason에 훅 사유 원문이 오고
 // suggestions가 없었다. 일반 질의는 규칙 제안(addRules·addDirectories 등)이 붙어 왔다.
 // 그래서 「사유가 있고 규칙 제안이 없는 질의」를 사람에게 올린다. 민감 파일 안전 검사(suggestions: [])도 여기에 걸린다 — 안전한 쪽이다.

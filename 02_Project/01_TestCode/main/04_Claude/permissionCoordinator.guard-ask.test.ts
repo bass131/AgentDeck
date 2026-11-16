@@ -2,7 +2,7 @@
 // 픽스처의 모양은 2단계 실측(SDK 0.3.201, 독립 clone)에서 canUseTool이 실제로 받은 인자다.
 //   훅 ask: decisionReason = 훅의 permissionDecisionReason 원문, suggestions 없음 (default·acceptEdits·bypassPermissions·실행 중 auto 넷 다)
 //   일반 질의: suggestions(addRules 등)가 붙어 온다 (acceptEdits의 `git config`, default의 `mkdir`)
-// SDK는 전선의 decision_reason_type('hook')을 콜백에 넘기지 않으므로, 판별은 「사유가 있고 규칙 제안이 없는 질의」로 한다.
+// 공개 타입(sdk.d.ts의 CanUseTool)의 options에는 훅 유래를 알리는 필드가 없으므로, 판별은 「사유가 있고 규칙 제안이 없는 질의」로 한다.
 import { describe, it, expect } from 'vitest'
 import { PermissionCoordinator } from '@main/04_Claude/permission/permissionCoordinator'
 import type { AgentEvent } from '../../../../02_Project/00_Source/shared/agentEvents'

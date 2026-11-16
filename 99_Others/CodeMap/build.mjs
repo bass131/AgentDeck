@@ -2,9 +2,12 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import zlib from 'node:zlib'
+import { fileURLToPath } from 'node:url'
 
-const data = fs.readFileSync('codemap.json', 'utf8')
-const tpl = fs.readFileSync('codemap.template.html', 'utf8')
+// 입출력은 이 스크립트 위치 기준이다(어느 cwd에서 불러도 같다).
+const HERE = path.dirname(fileURLToPath(import.meta.url))
+const data = fs.readFileSync(path.join(HERE, 'codemap.json'), 'utf8')
+const tpl = fs.readFileSync(path.join(HERE, 'codemap.template.html'), 'utf8')
 const MARK = '/*__CODEMAP_DATA__*/null'
 const SRC_MARK = '/*__SOURCES_GZ__*/""'
 for (const m of [MARK, SRC_MARK]) if (!tpl.includes(m)) throw new Error(`템플릿에 자리표시 ${m}가 없다`)

@@ -1,18 +1,22 @@
 // AgentDeck 소스 → codemap.json 추출기
-// 저장소(C:\Dev\AgentDeck)는 읽기만 한다. TypeScript 컴파일러는 저장소 node_modules에서 require로 빌려 쓴다.
+// 앱 소스는 읽기만 한다. TypeScript 컴파일러는 저장소 node_modules에서 require로 빌려 쓴다.
+// 경로 기본값은 이 스크립트 위치(99_Others/CodeMap) 기준이라 어느 PC·어느 cwd에서도 같다.
 // 사용: node extract.mjs [--src <00_Source 경로>] [--ts <typescript 경로>] [--out codemap.json]
 import { createRequire } from 'node:module'
 import fs from 'node:fs'
 import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 
+const HERE = path.dirname(fileURLToPath(import.meta.url))
+const REPO = path.resolve(HERE, '..', '..')
 const args = process.argv.slice(2)
 const arg = (k, d) => {
   const i = args.indexOf(k)
   return i >= 0 ? args[i + 1] : d
 }
-const SRC = path.resolve(arg('--src', 'C:/Dev/AgentDeck/02_Project/00_Source'))
-const TS_PATH = arg('--ts', 'C:/Dev/AgentDeck/node_modules/typescript')
-const OUT = path.resolve(arg('--out', 'codemap.json'))
+const SRC = path.resolve(arg('--src', path.join(REPO, '02_Project', '00_Source')))
+const TS_PATH = arg('--ts', path.join(REPO, 'node_modules', 'typescript'))
+const OUT = path.resolve(HERE, arg('--out', 'codemap.json'))
 
 const require = createRequire(import.meta.url)
 const ts = require(TS_PATH)

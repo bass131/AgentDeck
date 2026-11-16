@@ -1,13 +1,18 @@
 # AgentDeck 코드 지도
 
-AgentDeck 앱 소스(`C:\Dev\AgentDeck\02_Project\00_Source`)를 읽어 만든 HTML 한 장짜리 코드 지도다. 프로세스부터 도메인 폴더, 파일, 클래스·함수·컴포넌트, 멤버 순서로 한 단계씩 펼쳐 볼 수 있다. 고른 위치의 소스를 줄 번호와 구문 강조로 함께 보여 준다. 처음 보는 사람을 위해 폴더 설명, 메시지 흐름 따라 읽기, 컨벤션 예시 코드도 넣었다. 저장소는 읽기만 하고, 결과물은 모두 이 폴더에 둔다.
+AgentDeck 앱 소스(`02_Project/00_Source`)를 읽어 만든 HTML 한 장짜리 코드 지도다. 프로세스부터 도메인 폴더, 파일, 클래스·함수·컴포넌트, 멤버 순서로 한 단계씩 펼쳐 볼 수 있다. 고른 위치의 소스를 줄 번호와 구문 강조로 함께 보여 준다. 처음 보는 사람을 위해 폴더 설명, 메시지 흐름 따라 읽기, 컨벤션 예시 코드도 넣었다. 저장소는 읽기만 하고, 결과물은 모두 이 폴더에 둔다.
 
 ## 다시 만들기
 
+저장소 루트에서:
+
 ```sh
-cd C:\Dev\AgentDeck-CodeMap
+cd 99_Others/CodeMap
 node extract.mjs && node build.mjs
 ```
+
+- **이 폴더 안에서 실행한다.** 소스·TypeScript 경로와 `codemap.json`, 템플릿 읽기는 스크립트 위치 기준이라 어디서 불러도 같지만, `descriptions.json`·`guide.json` 읽기와 `codemap.html` 쓰기는 현재 폴더 기준이다.
+- 결과물 `codemap.json`·`codemap.html`은 `.gitignore`가 막는다. 커밋하지 않고 필요할 때 다시 만든다.
 
 - `extract.mjs`는 소스를 읽어 `codemap.json`을 만든다.
   - TypeScript 컴파일러는 저장소의 `node_modules\typescript`를 `require`로 빌려 쓴다. 따로 설치할 것은 없다.
@@ -20,7 +25,7 @@ node extract.mjs && node build.mjs
 
 ## 보는 법
 
-브라우저로 `codemap.html`을 연다(`file:///C:/Dev/AgentDeck-CodeMap/codemap.html`). 처음이면 오른쪽 「처음이라면」 안내대로 **따라 읽기 → 트리 → 컨벤션** 순서로 보면 덜 헤맨다.
+브라우저로 이 폴더의 `codemap.html`을 연다(예: `file:///C:/Dev/AgentDeck/99_Others/CodeMap/codemap.html`). 처음이면 오른쪽 「처음이라면」 안내대로 **따라 읽기 → 트리 → 컨벤션** 순서로 보면 덜 헤맨다.
 
 - **구조 트리**
   - 프로세스·도메인·폴더·파일 아래에 회색 줄로 「이 폴더가 하는 일」이 나온다(`descriptions.json`).

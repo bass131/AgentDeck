@@ -33,7 +33,7 @@
 
 - [x] 1. goal 문서 준비 — 이 goal 문서, 포인터 전환, pin 갱신
 - [x] 2. SDK 올리기 — `@anthropic-ai/claude-agent-sdk` 0.3.201 → 최신, 하드 게이트·전체 테스트 기준선 확인
-- [ ] 3. 가드 질문 회귀 실측 — G3 블랙박스 실측을 새 SDK에서 다시 돌려 판별이 성립하는지, 새 공식 필드(`suppressAlwaysAllowRule`·`defaultToNo`)가 오는지 확인. 새 SDK의 `supportedModels()` 응답도 이때 받는다
+- [x] 3. 가드 질문 회귀 실측 — G3 블랙박스 실측을 새 SDK에서 다시 돌려 판별이 성립하는지, 새 공식 필드(`suppressAlwaysAllowRule`·`defaultToNo`)가 오는지 확인. 새 SDK의 `supportedModels()` 응답도 이때 받는다
 - [ ] 4. 실패하는 테스트 먼저 쓰기 — 공급자(성공·실패·캐시), 선택기 렌더, 정식 ID 저장, 「최소」 제거
 - [ ] 5. 모델 목록 공급자와 IPC 만들기
 - [ ] 6. 선택기·노력 메뉴·계기 고치기, 손 표 정리
@@ -58,6 +58,7 @@ DoD
 검증 기록
 
 - PASS 2026-11-16T15:07:26+09:00 2단계 — `package.json`의 Agent SDK 명세를 `^0.3.201`에서 `^0.3.325`로 올리고 `npm install`, 설치본 `0.3.325` 확인(`package-lock.json` 37줄). 폴백 상수 `SDK_VERSION_FALLBACK`과 그 테스트 기댓값을 같이 올렸다. 하드 게이트 다섯 종 exit 0, `npm run test` 431 통과·6 건너뜀, 5827건 통과·실패 0 — SDK 업데이트로 깨진 타입·테스트 없음.
+- PASS 2026-11-16T15:25:06+09:00 3단계 — SDK 0.3.325(CLI 2.1.325) 블랙박스 재측정(공개 타입과 반환값만, 내부 미열람). 가드 ask 20건(push·`gh release`·`npm publish`·`update-ref -d`·`gh repo edit` × default·acceptEdits·bypassPermissions·실행 중 auto)이 모두 콜백에 제안 없이 왔고 settings ask 규칙과 겹친 둘은 사유도 없었다 — G3 판별 성립. 세션 Bash 전체 허용 뒤에도 push 가드 ask는 콜백에 왔다(대조 명령은 콜백 없이 실행, bare refs 불변). 일반 질의 4종은 제안 1개 이상, plan 모드 `ExitPlanMode`만 제안 없음(0.3.201과 같음). `defaultToNo`·`suppressAlwaysAllowRule`은 28건 모두 값 없음. `supportedModels()`는 `initializationResult().models`와 같은 14행(별칭 `default`·`opus`·`fable`·`sonnet`·`haiku`가 각각 `claude-opus-5-5`·`claude-opus-5-5`·`claude-fable-5-2`·`claude-sonnet-5-5`·`claude-haiku-5-5`로 풀림)이고, 네 최신 ID와 다섯 별칭 아홉 개가 모두 한 턴 응답했다. 같은 계정·같은 시각에 0.3.201은 5행(`haiku`→`claude-haiku-4-5-20251001`)이라 목록은 CLI 버전에 따라 바뀐다 — SDK 업데이트가 모델 갱신 경로라는 A안 전제가 맞다. 공개 타입에 없는 필드(`decisionReasonType`·`serverPolicyAskOnly`·`supportsThinkingOff`)는 설계에 쓰지 않는다. 턴마다 `modelUsage`에 `claude-haiku-5-5` 항목이 함께 와서, 계기는 주 모델 항목을 골라야 한다.
 
 ## 결정 대장
 

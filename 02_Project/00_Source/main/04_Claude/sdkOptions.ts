@@ -4,6 +4,7 @@ import { buildQueryOptions } from './runArgs'
 import { fallbackNotice } from './stream/modelFallback'
 import type { CanUseToolFn } from './permission/permissionCoordinator'
 import { enginePathDenyRules, buildEnginePathLockHook } from './permission/enginePathLock'
+import { buildMergeDenyHook } from './permission/mergeDeny'
 import type { AgentRunInput } from '@main/03_Agent/AgentBackend'
 import type { AgentEvent } from '../../shared/agentEvents'
 
@@ -119,7 +120,8 @@ export function buildClaudeSdkOptions(params: {
       ...(mcpDenied ? { deniedMcpServers: mcpDenied } : {})
     },
     settingSources: ['user', 'project', 'local'],
-    ...(lock ? { hooks: { PreToolUse: [lock.hook] } } : {}),
+    // 병합 거부 훅(M07 G8)은 userData 경로가 필요 없어 언제나 넣는다. 엔진 경로 잠금 훅 뒤에 붙인다.
+    hooks: { PreToolUse: [...(lock ? [lock.hook] : []), buildMergeDenyHook()] },
     canUseTool,
     supportedDialogKinds: ['refusal_fallback_prompt'],
     onUserDialog,

@@ -205,6 +205,31 @@
   overflow-y: auto;
 }
 
+/* PR 병합 불러오기 (M07 G8) — 좁은 왼쪽 막대 안의 번호 입력과 카드 */
+.gitm-pr {
+  display: flex;
+  gap: 6px;
+  padding: 2px 6px 6px;
+}
+
+.gitm-pr input {
+  flex: 1;
+  min-width: 0;
+  padding: 4px 8px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--surface-2);
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+.gitm-nav .prc {
+  margin: 0 4px 8px;
+  padding: 8px;
+  font-size: 12px;
+}
+
 .gitm-sec {
   padding: 11px 10px 5px;
   font-size: 10px;

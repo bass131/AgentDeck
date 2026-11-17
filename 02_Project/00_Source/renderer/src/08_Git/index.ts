@@ -5,3 +5,7 @@
 // — 기존 소비처의 default import(Shell.tsx)는 배럴 경유 named import로 정규화한다.
 export { GitModal } from './GitModal'
 export type { GitModalProps } from './GitModal'
+// PR 카드 (M07 G8) — Git 창과 대화(05_Conversation)가 함께 쓴다
+export { PrCard } from './PrCard'
+export type { PrCardProps } from './PrCard'
+export { prUrlFromToolCall } from './prCardModel'

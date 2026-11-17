@@ -22,15 +22,24 @@ test('constants: the board lives in 01_Milestones as a local file, the lead and 
 });
 
 test('board: a well-formed waiting entry is read as is, with its options, detail and times', () => {
-  const r = parseBoard(board(entry({ kind: 'merge', pr: 55, arrivedAt: '2026-11-15T21:50:00+09:00', updatedAt: 'not a time' })));
+  const r = parseBoard(board(entry({ pr: 55, arrivedAt: '2026-11-15T21:50:00+09:00', updatedAt: 'not a time' })));
   assert.deepEqual(r.warnings, []);
   assert.equal(r.items.length, 1);
   const d = r.items[0];
-  assert.deepEqual([d.id, d.kind, d.title, d.state, d.pr, d.recommended], ['g11-version-compare', 'merge', '엔진 버전 비교 두 함수를 합칠지', 'waiting', 55, 'A']);
+  assert.deepEqual([d.id, d.kind, d.title, d.state, d.pr, d.recommended], ['g11-version-compare', null, '엔진 버전 비교 두 함수를 합칠지', 'waiting', 55, 'A']);
   assert.deepEqual(d.options.map(o => o.key), ['A', 'B']);
   assert.deepEqual(d.detail, ['## 무엇을 정하나', '- 본문']);
   assert.equal(d.arrivedAt, '2026-11-15T21:50:00+09:00');
   assert.equal(d.updatedAt, null, '읽을 수 없는 시각은 없는 것으로 본다');
+});
+
+// M07 G8: 병합은 앱 PR 카드의 「병합」 버튼으로만 한다. 보드의 병합 결정(kind: merge)은 없어졌다.
+test('board: a retired merge kind is read as an ordinary decision with a warning that points to the app merge button', () => {
+  const r = parseBoard(board(entry({ kind: 'merge', pr: 55 })));
+  assert.equal(r.items.length, 1);
+  assert.equal(r.items[0].kind, null);
+  assert.equal(r.warnings.length, 1);
+  assert.match(r.warnings[0].what, /병합.*버튼/);
 });
 
 test('board: a half-written or wrong top level is a BoardError (the collector then keeps the last good list)', () => {

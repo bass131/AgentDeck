@@ -203,17 +203,18 @@ describe('Bash 잠금 노드 (M07 G3)', () => {
 })
 
 describe('등록부 목록과 SDK 옵션 배선 (M07 G3)', () => {
-  it('목록에 엔진 경로 노드 둘이 권한 콜백 노드 뒤에 붙는다', () => {
+  it('목록에 엔진 경로 노드 둘이 권한 콜백 노드 뒤에 붙는다 (그 뒤는 G8 병합 거부 노드)', () => {
     expect(listControlNodes().map((n) => n.id)).toEqual([
       ...PERMISSION_NODES.map((n) => n.id),
       'engine-path-file-deny',
       'engine-path-bash-lock',
+      'merge-deny',
     ])
     const [file, bash] = ENGINE_PATH_NODES
     expect(file).toMatchObject({ point: 'permissionRules', results: ['deny'], protection: 'L2', locked: true, onFailure: 'block' })
     expect(bash).toMatchObject({ point: 'preToolUse', results: ['deny'], protection: 'L3', locked: true, onFailure: 'block', timeoutMs: 10000 })
     for (const n of ENGINE_PATH_NODES) expect(Object.isFrozen(n) && Object.isFrozen(n.results)).toBe(true)
-    const listed = listControlNodes().slice(-2)
+    const listed = listControlNodes().slice(-3, -1)
     expect(listed[0].results).not.toBe(file.results)
   })
 
@@ -231,9 +232,10 @@ describe('등록부 목록과 SDK 옵션 배선 (M07 G3)', () => {
     const settings = opts['settings'] as { permissions: { defaultMode: string; deny: string[] } }
     expect(settings.permissions.defaultMode).toBe('acceptEdits')
     expect(settings.permissions.deny).toEqual(enginePathDenyRules(WIN_UD))
+    // 엔진 경로 잠금 훅 뒤에 병합 거부 훅(M07 G8)이 붙는다
     const hooks = opts['hooks'] as { PreToolUse: { onFailure: string }[] }
-    expect(hooks.PreToolUse).toHaveLength(1)
-    expect(hooks.PreToolUse[0].onFailure).toBe('block')
+    expect(hooks.PreToolUse).toHaveLength(2)
+    expect(hooks.PreToolUse.map((m) => m.onFailure)).toEqual(['block', 'block'])
   })
 
   it('잠금은 실행마다 받은 경로로 만든다 — 임시 userData(e2e·실주행)도 그 경로가 거부된다', () => {
@@ -242,9 +244,20 @@ describe('등록부 목록과 SDK 옵션 배선 (M07 G3)', () => {
     expect((opts['settings'] as { permissions: { deny: string[] } }).permissions.deny[0]).toBe('Edit(//c/Users/x/AppData/Local/Temp/run-1/userdata/engines/**)')
   })
 
-  it('userData 경로가 없으면 거부 규칙과 훅을 넣지 않는다 (지금 옵션 모양 그대로)', () => {
+  it('PreToolUse의 마지막 훅은 userData 경로와 관계없이 병합 명령을 거부한다 (M07 G8)', async () => {
+    type M = { hooks: ((i: unknown, id: string, o: { signal: AbortSignal }) => Promise<{ hookSpecificOutput?: { permissionDecision: string } }>)[] }
+    const signal = new AbortController().signal
+    for (const opts of [buildClaudeSdkOptions({ ...base(), userDataDir: WIN_UD }), buildClaudeSdkOptions(base())]) {
+      const list = (opts['hooks'] as { PreToolUse: M[] }).PreToolUse
+      const [hook] = list[list.length - 1].hooks
+      const out = await hook({ hook_event_name: 'PreToolUse', tool_name: 'Bash', tool_input: { command: 'gh pr merge 1' } }, 't', { signal })
+      expect(out.hookSpecificOutput?.permissionDecision).toBe('deny')
+    }
+  })
+
+  it('userData 경로가 없으면 거부 규칙과 엔진 잠금 훅을 넣지 않는다 — 병합 거부 훅(G8)만 남는다', () => {
     const opts = buildClaudeSdkOptions(base())
-    expect('hooks' in opts).toBe(false)
+    expect((opts['hooks'] as { PreToolUse: unknown[] }).PreToolUse).toHaveLength(1)
     expect((opts['settings'] as { permissions: Record<string, unknown> }).permissions).toEqual({ defaultMode: 'acceptEdits' })
   })
 })
@@ -262,7 +275,7 @@ describe('실행 배선 (M07 G3)', () => {
       const { queryFn, captured } = makeCaptureQuery([{ type: 'result', subtype: 'success', result: '', session_id: 's', is_error: false }])
       const run = new ClaudeCodeBackend(queryFn).start({ messages: [{ role: 'user', content: 'x' }] })
       for await (const _ of run.events) { /* drain */ }
-      expect(captured.options?.['hooks']).toBeUndefined()
+      expect((captured.options?.['hooks'] as { PreToolUse: unknown[] }).PreToolUse).toHaveLength(1)
       expect(seen.some((a) => String(a[0]).includes('엔진 경로 잠금'))).toBe(true)
     } finally {
       console.error = orig
@@ -282,6 +295,6 @@ describe('실행 배선 (M07 G3)', () => {
     const settings = captured.options?.['settings'] as { permissions: { deny?: string[] } }
     expect(settings.permissions.deny).toEqual(enginePathDenyRules(WIN_UD))
     const hooks = captured.options?.['hooks'] as { PreToolUse: { onFailure: string }[] }
-    expect(hooks.PreToolUse.map((m) => m.onFailure)).toEqual(['block'])
+    expect(hooks.PreToolUse.map((m) => m.onFailure)).toEqual(['block', 'block'])
   })
 })

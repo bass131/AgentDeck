@@ -518,3 +518,41 @@ describe('GitModal — 기존 UI 동작 보존', () => {
     expect(brEl?.textContent).toContain('2')
   })
 })
+
+describe('GitModal PR 병합 불러오기 (M07 G8)', () => {
+  it('PR 번호를 넣고 불러오기를 누르면 이 저장소 root로 PR 카드를 읽는다', async () => {
+    const prRead = vi.fn().mockResolvedValue({ ok: false, error: 'PR #74을 읽지 못했어요 (HTTP 404)' })
+    Object.defineProperty(window, 'api', {
+      value: adaptFlatApi({ git: { ...mockGit, prRead, prMerge: vi.fn() } }),
+      writable: true,
+      configurable: true,
+    })
+    await renderGitModal()
+    expect(screen.getByText('PR 병합')).toBeTruthy()
+    const input = screen.getByLabelText('PR 번호')
+    expect(screen.queryByTestId('pr-card')).toBeNull()
+    await act(async () => {
+      fireEvent.change(input, { target: { value: '74' } })
+      fireEvent.click(screen.getByRole('button', { name: '불러오기' }))
+      await new Promise((r) => setTimeout(r, 0))
+    })
+    expect(prRead).toHaveBeenCalledWith({ cwd: ROOT, number: 74, url: undefined })
+    expect(screen.getByText('PR #74을 읽지 못했어요 (HTTP 404)')).toBeTruthy()
+    // 같은 번호를 다시 불러오면 카드를 새로 띄워 다시 읽는다
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: '불러오기' }))
+      await new Promise((r) => setTimeout(r, 0))
+    })
+    expect(prRead).toHaveBeenCalledTimes(2)
+    expect(screen.getAllByTestId('pr-card')).toHaveLength(1)
+  })
+
+  it('번호가 양의 정수가 아니면 불러오기가 꺼져 있다', async () => {
+    await renderGitModal()
+    const input = screen.getByLabelText('PR 번호')
+    await act(async () => {
+      fireEvent.change(input, { target: { value: 'abc' } })
+    })
+    expect((screen.getByRole('button', { name: '불러오기' }) as HTMLButtonElement).disabled).toBe(true)
+  })
+})

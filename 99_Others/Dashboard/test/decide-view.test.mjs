@@ -11,6 +11,15 @@ const read = async p => (await readFile(new URL(p, import.meta.url), 'utf8')).re
 const item = (id, over = {}) => ({ id, title: `${id} 제목`, kind: null, options: [{ key: 'A', label: '가' }, { key: 'B', label: '나' }], ...over });
 const list = (...items) => ({ status: 'ok', items, sig: 'abc' });
 
+// M07 G8: 병합은 앱 PR 카드의 「병합」 버튼으로 한다. 보드의 병합 결정 표시와 「메인 세션이 승인 창을 거쳐 병합」 안내는 없어졌다.
+test('app.js no longer shows a merge-decision tag or tells the main session to merge through the approval dialog', async () => {
+  const app = await read('../public/app.js');
+  assert.doesNotMatch(app, /병합 결정/);
+  assert.doesNotMatch(app, /kind === 'merge'/);
+  assert.doesNotMatch(app, /기존 승인 창을 거쳐/);
+  assert.doesNotMatch(app, /\$\{merge \?/, '지운 merge 변수를 쓰는 자리가 남지 않는다');
+});
+
 test('the decide module is frozen, pure and separate from the chime and view modules', () => {
   assert.ok(Object.isFrozen(D));
   assert.notEqual(D, C);

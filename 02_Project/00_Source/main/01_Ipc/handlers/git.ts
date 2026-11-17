@@ -20,8 +20,13 @@ import type {
   GitPushResponse,
   GitPullRequest,
   GitPullResponse,
+  PrReadRequest,
+  PrReadResponse,
+  PrMergeRequest,
+  PrMergeResponse,
 } from '../../../shared/ipcContract'
 import * as gitApi from '@main/08_Git/git'
+import { prService } from '@main/08_Git/prMerge'
 
 export function registerGitHandlers(): void {
 
@@ -91,6 +96,23 @@ export function registerGitHandlers(): void {
       return { ok: false, error: 'git.push: root는 절대 경로여야 합니다' }
     }
     return gitApi.gitPush(req.root)
+  })
+
+  // PR 카드 (M07 G8) — 값은 main이 GitHub에서 읽고, 병합은 main이 마지막으로 읽어 보인 SHA로만 한다(prMerge.ts).
+  handle(IPC_CHANNELS.GIT_PR_READ, async (_e, req: PrReadRequest): Promise<PrReadResponse> => {
+    if (!req?.cwd || typeof req.cwd !== 'string' || !isAbsolute(req.cwd)) {
+      return { ok: false, error: 'git.prRead: cwd는 절대 경로여야 합니다' }
+    }
+    const url = typeof req.url === 'string' ? req.url : undefined
+    const number = typeof req.number === 'number' ? req.number : undefined
+    return prService().readPr(req.cwd, { url, number })
+  })
+
+  handle(IPC_CHANNELS.GIT_PR_MERGE, async (_e, req: PrMergeRequest): Promise<PrMergeResponse> => {
+    if (!req?.cwd || typeof req.cwd !== 'string' || !isAbsolute(req.cwd)) {
+      return { status: 'refused', message: 'git.prMerge: cwd는 절대 경로여야 합니다' }
+    }
+    return prService().mergePr(req.cwd, req.number, req.sha)
   })
 
   handle(IPC_CHANNELS.GIT_PULL, async (_e, req: GitPullRequest): Promise<GitPullResponse> => {

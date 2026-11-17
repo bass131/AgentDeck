@@ -690,7 +690,7 @@ function decisionCard(d, i) {
   const editor = commentOn ? `<label class="dec-comment"><span>C 코멘트 <small>300자까지, 줄바꿈은 공백이 돼요</small></span><input type="text" maxlength="300" data-comment="${esc(d.id)}" value="${esc(dec.comments.get(d.id) ?? '')}" placeholder="이 결정에 보낼 말" autocomplete="off"></label>` : '';
   const detail = d.detail?.length ? fold('dec-detail-' + d.id, '상세 글 — 무엇을, 왜, 어떻게, 추천', `<div class="dec-detail-body">${detailHtml(d.detail)}</div>`, 'raw dec-detail') : '';
   return `<article class="dec${pick ? ' is-picked' : ''}" id="dec-${esc(d.id)}">
-    <header class="dec-head"><span class="dec-n">${i + 1}</span>${d.kind === 'merge' ? '<span class="tag tag-todo">병합 결정</span>' : ''}<h3>${esc(d.title)}</h3>${d.recommended ? `<span class="dec-rec-head">추천 ${esc(d.recommended)}</span>` : ''}</header>
+    <header class="dec-head"><span class="dec-n">${i + 1}</span><h3>${esc(d.title)}</h3>${d.recommended ? `<span class="dec-rec-head">추천 ${esc(d.recommended)}</span>` : ''}</header>
     ${d.pr ? `<p class="q-src">관련 PR ${esc(d.pr)}</p>` : ''}
     <div class="dec-opts" role="group" aria-label="${esc(d.title)} 선택지">${opts}</div>
     ${editor}${pick ? `<button type="button" class="ghost dec-clear" data-dec-clear="${esc(d.id)}">선택 지우기</button>` : ''}${detail}</article>`;
@@ -703,7 +703,6 @@ function sendBox() {
   else if (p.refusal) line = `<p class="send-refusal">${G.note}<span>${esc(p.refusal)}</span></p>`;
   else line = `<p class="send-line">${esc(p.text)}</p>`;
   const ready = !!(p && !p.pending && p.text && !p.refusal);
-  const merge = [...dec.picks.keys()].some(id => decList().items.find(d => d.id === id)?.kind === 'merge');
   const result = !res ? '' : res.phase === 'sending' ? '<p class="send-result">넣는 중이에요…</p>'
     : res.phase === 'inserted' ? `<p class="send-result is-done">${G.ok}<span>메인 입력창에 넣었어요. 메인 pane에서 Enter를 눌러야 전달돼요.${res.note ? ' ' + esc(res.note) : ''}</span></p>`
     : res.phase === 'clipboard' ? `<p class="send-result is-todo">${G.note}<span>${res.reason ? esc(res.reason) + ' ' : ''}문장을 복사했어요. 메인 입력창에 붙여 넣고 Enter를 눌러 주세요.</span></p>`
@@ -711,7 +710,7 @@ function sendBox() {
     : `<p class="send-result is-todo">${G.note}<span>${esc(res.reason)}</span></p>`;
   return `<h3 class="sub-h">보낼 문장</h3>${line}
     <div class="send-actions">${canType ? `<button type="button" class="btn" data-dec-send${ready && res?.phase !== 'sending' ? '' : ' disabled'}>메인 입력창에 넣기</button>` : ''}<button type="button" class="ghost" data-dec-copy${ready ? '' : ' disabled'}>복사</button>${picked || dec.comments.size ? '<button type="button" class="ghost" data-dec-clear-all>모두 지우기</button>' : ''}</div>
-    <p class="send-note">${canType ? '넣기는 메인 입력창에 글만 넣어요. 전달은 메인 pane에서 Enter를 눌러야 해요.' : '설정에 메인 handle이 없어 넣기 대신 복사만 할 수 있어요. 복사한 문장을 메인 입력창에 붙여 넣어 주세요.'}${merge ? ' 병합 결정도 문장만 넣어요. 병합은 문장을 받은 메인 세션이 기존 승인 창을 거쳐 해요.' : ''}</p>${result}`;
+    <p class="send-note">${canType ? '넣기는 메인 입력창에 글만 넣어요. 전달은 메인 pane에서 Enter를 눌러야 해요.' : '설정에 메인 handle이 없어 넣기 대신 복사만 할 수 있어요. 복사한 문장을 메인 입력창에 붙여 넣어 주세요.'}</p>${result}`;
 }
 function restoreFocus(id, sel) {
   if (id == null) return;

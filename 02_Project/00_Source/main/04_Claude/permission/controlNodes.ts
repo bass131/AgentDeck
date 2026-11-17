@@ -11,6 +11,7 @@
 // 그래서 사유가 아니라 규칙 제안으로 가른다. 제안이 비어 있지 않은 배열이 아니면 모드와 관계없이 카드로 보낸다(fail-closed).
 // 민감 파일 안전 검사(suggestions: [])와 옵션 없는 호출도 여기에 걸린다 — 모르는 꼴은 허용으로 떨어지지 않는다.
 import { ENGINE_PATH_NODES } from './enginePathLock'
+import { MERGE_DENY_NODE } from './mergeDeny'
 
 export interface Escalation {
   reason?: string
@@ -158,10 +159,11 @@ export const PERMISSION_NODES: readonly ControlNode[] = Object.freeze([
   }),
 ])
 
-// 목록 순서: 권한 콜백 노드(판정 순서대로) 뒤에 엔진 경로 노드(G3). 컨트롤 패널(G5, renderer ControlsView)이 지점별로 묶어 보인다.
+// 목록 순서: 권한 콜백 노드(판정 순서대로) 뒤에 엔진 경로 노드(G3), 그 뒤에 병합 거부 노드(G8).
+// 컨트롤 패널(G5, renderer ControlsView)이 지점별로 묶어 보인다.
 export function listControlNodes(): ControlNodeInfo[] {
   const fromCallback = PERMISSION_NODES.map(({ decide: _decide, ...info }) => info)
-  return [...fromCallback, ...ENGINE_PATH_NODES].map((info) => ({ ...info, results: [...info.results] }))
+  return [...fromCallback, ...ENGINE_PATH_NODES, MERGE_DENY_NODE].map((info) => ({ ...info, results: [...info.results] }))
 }
 
 const DECISION_KINDS: ReadonlySet<string> = new Set(['pass', 'allow', 'question', 'orchestration-denied', 'card'])

@@ -414,6 +414,7 @@ export const PanelView = memo(function PanelView({
               state={session.state}
               onOpenSubagent={setOpenedSubId}
               className="ma-p-messages"
+              cwd={workspaceRoot}
             />
           )}
           <ScrollToBottomButton

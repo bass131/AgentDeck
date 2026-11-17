@@ -1,0 +1,267 @@
+// 병합 명령 거부 (M07 G8) — 병합은 사람이 앱의 PR 카드에서 누르는 「병합」 버튼으로만 한다.
+// 앱 세션의 에이전트가 셸로 부르는 병합 길 셋을 질문 없이 거부한다.
+//   ① `gh pr merge` — 옵션 위치 변형(`gh -R o/r pr merge`, `gh pr -b x merge`)과 `--auto` 포함.
+//   ② `gh api`의 `pulls/<n>/merge`·`pulls/<n>/merge-async` 경로 — 메서드와 관계없이(병합 여부 GET도 막힌다).
+//   ③ `gh api graphql`의 `mergePullRequest`·`enablePullRequestAutoMerge`.
+// 판독은 저장소 가드(.claude/hooks/dangerous-cmd-guard.mjs)의 낱말 규칙을 TS로 다시 쓴 것이다(gh 2.x 하위 명령 규칙).
+// 명령 글자를 바꾸면 피해 가므로 L3다 — 실수만 막는다. 같은 토큰이라 서버는 받는다(goal 「하지 않을 것」 단계 B·C).
+import type { ControlNodeInfo } from './controlNodes'
+
+const REASON =
+  'PR 병합은 에이전트가 하지 않습니다 — 사용자가 앱의 PR 카드에서 「병합」 버튼으로 합니다. PR 생성까지만 하고 병합은 사용자에게 맡기세요.'
+
+// ── 셸 판독 ──────────────────────────────────────────────────────────────
+// 큰따옴표 안에서는 `\"`·`\\`·`\$`·`` \` ``만, 따옴표 밖에서는 `\"`·`\'`·`\\`만 이스케이프로 읽는다(가드와 같다).
+const DQ_ESCAPABLE = new Set(['"', '\\', '$', '`'])
+const BARE_ESCAPABLE = new Set(['"', "'", '\\'])
+type Quote = '"' | "'" | null
+const isEscape = (quote: Quote, ch: string, next: string | undefined): boolean =>
+  ch === '\\' && next !== undefined && (quote === '"' ? DQ_ESCAPABLE.has(next) : quote === null && BARE_ESCAPABLE.has(next))
+
+const SHELLS = new Set(['sh', 'bash', 'dash', 'zsh', 'ksh', 'ash', 'sh.exe', 'bash.exe'])
+// heredoc 앞이 셸 실행(`bash <<EOF`, `sh -s <<EOF`)이면 본문이 명령이다.
+const SHELL_TAIL = /(?:^|[\s;&|(])(?:\S*[\\/])?(?:ba|da|z|k|a)?sh(?:\.exe)?(?:\s+-\S+)*\s*$/i
+
+// heredoc 본문을 지운다 — `--body "$(cat <<'EOF' … EOF)"`의 본문은 명령이 아니다.
+// 셸에 먹이는 heredoc은 본문이 명령이라 지우지 않는다.
+function stripHeredocBodies(text: string): string {
+  const lines = text.split('\n')
+  const out: string[] = []
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]
+    out.push(line)
+    // here-string(`<<<`)과 산술 시프트(`$((a << n))`)는 heredoc이 아니다 — 앞뒤가 `<`가 아닌 `<<`만 본다
+    const m = /(?<!<)<<(?!<)(-?)\s*(['"]?)([A-Za-z_][A-Za-z0-9_]*)\2/.exec(line)
+    if (!m) continue
+    if (SHELL_TAIL.test(line.slice(0, m.index))) continue
+    const tabs = m[1] === '-'
+    let j = i + 1
+    while (j < lines.length && (tabs ? lines[j].replace(/^\t+/, '') : lines[j]).trimEnd() !== m[3]) j++
+    // 끝 줄이 없으면 지우지 않는다 — 짝 없는 `<<`가 뒤 명령을 숨기지 않게 한다
+    if (j < lines.length) i = j
+  }
+  return out.join('\n')
+}
+
+// `$( … )`·`` ` … ` ``의 안쪽 글을 따로 판독할 스크립트로 꺼낸다(작은따옴표 밖만).
+function substitutions(text: string): string[] {
+  const found: string[] = []
+  let quote: Quote = null
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i]
+    if (isEscape(quote, ch, text[i + 1])) { i++; continue }
+    if (quote === "'") { if (ch === "'") quote = null; continue }
+    if (ch === "'" && quote === null) { quote = "'"; continue }
+    if (ch === '"') { quote = quote === '"' ? null : '"'; continue }
+    if (ch === '$' && text[i + 1] === '(') {
+      let depth = 0
+      let j = i + 1
+      for (; j < text.length; j++) {
+        if (text[j] === '(') depth++
+        else if (text[j] === ')' && --depth === 0) break
+      }
+      found.push(text.slice(i + 2, j))
+      i = j
+      continue
+    }
+    if (ch === '`') {
+      const end = text.indexOf('`', i + 1)
+      if (end < 0) break
+      found.push(text.slice(i + 1, end))
+      i = end
+    }
+  }
+  return found
+}
+
+// 따옴표 밖의 `;`·개행·`|`·`&`·괄호·중괄호에서 나눈다.
+function splitSegments(text: string): string[] {
+  const segments: string[] = []
+  let cur = ''
+  let quote: Quote = null
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i]
+    if (isEscape(quote, ch, text[i + 1])) { cur += ch + text[++i]; continue }
+    if (quote) { cur += ch; if (ch === quote) quote = null; continue }
+    if (ch === '"' || ch === "'") { quote = ch; cur += ch; continue }
+    if (';\n|&()'.includes(ch)) { segments.push(cur); cur = ''; continue }
+    cur += ch
+  }
+  segments.push(cur)
+  return segments.map((s) => s.trim()).filter(Boolean)
+}
+
+// 따옴표를 벗기고 따옴표 밖 공백에서 나눈다.
+function tokenize(segment: string): string[] {
+  const out: string[] = []
+  let cur = ''
+  let quote: Quote = null
+  let started = false
+  for (let i = 0; i < segment.length; i++) {
+    const ch = segment[i]
+    if (isEscape(quote, ch, segment[i + 1])) { cur += segment[++i]; started = true; continue }
+    if (quote) { if (ch === quote) quote = null; else cur += ch; continue }
+    if (ch === '"' || ch === "'") { quote = ch; started = true; continue }
+    if (/\s/.test(ch)) { if (started) out.push(cur); cur = ''; started = false; continue }
+    cur += ch
+    started = true
+  }
+  if (started) out.push(cur)
+  return out
+}
+
+const WRAPPERS = new Set(['sudo', 'doas', 'env', 'nohup', 'time', 'nice', 'ionice', 'xargs', 'command', 'busybox', 'exec'])
+const RE_ASSIGN = /^[A-Za-z_][A-Za-z0-9_]*=/
+const RE_SHELL_C = /^-[A-Za-z]*c$/
+
+function baseName(token: string): string {
+  const i = Math.max(token.lastIndexOf('/'), token.lastIndexOf('\\'))
+  return (i < 0 ? token : token.slice(i + 1)).toLowerCase()
+}
+
+interface Cmd {
+  base: string
+  args: string[]
+}
+
+// 명령 위치 — 머리의 `VAR=값` 할당과 셸 문법 낱말(`{`·`!`·`then`·`do` …)을 건너뛰고, 래퍼(`sudo`·`env`·`xargs` …) 뒤의 명령도 본다.
+// 중괄호는 구분자로 두지 않는다 — `gh api repos/{owner}/{repo}/…` 자리표시가 쪼개진다.
+const SHELL_WORDS = new Set(['{', '}', '!', 'then', 'do', 'else', 'elif', 'if', 'while', 'until', 'time'])
+function commandsOf(tokens: string[]): Cmd[] {
+  let head = 0
+  while (head < tokens.length - 1 && (RE_ASSIGN.test(tokens[head]) || SHELL_WORDS.has(tokens[head]))) head++
+  if (head >= tokens.length) return []
+  const cmds: Cmd[] = [{ base: baseName(tokens[head]), args: tokens.slice(head + 1) }]
+  let i = head
+  while (i < tokens.length - 1 && WRAPPERS.has(baseName(tokens[i]))) {
+    let j = i + 1
+    while (j < tokens.length && (tokens[j].startsWith('-') || RE_ASSIGN.test(tokens[j]))) j++
+    if (j >= tokens.length) break
+    cmds.push({ base: baseName(tokens[j]), args: tokens.slice(j + 1) })
+    i = j
+  }
+  return cmds
+}
+
+// ── gh 판정 ──────────────────────────────────────────────────────────────
+const isGh = (c: Cmd): boolean => c.base === 'gh' || c.base === 'gh.exe'
+
+// gh의 하위 명령 낱말 둘 — `=` 없는 `--긴옵션`과 두 글자 `-x`는 다음 낱말을 값으로 먹는다(가드 ghWords, gh 2.92 실측).
+// 동사 뒤의 낱말은 보지 않는다 — `gh pr create --title merge`의 `merge`는 병합이 아니다.
+const GH_NO_VALUE = new Set(['--help', '-h', '--version'])
+function ghWords(args: string[]): string[] {
+  const words: string[] = []
+  for (let i = 0; i < args.length && words.length < 2; i++) {
+    const t = args[i]
+    if (!t.startsWith('-')) { words.push(t.split(/[<>]/)[0]); continue }
+    if (GH_NO_VALUE.has(t)) continue
+    if (t.startsWith('--') ? !t.includes('=') : t.length === 2) i++
+  }
+  return words
+}
+
+// `gh api`의 글 값 옵션 — 이 값(본문·헤더·jq)은 경로가 아니므로 보지 않는다. 나머지 낱말은 모두 경로 후보로 본다
+// (`gh api -i <경로>`처럼 값 없는 옵션 뒤의 경로를 놓치지 않으려고 첫 낱말만 보지 않는다).
+const API_TEXT_LONG = new Set(['--field', '--raw-field', '--header', '--jq', '--template'])
+const API_TEXT_SHORT = 'fFHqt'
+const MERGE_PATH = /pulls\/[^/\s]+\/merge(?:-async)?(?=$|[/?#])/i
+const GRAPHQL_MERGE = /mergePullRequest|enablePullRequestAutoMerge/
+
+function apiShowsMergePath(args: string[]): boolean {
+  for (let i = 0; i < args.length; i++) {
+    const t = args[i]
+    if (t.startsWith('--')) { if (API_TEXT_LONG.has(t)) i++; continue }
+    // 값을 다음 낱말로 받는 것은 정확히 두 글자(`-f`)일 때뿐이다. 붙여 쓴 값(`-fsha=…`, `-XPUT`)은 다음 낱말을 먹지 않는다.
+    if (/^-[A-Za-z]/.test(t)) { if (t.length === 2 && API_TEXT_SHORT.includes(t[1])) i++; continue }
+    if (MERGE_PATH.test(t)) return true
+  }
+  return false
+}
+
+function scriptReason(script: string, rawText: string, depth: number): string | null {
+  if (depth > 4) return null
+  const text = stripHeredocBodies(script.replace(/\\\r?\n/g, ' '))
+  for (const sub of substitutions(text)) {
+    const r = scriptReason(sub, rawText, depth + 1)
+    if (r) return r
+  }
+  for (const seg of splitSegments(text)) {
+    for (const c of commandsOf(tokenize(seg))) {
+      if (SHELLS.has(c.base)) {
+        const k = c.args.findIndex((t) => RE_SHELL_C.test(t))
+        if (k >= 0 && k + 1 < c.args.length) {
+          const r = scriptReason(c.args[k + 1], rawText, depth + 1)
+          if (r) return r
+        }
+        continue
+      }
+      if (!isGh(c)) continue
+      const [group, verb] = ghWords(c.args)
+      if (group === 'pr' && verb === 'merge') return REASON
+      if (group === 'api') {
+        if (apiShowsMergePath(c.args)) return REASON
+        // GraphQL 본문은 `-f query=…`·`--input` heredoc 어디에도 올 수 있어 명령 원문 전체에서 찾는다.
+        // 끝점은 `graphql`·`/graphql`·`https://api.github.com/graphql` 꼴이 모두 온다.
+        if (c.args.some((t) => /(?:^|\/)graphql\/?$/i.test(t)) && GRAPHQL_MERGE.test(rawText)) return REASON
+      }
+    }
+  }
+  return null
+}
+
+// 병합 꼴이면 사유를, 아니면 null을 돌려준다.
+export function mergeDenyReason(command: string): string | null {
+  return scriptReason(command, command, 0)
+}
+
+// ── 훅과 노드 정보 ─────────────────────────────────────────────────────────
+// 공개 타입 PreToolUseHookInput에서 이 노드가 읽는 칸만 적는다(enginePathLock.ts와 같은 모양).
+interface PreToolUseInput {
+  hook_event_name?: string
+  tool_name?: string
+  tool_input?: unknown
+}
+
+interface HookOutput {
+  hookSpecificOutput?: { hookEventName: 'PreToolUse'; permissionDecision: 'deny'; permissionDecisionReason: string }
+}
+
+export interface MergeDenyMatcher {
+  matcher?: string
+  hooks: ((input: PreToolUseInput, toolUseID: string | undefined, opts: { signal: AbortSignal }) => Promise<HookOutput>)[]
+  timeout: number
+  onFailure: 'block'
+}
+
+const MERGE_DENY_TIMEOUT_S = 10
+
+// SDK hooks.PreToolUse에 넣는 매처. 도구 이름으로 거르지 않고 `command` 입력을 가진 모든 도구(Bash, PowerShell 등)를 본다.
+export function buildMergeDenyHook(): MergeDenyMatcher {
+  return {
+    hooks: [
+      async (input) => {
+        const ti = input.tool_input
+        const command = ti && typeof ti === 'object' ? (ti as Record<string, unknown>)['command'] : undefined
+        if (typeof command !== 'string') return {}
+        const reason = mergeDenyReason(command)
+        if (reason === null) return {}
+        return { hookSpecificOutput: { hookEventName: 'PreToolUse', permissionDecision: 'deny', permissionDecisionReason: reason } }
+      },
+    ],
+    timeout: MERGE_DENY_TIMEOUT_S,
+    onFailure: 'block',
+  }
+}
+
+export const MERGE_DENY_NODE: ControlNodeInfo = Object.freeze({
+  id: 'merge-deny',
+  name: 'PR 병합 명령 거부',
+  point: 'preToolUse',
+  judge: 'rule',
+  results: Object.freeze(['deny'] as const),
+  // 명령 글자를 바꾸면 피해 가므로 L3다 — 실수만 막는다. 끌 수 없다.
+  protection: 'L3',
+  locked: true,
+  onFailure: 'block',
+  timeoutMs: MERGE_DENY_TIMEOUT_S * 1000,
+})

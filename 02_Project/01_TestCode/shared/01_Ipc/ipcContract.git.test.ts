@@ -26,7 +26,12 @@ import type {
   GitPullRequest,
   GitPullResponse,
   DiffLine,
+  PrReadRequest,
+  PrReadResponse,
+  PrMergeRequest,
+  PrMergeResponse,
 } from '../../../../02_Project/00_Source/shared/ipcContract'
+import { API_ROUTES } from '../../../../02_Project/00_Source/shared/01_Ipc/apiRoutes'
 
 describe('git IPC_CHANNELS 9채널', () => {
   it('GIT_ROOT 채널이 정확한 문자열로 존재한다', () => {
@@ -98,6 +103,32 @@ describe('git IPC_CHANNELS 9채널', () => {
     for (const ch of gitChannels) {
       expect(ch).toMatch(/^[a-z]+\.[a-z][a-zA-Z]*$/)
     }
+  })
+})
+
+describe('PR 카드 채널 (M07 G8)', () => {
+  it('PR 읽기·병합 채널이 정확한 문자열로 존재하고 이름 규칙을 따른다', () => {
+    expect(IPC_CHANNELS.GIT_PR_READ).toBe('git.prRead')
+    expect(IPC_CHANNELS.GIT_PR_MERGE).toBe('git.prMerge')
+    for (const ch of [IPC_CHANNELS.GIT_PR_READ, IPC_CHANNELS.GIT_PR_MERGE]) {
+      expect(ch).toMatch(/^[a-z]+\.[a-z][a-zA-Z]*$/)
+    }
+    const values = Object.values(IPC_CHANNELS)
+    expect(new Set(values).size).toBe(values.length)
+  })
+
+  it('preload 라우트 git.prRead·git.prMerge가 두 채널로 간다', () => {
+    expect(API_ROUTES.git.prRead).toEqual({ kind: 'call', channel: 'git.prRead' })
+    expect(API_ROUTES.git.prMerge).toEqual({ kind: 'call', channel: 'git.prMerge' })
+  })
+
+  it('요청·응답 모양 — 읽기는 번호 또는 URL, 병합은 번호와 보인 SHA', () => {
+    const byNumber: PrReadRequest = { cwd: '/p', number: 12 }
+    const byUrl: PrReadRequest = { cwd: '/p', url: 'https://github.com/o/r/pull/12' }
+    const other: PrReadResponse = { ok: false, error: '다른 저장소 PR — 불러오지 않음', otherRepo: true }
+    const merge: PrMergeRequest = { cwd: '/p', number: 12, sha: 'a'.repeat(40) }
+    const merged: PrMergeResponse = { status: 'merged', message: 'ok', mergeSha: 'b'.repeat(40) }
+    expect([byNumber.number, byUrl.url, other.ok, merge.sha.length, merged.status]).toEqual([12, 'https://github.com/o/r/pull/12', false, 40, 'merged'])
   })
 })
 

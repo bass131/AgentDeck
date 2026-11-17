@@ -1,0 +1,48 @@
+# 하드 게이트 다섯 종 (헌법 6조) — master로 가는 PR마다 서버에서 돈다 (M07 G6).
+# 검사 이름은 작업 이름 `hard-gates` 하나다. 사용자가 master 보호의 필수 검사로 이 이름을 건다.
+# 러너는 Windows다 — 개발 PC와 같은 환경에서 훅 테스트·경로 처리를 본다(G6 결정 대장).
+# `npm test`는 하드 게이트가 아니라 기준선 차분으로 읽는 검사라 여기서 돌리지 않는다.
+name: hard-gates
+
+# 수동 실행(workflow_dispatch)은 두지 않는다 — master와 병합하지 않은 코드로 같은 이름의 검사를 PR head에 남길 수 있다(G6 검수 중요 3).
+on:
+  pull_request:
+    branches: [master]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: hard-gates-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  hard-gates:
+    name: hard-gates
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: npm ci
+        run: npm ci
+
+      - name: typecheck:node
+        run: npm run typecheck:node
+
+      - name: typecheck:web
+        run: npm run typecheck:web
+
+      - name: lint
+        run: npm run lint
+
+      - name: test:hooks
+        run: npm run test:hooks
+
+      - name: build
+        run: npm run build

@@ -195,4 +195,47 @@ const cardsKey = (D, picks) => JSON.stringify([D && D.sig, D && D.status, D && D
 const answerBody = (sig, picks, comments, expect) => ({ sig, picks: Object.fromEntries(picks || []), comments: Object.fromEntries(comments || []), ...(typeof expect === 'string' ? { expect } : {}) });
 
 globalThis.AgentDeckDecide = Object.freeze({ decisionHand, handShown, pickable, reconcilePicks, cardsKey, answerBody });
+
+// ---- 병합 카드의 화면 쪽 판단 (M07 G9). 전역 AgentDeckMerge. 시험은 test/merge-view.test.mjs, 설명은 docs/병합.md ----
+// 「꼭 볼 것」 펼침 게이트는 화면 쪽이다. 주소를 직접 부르면 건너뛰므로 사람 확인 창이 같은 파일 이름을 한 번 더 보인다.
+
+// 「내 손이 필요한 일」의 병합 대기 항목이 든 PR 번호. 서버(lib/progress.mjs judgeHand)가 goal 머리말에서 읽어 pr 칸에 싣는다. 문장에서 뽑지 않는다.
+function pendingPr(hand) {
+  const h = (hand || []).find(x => x && x.id === 'merge');
+  return h && Number.isInteger(h.pr) && h.pr > 0 ? h.pr : null;
+}
+// 펼친 기록의 키: PR·머리 SHA·경로. 다른 SHA나 다른 PR에서 펼친 것은 세지 않는다.
+const fileKey = (pr, sha, path) => JSON.stringify([pr, String(sha || '').toLowerCase(), path]);
+// 「병합」 단추를 켤지. 서버 판정(canMerge)이 먼저고, 꼭 볼 것을 모두 펼쳐야 하고, 병합 중이거나 이미 보낸 SHA면 끈다.
+function mergeGate(view, opened, { running = false, spent = false } = {}) {
+  if (!view || !Array.isArray(view.mustSee)) return { ready: false, total: 0, left: 0, why: 'PR을 아직 읽지 않았어요' };
+  const total = view.mustSee.length;
+  const left = view.mustSee.filter(m => !(opened && opened.has(fileKey(view.number, view.headSha, m.path)))).length;
+  let why = null;
+  if (!view.canMerge) why = '병합 조건을 채우지 못했어요';
+  else if (running) why = '병합을 진행하는 중이에요';
+  else if (spent) why = '이 머리 SHA로는 이미 병합을 요청했어요. 다시 읽기를 눌러 주세요';
+  else if (left) why = `꼭 볼 것 ${total}개 가운데 ${left}개를 아직 펼치지 않았어요`;
+  return { ready: !why, total, left, why };
+}
+// diff 한 줄씩의 종류. 글은 그대로 두고 이스케이프는 페이지가 한다.
+const patchRows = patch => typeof patch !== 'string' ? [] : patch.split('\n').map(text => ({
+  kind: text.startsWith('@@') ? 'hunk' : text.startsWith('+') ? 'add' : text.startsWith('-') ? 'del' : 'ctx', text }));
+// 번호 입력: 숫자(앞의 #은 허용)만 받는다.
+function parsePrInput(s) {
+  const m = /^#?(\d{1,9})$/.exec(String(s ?? '').trim());
+  const n = m ? Number(m[1]) : NaN;
+  return Number.isInteger(n) && n > 0 ? n : null;
+}
+const shortSha = sha => typeof sha === 'string' ? sha.slice(0, 7) : '';
+// 필수 검사 결과 → 화면의 상태 모양(완료 초록 · 진행 파랑 · 멈춤 빨강 · 대기 회색)과 낱말
+const CHECK = Object.freeze({ success: ['done', '성공'], pending: ['current', '대기 중'], failure: ['stopped', '실패'], missing: ['waiting', '결과 없음'] });
+const checkState = result => { const c = CHECK[result] || ['waiting', '알 수 없음']; return { kind: c[0], word: c[1] }; };
+// 병합 결과 줄: 병합됨만 초록이고, 나머지는 사용자가 볼 일(노랑)이다.
+function resultLine(r) {
+  if (r && r.status === 'merged') return { level: 'ok', text: `${r.message || '병합했어요'}${r.mergeSha ? ` (병합 커밋 ${shortSha(r.mergeSha)})` : ''}` };
+  return { level: 'todo', text: (r && r.message) || (r && r.reason) || '결과를 읽지 못했어요. 다시 읽기로 확인해 주세요' };
+}
+
+globalThis.AgentDeckMerge = Object.freeze({ pendingPr, fileKey, mergeGate, patchRows, parsePrInput, shortSha, checkState, resultLine });
 })();

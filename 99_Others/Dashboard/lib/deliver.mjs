@@ -1,4 +1,5 @@
-// 현황판의 유일한 바깥 쓰기: 결정 응답 문장을 메인 Claude 입력창에 넣는다(M05 H7). Enter는 누르지 않는다.
+// 현황판의 바깥 쓰기는 둘뿐이다. 하나가 이것 — 결정 응답 문장을 메인 Claude 입력창에 넣는다(M05 H7). Enter는 누르지 않는다.
+// 다른 하나는 사람 확인 창을 거친 PR 병합(M07 G9, lib/merge.mjs·lib/confirm.mjs, docs/병합.md)이다.
 // 사용자가 메인 pane에서 Enter를 눌러야 메인 세션이 사용자의 직접 입력으로 받는다. 현황판이 대신 제출하지 않는다.
 // 본보기는 C:\Dev\DawnHolder_Dashboard 의 lib/deliver.mjs typeIntoMain이다.
 //

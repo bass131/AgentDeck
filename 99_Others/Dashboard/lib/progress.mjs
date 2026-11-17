@@ -216,8 +216,8 @@ export function judgeHand({ phases, ledger, hooks, failLimit = 3 }) {
       source: '검증 기록 — 마지막 사용자 입력 뒤 실패 수', ref: rec?.ref || null });
     if (P.format === 'goal') {
       const G = P.goal, cur = P.items.find(p => p.num === P.current);
-      if (G.statusWord === '병합 대기') { const pr = prOf(G.status); out.push({ id: 'merge', key: keyOf('merge', doc ?? G.ref?.path), level: 'todo', say: `${pr ? `PR ${pr}` : 'PR'}의 병합을 기다려요 — 앱 PR 카드의 「병합」 버튼으로 해 주세요.`, source: 'goal 문서 머리말 「상태: 병합 대기」', ref: G.ref }); }
-      else if (!G.closed && cur && /병합\s*승인/.test(cur.name)) out.push({ id: 'merge-step', key: keyOf('merge-step', doc, cur.label ?? cur.num), level: 'todo', say: '지금 단계가 PR 병합으로 끝나요. PR이 열리면 diff를 보고 앱 PR 카드의 「병합」 버튼으로 병합해 주세요.', source: `goal 문서 진척 단계 ${cur.label ?? cur.num}`, ref: cur.ref });
+      if (G.statusWord === '병합 대기') { const pr = prOf(G.status); out.push({ id: 'merge', key: keyOf('merge', doc ?? G.ref?.path), level: 'todo', say: `${pr ? `PR ${pr}` : 'PR'}의 병합을 기다려요 — 아래 병합 카드의 「병합」 버튼으로 해 주세요(바탕화면 확인 창에서 한 번 더 눌러요).`, source: 'goal 문서 머리말 「상태: 병합 대기」', ref: G.ref, pr }); }
+      else if (!G.closed && cur && /병합\s*승인/.test(cur.name)) out.push({ id: 'merge-step', key: keyOf('merge-step', doc, cur.label ?? cur.num), level: 'todo', say: '지금 단계가 PR 병합으로 끝나요. PR이 열리면 병합 카드에서 「꼭 볼 것」을 보고 「병합」 버튼으로 병합해 주세요.', source: `goal 문서 진척 단계 ${cur.label ?? cur.num}`, ref: cur.ref });
       if (G.waitingUser) { const last = P.record?.last;
         out.push({ id: 'question', key: keyOf('question', last?.file ?? doc, last?.at ?? last?.line), level: 'todo', say: '마지막 검증 기록이 사용자 입력 줄이에요. 답을 기다리는 질문인지 확인해 주세요.', quote: last?.text ?? null, source: 'goal 문서 검증 기록의 마지막 줄', ref: last ? { path: last.file, line: last.line } : null }); }
     }

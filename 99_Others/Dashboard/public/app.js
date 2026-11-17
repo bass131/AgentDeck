@@ -148,6 +148,8 @@ const CH = globalThis.AgentDeckChime || null;
 const DEC = globalThis.AgentDeckDecide || null;
 /* 화면 모양의 판단(같은 chime.js의 전역 AgentDeckView): 큰 카드 상태, 진척 링, 등장 대상. 없으면 예전 모양으로 그린다 */
 const VIEW = globalThis.AgentDeckView || null;
+/* 병합 카드의 화면 쪽 판단(같은 chime.js의 전역 AgentDeckMerge, M07 G9). 없으면 병합 카드를 그리지 않는다 */
+const MRG = globalThis.AgentDeckMerge || null;
 /* 응답을 마치고 조용한 분 수: 사실은 서버(summary.activity.quiet), 5분 넘게인지는 화면 시계로 chime.js가 정한다 */
 const quietNow = now => CH ? CH.quietMinutes(SUM().activity?.quiet, now) : null;
 /* 참고할 것: 멈춤은 아니지만 알아 두면 좋은 사실. 「내 손」 아래 작은 줄로만 둔다.
@@ -382,7 +384,8 @@ function handBlock(now) {
      머리 색(lv)과 알림음·탭 제목 배지·띠의 손 줄은 결정까지 센 전체 목록(handNow) 그대로다 */
   const shown = DEC ? DEC.handShown(hand) : { facts: hand, decisions: 0, note: null };
   const toDecide = shown.note ? `<a href="#decide">${esc(shown.note)}</a>` : '';
-  const items = shown.facts.length ? `<ul class="hand-list">${shown.facts.map(h => `<li class="is-${h.level}">${G[HAND_G[h.level]]}<div><p>${esc(h.say)}</p>${h.quote ? `<p class="rawtext">「${md(clipText(h.quote, 160))}」</p>` : ''}<p class="q-src">근거: ${esc(h.source)}${h.ref ? ' ' + srcLink(h.ref) : ''}</p></div></li>`).join('')}</ul>${toDecide ? `<p class="hand-more">${toDecide}</p>` : ''}`
+  /* 병합 대기 항목은 바로 위 병합 카드(#merge, M07 G9)를 가리킨다 */
+  const items = shown.facts.length ? `<ul class="hand-list">${shown.facts.map(h => `<li class="is-${h.level}">${G[HAND_G[h.level]]}<div><p>${esc(h.say)}${h.id === 'merge' && MRG ? ' <a href="#merge">현황판 병합 카드</a>' : ''}</p>${h.quote ? `<p class="rawtext">「${md(clipText(h.quote, 160))}」</p>` : ''}<p class="q-src">근거: ${esc(h.source)}${h.ref ? ' ' + srcLink(h.ref) : ''}</p></div></li>`).join('')}</ul>${toDecide ? `<p class="hand-more">${toDecide}</p>` : ''}`
     : toDecide ? `<p class="q-line is-defer">${G.note}${toDecide}</p>`
     : `<p class="q-line is-none">${G.ok}<span>없음</span></p>`;
   const chores = S.chores?.length ? fold('chores', `급하지 않은 정리 일 ${S.chores.length}개 <small>인수인계 메모에 「사용자 몫」으로 적힌 문장</small>`, sents(S.chores) + (S.choresRef ? srcLink(S.choresRef) : ''), 'raw') : '';
@@ -657,7 +660,7 @@ function renderSources() {
   const rows = vm.sources.map(s => `<li class="srcrow${s.status === 'failed' ? ' is-failed' : ''}"${fxAttr('src:' + s.id)}><p><b>${esc(s.label)}</b>${status(s)}${s.collectedAt ? `<time>${fHMS(Date.parse(s.collectedAt))}</time>` : ''}</p>
     <p class="srcrow-t">${esc(s.target || '')}</p>${s.error ? `<p class="err">${esc(s.error)}</p>` : ''}</li>`).join('');
   paint($('#sources'), panel('sources', '원문을 읽은 상태', `원문 ${num('src-n', vm.sources.length)}개${failed ? ` · ${tag(`읽지 못함 ${failed}`, 'tag-broken')}` : ' · 모두 읽음'}`,
-    `<ul class="list">${rows}</ul><p class="area-foot">저장소 ${esc(vm.repo.path)} · 보기 모델 ${esc(vm.schema)} 개정 ${esc(vm.revision)} · 이 화면은 저장소에 쓰지 않습니다. 쓰기는 결정 응답(메인 입력창에 글 넣기) 하나뿐입니다.</p>`, failed > 0));
+    `<ul class="list">${rows}</ul><p class="area-foot">저장소 ${esc(vm.repo.path)} · 보기 모델 ${esc(vm.schema)} 개정 ${esc(vm.revision)} · 이 화면은 저장소에 쓰지 않습니다. 쓰기는 결정 응답(메인 입력창에 글 넣기)과 병합 카드(확인 창을 거친 PR 병합)뿐입니다.</p>`, failed > 0));
 }
 
 /* ---------- 결정이 필요한 일: 결정 카드와 보낼 문장 (M05 H7, docs/결정-응답.md) ----------
@@ -794,11 +797,123 @@ function decReconcile(prev) {
   if (!dec.picks.size) dec.preview = null;
 }
 
+/* ---------- 병합 카드 (M07 G9, docs/병합.md) ----------
+   「내 손이 필요한 일」의 병합 대기 PR(judgeHand의 pr 칸)을 번호가 바뀔 때 한 번 불러오고, 다른 PR은 번호 칸으로 불러온다.
+   카드는 머리 SHA·필수 검사·막는 이유·「꼭 볼 것」(파일마다 접힌 diff)을 보인다. 꼭 볼 것을 모두 펼친 뒤에만 「병합」이 켜진다.
+   펼친 기록은 메모리에만 둔다(PR·머리 SHA·경로 — chime.js fileKey). 접기 상태 저장(fold·data-id·localStorage)을 타지 않는다.
+   「병합」은 서버에 PR 번호와 보인 머리 SHA만 보낸다. 서버가 띄우는 Windows 확인 창에서 사람이 「병합」을 눌러야 병합이 나간다.
+   카드는 자기 영역(#merge)에만, 내용이 바뀔 때만 칠한다(cardKey). 「지금」의 초 단위 다시 칠하기가 펼친 diff를 접지 않게 하려는 것이다 */
+const mg = { pr: null, view: null, loading: false, error: null, running: false, spent: false, result: null, opened: new Set(), expanded: new Set(), autoFor: null, manual: false, cardKey: null, seq: 0 };
+const MERGE_SKELETON = `<header class="decide-head merge-head"><h2 class="q-k" id="merge-h">병합</h2><div class="area-sum" id="merge-sum"></div>
+  <label class="mg-load"><span>다른 PR</span><input type="text" inputmode="numeric" maxlength="10" placeholder="번호" data-merge-num autocomplete="off"><button type="button" class="ghost" data-merge-load>불러오기</button></label></header>
+  <div id="merge-card"></div><div class="mg-act" id="merge-act" aria-live="polite"></div>`;
+function mergeBox() {
+  let el = $('#merge');
+  if (!el) { el = document.createElement('section'); el.className = 'merge'; el.id = 'merge'; el.setAttribute('aria-labelledby', 'merge-h'); ($('#decide') || $('#now')).after(el); }
+  if (!el.querySelector('#merge-card')) el.innerHTML = MERGE_SKELETON;
+  return el;
+}
+async function postMerge(kind, body) {
+  const r = await fetch('/api/merge/' + kind, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Dashboard-Token': BOOT.token }, body: JSON.stringify(body) });
+  try { return await r.json(); } catch { return { ok: false, reason: `서버가 읽을 수 없는 답을 줬어요 (${r.status}).` }; }
+}
+const mergeKey = (v, path) => MRG.fileKey(v.number, v.headSha, path);
+function mergeFiles(v) {
+  if (!v.mustSee.length) return `<p class="q-sub">${G.ok}<span>꼭 볼 것 경로(.claude/·헌법·게이트 상태·CI 작업 흐름·package.json scripts)를 건드리지 않았어요.</span></p>`;
+  return `<h3 class="sub-h">꼭 볼 것 ${esc(v.mustSee.length)}개 <span>모두 펼쳐 본 뒤에 「병합」이 켜져요</span></h3><ul class="mg-files">${v.mustSee.map(m => {
+    const k = mergeKey(v, m.path), seen = mg.opened.has(k);
+    const inner = m.patch != null
+      ? `<pre class="mg-patch">${MRG.patchRows(m.patch).map(row => `<span class="mg-l is-${row.kind}">${esc(row.text) || ' '}</span>`).join('')}</pre>`
+      : `<p class="q-sub">${G.note}<span>diff가 크거나 이름만 바뀌어 GitHub가 내용을 주지 않았어요. <a href="${esc(m.diffUrl)}" target="_blank" rel="noopener noreferrer" data-merge-link="${esc(m.path)}">GitHub에서 이 파일의 diff 열기</a>를 누르면 본 것으로 쳐요.</span></p>`;
+    return `<li><details class="fold raw mg-file${seen ? ' is-seen' : ''}" data-merge-file="${esc(m.path)}"${mg.expanded.has(k) ? ' open' : ''}><summary><span class="chev" aria-hidden="true"></span>${seen ? G.ok : G.note}<code class="inline">${esc(m.path)}</code>${m.previousPath ? `<small>옛 경로 ${esc(m.previousPath)}</small>` : ''}<small>${esc(m.why)}${seen ? ' · 봤음' : ''}</small></summary><div class="fold-body">${inner}</div></details></li>`;
+  }).join('')}</ul>`;
+}
+function mergeCard() {
+  if (mg.error) return `<p class="send-refusal">${G.note}<span>${esc(mg.error)}</span></p>`;
+  const v = mg.view;
+  if (!v) return mg.loading ? `<p class="send-hint">PR #${esc(mg.pr)}을 읽는 중이에요…</p>` : '';
+  const link = /^https:\/\/github\.com\//.test(v.url || '') ? ` <a href="${esc(v.url)}" target="_blank" rel="noopener noreferrer">GitHub에서 보기</a>` : '';
+  const checks = v.checks?.length ? `<ul class="mg-checks">${v.checks.map(c => { const s = MRG.checkState(c.result); return `<li>${state(s.kind, s.word)}<code class="inline">${esc(c.name)}</code></li>`; }).join('')}</ul>` : '';
+  const reasons = v.reasons?.length ? `<ul class="mg-reasons">${v.reasons.map(r => `<li>${G.note}<span>${esc(r)}</span></li>`).join('')}</ul>` : '';
+  const notes = (v.notes || []).map(n => `<p class="q-sub is-quiet">${G.quiet}<span>${esc(n)}</span></p>`).join('');
+  return `<article class="mg${v.canMerge ? ' is-ready' : ''}">
+    <header class="dec-head"><span class="dec-n">#${esc(v.number)}</span><h3>${esc(v.title)}</h3>${link}</header>
+    <p class="mg-meta"><code class="inline">${esc(v.baseRef)}</code> ← <code class="inline">${esc(v.headRef)}</code> · 머리 SHA <code class="inline" title="${esc(v.headSha)}">${esc(MRG.shortSha(v.headSha))}</code> · 바뀐 파일 ${esc(v.files)}개${mg.loading ? ' · 다시 읽는 중…' : ''}</p>
+    <h3 class="sub-h">필수 검사</h3>${checks}${notes}${reasons}${mergeFiles(v)}</article>`;
+}
+function mergeAction() {
+  const v = mg.view;
+  /* 읽기에 실패해도(카드 없음) 번호가 있으면 「다시 읽기」를 남긴다 — 자동 불러오기는 번호가 바뀔 때만 다시 돈다 */
+  if (!mg.pr) return '';
+  const gate = MRG.mergeGate(v, mg.opened, { running: mg.running, spent: mg.spent });
+  const wait = mg.running ? `<p class="send-result is-todo">${G.note}<span>바탕화면의 확인 창에서 병합을 눌러 주세요. 창에 보이는 머리 SHA와 꼭 볼 것 파일이 이 카드와 같은지 확인하세요. 고르지 않으면 창이 저절로 닫히고 병합하지 않아요.</span></p>` : '';
+  const r = mg.result ? MRG.resultLine(mg.result) : null;
+  const res = r ? `<p class="send-result is-${r.level === 'ok' ? 'done' : 'todo'}">${r.level === 'ok' ? G.ok : G.note}<span>${esc(r.text)}</span></p>` : '';
+  return `<div class="send-actions">${v ? `<button type="button" class="btn" data-merge-run${gate.ready ? '' : ' disabled'}>병합</button>` : ''}<button type="button" class="ghost" data-merge-reload${mg.pr && !mg.loading && !mg.running ? '' : ' disabled'}>다시 읽기</button></div>
+    ${v && gate.why && !mg.running ? `<p class="send-note">${esc(gate.why)}</p>` : ''}${wait}${res}
+    <p class="send-note">병합은 서버가 띄우는 Windows 확인 창에서 「병합」을 눌러야 나가요. 이 화면의 단추만으로는 병합하지 않아요.</p>`;
+}
+function renderMerge() {
+  const old = $('#merge');
+  if (!MRG) { if (old) old.hidden = true; return; }
+  const box = mergeBox();
+  /* 병합 대기 PR이 새로 보이면 한 번 불러온다. 사용자가 번호로 다른 PR을 불렀으면 덮지 않는다 */
+  const want = MRG.pendingPr(SUM().hand);
+  if (want !== mg.autoFor) { mg.autoFor = want; if (want && !mg.manual && !mg.running && mg.pr !== want) void loadMerge(want, false); }
+  box.classList.toggle('is-empty', !mg.view && !mg.loading && !mg.error && !mg.result);
+  paint($('#merge-sum'), mg.view ? `<span>PR ${esc(mg.view.number)} · ${mg.view.canMerge ? '병합 조건을 채웠어요' : '병합 조건을 채우지 못했어요'}</span>`
+    : `<span>${want ? `병합 대기 PR ${esc(want)}` : '병합을 기다리는 PR이 없어요. 번호로 다른 PR을 불러올 수 있어요'}</span>`);
+  const v = mg.view, key = JSON.stringify([mg.pr, v, mg.loading, mg.error, v ? v.mustSee.filter(m => mg.opened.has(mergeKey(v, m.path))).map(m => m.path) : []]);
+  if (key !== mg.cardKey) { paint($('#merge-card'), mergeCard()); mg.cardKey = key; }
+  paint($('#merge-act'), mergeAction());
+}
+async function loadMerge(n, manual) {
+  const seq = ++mg.seq;
+  if (mg.view && mg.view.number !== n) mg.view = null;
+  Object.assign(mg, { pr: n, manual, loading: true, error: null, result: null });
+  renderMerge();
+  let r;
+  try { r = await postMerge('read', { pr: n }); } catch { r = { ok: false, reason: '서버에 닿지 못했어요. 연결을 확인해 주세요.' }; }
+  if (seq !== mg.seq) return;
+  mg.loading = false;
+  /* 읽기에 실패하면 옛 카드를 남기지 않는다(옛 머리 SHA로 단추가 켜져 있지 않게) */
+  if (r?.ok && r.pr && Array.isArray(r.pr.mustSee)) { mg.view = r.pr; mg.spent = false; }
+  else { mg.view = null; mg.error = r?.reason || 'PR을 읽지 못했어요.'; }
+  renderMerge();
+}
+function loadFromInput() {
+  const n = MRG.parsePrInput($('[data-merge-num]')?.value);
+  if (!n) { toast('PR 번호를 숫자로 넣어 주세요.'); return; }
+  if (!mg.running) void loadMerge(n, true);
+}
+/* 펼친 기록: patch가 있는 파일은 접힘을 펼칠 때, patch가 없는 파일은 GitHub diff 링크를 누를 때 본 것으로 친다 */
+function markOpened(path) {
+  if (!mg.view || !mg.view.mustSee.some(m => m.path === path)) return;
+  mg.opened.add(MRG.fileKey(mg.view.number, mg.view.headSha, path));
+  renderMerge();
+}
+function mergeToggled(det) {
+  const v = mg.view, path = det.dataset.mergeFile, m = v?.mustSee.find(x => x.path === path);
+  if (!m) return;
+  const k = mergeKey(v, path);
+  if (det.open) mg.expanded.add(k); else mg.expanded.delete(k);
+  if (det.open && m.patch != null) markOpened(path);
+}
+async function runMerge() {
+  const v = mg.view;
+  if (!v || !MRG.mergeGate(v, mg.opened, { running: mg.running, spent: mg.spent }).ready) return;
+  mg.running = true; mg.result = null; renderMerge();
+  let r;
+  try { r = await postMerge('run', { pr: v.number, sha: v.headSha }); } catch { r = { ok: false, status: 'unknown', message: '서버에 닿지 못했어요. 결과를 모르니 다시 읽기로 확인해 주세요.' }; }
+  mg.running = false; mg.spent = true; mg.result = r;
+  renderMerge();
+}
+
 /* ---------- 그리기와 시계 ---------- */
 function render() {
   const now = Date.now();
   st.renderedAt = now;
-  for (const fn of [renderStrip, renderBanner, renderNow, renderDecide, renderPhases, renderHooks, renderTree, renderPin, renderLedger, renderBacklog, renderMilestones, renderSources]) {
+  for (const fn of [renderStrip, renderBanner, renderNow, renderDecide, renderMerge, renderPhases, renderHooks, renderTree, renderPin, renderLedger, renderBacklog, renderMilestones, renderSources]) {
     try { fn(now); } catch (error) { console.error('[AgentDeck 현황판] 그리기 실패', fn.name, error); }
   }
   fillRel(now);
@@ -918,6 +1033,14 @@ document.addEventListener('click', e => {
   if (dc) { dec.picks.delete(dc.dataset.decClear); dec.comments.delete(dc.dataset.decClear); dec.result = null; schedulePreview(); return; }
   if (e.target.closest('[data-dec-clear-all]')) { dec.picks.clear(); dec.comments.clear(); dec.result = null; schedulePreview(); return; }
   if (e.target.closest('[data-dec-send]')) { void sendLine(); return; }
+  /* 병합 카드: 불러오기·다시 읽기·병합. GitHub diff 링크는 기본 동작(새 탭)을 막지 않고 본 것으로만 친다 */
+  if (MRG) {
+    if (e.target.closest('[data-merge-load]')) { loadFromInput(); return; }
+    if (e.target.closest('[data-merge-reload]')) { if (mg.pr && !mg.running) void loadMerge(mg.pr, mg.manual); return; }
+    if (e.target.closest('[data-merge-run]')) { void runMerge(); return; }
+    const ml = e.target.closest('[data-merge-link]');
+    if (ml) { markOpened(ml.dataset.mergeLink); return; }
+  }
   if (e.target.closest('[data-dec-copy]')) {
     const text = dec.preview?.text, ids = [...dec.picks.keys()];
     if (text) copyText(text).then(ok => { dec.result = { phase: ok ? 'clipboard' : 'manual', line: text, ids }; renderDecide(); if (!ok) $('#decide .send-manual')?.select(); });
@@ -942,7 +1065,11 @@ document.addEventListener('input', e => {
   dec.comments.set(id, e.target.value); dec.result = null;
   schedulePreview();
 });
+/* 병합 카드 번호 칸: Enter로 불러온다 */
+document.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target?.matches?.('[data-merge-num]')) { e.preventDefault(); if (MRG) loadFromInput(); } });
 document.addEventListener('toggle', e => {
+  /* 병합 카드의 「꼭 볼 것」 접힘: 저장하지 않고, 펼치면 본 것으로 친다(patch가 있을 때) */
+  if (e.target.dataset?.mergeFile != null) { if (MRG) mergeToggled(e.target); return; }
   const id = e.target.dataset?.id; if (!id) return;
   e.target.open ? st.open.add(id) : st.open.delete(id); saveOpen();
   /* 다시 그릴 때 같은 내용으로 판정되도록, 접기 상태가 바뀐 영역의 기억을 지운다 */

@@ -141,8 +141,11 @@ test('hand: merge waiting, a merge step in progress, a question, a stop, the led
   const ids = h => h.map(x => [x.id, x.level]);
   assert.deepEqual(judgeHand({ phases: goal('실행 중', [step(1, 'current', '구현')], 1) }), []);
   assert.deepEqual(ids(judgeHand({ phases: goal('병합 대기', [step(1, 'done', 'a')], null, { goal: { status: '병합 대기 (PR 49)' } }) })), [['merge', 'todo']]);
-  // M07 G8: 병합은 사용자가 앱 PR 카드의 「병합」 버튼으로 한다 — 보드 승인 요청이 아니다
-  assert.match(judgeHand({ phases: goal('병합 대기', [], null, { goal: { status: '병합 대기 (PR 49)' } }) })[0].say, /^PR 49의 병합을 기다려요 — 앱 PR 카드의 「병합」 버튼으로 해 주세요/);
+  // M07 G8·G9: 병합은 사용자가 현황판 병합 카드(확인 창)나 앱 PR 카드의 「병합」 버튼으로 한다 — 보드 승인 요청이 아니다
+  assert.match(judgeHand({ phases: goal('병합 대기', [], null, { goal: { status: '병합 대기 (PR 49)' } }) })[0].say, /^PR 49의 병합을 기다려요 — 아래 병합 카드의 「병합」 버튼으로 해 주세요/);
+  // M07 G9: 현황판 병합 카드가 이 번호로 PR을 불러온다(문장에서 번호를 뽑지 않는다). 번호가 없으면 null이다
+  assert.equal(judgeHand({ phases: goal('병합 대기', [], null, { goal: { status: '병합 대기 (PR 49)' } }) })[0].pr, 49);
+  assert.equal(judgeHand({ phases: goal('병합 대기', [], null) })[0].pr, null);
   assert.deepEqual(ids(judgeHand({ phases: goal('실행 중', [step(8, 'current', '커밋, push, PR 생성, 병합 승인 요청')], 8) })), [['merge-step', 'todo']]);
   assert.match(judgeHand({ phases: goal('실행 중', [step(8, 'current', '커밋, push, PR 생성, 병합 승인 요청')], 8) })[0].say, /「병합」 버튼/);
   const q = judgeHand({ phases: goal('실행 중', [step(2, 'current', 'b')], 2, { goal: { waitingUser: true }, record: { last: { marker: 'USER-INPUT', text: '범위를 바꿀까요?', file: 'g.md', line: 40 } } }) });

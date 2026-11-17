@@ -541,6 +541,35 @@ details[open] > summary .chev{transform:rotate(45deg)}
 .send-manual{width:100%; margin-top:6px; padding:8px; border-radius:4px; border:1px solid var(--todo); background:var(--bg); color:var(--ink); font-family:var(--mono); font-size:var(--fs-sm)}
 @container dash (width < 720px){ .decide{padding-top:var(--sp-4)} .dec{padding:16px} .dec-opts{grid-template-columns:minmax(0,1fr)} .send{padding:12px 16px} }
 
+/* ---------- 병합 카드 (M07 G9): 결정 요청과 「내 손이 필요한 일」 사이. 노랑 = 사용자가 할 일, 새 색은 없다. 병합은 확인 창에서만 나간다 ---------- */
+.merge{padding:0 0 var(--sp-5)}
+.merge[hidden]{display:none}
+.merge-head .q-k{color:var(--todo-text)}
+.merge.is-empty .merge-head .q-k{color:var(--ink-3)}
+.mg-load{display:inline-flex; align-items:center; gap:6px; margin-left:auto; font-size:var(--fs-cap); color:var(--ink-3)}
+.mg-load input{width:6em; font:inherit; color:var(--ink); background:var(--bg); border:1px solid var(--rule-2); border-radius:4px; padding:3px 8px}
+.mg{margin-top:var(--sp-3); padding:20px; border-radius:var(--radius-card); background:var(--surface); border:1px solid var(--rule); box-shadow:inset 3px 0 0 var(--todo)}
+.mg.is-ready{border-color:var(--todo)}
+.mg-meta{margin-top:4px; font-size:var(--fs-sm); color:var(--ink-2); overflow-wrap:anywhere}
+.mg-checks, .mg-reasons, .mg-files{display:grid; gap:6px}
+.mg-checks li{display:flex; align-items:center; gap:8px; font-size:var(--fs-sm)}
+.mg-reasons{margin-top:var(--sp-2)}
+.mg-reasons li{display:flex; align-items:flex-start; gap:8px; font-size:var(--fs-sm); color:var(--todo-text)}
+.mg-reasons .g{margin-top:.2em}
+.mg-file > summary{gap:4px 8px}
+.mg-file > summary code.inline{color:var(--ink)}
+.mg-file.is-seen > summary small{color:var(--ok)}
+.mg-patch{margin:0; max-height:28em; overflow:auto; font-family:var(--mono); font-size:var(--fs-cap); line-height:1.5; letter-spacing:0; white-space:pre; color:var(--ink-2)}
+.mg-l{display:block; padding:0 6px; border-radius:2px}
+.mg-l.is-add{background:var(--ok-tint); color:var(--ink)}
+.mg-l.is-del{background:var(--broken-tint); color:var(--ink)}
+.mg-l.is-hunk{color:var(--info)}
+.mg-act:empty{display:none}
+.mg-act{margin-top:var(--sp-3)}
+.mg-act .send-actions{margin-top:0}
+.mg-act [disabled]{opacity:.45; cursor:not-allowed; transform:none}
+@container dash (width < 720px){ .mg{padding:16px} .mg-load{margin-left:0} }
+
 @media (prefers-reduced-motion: reduce){
   *, *::before, *::after{animation:none !important; transition:none !important}
   .is-fresh::after{content:none !important}

@@ -30,6 +30,7 @@ afterAll(() => {
 
 const file = (): string => path.join(ud, 'controls.json')
 const seal = (): string => path.join(ud, 'controls-seal.json')
+const marker = (): string => path.join(ud, 'first-setup.json')
 
 describe('controls.json 저장과 봉인 상태 (M07 G5)', () => {
   it('파일도 봉인도 없으면 첫 실행(none)이고 전부 켬이다', () => {
@@ -91,25 +92,71 @@ describe('controls.json 저장과 봉인 상태 (M07 G5)', () => {
   it('확인하면 지금 파일 내용을 다시 봉인해 ok로 돌아온다', () => {
     setControlEnabled(ud, 'readonly-allow', false)
     fs.writeFileSync(file(), JSON.stringify({ version: 1, disabled: ['accept-edits-allow'] }))
-    expect(confirmControls(ud)).toEqual({ ok: true })
+    expect(confirmControls(ud, ['accept-edits-allow'])).toEqual({ ok: true })
     expect(readControls(ud)).toEqual({ status: 'ok', disabled: ['accept-edits-allow'] })
+  })
+
+  it('확인은 사람이 본 내용이 지금 파일과 같을 때만 봉인한다 (G5 검수 중요 2)', () => {
+    setControlEnabled(ud, 'readonly-allow', false)
+    fs.writeFileSync(file(), JSON.stringify({ version: 1, disabled: [] }))
+    // 패널은 「readonly-allow 꺼짐」을 보였는데 그 사이 파일이 「전부 켬」으로 바뀐 경우
+    const r = confirmControls(ud, ['readonly-allow'])
+    expect(r.ok).toBe(false)
+    expect(r.error).toMatch(/다시 확인/)
+    expect(readControls(ud).status).toBe('mismatch')
+    // 순서가 달라도 같은 내용이면 받는다
+    fs.writeFileSync(file(), JSON.stringify({ version: 1, disabled: ['accept-edits-allow', 'readonly-allow'] }))
+    expect(confirmControls(ud, ['readonly-allow', 'accept-edits-allow'])).toEqual({ ok: true })
   })
 
   it('파일이 없거나 읽을 수 없으면 확인이 기본값(전부 켬)으로 다시 쓴다', () => {
     setControlEnabled(ud, 'readonly-allow', false)
     fs.writeFileSync(file(), '{ broken')
     expect(readControls(ud).status).toBe('mismatch')
-    expect(confirmControls(ud)).toEqual({ ok: true })
+    expect(controlsState(ud).fileReadable).toBe(false)
+    expect(confirmControls(ud, [])).toEqual({ ok: true })
     expect(readControls(ud)).toEqual({ status: 'ok', disabled: [] })
     fs.rmSync(file())
-    expect(confirmControls(ud)).toEqual({ ok: true })
+    expect(controlsState(ud).fileReadable).toBe(false)
+    expect(confirmControls(ud, [])).toEqual({ ok: true })
     expect(readControls(ud)).toEqual({ status: 'ok', disabled: [] })
+    expect(controlsState(ud).fileReadable).toBe(true)
   })
 
   it('봉인된 내용에 잠긴 노드나 모르는 id가 있어도 끄지 않는다', () => {
     fs.writeFileSync(file(), JSON.stringify({ version: 1, disabled: ['no-suggestion-card', 'ghost', 'readonly-allow'] }))
-    confirmControls(ud)
+    confirmControls(ud, ['readonly-allow'])
     expect(readControls(ud)).toEqual({ status: 'ok', disabled: ['readonly-allow'] })
+  })
+
+  it('한 번 설정한 뒤 두 파일을 함께 지우면 첫 실행이 아니라 mismatch다 (G5 검수 차단 1)', () => {
+    setControlEnabled(ud, 'mode-auto-bypass-allow', false)
+    expect(fs.existsSync(marker())).toBe(true)
+    fs.rmSync(file())
+    fs.rmSync(seal())
+    expect(readControls(ud)).toEqual({ status: 'mismatch', disabled: [] })
+    expect(controlsForRun(ud).ok).toBe(false)
+    // 확인하면 기본값으로 다시 봉인한다
+    expect(confirmControls(ud, [])).toEqual({ ok: true })
+    expect(readControls(ud).status).toBe('ok')
+  })
+
+  it('표시만 없고 두 파일과 봉인이 맞으면 ok다 — 표시는 다음 저장에 다시 생긴다', () => {
+    setControlEnabled(ud, 'readonly-allow', false)
+    fs.rmSync(marker())
+    expect(readControls(ud)).toEqual({ status: 'ok', disabled: ['readonly-allow'] })
+    setControlEnabled(ud, 'readonly-allow', true)
+    expect(fs.existsSync(marker())).toBe(true)
+  })
+
+  it('파일을 읽다 오류가 나면(같은 이름의 폴더) 실행은 닫히고 패널은 error 상태와 사유를 받는다 (G5 검수 사소 4·6)', () => {
+    fs.mkdirSync(file())
+    const r = controlsForRun(ud)
+    expect(r).toMatchObject({ ok: false, status: 'error' })
+    const s = controlsState(ud)
+    expect(s.status).toBe('error')
+    expect(s.error).toBeTruthy()
+    expect(s.nodes).toHaveLength(8)
   })
 
   it('봉인이 맞으면 실행에 꺼진 노드를 뺀 등록부를 넘긴다', () => {

@@ -16,7 +16,7 @@ const POINTS: { id: ControlNodeView['point']; label: string; sub: string }[] = [
 const JUDGE: Record<ControlNodeView['judge'], string> = { rule: '규칙', model: '모델', human: '사람' }
 const RESULT: Record<string, string> = { allow: '허용', ask: '카드', deny: '거부', notify: '통보', transition: '상태 전이' }
 
-function engineWarning(engine: ControlsState['engine']): { text: string; reselect: boolean } | null {
+function engineWarning(engine: NonNullable<ControlsState['engine']>): { text: string; reselect: boolean } | null {
   const v = engine.active ? `v${engine.active}` : '고른 엔진'
   switch (engine.seal) {
     case 'mismatch':
@@ -71,9 +71,30 @@ function NodeRow({ node, frozen, onToggle }: NodeRowProps): JSX.Element {
   )
 }
 
+// 바뀜 경고의 문장 — 상태와 파일을 읽을 수 있는지로 갈린다(G5 검수 중요 2·사소 4)
+function controlsWarning(state: ControlsState): { main: string; sub: string; confirm: boolean } | null {
+  if (state.status === 'error') {
+    return {
+      main: `컨트롤 설정(controls.json)을 읽지 못했습니다(${state.error ?? '알 수 없는 오류'}). 고칠 때까지 Claude 실행이 열리지 않습니다.`,
+      sub: 'userData 폴더의 파일 권한이나 같은 이름의 폴더를 확인한 뒤 이 화면을 다시 여세요.',
+      confirm: false,
+    }
+  }
+  if (state.status === 'none' || state.status === 'ok') return null
+  return {
+    main: '컨트롤 설정(controls.json)이 앱 밖에서 바뀌었습니다. 확인할 때까지 Claude 실행이 열리지 않습니다.',
+    sub: state.fileReadable
+      ? '아래 켜짐 상태가 지금 파일 내용입니다. 이대로 쓰려면 확인하세요.'
+      : '파일이 없거나 읽을 수 없습니다. 확인하면 전부 켬(기본값)으로 다시 씁니다.',
+    confirm: true,
+  }
+}
+
 export function ControlsView(): JSX.Element {
   const [state, setState] = useState<ControlsState | null>(null)
   const [error, setError] = useState<string | null>(null)
+  // 요청 중인 토글 — 응답 전 두 번 누르면 묵은 켜짐으로 같은 요청이 두 번 나간다(G5 검수 사소 7)
+  const [pending, setPending] = useState<string | null>(null)
 
   const load = useCallback(async (): Promise<void> => {
     try {
@@ -90,19 +111,29 @@ export function ControlsView(): JSX.Element {
   const toggle = useCallback(
     async (node: ControlNodeView): Promise<void> => {
       setError(null)
-      const r = await ipc.settings.setControlEnabled({ id: node.id, enabled: !node.enabled })
-      if (!r.ok) setError(r.error ?? '바꾸지 못했습니다.')
-      await load()
+      setPending(node.id)
+      try {
+        const r = await ipc.settings.setControlEnabled({ id: node.id, enabled: !node.enabled })
+        if (!r.ok) setError(r.error ?? '바꾸지 못했습니다.')
+        await load()
+      } finally {
+        setPending(null)
+      }
     },
     [load]
   )
 
-  const confirm = useCallback(async (): Promise<void> => {
-    setError(null)
-    const r = await ipc.settings.confirmControls()
-    if (!r.ok) setError(r.error ?? '확인하지 못했습니다.')
-    await load()
-  }, [load])
+  // 확인은 화면에 보인 꺼진 노드를 함께 보낸다 — main은 지금 파일과 같을 때만 봉인한다
+  const confirm = useCallback(
+    async (seen: ControlsState): Promise<void> => {
+      setError(null)
+      const disabled = seen.nodes.filter((n) => !n.locked && !n.enabled).map((n) => n.id)
+      const r = await ipc.settings.confirmControls({ disabled })
+      if (!r.ok) setError(r.error ?? '확인하지 못했습니다.')
+      await load()
+    },
+    [load]
+  )
 
   const reselectEngine = useCallback(
     async (version: string): Promise<void> => {
@@ -114,26 +145,29 @@ export function ControlsView(): JSX.Element {
     [load]
   )
 
-  const tampered = state !== null && state.status !== 'none' && state.status !== 'ok'
-  const engineWarn = state ? engineWarning(state.engine) : null
+  const warn = state ? controlsWarning(state) : null
+  const engineWarn = state?.engine ? engineWarning(state.engine) : null
 
   return (
     <>
       <div className="set-h1">컨트롤</div>
       <div className="set-h1-sub">
-        에이전트의 도구 호출을 판정하는 노드들입니다. 잠금이 풀린 노드는 끌 수 있고, 끄면 그 호출이 카드로 와서 더 엄격해집니다.
+        에이전트의 도구 호출을 판정하는 노드들입니다. 잠금이 풀린 노드는 끌 수 있고, 끄면 그 노드가 허용하던 호출이 카드로 옵니다.
+        다만 SDK가 먼저 승인하는 호출(Bypass 모드, 설정 파일의 허용 규칙, SDK가 스스로 안전하다고 보는 명령)은 노드까지 오지 않습니다.
       </div>
 
-      {tampered && (
+      {state && warn && (
         <div className="ctl-warn" role="alert">
           <IconAlert size={16} />
           <div className="ctl-warn-main">
-            <div>컨트롤 설정(controls.json)이 앱 밖에서 바뀌었습니다. 확인할 때까지 Claude 실행이 열리지 않습니다.</div>
-            <div className="ctl-warn-sub">아래 켜짐 상태가 지금 파일 내용입니다. 이대로 쓰려면 확인하세요.</div>
+            <div>{warn.main}</div>
+            <div className="ctl-warn-sub">{warn.sub}</div>
           </div>
-          <button type="button" className="inst-btn" onClick={() => void confirm()}>
-            지금 내용으로 확인
-          </button>
+          {warn.confirm && (
+            <button type="button" className="inst-btn" onClick={() => void confirm(state)}>
+              지금 내용으로 확인
+            </button>
+          )}
         </div>
       )}
 
@@ -141,15 +175,19 @@ export function ControlsView(): JSX.Element {
         <div className="ctl-warn" role="alert">
           <IconAlert size={16} />
           <div className="ctl-warn-main">{engineWarn.text}</div>
-          {engineWarn.reselect && state?.engine.active && (
-            <button type="button" className="inst-btn" onClick={() => void reselectEngine(state.engine.active as string)}>
+          {engineWarn.reselect && state?.engine?.active && (
+            <button type="button" className="inst-btn" onClick={() => void reselectEngine(state.engine?.active as string)}>
               이 엔진 다시 고르기
             </button>
           )}
         </div>
       )}
 
-      {error && <div className="ctl-error">{error}</div>}
+      {error && (
+        <div className="ctl-error" role="status" aria-live="polite">
+          {error}
+        </div>
+      )}
 
       {state === null ? (
         <div className="set-empty">불러오는 중...</div>
@@ -163,7 +201,7 @@ export function ControlsView(): JSX.Element {
               <div className="set-note ctl-point-sub">{p.sub}</div>
               <div className="ext-list">
                 {nodes.map((n) => (
-                  <NodeRow key={n.id} node={n} frozen={tampered} onToggle={(x) => void toggle(x)} />
+                  <NodeRow key={n.id} node={n} frozen={warn !== null || pending === n.id} onToggle={(x) => void toggle(x)} />
                 ))}
               </div>
             </div>

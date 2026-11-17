@@ -106,7 +106,7 @@ export const API_ROUTES = {
     setSkillEnabled: call(IPC_CHANNELS.SKILL_SET_ENABLED),
     controlsState: call0(IPC_CHANNELS.CONTROLS_STATE),
     setControlEnabled: call(IPC_CHANNELS.CONTROLS_SET_ENABLED),
-    confirmControls: call0(IPC_CHANNELS.CONTROLS_CONFIRM),
+    confirmControls: call(IPC_CHANNELS.CONTROLS_CONFIRM),
     getProfile: call0(IPC_CHANNELS.PROFILE_GET),
     setProfile: call(IPC_CHANNELS.PROFILE_SET),
     getUiPrefs: call0(IPC_CHANNELS.UI_PREFS_GET),

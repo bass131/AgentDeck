@@ -15,6 +15,9 @@ const TARGETS = [
   { name: 'engine-seal.json', dir: false },
   // 컨트롤 봉인 (M07 G5, controlsStore.ts) — 봉인을 고치면 바뀐 controls.json이 통과한다
   { name: 'controls-seal.json', dir: false },
+  // 「처음 설정함」 표시 (M07 G5 검수 차단 1, controlsStore.ts) — 지우면 두 파일 삭제가 첫 실행으로 보인다.
+  // 이름을 `control`로 시작하지 않게 해 `rm controls*` 한 번에 함께 지워지지 않게 한다.
+  { name: 'first-setup.json', dir: false },
 ] as const
 
 function slashed(p: string): string {
@@ -45,7 +48,19 @@ const AFTER = `(?=$|[\\s"'\`;)|&<>/])`
 const AFTER_DIR = `(?=$|[\\s"'\`;)|&<>])`
 // 앞 경계에 `./`도 둔다(G4 검수 사소 7 — `cd <폴더> && cp x ./engine-seal.json`). 맨 `/`는 두지 않는다 —
 // 폴더 이름이 같은 저장소(AgentDeck)의 소스 경로가 걸리는 오탐이 커진다.
-const TARGET_WORD = new RegExp(`(?:^|[\\s"'=<>(;&|]|\\./)(?:engines|engine-config\\.json|engine-seal\\.json|controls\\.json|controls-seal\\.json|engine[*?[]|control[*?[])`)
+const WORD_START = `(?:^|[\\s"'=<>(;&|]|\\./)`
+const TARGET_WORD = new RegExp(`${WORD_START}(?:engines|engine-config\\.json|engine-seal\\.json|controls\\.json|controls-seal\\.json|first-setup\\.json)`)
+// ③의 와일드카드 낱말 — 대상 이름의 접두(3글자 이상) 뒤에 와일드카드가 오면 막는다(`rm controls*`, `rm engine-s*`).
+// G5 검수 차단 1과 Backlog 10. 짧은 접두(`c*`)와 경로 안의 낱말(`.../controls*`)은 저장소 명령 오탐이 커서 두지 않는다.
+const WORD_GLOB = new RegExp(`${WORD_START}([a-z0-9._-]{3,})[*?[]`, 'g')
+
+function hasTargetGlob(cmd: string): boolean {
+  for (const m of cmd.matchAll(WORD_GLOB)) {
+    const prefix = m[1] ?? ''
+    if (TARGETS.some((t) => t.name.startsWith(prefix))) return true
+  }
+  return false
+}
 
 function escapeRe(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
@@ -67,7 +82,7 @@ export function bashLockReason(command: string, userDataDir: string): string | n
     const prefix = m[1] ?? ''
     if (TARGETS.some((t) => t.name.startsWith(prefix))) return reason(`${prefix}*`)
   }
-  if (new RegExp(`${BEFORE}${b}${AFTER_DIR}`).test(cmd) && TARGET_WORD.test(cmd)) return reason(base)
+  if (new RegExp(`${BEFORE}${b}${AFTER_DIR}`).test(cmd) && (TARGET_WORD.test(cmd) || hasTargetGlob(cmd))) return reason(base)
   return null
 }
 

@@ -29,6 +29,7 @@ const NODES: ControlNodeView[] = [
 
 const state = (over: Partial<ControlsState> = {}): ControlsState => ({
   status: 'ok',
+  fileReadable: true,
   nodes: NODES,
   engine: { seal: 'none', active: null },
   ...over,
@@ -37,7 +38,7 @@ const state = (over: Partial<ControlsState> = {}): ControlsState => ({
 const api = {
   getControlsState: vi.fn<() => Promise<ControlsState>>(),
   setControlEnabled: vi.fn<(req: { id: string; enabled: boolean }) => Promise<{ ok: boolean; error?: string }>>(),
-  confirmControls: vi.fn<() => Promise<{ ok: boolean }>>(),
+  confirmControls: vi.fn<(req: { disabled: string[] }) => Promise<{ ok: boolean }>>(),
   setActiveEngine: vi.fn<(version: string) => Promise<{ ok: boolean }>>(),
 }
 
@@ -91,14 +92,62 @@ describe('컨트롤 패널 (M07 G5)', () => {
     expect(await screen.findByText(/거절됨/)).toBeTruthy()
   })
 
-  it('봉인이 깨지면 경고와 확인 버튼을 보이고, 토글은 막는다', async () => {
+  it('봉인이 깨지면 경고와 확인 버튼을 보이고, 토글은 막는다. 확인은 화면에 보인 꺼진 노드를 함께 보낸다', async () => {
     api.getControlsState.mockResolvedValueOnce(state({ status: 'mismatch' })).mockResolvedValue(state())
     await renderView()
     expect(screen.getByRole('alert').textContent).toMatch(/앱 밖에서 바뀌었/)
+    expect(screen.getByRole('alert').textContent).toMatch(/지금 파일 내용/)
     expect((screen.getByRole('switch', { name: /자동·Bypass 모드는 허용/ }) as HTMLButtonElement).disabled).toBe(true)
     fireEvent.click(screen.getByRole('button', { name: /지금 내용으로 확인/ }))
-    await waitFor(() => expect(api.confirmControls).toHaveBeenCalledTimes(1))
+    await waitFor(() => expect(api.confirmControls).toHaveBeenCalledWith({ disabled: ['readonly-allow'] }))
     await waitFor(() => expect(screen.queryByRole('alert')).toBeNull())
+  })
+
+  it('파일이 없거나 읽을 수 없으면 경고가 「확인하면 전부 켬」이라고 말한다 (G5 검수 중요 2)', async () => {
+    api.getControlsState.mockResolvedValue(state({ status: 'mismatch', fileReadable: false }))
+    await renderView()
+    const text = screen.getByRole('alert').textContent ?? ''
+    expect(text).toMatch(/전부 켬/)
+    expect(text).not.toMatch(/지금 파일 내용/)
+  })
+
+  it('읽기 오류(error)면 사유를 보이고 확인 버튼은 두지 않는다 (G5 검수 사소 4)', async () => {
+    api.getControlsState.mockResolvedValue(state({ status: 'error', error: 'EISDIR: illegal operation', fileReadable: false }))
+    await renderView()
+    expect(screen.getByRole('alert').textContent).toMatch(/EISDIR/)
+    expect(screen.queryByRole('button', { name: /지금 내용으로 확인/ })).toBeNull()
+    expect((screen.getByRole('switch', { name: /자동·Bypass 모드는 허용/ }) as HTMLButtonElement).disabled).toBe(true)
+  })
+
+  it('엔진 상태가 없어도(null) 패널은 그려진다', async () => {
+    api.getControlsState.mockResolvedValue(state({ engine: null }))
+    await renderView()
+    expect(screen.queryByRole('alert')).toBeNull()
+  })
+
+  it('토글 요청이 끝나기 전에는 그 토글을 다시 누를 수 없다 (G5 검수 사소 7)', async () => {
+    let release: (v: { ok: boolean }) => void = () => {}
+    api.setControlEnabled.mockReturnValue(new Promise((r) => (release = r)))
+    await renderView()
+    const sw = screen.getByRole('switch', { name: /자동·Bypass 모드는 허용/ }) as HTMLButtonElement
+    fireEvent.click(sw)
+    await waitFor(() => expect(sw.disabled).toBe(true))
+    fireEvent.click(sw)
+    expect(api.setControlEnabled).toHaveBeenCalledTimes(1)
+    release({ ok: true })
+    await waitFor(() => expect(sw.disabled).toBe(false))
+  })
+
+  it('거절 문장은 화면 낭독기에 알린다', async () => {
+    api.setControlEnabled.mockResolvedValue({ ok: false, error: '거절됨' })
+    await renderView()
+    fireEvent.click(screen.getByRole('switch', { name: /자동·Bypass 모드는 허용/ }))
+    expect((await screen.findByRole('status')).textContent).toMatch(/거절됨/)
+  })
+
+  it('머리말은 SDK가 먼저 승인하는 호출은 노드까지 오지 않는다고 밝힌다 (G5 검수 중요 3)', async () => {
+    await renderView()
+    expect(document.body.textContent).toMatch(/노드까지 오지 않/)
   })
 
   it('엔진 봉인이 깨지면 그 엔진을 다시 고르는 버튼을 보인다', async () => {

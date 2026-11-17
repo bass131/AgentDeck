@@ -33,10 +33,20 @@ export interface ControlNodeView {
 }
 
 export interface ControlsState {
-  status: ControlsSealStatus
+  // error: 파일을 읽다 오류가 났다(권한·잠금·같은 이름의 폴더) — 실행은 닫히고, 사유는 error 칸이다(G5 검수 사소 4).
+  status: ControlsSealStatus | 'error'
+  error?: string
+  // controls.json이 있고 읽힌다. 거짓이면 확인이 기본값(전부 켬)으로 다시 쓴다 — 패널 경고 문구가 이걸로 갈린다.
+  fileReadable: boolean
   nodes: ControlNodeView[]
   // 엔진 봉인(M07 G4)의 바뀜 경고 몫. seal 칸의 뜻은 shared/10_Engine/engine.ts의 EngineSealStatus 주석이다.
-  engine: { seal: EngineSealStatus; active: string | null }
+  // 엔진 상태를 읽지 못하면 null이다 — 컨트롤 쪽은 그대로 보인다.
+  engine: { seal: EngineSealStatus; active: string | null } | null
+}
+
+// 확인 요청 — 사람이 패널에서 본 「꺼진 노드」 목록. 지금 파일과 같을 때만 봉인한다(G5 검수 중요 2).
+export interface ControlConfirmReq {
+  disabled: string[]
 }
 
 export interface ControlSetEnabledReq {

@@ -9,6 +9,7 @@ const h = vi.hoisted(() => ({
   handlers: new Map<string, (...args: unknown[]) => unknown>(),
   ud: '',
   engine: { package: '@anthropic-ai/claude-agent-sdk', bundled: '0.3.325', active: '0.3.326' as string | null, installed: ['0.3.326'], seal: 'mismatch' },
+  engineThrows: false,
 }))
 
 vi.mock('electron', () => ({
@@ -19,7 +20,12 @@ vi.mock('electron', () => ({
   },
 }))
 vi.mock('@main/02_Common/userData', () => ({ getUserDataDir: (): string => h.ud }))
-vi.mock('@main/10_Engine/engineVersions', () => ({ getVersionState: () => ({ ...h.engine }) }))
+vi.mock('@main/10_Engine/engineVersions', () => ({
+  getVersionState: () => {
+    if (h.engineThrows) throw new Error('EBUSY')
+    return { ...h.engine }
+  },
+}))
 
 import { registerControlsHandlers } from '@main/01_Ipc/handlers/controls'
 import { IPC_CHANNELS } from '../../../../02_Project/00_Source/shared/ipcContract'
@@ -95,11 +101,30 @@ describe('컨트롤 IPC (M07 G5)', () => {
     expect(r.error).toContain('확인')
   })
 
-  it('확인은 앱 밖에서 바뀐 내용을 다시 봉인한다', () => {
+  it('확인은 앱 밖에서 바뀐 내용을, 사람이 본 내용과 같을 때 다시 봉인한다', () => {
     call(IPC_CHANNELS.CONTROLS_SET_ENABLED, { id: 'readonly-allow', enabled: false })
     fs.writeFileSync(path.join(h.ud, 'controls.json'), JSON.stringify({ version: 1, disabled: [] }))
     expect(call<ControlsState>(IPC_CHANNELS.CONTROLS_STATE).status).toBe('mismatch')
-    expect(call(IPC_CHANNELS.CONTROLS_CONFIRM)).toEqual({ ok: true })
+    expect(call<{ ok: boolean }>(IPC_CHANNELS.CONTROLS_CONFIRM, { disabled: ['readonly-allow'] }).ok).toBe(false)
+    expect(call(IPC_CHANNELS.CONTROLS_CONFIRM, { disabled: [] })).toEqual({ ok: true })
     expect(call<ControlsState>(IPC_CHANNELS.CONTROLS_STATE).status).toBe('ok')
+  })
+
+  it('확인 요청에 본 내용이 없으면 거절한다', () => {
+    for (const req of [undefined, null, {}, { disabled: 'x' }, { disabled: [1] }]) {
+      expect(call<{ ok: boolean }>(IPC_CHANNELS.CONTROLS_CONFIRM, req).ok).toBe(false)
+    }
+  })
+
+  it('엔진 상태를 읽다 던져도 컨트롤 상태는 준다 — 엔진 몫만 null (G5 검수 사소 4)', () => {
+    const saved = h.engineThrows
+    h.engineThrows = true
+    try {
+      const s = call<ControlsState>(IPC_CHANNELS.CONTROLS_STATE)
+      expect(s.status).toBe('none')
+      expect(s.engine).toBeNull()
+    } finally {
+      h.engineThrows = saved
+    }
   })
 })

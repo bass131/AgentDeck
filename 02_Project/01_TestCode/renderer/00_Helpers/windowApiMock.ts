@@ -207,7 +207,7 @@ const DEFAULT_RESULTS: { [C in InvokeChannel]?: ResOf<C> } = {
   'settings.listCommands': [],
   'settings.listMcp': [],
   'settings.setMcpEnabled': { ok: true },
-  'settings.controlsState': { status: 'none', nodes: [], engine: { seal: 'none', active: null } },
+  'settings.controlsState': { status: 'none', fileReadable: false, nodes: [], engine: { seal: 'none', active: null } },
   'settings.setControlEnabled': { ok: true },
   'settings.confirmControls': { ok: true },
   'multi.load': { state: null },

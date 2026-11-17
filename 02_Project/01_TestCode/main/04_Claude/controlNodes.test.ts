@@ -55,7 +55,8 @@ describe('노드 등록부 (M07 G2)', () => {
       expect(Object.isFrozen(n)).toBe(true)
       expect(Object.isFrozen(n.results)).toBe(true)
     }
-    const list = listControlNodes()
+    // 목록 앞쪽이 권한 콜백 노드다. 뒤에 붙는 엔진 경로 노드는 enginePathLock.test.ts가 고정한다 (M07 G3).
+    const list = listControlNodes().slice(0, PERMISSION_NODES.length)
     expect(list.map((n) => n.id)).toEqual(PERMISSION_NODES.map((n) => n.id))
     for (const [i, n] of list.entries()) {
       expect('decide' in n).toBe(false)

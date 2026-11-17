@@ -48,6 +48,11 @@ describe('Bash 잠금 노드 (M07 G3)', () => {
     'node -e "require(\'fs\').writeFileSync(process.env.APPDATA + \'/agentdeck/controls.json\', \'{}\')"',
     'echo {} > ~/AppData/Roaming/AgentDeck/ENGINE-CONFIG.JSON',
     'rm -r /c/Users/x/AppData/Roaming/agentdeck/engines',
+    // G3 검수: 폴더로 들어가서 이름만 쓰는 꼴, 접두 와일드카드, 리다이렉트 바로 뒤
+    'cd "$APPDATA/agentdeck" && rm -r engines',
+    'rm -rf $APPDATA/agentdeck/engine*',
+    'cd $APPDATA && echo x >agentdeck/controls.json',
+    'rm $APPDATA/agentdeck/*',
   ]
   for (const cmd of denied) {
     it(`거부: ${cmd}`, () => {
@@ -55,7 +60,15 @@ describe('Bash 잠금 노드 (M07 G3)', () => {
     })
   }
 
-  const passed = ['echo ok', 'cat "$APPDATA/agentdeck/chats/a.json"', 'ls engines', 'npm run build', 'cat engine-config.json']
+  const passed = [
+    'echo ok',
+    'cat "$APPDATA/agentdeck/chats/a.json"',
+    'ls engines',
+    'npm run build',
+    'cat engine-config.json',
+    'ls $APPDATA/agentdeck/chats/*',
+    'cd C:/Dev/AgentDeck && npm test',
+  ]
   for (const cmd of passed) {
     it(`통과: ${cmd}`, () => {
       expect(bashLockReason(cmd, WIN_UD)).toBeNull()

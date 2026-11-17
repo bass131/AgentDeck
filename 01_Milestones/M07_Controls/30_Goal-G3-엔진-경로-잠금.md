@@ -37,8 +37,8 @@
 - [x] 3. 구현 — 2단계 테스트와 기존 테스트가 통과한다
 - [x] 4. 하드 게이트 다섯 종과 `npm test`
 - [x] 5. 실제 경로 — 이 브랜치 빌드본의 앱에서 거부와 통과를 본다
-- [>] 6. 독립 검수 1회와 반영
-- [ ] 7. 커밋, push, PR, 결정 보드에 병합 승인 올리기
+- [x] 6. 독립 검수 1회와 반영
+- [>] 7. 커밋, push, PR, 결정 보드에 병합 승인 올리기
 
 실행 단계 일괄 승인 대상 (로드맵 일회 예외 — 「이번 순서만 예외로 이어서 처리」)
 
@@ -68,6 +68,11 @@ DoD
     - 3번 작업 폴더 Write와 4번 `echo g3-control-bash`는 실행됐다.
   - 확인된 것: 실행이 런타임 userData 경로(임시 `--user-data-dir`)로 잠금을 만든다.
   - 정리: 앱을 닫고 worktree를 지웠다.
+- PASS 2026-11-17T15:25:17+09:00 6단계 — 구현 문맥 없는 검수자 1회에서 막을 결함은 없었다. 중간 1·낮음 2·미측정 묶음이 나왔다.
+  - Bash 잠금이 놓친 꼴 넷(`cd "$APPDATA/agentdeck" && rm -r engines`, `rm -rf …/agentdeck/engine*`, `>agentdeck/controls.json`, `…/agentdeck/*`)을 테스트에 먼저 넣어 실패 넷을 봤다. 판별을 직접·와일드카드·폴더 진입 세 갈래로 고쳐 통과시켰다. 통과 쪽에 `chats/*`와 `cd C:/Dev/AgentDeck && npm test`를 더했다.
+  - 추가 SDK 실측(같은 조건): 대문자로 바꾼 경로의 Write와 `engine-config.json`의 Edit 도구가 둘 다 거부됐고 파일은 그대로였다. 콜백 훅은 `includeHookEvents`에서 훅 시스템 메시지를 하나도 내지 않았다. 그래서 화면의 훅 타임라인에 도구 호출마다 줄이 쌓이지 않는다.
+  - 옛 엔진 버전의 잠금은 M07 Backlog 6, 재지 않은 꼴은 Backlog 7로 넘겼다. 커밋 메시지 등의 오탐은 결정 대장에 받아들인다고 적었다.
+  - 하드 게이트 다섯 종 exit 0(린트 경고 1은 변경 전부터 있던 것). `npm test` 438파일·7,860 통과·실패 0(15:21:09 시작).
 
 ## 결정 대장
 
@@ -77,5 +82,6 @@ DoD
 - [USER] 작업 폴더 밖 전면 쓰기 차단(`blockWritesOutsideWorkingDirectories`)은 켜지 않고 보호 대상만 거부한다 — 문답 「보호 대상만 거부」. 앱 세션의 Second Brain 쓰기와 판정 장치 편집을 지금처럼 둔다 (2026-11-17)
 - [AI] G2에서 떼어 낸 몫을 둘로 나눈다 — 이 goal은 보호 2·3(엔진 경로 잠금)이고, 보호 4·5와 `controls.json`, 컨트롤 패널은 다음 goal이다. 해시 봉인은 패널의 저장과 짝이라 함께 간다 (2026-11-17)
 - [AI] Bash 잠금은 명령 글자에 `<userData 폴더 이름>/engines`·`/engine-config.json`·`/controls.json`이 보이는지로 가른다 — 절대 경로 전체가 아니라 끝 두 마디로 보면 `$APPDATA/agentdeck/…`, `~/AppData/Roaming/agentdeck/…` 꼴도 걸린다. 같은 글자가 든 읽기 명령도 막히는 오탐은 받아들인다(L3, 엔진 폴더를 읽을 일이 없다) (2026-11-17)
+- [AI] 검수가 짚은 오탐 둘도 받아들인다 — 앱 세션에서 이 저장소를 작업할 때 `agentdeck/controls.json` 같은 글자가 든 커밋 메시지·PR 본문·grep 명령이 막힌다. 임시 userData에서는 `userdata/engines` 글자가 든 명령이 막힌다. 막히면 글자를 바꿔 다시 쓰면 되고, 잠금을 좁히면 실수 꼴을 놓친다 (2026-11-17)
 
 출처 태그는 네 가지다 — `[USER]`·`[USER·위임]`·`[AI]`·`[AI·비가역]`.

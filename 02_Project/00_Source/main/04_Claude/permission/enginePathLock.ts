@@ -31,22 +31,37 @@ export function enginePathDenyRules(userDataDir: string): string[] {
 // 명령 글자에 「userData 폴더 이름/보호 대상」이 보이면 사유를, 아니면 null을 돌려준다.
 // 끝 두 마디로 보므로 `$APPDATA/agentdeck/...`, `~/AppData/Roaming/agentdeck/...`, `/c/Users/.../agentdeck/...` 꼴이 모두 걸린다.
 // 같은 글자가 든 읽기 명령도 막힌다 — L3 잠금이라 실수만 막고, 엔진 폴더를 읽을 일은 없다(G3 결정 대장).
+// 세 갈래로 본다 (G3 검수 반영).
+//   ① 직접: `<폴더 이름>/<대상>` — 앞은 경계 글자(리다이렉트 `>` 포함), 뒤는 경계 글자.
+//   ② 와일드카드: `<폴더 이름>/<접두>*` 꼴에서 접두가 대상 이름의 앞부분이면(`engine*`, `*`) 막는다.
+//   ③ 폴더로 들어가기: 명령에 `<폴더 이름>` 자체(뒤에 `/`가 없는 경로 끝)와 대상 이름 낱말이 함께 보이면 막는다
+//      (`cd "$APPDATA/agentdeck" && rm -r engines`).
+const BEFORE = `(?:^|[\\s"'=/<>(;&|\`])`
+const AFTER = `(?=$|[\\s"'\`;)|&<>/])`
+const AFTER_DIR = `(?=$|[\\s"'\`;)|&<>])`
+const TARGET_WORD = new RegExp(`(?:^|[\\s"'=<>(;&|])(?:engines|engine-config\\.json|controls\\.json|engine[*?[]|control[*?[])`)
+
+function escapeRe(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
 export function bashLockReason(command: string, userDataDir: string): string | null {
   const base = slashed(userDataDir).split('/').pop()?.toLowerCase() ?? ''
   if (!base) return null
   const cmd = command.replace(/\\/g, '/').replace(/\/{2,}/g, '/').toLowerCase()
+  const b = escapeRe(base)
+  const reason = (what: string): string =>
+    `앱 엔진·설정 경로(${what})를 건드리는 명령은 앱 세션에서 막습니다 — 엔진 교체는 앱 화면에서 하세요.`
+
   for (const t of TARGETS) {
-    const needle = `${base}/${t.name}`
-    let at = cmd.indexOf(needle)
-    while (at !== -1) {
-      const before = at === 0 ? '' : cmd[at - 1]
-      const after = cmd[at + needle.length] ?? ''
-      if ((before === '' || /[/\s"'=]/.test(before)) && (after === '' || /[/\s"'`;)|&]/.test(after))) {
-        return `앱 엔진·설정 경로(${t.name})를 건드리는 명령은 앱 세션에서 막습니다 — 엔진 교체는 앱 화면에서 하세요.`
-      }
-      at = cmd.indexOf(needle, at + 1)
-    }
+    if (new RegExp(`${BEFORE}${b}/${escapeRe(t.name)}${AFTER}`).test(cmd)) return reason(t.name)
   }
+  const globs = cmd.matchAll(new RegExp(`${BEFORE}${b}/([^\\s"'/;&|]*?)[*?[]`, 'g'))
+  for (const m of globs) {
+    const prefix = m[1] ?? ''
+    if (TARGETS.some((t) => t.name.startsWith(prefix))) return reason(`${prefix}*`)
+  }
+  if (new RegExp(`${BEFORE}${b}${AFTER_DIR}`).test(cmd) && TARGET_WORD.test(cmd)) return reason(base)
   return null
 }
 

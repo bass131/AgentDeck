@@ -4,10 +4,10 @@
 # `npm test`는 하드 게이트가 아니라 기준선 차분으로 읽는 검사라 여기서 돌리지 않는다.
 name: hard-gates
 
+# 수동 실행(workflow_dispatch)은 두지 않는다 — master와 병합하지 않은 코드로 같은 이름의 검사를 PR head에 남길 수 있다(G6 검수 중요 3).
 on:
   pull_request:
     branches: [master]
-  workflow_dispatch:
 
 permissions:
   contents: read

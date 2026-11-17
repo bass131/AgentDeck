@@ -18,6 +18,8 @@ export default defineConfig({
     globals: false,
     // 이 기계의 콜드 import(렌더러 마크다운 스택)가 기본 5초를 넘어 시간 초과한다 — M05 Backlog 57, M06 G3 [USER]
     testTimeout: 30000,
+    // beforeAll 같은 훅도 같은 콜드 import로 기본 10초를 넘는다(G4 실측 12.9초) — M06 Backlog 14, G7
+    hookTimeout: 30000,
     globalSetup: ['02_Project/01_TestCode/globalSetup.ts'],
     css: false,
     server: {

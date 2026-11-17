@@ -35,9 +35,22 @@ test('the script is fixed text: single quotes only, no accelerator, no data; arg
   assert.match(CONFIRM_SCRIPT, /\$f\.ActiveControl=\$no; \[void\]\$no\.Focus\(\)/, '잠금이 풀리면 초점은 취소');
   assert.match(CONFIRM_SCRIPT, /UseMnemonic=\$false/);
   assert.doesNotMatch(CONFIRM_SCRIPT, /UseMnemonic=\$true/);
+  // 키보드로는 확인되지 않는다(PR 75 검수): Space·PerformClick은 Click만 일으키고 MouseClick은 마우스 왼쪽 클릭만 일으킨다(2026-11-18 시험 폼 실측).
+  // 그래서 병합 단추는 Click이 아니라 왼쪽 MouseClick에만 반응하고, Tab 순서에서도 빠진다
+  assert.doesNotMatch(CONFIRM_SCRIPT, /\$ok\.Add_Click/, '병합 단추에 Click 처리기가 없다');
+  assert.match(CONFIRM_SCRIPT, /\$ok\.Add_MouseClick\(\{ param\(\$s,\$e\) if \(\$e\.Button -eq 'Left'\) \{ \$r\.yes=\$true; \$f\.Close\(\) \} \}\)/);
+  assert.match(CONFIRM_SCRIPT, /\$ok\.TabStop=\$false/);
+  assert.equal(CONFIRM_SCRIPT.split('$r.yes=$true').length, 2, 'yes를 세우는 자리는 하나');
+  // 남이 정한 제목은 맨 끝 줄이라 그 위의 SHA·꼭 볼 것 줄을 흉내 내도 진짜 줄이 먼저 보인다
+  const text = CONFIRM_SCRIPT.slice(CONFIRM_SCRIPT.indexOf('$t.Text='));
+  assert.ok(text.indexOf('AD_MERGE_TITLE') > text.indexOf('$must'), '제목은 꼭 볼 것 목록 뒤 마지막 줄');
+  // 창이 스스로 닫히는 시각은 띄운 시점 기준 마감(죽이기 2초 전)이라, PowerShell 기동이 늦어도 창이 열린 채 죽지 않는다
+  assert.match(CONFIRM_SCRIPT, /\[long\]\$env:AD_MERGE_DEADLINE - \[DateTimeOffset\]::UtcNow\.ToUnixTimeMilliseconds\(\)/);
+  assert.doesNotMatch(CONFIRM_SCRIPT, /AD_MERGE_CLOSE_MS/, '뜬 시점 기준 닫힘 간격은 쓰지 않는다');
+  assert.match(CONFIRM_SCRIPT, /if \(\$ms -lt 1\) \{ \$ms=1 \}; \$c\.Interval=\[int\]\$ms/, '마감이 이미 지났으면 곧바로 닫는다');
   // 숨김 자식 프로세스의 첫 ShowWindow는 SW_HIDE를 물려받아 창이 안 보인다(2026-11-18 실측). 뜬 직후 창 상태를 한 번 바꿔 다시 보인다
   assert.match(CONFIRM_SCRIPT, /Add_Shown\(\{ \$f\.WindowState='Minimized'; \$f\.WindowState='Normal'/);
-  for (const k of ['AD_MERGE_REPO', 'AD_MERGE_NUMBER', 'AD_MERGE_TITLE', 'AD_MERGE_BASE', 'AD_MERGE_HEAD', 'AD_MERGE_SHA', 'AD_MERGE_MUSTSEE', 'AD_MERGE_CLOSE_MS'])
+  for (const k of ['AD_MERGE_REPO', 'AD_MERGE_NUMBER', 'AD_MERGE_TITLE', 'AD_MERGE_BASE', 'AD_MERGE_HEAD', 'AD_MERGE_SHA', 'AD_MERGE_MUSTSEE', 'AD_MERGE_DEADLINE'])
     assert.ok(CONFIRM_SCRIPT.includes('$env:' + k), k);
   assert.ok(CONFIRM_SCRIPT.includes(`WriteLine('${CONFIRM_TOKEN}')`), '확인 줄은 병합을 눌렀을 때만 쓴다');
   assert.equal(CONFIRM_SCRIPT.split(CONFIRM_TOKEN).length, 2, '확인 줄을 쓰는 자리는 하나');
@@ -63,10 +76,11 @@ test('env: control and bidi characters are blanked, long text is clipped, inheri
   assert.equal(env.PATH, 'p');
   assert.ok(!('AD_MERGE_SELFTEST' in env), '물려받은 AD_MERGE_* 값은 버린다');
   assert.ok(!/[\u0000-\u001f\u202a-\u202e\u2066-\u2069]/.test(env.AD_MERGE_TITLE));
-  assert.ok([...env.AD_MERGE_TITLE].length <= 300);
-  assert.equal(env.AD_MERGE_HEAD, 'h  x');
+  assert.ok([...env.AD_MERGE_TITLE].length <= 120, '제목은 120자까지');
+  assert.equal(env.AD_MERGE_HEAD, 'h x', '빈칸 연속은 하나로 접는다');
+  assert.equal(confirmEnv(info({ title: 'a' + ' '.repeat(80) + '머리 SHA: 0000' }), 1, {}).AD_MERGE_TITLE, 'a 머리 SHA: 0000', '빈칸으로 줄을 밀어 다른 줄을 흉내 내지 못한다');
   assert.equal(env.AD_MERGE_MUSTSEE, '', '없음 표시는 창이 한다');
-  assert.equal(env.AD_MERGE_CLOSE_MS, '5000', '창이 스스로 닫히는 시간(죽이기보다 이르게 정하는 것은 createConfirm — 아래 timeout 시험)');
+  assert.equal(env.AD_MERGE_DEADLINE, '5000', '창이 스스로 닫히는 마감 시각(epoch ms, 죽이기보다 이르게 정하는 것은 createConfirm — 아래 timeout 시험)');
   const many = confirmEnv(info({ mustSee: Array.from({ length: 60 }, (_, i) => `f${i}`) }), 120000, {});
   assert.equal(many.AD_MERGE_MUSTSEE.split('\r\n').length, 41, '40개까지와 「외 N개」 한 줄');
   assert.match(many.AD_MERGE_MUSTSEE, /외 20개$/);
@@ -93,9 +107,14 @@ test('only the exact token line with a clean exit is yes; everything else is no 
 test('timeout: 120 s by default, injectable, passed to execFile so the child is killed', async () => {
   const a = fake({ stdout: '' }); await winConfirm(a)(info());
   assert.equal(a.calls[0].opts.timeout, 120000);
-  const b = fake({ stdout: '' }); await winConfirm(b, { timeoutMs: 4000 })(info());
+  const left = Number(a.calls[0].opts.env.AD_MERGE_DEADLINE) - Date.now();
+  assert.ok(left > 110000 && left <= 118000, '기본 마감은 지금부터 약 118초 뒤');
+  assert.ok(!('AD_MERGE_CLOSE_MS' in a.calls[0].opts.env), '닫힘 간격 대신 마감 시각만 싣는다');
+  const c = fake({ stdout: '' }); await winConfirm(c, { timeoutMs: 1500, now: () => 0 })(info());
+  assert.equal(c.calls[0].opts.env.AD_MERGE_DEADLINE, '1000', '아주 짧은 시간 초과도 마감은 최소 1초 뒤');
+  const b = fake({ stdout: '' }); await winConfirm(b, { timeoutMs: 4000, now: () => 1_000_000 })(info());
   assert.equal(b.calls[0].opts.timeout, 4000);
-  assert.equal(b.calls[0].opts.env.AD_MERGE_CLOSE_MS, '2000');
+  assert.equal(b.calls[0].opts.env.AD_MERGE_DEADLINE, '1002000', '마감은 띄운 시각 + (시간 초과 − 2초)');
 });
 
 test('single flight: a second request while a window is up is refused at once and spawns nothing; the slot frees after', async () => {

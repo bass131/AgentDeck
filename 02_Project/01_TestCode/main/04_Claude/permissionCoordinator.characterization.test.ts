@@ -5,7 +5,6 @@ import { describe, it, expect } from 'vitest'
 import { PermissionCoordinator, type CanUseToolOptions } from '@main/04_Claude/permission/permissionCoordinator'
 import type { AgentEvent } from '../../../../02_Project/00_Source/shared/agentEvents'
 
-const TOOLS = ['AskUserQuestion', 'Workflow', 'Bash', 'Write', 'Edit', 'Read', 'BashOutput', 'TaskStop', 'ExitPlanMode', 'mcp__x__y'] as const
 const MODES = ['normal', 'plan', 'acceptEdits', 'auto', 'bypass', undefined] as const
 const SUGGESTION = { type: 'addRules', rules: [{ toolName: 'Bash' }], behavior: 'allow', destination: 'session' }
 const OPTION_VARIANTS: Record<string, CanUseToolOptions | undefined> = {
@@ -26,6 +25,8 @@ type Outcome =
 const READONLY = new Set(['Read', 'Grep', 'Glob', 'NotebookRead', 'WebFetch', 'WebSearch', 'TodoWrite', 'Task', 'Agent',
   'TaskCreate', 'TaskUpdate', 'TaskList', 'TaskGet', 'TaskOutput', 'BashOutput'])
 const MUTATING = new Set(['Write', 'Edit', 'MultiEdit', 'NotebookEdit', 'Bash', 'TaskStop', 'KillShell', 'KillBash'])
+// 두 묶음의 전 구성원과, 묶음 밖 도구를 함께 돌린다 — 묶음에서 하나가 빠지면 판정이 바뀌어 표가 빨개진다 (G2 검수 2).
+const TOOLS = ['AskUserQuestion', 'Workflow', 'ExitPlanMode', 'mcp__x__y', ...READONLY, ...MUTATING]
 
 // 옮기기 전 분기 순서의 명세 (permissionCoordinator.ts 150~181행, master ffdfc8a5)
 function expected(tool: string, mode: string | undefined, opts: CanUseToolOptions | undefined, orchestration: boolean): Outcome {
@@ -99,6 +100,29 @@ describe('권한 콜백 판정 특성 (M07 G2 — 노드 이관 전후 동일)',
     const r = await canUse('Bash', INPUT, OPTION_VARIANTS.suggested)
     expect(r.behavior).toBe('allow')
     expect(pushed).toHaveLength(0)
+  })
+
+  it('오케스트레이션 여부는 Workflow 호출에서만 읽는다', async () => {
+    let reads = 0
+    const coord = new PermissionCoordinator(() => {})
+    const canUse = coord.makeCanUseTool('auto', () => { reads++; return false })
+    await canUse('Bash', INPUT, OPTION_VARIANTS.suggested)
+    await canUse('Read', INPUT, OPTION_VARIANTS.suggested)
+    expect(reads).toBe(0)
+    await canUse('Workflow', INPUT, OPTION_VARIANTS.suggested)
+    expect(reads).toBe(1)
+  })
+
+  it('cancelAll은 대기 중인 카드를 거부로, 질문을 건너뜀 안내로 끝낸다', async () => {
+    const coord = new PermissionCoordinator(() => {})
+    const canUse = coord.makeCanUseTool('normal', () => false)
+    const card = canUse('Bash', INPUT, OPTION_VARIANTS.suggested)
+    const ask = canUse('AskUserQuestion', INPUT, undefined)
+    await Promise.resolve()
+    coord.cancelAll()
+    expect(await card).toEqual({ behavior: 'deny', message: '사용자가 거부했습니다.' })
+    const a = await ask
+    expect(a.behavior === 'deny' && a.message).toContain('건너뛰었습니다')
   })
 
   it('카드 대기 중 중단 신호가 오면 거부로 끝난다', async () => {

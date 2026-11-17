@@ -42,17 +42,48 @@ describe('노드 등록부 (M07 G2)', () => {
     }
   })
 
-  it('옮긴 노드는 앱 프로세스 안의 잠금 노드다 (L1, 끌 수 없음)', () => {
+  it('옮긴 노드의 보호 수준은 아직 L2다 — 앱 소스를 고치면 꺼진다. L1의 전제(실행 트리 분리·엔진 경로 보호)는 뒤 goal 몫이다', () => {
     for (const n of PERMISSION_NODES) {
-      expect(n.protection).toBe('L1')
+      expect(n.protection).toBe('L2')
       expect(n.locked).toBe(true)
+      expect(n.judge).toBe('rule')
     }
   })
 
-  it('목록 함수는 판정 함수 없이 메타데이터만 돌려준다', () => {
+  it('등록부의 노드와 결과 목록은 얼어 있고, 목록 함수는 사본을 돌려준다', () => {
+    for (const n of PERMISSION_NODES) {
+      expect(Object.isFrozen(n)).toBe(true)
+      expect(Object.isFrozen(n.results)).toBe(true)
+    }
     const list = listControlNodes()
     expect(list.map((n) => n.id)).toEqual(PERMISSION_NODES.map((n) => n.id))
-    for (const n of list) expect('decide' in n).toBe(false)
+    for (const [i, n] of list.entries()) {
+      expect('decide' in n).toBe(false)
+      expect(n.results).not.toBe(PERMISSION_NODES[i].results)
+    }
+  })
+
+  it('노드가 잘못된 결정(undefined·모르는 kind)을 내도 실패 정책대로 거부한다 (G8 설계 30 — 던지거나 잘못된 출력)', () => {
+    for (const bad of [undefined, null, {}, { kind: 'maybe' }, 'allow']) {
+      const node: ControlNode = { ...PERMISSION_NODES[0], id: 'bad', decide: () => bad as never }
+      const v = runPermissionNodes(ctx(), [node])
+      expect(v.kind).toBe('deny')
+      expect(v.nodeId).toBe('bad')
+    }
+  })
+
+  it('노드 실패는 노드 id와 오류를 main 로그에 남긴다', () => {
+    const seen: unknown[][] = []
+    const orig = console.error
+    console.error = (...a: unknown[]) => { seen.push(a) }
+    try {
+      runPermissionNodes(ctx(), [{ ...PERMISSION_NODES[0], id: 'boom', decide: () => { throw new Error('터짐') } }])
+    } finally {
+      console.error = orig
+    }
+    expect(seen).toHaveLength(1)
+    expect(String(seen[0][0])).toContain('boom')
+    expect(String(seen[0][1])).toContain('터짐')
   })
 
   it('앞 노드가 정하면 뒤 노드는 부르지 않는다', () => {

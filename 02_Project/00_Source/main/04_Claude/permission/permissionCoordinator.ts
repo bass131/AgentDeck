@@ -117,12 +117,16 @@ export class PermissionCoordinator {
     ): Promise<PermissionResult> => {
       // 판정은 노드 등록부가 한다 (M07 G2). 규칙 제안 없는 호출은 모드 노드보다 앞의 노드가 카드로 올린다
       // (M06 G3 — auto·bypass 조기 허용이 가드 ask를 삼켰다).
+      // 오케스트레이션 여부는 getter로 넘긴다 — 옮기기 전처럼 Workflow 노드가 읽을 때만 읽는다.
+      // getter가 던지면 그 노드의 실패 정책(거부)으로 간다.
       const verdict = runPermissionNodes({
         toolName,
         input,
         ...(options !== undefined ? { options } : {}),
         mode: getMode(),
-        orchestration: getOrchestration(),
+        get orchestration() {
+          return getOrchestration()
+        },
       })
       switch (verdict.kind) {
         case 'question':

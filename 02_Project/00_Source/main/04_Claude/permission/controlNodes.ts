@@ -40,12 +40,13 @@ export const MUTATING_TOOLS: ReadonlySet<string> = new Set([
 export const ORCHESTRATION_TOOLS = ['Workflow'] as const
 
 // 한 번의 판정에 노드가 읽는 것. mode는 판정하는 순간의 모드다(실행 중 전환을 반영한 값).
+// orchestration은 읽는 쪽이 접근할 때만 계산될 수 있다(권한 콜백은 getter로 넘긴다 — Workflow 노드만 읽는다).
 export interface PermissionContext {
-  toolName: string
-  input: Record<string, unknown>
-  options?: CanUseToolOptions
-  mode: string | undefined
-  orchestration: boolean
+  readonly toolName: string
+  readonly input: Record<string, unknown>
+  readonly options?: CanUseToolOptions
+  readonly mode: string | undefined
+  readonly orchestration: boolean
 }
 
 // 노드 하나의 결정. pass는 「다음 노드로」다.
@@ -66,16 +67,22 @@ export type PermissionVerdict =
 
 // 설계의 칸 — 지점·판정 주체·결과·보호 수준·켜짐(잠금)·실패 정책·시간 상한. 기록 칸은 컨트롤 패널 goal이 더한다.
 export interface ControlNodeInfo {
-  id: string
-  name: string
-  point: 'canUseTool'
-  judge: 'rule' | 'model' | 'human'
-  results: readonly ('allow' | 'ask' | 'deny' | 'notify' | 'transition')[]
-  protection: 'L0' | 'L1' | 'L2' | 'L3'
-  locked: boolean
-  onFailure: 'block'
-  // 동기 판정이라 기다림이 없다 — null은 「시간 상한 없음」이 아니라 「기다리는 일이 없음」이다.
-  timeoutMs: number | null
+  readonly id: string
+  readonly name: string
+  readonly point: 'canUseTool'
+  // 판정 주체는 노드 자신이 무엇으로 정하는가다. 결과가 ask(카드)여도 노드는 규칙으로 정하고, 카드의 답은 사람이 한다.
+  readonly judge: 'rule' | 'model' | 'human'
+  readonly results: readonly ('allow' | 'ask' | 'deny' | 'notify' | 'transition')[]
+  // 지금은 L2다 — 앱 소스(이 파일)를 고치면 노드가 꺼진다. L1의 전제인 실행 트리 분리와 엔진 경로 보호는
+  // 뒤 goal(보호·엔진 봉인)의 몫이고, 그때 올린다 (G8 설계 30, 보호 수준 절).
+  readonly protection: 'L0' | 'L1' | 'L2' | 'L3'
+  // 잠정값 — 켜고 끄는 길은 컨트롤 패널 goal이 만든다. 그때 노드별로 다시 정한다
+  // (`mode-auto-bypass-allow`는 기준표와 분류기 goal이 다시 정의한다).
+  readonly locked: boolean
+  readonly onFailure: 'block'
+  // 동기 판정이라 노드 자신은 기다리지 않는다 — null은 「시간 상한 없음」이 아니라 「기다리는 일이 없음」이다.
+  // 카드의 사람 응답 대기에는 시간 상한이 없다. 이것은 노드가 아니라 카드 대기(permissionCoordinator)의 성질이다.
+  readonly timeoutMs: number | null
 }
 
 export interface ControlNode extends ControlNodeInfo {
@@ -84,74 +91,77 @@ export interface ControlNode extends ControlNodeInfo {
 
 const BUILT_IN = {
   point: 'canUseTool',
-  protection: 'L1',
+  judge: 'rule',
+  protection: 'L2',
   locked: true,
   onFailure: 'block',
   timeoutMs: null,
 } as const
 
+function builtIn(node: Omit<ControlNode, keyof typeof BUILT_IN>): ControlNode {
+  return Object.freeze({ ...BUILT_IN, ...node, results: Object.freeze([...node.results]) })
+}
+
 export const PERMISSION_NODES: readonly ControlNode[] = Object.freeze([
-  {
-    ...BUILT_IN,
+  builtIn({
     id: 'ask-question',
     name: '에이전트 질문을 질문 카드로',
-    judge: 'human',
     results: ['ask'],
     decide: (c) => (c.toolName === 'AskUserQuestion' ? { kind: 'question' } : { kind: 'pass' }),
-  },
-  {
-    ...BUILT_IN,
+  }),
+  builtIn({
     id: 'workflow-gate',
     name: '오케스트레이션이 꺼져 있으면 Workflow 거부, 켜져 있으면 카드',
-    judge: 'rule',
     results: ['deny', 'ask'],
     decide: (c) => {
       if (!(ORCHESTRATION_TOOLS as readonly string[]).includes(c.toolName)) return { kind: 'pass' }
       return c.orchestration ? { kind: 'card' } : { kind: 'orchestration-denied' }
     },
-  },
-  {
-    ...BUILT_IN,
+  }),
+  builtIn({
     id: 'no-suggestion-card',
     name: '규칙 제안 없는 호출(가드 질문 등)은 모드와 관계없이 카드',
-    judge: 'human',
     results: ['ask'],
     decide: (c) => {
       const escalation = escalationOf(c.options)
       return escalation !== undefined ? { kind: 'card', escalation } : { kind: 'pass' }
     },
-  },
-  {
-    ...BUILT_IN,
+  }),
+  builtIn({
     id: 'mode-auto-bypass-allow',
     name: '자동·Bypass 모드는 허용',
-    judge: 'rule',
     results: ['allow'],
     decide: (c) => (c.mode === 'auto' || c.mode === 'bypass' ? { kind: 'allow' } : { kind: 'pass' }),
-  },
-  {
-    ...BUILT_IN,
+  }),
+  builtIn({
     id: 'readonly-allow',
     name: '읽기 도구는 허용',
-    judge: 'rule',
     results: ['allow'],
     decide: (c) => (READONLY_TOOLS.has(c.toolName) ? { kind: 'allow' } : { kind: 'pass' }),
-  },
-  {
-    ...BUILT_IN,
+  }),
+  builtIn({
     id: 'accept-edits-allow',
     name: '편집 허용 모드의 비편집·비Bash 도구는 허용',
-    judge: 'rule',
     results: ['allow'],
     decide: (c) =>
       c.mode === 'acceptEdits' && c.toolName !== 'Bash' && !MUTATING_TOOLS.has(c.toolName)
         ? { kind: 'allow' }
         : { kind: 'pass' },
-  },
-] satisfies ControlNode[])
+  }),
+])
 
 export function listControlNodes(): ControlNodeInfo[] {
-  return PERMISSION_NODES.map(({ decide: _decide, ...info }) => ({ ...info }))
+  return PERMISSION_NODES.map(({ decide: _decide, ...info }) => ({ ...info, results: [...info.results] }))
+}
+
+const DECISION_KINDS: ReadonlySet<string> = new Set(['pass', 'allow', 'question', 'orchestration-denied', 'card'])
+
+// 결정 모양 검사. 잘못된 출력도 실패다 (G8 설계 30 — 「던지거나 잘못된 출력」).
+function checkDecision(d: unknown): NodeDecision {
+  if (!d || typeof d !== 'object') throw new TypeError(`결정이 객체가 아니다: ${String(d)}`)
+  const kind = (d as { kind?: unknown }).kind
+  if (typeof kind !== 'string' || !DECISION_KINDS.has(kind)) throw new TypeError(`모르는 결정 kind: ${String(kind)}`)
+  return d as NodeDecision
 }
 
 export function runPermissionNodes(
@@ -161,9 +171,11 @@ export function runPermissionNodes(
   for (const node of nodes) {
     let d: NodeDecision
     try {
-      d = node.decide(ctx)
-    } catch {
+      d = checkDecision(node.decide(ctx))
+    } catch (err) {
       // 실패 정책 「막는다」 — 판정하지 못한 호출은 허용으로 떨어지지 않는다 (G8 설계 30, 노드의 실패 정책 칸).
+      // 카드 없이 거부하므로 원인은 main 로그에만 남는다. 기록 칸은 컨트롤 패널 goal이 더한다.
+      console.error(`[controls] 노드 「${node.id}」 판정 실패 — 막는다:`, err instanceof Error ? err.message : err)
       return { kind: 'deny', nodeId: node.id, message: `컨트롤 노드 「${node.id}」가 판정하지 못해 막았습니다.` }
     }
     if (d.kind === 'pass') continue

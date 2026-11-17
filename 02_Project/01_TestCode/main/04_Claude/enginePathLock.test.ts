@@ -36,6 +36,11 @@ describe('보호 대상과 거부 규칙 (M07 G3)', () => {
   it('봉인 파일을 셸로 고치는 명령도 막는다 (G4)', () => {
     expect(bashLockReason('echo {} > "$APPDATA/agentdeck/engine-seal.json"', WIN_UD)).toMatch(/engine-seal/)
     expect(bashLockReason('cd "$APPDATA/agentdeck" && rm engine-seal.json', WIN_UD)).not.toBeNull()
+    // G4 검수: 폴더로 들어가서 `./` 꼴로 쓰는 명령 — 네 대상 모두
+    expect(bashLockReason('cd "$APPDATA/agentdeck" && cp /tmp/x ./engine-seal.json', WIN_UD)).not.toBeNull()
+    expect(bashLockReason('cd "$APPDATA/agentdeck" && rm -r ./engines', WIN_UD)).not.toBeNull()
+    // 저장소(폴더 이름이 같은 AgentDeck)의 소스 경로는 대상 이름 낱말이 아니므로 통과한다
+    expect(bashLockReason('cd /c/Dev/AgentDeck && cat ./02_Project/00_Source/main/10_Engine/engineSeal.ts', WIN_UD)).toBeNull()
   })
 
   it('끝 구분자가 붙은 경로도 같은 규칙이 된다', () => {
@@ -75,6 +80,7 @@ describe('Bash 잠금 노드 (M07 G3)', () => {
     'cat engine-config.json',
     'ls $APPDATA/agentdeck/chats/*',
     'cd C:/Dev/AgentDeck && npm test',
+    'cd C:/Dev/AgentDeck && ls ./02_Project/00_Source/main/10_Engine',
   ]
   for (const cmd of passed) {
     it(`통과: ${cmd}`, () => {

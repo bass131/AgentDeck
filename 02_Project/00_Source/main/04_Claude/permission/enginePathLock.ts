@@ -41,7 +41,9 @@ export function enginePathDenyRules(userDataDir: string): string[] {
 const BEFORE = `(?:^|[\\s"'=/<>(;&|\`])`
 const AFTER = `(?=$|[\\s"'\`;)|&<>/])`
 const AFTER_DIR = `(?=$|[\\s"'\`;)|&<>])`
-const TARGET_WORD = new RegExp(`(?:^|[\\s"'=<>(;&|])(?:engines|engine-config\\.json|engine-seal\\.json|controls\\.json|engine[*?[]|control[*?[])`)
+// 앞 경계에 `./`도 둔다(G4 검수 사소 7 — `cd <폴더> && cp x ./engine-seal.json`). 맨 `/`는 두지 않는다 —
+// 폴더 이름이 같은 저장소(AgentDeck)의 소스 경로가 걸리는 오탐이 커진다.
+const TARGET_WORD = new RegExp(`(?:^|[\\s"'=<>(;&|]|\\./)(?:engines|engine-config\\.json|engine-seal\\.json|controls\\.json|engine[*?[]|control[*?[])`)
 
 function escapeRe(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')

@@ -6,7 +6,8 @@ import { pathToFileURL } from 'node:url'
 import { app } from 'electron'
 import { getUserDataDir } from '@main/02_Common/userData'
 import type { EngineVersionState, EngineInstallProgress } from '../../shared/ipcContract'
-import { checkSeal, removeSeal, resolveEntry, writeSeal } from './engineSeal'
+import type { EngineSealStatus } from '../../shared/10_Engine/engine'
+import { computeSeal, fullSeal, quickSeal, readSeal, removeSeal, resolveEntry, sealKey, writeSeal } from './engineSeal'
 
 const PACKAGE = '@anthropic-ai/claude-agent-sdk'
 
@@ -118,7 +119,21 @@ export function maskSecrets(line: string): string {
     .replace(/\/\/[^/\s:]+:[^@\s]+@/g, '//***:***@')
 }
 
-let sdkCache: { version: string; query: QueryFn } | null = null
+let sdkCache: { userData: string; version: string; seal: string; query: QueryFn } | null = null
+
+// 이 프로세스가 불러온 엔진의 봉인. 같은 URL의 import()는 이미 불러온 모듈을 돌려주므로(Node ESM 캐시),
+// 같은 버전이 다른 내용으로 다시 봉인되면 재시작 전까지 그 엔진을 쓰지 않는다 (G4 검수 사소 2).
+const loadedSeals = new Map<string, string>()
+
+function needsRestart(userData: string, version: string): boolean {
+  const loaded = loadedSeals.get(`${userData}|${version}`)
+  const saved = readSeal(userData)
+  return loaded !== undefined && saved !== null && loaded !== sealKey(saved)
+}
+
+function withRestart(userData: string, active: string | null, s: EngineSealStatus): EngineSealStatus {
+  return s === 'ok' && active && needsRestart(userData, active) ? 'restart' : s
+}
 
 export function getVersionState(overrideUserData?: string): EngineVersionState {
   const userData = getUserDataPath(overrideUserData)
@@ -126,7 +141,9 @@ export function getVersionState(overrideUserData?: string): EngineVersionState {
   let active = readConfig(userData).activeVersion
   if (active && !installed.includes(active)) active = null
   const bundled = bundledVersion()
-  return { package: PACKAGE, bundled, active, installed, seal: checkSeal(userData, active, bundled) }
+  const pkgVersion = active ? installedVersionAt(userData, active) : null
+  const seal = withRestart(userData, active, quickSeal(userData, active, pkgVersion, bundled))
+  return { package: PACKAGE, bundled, active, installed, seal }
 }
 
 export function setActive(version: string | null, overrideUserData?: string): void {
@@ -134,13 +151,20 @@ export function setActive(version: string | null, overrideUserData?: string): vo
     throw new Error(`invalid version: "${version}" — strict semver(X.Y.Z) 형식만 허용됩니다.`)
   }
   const userData = getUserDataPath(overrideUserData)
-  if (version && installedVersionAt(userData, version) == null) {
-    throw new Error(`버전 ${version}이(가) 설치되어 있지 않습니다.`)
+  if (version) {
+    const pkgVersion = installedVersionAt(userData, version)
+    if (pkgVersion == null) throw new Error(`버전 ${version}이(가) 설치되어 있지 않습니다.`)
+    if (pkgVersion !== version) throw new Error(`폴더 ${version}에 설치된 패키지 버전이 ${pkgVersion}입니다.`)
   }
-  writeConfig(userData, { activeVersion: version })
   // 앱의 엔진 선택이 곧 사람 확인이다 — 고른 엔진을 봉인하고, 지우면 봉인도 지운다 (M07 G4)
-  if (version) writeSeal(userData, version)
-  else removeSeal(userData)
+  // 봉인을 먼저 계산하고 쓴다. 실패하면 설정은 그대로라 이전 선택이 남는다(봉인이 어긋나면 번들로 물러난다).
+  if (version) {
+    writeSeal(userData, computeSeal(userData, version))
+    writeConfig(userData, { activeVersion: version })
+  } else {
+    writeConfig(userData, { activeVersion: null })
+    removeSeal(userData)
+  }
   sdkCache = null
 }
 
@@ -289,25 +313,36 @@ export async function loadActiveQuery(overrideUserData?: string): Promise<QueryF
     return null
   }
 
-  // M07 G4: 봉인은 캐시보다 먼저, 실행마다 본다 — 앱 밖에서 바뀐 엔진은 이미 불러온 적이 있어도 쓰지 않는다
-  if (state.seal !== 'ok') {
-    console.warn(`[engine-versions] 엔진 봉인 ${state.seal}: active=${active} — 동적 로드 거부, 번들 폴백. 엔진 화면에서 다시 고르면 봉인된다.`)
+  // M07 G4: 봉인은 캐시보다 먼저, 실행마다 본다 — 앱 밖에서 바뀐 엔진은 이미 불러온 적이 있어도 쓰지 않는다.
+  // 파일 목록까지 보는 전체 검사는 비동기라 main 스레드를 막지 않는다(실제 설치본 약 8천 개 파일).
+  const userData = getUserDataPath(overrideUserData)
+  const seal = state.seal === 'ok'
+    ? withRestart(userData, active, await fullSeal(userData, active, installedVersionAt(userData, active), state.bundled))
+    : state.seal
+  if (seal !== 'ok') {
+    const how = seal === 'restart'
+      ? '다시 고른 내용은 앱을 재시작하면 쓰인다.'
+      : '봉인은 앱의 엔진 선택(지금은 엔진 업데이트 알림)만 다시 적는다.'
+    console.warn(`[engine-versions] 엔진 봉인 ${seal}: active=${active} — 동적 로드 거부, 번들 폴백. ${how}`)
     return null
   }
 
-  if (sdkCache?.version === active) return sdkCache.query
+  const saved = readSeal(userData)
+  if (!saved) return null
+  const key = sealKey(saved)
+  if (sdkCache?.userData === userData && sdkCache.version === active && sdkCache.seal === key) return sdkCache.query
 
   try {
-    const userData = getUserDataPath(overrideUserData)
     const pkgDir = packageDir(userData, active)
     const pkg = JSON.parse(await fsp.readFile(path.join(pkgDir, 'package.json'), 'utf8'))
     const entry = resolveEntry(pkg)
     if (!entry) return null
     const url = pathToFileURL(path.join(pkgDir, entry)).href
     const mod = await import(/* @vite-ignore */ url)
+    loadedSeals.set(`${userData}|${active}`, key)
     const query = (mod.query ?? mod.default?.query) as QueryFn | undefined
     if (typeof query !== 'function') return null
-    sdkCache = { version: active, query }
+    sdkCache = { userData, version: active, seal: key, query }
     return query
   } catch {
     return null

@@ -3,11 +3,16 @@
 // 봉인이 없거나 다르면 그 엔진 대신 번들 엔진을 쓴다(G4 결정 대장 — 번들은 앱과 함께 온 코드다).
 // 봉인 파일과 엔진 폴더는 앱 세션에서 잠겨 있다(04_Claude/permission/enginePathLock.ts). CLI 세션이나 다른 프로그램이
 // 고친 경우를 이 봉인이 잡는다. 봉인 파일 자체를 함께 고치면 통과한다 — L1 보호다(설계 「보호」 끝 문단).
+//
+// 검사는 두 층이다 (G4 검수 반영 — 실제 설치본은 파일 약 8천 개, 목록 걷기 한 번 0.4~0.8초).
+//   - 빠른 검사(quickSeal, 동기): 설정·봉인·버전·하한·진입 파일 해시. 상태 칸(getVersionState)이 쓴다.
+//   - 전체 검사(fullSeal, 비동기): 빠른 검사 + 버전 폴더 파일 목록. 로드가 실행마다 쓴다. main 스레드를 막지 않는다.
+//   상태 칸의 파일 목록 판정은 마지막 전체 검사(또는 앱의 선택)의 결과다.
 import path from 'node:path'
 import fs from 'node:fs'
+import fsp from 'node:fs/promises'
 import { createHash } from 'node:crypto'
-import { app } from 'electron'
-import { getUserDataDir } from '@main/02_Common/userData'
+import { readInstalledSdkVersion, SDK_VERSION_FALLBACK } from './sdkVersion'
 import type { EngineSealStatus } from '../../shared/10_Engine/engine'
 
 const PACKAGE = '@anthropic-ai/claude-agent-sdk'
@@ -16,7 +21,7 @@ const SEAL_FILE = 'engine-seal.json'
 // 칸의 뜻은 shared/10_Engine/engine.ts의 EngineSealStatus 주석에 둔다 (컨트롤 패널 goal이 화면에서 읽는다)
 export type SealStatus = EngineSealStatus
 
-interface Seal {
+export interface Seal {
   version: string
   entryHash: string
   manifestHash: string
@@ -53,96 +58,136 @@ function sha256(data: string | Buffer): string {
   return createHash('sha256').update(data).digest('hex')
 }
 
-// 진입 파일은 내용 해시, 버전 폴더 전체는 파일 목록(상대 경로·크기·수정 시각)의 해시.
+function entryHash(userData: string, version: string): string {
+  const pkgDir = packageDir(userData, version)
+  const pkg = JSON.parse(fs.readFileSync(path.join(pkgDir, 'package.json'), 'utf8')) as Record<string, unknown>
+  const entryPath = path.join(pkgDir, resolveEntry(pkg) ?? 'index.js')
+  // 진입 파일이 없는 엔진은 봉인은 되지만 로드에서 실패해 번들로 물러난다(기존 동작)
+  return fs.existsSync(entryPath) ? sha256(fs.readFileSync(entryPath)) : 'absent'
+}
+
+// 버전 폴더 전체의 파일 목록(상대 경로·크기·수정 시각) 해시.
 // CLI 바이너리(수백 MB)를 실행마다 해시하지 않으려고 목록으로 본다(G4 「하지 않을 것」).
-function manifestHash(root: string): string {
+function row(root: string, full: string, st: fs.Stats): string {
+  return `${path.relative(root, full).replace(/\\/g, '/')}|${st.size}|${Math.floor(st.mtimeMs)}`
+}
+
+function manifestHashSync(root: string): string {
   const rows: string[] = []
   const walk = (dir: string): void => {
     for (const d of fs.readdirSync(dir, { withFileTypes: true })) {
       const full = path.join(dir, d.name)
       if (d.isDirectory()) walk(full)
-      else {
-        const st = fs.statSync(full)
-        rows.push(`${path.relative(root, full).replace(/\\/g, '/')}|${st.size}|${Math.floor(st.mtimeMs)}`)
-      }
+      else rows.push(row(root, full, fs.statSync(full)))
     }
   }
   walk(root)
   return sha256(rows.sort().join('\n'))
 }
 
-function computeSeal(userData: string, version: string): Seal {
-  const pkgDir = packageDir(userData, version)
-  const pkg = JSON.parse(fs.readFileSync(path.join(pkgDir, 'package.json'), 'utf8')) as Record<string, unknown>
-  const entry = resolveEntry(pkg) ?? 'index.js'
-  const entryPath = path.join(pkgDir, entry)
-  return {
-    version,
-    // 진입 파일이 없는 엔진은 봉인은 되지만 로드에서 실패해 번들로 물러난다(기존 동작)
-    entryHash: fs.existsSync(entryPath) ? sha256(fs.readFileSync(entryPath)) : 'absent',
-    manifestHash: manifestHash(versionDir(userData, version)),
+async function manifestHashAsync(root: string): Promise<string> {
+  const rows: string[] = []
+  const walk = async (dir: string): Promise<void> => {
+    const entries = await fsp.readdir(dir, { withFileTypes: true })
+    await Promise.all(
+      entries.map(async (d) => {
+        const full = path.join(dir, d.name)
+        if (d.isDirectory()) await walk(full)
+        else rows.push(row(root, full, await fsp.stat(full)))
+      })
+    )
   }
+  await walk(root)
+  return sha256(rows.sort().join('\n'))
 }
 
-export function writeSeal(userData: string, version: string): void {
-  fs.writeFileSync(sealPath(userData), JSON.stringify(computeSeal(userData, version), null, 2))
+// 앱의 선택 때 한 번 동기로 계산한다(사람이 누른 한 번이라 걷기 비용을 감수한다).
+export function computeSeal(userData: string, version: string): Seal {
+  return { version, entryHash: entryHash(userData, version), manifestHash: manifestHashSync(versionDir(userData, version)) }
+}
+
+export function writeSeal(userData: string, seal: Seal): void {
+  fs.mkdirSync(userData, { recursive: true })
+  fs.writeFileSync(sealPath(userData), JSON.stringify(seal, null, 2))
+  lastFull.set(userData, { seal: sealKey(seal), status: 'ok' })
 }
 
 export function removeSeal(userData: string): void {
   fs.rmSync(sealPath(userData), { force: true })
+  lastFull.delete(userData)
 }
 
-function parseSemver(v: string | null): [number, number, number] | null {
-  const m = v?.match(/^(\d+)\.(\d+)\.(\d+)/)
-  return m ? [Number(m[1]), Number(m[2]), Number(m[3])] : null
+export function readSeal(userData: string): Seal | null {
+  try {
+    const s = JSON.parse(fs.readFileSync(sealPath(userData), 'utf8')) as Partial<Seal>
+    return typeof s.version === 'string' && typeof s.entryHash === 'string' && typeof s.manifestHash === 'string'
+      ? { version: s.version, entryHash: s.entryHash, manifestHash: s.manifestHash }
+      : null
+  } catch {
+    return null
+  }
 }
 
-export function isBelowFloor(version: string, bundled: string | null): boolean {
+export function sealKey(s: Seal): string {
+  return `${s.version}|${s.entryHash}|${s.manifestHash}`
+}
+
+// 마지막 전체 검사의 판정. 봉인이 다시 적히면(키가 바뀌면) 버린다.
+const lastFull = new Map<string, { seal: string; status: 'ok' | 'mismatch' }>()
+
+function parseSemver(v: string | null): { n: [number, number, number]; pre: boolean } | null {
+  const m = v?.match(/^(\d+)\.(\d+)\.(\d+)(-)?/)
+  return m ? { n: [Number(m[1]), Number(m[2]), Number(m[3])], pre: m[4] === '-' } : null
+}
+
+export function isBelowFloor(version: string, floor: string | null): boolean {
   const a = parseSemver(version)
-  const b = parseSemver(bundled)
+  const b = parseSemver(floor)
   if (!a || !b) return false
-  for (let i = 0; i < 3; i++) if (a[i] !== b[i]) return a[i] < b[i]
-  return false
+  for (let i = 0; i < 3; i++) if (a.n[i] !== b.n[i]) return a.n[i] < b.n[i]
+  return a.pre && !b.pre
 }
 
-export function bundledEngineVersion(): string | null {
+// 하한은 실제로 설치된 번들 SDK 버전이다. 못 읽으면 앱 package.json의 의존 명세, 그것도 없으면 폴백 상수.
+export function floorVersion(bundledSpec: string | null): string {
+  return readInstalledSdkVersion() ?? bundledSpec ?? SDK_VERSION_FALLBACK
+}
+
+// 목록을 뺀 검사. 'ok'면 봉인(saved)도 돌려준다.
+// active는 설정의 활성 버전 가운데 설치 목록에 있는 것이고, installed는 그 폴더의 패키지 version이다.
+function baseSeal(userData: string, active: string | null, installed: string | null, bundledSpec: string | null): { status: SealStatus; saved?: Seal } {
+  const hasSeal = fs.existsSync(sealPath(userData))
+  // 고른 엔진이 없는데 봉인이 남아 있으면 설정이나 폴더가 앱 밖에서 지워진 것이다
+  if (!active) return { status: hasSeal ? 'mismatch' : 'none' }
+  if (installed !== active) return { status: 'mismatch' }
+  if (isBelowFloor(active, floorVersion(bundledSpec))) return { status: 'below-floor' }
+  if (!hasSeal) return { status: 'missing' }
+  const saved = readSeal(userData)
+  if (!saved || saved.version !== active) return { status: 'mismatch' }
   try {
-    const pkg = JSON.parse(fs.readFileSync(path.join(app.getAppPath(), 'package.json'), 'utf8'))
-    const spec = String(pkg?.dependencies?.[PACKAGE] ?? '').replace(/^[\^~>=<\s]+/, '')
-    return spec || null
+    if (saved.entryHash !== entryHash(userData, active)) return { status: 'mismatch' }
   } catch {
-    return null
+    return { status: 'mismatch' }
   }
+  return { status: 'ok', saved }
 }
 
-// active는 부르는 쪽이 설치 목록과 대조한 활성 버전이다(없으면 null).
-export function checkSeal(userData: string, active: string | null, bundled: string | null): SealStatus {
-  if (!active) return 'none'
-  if (isBelowFloor(active, bundled)) return 'below-floor'
-  if (!fs.existsSync(sealPath(userData))) return 'missing'
+export function quickSeal(userData: string, active: string | null, installed: string | null, bundledSpec: string | null): SealStatus {
+  const { status, saved } = baseSeal(userData, active, installed, bundledSpec)
+  if (status !== 'ok' || !saved) return status
+  const last = lastFull.get(userData)
+  return last && last.seal === sealKey(saved) ? last.status : 'ok'
+}
+
+export async function fullSeal(userData: string, active: string | null, installed: string | null, bundledSpec: string | null): Promise<SealStatus> {
+  const { status, saved } = baseSeal(userData, active, installed, bundledSpec)
+  if (status !== 'ok' || !saved || !active) return status
+  let listed: 'ok' | 'mismatch'
   try {
-    const saved = JSON.parse(fs.readFileSync(sealPath(userData), 'utf8')) as Partial<Seal>
-    const now = computeSeal(userData, active)
-    return saved.version === now.version && saved.entryHash === now.entryHash && saved.manifestHash === now.manifestHash
-      ? 'ok'
-      : 'mismatch'
+    listed = saved.manifestHash === (await manifestHashAsync(versionDir(userData, active))) ? 'ok' : 'mismatch'
   } catch {
-    return 'mismatch'
+    listed = 'mismatch'
   }
-}
-
-function readActive(userData: string): string | null {
-  try {
-    const c = JSON.parse(fs.readFileSync(path.join(userData, 'engine-config.json'), 'utf8'))
-    const v = typeof c.activeVersion === 'string' ? c.activeVersion : null
-    return v && fs.existsSync(packageDir(userData, v)) ? v : null
-  } catch {
-    return null
-  }
-}
-
-// 컨트롤 패널 goal의 「바뀜 경고」가 읽는다. 앱이 보이는 엔진 버전도 이것이 ok일 때만 활성 버전을 쓴다.
-export function getSealStatus(overrideUserData?: string): SealStatus {
-  const userData = overrideUserData ?? getUserDataDir()
-  return checkSeal(userData, readActive(userData), bundledEngineVersion())
+  lastFull.set(userData, { seal: sealKey(saved), status: listed })
+  return listed
 }

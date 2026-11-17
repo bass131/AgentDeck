@@ -30,7 +30,9 @@ afterAll(() => {
 
 const file = (): string => path.join(ud, 'controls.json')
 const seal = (): string => path.join(ud, 'controls-seal.json')
-const marker = (): string => path.join(ud, 'first-setup.json')
+// 「처음 설정함」 표시는 앱 데이터 폴더의 이웃 폴더 `<이름>-guard/`에 있다 (M07 G7)
+const marker = (): string => path.join(`${ud}-guard`, 'first-setup.json')
+const oldMarker = (): string => path.join(ud, 'first-setup.json')
 
 describe('controls.json 저장과 봉인 상태 (M07 G5)', () => {
   it('파일도 봉인도 없으면 첫 실행(none)이고 전부 켬이다', () => {
@@ -139,6 +141,38 @@ describe('controls.json 저장과 봉인 상태 (M07 G5)', () => {
     // 확인하면 기본값으로 다시 봉인한다
     expect(confirmControls(ud, [])).toEqual({ ok: true })
     expect(readControls(ud).status).toBe('ok')
+  })
+
+  it('표시는 앱 데이터 폴더 밖(이웃 guard 폴더)에 쓰인다 (G7)', () => {
+    setControlEnabled(ud, 'readonly-allow', false)
+    expect(fs.existsSync(marker())).toBe(true)
+    expect(fs.existsSync(oldMarker())).toBe(false)
+  })
+
+  it('앱 데이터 폴더를 통째로 지워도 표시가 남아 mismatch다 — 실행은 닫힌다 (G7)', () => {
+    setControlEnabled(ud, 'mode-auto-bypass-allow', false)
+    fs.rmSync(ud, { recursive: true, force: true })
+    expect(readControls(ud)).toEqual({ status: 'mismatch', disabled: [] })
+    expect(controlsForRun(ud).ok).toBe(false)
+    expect(confirmControls(ud, [])).toEqual({ ok: true })
+    expect(readControls(ud).status).toBe('ok')
+  })
+
+  it('옛 거처(앱 데이터 폴더 안)의 표시는 읽을 때 새 거처로 옮겨 적고, 옛 파일은 지우지 않는다 (G7)', () => {
+    setControlEnabled(ud, 'readonly-allow', false)
+    fs.rmSync(marker())
+    fs.writeFileSync(oldMarker(), JSON.stringify({ version: 1, controls: true }))
+    expect(readControls(ud).status).toBe('ok')
+    expect(fs.existsSync(marker())).toBe(true)
+    expect(fs.existsSync(oldMarker())).toBe(true)
+    // 옮겨 적은 뒤에는 앱 데이터 폴더를 지워도 닫힌다
+    fs.rmSync(ud, { recursive: true, force: true })
+    expect(readControls(ud).status).toBe('mismatch')
+  })
+
+  it('옛 표시만 있고 두 파일이 없어도 mismatch다 (G7 이전에 지워진 경우)', () => {
+    fs.writeFileSync(oldMarker(), JSON.stringify({ version: 1, controls: true }))
+    expect(readControls(ud).status).toBe('mismatch')
   })
 
   it('표시만 없고 두 파일과 봉인이 맞으면 ok다 — 표시는 다음 저장에 다시 생긴다', () => {

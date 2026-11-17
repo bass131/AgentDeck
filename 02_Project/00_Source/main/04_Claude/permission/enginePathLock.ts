@@ -24,15 +24,21 @@ function slashed(p: string): string {
   return p.replace(/\\/g, '/').replace(/\/+$/, '')
 }
 
+// 앱 데이터 폴더 밖의 보호 대상 — 「처음 설정함」 표시의 이웃 폴더 `<폴더>-guard`(M07 G7, controlsStore.ts markerDir)
+const GUARD_SUFFIX = '-guard'
+
 export function protectedTargets(userDataDir: string): string[] {
   const root = slashed(userDataDir)
-  return TARGETS.map((t) => `${root}/${t.name}`)
+  return [...TARGETS.map((t) => `${root}/${t.name}`), `${root}${GUARD_SUFFIX}`]
 }
 
 // `C:/x` → `//c/x`, `/home/x` → `//home/x`. Edit 규칙은 Write·NotebookEdit에도 걸린다(공식 permissions 문서).
 export function enginePathDenyRules(userDataDir: string): string[] {
   const root = slashed(userDataDir).replace(/^([A-Za-z]):/, (_, d: string) => '/' + d.toLowerCase()).replace(/^\/+/, '')
-  return TARGETS.map((t) => (t.dir ? `Edit(//${root}/${t.name}/**)` : `Edit(//${root}/${t.name})`))
+  return [
+    ...TARGETS.map((t) => (t.dir ? `Edit(//${root}/${t.name}/**)` : `Edit(//${root}/${t.name})`)),
+    `Edit(//${root}${GUARD_SUFFIX}/**)`,
+  ]
 }
 
 // 명령 글자에 「userData 폴더 이름/보호 대상」이 보이면 사유를, 아니면 null을 돌려준다.
@@ -74,6 +80,11 @@ export function bashLockReason(command: string, userDataDir: string): string | n
   const reason = (what: string): string =>
     `앱 엔진·설정 경로(${what})를 건드리는 명령은 앱 세션에서 막습니다 — 엔진 교체는 앱 화면에서 하세요.`
 
+  // 표시 거처(이웃 guard 폴더)는 이름이 보이기만 하면 막는다 — 저장소 명령에 이 이름이 나올 일이 없다(G7)
+  const guard = `${base}${GUARD_SUFFIX}`
+  if (new RegExp(`${BEFORE}${escapeRe(guard)}${AFTER}`).test(cmd)) return reason(guard)
+  // 폴더 이름 접두 와일드카드(`rm -r agentdeck*`)는 앱 데이터 폴더와 guard 폴더를 함께 지운다(G7)
+  if (new RegExp(`${BEFORE}${b}(?:-[a-z]*)?[*?[]`).test(cmd)) return reason(`${base}*`)
   for (const t of TARGETS) {
     if (new RegExp(`${BEFORE}${b}/${escapeRe(t.name)}${AFTER}`).test(cmd)) return reason(t.name)
   }

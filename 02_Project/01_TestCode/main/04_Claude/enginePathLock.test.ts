@@ -23,6 +23,7 @@ describe('보호 대상과 거부 규칙 (M07 G3)', () => {
       'C:/Users/x/AppData/Roaming/agentdeck/engine-seal.json',
       'C:/Users/x/AppData/Roaming/agentdeck/controls-seal.json',
       'C:/Users/x/AppData/Roaming/agentdeck/first-setup.json',
+      'C:/Users/x/AppData/Roaming/agentdeck-guard',
     ])
   })
 
@@ -34,6 +35,7 @@ describe('보호 대상과 거부 규칙 (M07 G3)', () => {
       'Edit(//c/Users/x/AppData/Roaming/agentdeck/engine-seal.json)',
       'Edit(//c/Users/x/AppData/Roaming/agentdeck/controls-seal.json)',
       'Edit(//c/Users/x/AppData/Roaming/agentdeck/first-setup.json)',
+      'Edit(//c/Users/x/AppData/Roaming/agentdeck-guard/**)',
     ])
   })
 
@@ -68,6 +70,25 @@ describe('보호 대상과 거부 규칙 (M07 G3)', () => {
     ]) {
       expect(bashLockReason(cmd, WIN_UD), cmd).toBeNull()
     }
+  })
+
+  it('표시의 새 거처(이웃 guard 폴더)도 보호 대상이다 (G7)', () => {
+    expect(protectedTargets(WIN_UD)).toContain('C:/Users/x/AppData/Roaming/agentdeck-guard')
+    expect(enginePathDenyRules(WIN_UD)).toContain('Edit(//c/Users/x/AppData/Roaming/agentdeck-guard/**)')
+    for (const cmd of [
+      'rm -r "$APPDATA/agentdeck-guard"',
+      'rm "$APPDATA/agentdeck-guard/first-setup.json"',
+      'cd "$APPDATA" && rm -rf agentdeck-guard',
+      'cd ~/AppData/Roaming/agentdeck-guard && rm *',
+    ]) {
+      expect(bashLockReason(cmd, WIN_UD), cmd).toMatch(/agentdeck-guard/)
+    }
+    // 폴더 이름 접두 와일드카드는 앱 데이터 폴더와 guard 폴더를 함께 지우므로 막는다
+    expect(bashLockReason('cd "$APPDATA" && rm -rf agentdeck*', WIN_UD)).not.toBeNull()
+    expect(bashLockReason('rm -rf $APPDATA/agentdeck-*', WIN_UD)).not.toBeNull()
+    // 저장소 명령은 그 이름이 없으면 통과한다
+    expect(bashLockReason('cd C:/Dev/AgentDeck && git status', WIN_UD)).toBeNull()
+    expect(bashLockReason('cd C:/Dev/AgentDeck && ls 02_Project/*', WIN_UD)).toBeNull()
   })
 
   it('「처음 설정함」 표시 파일도 보호 대상이다 (G5 검수 차단 1)', () => {

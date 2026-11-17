@@ -42,9 +42,9 @@ CLI를 열지 않고 AgentDeck 앱 안에서 이 저장소의 약 등급 goal �
 
 진척 단계 (완료 `[x]`, 진행 `[>]`, 남음 `[ ]` — 위치 표시일 뿐이고 통과 판정은 검증 기록 줄만 한다)
 
-- [>] 1. goal 문서 준비 — 이 문서, `planPath` 전환, pin 갱신
-- [ ] 2. 무대 준비 — 앱용 작업 트리(master 빌드) `C:\Dev\AgentDeck-g6app`, 세션용 작업 트리 `C:\Dev\AgentDeck-g6run`(이 브랜치 머리에서), `node_modules` 정션, 임시 userData, `CLAUDE*` 환경 변수 뺀 앱 기동, 실제 SDK 버전 기록
-- [ ] 3. 리허설과 인계 — 사용자가 앱에서 `git push --dry-run origin HEAD:master`를 보내 카드가 뜨는지 보고 거부한다(0칸). 그다음 앱 안 goal 후보와 사다리를 사용자에게 넘긴다
+- [x] 1. goal 문서 준비 — 이 문서, `planPath` 전환, pin 갱신
+- [x] 2. 무대 준비 — 앱용 작업 트리(master 빌드) `C:\Dev\AgentDeck-g6app`, 세션용 작업 트리 `C:\Dev\AgentDeck-g6run`(이 브랜치 머리에서), `node_modules` 정션, 임시 userData, `CLAUDE*` 환경 변수 뺀 앱 기동, 실제 SDK 버전 기록
+- [>] 3. 리허설과 인계 — 사용자가 앱에서 `git push --dry-run origin HEAD:master`를 보내 카드가 뜨는지 보고 거부한다(0칸). 그다음 앱 안 goal 후보와 사다리를 사용자에게 넘긴다
 - [ ] 4. 실주행 관찰 — 사용자가 앱으로 goal을 돌리는 동안 hook-log·git·세션 기록을 읽기만 한다. 막히면 칸과 원인을 적는다
 - [ ] 5. 측정 보고서 — 사다리, 개입 목록, 막힌 곳, Backlog 줄
 - [ ] 6. 무대 정리 — `git worktree remove`, 앱 종료, 남은 것은 목록으로 사용자에게 넘긴다
@@ -66,7 +66,7 @@ DoD
 
 검증 기록
 
-- (기록 없음)
+- PASS 2026-11-17T09:11:41+09:00 1·2단계 — goal 문서와 `planPath` 전환을 커밋했다(`6eb6d0dc`). 앱용 작업 트리 `C:\Dev\AgentDeck-g6app`(master `ea6dae8b`)을 `npm run build`(exit 0)하고, 세션용 작업 트리 `C:\Dev\AgentDeck-g6run`(`6eb6d0dc`)을 만들었다. 둘 다 `node_modules`는 메인 작업 트리로의 정션이다. 앱은 `CLAUDE*`·`CODEX_COMPANION*` 환경 변수를 뺀 채 빈 임시 userData로 띄웠다 — 활성 엔진이 없어 번들 Agent SDK `0.3.325`가 돈다(패키지 메타데이터).
 
 ## 결정 대장
 

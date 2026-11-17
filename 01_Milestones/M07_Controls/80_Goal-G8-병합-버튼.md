@@ -99,4 +99,6 @@ DoD
 - [USER] 필수 검사 이름을 보호 설정에서 못 읽으면 버튼을 끈다 — 「버튼을 끈다 (Recommended)」 (2026-11-18, 세션 문답). 이름은 base 브랜치 보호 API의 `required_status_checks.contexts`에서, 결과는 보인 머리 SHA의 check run·상태에서 읽는다. 서버도 같은 검사를 집행한다(`enforce_admins: true`).
 - [USER] 병합 기록의 정본은 GitHub의 PR 병합 정보(병합한 사람, 병합 시각, 병합 커밋)다 — 「GitHub 병합 정보 (Recommended)」 (2026-11-18, 세션 문답). 앱 노드 기록(Backlog 13)이 아직 없어서다. 다음 종결 커밋에서 그 값을 결정 대장 `[USER]` 줄로 옮겨 적는다.
 
+- [USER] 위험 명령 가드의 병합 규칙도 질문에서 차단으로 올린다 — 「OK 가드도 Deny」 (2026-11-18, 세션 문답, 검수 중요 1의 후속). 앞선 「설정 deny만」 답을 이 지적을 본 뒤 바꾼 것이다. 이 goal 범위가 아니라 PR 74 병합 뒤 별도 goal(G9 가드 병합 차단)로 한다(Backlog 23).
+
 출처 태그는 네 가지다 — `[USER]`·`[USER·위임]`·`[AI]`·`[AI·비가역]`.

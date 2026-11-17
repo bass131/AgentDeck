@@ -63,9 +63,14 @@ export interface EngineSetActiveRequest {
   version: string
 }
 
+// M07 G4 엔진 봉인 상태 — ok: 앱이 고른 그대로 · missing: 봉인 없음 · mismatch: 앱 밖에서 바뀜
+// below-floor: 번들보다 낮은 버전 · none: 고른 엔진 없음(번들 사용). ok가 아니면 번들 엔진을 쓴다.
+export type EngineSealStatus = 'ok' | 'missing' | 'mismatch' | 'below-floor' | 'none'
+
 export interface EngineVersionState {
   package: string
   bundled: string | null
   active: string | null
   installed: string[]
+  seal: EngineSealStatus
 }

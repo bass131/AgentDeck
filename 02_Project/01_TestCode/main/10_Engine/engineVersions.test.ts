@@ -347,10 +347,11 @@ describe('loadActiveQuery()', () => {
     h.appDir.value = makeAppFixture('1.2.3')
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
 
-    const { loadActiveQuery } = await import('@main/10_Engine/engineVersions')
+    const { setActive, loadActiveQuery } = await import('@main/10_Engine/engineVersions')
     const ud = newUserData()
     installFixture(ud, '1.2.3', { main: 'index.js' })
-    writeConfigFixture(ud, '1.2.3')
+    // M07 G4: 앱 경로(setActive)로 골라 봉인을 남긴다 — 봉인이 맞아도 진입 파일이 없으면 번들로 물러난다
+    setActive('1.2.3', ud)
 
     expect(await loadActiveQuery(ud)).toBeNull()
     expect(warn).not.toHaveBeenCalled()
@@ -403,7 +404,9 @@ describe('getVersionState()', () => {
     installFixture(ud, '1.2.3')
     writeConfigFixture(ud, '1.2.3')
     const state = getVersionState(ud)
-    expect(Object.keys(state).sort()).toEqual(['active', 'bundled', 'installed', 'package'])
+    // M07 G4: 봉인 상태 칸(seal)이 더해졌다 — 해시 값 자체는 싣지 않는다
+    expect(Object.keys(state).sort()).toEqual(['active', 'bundled', 'installed', 'package', 'seal'])
+    expect(state.seal).toBe('missing')
   })
 })
 

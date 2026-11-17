@@ -11,6 +11,8 @@ const TARGETS = [
   { name: 'engines', dir: true },
   { name: 'engine-config.json', dir: false },
   { name: 'controls.json', dir: false },
+  // 엔진 봉인 (M07 G4, 10_Engine/engineSeal.ts) — 봉인을 고치면 바뀐 엔진이 통과한다
+  { name: 'engine-seal.json', dir: false },
 ] as const
 
 function slashed(p: string): string {
@@ -39,7 +41,7 @@ export function enginePathDenyRules(userDataDir: string): string[] {
 const BEFORE = `(?:^|[\\s"'=/<>(;&|\`])`
 const AFTER = `(?=$|[\\s"'\`;)|&<>/])`
 const AFTER_DIR = `(?=$|[\\s"'\`;)|&<>])`
-const TARGET_WORD = new RegExp(`(?:^|[\\s"'=<>(;&|])(?:engines|engine-config\\.json|controls\\.json|engine[*?[]|control[*?[])`)
+const TARGET_WORD = new RegExp(`(?:^|[\\s"'=<>(;&|])(?:engines|engine-config\\.json|engine-seal\\.json|controls\\.json|engine[*?[]|control[*?[])`)
 
 function escapeRe(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')

@@ -6,6 +6,7 @@ import { pathToFileURL } from 'node:url'
 import { app } from 'electron'
 import { getUserDataDir } from '@main/02_Common/userData'
 import type { EngineVersionState, EngineInstallProgress } from '../../shared/ipcContract'
+import { checkSeal, removeSeal, resolveEntry, writeSeal } from './engineSeal'
 
 const PACKAGE = '@anthropic-ai/claude-agent-sdk'
 
@@ -110,21 +111,6 @@ function major(version: string | null): number {
   return m ? parseInt(m[1], 10) : -1
 }
 
-function resolveEntry(pkg: Record<string, unknown>): string | null {
-  const exp = pkg.exports as unknown
-  const dot = exp && typeof exp === 'object' ? (exp as Record<string, unknown>)['.'] ?? exp : exp
-  if (typeof dot === 'string') return dot
-  if (dot && typeof dot === 'object') {
-    const o = dot as Record<string, unknown>
-    for (const key of ['import', 'module', 'node', 'default']) {
-      if (typeof o[key] === 'string') return o[key] as string
-    }
-  }
-  if (typeof pkg.module === 'string') return pkg.module
-  if (typeof pkg.main === 'string') return pkg.main
-  return 'index.js'
-}
-
 export function maskSecrets(line: string): string {
   return line
     .replace(/(_authToken|:_password|_auth)=\S+/g, '$1=***')
@@ -139,7 +125,8 @@ export function getVersionState(overrideUserData?: string): EngineVersionState {
   const installed = listInstalled(userData)
   let active = readConfig(userData).activeVersion
   if (active && !installed.includes(active)) active = null
-  return { package: PACKAGE, bundled: bundledVersion(), active, installed }
+  const bundled = bundledVersion()
+  return { package: PACKAGE, bundled, active, installed, seal: checkSeal(userData, active, bundled) }
 }
 
 export function setActive(version: string | null, overrideUserData?: string): void {
@@ -151,6 +138,9 @@ export function setActive(version: string | null, overrideUserData?: string): vo
     throw new Error(`버전 ${version}이(가) 설치되어 있지 않습니다.`)
   }
   writeConfig(userData, { activeVersion: version })
+  // 앱의 엔진 선택이 곧 사람 확인이다 — 고른 엔진을 봉인하고, 지우면 봉인도 지운다 (M07 G4)
+  if (version) writeSeal(userData, version)
+  else removeSeal(userData)
   sdkCache = null
 }
 
@@ -289,8 +279,6 @@ export async function loadActiveQuery(overrideUserData?: string): Promise<QueryF
 
   if (!active) return null
 
-  if (sdkCache?.version === active) return sdkCache.query
-
   const activeMajor = major(active)
   const bundledMajor = major(state.bundled)
   if (bundledMajor !== -1 && activeMajor !== -1 && activeMajor !== bundledMajor) {
@@ -300,6 +288,14 @@ export async function loadActiveQuery(overrideUserData?: string): Promise<QueryF
     )
     return null
   }
+
+  // M07 G4: 봉인은 캐시보다 먼저, 실행마다 본다 — 앱 밖에서 바뀐 엔진은 이미 불러온 적이 있어도 쓰지 않는다
+  if (state.seal !== 'ok') {
+    console.warn(`[engine-versions] 엔진 봉인 ${state.seal}: active=${active} — 동적 로드 거부, 번들 폴백. 엔진 화면에서 다시 고르면 봉인된다.`)
+    return null
+  }
+
+  if (sdkCache?.version === active) return sdkCache.query
 
   try {
     const userData = getUserDataPath(overrideUserData)

@@ -51,5 +51,6 @@ describe('카드 문구', () => {
     expect(mergeOutcomeText({ status: 'refused', message: '권한이 없어요' })).toBe('병합하지 않았어요 — 권한이 없어요')
     expect(mergeOutcomeText({ status: 'failed', message: 'Merge conflict' })).toBe('병합 실패 — Merge conflict')
     expect(mergeOutcomeText({ status: 'timeout', message: '결과 대기 시간 초과 — 다시 읽기로 확인하세요' })).toBe('결과 대기 시간 초과 — 다시 읽기로 확인하세요')
+    expect(mergeOutcomeText({ status: 'unknown', message: '결과 모름 — 다시 읽기로 확인하세요' })).toBe('결과 모름 — 다시 읽기로 확인하세요')
   })
 })

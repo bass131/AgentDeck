@@ -56,22 +56,27 @@ const prBody = (over: Record<string, unknown> = {}) => ({
   ...over,
 })
 
+// 이 저장소 실측: 보호 API `checks: [{context:"hard-gates", app_id:15368}]`, check run `app.id: 15368`(github-actions)
+const APP = 15368
+const protectedBy = (appId: number | null) => ok({ contexts: ['hard-gates'], checks: [{ context: 'hard-gates', app_id: appId }] })
+
 function setup(opts: {
   pr?: Record<string, unknown>
   protection?: GhResult
-  runs?: { name: string; status: string; conclusion: string | null }[]
+  runs?: { name: string; status: string; conclusion: string | null; app?: { id: number } }[]
   statuses?: { context: string; state: string }[]
   extra?: [RegExp, GhResult | GhResult[]][]
   origin?: string | null
   pollTimeoutMs?: number
 }) {
+  const runs = (opts.runs ?? [{ name: 'hard-gates', status: 'completed', conclusion: 'success' }]).map((r) => ({ app: { id: APP }, ...r }))
   const f: Fake = {
     calls: [],
     routes: [
       ...(opts.extra ?? []),
       [/^api repos\/bass131\/AgentDeck\/pulls\/12$/, ok(prBody(opts.pr))],
-      [/protection\/required_status_checks$/, opts.protection ?? ok({ contexts: ['hard-gates'] })],
-      [/check-runs/, ok({ total_count: 1, check_runs: opts.runs ?? [{ name: 'hard-gates', status: 'completed', conclusion: 'success' }] })],
+      [/protection\/required_status_checks$/, opts.protection ?? protectedBy(APP)],
+      [/check-runs/, ok({ total_count: runs.length, check_runs: runs })],
       [/\/status$/, ok({ state: 'pending', statuses: opts.statuses ?? [] })],
     ],
   }
@@ -160,14 +165,15 @@ describe('PR 읽기', () => {
     }
   })
 
-  it('검사 결과: check run 성공·대기·실패·없음, 상태(status) 성공', async () => {
+  it('검사 결과: check run 성공·대기·실패·없음, 앱이 정해지지 않은 검사의 상태(status)', async () => {
+    const anyApp = protectedBy(null)
     const cases: [Parameters<typeof setup>[0], string][] = [
       [{ runs: [{ name: 'hard-gates', status: 'in_progress', conclusion: null }] }, 'pending'],
       [{ runs: [{ name: 'hard-gates', status: 'completed', conclusion: 'failure' }] }, 'failure'],
       [{ runs: [{ name: 'other', status: 'completed', conclusion: 'success' }] }, 'missing'],
-      [{ runs: [], statuses: [{ context: 'hard-gates', state: 'success' }] }, 'success'],
-      [{ runs: [], statuses: [{ context: 'hard-gates', state: 'pending' }] }, 'pending'],
-      [{ runs: [{ name: 'hard-gates', status: 'completed', conclusion: 'failure' }, { name: 'hard-gates', status: 'completed', conclusion: 'success' }] }, 'success'],
+      [{ protection: anyApp, runs: [], statuses: [{ context: 'hard-gates', state: 'success' }] }, 'success'],
+      [{ protection: anyApp, runs: [], statuses: [{ context: 'hard-gates', state: 'pending' }] }, 'pending'],
+      [{ protection: protectedBy(-1), runs: [], statuses: [{ context: 'hard-gates', state: 'success' }] }, 'success'],
       [{ runs: [{ name: 'hard-gates', status: 'queued', conclusion: null }, { name: 'hard-gates', status: 'completed', conclusion: 'failure' }] }, 'failure'],
     ]
     for (const [o, want] of cases) {
@@ -176,6 +182,54 @@ describe('PR 읽기', () => {
       if (!r.ok) throw new Error('읽기 실패')
       expect(r.pr.checks[0].result, JSON.stringify(o)).toBe(want)
     }
+  })
+
+  it('여럿이 맞으면 닫힌 쪽으로 정한다 — 실패 > 대기 > 성공 > 없음 (검수 중요 2)', async () => {
+    const cases: [Parameters<typeof setup>[0], string][] = [
+      // 같은 이름의 실패 run과 성공 run → 실패
+      [{ runs: [{ name: 'hard-gates', status: 'completed', conclusion: 'failure' }, { name: 'hard-gates', status: 'completed', conclusion: 'success' }] }, 'failure'],
+      [{ runs: [{ name: 'hard-gates', status: 'completed', conclusion: 'success' }, { name: 'hard-gates', status: 'queued', conclusion: null }] }, 'pending'],
+      // 앱이 정해진 검사(app_id 15368)는 같은 이름의 commit status를 보지 않는다 → 실패 run이 남는다
+      [{ runs: [{ name: 'hard-gates', status: 'completed', conclusion: 'failure' }], statuses: [{ context: 'hard-gates', state: 'success' }] }, 'failure'],
+      // 앱이 정해진 검사에 status만 성공이면 결과 없음
+      [{ runs: [], statuses: [{ context: 'hard-gates', state: 'success' }] }, 'missing'],
+      // 다른 앱의 같은 이름 run은 보지 않는다
+      [{ runs: [{ name: 'hard-gates', status: 'completed', conclusion: 'success', app: { id: 999 } }] }, 'missing'],
+      // 앱이 정해지지 않은 검사: 실패 run + 성공 status → 실패
+      [{ protection: protectedBy(null), runs: [{ name: 'hard-gates', status: 'completed', conclusion: 'failure', app: { id: 999 } }], statuses: [{ context: 'hard-gates', state: 'success' }] }, 'failure'],
+    ]
+    for (const [o, want] of cases) {
+      const { svc } = setup(o)
+      const r = await svc.readPr(CWD, { number: 12 })
+      if (!r.ok) throw new Error('읽기 실패')
+      expect(r.pr.checks[0].result, JSON.stringify(o)).toBe(want)
+      expect(r.pr.canMerge).toBe(false)
+    }
+  })
+
+  it('보호 경로의 base 이름은 인코딩한다', async () => {
+    const { svc, f } = setup({ pr: { base: { ref: 'release/1.0' } } })
+    await svc.readPr(CWD, { number: 12 })
+    expect(f.calls.some((a) => a.join(' ').includes('branches/release%2F1.0/protection/required_status_checks'))).toBe(true)
+  })
+
+  it('보호 응답의 목록 모양이 이상하면 닫힌 실패다', async () => {
+    for (const body of [{ contexts: 'hard-gates' }, { contexts: ['hard-gates'], checks: 'x' }, {}]) {
+      const { svc } = setup({ protection: ok(body) })
+      const r = await svc.readPr(CWD, { number: 12 })
+      if (!r.ok) throw new Error('읽기 실패')
+      expect(r.pr.requiredError, JSON.stringify(body)).toBeTruthy()
+      expect(r.pr.canMerge).toBe(false)
+    }
+  })
+
+  it('「Required status checks not enabled」 404는 보호는 있되 필수 검사 없음이다 — 켜지고 메모가 붙는다', async () => {
+    const { svc } = setup({ protection: fail(404, 'Required status checks not enabled') })
+    const r = await svc.readPr(CWD, { number: 12 })
+    if (!r.ok) throw new Error('읽기 실패')
+    expect(r.pr).toMatchObject({ protected: true, checks: [], canMerge: true })
+    expect(r.pr.requiredError).toBeUndefined()
+    expect(r.pr.notes.join(' ')).toMatch(/필수 검사/)
   })
 
   it('PR 자체를 읽지 못하면 상태 번호가 든 오류다', async () => {
@@ -288,6 +342,95 @@ describe('비동기 병합 API 호출', () => {
     expect(r.status).toBe('refused')
     expect(r.message).toMatch(/이미/)
     expect(diff.f.calls.some((a) => a.join(' ').includes('uuid-2'))).toBe(false)
+  })
+
+  it('409 — SHA가 같아도 대기 요청의 옵션이 다르면(bypass_rules·merge_method·merge_action) 거부하고 다른 칸을 밝힌다', async () => {
+    const cases: [Record<string, unknown>, RegExp][] = [
+      [{ bypass_rules: true }, /bypass_rules/],
+      [{ merge_method: 'squash' }, /merge_method/],
+      [{ merge_action: 'enqueue' }, /merge_action/],
+    ]
+    for (const [over, re] of cases) {
+      const s = await readThen({ extra: [[MERGE, http(409, { status: 'pending', details: { uuid: 'uuid-1', expected_head_sha: SHA, ...over } })]] })
+      const r = await s.svc.mergePr(CWD, 12, SHA)
+      expect(r.status, JSON.stringify(over)).toBe('refused')
+      expect(r.message).toMatch(re)
+      expect(s.f.calls.some((a) => POLL.test(a.join(' ')))).toBe(false)
+    }
+    // 옵션이 같거나 비어 있으면 그 요청을 기다린다
+    const same = await readThen({
+      extra: [
+        [MERGE, http(409, { status: 'pending', details: { uuid: 'uuid-1', expected_head_sha: SHA, merge_method: 'merge', merge_action: 'direct_merge', bypass_rules: false } })],
+        [POLL, http(200, { status: 'merged', details: { sha: OTHER } })],
+      ],
+    })
+    expect((await same.svc.mergePr(CWD, 12, SHA)).status).toBe('merged')
+  })
+
+  it('PUT을 보낸 뒤 HTTP 상태 없이 끝나면(시간 초과·네트워크) 결과 모름이다', async () => {
+    const { svc } = await readThen({ extra: [[MERGE, { code: -1, stdout: '', stderr: 'timed out' }]] })
+    const r = await svc.mergePr(CWD, 12, SHA)
+    expect(r.status).toBe('unknown')
+    expect(r.message).toBe('결과 모름 — 다시 읽기로 확인하세요')
+  })
+
+  it('PUT 전에 PR을 한 번 더 읽어 머리 SHA·base·열림·미병합이 같을 때만 보낸다', async () => {
+    const changed: [Record<string, unknown>, string][] = [
+      [{ head: { ref: 'feat/x', sha: OTHER } }, 'head'],
+      [{ base: { ref: 'main' } }, 'base'],
+      [{ state: 'closed' }, 'closed'],
+      [{ merged: true }, 'merged'],
+    ]
+    for (const [over, label] of changed) {
+      const s = setup({ extra: [[/^api repos\/bass131\/AgentDeck\/pulls\/12$/, [ok(prBody()), ok(prBody(over))]]] })
+      expect((await s.svc.readPr(CWD, { number: 12 })).ok).toBe(true)
+      const r = await s.svc.mergePr(CWD, 12, SHA)
+      expect(r.status, label).toBe('refused')
+      expect(r.message).toMatch(/PR이 바뀌었어요/)
+      expect(s.f.calls.some((a) => MERGE.test(a.join(' '))), label).toBe(false)
+    }
+    // 같으면 보낸다 — PUT 직전에 PR GET이 한 번 더 있다
+    const { svc, f } = await readThen({ extra: [[MERGE, http(400, { message: 'closed' })]] })
+    await svc.mergePr(CWD, 12, SHA)
+    const joined = f.calls.map((a) => a.join(' '))
+    const putAt = joined.findIndex((j) => MERGE.test(j))
+    expect(putAt).toBeGreaterThan(0)
+    expect(joined[putAt - 1]).toBe('api repos/bass131/AgentDeck/pulls/12')
+  })
+
+  it('병합이 SHA를 쓴 뒤 도착한, 그 전에 시작한 읽기는 SHA를 다시 무장하지 않는다', async () => {
+    const calls: string[][] = []
+    let prGets = 0
+    let release: (r: GhResult) => void = () => {}
+    const svc = createPrService({
+      gh: async (args) => {
+        calls.push(args)
+        const j = args.join(' ')
+        if (/^api repos\/bass131\/AgentDeck\/pulls\/12$/.test(j)) {
+          prGets++
+          // 두 번째 PR 읽기(늦게 도착할 읽기)만 붙잡아 둔다
+          if (prGets === 2) return new Promise<GhResult>((res) => { release = res })
+          return ok(prBody())
+        }
+        if (/protection/.test(j)) return protectedBy(APP)
+        if (/check-runs/.test(j)) return ok({ check_runs: [{ name: 'hard-gates', status: 'completed', conclusion: 'success', app: { id: APP } }] })
+        if (/\/status$/.test(j)) return ok({ statuses: [] })
+        if (MERGE.test(j)) return http(400, { message: 'closed' })
+        throw new Error('예상 밖: ' + j)
+      },
+      originUrl: async () => 'https://github.com/bass131/AgentDeck.git',
+      sleep: async () => {},
+    })
+    expect((await svc.readPr(CWD, { number: 12 })).ok).toBe(true)
+    const late = svc.readPr(CWD, { number: 12 })
+    expect((await svc.mergePr(CWD, 12, SHA)).status).toBe('refused')
+    release(ok(prBody()))
+    expect((await late).ok).toBe(true)
+    const before = calls.length
+    const again = await svc.mergePr(CWD, 12, SHA)
+    expect(again.status).toBe('refused')
+    expect(again.message).toMatch(/다시 읽/)
+    expect(calls.length).toBe(before)
   })
 
   it('403·404·422는 각각의 사유로 보인다', async () => {

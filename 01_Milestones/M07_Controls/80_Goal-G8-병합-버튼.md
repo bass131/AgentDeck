@@ -1,6 +1,6 @@
 # M07 G8 — 병합 버튼 · 병합을 사람 버튼으로 옮기고 에이전트의 병합 길을 거부한다
 
-- 마일스톤: M07 사용자 컨트롤 · 작성: 2026-11-18 · 상태: 실행 중 · 검증 강도: 강(판정 장치·헌법 변경, 앱 소스 50줄 이상)
+- 마일스톤: M07 사용자 컨트롤 · 작성: 2026-11-18 · 상태: 병합 대기 (PR 74) · 검증 강도: 강(판정 장치·헌법 변경, 앱 소스 50줄 이상)
 - 작업 브랜치: `feat/m07-g8-merge-button` — master `aaaef0e4`(PR 73) 위에서 갈랐다. G7 종결 기록 커밋 `dcb9d02c`를 함께 싣는다.
 - 출발점: G8 설계 `M06_SelfDev/81_G8-컨트롤-설계/40_병합-분리.md` 「단계 A」와 `60` 순서 4. 앞선 조건 둘(컨트롤 골격 G2, 필수 검사 `hard-gates`)은 충족됐다. 사용자가 2026-11-18에 `master` 보호에 `hard-gates`를 걸었고, 보호 API로 `contexts: ["hard-gates"]`, `enforce_admins: true`를 읽었다.
 
@@ -28,7 +28,7 @@
   - 앱 소스: `main/04_Claude/permission/`(새 잠금 노드, `controlNodes.ts` 목록), `main/04_Claude/sdkOptions.ts`(훅 등록), `main/08_Git/`(PR 서비스), `main/01_Ipc/handlers/`, `shared/08_Git/`·`shared/01_Ipc/`(채널), `renderer/src/08_Git/`(Git 창 불러오기), `renderer/src/05_Conversation/`(카드와 감지), `02_Project/01_TestCode/` 미러.
   - **판정 장치(헌법 3조, 이름으로)**
     - `98_Management/01_GateState/gate-config.json` — `planPath`를 이 문서로 전환(1단계).
-    - `.claude/settings.json` — `ask`의 `Bash(gh pr merge*)`를 `deny`로 옮기고, `deny`에 `Bash(gh api *pulls/*/merge*)`, `Bash(gh api graphql*mergePullRequest*)`, `Bash(gh api graphql*enablePullRequestAutoMerge*)`를 더한다(4단계).
+    - `.claude/settings.json` — `ask`의 `Bash(gh pr merge*)`를 `deny`로 옮기고, `deny`에 병합 API 경로·GraphQL 병합 mutation·옵션 앞 꼴·`timeout` 앞붙임 규칙을 더한다(4단계, 9단계 검수 반영).
     - `.claude/hooks/settings-matcher.test.mjs` — 103~107행의 `ask` 유지 단정을 `deny` 단정으로 바꾼다(4단계).
     - `CLAUDE.md`·`AGENTS.md` — 10조(병합은 사람이 앱의 병합 버튼으로, 에이전트의 병합 명령은 설정이 거부), 11조(마감 판정은 사용자의 병합이 겸함), 6조(하드 게이트 다섯 종을 CI `hard-gates`가 PR마다 돌리고 `master` 보호의 필수 검사다)(4단계).
   - 문서: 이 goal 문서, `M07_Controls/01_Work_Pin.md`·`99_Backlog.md`, `.claude/commands/gate.md`(70행 병합 문구), `00_Documents/02_Rules/04_Goal-한장-템플릿.md`(병합 승인 문구), `99_Others/Dashboard/`(병합 종류 `kind: merge` 처리와 「병합은 메인 세션이 승인 다이얼로그로」 안내문, 그 테스트).
@@ -57,9 +57,9 @@
 - [x] 4. 판정 장치 개정 — `.claude/settings.json`, `settings-matcher.test.mjs`, 헌법 10·11·6조(두 파일), 그 뒤 CLI 거부 실측
 - [x] 5. 문서 정리 — pin 문구, `gate.md`, 템플릿, 현황판 병합 경로 폐지
 - [x] 6. 하드 게이트 다섯 종과 `npm test`
-- [>] 7. 커밋, push, PR 생성
-- [ ] 8. 실제 경로 — 빌드본 앱에서 이 PR의 카드와 앱 세션 거부를 본다
-- [ ] 9. 독립 검수 1회와 반영, push, 결과 보고
+- [x] 7. 커밋, push, PR 생성
+- [x] 8. 실제 경로 — 빌드본 앱에서 이 PR의 카드와 앱 세션 거부를 본다
+- [x] 9. 독립 검수 1회와 반영, push, 결과 보고
 
 실행 단계 일괄 승인 대상 (로드맵 일회 예외로 합의 문답 없이 시작한다)
 
@@ -81,6 +81,13 @@ DoD
 - PASS 2026-11-18T05:38:00+09:00 — 2~3단계: 구현 워커(Opus)가 `mergeDeny.ts`(잠금 노드, 거부 51·통과 46 사례), `prMerge.ts`(PR 읽기·비동기 병합·대기, 34 사례), PR 카드와 두 길(Git 창 번호 불러오기, 대화의 `gh pr create` 결과)을 만들었다. `mergeDeny`·`prMerge`·IPC 계약·Git 창·Bash 카드 테스트는 구현 전에 실패를 봤다. `prCardModel`·`PrCard`·ThreadView cwd 테스트는 구현 뒤에 처음 돌렸다.
 - PASS 2026-11-18T05:38:00+09:00 — 4단계: `.claude/settings.json`의 `Bash(gh pr merge*)`를 `ask`에서 `deny`로 옮기고 병합 API 거부 셋을 더했다. `settings-matcher.test.mjs` 단정을 바꿨고, 두 헌법의 6·10·11조를 같게 고쳤다(조항 절 diff 0). 이 CLI 세션에서 `gh pr merge 999999 --repo bass131/AgentDeck`와 `gh api -X PUT .../pulls/999999/merge-async`가 질문 창 없이 거부됐다.
 - PASS 2026-11-18T05:38:00+09:00 — 5~6단계: pin, `gate.md`, 템플릿, 현황판(`kind: merge` 은퇴 경고, 병합 결정 표시와 안내문 제거, 「내 손」 문구)을 고쳤다. 현황판 시험 149 통과(새 단정은 구현 전 실패를 봤다). 하드 게이트 다섯 종 exit 0(린트 경고 1건은 기존 줄). `npm test` 449파일 통과·6 건너뜀, 8,108 통과·실패 0(05:34:15 시작).
+- PASS 2026-11-18T05:40:37+09:00 — 7~8단계: 커밋 `c8f107c1`을 push하고 PR 74를 열었다. 이 브랜치 빌드본을 임시 userData와 임시 작업 폴더(origin만 이 저장소)로 띄웠다(프로브 `e2e/m07-g8-merge-card-live.e2e.ts`, 2 통과). Git 창에서 PR 74를 불러오자 카드의 머리 SHA가 GitHub 값 `c8f107c1…`과 같았고, `hard-gates`가 「대기 중」이라 병합 버튼은 꺼져 있었다. 같은 앱의 에이전트가 `gh pr merge 999999 --repo bass131/AgentDeck`를 부르자 `merge-deny` 사유(「PR 병합은 에이전트가 하지 않습니다 — …「병합」 버튼으로 합니다」)로 거부됐다. 작업 폴더에 저장소 설정이 없어 거부 주체는 잠금 노드다.
+- PASS 2026-11-18T06:16:43+09:00 — 9단계: 구현 문맥 없는 검수자(reviewer, Opus) 1회. 차단 0·중요 3·사소 9건이다.
+  - 중요 1 반영: CLI `deny`에 옵션 앞 꼴(`gh -R`·`--repo`, `gh pr -R`·`--repo`), `timeout` 앞붙임, 경로 앞 GraphQL(`gh api *graphql*`)을 더했다. 이 세션에서 다섯 꼴(`gh -R … pr merge`, `gh pr -R … merge`, `timeout 30 gh pr merge`, `GH_REPO=… gh pr merge`, `gh api /graphql …mergePullRequest`)이 없는 PR로 질문 창 없이 거부됐다. 가드를 `deny`로 올리는 안은 사용자 결정(설정 deny만)과 어긋나 Backlog 23으로 남겼다.
+  - 중요 2 반영: 필수 검사를 보호의 `checks[{context, app_id}]`로 읽고 그 앱의 check run만 센다. 여러 결과는 실패 > 대기 > 성공 순으로 닫힌 쪽이다.
+  - 중요 3 반영: `merge-deny`가 `timeout`·`stdbuf`·`watch`·`sudo -u`·`nice`·`time`, `cmd /c`, `powershell`·`pwsh -Command`를 벗겨 읽는다.
+  - 사소 1~7 반영(경로 인코딩, 보호에 필수 검사 없음, 409 옵션 대조, 상태 모름, 늦은 읽기, 병합 직전 재확인, 따옴표 없는 heredoc 치환). 사소 8·9와 남은 꼴은 Backlog 22~25. 새 사례 31건은 구현 전 실패를 봤다. 카드의 늦은 읽기 버림은 버튼을 끄는 쪽이 경합을 막아 테스트가 없다.
+  - 하드 게이트 다섯 종 exit 0. `npm test` 449파일 통과·6 건너뜀, 8,153 통과·실패 0(06:12:35 시작). 실제 앱 프로브를 다시 돌려 2 통과했다. 이번엔 `hard-gates`가 성공이라 카드의 병합 버튼이 켜졌다(누르지 않았다). PR 74의 `hard-gates`(첫 커밋)는 통과했다.
 
 ## 결정 대장
 

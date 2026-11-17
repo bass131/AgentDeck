@@ -99,6 +99,26 @@ describe('PR 카드 (M07 G8)', () => {
     expect(git.prRead).not.toHaveBeenCalled()
   })
 
+  it('읽는 동안에는 확인과 병합이 꺼진다 (검수 사소 5)', async () => {
+    await renderCard({ number: 74 })
+    fireEvent.click(screen.getByRole('button', { name: '병합' }))
+    let release: (r: PrReadResponse) => void = () => {}
+    git.prRead.mockImplementationOnce(() => new Promise<PrReadResponse>((res) => { release = res }))
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: '다시 읽기' }))
+      await new Promise((res) => setTimeout(res, 0))
+    })
+    expect((screen.getByRole('button', { name: '확인' }) as HTMLButtonElement).disabled).toBe(true)
+    expect((screen.getByRole('button', { name: '병합' }) as HTMLButtonElement).disabled).toBe(true)
+    fireEvent.click(screen.getByRole('button', { name: '확인' }))
+    expect(git.prMerge).not.toHaveBeenCalled()
+    await act(async () => {
+      release({ ok: true, pr: view() })
+      await new Promise((res) => setTimeout(res, 0))
+    })
+    expect((screen.getByRole('button', { name: '병합' }) as HTMLButtonElement).disabled).toBe(false)
+  })
+
   it('다시 렌더해도 마운트당 한 번만 읽고, 다시 읽기를 누르면 또 읽는다', async () => {
     const { PrCard } = await import('@renderer/08_Git')
     const r = render(<PrCard cwd={CWD} number={74} />)

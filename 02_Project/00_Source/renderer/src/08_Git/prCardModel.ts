@@ -53,6 +53,7 @@ export function mergeOutcomeText(r: PrMergeResponse): string {
     case 'failed':
       return `병합 실패 — ${r.message}`
     case 'timeout':
+    case 'unknown':
       return r.message
   }
 }

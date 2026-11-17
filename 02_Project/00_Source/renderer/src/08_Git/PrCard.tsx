@@ -25,24 +25,27 @@ export function PrCard({ cwd, number, url }: PrCardProps): JSX.Element {
   // 한 번 병합을 보낸 SHA는 main이 잊는다 — 다시 읽기 전까지 버튼을 끈다
   const [spent, setSpent] = useState(false)
   const alive = useRef(true)
+  // 읽기 세대 — 병합을 시작하면 올린다. 그 전에 시작한 읽기가 늦게 와도 병합 상태(spent·phase·outcome)를 되돌리지 않는다.
+  const readGen = useRef(0)
 
   const load = useCallback((): void => {
     if (!cwd) return
+    const gen = ++readGen.current
     setLoading(true)
     ipc.git
       .prRead({ cwd, number, url })
       .then((r) => {
-        if (!alive.current) return
+        if (!alive.current || gen !== readGen.current) return
         setRead(r)
         setOutcome(null)
         setSpent(false)
         setPhase('idle')
       })
       .catch((e: unknown) => {
-        if (alive.current) setRead({ ok: false, error: e instanceof Error ? e.message : String(e) })
+        if (alive.current && gen === readGen.current) setRead({ ok: false, error: e instanceof Error ? e.message : String(e) })
       })
       .finally(() => {
-        if (alive.current) setLoading(false)
+        if (alive.current && gen === readGen.current) setLoading(false)
       })
   }, [cwd, number, url])
 
@@ -62,7 +65,10 @@ export function PrCard({ cwd, number, url }: PrCardProps): JSX.Element {
   const pr = read && read.ok ? read.pr : null
 
   const merge = (): void => {
-    if (!cwd || !pr) return
+    if (!cwd || !pr || loading) return
+    // 진행 중인 읽기를 버린다
+    readGen.current++
+    setLoading(false)
     setPhase('merging')
     setSpent(true)
     ipc.git
@@ -120,7 +126,7 @@ export function PrCard({ cwd, number, url }: PrCardProps): JSX.Element {
             <div className="prc-confirm" role="group" aria-label="병합 확인">
               <div className="prc-confirm-text">{confirmText(pr)}</div>
               <div className="prc-actions">
-                <button type="button" className="prc-btn pri" onClick={merge}>확인</button>
+                <button type="button" className="prc-btn pri" disabled={loading} onClick={merge}>확인</button>
                 <button type="button" className="prc-btn" onClick={() => setPhase('idle')}>취소</button>
               </div>
             </div>
@@ -138,7 +144,7 @@ export function PrCard({ cwd, number, url }: PrCardProps): JSX.Element {
           <button
             type="button"
             className="prc-btn pri"
-            disabled={!pr.canMerge || spent || phase !== 'idle'}
+            disabled={!pr.canMerge || spent || loading || phase !== 'idle'}
             onClick={() => setPhase('confirm')}
           >
             병합

@@ -1,5 +1,5 @@
 // PR 서비스 (M07 G8) — PR 카드의 값을 GitHub에서 직접 읽고, 사람이 누른 병합 버튼으로 비동기 병합 API를 부른다.
-// gh 실행기는 주입받는다(단위 테스트가 405·409·검사 미통과 같은 응답을 고정한다).
+// gh 실행기는 주입받는다(단위 테스트가 400·409·검사 미통과 같은 응답을 고정한다).
 //
 // 근거(github/docs `src/rest/data/fpt-2022-11-28/pulls.json`, 2026-11-18 읽음):
 //   PUT .../pulls/{n}/merge-async — 202 접수(pending, uuid·expected_head_sha), 200 이미 병합됨·병합 큐,
@@ -7,6 +7,7 @@
 //   GET .../pulls/{n}/merge-async/{uuid} — 지금 결과(pending·merged·failed·enqueued), 24시간 뒤 404.
 // `gh api -i` 실측: 첫 줄 `HTTP/2.0 404 Not Found`, 머리글 뒤 빈 줄 다음이 본문, HTTP 오류면 exit 1.
 // `-i` 없이 실패하면 stdout에 오류 본문 JSON, stderr에 `gh: <message> (HTTP 404)`가 온다.
+// 필수 검사 실측(이 저장소): 보호 API `checks: [{context:"hard-gates", app_id:15368}]`, check run `app.id: 15368`.
 import { execFile } from 'node:child_process'
 import type { PrCheckResult, PrMergeResponse, PrReadResponse, PrView } from '../../shared/ipcContract'
 import { maskCredentials } from './git'
@@ -113,28 +114,76 @@ export function mergeEligibility(pr: PrView): { canMerge: boolean; reasons: stri
     if (c.result !== 'success') reasons.push(`필수 검사 ${c.name}: ${CHECK_TEXT[c.result]}`)
   }
   if (!pr.protected && !pr.requiredError) notes.push(`${pr.baseRef} 브랜치에 보호가 없어 필수 검사가 없어요`)
+  else if (pr.protected && !pr.requiredError && pr.checks.length === 0) notes.push(`${pr.baseRef} 브랜치 보호에 필수 검사가 없어요`)
   return { canMerge: reasons.length === 0, reasons, notes }
 }
 
-// 한 검사 이름의 결과 — 성공 > 실패 > 대기 > 없음 순으로 정한다.
-function checkResult(
-  name: string,
-  runs: { name: string; status: string; conclusion: string }[],
-  statuses: { context: string; state: string }[]
-): PrCheckResult {
-  const seen: PrCheckResult[] = []
+// 필수 검사 하나 — appId가 null이면 어느 앱이든(그리고 commit status도) 받는다. 보호 API의 -1(아무 앱)도 null로 읽는다.
+interface Required {
+  name: string
+  appId: number | null
+}
+
+interface Run {
+  name: string
+  status: string
+  conclusion: string
+  appId: number | null
+}
+
+// 보호 API 본문에서 필수 검사를 읽는다. 목록 모양이 이상하면 null(닫힌 실패).
+// `checks`(context·app_id)를 우선하고, `contexts`에만 있는 이름은 앱 제한 없이 더한다.
+function requiredOf(body: unknown): Required[] | null {
+  const b = rec(body)
+  const checks = b['checks']
+  const contexts = b['contexts']
+  if (checks !== undefined && !Array.isArray(checks)) return null
+  if (contexts !== undefined && !Array.isArray(contexts)) return null
+  if (checks === undefined && contexts === undefined) return null
+  const out: Required[] = []
+  for (const c of (checks as unknown[] | undefined) ?? []) {
+    const name = str(rec(c)['context'])
+    if (!name) return null
+    const app = rec(c)['app_id']
+    out.push({ name, appId: typeof app === 'number' && app !== -1 ? app : null })
+  }
+  for (const c of (contexts as unknown[] | undefined) ?? []) {
+    if (typeof c !== 'string') return null
+    if (!out.some((r) => r.name === c)) out.push({ name: c, appId: null })
+  }
+  return out
+}
+
+// 한 필수 검사의 결과 — 여럿이 맞으면 닫힌 쪽으로: 실패 > 대기 > 성공 > 없음 (독립 검수 중요 2).
+// 앱이 정해진 검사는 그 앱의 check run만 보고, 같은 이름의 commit status는 보지 않는다(다른 주체가 같은 이름을 쓸 수 있다).
+function checkResult(req: Required, runs: Run[], statuses: { context: string; state: string }[]): PrCheckResult {
+  const seen = new Set<PrCheckResult>()
   for (const r of runs) {
-    if (r.name !== name) continue
-    if (r.status !== 'completed') seen.push('pending')
-    else seen.push(r.conclusion === 'success' ? 'success' : 'failure')
+    if (r.name !== req.name) continue
+    if (req.appId !== null && r.appId !== req.appId) continue
+    if (r.status !== 'completed') seen.add('pending')
+    else seen.add(r.conclusion === 'success' ? 'success' : 'failure')
   }
-  for (const s of statuses) {
-    if (s.context !== name) continue
-    seen.push(s.state === 'success' ? 'success' : s.state === 'pending' ? 'pending' : 'failure')
+  if (req.appId === null) {
+    for (const s of statuses) {
+      if (s.context !== req.name) continue
+      seen.add(s.state === 'success' ? 'success' : s.state === 'pending' ? 'pending' : 'failure')
+    }
   }
-  for (const want of ['success', 'failure', 'pending'] as const) if (seen.includes(want)) return want
+  for (const want of ['failure', 'pending', 'success'] as const) if (seen.has(want)) return want
   return 'missing'
 }
+
+// 409가 돌려준 대기 요청을 이어받아도 되는가 — 우리가 보낼 것과 같은 SHA·옵션일 때만. 다른 칸 이름을 돌려준다.
+function pendingMismatch(p: Record<string, unknown>): string[] {
+  const bad: string[] = []
+  if (p['bypass_rules'] === true) bad.push('bypass_rules')
+  if (p['merge_method'] !== undefined && p['merge_method'] !== 'merge') bad.push('merge_method')
+  if (p['merge_action'] !== undefined && p['merge_action'] !== 'direct_merge') bad.push('merge_action')
+  return bad
+}
+
+const UNKNOWN: PrMergeResponse = { status: 'unknown', message: '결과 모름 — 다시 읽기로 확인하세요' }
 
 // ── 서비스 ──
 export function createPrService(deps: PrServiceDeps) {
@@ -142,8 +191,10 @@ export function createPrService(deps: PrServiceDeps) {
   const now = deps.now ?? (() => Date.now())
   const interval = deps.pollIntervalMs ?? 2000
   const cap = deps.pollTimeoutMs ?? 90_000
-  // main이 마지막으로 읽어 돌려준 머리 SHA와 그때의 판정 — (저장소, 번호)마다
-  const shown = new Map<string, { sha: string; canMerge: boolean }>()
+  // main이 마지막으로 읽어 돌려준 머리 SHA·base와 그때의 판정 — (저장소, 번호)마다
+  const shown = new Map<string, { sha: string; baseRef: string; canMerge: boolean }>()
+  // 세대 — 병합이 SHA를 쓰면 올린다. 그 전에 시작한 읽기가 늦게 끝나도 SHA를 다시 무장하지 않는다.
+  const generation = new Map<string, number>()
   const keyOf = (r: RepoRef, n: number): string => `${r.owner}/${r.repo}#${n}`.toLowerCase()
 
   async function originRepo(cwd: string): Promise<RepoRef | null> {
@@ -166,6 +217,8 @@ export function createPrService(deps: PrServiceDeps) {
       number = u.number
     }
     if (!isPrNumber(number)) return { ok: false, error: 'PR 번호는 양의 정수여야 해요' }
+    const key = keyOf(repo, number)
+    const gen = generation.get(key) ?? 0
     const base = `repos/${repo.owner}/${repo.repo}`
 
     const prRes = await api(cwd, `${base}/pulls/${number}`)
@@ -197,15 +250,18 @@ export function createPrService(deps: PrServiceDeps) {
       notes: [],
     }
 
-    // 필수 검사 이름 — 「Branch not protected」 404만 보호 없음으로 읽고, 나머지 실패는 닫힌 실패다
-    // (권한 없는 토큰의 404 `Not Found`도 보호 없음으로 떨어지지 않게 한다).
-    const prot = await api(cwd, `${base}/branches/${baseRef}/protection/required_status_checks`)
-    let required: string[] = []
+    // 필수 검사 — 「Branch not protected」 404만 보호 없음, 「Required status checks not enabled」 404는 보호는 있되
+    // 필수 검사 없음으로 읽는다. 나머지 실패(권한 없는 토큰의 `Not Found` 포함)와 이상한 목록 모양은 닫힌 실패다.
+    const prot = await api(cwd, `${base}/branches/${encodeURIComponent(baseRef)}/protection/required_status_checks`)
+    let required: Required[] = []
     if (prot.status === 200) {
-      const ctx = rec(prot.body)['contexts']
-      required = Array.isArray(ctx) ? ctx.filter((c): c is string => typeof c === 'string') : []
+      const r = requiredOf(prot.body)
+      if (r) required = r
+      else view.requiredError = '보호 설정의 필수 검사 목록 모양을 읽지 못했어요'
     } else if (prot.status === 404 && /branch not protected/i.test(prot.message)) {
       view.protected = false
+    } else if (prot.status === 404 && /required status checks not enabled/i.test(prot.message)) {
+      required = []
     } else {
       view.requiredError = `보호 설정 읽기 실패 (HTTP ${prot.status ?? '?'}) ${maskCredentials(prot.message)}`.trim()
     }
@@ -220,21 +276,25 @@ export function createPrService(deps: PrServiceDeps) {
         view.checksError = `HTTP ${bad.status ?? '?'} ${maskCredentials(bad.message)}`.trim()
       }
       const runsRaw = rec(runsRes.body)['check_runs']
-      const runs = (Array.isArray(runsRaw) ? runsRaw : []).map((r) => ({
-        name: str(rec(r)['name']),
-        status: str(rec(r)['status']),
-        conclusion: str(rec(r)['conclusion']),
-      }))
+      const runs: Run[] = (Array.isArray(runsRaw) ? runsRaw : []).map((r) => {
+        const app = rec(rec(r)['app'])['id']
+        return {
+          name: str(rec(r)['name']),
+          status: str(rec(r)['status']),
+          conclusion: str(rec(r)['conclusion']),
+          appId: typeof app === 'number' ? app : null,
+        }
+      })
       const stRaw = rec(statusRes.body)['statuses']
       const statuses = (Array.isArray(stRaw) ? stRaw : []).map((s) => ({ context: str(rec(s)['context']), state: str(rec(s)['state']) }))
-      view.checks = required.map((name) => ({ name, result: checkResult(name, runs, statuses) }))
+      view.checks = required.map((req) => ({ name: req.name, result: checkResult(req, runs, statuses) }))
     }
 
     const e = mergeEligibility(view)
     view.canMerge = e.canMerge
     view.reasons = e.reasons
     view.notes = e.notes
-    shown.set(keyOf(repo, number), { sha: headSha, canMerge: e.canMerge })
+    if ((generation.get(key) ?? 0) === gen) shown.set(key, { sha: headSha, baseRef, canMerge: e.canMerge })
     return { ok: true, pr: view }
   }
 
@@ -277,16 +337,35 @@ export function createPrService(deps: PrServiceDeps) {
       return { status: 'refused', message: '화면의 머리 SHA가 마지막으로 읽은 값과 달라요 — 다시 읽은 뒤 병합하세요' }
     }
     if (!last.canMerge) return { status: 'refused', message: '마지막으로 읽은 PR이 병합 조건을 채우지 못했어요 — 다시 읽기로 확인하세요' }
-    // 한 번 보낸 SHA는 다시 쓰지 않는다 — 다음 병합은 다시 읽은 뒤에만 열린다
+    // 한 번 쓴 SHA는 다시 쓰지 않는다 — 다음 병합은 이 뒤에 시작한 읽기로만 열린다
     shown.delete(key)
+    generation.set(key, (generation.get(key) ?? 0) + 1)
 
-    const path = `repos/${repo.owner}/${repo.repo}/pulls/${number}/merge-async`
+    // 보내기 직전에 PR을 한 번 더 읽는다 — 머리 SHA·base·열림·미병합이 화면과 같을 때만 보낸다
+    const base = `repos/${repo.owner}/${repo.repo}`
+    const now0 = await api(cwd, `${base}/pulls/${number}`)
+    if (now0.status !== 200) {
+      return { status: 'refused', message: `병합 직전에 PR을 다시 읽지 못했어요 (HTTP ${now0.status ?? '?'}) — 다시 읽어 주세요` }
+    }
+    const p = rec(now0.body)
+    if (
+      str(rec(p['head'])['sha']).toLowerCase() !== sha.toLowerCase() ||
+      str(rec(p['base'])['ref']) !== last.baseRef ||
+      p['state'] !== 'open' ||
+      p['merged'] === true
+    ) {
+      return { status: 'refused', message: 'PR이 바뀌었어요 — 다시 읽어 주세요' }
+    }
+
+    const path = `${base}/pulls/${number}/merge-async`
     const r = parseIncluded(
       await deps.gh(
         ['api', '-i', '-X', 'PUT', path, '-f', `sha=${sha}`, '-f', 'merge_method=merge', '-f', 'merge_action=direct_merge', '-F', 'bypass_rules=false'],
         cwd
       )
     )
+    // 보낸 뒤 HTTP 상태 없이 끝났다(시간 초과·네트워크) — 서버가 받았는지 알 수 없다
+    if (r.status === null) return UNKNOWN
     const b = rec(r.body)
     const d = rec(b['details'])
     const detail = r.message ? ` — ${maskCredentials(r.message)}` : ''
@@ -301,10 +380,14 @@ export function createPrService(deps: PrServiceDeps) {
         return finalOf(b) ?? { status: 'failed', message: '병합 응답을 읽지 못했어요' }
       case 409: {
         const pending = Object.keys(d).length > 0 ? d : b
-        if (str(pending['expected_head_sha']).toLowerCase() === sha.toLowerCase() && str(pending['uuid'])) {
-          return poll(cwd, `${path}/${str(pending['uuid'])}`)
+        if (str(pending['expected_head_sha']).toLowerCase() !== sha.toLowerCase() || !str(pending['uuid'])) {
+          return { status: 'refused', message: `이미 다른 머리 SHA로 대기 중인 병합 요청이 있어요${detail}` }
         }
-        return { status: 'refused', message: `이미 다른 머리 SHA로 대기 중인 병합 요청이 있어요${detail}` }
+        const bad = pendingMismatch(pending)
+        if (bad.length > 0) {
+          return { status: 'refused', message: `이미 대기 중인 병합 요청의 옵션이 달라요(${bad.join(', ')}) — GitHub에서 확인하세요` }
+        }
+        return poll(cwd, `${path}/${str(pending['uuid'])}`)
       }
       case 400:
         return { status: 'refused', message: `PR이 병합할 수 없는 상태예요(닫힘 등)${detail}` }
@@ -315,7 +398,7 @@ export function createPrService(deps: PrServiceDeps) {
       case 422:
         return { status: 'refused', message: `요청이 검증에 실패했어요${detail}` }
       default:
-        return { status: 'failed', message: `병합 요청 실패 (HTTP ${r.status ?? '?'})${detail}` }
+        return { status: 'failed', message: `병합 요청 실패 (HTTP ${r.status})${detail}` }
     }
   }
 

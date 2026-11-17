@@ -107,14 +107,21 @@ if (settings) {
   // 질문 없이 거부한다. 공식 문서(code.claude.com/docs/en/hooks): 「Deny and ask rules are still evaluated
   // regardless of what the hook returns.」 — 가드 훅의 ask가 있어도 이 deny가 이긴다.
   const denyList = (settings.permissions?.deny ?? []).map(String)
+  // 규칙은 첫 `*` 앞 글자를 그대로 맞춘다(공식 문서) — 그래서 옵션을 앞에 둔 꼴과 `timeout` 앞붙임을 따로 적는다(G8 검수 중요 1).
+  // 맨 앞 `*`(`Bash(*gh pr merge*)`)는 쓰지 않는다 — 커밋 메시지·검색어에 든 글자까지 막는다.
   const MERGE_DENY = [
     'Bash(gh pr merge*)',
+    'Bash(gh -R * pr merge*)',
+    'Bash(gh --repo * pr merge*)',
+    'Bash(gh pr -R * merge*)',
+    'Bash(gh pr --repo * merge*)',
+    'Bash(timeout * gh pr merge*)',
     'Bash(gh api *pulls/*/merge*)',
-    'Bash(gh api graphql*mergePullRequest*)',
-    'Bash(gh api graphql*enablePullRequestAutoMerge*)',
+    'Bash(gh api *graphql*mergePullRequest*)',
+    'Bash(gh api *graphql*enablePullRequestAutoMerge*)',
   ]
   const lostDeny = MERGE_DENY.filter((rule) => !denyList.includes(rule))
-  r.check('병합 명령 넷이 deny에 있다', lostDeny.length === 0, lostDeny.join(', ') || '누락 0건')
+  r.check('병합 명령 거부 아홉이 deny에 있다', lostDeny.length === 0, lostDeny.join(', ') || '누락 0건')
   r.check('병합 명령이 ask에 남지 않았다 (deny와 겹치면 의도가 흐려진다)', !askList.some((x) => x.includes('merge')), askList.filter((x) => x.includes('merge')).join(', ') || '0건')
   const leaked = [...APPROVAL, ...MERGE_DENY].filter((rule) => allowList.includes(rule))
   r.check('승인·거부 항목이 allow로 새지 않았다', leaked.length === 0, leaked.join(', ') || '0건')

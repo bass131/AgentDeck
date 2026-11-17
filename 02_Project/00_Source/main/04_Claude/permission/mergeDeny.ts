@@ -24,6 +24,8 @@ const SHELL_TAIL = /(?:^|[\s;&|(])(?:\S*[\\/])?(?:ba|da|z|k|a)?sh(?:\.exe)?(?:\s
 
 // heredoc 본문을 지운다 — `--body "$(cat <<'EOF' … EOF)"`의 본문은 명령이 아니다.
 // 셸에 먹이는 heredoc은 본문이 명령이라 지우지 않는다.
+// 끝말에 따옴표가 없으면(`<<EOF`, `<<-EOF`) bash가 본문의 `$( … )`·`` ` … ` ``를 실행하므로, 그 안쪽 글을 명령 줄로 남긴다
+// (독립 검수 사소 7). 따옴표 친 끝말(`<<'EOF'`, `<<"EOF"`)의 본문은 치환하지 않아 통째로 지운다.
 function stripHeredocBodies(text: string): string {
   const lines = text.split('\n')
   const out: string[] = []
@@ -38,9 +40,38 @@ function stripHeredocBodies(text: string): string {
     let j = i + 1
     while (j < lines.length && (tabs ? lines[j].replace(/^\t+/, '') : lines[j]).trimEnd() !== m[3]) j++
     // 끝 줄이 없으면 지우지 않는다 — 짝 없는 `<<`가 뒤 명령을 숨기지 않게 한다
-    if (j < lines.length) i = j
+    if (j >= lines.length) continue
+    if (m[2] === '') out.push(...bodySubstitutions(lines.slice(i + 1, j).join('\n')))
+    i = j
   }
   return out.join('\n')
+}
+
+// 따옴표 없는 heredoc 본문의 명령 치환 — 본문의 따옴표는 글자일 뿐이라 따옴표를 따지지 않는다. `\$`·`` \` ``는 글자다.
+function bodySubstitutions(body: string): string[] {
+  const found: string[] = []
+  for (let i = 0; i < body.length; i++) {
+    const ch = body[i]
+    if (ch === '\\') { i++; continue }
+    if (ch === '$' && body[i + 1] === '(') {
+      let depth = 0
+      let j = i + 1
+      for (; j < body.length; j++) {
+        if (body[j] === '(') depth++
+        else if (body[j] === ')' && --depth === 0) break
+      }
+      found.push(body.slice(i + 2, j))
+      i = j
+      continue
+    }
+    if (ch === '`') {
+      const end = body.indexOf('`', i + 1)
+      if (end < 0) break
+      found.push(body.slice(i + 1, end))
+      i = end
+    }
+  }
+  return found
 }
 
 // `$( … )`·`` ` … ` ``의 안쪽 글을 따로 판독할 스크립트로 꺼낸다(작은따옴표 밖만).
@@ -110,7 +141,29 @@ function tokenize(segment: string): string[] {
   return out
 }
 
-const WRAPPERS = new Set(['sudo', 'doas', 'env', 'nohup', 'time', 'nice', 'ionice', 'xargs', 'command', 'busybox', 'exec'])
+// 래퍼 — 뒤의 낱말을 명령으로 실행한다. 값을 다음 낱말로 받는 옵션과, 명령 앞의 위치 인자 수(`timeout <시간>`)를 적는다.
+// 값이 붙은 꼴(`-o0`, `--signal=KILL`)은 한 낱말이라 따로 적지 않는다 (독립 검수 중요 3).
+interface WrapperSpec {
+  valueOpts: readonly string[]
+  positional: number
+}
+const WRAPPERS: ReadonlyMap<string, WrapperSpec> = new Map<string, WrapperSpec>([
+  ['sudo', { valueOpts: ['-u', '-g', '-h', '-p', '-C', '-U', '-r', '-t', '-D', '-R', '-T', '--user', '--group', '--host', '--prompt', '--close-from', '--other-user', '--role', '--type', '--chdir', '--chroot', '--command-timeout'], positional: 0 }],
+  ['doas', { valueOpts: ['-u', '-C'], positional: 0 }],
+  ['env', { valueOpts: ['-u', '-C', '--unset', '--chdir'], positional: 0 }],
+  ['nohup', { valueOpts: [], positional: 0 }],
+  ['time', { valueOpts: ['-f', '-o', '--format', '--output'], positional: 0 }],
+  ['nice', { valueOpts: ['-n', '--adjustment'], positional: 0 }],
+  ['ionice', { valueOpts: ['-c', '-n', '-p', '-P', '-u', '--class', '--classdata', '--pid', '--pgid', '--uid'], positional: 0 }],
+  ['xargs', { valueOpts: ['-a', '-d', '-E', '-I', '-L', '-n', '-P', '-s', '--arg-file', '--delimiter', '--eof', '--replace', '--max-lines', '--max-args', '--max-procs', '--max-chars', '--process-slot-var'], positional: 0 }],
+  ['command', { valueOpts: [], positional: 0 }],
+  ['busybox', { valueOpts: [], positional: 0 }],
+  ['exec', { valueOpts: ['-a'], positional: 0 }],
+  ['timeout', { valueOpts: ['-s', '-k', '--signal', '--kill-after'], positional: 1 }],
+  ['stdbuf', { valueOpts: ['-i', '-o', '-e', '--input', '--output', '--error'], positional: 0 }],
+  ['watch', { valueOpts: ['-n', '--interval', '-q', '--equexit'], positional: 0 }],
+])
+const wrapperOf = (token: string): WrapperSpec | undefined => WRAPPERS.get(baseName(token).replace(/\.exe$/, ''))
 const RE_ASSIGN = /^[A-Za-z_][A-Za-z0-9_]*=/
 const RE_SHELL_C = /^-[A-Za-z]*c$/
 
@@ -126,16 +179,20 @@ interface Cmd {
 
 // 명령 위치 — 머리의 `VAR=값` 할당과 셸 문법 낱말(`{`·`!`·`then`·`do` …)을 건너뛰고, 래퍼(`sudo`·`env`·`xargs` …) 뒤의 명령도 본다.
 // 중괄호는 구분자로 두지 않는다 — `gh api repos/{owner}/{repo}/…` 자리표시가 쪼개진다.
-const SHELL_WORDS = new Set(['{', '}', '!', 'then', 'do', 'else', 'elif', 'if', 'while', 'until', 'time'])
+const SHELL_WORDS = new Set(['{', '}', '!', 'then', 'do', 'else', 'elif', 'if', 'while', 'until'])
 function commandsOf(tokens: string[]): Cmd[] {
   let head = 0
   while (head < tokens.length - 1 && (RE_ASSIGN.test(tokens[head]) || SHELL_WORDS.has(tokens[head]))) head++
   if (head >= tokens.length) return []
   const cmds: Cmd[] = [{ base: baseName(tokens[head]), args: tokens.slice(head + 1) }]
   let i = head
-  while (i < tokens.length - 1 && WRAPPERS.has(baseName(tokens[i]))) {
+  for (let spec = wrapperOf(tokens[i]); spec && i < tokens.length - 1; spec = wrapperOf(tokens[i])) {
     let j = i + 1
-    while (j < tokens.length && (tokens[j].startsWith('-') || RE_ASSIGN.test(tokens[j]))) j++
+    // 옵션(값을 받는 옵션은 그 값까지)과 `VAR=값`을 건너뛰고, 위치 인자(`timeout`의 시간)를 건너뛴다
+    while (j < tokens.length && (tokens[j].startsWith('-') || RE_ASSIGN.test(tokens[j]))) {
+      j += spec.valueOpts.includes(tokens[j]) ? 2 : 1
+    }
+    j += spec.positional
     if (j >= tokens.length) break
     cmds.push({ base: baseName(tokens[j]), args: tokens.slice(j + 1) })
     i = j
@@ -178,6 +235,28 @@ function apiShowsMergePath(args: string[]): boolean {
   return false
 }
 
+const CMD_SHELLS = new Set(['cmd', 'cmd.exe'])
+const POWERSHELLS = new Set(['powershell', 'powershell.exe', 'pwsh', 'pwsh.exe'])
+// `-Command`의 줄임(`-c`, `-com` …)과 `-File`의 줄임
+const PS_COMMAND = /^[-/](?:c|co|com|comm|comma|comman|command)$/i
+const PS_FILE = /^[-/](?:f|fi|fil|file)$/i
+
+// Windows 셸이면 안쪽에서 실행될 스크립트 후보를, 아니면 null을 돌려준다.
+function windowsShellScripts(c: Cmd): string[] | null {
+  if (CMD_SHELLS.has(c.base)) {
+    const k = c.args.findIndex((t) => /^\/[ck]$/i.test(t))
+    return k >= 0 ? [c.args.slice(k + 1).join(' ')] : []
+  }
+  if (!POWERSHELLS.has(c.base)) return null
+  const k = c.args.findIndex((t) => PS_COMMAND.test(t))
+  if (k >= 0) return [c.args.slice(k + 1).join(' ')]
+  if (c.args.some((t) => PS_FILE.test(t))) return []
+  // 옵션 값(`-ExecutionPolicy Bypass`)과 명령을 가르지 못하므로, 옵션이 아닌 낱말마다 거기서부터를 후보로 본다
+  const out: string[] = []
+  c.args.forEach((t, i) => { if (!t.startsWith('-')) out.push(c.args.slice(i).join(' ')) })
+  return out
+}
+
 function scriptReason(script: string, rawText: string, depth: number): string | null {
   if (depth > 4) return null
   const text = stripHeredocBodies(script.replace(/\\\r?\n/g, ' '))
@@ -191,6 +270,16 @@ function scriptReason(script: string, rawText: string, depth: number): string | 
         const k = c.args.findIndex((t) => RE_SHELL_C.test(t))
         if (k >= 0 && k + 1 < c.args.length) {
           const r = scriptReason(c.args[k + 1], rawText, depth + 1)
+          if (r) return r
+        }
+        continue
+      }
+      // Windows 셸 — `cmd /c …`, `powershell -Command …`, `pwsh -c …`. 뒤의 낱말을 이어 한 스크립트로 다시 읽는다(독립 검수 중요 3).
+      // powershell(.exe)은 옵션 없는 첫 낱말부터가 명령이다. pwsh는 그 자리가 파일이지만, 막는 쪽으로 같게 본다(-File이 있으면 뺀다).
+      const inner = windowsShellScripts(c)
+      if (inner) {
+        for (const s of inner) {
+          const r = scriptReason(s, rawText, depth + 1)
           if (r) return r
         }
         continue

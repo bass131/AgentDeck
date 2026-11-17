@@ -69,8 +69,9 @@ export interface PrMergeRequest {
 
 // merged: 병합 커밋 SHA가 mergeSha · enqueued: 병합 큐에 들어감 · refused: 보내지 않았거나 서버가 거부
 // failed: 서버의 병합 실패·응답 이상 · timeout: 결과 대기 시간 초과
+// unknown: 요청을 보낸 뒤 HTTP 상태 없이 끝남(시간 초과·네트워크) — 서버가 받았는지 모른다
 export interface PrMergeResponse {
-  status: 'merged' | 'enqueued' | 'refused' | 'failed' | 'timeout'
+  status: 'merged' | 'enqueued' | 'refused' | 'failed' | 'timeout' | 'unknown'
   message: string
   mergeSha?: string
 }

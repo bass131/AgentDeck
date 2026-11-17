@@ -1,6 +1,6 @@
 # M06 G7 — vitest 훅 타임아웃 · beforeAll 같은 준비 단계도 테스트 본문처럼 30초 한도를 쓴다
 
-- 마일스톤: M06 자가 개발 (G6 실주행에서 앱 안으로 돌리는 goal, Backlog 14) · 작성: 2026-11-17 · 상태: 실행 중 · 검증 강도: 약(테스트 설정 한 줄과 그 고정 테스트 — 앱 소스 변경 0, 판정 장치는 `planPath`만)
+- 마일스톤: M06 자가 개발 (G6 실주행에서 앱 안으로 돌리는 goal, Backlog 14) · 작성: 2026-11-17 · 상태: 병합 대기 (PR 64) · 검증 강도: 약(테스트 설정 한 줄과 그 고정 테스트 — 앱 소스 변경 0, 판정 장치는 `planPath`만)
 - 작업 브랜치: `fix/m06-g7-hook-timeout` — 이 작업 트리의 머리 `6eb6d0dc`에서 가른다. PR은 `master` 기준이라 G5 종결 기록 `bca217bf`와 G6 goal 문서 `6eb6d0dc`를 함께 싣고, 병합하면 master의 `planPath`가 G7을 가리킨다. G6 브랜치는 메인 쪽 `e077d409`에서 계속 열려 있다.
 
 ## 목표
@@ -28,7 +28,7 @@
 - [x] 2. 실패하는 테스트 먼저 쓰기 — `smoke.test.ts`에 `hookTimeout: 30000` 고정 테스트를 더하고 단독 실행 Red 확인. 변경 전 `pickerOptions.audit-fix.test.tsx` 단독 실행 결과도 남긴다
 - [x] 3. 훅 타임아웃 30초로 올리기 — `vitest.config.ts`에 `hookTimeout: 30000`과 사유 주석, 두 파일 단독 실행 Green
 - [x] 4. 전체 검증 — 상속 환경 변수에 흔들리는 테스트 하나 격리(사용자 결정), diff 실사, 하드 게이트 다섯 종, `npm run test`
-- [>] 5. PR 올리고 병합 승인 요청 — 커밋, `-u origin` push, `gh pr create`, 앱 대화에 결과 보고
+- [x] 5. PR 올리고 병합 승인 요청 — 커밋, `-u origin` push, `gh pr create`, 앱 대화에 결과 보고
 
 실행 단계 일괄 승인 대상
 
@@ -48,6 +48,7 @@ DoD
 - PASS 2026-11-17T09:59:42+09:00 2단계 — `smoke.test.ts`의 새 고정 테스트는 설정 변경 전 단독 실행에서 1건 Red였다. 변경 전 `pickerOptions.audit-fix.test.tsx` 단독은 34건 통과(8.33초)로 재현되지 않았지만, `--hookTimeout=3000` 진단에서 9번째 줄 `beforeAll`이 「Hook timed out in 3000ms」로 깨져 이 준비 단계가 `hookTimeout`에 묶임을 확인했다.
 - PASS 2026-11-17T09:59:42+09:00 3단계 — `vitest.config.ts`에 `hookTimeout: 30000`과 사유 주석을 넣었다(커밋 79f28388). smoke 단독 4건, audit-fix 단독 34건(8.08초)이 통과했다.
 - PASS 2026-11-17T09:59:42+09:00 4단계 — 사용자 결정으로 `sdkOptions.session-state-env.test.ts`가 각 테스트 앞에서 상속 변수를 비우고 끝나면 되돌리게 고쳤다. 변수가 있는 앱 세션에서 단독 실행이 Red 1건에서 3건 통과로 바뀌었다. 최종 트리의 diff 실사는 코드 3파일, 하드 게이트 다섯 종 exit 0이다. 앱 세션 안 `npm run test -- --reporter=dot --no-color`는 파일 435 통과·6 건너뜀, 테스트 5871 통과·10 건너뜀, 실패 0이다. TDD 가드 `green-기록`(09:59:23, 세션 611e2fcf)도 확인했다.
+- PASS 2026-11-17T10:01:26+09:00 5단계 — `-u origin fix/m06-g7-hook-timeout`으로 push하고 PR 64(https://github.com/bass131/AgentDeck/pull/64)를 `master` 기준으로 만들었다(커밋 fd7ea5a4까지). G5 종결 기록과 G6 goal 문서 커밋을 함께 싣는다. 병합 승인은 앱 대화로 요청한다.
 
 ## 결정 대장
 

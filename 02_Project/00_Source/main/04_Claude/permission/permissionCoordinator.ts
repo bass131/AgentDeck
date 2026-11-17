@@ -1,6 +1,6 @@
 import type { AgentEvent, AgentQuestion } from '@shared/agentEvents'
 import type { RunResponse } from '@main/03_Agent/AgentBackend'
-import { runPermissionNodes, type CanUseToolOptions, type Escalation } from './controlNodes'
+import { PERMISSION_NODES, runPermissionNodes, type CanUseToolOptions, type ControlNode, type Escalation } from './controlNodes'
 
 // 판별 규칙과 도구 묶음은 노드 등록부(controlNodes.ts, M07 G2)로 옮겼다. 바깥 import 자리는 그대로 둔다.
 export { ORCHESTRATION_TOOLS, escalationOf } from './controlNodes'
@@ -105,9 +105,11 @@ export class PermissionCoordinator {
     this._waiters.clear()
   }
 
+  // nodes는 이 실행에 고정한 등록부다(M07 G5 — 실행을 열 때 controls.json에서 꺼진 노드를 뺀다). 없으면 기본 등록부.
   makeCanUseTool(
     mode: string | undefined | (() => string | undefined),
-    getOrchestration: () => boolean
+    getOrchestration: () => boolean,
+    nodes: readonly ControlNode[] = PERMISSION_NODES
   ): CanUseToolFn {
     const getMode: () => string | undefined = typeof mode === 'function' ? mode : () => mode
     return async (
@@ -119,15 +121,18 @@ export class PermissionCoordinator {
       // (M06 G3 — auto·bypass 조기 허용이 가드 ask를 삼켰다).
       // 오케스트레이션 여부는 getter로 넘긴다 — 옮기기 전처럼 Workflow 노드가 읽을 때만 읽는다.
       // getter가 던지면 그 노드의 실패 정책(거부)으로 간다.
-      const verdict = runPermissionNodes({
-        toolName,
-        input,
-        ...(options !== undefined ? { options } : {}),
-        mode: getMode(),
-        get orchestration() {
-          return getOrchestration()
+      const verdict = runPermissionNodes(
+        {
+          toolName,
+          input,
+          ...(options !== undefined ? { options } : {}),
+          mode: getMode(),
+          get orchestration() {
+            return getOrchestration()
+          },
         },
-      })
+        nodes
+      )
       switch (verdict.kind) {
         case 'question':
           return this._handleAskQuestion(input, options?.signal)

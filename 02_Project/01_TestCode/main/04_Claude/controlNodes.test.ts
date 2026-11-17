@@ -45,9 +45,14 @@ describe('노드 등록부 (M07 G2)', () => {
   it('옮긴 노드의 보호 수준은 아직 L2다 — 앱 소스를 고치면 꺼진다. L1의 전제(실행 트리 분리·엔진 경로 보호)는 뒤 goal 몫이다', () => {
     for (const n of PERMISSION_NODES) {
       expect(n.protection).toBe('L2')
-      expect(n.locked).toBe(true)
       expect(n.judge).toBe('rule')
     }
+  })
+
+  it('잠금이 풀린 노드는 꺼지면 카드로 떨어지는 허용 노드 셋뿐이다 (M07 G5 결정 대장 [USER])', () => {
+    const unlocked = listControlNodes().filter((n) => !n.locked)
+    expect(unlocked.map((n) => n.id)).toEqual(['mode-auto-bypass-allow', 'readonly-allow', 'accept-edits-allow'])
+    for (const n of unlocked) expect(n.results).toEqual(['allow'])
   })
 
   it('등록부의 노드와 결과 목록은 얼어 있고, 목록 함수는 사본을 돌려준다', () => {

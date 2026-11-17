@@ -1,0 +1,28 @@
+// M07 G5 — 컨트롤 패널 채널이 설정 묶음의 라우트로 이어진다. 상태와 확인은 인자 없는 채널, 토글은 요청 하나를 받는다.
+import { describe, it, expect } from 'vitest'
+import { API_ROUTES } from '../../../../02_Project/00_Source/shared/01_Ipc/apiRoutes'
+import type { ControlsState, ControlSetEnabledReq, ReqOf, ResOf } from '../../../../02_Project/00_Source/shared/ipcContract'
+
+describe('컨트롤 패널 라우트 (M07 G5)', () => {
+  it('설정 묶음에 상태·토글·확인 셋이 있다', () => {
+    expect(API_ROUTES.settings.controlsState).toEqual({ kind: 'call0', channel: 'settings.controlsState' })
+    expect(API_ROUTES.settings.setControlEnabled).toEqual({ kind: 'call', channel: 'settings.setControlEnabled' })
+    expect(API_ROUTES.settings.confirmControls).toEqual({ kind: 'call0', channel: 'settings.confirmControls' })
+  })
+
+  it('설정 묶음의 기존 라우트는 그대로다', () => {
+    expect(API_ROUTES.settings.setSkillEnabled).toEqual({ kind: 'call', channel: 'settings.setSkillEnabled' })
+    expect(API_ROUTES.settings.getProfile).toEqual({ kind: 'call0', channel: 'settings.getProfile' })
+  })
+
+  it('요청·응답 타입이 계약 표에 있다', () => {
+    const req: ReqOf<'settings.setControlEnabled'> = { id: 'readonly-allow', enabled: false } satisfies ControlSetEnabledReq
+    const res: ResOf<'settings.controlsState'> = {
+      status: 'none',
+      nodes: [],
+      engine: { seal: 'none', active: null },
+    } satisfies ControlsState
+    expect(req.enabled).toBe(false)
+    expect(res.status).toBe('none')
+  })
+})

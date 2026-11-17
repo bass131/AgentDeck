@@ -62,7 +62,10 @@ const SKIP_DIRS = new Set(['node_modules', 'dist', 'out', 'coverage', '.git'])
 // main/04_Claude/permissionCoordinator.characterization.test.ts와 등록부를 고정하는 main/04_Claude/controlNodes.test.ts를 더했다.
 // M07 G3: 443 → 444. 앱 엔진·설정 경로 잠금(거부 규칙, Bash 잠금 훅, SDK 옵션 배선)을 고정하는 main/04_Claude/enginePathLock.test.ts를 더했다.
 // M07 G4: 444 → 445. 앱 밖에서 바뀐 엔진을 불러오지 않는 엔진 봉인을 고정하는 main/10_Engine/engineSeal.test.ts를 더했다.
-const BASELINE_TEST_FILES = 445
+// M07 G5: 445 → 450. 컨트롤 패널 — controls.json 저장·봉인·노드 걸러내기(main/04_Claude/controlsStore.test.ts),
+// 실행 시작의 닫힌 실패(main/04_Claude/claudeAgentRun.controls-gate.test.ts), IPC 핸들러(main/01_Ipc/controls.handler.test.ts),
+// 라우트 계약(shared/01_Ipc/ipcContract.controls.test.ts), 패널 화면(renderer/11_Settings/ControlsView.test.tsx)을 더했다.
+const BASELINE_TEST_FILES = 450
 
 function collectTestFiles(dir: string, acc: string[] = []): string[] {
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {

@@ -108,6 +108,8 @@ import type {
   McpSetEnabledReq,
   CommandListRequest,
   SlashCommandInfo,
+  ControlsState,
+  ControlSetEnabledReq,
 } from '../11_Settings/settings'
 import type { Profile, UiPrefs, UiPrefsSetReq } from '../11_Settings/personalization'
 import type { Ack } from '../02_Common/common'
@@ -179,6 +181,9 @@ export interface IpcInvokeMap {
   'settings.setMcpEnabled': { req: McpSetEnabledReq; res: Ack }
   'settings.listSkills': { req: SkillListRequest | undefined; res: SkillInfo[] }
   'settings.setSkillEnabled': { req: SkillSetEnabledReq; res: Ack }
+  'settings.controlsState': { req: void; res: ControlsState }
+  'settings.setControlEnabled': { req: ControlSetEnabledReq; res: Ack }
+  'settings.confirmControls': { req: void; res: Ack }
   'settings.getProfile': { req: void; res: Profile | null }
   'settings.setProfile': { req: Profile; res: Ack }
   'settings.getUiPrefs': { req: void; res: UiPrefs }

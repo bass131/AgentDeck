@@ -15,12 +15,13 @@ import type { AgentRunInput } from '@main/03_Agent/AgentBackend'
 const WIN_UD = 'C:\\Users\\x\\AppData\\Roaming\\agentdeck'
 
 describe('보호 대상과 거부 규칙 (M07 G3)', () => {
-  it('보호 대상은 userData 아래 engines 폴더, engine-config.json, controls.json, engine-seal.json(G4)이다', () => {
+  it('보호 대상은 userData 아래 engines 폴더, engine-config.json, controls.json, engine-seal.json(G4), controls-seal.json(G5)이다', () => {
     expect(protectedTargets(WIN_UD)).toEqual([
       'C:/Users/x/AppData/Roaming/agentdeck/engines',
       'C:/Users/x/AppData/Roaming/agentdeck/engine-config.json',
       'C:/Users/x/AppData/Roaming/agentdeck/controls.json',
       'C:/Users/x/AppData/Roaming/agentdeck/engine-seal.json',
+      'C:/Users/x/AppData/Roaming/agentdeck/controls-seal.json',
     ])
   })
 
@@ -30,7 +31,17 @@ describe('보호 대상과 거부 규칙 (M07 G3)', () => {
       'Edit(//c/Users/x/AppData/Roaming/agentdeck/engine-config.json)',
       'Edit(//c/Users/x/AppData/Roaming/agentdeck/controls.json)',
       'Edit(//c/Users/x/AppData/Roaming/agentdeck/engine-seal.json)',
+      'Edit(//c/Users/x/AppData/Roaming/agentdeck/controls-seal.json)',
     ])
+  })
+
+  it('컨트롤 봉인 파일을 셸로 고치는 명령도 막는다 (G5)', () => {
+    expect(bashLockReason('echo {} > "$APPDATA/agentdeck/controls-seal.json"', WIN_UD)).toMatch(/controls-seal/)
+    expect(bashLockReason('cd "$APPDATA/agentdeck" && rm controls-seal.json', WIN_UD)).not.toBeNull()
+    expect(bashLockReason('cd "$APPDATA/agentdeck" && cp /tmp/x ./controls-seal.json', WIN_UD)).not.toBeNull()
+    expect(bashLockReason('rm $APPDATA/agentdeck/controls-*', WIN_UD)).not.toBeNull()
+    // 폴더 밖의 같은 이름은 통과한다
+    expect(bashLockReason('cat ./controls-seal.json', WIN_UD)).toBeNull()
   })
 
   it('봉인 파일을 셸로 고치는 명령도 막는다 (G4)', () => {

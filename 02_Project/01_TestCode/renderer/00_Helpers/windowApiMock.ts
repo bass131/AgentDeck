@@ -80,6 +80,9 @@ export const FLAT_ROUTES = {
   setMcpEnabled: { group: 'settings', action: 'setMcpEnabled' },
   listSkills: { group: 'settings', action: 'listSkills' },
   setSkillEnabled: { group: 'settings', action: 'setSkillEnabled' },
+  getControlsState: { group: 'settings', action: 'controlsState' },
+  setControlEnabled: { group: 'settings', action: 'setControlEnabled' },
+  confirmControls: { group: 'settings', action: 'confirmControls' },
   getProfile: { group: 'settings', action: 'getProfile' },
   setProfile: { group: 'settings', action: 'setProfile' },
   getUiPrefs: { group: 'settings', action: 'getUiPrefs' },
@@ -204,6 +207,9 @@ const DEFAULT_RESULTS: { [C in InvokeChannel]?: ResOf<C> } = {
   'settings.listCommands': [],
   'settings.listMcp': [],
   'settings.setMcpEnabled': { ok: true },
+  'settings.controlsState': { status: 'none', nodes: [], engine: { seal: 'none', active: null } },
+  'settings.setControlEnabled': { ok: true },
+  'settings.confirmControls': { ok: true },
   'multi.load': { state: null },
 }
 

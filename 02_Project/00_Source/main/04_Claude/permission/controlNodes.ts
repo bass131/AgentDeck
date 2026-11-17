@@ -67,7 +67,9 @@ export type PermissionVerdict =
   | { kind: 'card'; nodeId: string | null; escalation?: Escalation }
   | { kind: 'deny'; nodeId: string; message: string }
 
-// 설계의 칸 — 지점·판정 주체·결과·보호 수준·켜짐(잠금)·실패 정책·시간 상한. 기록 칸은 컨트롤 패널 goal이 더한다.
+// 설계의 칸 — 지점·판정 주체·결과·보호 수준·켜짐(잠금)·실패 정책·시간 상한.
+// 기록 칸(판정마다 한 줄)과 「최근 판정 수」는 아직 없다 — 거처와 크기 상한을 따로 정한다(M07 Backlog, G5).
+// 켜짐 상태는 노드가 아니라 사용자 설정(controlsStore.ts의 controls.json)이 갖는다. 이 칸은 「끌 수 있는가」다.
 export interface ControlNodeInfo {
   readonly id: string
   readonly name: string
@@ -76,11 +78,11 @@ export interface ControlNodeInfo {
   // 판정 주체는 노드 자신이 무엇으로 정하는가다. 결과가 ask(카드)여도 노드는 규칙으로 정하고, 카드의 답은 사람이 한다.
   readonly judge: 'rule' | 'model' | 'human'
   readonly results: readonly ('allow' | 'ask' | 'deny' | 'notify' | 'transition')[]
-  // 지금은 L2다 — 앱 소스(이 파일)를 고치면 노드가 꺼진다. L1의 전제인 실행 트리 분리와 엔진 경로 보호는
-  // 뒤 goal(보호·엔진 봉인)의 몫이고, 그때 올린다 (G8 설계 30, 보호 수준 절).
+  // 지금은 L2다 — 앱 소스(이 파일)를 고치면 노드가 꺼진다. L1의 전제 가운데 엔진 경로 보호(G3·G4)는 들어왔고,
+  // 실행 트리 분리는 M08 설치본의 몫이다. 그때 올린다 (G8 설계 30, 보호 수준 절).
   readonly protection: 'L0' | 'L1' | 'L2' | 'L3'
-  // 잠정값 — 켜고 끄는 길은 컨트롤 패널 goal이 만든다. 그때 노드별로 다시 정한다
-  // (`mode-auto-bypass-allow`는 기준표와 분류기 goal이 다시 정의한다).
+  // 끌 수 없는가. 꺼지면 다음 노드로 넘어가 결국 카드가 되는 허용 노드 셋만 풀었다(M07 G5 결정 대장 [USER]) —
+  // 끄는 쪽이 늘 더 엄격하다. `mode-auto-bypass-allow`의 의미는 기준표와 분류기 goal이 다시 정의한다.
   readonly locked: boolean
   readonly onFailure: 'block'
   // 동기 판정이라 노드 자신은 기다리지 않는다 — null은 「시간 상한 없음」이 아니라 「기다리는 일이 없음」이다.
@@ -101,7 +103,7 @@ const BUILT_IN = {
   timeoutMs: null,
 } as const
 
-function builtIn(node: Omit<ControlNode, keyof typeof BUILT_IN>): ControlNode {
+function builtIn(node: Omit<ControlNode, keyof typeof BUILT_IN> & { locked?: false }): ControlNode {
   return Object.freeze({ ...BUILT_IN, ...node, results: Object.freeze([...node.results]) })
 }
 
@@ -134,18 +136,21 @@ export const PERMISSION_NODES: readonly ControlNode[] = Object.freeze([
     id: 'mode-auto-bypass-allow',
     name: '자동·Bypass 모드는 허용',
     results: ['allow'],
+    locked: false,
     decide: (c) => (c.mode === 'auto' || c.mode === 'bypass' ? { kind: 'allow' } : { kind: 'pass' }),
   }),
   builtIn({
     id: 'readonly-allow',
     name: '읽기 도구는 허용',
     results: ['allow'],
+    locked: false,
     decide: (c) => (READONLY_TOOLS.has(c.toolName) ? { kind: 'allow' } : { kind: 'pass' }),
   }),
   builtIn({
     id: 'accept-edits-allow',
     name: '편집 허용 모드의 비편집·비Bash 도구는 허용',
     results: ['allow'],
+    locked: false,
     decide: (c) =>
       c.mode === 'acceptEdits' && c.toolName !== 'Bash' && !MUTATING_TOOLS.has(c.toolName)
         ? { kind: 'allow' }
@@ -153,7 +158,7 @@ export const PERMISSION_NODES: readonly ControlNode[] = Object.freeze([
   }),
 ])
 
-// 목록 순서: 권한 콜백 노드(판정 순서대로) 뒤에 엔진 경로 노드(G3). 컨트롤 패널 goal이 지점별로 묶어 보인다.
+// 목록 순서: 권한 콜백 노드(판정 순서대로) 뒤에 엔진 경로 노드(G3). 컨트롤 패널(G5, renderer ControlsView)이 지점별로 묶어 보인다.
 export function listControlNodes(): ControlNodeInfo[] {
   const fromCallback = PERMISSION_NODES.map(({ decide: _decide, ...info }) => info)
   return [...fromCallback, ...ENGINE_PATH_NODES].map((info) => ({ ...info, results: [...info.results] }))
@@ -179,7 +184,7 @@ export function runPermissionNodes(
       d = checkDecision(node.decide(ctx))
     } catch (err) {
       // 실패 정책 「막는다」 — 판정하지 못한 호출은 허용으로 떨어지지 않는다 (G8 설계 30, 노드의 실패 정책 칸).
-      // 카드 없이 거부하므로 원인은 main 로그에만 남는다. 기록 칸은 컨트롤 패널 goal이 더한다.
+      // 카드 없이 거부하므로 원인은 main 로그에만 남는다. 판정 기록 칸은 아직 없다(M07 Backlog, G5).
       console.error(`[controls] 노드 「${node.id}」 판정 실패 — 막는다:`, err instanceof Error ? err.message : err)
       return { kind: 'deny', nodeId: node.id, message: `컨트롤 노드 「${node.id}」가 판정하지 못해 막았습니다.` }
     }

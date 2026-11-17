@@ -19,7 +19,7 @@
 //   ③ 내림 단정. 역할 게이트(30_role-gate.cjs)와 스폰 자리(`^(Task|Agent)$`)의 계획 게이트(20_plan-gate.cjs)
 //      배선이 없고, 유지하기로 한 훅(편집 경로 게이트·위험 명령 가드·TDD 가드·자동 장전·250줄·기동·Stop 두 종)의
 //      배선은 남아 있는가. 20_plan-gate.cjs 파일은 판정부를 공유하고 테스트가 직접 구동하므로 남는다 — 배선만 없다.
-import { readFileSync } from 'node:fs'
+import { readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { createRunner } from './_lib/runner.mjs'
 import { REPO_ROOT } from './_lib/guard-spawn.mjs'
@@ -131,19 +131,28 @@ if (settings) {
   r.check('가드가 PreToolUse ^Bash$에 배선돼 있다', guardOnBash.length === 1, `${guardOnBash.length}건`)
 
   // ---- ⑤ 판정 장치 정비 (M07 G1 · G8 설계 `30_노드-구조.md` 보호 6, M06 Backlog 30) ----
-  // 가드 항목에 timeout이 없으면 기본 600초다. 시간 초과된 command 훅은 도구 호출을 막지 않으므로(공식 hooks 문서)
-  // 멈춘 가드는 600초 뒤 통과로 떨어진다. 막힘으로 바꾸지는 못하고, 무인 루프가 서 있는 시간만 줄인다.
-  // 실측 판정 시간은 17만 자 heredoc에서도 205ms였다(G1 검증 기록) — 30초는 편집 계획 게이트와 같은 값이다.
-  const guardTimeouts = guardEntries.flatMap(({ entry }) => (entry.hooks ?? [])
-    .filter((h) => String(h.command ?? '').includes(GUARD)).map((h) => h.timeout))
+  // 가드 항목에 timeout이 없으면 기본 600초다. command 훅의 실패(시간 초과, 0·2 밖의 종료 코드, 기동 실패)는
+  // 기본 `onFailure: 'continue'`라 도구 호출이 그대로 간다. `'block'`은 실패를 종료 코드 2로 세어 막는다(공개 타입 sdk.d.ts의
+  // Settings.hooks command 항목). G1 실측: 멈추는 훅·죽는 훅 모두 기본값에서는 명령이 실행됐고 'block'에서는 막혔다.
+  // 실측 판정 시간은 17만 자 heredoc에서도 205ms였다 — 30초는 편집 계획 게이트와 같은 값이다.
+  const guardHooks = guardEntries.flatMap(({ entry }) => (entry.hooks ?? []).filter((h) => String(h.command ?? '').includes(GUARD)))
+  const guardTimeouts = guardHooks.map((h) => h.timeout)
   r.check('가드 항목의 timeout이 30초다', guardTimeouts.length === 1 && guardTimeouts[0] === 30, JSON.stringify(guardTimeouts))
+  const guardOnFailure = guardHooks.map((h) => h.onFailure)
+  r.check('가드 항목이 실패하면 막는다 (onFailure: block)', guardOnFailure.length === 1 && guardOnFailure[0] === 'block', JSON.stringify(guardOnFailure))
   // 앱 데이터 폴더(Electron userData — package.json name `agentdeck`)에는 엔진 코드와 앱 설정이 있다.
   // main 프로세스가 그 엔진 코드를 import하므로(engineVersions.ts) 파일 도구로 고치지 못하게 닫는다.
   // 공식 permissions 문서: Write·NotebookEdit는 Edit 경로 규칙으로 검사한다(`Write(path)` 규칙은 맞지 않는다), `~/`는 홈 기준.
-  const APPDATA_DENY = 'Edit(~/AppData/Roaming/agentdeck/**)'
+  // 폴더 이름은 Electron 기본값(productName ?? name)에서 만든다. 하드코딩 상수와만 비교하면 이름이 바뀌어도 초록이다(G1 검수 3).
+  const pkg = JSON.parse(readFileSync(join(REPO_ROOT, 'package.json'), 'utf8'))
+  const appName = pkg.productName ?? pkg.name
+  const APPDATA_DENY = `Edit(~/AppData/Roaming/${appName}/**)`
   r.check('앱 데이터 폴더의 Edit 거부 규칙이 deny에 있다', deny.includes(APPDATA_DENY), `기대 ${APPDATA_DENY}`)
-  const appdataElsewhere = [...allowList, ...askList].filter((rule) => /agentdeck/i.test(rule))
-  r.check('앱 데이터 폴더 규칙이 allow·ask에는 없다', appdataElsewhere.length === 0, appdataElsewhere.join(', ') || '0건')
+  // 앱이 이름이나 userData 경로를 코드로 바꾸면 위 규칙이 빈 경로를 가리킨다 — 해석 지점이 userData.ts 하나인지 본다.
+  const mainSrc = join(REPO_ROOT, '02_Project', '00_Source', 'main')
+  const renames = readdirSync(mainSrc, { recursive: true }).filter((f) => /\.ts$/.test(String(f)))
+    .filter((f) => /app\.setName\(|setPath\(\s*['"]userData['"]/.test(readFileSync(join(mainSrc, String(f)), 'utf8')))
+  r.check('main 소스가 앱 이름·userData 경로를 바꾸지 않는다', renames.length === 0, renames.join(', ') || '0건')
 }
 
 process.exit(r.summary())

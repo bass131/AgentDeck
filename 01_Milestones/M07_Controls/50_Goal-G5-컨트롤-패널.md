@@ -79,6 +79,7 @@ DoD
   - 게이트: `d19d3aa2`는 build와 부분 vitest만 거쳐 커밋됐다. 이번 반영 뒤 다섯 종(typecheck:node·typecheck:web·lint·test:hooks·build)을 모두 exit 0으로 돌렸다. lint 경고 1건은 기존 `ipcContract.typemap.test.ts`의 것이다.
   - `npm test`: 445파일 통과·6 건너뜀, 7,948 통과·실패 0(19:34:56 시작).
 - PASS 2026-11-17T19:38:00+09:00 — 6단계 B 재확인(확인 계약 변경 뒤). 앱 밖에서 `controls.json`을 고치자 채팅에 거절 오류가 떴고, 카드는 0이었다. 패널 경고는 「지금 파일 내용」 문구로 떴다. 확인 뒤 경고가 사라졌고, `first-setup.json`이 생겼다. 다시 보내자 Bash가 카드 없이 실행돼 `g5-probe-B`로 답했다. 드라이버의 마지막 대기는 이번에도 조건이 맞지 않아 시간 초과로 끝났고, 결과는 대화 덤프로 판독했다.
+- PASS 2026-11-17T19:38:56+09:00 — 8단계: 커밋 `8a0eddd4`·`d19d3aa2`와 검수 반영 커밋을 push하고 PR 71을 열었다. 사용자가 자는 중(Night Shift)이라 결정 보드의 병합 승인은 아침 보고 때 올린다.
 
 ## 결정 대장
 

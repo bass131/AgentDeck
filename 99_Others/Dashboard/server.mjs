@@ -8,11 +8,16 @@ import { watchRepo } from './lib/watcher.mjs';
 import { loadConfig } from './lib/config.mjs';
 import { AnswerError, decisionSig, lineFor, validHandle } from './lib/decisions.mjs';
 import { typeIntoTerminal } from './lib/deliver.mjs';
+import { createPrService, ghRunner, gitOriginUrl } from './lib/merge.mjs';
+import { CONFIRM_TIMEOUT_MS, createConfirm } from './lib/confirm.mjs';
 
 export const HEADER = 'X-AgentDeck-Dashboard';
 export const TOKEN_HEADER = 'x-dashboard-token';
 export const BODY_MAX = 64 * 1024;
 export const ANSWER_PATHS = Object.freeze({ '/api/answer/preview': false, '/api/answer/send': true });
+// 병합 두 경로(M07 G9, docs/병합.md): PR 읽기와 확인 창 → 병합. 토큰·출처 검사는 결정 응답과 같고, 사람 증명은 확인 창이다.
+export const MERGE_PATHS = Object.freeze({ '/api/merge/read': 'read', '/api/merge/run': 'run' });
+const isPr = n => Number.isSafeInteger(n) && n > 0 && n <= 1e9;
 // 이 서버가 앞에 문장을 넣은 뒤 다른 문장을 넣을 때 앞에 붙이는 고정 글. 입력창에 앞 문장이 남아 있어도 두 문장이 붙지 않고,
 // 메인이 마지막 문장을 답으로 읽게 한다(docs/결정-응답.md 「문장」).
 // 첫 글자는 선택 창의 키(숫자·글자·빈칸)도, 빈 프롬프트에서 명령 메뉴를 여는 `/`도 아니어야 한다.
@@ -24,9 +29,12 @@ const types = { '/app.js': 'text/javascript; charset=utf-8', '/chime.js': 'text/
   '/fonts/PretendardVariable.woff2': 'font/woff2' };
 
 // 현황판 서버. 저장소에 쓰는 API와 임의 파일 열기 API는 없다.
-// 쓰기는 결정 응답 두 경로(POST /api/answer/preview·send)뿐이고, 그것도 메인 입력창에 문장을 넣기만 한다(M05 H7, docs/결정-응답.md).
-// `type`은 넣는 함수다. 시험은 가짜를 넘긴다.
-export async function createDashboard(config, { collectFn = collect, watchFn, debounceMs, maxWaitMs, pollMs, pingMs = 15000, now = () => new Date(), type = typeIntoTerminal } = {}) {
+// POST를 받는 곳은 넷뿐이다. 결정 응답 두 경로(POST /api/answer/preview·send)는 메인 입력창에 문장을 넣기만 하고(M05 H7, docs/결정-응답.md),
+// 병합 두 경로(POST /api/merge/read·run)는 PR을 읽고, 사람 확인 창에서 「병합」을 받은 뒤에만 GitHub 병합 API를 부른다(M07 G9, docs/병합.md).
+// 주입 지점은 함수 인자뿐이다(환경변수·설정 스위치 없음). `type`은 넣는 함수, `prService`는 병합 모듈, `confirm`은 확인 창,
+// `confirmTimeoutMs`는 확인 창 시간 초과, `mergeFn`은 확인 뒤 보내는 함수(없으면 prService.sendMerge)다. 시험과 실측 서버는 가짜를 넘긴다.
+export async function createDashboard(config, { collectFn = collect, watchFn, debounceMs, maxWaitMs, pollMs, pingMs = 15000, now = () => new Date(), type = typeIntoTerminal,
+  prService = createPrService({ gh: ghRunner, originUrl: gitOriginUrl }), confirmTimeoutMs = CONFIRM_TIMEOUT_MS, confirm = createConfirm({ timeoutMs: confirmTimeoutMs }), mergeFn } = {}) {
   const clients = new Set();
   const template = await readFile(new URL('./public/index.html', import.meta.url), 'utf8');
   // 서버를 시작할 때마다 새 페이지 토큰. 페이지 bootstrap에만 싣고 SSE 스냅샷에는 싣지 않는다.
@@ -142,6 +150,32 @@ export async function createDashboard(config, { collectFn = collect, watchFn, de
     return json(response, 200, { ok: true, via: 'input', line, corrected: true,
       note: '앞에 넣은 문장이 메인 입력창에 남아 있을 수 있어, 「고쳐 고름」 표지를 붙여 뒤에 넣었어요. 메인은 마지막 문장을 답으로 읽어요. 앞 문장을 지우고 Enter를 눌러도 돼요.' });
   }
+  // 병합: 토큰·출처 → 본문 → PR 번호(와 SHA) 꼴. read는 PR을 읽어 화면 값을 준다. run은 병합 모듈이 마지막으로 보인 SHA를 소비하고
+  // 다시 읽어 대조한 뒤 확인 창(confirm)을 띄우고, 정확히 「예」일 때만 mergeFn(기본 prService.sendMerge)으로 보낸다(lib/merge.mjs mergePr).
+  // 병합은 한 번에 하나다. 확인 창을 기다리는 동안 온 두 번째 요청은 줄 세우지 않고 409로 돌려보낸다(기다린 뒤 뜨는 창은 사람이 예상하지 못한다).
+  let merging = false;
+  const send = mergeFn ?? (ticket => prService.sendMerge(ticket));
+  async function merge(request, response, kind) {
+    if (!authorized(request)) return json(response, 403, { ok: false, reason: '현황판 토큰이나 요청 출처를 확인하지 못했어요. 화면을 새로고침해 주세요.' });
+    let body;
+    try { body = await readBody(request); } catch (e) { if (e instanceof AnswerError) return json(response, e.status ?? 400, { ok: false, reason: e.message }); throw e; }
+    const pr = body?.pr;
+    if (!isPr(pr)) return json(response, 400, { ok: false, reason: 'PR 번호는 양의 정수여야 해요.' });
+    if (kind === 'read') {
+      let r;
+      try { r = await prService.readPr(config.repoPath, { number: pr }); } catch { r = { ok: false, error: `PR #${pr}을 읽지 못했어요.` }; }
+      return json(response, 200, r?.ok ? { ok: true, pr: r.pr } : { ok: false, reason: r?.error || `PR #${pr}을 읽지 못했어요.` });
+    }
+    const sha = body?.sha;
+    if (typeof sha !== 'string' || !/^[0-9a-f]{40}$/i.test(sha)) return json(response, 400, { ok: false, reason: '머리 SHA는 40자리 16진수여야 해요.' });
+    if (merging) return json(response, 409, { ok: false, reason: '앞 병합 요청의 확인 창이 아직 열려 있거나 결과를 기다리는 중이에요. 바탕화면의 확인 창을 먼저 봐 주세요.' });
+    merging = true;
+    let result;
+    try { result = await prService.mergePr(config.repoPath, pr, sha, { confirm, send }); }
+    catch { result = { status: 'unknown', message: '결과 모름 — 다시 읽기로 확인하세요' }; }
+    finally { merging = false; }
+    return json(response, 200, { ok: result?.status === 'merged' || result?.status === 'enqueued', ...result });
+  }
   const server = http.createServer(async (request, response) => {
     response.setHeader('Cache-Control', 'no-store');
     response.setHeader('X-Content-Type-Options', 'nosniff');
@@ -157,7 +191,11 @@ export async function createDashboard(config, { collectFn = collect, watchFn, de
         if (request.method !== 'POST') { response.setHeader('Allow', 'POST'); return json(response, 405, { ok: false, reason: '결정 응답은 POST로만 받아요.' }); }
         return await answer(request, response, ANSWER_PATHS[url.pathname]);
       }
-      if (request.method !== 'GET' && request.method !== 'HEAD') return json(response, 405, { ok: false, reason: '이 현황판은 결정 응답 두 경로 밖에서는 GET만 받아요.' });
+      if (Object.hasOwn(MERGE_PATHS, url.pathname)) {
+        if (request.method !== 'POST') { response.setHeader('Allow', 'POST'); return json(response, 405, { ok: false, reason: '병합 요청은 POST로만 받아요.' }); }
+        return await merge(request, response, MERGE_PATHS[url.pathname]);
+      }
+      if (request.method !== 'GET' && request.method !== 'HEAD') return json(response, 405, { ok: false, reason: '이 현황판은 결정 응답 두 경로와 병합 두 경로 밖에서는 GET만 받아요.' });
       if (url.pathname === '/') {
         response.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; connect-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; frame-ancestors 'none'");
         response.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });

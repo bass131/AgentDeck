@@ -48,7 +48,8 @@
       "PowerShell",
       "Read(**/.env)",
       "Read(**/.env.*)",
-      "Read(**/secrets/**)"
+      "Read(**/secrets/**)",
+      "Edit(~/AppData/Roaming/agentdeck/**)"
     ]
   },
 
@@ -57,7 +58,7 @@
       {
         "matcher": "^Bash$",
         "hooks": [
-          { "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/dangerous-cmd-guard.mjs\"" }
+          { "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/dangerous-cmd-guard.mjs\"", "timeout": 30, "onFailure": "block" }
         ]
       },
       {

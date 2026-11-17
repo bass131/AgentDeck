@@ -16,6 +16,7 @@ import { createHash } from 'node:crypto'
 import type { Ack } from '../../../shared/02_Common/common'
 import type { ControlsSealStatus, ControlsState } from '../../../shared/11_Settings/settings'
 import { PERMISSION_NODES, listControlNodes, type ControlNode } from './controlNodes'
+import { markerDir } from './guardDir'
 
 const FILE = 'controls.json'
 const SEAL = 'controls-seal.json'
@@ -79,10 +80,8 @@ function fileContent(userData: string): string[] | null {
   return raw === null ? null : parseFile(raw)
 }
 
-// 표시 거처 — 앱 데이터 폴더의 이웃 폴더 (G7)
-export function markerDir(userData: string): string {
-  return `${userData.replace(/[\\/]+$/, '')}-guard`
-}
+// 표시 거처(이웃 guard 폴더)는 guardDir.ts가 정한다 — 잠금(enginePathLock.ts)과 같은 이름을 쓴다
+export { markerDir }
 
 function writeMarker(userData: string): void {
   fs.mkdirSync(markerDir(userData), { recursive: true })
@@ -90,6 +89,7 @@ function writeMarker(userData: string): void {
 }
 
 // 표시가 있는가. 옛 거처(앱 데이터 폴더 안)에만 있으면 새 거처로 옮겨 적는다 — 옮기기가 실패해도 판정은 「있음」이다.
+// 표시를 읽다 오류(EACCES·EISDIR 등)가 나면 던진다. 두 파일이 멀쩡해도 실행은 error로 닫힌다 — 의도된 닫힌 실패다(G7 검수 사소 3).
 function isMarked(userData: string): boolean {
   if (readOrNull(path.join(markerDir(userData), MARKER)) !== null) return true
   if (readOrNull(path.join(userData, MARKER)) === null) return false
@@ -116,7 +116,16 @@ export function readControls(userData: string): ControlsRead {
   if (raw === null || hash === null || hash !== sha256(raw)) return { status: 'mismatch', disabled: content }
   // 앱은 읽을 수 없는 내용을 봉인하지 않는다. 봉인이 맞는데 못 읽으면 바뀐 것과 같이 본다.
   const parsed = parseFile(raw)
-  return parsed === null ? { status: 'mismatch', disabled: [] } : { status: 'ok', disabled: parsed }
+  if (parsed === null) return { status: 'mismatch', disabled: [] }
+  // 봉인이 맞는데 표시만 없으면 다시 적는다 — guard 폴더만 먼저 사라진 뒤 앱 데이터 폴더가 따로 지워지는 경우를 막는다(G7 검수 사소 5)
+  if (!marked) {
+    try {
+      writeMarker(userData)
+    } catch (err) {
+      console.error('[controls] 「처음 설정함」 표시를 다시 적지 못했다:', err)
+    }
+  }
+  return { status: 'ok', disabled: parsed }
 }
 
 // 표시를 먼저, 내용을 다음, 봉인을 마지막에 쓴다. 사이에서 멈추면 mismatch가 되어 실행이 닫힌다.

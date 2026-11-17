@@ -24,8 +24,13 @@ function slashed(p: string): string {
   return p.replace(/\\/g, '/').replace(/\/+$/, '')
 }
 
-// 앱 데이터 폴더 밖의 보호 대상 — 「처음 설정함」 표시의 이웃 폴더 `<폴더>-guard`(M07 G7, controlsStore.ts markerDir)
-const GUARD_SUFFIX = '-guard'
+import { GUARD_SUFFIX } from './guardDir'
+
+// 앱 데이터 폴더 밖의 보호 대상 — 「처음 설정함」 표시의 이웃 폴더 `<폴더>-guard`(M07 G7). 이름은 guardDir.ts가 소유한다.
+// guard 꼴 판정: 접미는 `-guard`의 접두만, 와일드카드는 `*`·`[`만(`?`는 URL·문장에 흔하다), 그 앞의 닫는 따옴표는 허용(G7 검수 중요 1·2)
+const GUARD_PREFIX = '(?:-(?:g(?:u(?:a(?:r(?:d)?)?)?)?)?)?'
+// 앱 데이터 위치가 명령에 보이는가 — 맨 낱말 판정을 이것과 묶어 저장소 검색·경로 목록의 오탐을 피한다
+const APPDATA_HINT = /appdata|roaming|\.config|application support/
 
 export function protectedTargets(userDataDir: string): string[] {
   const root = slashed(userDataDir)
@@ -80,11 +85,16 @@ export function bashLockReason(command: string, userDataDir: string): string | n
   const reason = (what: string): string =>
     `앱 엔진·설정 경로(${what})를 건드리는 명령은 앱 세션에서 막습니다 — 엔진 교체는 앱 화면에서 하세요.`
 
-  // 표시 거처(이웃 guard 폴더)는 이름이 보이기만 하면 막는다 — 저장소 명령에 이 이름이 나올 일이 없다(G7)
+  // 표시 거처(이웃 guard 폴더, G7). 경로 마디(`.../agentdeck-guard`)로 보이면 막는다.
+  // 맨 낱말(`rm -rf agentdeck-guard`)과 폴더 이름 와일드카드(`rm -r agentdeck*` — 앱 데이터 폴더와 guard를 함께 지운다)는
+  // 앱 데이터 위치가 함께 보일 때만 막는다. 저장소의 `rg agentdeck-guard`, `ls C:/Dev/AgentDeck*`는 통과한다(G7 검수 중요 1).
   const guard = `${base}${GUARD_SUFFIX}`
-  if (new RegExp(`${BEFORE}${escapeRe(guard)}${AFTER}`).test(cmd)) return reason(guard)
-  // 폴더 이름 접두 와일드카드(`rm -r agentdeck*`)는 앱 데이터 폴더와 guard 폴더를 함께 지운다(G7)
-  if (new RegExp(`${BEFORE}${b}(?:-[a-z]*)?[*?[]`).test(cmd)) return reason(`${base}*`)
+  const g = escapeRe(guard)
+  if (new RegExp(`/${g}${AFTER}`).test(cmd)) return reason(guard)
+  if (APPDATA_HINT.test(cmd)) {
+    if (new RegExp(`${BEFORE}${g}${AFTER}`).test(cmd)) return reason(guard)
+    if (new RegExp(`${BEFORE}${b}${GUARD_PREFIX}["']?[*[]`).test(cmd)) return reason(`${base}*`)
+  }
   for (const t of TARGETS) {
     if (new RegExp(`${BEFORE}${b}/${escapeRe(t.name)}${AFTER}`).test(cmd)) return reason(t.name)
   }

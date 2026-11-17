@@ -61,7 +61,8 @@ const SKIP_DIRS = new Set(['node_modules', 'dist', 'out', 'coverage', '.git'])
 // M07 G2: 441 → 443. 권한 콜백을 노드 등록부로 옮기며, 옮기기 전 판정 표를 고정하는
 // main/04_Claude/permissionCoordinator.characterization.test.ts와 등록부를 고정하는 main/04_Claude/controlNodes.test.ts를 더했다.
 // M07 G3: 443 → 444. 앱 엔진·설정 경로 잠금(거부 규칙, Bash 잠금 훅, SDK 옵션 배선)을 고정하는 main/04_Claude/enginePathLock.test.ts를 더했다.
-const BASELINE_TEST_FILES = 444
+// M07 G4: 444 → 445. 앱 밖에서 바뀐 엔진을 불러오지 않는 엔진 봉인을 고정하는 main/10_Engine/engineSeal.test.ts를 더했다.
+const BASELINE_TEST_FILES = 445
 
 function collectTestFiles(dir: string, acc: string[] = []): string[] {
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {

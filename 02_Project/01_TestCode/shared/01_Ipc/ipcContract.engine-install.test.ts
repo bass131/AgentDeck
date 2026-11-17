@@ -169,6 +169,7 @@ describe('EngineVersionState 타입 구조', () => {
       bundled: '1.0.0',
       active: null,
       installed: [],
+      seal: 'none',
     }
     expect(typeof state.package).toBe('string')
     expect(state.package).toBe('@anthropic-ai/claude-agent-sdk')
@@ -180,6 +181,7 @@ describe('EngineVersionState 타입 구조', () => {
       bundled: '1.0.0',
       active: null,
       installed: [],
+      seal: 'none',
     }
     expect(state.bundled).toBe('1.0.0')
   })
@@ -190,6 +192,7 @@ describe('EngineVersionState 타입 구조', () => {
       bundled: null,
       active: null,
       installed: [],
+      seal: 'none',
     }
     expect(state.bundled).toBeNull()
   })
@@ -200,6 +203,7 @@ describe('EngineVersionState 타입 구조', () => {
       bundled: '1.0.0',
       active: '1.2.0',
       installed: ['1.2.0', '1.1.0'],
+      seal: 'ok',
     }
     expect(state.active).toBe('1.2.0')
   })
@@ -210,6 +214,7 @@ describe('EngineVersionState 타입 구조', () => {
       bundled: '1.0.0',
       active: null,
       installed: [],
+      seal: 'none',
     }
     expect(state.active).toBeNull()
   })
@@ -220,6 +225,7 @@ describe('EngineVersionState 타입 구조', () => {
       bundled: '1.0.0',
       active: '1.2.0',
       installed: ['1.2.0', '1.1.0', '1.0.5'],
+      seal: 'ok',
     }
     expect(Array.isArray(state.installed)).toBe(true)
     expect(state.installed).toHaveLength(3)
@@ -232,6 +238,7 @@ describe('EngineVersionState 타입 구조', () => {
       bundled: '1.0.0',
       active: null,
       installed: [],
+      seal: 'none',
     }
     expect(state.installed).toHaveLength(0)
   })
@@ -242,9 +249,12 @@ describe('EngineVersionState 타입 구조', () => {
       bundled: '1.0.0',
       active: '1.2.0',
       installed: ['1.2.0'],
+      seal: 'ok',
     }
     const keys = Object.keys(state)
-    expect(keys).toHaveLength(4)
+    // M07 G4: 봉인 상태 칸(seal)이 더해졌다 — 해시 값은 싣지 않는다
+    expect(keys).toHaveLength(5)
+    expect(keys).toContain('seal')
     expect(keys).toContain('package')
     expect(keys).toContain('bundled')
     expect(keys).toContain('active')
@@ -262,6 +272,7 @@ describe('EngineVersionState 타입 구조', () => {
       bundled: '1.0.0',
       active: null,
       installed: [],
+      seal: 'none',
     }
     const keys = Object.keys(state)
     expect(keys).not.toContain('authed')

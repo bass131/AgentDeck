@@ -24,3 +24,5 @@ M05에서 넘어온 항목은 `M05_Structure/99_Backlog.md`가 계속 소유합�
 19. Dependabot PR은 `package.json`만 올린다 — `SDK_VERSION_FALLBACK`과 그 테스트 기댓값을 손으로 같이 올려야 하고, PR 검사 워크플로가 없다. `claudeStream.ts`의 접미 벗기기가 `modelList.ts`와 복제다 (G4 검수 메모).
 20. 가드가 한 줄로 써도 놓치는 셸 꼴(옛 가드도 같다): `cat <<'EOF' |⏎…⏎EOF⏎bash`, `{⏎cat <<'EOF' …} | bash`, 함수 본문, `echo "$(cat <<EOF …)" | bash`, `$'it\'s'`처럼 원문 읽기의 따옴표 규칙이 bash와 다른 자리, `if [[ x =~ (#) ]]; then …`. 80만 자 넘는 `bash -c` 중첩은 스택 넘침으로 차단된다(닫힌 실패). 셸 깊이 상한(3) 밖 1.7MB 중첩은 14초 (G5 검수 3~7차).
 21. G5로 가드가 588줄에서 1,032줄이 됐고, 판독 셋의 합집합(원문 읽기·논리 줄 판독·이음 지운 원문 읽기)이 셸 해석기에 가까워졌다. 테스트가 못 가르는 변이 4개(다른 판독이 대신 읽는 동치 꼴)가 남았다. 더 넓히기보다, 판독을 줄이거나 공개된 셸 파서를 쓰는 재설계를 따로 판단한다 (G5 마감, YAGNI 결정).
+22. 앱 세션 안에서 `npm run test`를 돌리면 앱이 SDK에 넣는 `CLAUDE_CODE_EMIT_SESSION_STATE_EVENTS=1`(`sdkOptions.ts:100`)이 세션의 Bash와 vitest까지 물려 내려와 `sdkOptions.session-state-env.test.ts` (c)의 전제가 깨진다. 그래서 앱 안에서는 TDD 가드가 `source` 태그 PASS 줄에 요구하는 전체 Green을 만들 수 없다 (G7 4단계, G6 사다리 5칸).
+23. `.claude/commands/gate.md`의 기준선 숫자(400파일)와 `phase18-audit-fix` 단독 실패 메모(옛 이름, 5초 기본값)가 G3·G7 뒤로 낡았다. 지금은 441파일을 수집하고 기본값은 30초다 (G7 관찰).

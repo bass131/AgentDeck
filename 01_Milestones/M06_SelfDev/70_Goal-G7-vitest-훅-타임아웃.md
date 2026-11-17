@@ -23,10 +23,10 @@
 
 진척 단계 (완료 `[x]`, 진행 `[>]`, 남음 `[ ]` — 위치 표시일 뿐이고 통과 판정은 검증 기록 줄만 한다)
 
-- [>] 1. goal 문서 준비 — 합의 기록, 작업 브랜치 생성, `planPath` 전환, pin 갱신
-- [ ] 2. 실패하는 테스트 먼저 쓰기 — `smoke.test.ts`에 `hookTimeout: 30000` 고정 테스트를 더하고 단독 실행 Red 확인. 변경 전 `pickerOptions.audit-fix.test.tsx` 단독 실행 결과도 남긴다
-- [ ] 3. 훅 타임아웃 30초로 올리기 — `vitest.config.ts`에 `hookTimeout: 30000`과 사유 주석, 두 파일 단독 실행 Green
-- [ ] 4. 전체 검증 — diff 실사, 하드 게이트 다섯 종, `npm run test`
+- [x] 1. goal 문서 준비 — 합의 기록, 작업 브랜치 생성, `planPath` 전환, pin 갱신
+- [x] 2. 실패하는 테스트 먼저 쓰기 — `smoke.test.ts`에 `hookTimeout: 30000` 고정 테스트를 더하고 단독 실행 Red 확인. 변경 전 `pickerOptions.audit-fix.test.tsx` 단독 실행 결과도 남긴다
+- [x] 3. 훅 타임아웃 30초로 올리기 — `vitest.config.ts`에 `hookTimeout: 30000`과 사유 주석, 두 파일 단독 실행 Green
+- [>] 4. 전체 검증 — diff 실사, 하드 게이트 다섯 종, `npm run test`
 - [ ] 5. PR 올리고 병합 승인 요청 — 커밋, `-u origin` push, `gh pr create`, 앱 대화에 결과 보고
 
 실행 단계 일괄 승인 대상
@@ -41,7 +41,7 @@ DoD
 
 검증 기록
 
-- (기록 없음)
+- FAIL 2026-11-17T09:48:11+09:00 4단계 — 앱 세션 안 `npm run test -- --reporter=dot --no-color`가 1건 실패했다(파일 1 실패·434 통과·6 건너뜀, 테스트 5870 통과·10 건너뜀). 실패는 `sdkOptions.session-state-env.test.ts` (c)의 `build()` 호출 전 전제다. 앱이 SDK에 넣는 `CLAUDE_CODE_EMIT_SESSION_STATE_EVENTS=1`(`sdkOptions.ts:100`)이 세션의 Bash까지 물려 내려와 `printenv`가 `1`을 돌려줬다. 이번 변경과는 무관하다. 시도: 색 코드 없이 재실행해 같은 1건, 그 변수를 뺀 `env -u` 단독 실행은 3건 통과. 같은 트리에서 하드 게이트 다섯 종 exit 0, smoke 단독 4건 통과(변경 전 새 테스트 1건 Red), `pickerOptions.audit-fix.test.tsx` 단독 34건 통과(8.08초)를 확인했다. 변경 전 `--hookTimeout=3000` 진단에서는 9번째 줄 `beforeAll`이 「Hook timed out in 3000ms」로 깨졌다. 태그가 `source`라 TDD 가드가 전체 Green 없이는 PASS 줄을 받지 않는다. 그래서 범위·완료조건 변경 정지점으로 보고 push·PR을 보류한다. 세션 611e2fcf, 기준 HEAD d36d5ebd(작업 트리 변경 포함).
 
 ## 결정 대장
 

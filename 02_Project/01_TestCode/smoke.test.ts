@@ -17,4 +17,10 @@ describe('smoke', () => {
     const cfg = readFileSync(resolve(process.cwd(), 'vitest.config.ts'), 'utf-8')
     expect(cfg).toMatch(/^\s*testTimeout:\s*30000,/m)
   })
+
+  // M06 G7: beforeAll의 콜드 import가 기본 10초 훅 타임아웃을 넘어(M06 Backlog 14) 훅 기본값도 30초로 둔다.
+  it('훅 기본 타임아웃도 30초다', () => {
+    const cfg = readFileSync(resolve(process.cwd(), 'vitest.config.ts'), 'utf-8')
+    expect(cfg).toMatch(/^\s*hookTimeout:\s*30000,/m)
+  })
 })

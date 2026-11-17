@@ -1,51 +1,20 @@
 import type { AgentEvent, AgentQuestion } from '@shared/agentEvents'
 import type { RunResponse } from '@main/03_Agent/AgentBackend'
+import { runPermissionNodes, type CanUseToolOptions, type Escalation } from './controlNodes'
 
-const READONLY_TOOLS = new Set([
-  'Read', 'Grep', 'Glob', 'NotebookRead', 'WebFetch', 'WebSearch', 'TodoWrite', 'Task', 'Agent',
-  'TaskCreate', 'TaskUpdate', 'TaskList', 'TaskGet', 'TaskOutput', 'BashOutput'
-])
-
-const MUTATING_TOOLS = new Set([
-  'Write', 'Edit', 'MultiEdit', 'NotebookEdit', 'Bash', 'TaskStop', 'KillShell', 'KillBash'
-])
-
-export const ORCHESTRATION_TOOLS = ['Workflow'] as const
+// 판별 규칙과 도구 묶음은 노드 등록부(controlNodes.ts, M07 G2)로 옮겼다. 바깥 import 자리는 그대로 둔다.
+export { ORCHESTRATION_TOOLS, escalationOf } from './controlNodes'
+export type { CanUseToolOptions, Escalation } from './controlNodes'
 
 export type PermissionResult =
   | { behavior: 'allow'; updatedInput: Record<string, unknown>; updatedPermissions?: unknown[] }
   | { behavior: 'deny'; message: string }
-
-export interface CanUseToolOptions {
-  signal?: AbortSignal
-  toolUseID?: string
-  decisionReason?: string
-  suggestions?: unknown[]
-}
 
 export type CanUseToolFn = (
   toolName: string,
   input: Record<string, unknown>,
   options?: CanUseToolOptions
 ) => Promise<PermissionResult>
-
-// 사람에게 올릴 호출의 판별 (M06 G3). 공개 타입(sdk.d.ts의 CanUseTool)의 options에는 훅 유래를 알리는 필드가 없다.
-// 블랙박스 실측(독립 clone, default·acceptEdits·bypassPermissions·실행 중 auto)에서
-//   훅 ask는 suggestions가 언제나 없었다. decisionReason은 settings allow 규칙과 겹친 `git push origin HEAD:master`에만 왔고,
-//   settings ask 규칙과 겹친 `gh release --help`·`npm publish --help`에는 오지 않았다.
-//   일반 질의는 언제나 규칙 제안이 한 개 이상 붙어 왔다. 사유는 없을 수 있었다(default의 Write).
-// 그래서 사유가 아니라 규칙 제안으로 가른다. 제안이 비어 있지 않은 배열이 아니면 모드와 관계없이 카드로 보낸다(fail-closed).
-// 민감 파일 안전 검사(suggestions: [])와 옵션 없는 호출도 여기에 걸린다 — 모르는 꼴은 허용으로 떨어지지 않는다.
-export interface Escalation {
-  reason?: string
-}
-
-export function escalationOf(options?: CanUseToolOptions): Escalation | undefined {
-  const suggestions = options?.suggestions
-  if (Array.isArray(suggestions) && suggestions.length > 0) return undefined
-  const reason = options?.decisionReason
-  return typeof reason === 'string' && reason.trim() !== '' ? { reason } : {}
-}
 
 export function parseQuestions(input: Record<string, unknown>): AgentQuestion[] {
   const raw = Array.isArray(input['questions']) ? input['questions'] : []
@@ -146,39 +115,30 @@ export class PermissionCoordinator {
       input: Record<string, unknown>,
       options?: CanUseToolOptions
     ): Promise<PermissionResult> => {
-      const currentMode = getMode()
-      if (toolName === 'AskUserQuestion') {
-        return this._handleAskQuestion(input, options?.signal)
-      }
-
-      if ((ORCHESTRATION_TOOLS as readonly string[]).includes(toolName)) {
-        if (!getOrchestration()) {
+      // 판정은 노드 등록부가 한다 (M07 G2). 규칙 제안 없는 호출은 모드 노드보다 앞의 노드가 카드로 올린다
+      // (M06 G3 — auto·bypass 조기 허용이 가드 ask를 삼켰다).
+      const verdict = runPermissionNodes({
+        toolName,
+        input,
+        ...(options !== undefined ? { options } : {}),
+        mode: getMode(),
+        orchestration: getOrchestration(),
+      })
+      switch (verdict.kind) {
+        case 'question':
+          return this._handleAskQuestion(input, options?.signal)
+        case 'orchestration-denied': {
           const id = options?.toolUseID ?? `perm-${++this._permCounter}`
           this._push({ type: 'orchestration_denied', id, reason: 'orchestration-off' })
           return { behavior: 'deny', message: '오케스트레이션 모드가 꺼져 있습니다.' }
         }
-        return this._requestPermission(toolName, input, options)
+        case 'allow':
+          return { behavior: 'allow', updatedInput: input }
+        case 'deny':
+          return { behavior: 'deny', message: verdict.message }
+        case 'card':
+          return this._requestPermission(toolName, input, options, verdict.escalation)
       }
-
-      // 규칙 제안 없는 호출은 모드·READONLY 분기보다 먼저 사람에게 올린다 (M06 G3 — auto·bypass 조기 허용이 가드 ask를 삼켰다).
-      const escalation = escalationOf(options)
-      if (escalation !== undefined) {
-        return this._requestPermission(toolName, input, options, escalation)
-      }
-
-      if (currentMode === 'auto' || currentMode === 'bypass') {
-        return { behavior: 'allow', updatedInput: input }
-      }
-
-      if (READONLY_TOOLS.has(toolName)) {
-        return { behavior: 'allow', updatedInput: input }
-      }
-
-      if (currentMode === 'acceptEdits' && toolName !== 'Bash' && !MUTATING_TOOLS.has(toolName)) {
-        return { behavior: 'allow', updatedInput: input }
-      }
-
-      return this._requestPermission(toolName, input, options)
     }
   }
 

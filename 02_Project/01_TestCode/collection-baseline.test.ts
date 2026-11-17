@@ -58,7 +58,9 @@ const SKIP_DIRS = new Set(['node_modules', 'dist', 'out', 'coverage', '.git'])
 // 선택기·effort 메뉴가 SDK 목록으로 그려지고 정식 ID를 넘기는지 보는 renderer/05_Conversation/PickerGroup.model-list.test.tsx를 더했다.
 // M06 G4: 440 → 441. 실앱 확인에서 conversation.save 핸들러가 model을 버리는 것이 드러나, 그 저장을 고정하는
 // main/01_Ipc/conversation.model-persist.test.ts를 더했다.
-const BASELINE_TEST_FILES = 441
+// M07 G2: 441 → 443. 권한 콜백을 노드 등록부로 옮기며, 옮기기 전 판정 표를 고정하는
+// main/04_Claude/permissionCoordinator.characterization.test.ts와 등록부를 고정하는 main/04_Claude/controlNodes.test.ts를 더했다.
+const BASELINE_TEST_FILES = 443
 
 function collectTestFiles(dir: string, acc: string[] = []): string[] {
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {

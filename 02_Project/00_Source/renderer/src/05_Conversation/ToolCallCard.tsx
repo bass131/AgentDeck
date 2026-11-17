@@ -1,4 +1,6 @@
-import { useState, useEffect, memo, type JSX } from 'react'
+import { useState, useEffect, useContext, memo, type JSX } from 'react'
+import { PrCard, prUrlFromToolCall } from '@renderer/08_Git'
+import { ThreadCwdContext } from './threadCwd'
 import type { ToolCard, FileDiffEntry } from './state/reducer'
 import { toolMetaFor, toolTarget, type ToolKind } from '@renderer/03_Agent/toolKind'
 import { languageFromPath } from './readLanguage'
@@ -109,6 +111,10 @@ function ToolCallCardInner({ card, fileDiffs = {}, targetOverride, runId }: Tool
   const isBash = kind === 'bash'
   const hasBashOutput = isBash && !hasBgTask && card.status !== 'running' && typeof card.result === 'string' && card.result.length > 0
 
+  // `gh pr create` 결과에 PR URL이 보이면 그 아래에 PR 카드를 띄운다 (M07 G8). URL은 번호를 찾는 데만 쓴다.
+  const threadCwd = useContext(ThreadCwdContext)
+  const prUrl = isBash && card.status === 'done' ? prUrlFromToolCall(card.input, card.result) : null
+
   const hasDetail = card.input !== undefined || card.result !== undefined
   const resultText = detailText(card.result)
 
@@ -165,6 +171,8 @@ function ToolCallCardInner({ card, fileDiffs = {}, targetOverride, runId }: Tool
       {card.bgTask && <BackgroundTaskView bgTask={card.bgTask} runId={runId} />}
 
       {hasBashOutput && <BashOutput card={card} />}
+
+      {prUrl && <PrCard cwd={threadCwd} url={prUrl} />}
 
       {!hasBashOutput && open && hasDetail && (
         <div className="bo-block">

@@ -397,6 +397,7 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
             className="thread"
             style={{ zoom }}
             before={restoredSession ? <RestoredContextBadge /> : null}
+            cwd={workspaceRoot}
           />
         )}
 

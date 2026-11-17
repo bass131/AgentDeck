@@ -100,11 +100,31 @@ if (settings) {
   r.check('push를 여는 allow는 `Bash(git push*)` 한 줄이다', pushAllowed.length === 1 && pushAllowed[0] === 'Bash(git push*)', pushAllowed.join(', ') || '0건')
   r.check('ask에 push 규칙이 없다 (있으면 작업 브랜치 push에 창이 뜬다)', !askList.some((x) => x.includes('git push')), askList.filter((x) => x.includes('git push')).join(', ') || '0건')
   r.check('PR 생성이 allow에 있고 ask에 없다', allowList.includes('Bash(gh pr create*)') && !askList.includes('Bash(gh pr create*)'), '')
-  const APPROVAL = ['Bash(gh pr merge*)', 'Bash(gh release*)', 'Bash(npm publish*)', 'Bash(npm run package*)']
+  const APPROVAL = ['Bash(gh release*)', 'Bash(npm publish*)', 'Bash(npm run package*)']
   const lostAsk = APPROVAL.filter((rule) => !askList.includes(rule))
-  r.check('병합·릴리스·배포 넷이 ask에 남아 있다', lostAsk.length === 0, lostAsk.join(', ') || '누락 0건')
-  const leaked = APPROVAL.filter((rule) => allowList.includes(rule))
-  r.check('승인 항목이 allow로 새지 않았다', leaked.length === 0, leaked.join(', ') || '0건')
+  r.check('릴리스·배포 셋이 ask에 남아 있다', lostAsk.length === 0, lostAsk.join(', ') || '누락 0건')
+  // M07 G8(병합 버튼 · 헌법 10조 개정): 병합은 사람이 앱의 병합 버튼으로만 한다. 에이전트의 병합 명령은
+  // 질문 없이 거부한다. 공식 문서(code.claude.com/docs/en/hooks): 「Deny and ask rules are still evaluated
+  // regardless of what the hook returns.」 — 가드 훅의 ask가 있어도 이 deny가 이긴다.
+  const denyList = (settings.permissions?.deny ?? []).map(String)
+  // 규칙은 첫 `*` 앞 글자를 그대로 맞춘다(공식 문서) — 그래서 옵션을 앞에 둔 꼴과 `timeout` 앞붙임을 따로 적는다(G8 검수 중요 1).
+  // 맨 앞 `*`(`Bash(*gh pr merge*)`)는 쓰지 않는다 — 커밋 메시지·검색어에 든 글자까지 막는다.
+  const MERGE_DENY = [
+    'Bash(gh pr merge*)',
+    'Bash(gh -R * pr merge*)',
+    'Bash(gh --repo * pr merge*)',
+    'Bash(gh pr -R * merge*)',
+    'Bash(gh pr --repo * merge*)',
+    'Bash(timeout * gh pr merge*)',
+    'Bash(gh api *pulls/*/merge*)',
+    'Bash(gh api *graphql*mergePullRequest*)',
+    'Bash(gh api *graphql*enablePullRequestAutoMerge*)',
+  ]
+  const lostDeny = MERGE_DENY.filter((rule) => !denyList.includes(rule))
+  r.check('병합 명령 거부 아홉이 deny에 있다', lostDeny.length === 0, lostDeny.join(', ') || '누락 0건')
+  r.check('병합 명령이 ask에 남지 않았다 (deny와 겹치면 의도가 흐려진다)', !askList.some((x) => x.includes('merge')), askList.filter((x) => x.includes('merge')).join(', ') || '0건')
+  const leaked = [...APPROVAL, ...MERGE_DENY].filter((rule) => allowList.includes(rule))
+  r.check('승인·거부 항목이 allow로 새지 않았다', leaked.length === 0, leaked.join(', ') || '0건')
   r.check('`git checkout -b*`가 allow에 없다 (-f가 미커밋 편집을 버린다)', !allowList.some((rule) => /git checkout/.test(rule)), '')
   // M05 H1 진척 단계 5가 연 실행 단계 명령은 정확히 이 꼴만 둔다 (독립 검수 결함 6 · 재수리) —
   //   `Bash(date*)`는 `date -s`·`--set`(시스템 시각 변경)까지 열어 `date`와 루프가 쓰는 형식 한 줄로 좁혔다.

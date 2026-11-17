@@ -80,6 +80,8 @@ export const API_ROUTES = {
     commit: call(IPC_CHANNELS.GIT_COMMIT),
     push: call(IPC_CHANNELS.GIT_PUSH),
     pull: call(IPC_CHANNELS.GIT_PULL),
+    prRead: call(IPC_CHANNELS.GIT_PR_READ),
+    prMerge: call(IPC_CHANNELS.GIT_PR_MERGE),
   },
   lsp: {
     status: call(IPC_CHANNELS.LSP_STATUS),

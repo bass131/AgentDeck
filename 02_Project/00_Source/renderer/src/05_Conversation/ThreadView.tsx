@@ -8,6 +8,7 @@ import { deriveHookTurnBadges } from './state/hookBadge'
 import { getProviderBrand } from '@renderer/02_Common/providerBrand'
 import { getTheme } from '@renderer/02_Common/theme'
 import { ToolGroup } from './ToolGroup'
+import { ThreadCwdContext } from './threadCwd'
 import { CmdResultCard } from './CmdResultCard'
 import { StatusLine } from './StatusLine'
 import { IconSpark, IconAlert, IconClaude, IconInfo, IconChevDown } from '@renderer/02_Common/icons'
@@ -181,6 +182,8 @@ export interface ThreadViewProps {
   style?: CSSProperties
   // 블록 앞에 놓을 장식(단일의 복원 배지 등).
   before?: ReactNode
+  // 이 대화의 작업 폴더 — 스레드 안 PR 카드(M07 G8)가 이 폴더의 origin으로 PR을 읽는다.
+  cwd?: string | null
 }
 
 function renderStandaloneItem(item: ThreadItem): JSX.Element | null {
@@ -267,6 +270,7 @@ export const ThreadView = memo(function ThreadView({
   className,
   style,
   before,
+  cwd,
 }: ThreadViewProps): JSX.Element {
   const {
     thread,
@@ -376,6 +380,7 @@ export const ThreadView = memo(function ThreadView({
 
   let flatIdx = -1
   return (
+    <ThreadCwdContext.Provider value={cwd ?? null}>
     <div className={className} style={style}>
       {before}
 
@@ -439,5 +444,6 @@ export const ThreadView = memo(function ThreadView({
         </div>
       )}
     </div>
+    </ThreadCwdContext.Provider>
   )
 })

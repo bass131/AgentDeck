@@ -67,7 +67,9 @@ const SKIP_DIRS = new Set(['node_modules', 'dist', 'out', 'coverage', '.git'])
 // 라우트 계약(shared/01_Ipc/ipcContract.controls.test.ts), 패널 화면(renderer/11_Settings/ControlsView.test.tsx)을 더했다.
 // M07 G5: 450 → 451. 앱 리허설에서 실행 안의 거절 오류가 화면에 닿지 않아, agent.run 요청 단계의 거절을 고정하는
 // main/01_Ipc/agent.controls-gate-handler.test.ts를 더했다.
-const BASELINE_TEST_FILES = 451
+// M07 G8: 451 → 455. 병합 거부 노드 main/04_Claude/mergeDeny.test.ts, PR 서비스 main/08_Git/prMerge.test.ts,
+// PR 카드 도우미 renderer/08_Git/prCardModel.test.ts, PR 카드 화면 renderer/08_Git/PrCard.test.tsx를 더했다.
+const BASELINE_TEST_FILES = 455
 
 function collectTestFiles(dir: string, acc: string[] = []): string[] {
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {

@@ -96,6 +96,42 @@ describe('ThreadView — 공용 스레드 렌더', () => {
   })
 })
 
+describe('ThreadView — 작업 폴더 공급 (M07 G8)', () => {
+  it('cwd를 받으면 gh pr create 결과의 PR 카드가 그 폴더로 PR을 읽는다', async () => {
+    const { vi } = await import('vitest')
+    const { act } = await import('@testing-library/react')
+    const { adaptFlatApi } = await import('../00_Helpers/windowApiMock')
+    const prRead = vi.fn().mockResolvedValue({ ok: false, error: 'x' })
+    Object.defineProperty(window, 'api', { value: adaptFlatApi({ git: { prRead, prMerge: vi.fn() } }), writable: true, configurable: true })
+    const url = 'https://github.com/o/r/pull/3'
+    const { ThreadView } = await import('@renderer/05_Conversation/ThreadView')
+    const thread: ThreadItem[] = [
+      { kind: 'msg', id: 'u1', role: 'user', text: 'PR 만들어' },
+      { kind: 'toolgroup', id: 'g1', tools: [{ id: 't1', name: 'Bash', input: { command: 'gh pr create --fill' }, status: 'done', result: url }] },
+    ]
+    const state = { ...(await baseState()), thread }
+    render(<ThreadView state={state} onOpenSubagent={() => {}} className="thread" cwd="D:/work/panel" />)
+    await act(async () => { await new Promise((r) => setTimeout(r, 0)) })
+    expect(prRead).toHaveBeenCalledWith({ cwd: 'D:/work/panel', number: undefined, url })
+    cleanup()
+    // cwd가 없으면 카드는 PR을 읽지 않고 그 사실을 보인다
+    prRead.mockClear()
+    const { getByText } = render(<ThreadView state={state} onOpenSubagent={() => {}} className="thread" />)
+    await act(async () => { await new Promise((r) => setTimeout(r, 0)) })
+    expect(prRead).not.toHaveBeenCalled()
+    expect(getByText('작업 폴더가 없어 PR을 불러오지 않았어요')).toBeTruthy()
+  })
+
+  it('단일 대화와 멀티 패널은 각자의 작업 폴더를 ThreadView에 넘긴다', async () => {
+    const { readFileSync } = await import('node:fs')
+    const { resolve } = await import('node:path')
+    for (const f of ['Conversation.tsx', 'PanelView.tsx']) {
+      const src = readFileSync(resolve(__dirname, '../../../../02_Project/00_Source/renderer/src/05_Conversation', f), 'utf-8')
+      expect(src, f).toMatch(/<ThreadView[\s\S]*?cwd=\{workspaceRoot\}[\s\S]*?\/>/)
+    }
+  })
+})
+
 describe('항목 렌더 부품의 거처', () => {
   it('NoticeItem·ThinkingItem은 ThreadView에 있고 Conversation은 같은 것을 재수출한다', async () => {
     const tv = await import('@renderer/05_Conversation/ThreadView')

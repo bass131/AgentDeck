@@ -18,6 +18,7 @@ import {
 } from '@renderer/02_Common/icons'
 import { ProviderBrandIcon } from '@renderer/02_Common/ProviderBrandIcon'
 import { ipc } from '@renderer/01_Ipc'
+import { PrCard } from './PrCard'
 import './GitModal.css'
 
 const STATUS_CLS: Record<string, string> = { M: 'm', A: 'a', D: 'd', R: 'm' }
@@ -105,6 +106,10 @@ export function GitModal({
   const [err, setErr] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
   const [maximized, setMaximized] = useState(false)
+  const [prInput, setPrInput] = useState('')
+  // 불러올 때마다 key를 올려 카드를 새로 띄운다(카드는 마운트당 한 번 읽는다)
+  const [prLoaded, setPrLoaded] = useState<{ number: number; key: number } | null>(null)
+  const prNumber = /^\d+$/.test(prInput.trim()) && Number(prInput.trim()) > 0 ? Number(prInput.trim()) : null
   const downOnOverlay = useRef(false)
 
   const repoName = root.split(/[\\/]/).filter(Boolean).pop() ?? root
@@ -380,6 +385,29 @@ export function GitModal({
                 </span>
               )}
             </button>
+
+            {/* PR 병합 (M07 G8) — CLI 세션이 만든 PR도 번호로 불러와 카드에서 병합한다 */}
+            <div className="gitm-sec">PR 병합</div>
+            <form
+              className="gitm-pr"
+              onSubmit={(e) => {
+                e.preventDefault()
+                if (prNumber === null) return
+                setPrLoaded({ number: prNumber, key: (prLoaded?.key ?? 0) + 1 })
+              }}
+            >
+              <input
+                aria-label="PR 번호"
+                inputMode="numeric"
+                placeholder="번호"
+                value={prInput}
+                onChange={(e) => setPrInput(e.target.value)}
+              />
+              <button className="gitm-btn" type="submit" disabled={prNumber === null}>
+                불러오기
+              </button>
+            </form>
+            {prLoaded && <PrCard key={prLoaded.key} cwd={root} number={prLoaded.number} />}
 
             {status && status.branches.length > 0 && (
               <>

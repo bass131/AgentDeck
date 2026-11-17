@@ -214,6 +214,43 @@ describe('[W7-bash] 접기 버튼', () => {
   })
 })
 
+describe('gh pr create 결과의 PR 카드 (M07 G8)', () => {
+  const URL = 'https://github.com/bass131/AgentDeck/pull/74'
+  const CWD = 'C:/Dev/AgentDeck'
+
+  async function renderPr(opts: { command: string; output: string; status: 'done' | 'running' | 'error'; cwd?: string | null }) {
+    const prRead = vi.fn().mockResolvedValue({ ok: false, error: '다른 저장소 PR — 불러오지 않음', otherRepo: true })
+    const { adaptFlatApi } = await import('../00_Helpers/windowApiMock')
+    Object.defineProperty(window, 'api', { value: adaptFlatApi({ git: { prRead, prMerge: vi.fn() } }), writable: true, configurable: true })
+    const { ToolCallCard } = await import('@renderer/05_Conversation/ToolCallCard')
+    const { ThreadCwdContext } = await import('@renderer/05_Conversation/threadCwd')
+    const card = { id: 'b1', name: 'Bash', input: { command: opts.command }, status: opts.status, result: opts.output }
+    const r = render(
+      <ThreadCwdContext.Provider value={opts.cwd === undefined ? CWD : opts.cwd}>
+        <ToolCallCard card={card} />
+      </ThreadCwdContext.Provider>
+    )
+    await act(async () => { await new Promise((res) => setTimeout(res, 0)) })
+    return { ...r, prRead }
+  }
+
+  it('gh pr create 결과에 PR URL이 보이면 그 대화의 작업 폴더로 카드를 띄운다 (URL은 main이 저장소를 비교한다)', async () => {
+    const { prRead } = await renderPr({ command: 'gh pr create --fill', output: `Creating pull request\n${URL}`, status: 'done' })
+    expect(prRead).toHaveBeenCalledWith({ cwd: CWD, number: undefined, url: URL })
+    expect(screen.getByTestId('pr-card')).toBeTruthy()
+    expect(screen.getByText('다른 저장소 PR — 불러오지 않음')).toBeTruthy()
+  })
+
+  it('gh pr create가 아닌 명령, 실행 중인 호출에는 카드가 없다', async () => {
+    const a = await renderPr({ command: 'gh pr view 74', output: URL, status: 'done' })
+    expect(a.prRead).not.toHaveBeenCalled()
+    expect(screen.queryByTestId('pr-card')).toBeNull()
+    cleanup()
+    const b = await renderPr({ command: 'gh pr create --fill', output: URL, status: 'running' })
+    expect(b.prRead).not.toHaveBeenCalled()
+  })
+})
+
 describe('[W7-bash] 고스트 .bo-pv.err — failed 미리보기', () => {
   it('status=error 고스트 → .bo-pv.err 클래스', async () => {
     expect(true).toBe(true)

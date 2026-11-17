@@ -88,6 +88,10 @@ import type {
   GitPushResponse,
   GitPullRequest,
   GitPullResponse,
+  PrReadRequest,
+  PrReadResponse,
+  PrMergeRequest,
+  PrMergeResponse,
 } from '../08_Git/git'
 import type { LspDocReq, LspPosReq, LspStatus, LspHoverResult, LspLocation, LspSemanticTokens } from '../09_Lsp/lsp'
 import type {
@@ -162,6 +166,8 @@ export interface IpcInvokeMap {
   'git.commit': { req: GitCommitRequest; res: GitCommitResponse }
   'git.push': { req: GitPushRequest; res: GitPushResponse }
   'git.pull': { req: GitPullRequest; res: GitPullResponse }
+  'git.prRead': { req: PrReadRequest; res: PrReadResponse }
+  'git.prMerge': { req: PrMergeRequest; res: PrMergeResponse }
 
   'lsp.status': { req: LspDocReq; res: LspStatus }
   'lsp.hover': { req: LspPosReq; res: LspHoverResult | null }

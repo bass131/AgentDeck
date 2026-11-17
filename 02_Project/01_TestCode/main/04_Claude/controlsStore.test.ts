@@ -213,7 +213,7 @@ describe('controls.json 저장과 봉인 상태 (M07 G5)', () => {
     const s = controlsState(ud)
     expect(s.status).toBe('error')
     expect(s.error).toBeTruthy()
-    expect(s.nodes).toHaveLength(8)
+    expect(s.nodes).toHaveLength(9)
   })
 
   it('봉인이 맞으면 실행에 꺼진 노드를 뺀 등록부를 넘긴다', () => {
@@ -242,7 +242,9 @@ describe('패널 상태 (M07 G5)', () => {
     expect(byId.get('mode-auto-bypass-allow')).toMatchObject({ enabled: false, locked: false, point: 'canUseTool' })
     expect(byId.get('no-suggestion-card')).toMatchObject({ enabled: true, locked: true })
     expect(byId.get('engine-path-bash-lock')).toMatchObject({ enabled: true, locked: true, point: 'preToolUse', protection: 'L3' })
-    expect(s.nodes).toHaveLength(8)
+    // 병합 거부 노드(M07 G8)도 잠긴 채 늘 켬으로 보인다
+    expect(byId.get('merge-deny')).toMatchObject({ enabled: true, locked: true, point: 'preToolUse', protection: 'L3' })
+    expect(s.nodes).toHaveLength(9)
   })
 
   it('봉인이 깨졌을 때는 파일 내용(확인하면 받아들일 내용)을 켜짐으로 보인다', () => {

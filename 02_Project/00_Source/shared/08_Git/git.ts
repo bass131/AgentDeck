@@ -11,7 +11,70 @@ export const GIT_CHANNELS = {
   GIT_COMMIT: 'git.commit',
   GIT_PUSH: 'git.push',
   GIT_PULL: 'git.pull',
+  // PR 카드 (M07 G8) — main이 GitHub에서 읽고, 사람이 누른 병합 버튼으로만 병합한다
+  GIT_PR_READ: 'git.prRead',
+  GIT_PR_MERGE: 'git.prMerge',
 } as const
+
+// ── PR 카드 (M07 G8) ──
+// 필수 검사 하나의 결과 — 보인 머리 SHA의 check run·commit status에서 읽는다.
+export type PrCheckResult = 'success' | 'pending' | 'failure' | 'missing'
+
+// 카드에 보이는 값은 모두 main이 GitHub에서 읽은 값이다.
+export interface PrView {
+  owner: string
+  repo: string
+  number: number
+  title: string
+  url: string
+  state: 'open' | 'closed'
+  draft: boolean
+  merged: boolean
+  // GitHub가 아직 계산하지 않았으면 null이다
+  mergeable: boolean | null
+  baseRef: string
+  headRef: string
+  headSha: string
+  // base 브랜치에 보호가 걸려 있는가(보호 API가 「Branch not protected」면 false)
+  protected: boolean
+  // 필수 검사 이름을 읽지 못한 사유 — 있으면 버튼이 꺼진다(닫힌 실패)
+  requiredError?: string
+  // 검사 결과를 읽지 못한 사유 — 있으면 버튼이 꺼진다
+  checksError?: string
+  checks: { name: string; result: PrCheckResult }[]
+  canMerge: boolean
+  // 버튼을 끄는 사유
+  reasons: string[]
+  // 막지 않는 안내(보호 없는 base 등)
+  notes: string[]
+}
+
+// 번호 또는 PR URL로 읽는다. URL은 번호를 찾는 데만 쓰고, 저장소가 origin과 다르면 읽지 않는다.
+export interface PrReadRequest {
+  cwd: string
+  number?: number
+  url?: string
+}
+
+export type PrReadResponse =
+  | { ok: true; pr: PrView }
+  | { ok: false; error: string; otherRepo?: boolean }
+
+// sha는 카드가 보인(main이 마지막으로 읽어 돌려준) 머리 SHA다. main은 다른 SHA를 거부한다.
+export interface PrMergeRequest {
+  cwd: string
+  number: number
+  sha: string
+}
+
+// merged: 병합 커밋 SHA가 mergeSha · enqueued: 병합 큐에 들어감 · refused: 보내지 않았거나 서버가 거부
+// failed: 서버의 병합 실패·응답 이상 · timeout: 결과 대기 시간 초과
+// unknown: 요청을 보낸 뒤 HTTP 상태 없이 끝남(시간 초과·네트워크) — 서버가 받았는지 모른다
+export interface PrMergeResponse {
+  status: 'merged' | 'enqueued' | 'refused' | 'failed' | 'timeout' | 'unknown'
+  message: string
+  mergeSha?: string
+}
 
 export type GitFileStatus = 'M' | 'A' | 'D' | 'R'
 

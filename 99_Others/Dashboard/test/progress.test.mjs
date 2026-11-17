@@ -141,8 +141,10 @@ test('hand: merge waiting, a merge step in progress, a question, a stop, the led
   const ids = h => h.map(x => [x.id, x.level]);
   assert.deepEqual(judgeHand({ phases: goal('실행 중', [step(1, 'current', '구현')], 1) }), []);
   assert.deepEqual(ids(judgeHand({ phases: goal('병합 대기', [step(1, 'done', 'a')], null, { goal: { status: '병합 대기 (PR 49)' } }) })), [['merge', 'todo']]);
-  assert.match(judgeHand({ phases: goal('병합 대기', [], null, { goal: { status: '병합 대기 (PR 49)' } }) })[0].say, /^PR 49의 병합을 승인해 주세요/);
+  // M07 G8: 병합은 사용자가 앱 PR 카드의 「병합」 버튼으로 한다 — 보드 승인 요청이 아니다
+  assert.match(judgeHand({ phases: goal('병합 대기', [], null, { goal: { status: '병합 대기 (PR 49)' } }) })[0].say, /^PR 49의 병합을 기다려요 — 앱 PR 카드의 「병합」 버튼으로 해 주세요/);
   assert.deepEqual(ids(judgeHand({ phases: goal('실행 중', [step(8, 'current', '커밋, push, PR 생성, 병합 승인 요청')], 8) })), [['merge-step', 'todo']]);
+  assert.match(judgeHand({ phases: goal('실행 중', [step(8, 'current', '커밋, push, PR 생성, 병합 승인 요청')], 8) })[0].say, /「병합」 버튼/);
   const q = judgeHand({ phases: goal('실행 중', [step(2, 'current', 'b')], 2, { goal: { waitingUser: true }, record: { last: { marker: 'USER-INPUT', text: '범위를 바꿀까요?', file: 'g.md', line: 40 } } }) });
   assert.deepEqual([q[0].id, q[0].quote, q[0].ref], ['question', '범위를 바꿀까요?', { path: 'g.md', line: 40 }]);
   const stop = judgeHand({ phases: goal('실행 중', [step(2, 'stopped', 'b')], 2, { record: { failSinceUserInput: 3 } }) });

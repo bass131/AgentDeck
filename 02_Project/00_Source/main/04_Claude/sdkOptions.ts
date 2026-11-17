@@ -3,6 +3,7 @@ import { isAbsolute } from 'node:path'
 import { buildQueryOptions } from './runArgs'
 import { fallbackNotice } from './stream/modelFallback'
 import type { CanUseToolFn } from './permission/permissionCoordinator'
+import { enginePathDenyRules, buildEnginePathLockHook } from './permission/enginePathLock'
 import type { AgentRunInput } from '@main/03_Agent/AgentBackend'
 import type { AgentEvent } from '../../shared/agentEvents'
 
@@ -76,8 +77,13 @@ export function buildClaudeSdkOptions(params: {
   skillOverrides: Record<string, 'off'> | null
   mcpDenied: { serverName: string }[] | null
   onUserDialog: OnUserDialogFn
+  // 앱 userData 경로. 있으면 엔진 경로 잠금(거부 규칙과 Bash 잠금 훅)을 넣는다 (M07 G3). 실행은 늘 넘긴다.
+  userDataDir?: string
 }): Record<string, unknown> {
-  const { req, abortController, canUseTool, skillOverrides, mcpDenied, onUserDialog } = params
+  const { req, abortController, canUseTool, skillOverrides, mcpDenied, onUserDialog, userDataDir } = params
+  const lock = userDataDir
+    ? { deny: enginePathDenyRules(userDataDir), hook: buildEnginePathLockHook(userDataDir) }
+    : null
 
   const optionsPatch = buildQueryOptions({
     model: req.model,
@@ -108,11 +114,12 @@ export function buildClaudeSdkOptions(params: {
     },
     ...(req.resumeSessionId ? { resume: req.resumeSessionId } : {}),
     settings: {
-      permissions: { defaultMode: permissionMode },
+      permissions: { defaultMode: permissionMode, ...(lock ? { deny: lock.deny } : {}) },
       ...(skillOverrides ? { skillOverrides } : {}),
       ...(mcpDenied ? { deniedMcpServers: mcpDenied } : {})
     },
     settingSources: ['user', 'project', 'local'],
+    ...(lock ? { hooks: { PreToolUse: [lock.hook] } } : {}),
     canUseTool,
     supportedDialogKinds: ['refusal_fallback_prompt'],
     onUserDialog,

@@ -10,6 +10,8 @@
 //   일반 질의는 언제나 규칙 제안이 한 개 이상 붙어 왔다. 사유는 없을 수 있었다(default의 Write).
 // 그래서 사유가 아니라 규칙 제안으로 가른다. 제안이 비어 있지 않은 배열이 아니면 모드와 관계없이 카드로 보낸다(fail-closed).
 // 민감 파일 안전 검사(suggestions: [])와 옵션 없는 호출도 여기에 걸린다 — 모르는 꼴은 허용으로 떨어지지 않는다.
+import { ENGINE_PATH_NODES } from './enginePathLock'
+
 export interface Escalation {
   reason?: string
 }
@@ -69,7 +71,8 @@ export type PermissionVerdict =
 export interface ControlNodeInfo {
   readonly id: string
   readonly name: string
-  readonly point: 'canUseTool'
+  // canUseTool: 권한 콜백(G2) · permissionRules: 세션을 열 때 넣는 인라인 규칙 · preToolUse: SDK 훅 콜백 (G3)
+  readonly point: 'canUseTool' | 'permissionRules' | 'preToolUse'
   // 판정 주체는 노드 자신이 무엇으로 정하는가다. 결과가 ask(카드)여도 노드는 규칙으로 정하고, 카드의 답은 사람이 한다.
   readonly judge: 'rule' | 'model' | 'human'
   readonly results: readonly ('allow' | 'ask' | 'deny' | 'notify' | 'transition')[]
@@ -150,8 +153,10 @@ export const PERMISSION_NODES: readonly ControlNode[] = Object.freeze([
   }),
 ])
 
+// 목록 순서: 권한 콜백 노드(판정 순서대로) 뒤에 엔진 경로 노드(G3). 컨트롤 패널 goal이 지점별로 묶어 보인다.
 export function listControlNodes(): ControlNodeInfo[] {
-  return PERMISSION_NODES.map(({ decide: _decide, ...info }) => ({ ...info, results: [...info.results] }))
+  const fromCallback = PERMISSION_NODES.map(({ decide: _decide, ...info }) => info)
+  return [...fromCallback, ...ENGINE_PATH_NODES].map((info) => ({ ...info, results: [...info.results] }))
 }
 
 const DECISION_KINDS: ReadonlySet<string> = new Set(['pass', 'allow', 'question', 'orchestration-denied', 'card'])

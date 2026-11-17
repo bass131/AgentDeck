@@ -1,6 +1,7 @@
 import { RunEventNormalizer, nextRunTag } from '../stream/eventNormalizer'
 import { PermissionCoordinator } from '../permission/permissionCoordinator'
 import { buildClaudeSdkOptions, makeRefusalFallbackHandler } from '../sdkOptions'
+import { getUserDataDir } from '@main/02_Common/userData'
 import { getDefaultQueryFn, captureSupportedCommands } from '../queryFn'
 import { normalizeRunModel } from '../runArgs'
 import { LIVE_MODE_TO_SDK } from '../permissionModes'
@@ -17,6 +18,17 @@ import type { SlashCommandInfo } from '@shared/ipcContract'
 export { IDLE_CLOSE_GRACE_MS } from './idleCloseGovernor'
 
 export const MAX_CONSECUTIVE_AUTONOMOUS_TURNS = 100
+
+// 엔진 경로 잠금에 넘길 userData 경로 (M07 G3). 실행마다 다시 읽는다 — 임시 --user-data-dir도 그 경로가 잠긴다.
+// Electron 밖(단위 테스트)에서는 app이 없어 던진다. 그때는 잠금 없이 열고 main 로그에 남긴다.
+function userDataForLock(): { userDataDir?: string } {
+  try {
+    return { userDataDir: getUserDataDir() }
+  } catch (err) {
+    console.error('[controls] 엔진 경로 잠금 — userData 경로를 얻지 못해 잠금 없이 연다:', err instanceof Error ? err.message : err)
+    return {}
+  }
+}
 
 export class ClaudeAgentRun implements AgentRun {
   readonly events: AsyncIterable<AgentEvent>
@@ -299,6 +311,7 @@ export class ClaudeAgentRun implements AgentRun {
       skillOverrides: this._skillOverridesProvider(),
       mcpDenied: this._mcpDeniedProvider(),
       onUserDialog: makeRefusalFallbackHandler(this._normalizer, (e) => this._push(e)),
+      ...userDataForLock(),
     })
     return { resolvedQueryFn, sdkOptions }
   }

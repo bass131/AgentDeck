@@ -129,6 +129,21 @@ if (settings) {
   const guardOnBash = entries.filter(({ event, entry }) => event === 'PreToolUse' && entry.matcher === '^Bash$'
     && cmdOf(entry).includes('dangerous-cmd-guard.mjs'))
   r.check('가드가 PreToolUse ^Bash$에 배선돼 있다', guardOnBash.length === 1, `${guardOnBash.length}건`)
+
+  // ---- ⑤ 판정 장치 정비 (M07 G1 · G8 설계 `30_노드-구조.md` 보호 6, M06 Backlog 30) ----
+  // 가드 항목에 timeout이 없으면 기본 600초다. 시간 초과된 command 훅은 도구 호출을 막지 않으므로(공식 hooks 문서)
+  // 멈춘 가드는 600초 뒤 통과로 떨어진다. 막힘으로 바꾸지는 못하고, 무인 루프가 서 있는 시간만 줄인다.
+  // 실측 판정 시간은 17만 자 heredoc에서도 205ms였다(G1 검증 기록) — 30초는 편집 계획 게이트와 같은 값이다.
+  const guardTimeouts = guardEntries.flatMap(({ entry }) => (entry.hooks ?? [])
+    .filter((h) => String(h.command ?? '').includes(GUARD)).map((h) => h.timeout))
+  r.check('가드 항목의 timeout이 30초다', guardTimeouts.length === 1 && guardTimeouts[0] === 30, JSON.stringify(guardTimeouts))
+  // 앱 데이터 폴더(Electron userData — package.json name `agentdeck`)에는 엔진 코드와 앱 설정이 있다.
+  // main 프로세스가 그 엔진 코드를 import하므로(engineVersions.ts) 파일 도구로 고치지 못하게 닫는다.
+  // 공식 permissions 문서: Write·NotebookEdit는 Edit 경로 규칙으로 검사한다(`Write(path)` 규칙은 맞지 않는다), `~/`는 홈 기준.
+  const APPDATA_DENY = 'Edit(~/AppData/Roaming/agentdeck/**)'
+  r.check('앱 데이터 폴더의 Edit 거부 규칙이 deny에 있다', deny.includes(APPDATA_DENY), `기대 ${APPDATA_DENY}`)
+  const appdataElsewhere = [...allowList, ...askList].filter((rule) => /agentdeck/i.test(rule))
+  r.check('앱 데이터 폴더 규칙이 allow·ask에는 없다', appdataElsewhere.length === 0, appdataElsewhere.join(', ') || '0건')
 }
 
 process.exit(r.summary())

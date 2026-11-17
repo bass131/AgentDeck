@@ -9,6 +9,7 @@ import {
   ENGINE_PATH_NODES,
 } from '@main/04_Claude/permission/enginePathLock'
 import { listControlNodes, PERMISSION_NODES } from '@main/04_Claude/permission/controlNodes'
+import { markerDir } from '@main/04_Claude/permission/controlsStore'
 import { buildClaudeSdkOptions } from '@main/04_Claude/sdkOptions'
 import type { AgentRunInput } from '@main/03_Agent/AgentBackend'
 
@@ -23,6 +24,7 @@ describe('보호 대상과 거부 규칙 (M07 G3)', () => {
       'C:/Users/x/AppData/Roaming/agentdeck/engine-seal.json',
       'C:/Users/x/AppData/Roaming/agentdeck/controls-seal.json',
       'C:/Users/x/AppData/Roaming/agentdeck/first-setup.json',
+      'C:/Users/x/AppData/Roaming/agentdeck-guard',
     ])
   })
 
@@ -34,6 +36,7 @@ describe('보호 대상과 거부 규칙 (M07 G3)', () => {
       'Edit(//c/Users/x/AppData/Roaming/agentdeck/engine-seal.json)',
       'Edit(//c/Users/x/AppData/Roaming/agentdeck/controls-seal.json)',
       'Edit(//c/Users/x/AppData/Roaming/agentdeck/first-setup.json)',
+      'Edit(//c/Users/x/AppData/Roaming/agentdeck-guard/**)',
     ])
   })
 
@@ -65,6 +68,51 @@ describe('보호 대상과 거부 규칙 (M07 G3)', () => {
       'cd C:/Dev/AgentDeck && git add c*',
       'cd C:/Dev/AgentDeck && ls engineVersions*',
       'cd C:/Dev/AgentDeck && ls 02_Project/00_Source/main/04_Claude/permission/controls*',
+    ]) {
+      expect(bashLockReason(cmd, WIN_UD), cmd).toBeNull()
+    }
+  })
+
+  it('잠금이 지키는 guard 폴더는 표시를 쓰는 거처와 같다 (G7 검수 사소 8)', () => {
+    const dir = markerDir(WIN_UD).replace(/\\/g, '/')
+    expect(protectedTargets(WIN_UD)).toContain(dir)
+    expect(bashLockReason(`rm -rf "${dir}"`, WIN_UD)).not.toBeNull()
+  })
+
+  it('표시의 새 거처(이웃 guard 폴더)도 보호 대상이다 (G7)', () => {
+    expect(protectedTargets(WIN_UD)).toContain('C:/Users/x/AppData/Roaming/agentdeck-guard')
+    expect(enginePathDenyRules(WIN_UD)).toContain('Edit(//c/Users/x/AppData/Roaming/agentdeck-guard/**)')
+    for (const cmd of [
+      'rm -r "$APPDATA/agentdeck-guard"',
+      'rm "$APPDATA/agentdeck-guard/first-setup.json"',
+      'cd "$APPDATA" && rm -rf agentdeck-guard',
+      'cd ~/AppData/Roaming/agentdeck-guard && rm *',
+    ]) {
+      expect(bashLockReason(cmd, WIN_UD), cmd).toMatch(/agentdeck-guard/)
+    }
+    // 폴더 이름 접두 와일드카드는 앱 데이터 폴더와 guard 폴더를 함께 지우므로 막는다 — 따옴표를 닫은 꼴 포함(G7 검수 중요 2)
+    for (const cmd of [
+      'cd "$APPDATA" && rm -rf agentdeck*',
+      'rm -rf $APPDATA/agentdeck-*',
+      'rm -rf "$APPDATA/agentdeck"*',
+      'rm -rf "$APPDATA/agentdeck-"*',
+      'rm -rf ~/AppData/Roaming/agentdeck-gu*',
+      'rm -rf "$APPDATA/agentdeck-guard"/*',
+    ]) {
+      expect(bashLockReason(cmd, WIN_UD), cmd).not.toBeNull()
+    }
+  })
+
+  it('저장소 명령은 폴더 이름이 같아도 새로 막지 않는다 (G7 검수 중요 1)', () => {
+    for (const cmd of [
+      'cd C:/Dev/AgentDeck && git status',
+      'cd C:/Dev/AgentDeck && ls 02_Project/*',
+      'git commit -m "fix: AgentDeck? check"',
+      'gh api "repos/bass131/AgentDeck?x=1"',
+      'ls C:/Dev/AgentDeck*',
+      'rm -rf /tmp/agentdeck-controls*',
+      'rg "agentdeck-[a-z]+" .',
+      'rg -n agentdeck-guard 01_Milestones',
     ]) {
       expect(bashLockReason(cmd, WIN_UD), cmd).toBeNull()
     }

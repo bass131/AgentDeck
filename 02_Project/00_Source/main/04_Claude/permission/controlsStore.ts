@@ -6,15 +6,17 @@
 // 봉인이 맞지 않으면 기본값으로 물러나지 않고 실행을 열지 않는다(G5 결정 대장 [USER]). 풀린 노드는 허용 노드뿐이라
 // 기본값(전부 켬)이 가장 느슨하다 — 물러나면 사용자가 꺼 둔 허용이 파일 훼손 한 번으로 되살아난다.
 // 「처음 설정함」 표시(`first-setup.json`)는 두 파일과 따로 둔다(설계 보호 4). 두 파일을 함께 지워도 첫 실행으로 보이지 않게 하려는 것이다
-// (G5 검수 차단 1). 이름이 `control`로 시작하지 않아 `rm controls*` 한 번에 함께 지워지지 않는다.
-// 세 파일은 앱 세션에서 잠겨 있다(enginePathLock.ts). CLI 세션이나 다른 프로그램이 고친 경우를 이 봉인이 잡는다.
-// 셋을 함께 지우거나 봉인까지 함께 고치면 통과한다 — L1 보호다(설계 「보호」 끝 문단).
+// (G5 검수 차단 1). 거처는 앱 데이터 폴더의 이웃 폴더 `<폴더>-guard/`다(G7 사용자 결정) — 앱 데이터 폴더를 통째로 지워도 남는다.
+// G5가 앱 데이터 폴더 안에 쓴 옛 표시는 읽을 때 새 거처로 옮겨 적고, 옛 파일은 지우지 않는다.
+// 파일들은 앱 세션에서 잠겨 있다(enginePathLock.ts). CLI 세션이나 다른 프로그램이 고친 경우를 이 봉인이 잡는다.
+// 표시까지 함께 지우거나(`agentdeck*` 와일드카드 포함) 봉인까지 함께 고치면 통과한다 — L1 보호다(설계 「보호」 끝 문단).
 import fs from 'node:fs'
 import path from 'node:path'
 import { createHash } from 'node:crypto'
 import type { Ack } from '../../../shared/02_Common/common'
 import type { ControlsSealStatus, ControlsState } from '../../../shared/11_Settings/settings'
 import { PERMISSION_NODES, listControlNodes, type ControlNode } from './controlNodes'
+import { markerDir } from './guardDir'
 
 const FILE = 'controls.json'
 const SEAL = 'controls-seal.json'
@@ -78,13 +80,34 @@ function fileContent(userData: string): string[] | null {
   return raw === null ? null : parseFile(raw)
 }
 
+// 표시 거처(이웃 guard 폴더)는 guardDir.ts가 정한다 — 잠금(enginePathLock.ts)과 같은 이름을 쓴다
+export { markerDir }
+
+function writeMarker(userData: string): void {
+  fs.mkdirSync(markerDir(userData), { recursive: true })
+  fs.writeFileSync(path.join(markerDir(userData), MARKER), JSON.stringify({ version: 1, controls: true }, null, 2) + '\n')
+}
+
+// 표시가 있는가. 옛 거처(앱 데이터 폴더 안)에만 있으면 새 거처로 옮겨 적는다 — 옮기기가 실패해도 판정은 「있음」이다.
+// 표시를 읽다 오류(EACCES·EISDIR 등)가 나면 던진다. 두 파일이 멀쩡해도 실행은 error로 닫힌다 — 의도된 닫힌 실패다(G7 검수 사소 3).
+function isMarked(userData: string): boolean {
+  if (readOrNull(path.join(markerDir(userData), MARKER)) !== null) return true
+  if (readOrNull(path.join(userData, MARKER)) === null) return false
+  try {
+    writeMarker(userData)
+  } catch (err) {
+    console.error('[controls] 옛 「처음 설정함」 표시를 새 거처로 옮기지 못했다:', err)
+  }
+  return true
+}
+
 export function readControls(userData: string): ControlsRead {
+  const marked = isMarked(userData)
   const raw = readOrNull(path.join(userData, FILE))
   const sealRaw = readOrNull(path.join(userData, SEAL))
   const content = raw === null ? [] : parseFile(raw) ?? []
   if (raw === null && sealRaw === null) {
     // 표시가 있으면 한 번 설정한 뒤 둘 다 지워진 것이다 — 첫 실행(none)과 가른다
-    const marked = readOrNull(path.join(userData, MARKER)) !== null
     return { status: marked ? 'mismatch' : 'none', disabled: [] }
   }
   if (sealRaw === null) return { status: 'missing', disabled: content }
@@ -93,14 +116,23 @@ export function readControls(userData: string): ControlsRead {
   if (raw === null || hash === null || hash !== sha256(raw)) return { status: 'mismatch', disabled: content }
   // 앱은 읽을 수 없는 내용을 봉인하지 않는다. 봉인이 맞는데 못 읽으면 바뀐 것과 같이 본다.
   const parsed = parseFile(raw)
-  return parsed === null ? { status: 'mismatch', disabled: [] } : { status: 'ok', disabled: parsed }
+  if (parsed === null) return { status: 'mismatch', disabled: [] }
+  // 봉인이 맞는데 표시만 없으면 다시 적는다 — guard 폴더만 먼저 사라진 뒤 앱 데이터 폴더가 따로 지워지는 경우를 막는다(G7 검수 사소 5)
+  if (!marked) {
+    try {
+      writeMarker(userData)
+    } catch (err) {
+      console.error('[controls] 「처음 설정함」 표시를 다시 적지 못했다:', err)
+    }
+  }
+  return { status: 'ok', disabled: parsed }
 }
 
 // 표시를 먼저, 내용을 다음, 봉인을 마지막에 쓴다. 사이에서 멈추면 mismatch가 되어 실행이 닫힌다.
 function write(userData: string, disabled: string[]): void {
   const content = JSON.stringify({ version: 1, disabled }, null, 2) + '\n'
   fs.mkdirSync(userData, { recursive: true })
-  fs.writeFileSync(path.join(userData, MARKER), JSON.stringify({ version: 1, controls: true }, null, 2) + '\n')
+  writeMarker(userData)
   fs.writeFileSync(path.join(userData, FILE), content)
   fs.writeFileSync(path.join(userData, SEAL), JSON.stringify({ version: 1, hash: sha256(content) }, null, 2) + '\n')
 }

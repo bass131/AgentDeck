@@ -187,6 +187,7 @@ M05 H7(2026-11-16)까지는 「읽기 전용 보장」이었다. 사용자 요�
 - 서버는 `127.0.0.1`에만 바인딩한다. 다른 Host는 403, 다른 Origin의 `/events`는 403이다.
 - 쓰기는 `POST /api/answer/preview`·`/api/answer/send` 둘뿐이고, 메인 입력창에 한 줄 문장을 넣기만 한다(Enter 없음). 페이지 토큰·Origin·Host·64KB·목록 서명(409)·같은 문장·겹침 검사를 거친다. 자세한 검사와 시험은 [`docs/결정-응답.md`](docs/결정-응답.md)에 있다.
 - 병합은 `POST /api/merge/read`·`/api/merge/run` 둘이다(M07 G9). 같은 토큰·Origin·Host·64KB 검사를 거치지만 토큰은 사람 증명이 아니다. 사람 증명은 서버가 띄우는 Windows 확인 창 하나다. 그 밖의 요청은 GET·HEAD만 받고 나머지는 405다. 자세한 규칙과 한계는 [`docs/병합.md`](docs/병합.md)에 있다.
+- 병합 완료 감지 `wait-merge.mjs <번호>`(M07 G10)는 서버와 따로 세션이 백그라운드로 거는 읽기 전용 명령이다. `gh pr view`만 불러 MERGED·CLOSED·ERROR 한 줄로 끝난다([`docs/병합.md`](docs/병합.md)).
 - 저장소에 쓰는 API와 임의 파일 열기 API는 없다. 결정 보드 파일은 메인 세션이 고치고 현황판은 읽기만 한다.
 - 수집의 git은 `lib/git.mjs`의 목록(`rev-parse`·`log`·`status`·`rev-list`·`symbolic-ref`)만 셸 없이 실행한다. 병합 모듈(`lib/merge.mjs`)은 따로 `git remote get-url origin` 하나와 `gh`를 셸 없이 부른다.
   `--no-optional-locks`와 `GIT_OPTIONAL_LOCKS=0`으로 `git status`가 색인을 갱신해 쓰는 일도 막는다. `git fetch`는 하지 않는다.

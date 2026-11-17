@@ -1,0 +1,72 @@
+# M07 G10 — 병합 완료 감지 · PR을 만든 세션이 병합을 스스로 감지해 종결 기록을 시작한다
+
+- 마일스톤: M07 사용자 컨트롤 · 작성: 2026-11-18 · 상태: 실행 중 · 검증 강도: 강(판정 장치 — SessionStart 훅, 두 헌법)
+- 작업 브랜치: `feat/m07-g10-merge-notify` — master `fff022fd`(PR 76) 위에서 갈랐다.
+- 출발점: 결정 대장 두 줄(2026-11-18 현황판 결정 응답). 원래 순서의 G10(가드 병합 차단, Backlog 23)은 뒤로 미뤘다.
+
+## 목표
+
+이 goal이 끝나면 PR을 만든 세션은 병합 감시를 뒤에서 걸어 두고, 사용자가 어느 길로 병합하든 감시가 끝나며 세션이 다시 불린다.
+세션은 GitHub에서 병합 정보를 다시 읽어 종결 기록까지만 하고, 다음 goal은 열지 않는다. 사용자가 「병합 완료」를 따로 말하지 않아도 된다.
+
+## 범위
+
+- **만들 것**
+  - **감시 모듈** `99_Others/Dashboard/lib/waitMerge.mjs`와 실행 파일 `99_Others/Dashboard/wait-merge.mjs <PR 번호>`.
+    - `gh pr view <N> --json state,mergedAt,mergeCommit,mergedBy,headRefOid`를 셸 없이 읽기만 한다. 기본 간격 30초다.
+    - 병합되면 `MERGED` 한 줄(PR 번호, 병합 커밋, 시각, 병합한 사람, 머리 SHA)을 쓰고 0으로 끝난다. 병합 없이 닫히면 `CLOSED` 한 줄과 3으로 끝난다.
+    - 읽기 실패는 잠깐의 실패로 보고 다시 읽는다. 연달아 10번 실패하면 `ERROR` 한 줄과 2로 끝난다. 쓰기 호출은 없다.
+    - `gh`·잠·시계는 주입할 수 있게 해 `node --test`로 본다.
+  - **재개 때 다시 걸기** — SessionStart 훅 `10_start-brief.cjs`가 pin의 현재 goal 줄에서 「병합 대기 (PR N)」을 찾으면 「감시를 다시 걸어라」 한 줄과 명령을 주입한다. 세션이 닫히면 감시도 사라지기 때문이다.
+  - **규범** — 헌법 11조에 「PR을 만든 세션은 병합 감시를 뒤에서 걸고, 감시가 끝나면 GitHub에서 병합 정보를 다시 읽어 종결 기록까지만 한다」를 더한다. 감시를 지원하지 않는 세션(Codex 등)은 사용자의 병합 알림을 기다린다.
+- **건드릴 곳**
+  - `99_Others/Dashboard/`(`lib/waitMerge.mjs`, `wait-merge.mjs`, `test/`, `README.md`).
+  - **판정 장치(헌법 3조, 이름으로)**: `98_Management/01_GateState/gate-config.json`의 `planPath`(1단계), `.claude/hooks/10_start-brief.cjs`와 그 시험 `.claude/hooks/smoke.test.mjs`(4단계), `CLAUDE.md`·`AGENTS.md` 11조(5단계).
+  - 문서: 이 goal 문서, `.claude/commands/gate.md`의 병합 문단, `00_Documents/02_Rules/04_Goal-한장-템플릿.md`의 마감 줄, `M07_Controls/01_Work_Pin.md`·`99_Backlog.md`.
+- **하지 않을 것**
+  - 현황판이 메인 입력창에 글을 넣거나 Enter를 누르는 일(결정 응답에서 B를 고르지 않았다).
+  - 가드 병합 차단(Backlog 23), 여러 PR 목록(Backlog 30).
+  - 감시가 끝난 뒤 다음 goal을 여는 일. 감시 출력만으로 병합을 믿는 일 — 출력은 방아쇠이고 기록은 다시 읽은 GitHub 값으로 한다.
+- **완료조건**
+  - `node --test` 단정: 병합·닫힘·연속 실패·잠깐의 실패 뒤 회복·잘못된 PR 번호, 출력 한 줄의 꼴, 쓰기 호출 없음.
+  - 훅 시험: pin에 「병합 대기 (PR N)」이 있으면 주입 글에 그 번호의 감시 명령이 들어가고, 없으면 들어가지 않는다.
+  - 하드 게이트 다섯 종 exit 0, `npm test` 실패 0, 현황판 시험 전부 통과, PR의 `hard-gates` 통과.
+  - 실제 경로: 이미 병합된 PR 76에 감시를 걸면 곧바로 `MERGED`와 `fff022fd`로 끝난다. 이 goal의 PR에 감시를 백그라운드로 걸어 두고, 사용자의 병합 뒤 세션이 다시 불려 종결 기록을 시작한다(마감 판정과 함께 관찰한다).
+  - 구현 문맥 없는 검수자 1회의 지적이 반영되거나 Backlog로 넘어가 있다.
+
+## Phase 1 — 병합 완료 감지 · 태그: `harness` · 의존: G9
+
+진척 단계 (완료 `[x]`, 진행 `[>]`, 남음 `[ ]` — 위치 표시일 뿐이고 통과 판정은 검증 기록 줄만 한다)
+
+- [x] 1. goal 준비 — 이 문서, `planPath` 전환(판정 장치), pin
+- [x] 2. 테스트 먼저 — 감시 모듈과 SessionStart 주입 단정을 쓰고 실패를 본다
+- [x] 3. 감시 모듈과 실행 파일
+- [x] 4. SessionStart 훅 주입(판정 장치)
+- [x] 5. 헌법 11조와 문서(gate.md, 템플릿, README, pin)
+- [x] 6. 하드 게이트 다섯 종, `npm test`, 현황판 시험, PR 76 실측
+- [>] 7. 커밋, push, PR 생성, 이 PR에 감시 걸기
+- [ ] 8. 독립 검수 1회와 반영, push, 결과 보고
+
+실행 단계 일괄 승인 대상 (로드맵 일회 예외로 합의 문답 없이 시작한다)
+
+- `node --test`, vitest, 하드 게이트 다섯 종, `npm test`, `npm run build`, 읽기 전용 `gh pr view`·`gh api`, 감시 실행(백그라운드 포함), 구현 워커·독립 검수 하위 에이전트, 커밋, 작업 브랜치 push, `gh pr create`
+
+이 goal의 PR 병합
+
+- 사용자가 한다(현황판 병합 카드, 앱 PR 카드, GitHub 웹, 또는 `gh pr merge <번호> --merge --match-head-commit <SHA>`).
+
+DoD
+
+- 위 완료조건 다섯.
+- 마크다운 문서 250줄 이하.
+
+검증 기록
+
+- PASS 2026-11-18T08:38:14+09:00 — 1~6단계: 이 문서를 쓰고 `planPath`를 전환했다. 훅 시험(`smoke.test.mjs`)에 감시 주입 단정 일곱을 먼저 넣어 6건 실패를 본 뒤 `10_start-brief.cjs`를 고쳤다(현재 goal 줄만 읽고 「(병합 대기, PR N)」·「병합 대기 (PR N)」 두 꼴). 감시 시험 9건은 모듈이 없어 실패하는 것을 먼저 봤다. `lib/waitMerge.mjs`·`wait-merge.mjs`를 만들고 헌법 11조(두 파일 조항 절 diff 0), gate.md, 템플릿, 현황판 README·docs를 고쳤다. 실제 경로: 이미 병합된 PR 76에 감시를 걸자 곧바로 `MERGED pr=76 commit=fff022fd…`와 종료 코드 0, 잘못된 번호는 64였다. 현황판 시험 220 통과, 하드 게이트 다섯 종 exit 0, `npm test` 8,153 통과·실패 0(08:35:05 시작).
+
+## 결정 대장
+
+- [USER] G9 다음 goal은 병합 완료 알림이다. 가드 병합 차단은 뒤로 미룬다 — 「A 추천대로」 (2026-11-18, 세션 문답, 결정 보드 `m07-next-goal-after-g9`).
+- [USER] 병합 완료는 세션이 스스로 감지한다. 현황판이 입력창에 넣고 Enter를 누르는 방식은 고르지 않았다 — 「현황판 결정 응답: 1) 병합 완료를 세션에 어떻게 알릴지 → A 세션이 스스로 감지」 (2026-11-18, 결정 보드 `m07-g10-notify-how`).
+
+출처 태그는 네 가지다 — `[USER]`·`[USER·위임]`·`[AI]`·`[AI·비가역]`.

@@ -48,6 +48,20 @@ describe('실행 시작의 컨트롤 설정 검사 (M07 G5)', () => {
     expect(events[events.length - 1].type).toBe('done')
   })
 
+  it('이어지는(persistent) 실행도 같은 자리에서 오류와 done을 내고 닫힌다', async () => {
+    fs.writeFileSync(path.join(h.ud, 'controls.json'), JSON.stringify({ version: 1, disabled: [] }))
+    const query = vi.fn()
+    const run = new ClaudeAgentRun(
+      { messages: [{ role: 'user', content: 'hi' }], persistent: true },
+      query as unknown as QueryFn,
+      () => null,
+      () => null,
+    )
+    const events = await drain(run.events)
+    expect(query).not.toHaveBeenCalled()
+    expect(events.map((e) => e.type)).toEqual(expect.arrayContaining(['error', 'done']))
+  })
+
   it('봉인만 없어도(missing) 열지 않는다', async () => {
     fs.writeFileSync(path.join(h.ud, 'controls.json'), JSON.stringify({ version: 1, disabled: [] }))
     const query = vi.fn()

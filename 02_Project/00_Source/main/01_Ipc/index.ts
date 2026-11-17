@@ -17,6 +17,7 @@ import { registerGitHandlers } from './handlers/git'
 import { registerLspHandlers } from './handlers/lsp'
 import { registerEngineHandlers } from './handlers/engine'
 import { registerSettingsHandlers } from './handlers/settings'
+import { registerControlsHandlers } from './handlers/controls'
 import { registerPersonalizationHandlers } from './handlers/personalization'
 import { registerMultiHandlers } from './handlers/multi'
 import { registerWindowHandlers } from './handlers/window'
@@ -57,6 +58,7 @@ export function registerIpc(deps: IpcDeps): void {
     getMcpStore: deps.getMcpStore,
     getCommandsStore: deps.getCommandsStore,
   })
+  registerControlsHandlers()
   registerPersonalizationHandlers({
     getPrefsStore: deps.getPrefsStore,
     getProfileStore: deps.getProfileStore,

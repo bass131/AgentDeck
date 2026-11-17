@@ -26,6 +26,8 @@ import { handle } from '../handle'
 import { getBackend } from '@main/00_App/registry'
 import { resolveSetModelRequest } from '@main/04_Claude/runArgs'
 import { LIVE_MODE_WHITELIST } from '@main/04_Claude/permissionModes'
+import { controlsForRun } from '@main/04_Claude/permission/controlsStore'
+import { getUserDataDir } from '@main/02_Common/userData'
 
 export interface AgentHandlerDeps {
   state: { win: BrowserWindow | null }
@@ -59,6 +61,13 @@ export function registerAgentHandlers(deps: AgentHandlerDeps): void {
     }
 
     const backend = getBackend(req.backendId)
+
+    // 컨트롤 설정 검사 (M07 G5) — 실행 안의 검사(claudeAgentRun._prepareQuery)도 있지만, 거기서 낸 오류 이벤트는
+    // 화면이 실행 id를 받기 전에 도착해 버려진다(앱 리허설 실측). 요청 단계에서 먼저 거절해 RUN_FAILED로 보인다.
+    if (backend.id === 'claude-code') {
+      const controls = controlsForRun(getUserDataDir())
+      if (!controls.ok) throw new Error(controls.message)
+    }
 
     const model = typeof req.model === 'string' ? req.model : undefined
     const effort = typeof req.effort === 'string' ? req.effort : undefined

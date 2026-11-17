@@ -2,6 +2,8 @@ import { RunEventNormalizer, nextRunTag } from '../stream/eventNormalizer'
 import { PermissionCoordinator } from '../permission/permissionCoordinator'
 import { buildClaudeSdkOptions, makeRefusalFallbackHandler } from '../sdkOptions'
 import { getUserDataDir } from '@main/02_Common/userData'
+import { PERMISSION_NODES } from '../permission/controlNodes'
+import { controlsForRun, type ControlsForRun } from '../permission/controlsStore'
 import { getDefaultQueryFn, captureSupportedCommands } from '../queryFn'
 import { normalizeRunModel } from '../runArgs'
 import { LIVE_MODE_TO_SDK } from '../permissionModes'
@@ -28,6 +30,19 @@ function userDataForLock(): { userDataDir?: string } {
     console.error('[controls] 엔진 경로 잠금 — userData 경로를 얻지 못해 잠금 없이 연다:', err instanceof Error ? err.message : err)
     return {}
   }
+}
+
+// 컨트롤 설정 (M07 G5). 실행을 열 때 한 번 읽어 그 실행에 고정한다 — 토글은 다음 실행부터다.
+// 이어지는(persistent) 실행은 세션을 다시 열 때 반영된다. 봉인이 맞지 않으면 실행을 열지 않는다(controlsStore.ts).
+// userData 경로를 못 얻으면(Electron 밖 단위 테스트) 기본 등록부로 연다 — 에이전트가 만들 수 있는 상태가 아니다.
+function controlsAtRunStart(): ControlsForRun {
+  let userData: string
+  try {
+    userData = getUserDataDir()
+  } catch {
+    return { ok: true, nodes: PERMISSION_NODES }
+  }
+  return controlsForRun(userData)
 }
 
 export class ClaudeAgentRun implements AgentRun {
@@ -288,6 +303,14 @@ export class ClaudeAgentRun implements AgentRun {
   }
 
   private async _prepareQuery(): Promise<{ resolvedQueryFn: QueryFn; sdkOptions: Record<string, unknown> } | null> {
+    const controls = controlsAtRunStart()
+    if (!controls.ok) {
+      console.error(`[controls] controls.json 봉인 ${controls.status} — 실행을 열지 않는다`)
+      this._push({ type: 'error', message: controls.message })
+      this._push({ type: 'done' })
+      return null
+    }
+
     let resolvedQueryFn: QueryFn
     try {
       resolvedQueryFn = this._queryFn !== null ? this._queryFn : await getDefaultQueryFn()
@@ -302,7 +325,8 @@ export class ClaudeAgentRun implements AgentRun {
 
     const canUseTool = this._perm.makeCanUseTool(
       () => this._currentModeId ?? this._req.mode,
-      () => this._currentOrchestration
+      () => this._currentOrchestration,
+      controls.nodes
     )
     const sdkOptions = buildClaudeSdkOptions({
       req: this._req,

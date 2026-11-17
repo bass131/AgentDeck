@@ -15,12 +15,14 @@ import type { AgentRunInput } from '@main/03_Agent/AgentBackend'
 const WIN_UD = 'C:\\Users\\x\\AppData\\Roaming\\agentdeck'
 
 describe('보호 대상과 거부 규칙 (M07 G3)', () => {
-  it('보호 대상은 userData 아래 engines 폴더, engine-config.json, controls.json, engine-seal.json(G4)이다', () => {
+  it('보호 대상은 userData 아래 engines 폴더, engine-config.json, controls.json, engine-seal.json(G4), controls-seal.json(G5)이다', () => {
     expect(protectedTargets(WIN_UD)).toEqual([
       'C:/Users/x/AppData/Roaming/agentdeck/engines',
       'C:/Users/x/AppData/Roaming/agentdeck/engine-config.json',
       'C:/Users/x/AppData/Roaming/agentdeck/controls.json',
       'C:/Users/x/AppData/Roaming/agentdeck/engine-seal.json',
+      'C:/Users/x/AppData/Roaming/agentdeck/controls-seal.json',
+      'C:/Users/x/AppData/Roaming/agentdeck/first-setup.json',
     ])
   })
 
@@ -30,7 +32,49 @@ describe('보호 대상과 거부 규칙 (M07 G3)', () => {
       'Edit(//c/Users/x/AppData/Roaming/agentdeck/engine-config.json)',
       'Edit(//c/Users/x/AppData/Roaming/agentdeck/controls.json)',
       'Edit(//c/Users/x/AppData/Roaming/agentdeck/engine-seal.json)',
+      'Edit(//c/Users/x/AppData/Roaming/agentdeck/controls-seal.json)',
+      'Edit(//c/Users/x/AppData/Roaming/agentdeck/first-setup.json)',
     ])
+  })
+
+  it('컨트롤 봉인 파일을 셸로 고치는 명령도 막는다 (G5)', () => {
+    expect(bashLockReason('echo {} > "$APPDATA/agentdeck/controls-seal.json"', WIN_UD)).toMatch(/controls-seal/)
+    expect(bashLockReason('cd "$APPDATA/agentdeck" && rm controls-seal.json', WIN_UD)).not.toBeNull()
+    expect(bashLockReason('cd "$APPDATA/agentdeck" && cp /tmp/x ./controls-seal.json', WIN_UD)).not.toBeNull()
+    expect(bashLockReason('rm $APPDATA/agentdeck/controls-*', WIN_UD)).not.toBeNull()
+    // 폴더 밖의 같은 이름은 통과한다
+    expect(bashLockReason('cat ./controls-seal.json', WIN_UD)).toBeNull()
+  })
+
+  it('폴더로 들어간 뒤 대상 이름의 접두(3글자 이상)+와일드카드도 막는다 (G5 검수 차단 1, Backlog 10)', () => {
+    for (const cmd of [
+      'cd "$APPDATA/agentdeck" && rm controls*',
+      'cd "$APPDATA/agentdeck"; rm controls-se*',
+      'cd "$APPDATA/agentdeck" && del controls*.json',
+      'cd "$APPDATA/agentdeck" && rm engine-s*',
+      'cd "$APPDATA/agentdeck" && rm first*',
+      'cd "$APPDATA/agentdeck" && rm ./con*',
+    ]) {
+      expect(bashLockReason(cmd, WIN_UD), cmd).not.toBeNull()
+    }
+  })
+
+  it('저장소(폴더 이름이 같다)의 평범한 와일드카드 명령은 통과한다', () => {
+    for (const cmd of [
+      'cd C:/Dev/AgentDeck && ls controlsStore*',
+      'cd C:/Dev/AgentDeck && git add c*',
+      'cd C:/Dev/AgentDeck && ls engineVersions*',
+      'cd C:/Dev/AgentDeck && ls 02_Project/00_Source/main/04_Claude/permission/controls*',
+    ]) {
+      expect(bashLockReason(cmd, WIN_UD), cmd).toBeNull()
+    }
+  })
+
+  it('「처음 설정함」 표시 파일도 보호 대상이다 (G5 검수 차단 1)', () => {
+    expect(protectedTargets(WIN_UD)).toContain('C:/Users/x/AppData/Roaming/agentdeck/first-setup.json')
+    expect(enginePathDenyRules(WIN_UD)).toContain('Edit(//c/Users/x/AppData/Roaming/agentdeck/first-setup.json)')
+    expect(bashLockReason('rm "$APPDATA/agentdeck/first-setup.json"', WIN_UD)).toMatch(/first-setup/)
+    expect(bashLockReason('cd "$APPDATA/agentdeck" && rm first-setup.json', WIN_UD)).not.toBeNull()
   })
 
   it('봉인 파일을 셸로 고치는 명령도 막는다 (G4)', () => {

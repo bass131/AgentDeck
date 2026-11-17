@@ -148,9 +148,10 @@ void routeCases
 
 describe('M05 G10 — IPC 채널 타입 맵', () => {
   // M06 G4: 70 → 71. 모델 목록 채널 agent.listModels(invoke)를 더했다.
-  it('채널 수는 재실측 기준에서 미사용 3개를 빼고 M06 G4의 agent.listModels를 더한 수다 (invoke 67+1=68 + push 3)', () => {
-    expect(Object.values(IPC_CHANNELS)).toHaveLength(71)
-    expect(new Set(Object.values(IPC_CHANNELS)).size).toBe(71)
+  // M07 G5: 71 → 74. 컨트롤 패널 채널 settings.controlsState·setControlEnabled·confirmControls(invoke)를 더했다.
+  it('채널 수는 재실측 기준에서 미사용 3개를 빼고 M06 G4의 agent.listModels와 M07 G5의 컨트롤 셋을 더한 수다 (invoke 67+1+3=71 + push 3)', () => {
+    expect(Object.values(IPC_CHANNELS)).toHaveLength(74)
+    expect(new Set(Object.values(IPC_CHANNELS)).size).toBe(74)
     const values = Object.values(IPC_CHANNELS) as string[]
     for (const gone of ['window.getBounds', 'window.setBounds', 'engine.versionState']) expect(values).not.toContain(gone)
   })

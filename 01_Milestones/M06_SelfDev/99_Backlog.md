@@ -24,7 +24,7 @@ M05에서 넘어온 항목은 `M05_Structure/99_Backlog.md`가 계속 소유합�
 19. Dependabot PR은 `package.json`만 올린다 — `SDK_VERSION_FALLBACK`과 그 테스트 기댓값을 손으로 같이 올려야 하고, PR 검사 워크플로가 없다. `claudeStream.ts`의 접미 벗기기가 `modelList.ts`와 복제다 (G4 검수 메모).
 20. 가드가 한 줄로 써도 놓치는 셸 꼴(옛 가드도 같다): `cat <<'EOF' |⏎…⏎EOF⏎bash`, `{⏎cat <<'EOF' …} | bash`, 함수 본문, `echo "$(cat <<EOF …)" | bash`, `$'it\'s'`처럼 원문 읽기의 따옴표 규칙이 bash와 다른 자리, `if [[ x =~ (#) ]]; then …`. 80만 자 넘는 `bash -c` 중첩은 스택 넘침으로 차단된다(닫힌 실패). 셸 깊이 상한(3) 밖 1.7MB 중첩은 14초 (G5 검수 3~7차).
 21. G5로 가드가 588줄에서 1,032줄이 됐고, 판독 셋의 합집합(원문 읽기·논리 줄 판독·이음 지운 원문 읽기)이 셸 해석기에 가까워졌다. 테스트가 못 가르는 변이 4개(다른 판독이 대신 읽는 동치 꼴)가 남았다. 더 넓히기보다, 판독을 줄이거나 공개된 셸 파서를 쓰는 재설계를 따로 판단한다 (G5 마감, YAGNI 결정).
-22. (G7에서 테스트 쪽 처리 — 그 테스트가 변수를 비운 채 돈다. 앱 변수가 세션 셸까지 물려 내려오는 것 자체는 남았다) 앱 세션 안에서 `npm run test`를 돌리면 앱이 SDK에 넣는 `CLAUDE_CODE_EMIT_SESSION_STATE_EVENTS=1`(`sdkOptions.ts:100`)이 세션의 Bash와 vitest까지 물려 내려와 `sdkOptions.session-state-env.test.ts` (c)의 전제가 깨진다. 그래서 앱 안에서는 TDD 가드가 `source` 태그 PASS 줄에 요구하는 전체 Green을 만들 수 없다 (G7 4단계, G6 사다리 5칸).
+22. (알려진 동작으로 닫음, G8 결정 대장 — SDK 0.3.325에서도 이 변수 없이는 `session_state_changed`가 0개라 지울 수 없고, 셸에서만 빼는 공식 수단이 없다. 테스트 쪽은 G7이 처리했다) (G7에서 테스트 쪽 처리 — 그 테스트가 변수를 비운 채 돈다. 앱 변수가 세션 셸까지 물려 내려오는 것 자체는 남았다) 앱 세션 안에서 `npm run test`를 돌리면 앱이 SDK에 넣는 `CLAUDE_CODE_EMIT_SESSION_STATE_EVENTS=1`(`sdkOptions.ts:100`)이 세션의 Bash와 vitest까지 물려 내려와 `sdkOptions.session-state-env.test.ts` (c)의 전제가 깨진다. 그래서 앱 안에서는 TDD 가드가 `source` 태그 PASS 줄에 요구하는 전체 Green을 만들 수 없다 (G7 4단계, G6 사다리 5칸).
 23. `.claude/commands/gate.md`의 기준선 숫자(400파일)와 `phase18-audit-fix` 단독 실패 메모(옛 이름, 5초 기본값)가 G3·G7 뒤로 낡았다. 지금은 441파일을 수집하고 기본값은 30초다 (G7 관찰).
 24. Effort가 세션을 만들 때 정해져 대화 중에는 바꿀 수 없다 — 사용자 관찰 「Effort가 세션 생성시 고정되는게 불편하긴하네」. 앱은 기본 Effort 「최대」로 시작한다 (G6 실주행).
 25. 앱 안 goal 합의 질문이 채팅 글로만 오고 질문 모달·대기 표시가 없다. 에이전트는 `AskUserQuestion`·`ExitPlanMode` 없이 표로 묻고 PushNotification만 보냈다(`자동` 모드라 플랜 승인 모달은 원래 안 뜬다). 알림을 눌러 들어와도 답을 기다린다는 것이 화면에서 두드러지지 않는다 — 사용자 관찰 「Plan 승인 modal이 떠야하는데 안뜬건가?」 (G6 실주행, 세션 `611e2fcf`).
@@ -33,3 +33,5 @@ M05에서 넘어온 항목은 `M05_Structure/99_Backlog.md`가 계속 소유합�
 27. 앱에 AutoCompact(컨텍스트가 차면 대화를 자동으로 요약해 이어 가는 기능)가 없다 — 사용자 확인 「AutoCompact 기능이 없구나」. 긴 goal 루프를 앱 안에서 끊지 않고 돌리려면 필요한 후보다 (G6 실주행).
 28. `gh pr merge` 승인 카드에 가드 사유가 없고 「도구가 사유를 보내지 않았어요」가 보였다. 가드는 `ask`와 사유 「PR 병합 (master 진입)」을 냈는데(hook-log 10:06:08), `.claude/settings.json`의 `ask` 규칙 `Bash(gh pr merge*)`도 같은 명령에 걸린다. 리허설의 `git push --dry-run … HEAD:master`(설정 규칙 없음)는 사유가 보였다. 두 질의가 겹치면 사유가 빠지는 것으로 보인다 (G6 실주행 사다리 8칸).
 29. 앱 안 에이전트가 메인이 위임받아 보낸 답(「합의」·「테스트 고치기」·「보류」)을 결정 대장에 `[USER]`로 적었다. 앱은 입력한 사람이 사용자인지 대리인지 모른다 — 대리 입력을 표시할 방법이 없으면 출처 태그 `[USER·위임]`을 쓸 수 없다 (G6 실주행).
+30. 위험 명령 가드의 `settings.json` 항목에 `timeout`이 없어 기본 600초다. 공식 문서상 시간 초과된 command 훅은 도구 호출을 막지 않으므로, 가드가 멈추면 명령이 통과한다. 다른 훅처럼 짧은 `timeout`을 둘지 판정 장치 goal에서 정한다 (G8 실사 발견 2).
+31. 스폰 게이트 `.claude/hooks/20_plan-gate.cjs`(56줄)는 M03 P4(`0b8bfdf0`)부터 `settings.json`에 배선이 없다. 파일을 지울지, 꺼진 노드로 남길지 판정 장치 정비 goal에서 정한다 (G8 실사 발견 4).

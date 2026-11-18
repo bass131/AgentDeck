@@ -71,7 +71,10 @@ const SKIP_DIRS = new Set(['node_modules', 'dist', 'out', 'coverage', '.git'])
 // PR 카드 도우미 renderer/08_Git/prCardModel.test.ts, PR 카드 화면 renderer/08_Git/PrCard.test.tsx를 더했다.
 // M09 G1: 455 → 459. 루프 실행기 — 템플릿 스키마 main/05_Loop/template.test.ts, 상태 기계 main/05_Loop/executor.test.ts,
 // 등급 규칙 main/05_Loop/grade.test.ts, 포트로 도는 실행기 껍질 main/05_Loop/loopRunner.test.ts를 더했다.
-const BASELINE_TEST_FILES = 459
+// M09 G2: 459 → 468. 실행기 포트의 실물 — 자격 없는 자식 환경 main/05_Loop/childEnv.test.ts, 명령 포트 commandPort.test.ts,
+// git 포트 gitPort.test.ts, gh 포트(녹취 JSON 해석) ghPort.test.ts, fs 포트 fsPort.test.ts, 앱 쪽 다이제스트 digestStore.test.ts,
+// 저장소당 실행기 하나 repoLock.test.ts, 번들 템플릿 bundledTemplate.test.ts, 실 git 통합 openLoop.test.ts를 더했다(모두 main/05_Loop/).
+const BASELINE_TEST_FILES = 468
 
 function collectTestFiles(dir: string, acc: string[] = []): string[] {
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {

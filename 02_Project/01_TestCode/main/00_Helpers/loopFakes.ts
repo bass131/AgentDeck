@@ -5,10 +5,12 @@ import { fileURLToPath } from 'node:url'
 import { applyVerdict, expectedJudge, nextStep, type GoalSeed, type NextStep, type Verdict, type VerdictFacts, type CiStatus } from '@main/05_Loop/executor'
 import type { FileChange } from '@main/05_Loop/grade'
 import type { LoopRunner, StepOutcome } from '@main/05_Loop/loopRunner'
+import { repoKeyOf, stateDigest } from '@main/05_Loop/digestStore'
 import type {
-  CommandPort, CommandResult, FsPort, GhPort, GitPort, LoopPorts, PrInfo, PrState, ReviewPort, SessionPort, WorkRequest,
+  CommandPort, CommandResult, DigestStore, FsPort, GhPort, GitPort, LoopPorts, PrInfo, PrState, ReviewPort, SessionPort, WorkRequest,
 } from '@main/05_Loop/ports'
 import type { RunState } from '@main/05_Loop/runState'
+import { DOCS } from '@main/05_Loop/survivalDocs'
 import { loadTemplate, type Grade, type Template } from '@main/05_Loop/template'
 
 const TEMPLATE_PATH = fileURLToPath(new URL('../../../00_Source/main/05_Loop/templates/program-dev.json', import.meta.url))
@@ -264,6 +266,19 @@ export class FakeReview implements ReviewPort {
   }
 }
 
+// 앱 영역의 다이제스트 저장소 흉내 — 실행기가 쓴 값만 담는다.
+export class FakeDigestStore implements DigestStore {
+  readonly digests = new Map<string, string>()
+  async read(repoKey: string): Promise<string | null> { return this.digests.get(repoKey) ?? null }
+  async write(repoKey: string, hash: string): Promise<void> { this.digests.set(repoKey, hash) }
+  // 시험이 상태 파일을 「실행기가 쓴 것」으로 놓을 때 쓴다(예: 옛 앱이 쓴 스키마 밖 상태).
+  adopt(cwd: string, files: FakeFs): void {
+    const text = files.files.get(DOCS.runState)
+    if (text === undefined) this.digests.delete(repoKeyOf(cwd))
+    else this.digests.set(repoKeyOf(cwd), stateDigest(JSON.parse(text)))
+  }
+}
+
 export interface Rig {
   fs: FakeFs
   git: FakeGit
@@ -271,6 +286,7 @@ export interface Rig {
   commands: FakeCommands
   session: FakeSession
   review: FakeReview
+  digest: FakeDigestStore
   ports: LoopPorts
 }
 export function makeRig(): Rig {
@@ -280,9 +296,10 @@ export function makeRig(): Rig {
   const commands = new FakeCommands()
   const session = new FakeSession(files, git)
   const review = new FakeReview()
+  const digest = new FakeDigestStore()
   let tick = 0
   const clock = { now: () => `2026-11-18T10:${String(Math.floor(tick / 60)).padStart(2, '0')}:${String(tick++ % 60).padStart(2, '0')}+09:00` }
-  return { fs: files, git, gh, commands, session, review, ports: { command: commands, git, gh, fs: files, session, review, clock } }
+  return { fs: files, git, gh, commands, session, review, digest, ports: { command: commands, git, gh, fs: files, session, review, clock, digest } }
 }
 
 // ---- 실행기 껍질 몰기 — 상태는 실행기가 저장본에서 읽는다. 사람 게이트는 사람 판정으로, 마일스톤 병합은 사람의 GitHub 병합으로 답한다 ----
@@ -311,11 +328,11 @@ export async function runLoop(
       }
       const sub = await runner.submit({ node: next.kind === 'gate' ? next.node.id : '', judge: 'human', verdict: 'pass', evidence: '사람이 승인했다' })
       lastOutcome = sub
-      if (sub.kind === 'blocked') break
+      if (sub.kind === 'blocked' || sub.kind === 'needs-user') break
       visited.push(label)
       continue
     }
-    if (out.kind === 'waiting' || out.kind === 'blocked') break
+    if (out.kind === 'waiting' || out.kind === 'blocked' || out.kind === 'needs-user') break
     visited.push(label)
   }
   return { visited, state: (await current()).state, last: lastOutcome }

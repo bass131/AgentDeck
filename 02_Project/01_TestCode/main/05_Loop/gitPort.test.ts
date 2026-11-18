@@ -1,0 +1,195 @@
+// M09 G2 실물 git 포트 — 임시 폴더의 작업 저장소와 bare 원격으로 ports.ts 계약을 본다.
+// untracked 포함 변경·통계, rename 옛/새 경로, 바이너리 null, 병합 실패 시 merge --abort, syncToRemote의 ff·그대로·갈라짐 throw,
+// `.agentdeck/` 추적 제외(.git/info/exclude), 실행기 git은 작업 저장소의 훅을 돌리지 않는다.
+import fs from 'node:fs'
+import path from 'node:path'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { createGitPort, ensureAgentdeckExcluded } from '@main/05_Loop/realPorts/gitPort'
+import type { GitPort } from '@main/05_Loop/ports'
+import { makeTempRepos, type TempRepos } from '../00_Helpers/tempGit'
+
+let repos: TempRepos
+let git: GitPort
+let hooks: string
+const write = (rel: string, text: string | Buffer): void => {
+  const full = path.join(repos.work, rel)
+  fs.mkdirSync(path.dirname(full), { recursive: true })
+  fs.writeFileSync(full, text)
+}
+const remoteHead = (branch: string): string | null => {
+  try { return repos.bare(['rev-parse', '--verify', '--quiet', `refs/heads/${branch}`]) || null } catch { return null }
+}
+// 원격에 남이 push한 것을 흉내 낸다 — 다른 클론에서 커밋해 push한다.
+function pushFromOtherClone(branch: string, file: string): string {
+  const other = path.join(repos.root, `other-${Date.now()}-${Math.random().toString(16).slice(2)}`)
+  repos.git(['clone', '--quiet', '--branch', branch, repos.remote, other], repos.root)
+  repos.git(['config', 'user.name', 'Other'], other)
+  repos.git(['config', 'user.email', 'other@example.invalid'], other)
+  fs.writeFileSync(path.join(other, file), 'other\n')
+  repos.git(['add', '-A'], other)
+  repos.git(['commit', '--quiet', '-m', 'other'], other)
+  repos.git(['push', '--quiet', 'origin', branch], other)
+  return repos.git(['rev-parse', 'HEAD'], other)
+}
+
+beforeEach(() => {
+  repos = makeTempRepos('agentdeck-g2-git-')
+  hooks = path.join(repos.root, 'no-hooks')
+  fs.mkdirSync(hooks)
+  git = createGitPort({ cwd: repos.work, env: repos.env, hooksPath: hooks })
+})
+afterEach(() => { repos.cleanup() })
+
+describe('브랜치·머리·커밋·push', () => {
+  it('브랜치를 만들고 옮겨 가며, 머리와 계보를 읽는다', async () => {
+    const m0 = await git.headSha('master')
+    expect(m0).toMatch(/^[0-9a-f]{40}$/)
+    expect(await git.branchExists('milestone/M1')).toBe(false)
+    await git.createBranch('milestone/M1', 'master')
+    expect(await git.branchExists('milestone/M1')).toBe(true)
+    await git.checkout('milestone/M1')
+    expect(repos.git(['symbolic-ref', '--short', 'HEAD'])).toBe('milestone/M1')
+    expect(await git.headSha('no-such-branch')).toBeNull()
+    expect(await git.isAncestor(m0 as string, 'milestone/M1')).toBe(true)
+    expect(await git.isAncestor('0'.repeat(40), 'milestone/M1')).toBe(false)
+  })
+
+  it('변경 확인과 커밋은 untracked를 포함하고, push는 원격에 같은 머리를 남긴다', async () => {
+    expect(await git.hasChanges()).toBe(false)
+    write('src/new.ts', 'export const a = 1\n')
+    expect(await git.hasChanges()).toBe(true)
+    const sha = await git.commitAll('G1: 첫 goal')
+    expect(await git.hasChanges()).toBe(false)
+    expect(repos.git(['log', '-1', '--format=%s'])).toBe('G1: 첫 goal')
+    expect(repos.git(['show', '--name-only', '--format=', 'HEAD'])).toBe('src/new.ts')
+    await git.push('master')
+    expect(remoteHead('master')).toBe(sha)
+  })
+
+  it('실행기 git은 작업 저장소의 훅을 돌리지 않는다(hooksPath를 빈 폴더로)', async () => {
+    write('.git/hooks/pre-commit', '#!/bin/sh\necho hook-ran >&2\nexit 1\n')
+    fs.chmodSync(path.join(repos.work, '.git/hooks/pre-commit'), 0o755)
+    write('x.txt', 'x\n')
+    // 비교군 — hooksPath가 없으면 이 저장소의 훅이 돌아 커밋이 막힌다(--no-verify가 못 막는 훅도 있어 hooksPath로 끈다)
+    const plain = createGitPort({ cwd: repos.work, env: repos.env })
+    write('.git/hooks/post-checkout', '#!/bin/sh\necho checkout-hook >&2\nexit 1\n')
+    fs.chmodSync(path.join(repos.work, '.git/hooks/post-checkout'), 0o755)
+    await plain.createBranch('probe', 'master')
+    await expect(plain.checkout('probe')).rejects.toThrow(/checkout-hook/)
+    await git.checkout('master')
+    await expect(git.checkout('probe')).resolves.toBeUndefined()
+    await expect(git.commitAll('훅 무시')).resolves.toMatch(/^[0-9a-f]{40}$/)
+  })
+})
+
+describe('.agentdeck/ 추적 제외', () => {
+  it('exclude 줄이 없으면 한 번 더하고, 있으면 그대로 둔다 — 상태 파일은 변경으로 잡히지 않는다', async () => {
+    expect(await ensureAgentdeckExcluded(repos.work, repos.env)).toBe('added')
+    expect(await ensureAgentdeckExcluded(repos.work, repos.env)).toBe('present')
+    const exclude = fs.readFileSync(path.join(repos.work, '.git/info/exclude'), 'utf8')
+    expect(exclude.split(/\r?\n/).filter((l) => l.trim() === '.agentdeck/')).toHaveLength(1)
+    write('.agentdeck/run-state.json', '{}\n')
+    expect(await git.hasChanges()).toBe(false)
+    expect(repos.git(['status', '--porcelain'])).toBe('')
+  })
+
+  it('끝 줄바꿈이 없는 exclude 파일에도 줄을 따로 더한다', async () => {
+    fs.writeFileSync(path.join(repos.work, '.git/info/exclude'), '# 기존\n*.log')
+    await ensureAgentdeckExcluded(repos.work, repos.env)
+    expect(fs.readFileSync(path.join(repos.work, '.git/info/exclude'), 'utf8')).toBe('# 기존\n*.log\n.agentdeck/\n')
+  })
+})
+
+describe('diffStat — 작업 트리와 base의 차이', () => {
+  it('untracked 포함, rename은 옛·새 경로 둘 다, 바이너리는 null, .agentdeck/는 뺀다', async () => {
+    await ensureAgentdeckExcluded(repos.work, repos.env)
+    write('src/keep.ts', 'a\nb\nc\n')
+    write('src/old-name.ts', Array.from({ length: 20 }, (_, i) => `line ${i}`).join('\n') + '\n')
+    await git.commitAll('base')
+    await git.createBranch('milestone/M1', 'master')
+    write('src/keep.ts', 'a\nB\nc\nd\n')
+    fs.renameSync(path.join(repos.work, 'src/old-name.ts'), path.join(repos.work, 'src/new-name.ts'))
+    write('src/untracked.ts', 'u1\nu2\n')
+    write('assets/logo.bin', Buffer.from([0, 1, 2, 3, 0, 255, 0, 10]))
+    write('.agentdeck/run-state.json', '{"big": true}\n')
+    const stat = await git.diffStat('milestone/M1')
+    expect(stat).not.toBeNull()
+    const byPath = new Map((stat ?? []).map((f) => [f.path, f]))
+    expect(byPath.get('src/keep.ts')).toEqual({ path: 'src/keep.ts', added: 2, removed: 1 })
+    expect(byPath.get('src/old-name.ts')).toEqual({ path: 'src/old-name.ts', added: 0, removed: 20 })
+    expect(byPath.get('src/new-name.ts')).toEqual({ path: 'src/new-name.ts', added: 20, removed: 0 })
+    expect(byPath.get('src/untracked.ts')).toEqual({ path: 'src/untracked.ts', added: 2, removed: 0 })
+    expect(byPath.get('assets/logo.bin')).toEqual({ path: 'assets/logo.bin', added: null, removed: null })
+    expect([...byPath.keys()].some((p) => p.startsWith('.agentdeck'))).toBe(false)
+    // 통계는 진짜 인덱스를 건드리지 않는다
+    expect(repos.git(['diff', '--cached', '--name-only'])).toBe('')
+  })
+
+  it('base를 읽지 못하면 null이다(등급은 강이 된다)', async () => {
+    expect(await git.diffStat('no-such-base')).toBeNull()
+  })
+})
+
+describe('mergeNoFf', () => {
+  it('--no-ff 병합 커밋(부모 둘)을 만들고 SHA를 돌려준다', async () => {
+    await git.createBranch('goal/M1-G1', 'master')
+    await git.checkout('goal/M1-G1')
+    write('src/g1.ts', 'g1\n')
+    const head = await git.commitAll('G1')
+    await git.checkout('master')
+    const merged = await git.mergeNoFf(head, 'Merge PR #1: G1')
+    expect(repos.git(['rev-parse', 'HEAD'])).toBe(merged)
+    expect(repos.git(['log', '-1', '--format=%P']).split(' ')).toHaveLength(2)
+    expect(repos.git(['log', '-1', '--format=%s'])).toBe('Merge PR #1: G1')
+  })
+
+  it('충돌하면 merge --abort로 되돌린 뒤 throw한다', async () => {
+    await git.createBranch('goal/M1-G1', 'master')
+    await git.checkout('goal/M1-G1')
+    write('README.md', 'goal 쪽\n')
+    const head = await git.commitAll('G1')
+    await git.checkout('master')
+    write('README.md', 'master 쪽\n')
+    const before = await git.commitAll('master 변경')
+    await expect(git.mergeNoFf(head, 'Merge')).rejects.toThrow()
+    expect(repos.git(['rev-parse', 'HEAD'])).toBe(before)
+    expect(fs.existsSync(path.join(repos.work, '.git/MERGE_HEAD'))).toBe(false)
+    expect(repos.git(['status', '--porcelain'])).toBe('')
+  })
+})
+
+describe('syncToRemote', () => {
+  it('원격에 브랜치가 없으면 그대로 두고 로컬 머리를 돌려준다', async () => {
+    await git.createBranch('milestone/M1', 'master')
+    const local = await git.headSha('milestone/M1')
+    expect(await git.syncToRemote('milestone/M1')).toBe(local)
+  })
+
+  it('원격이 앞서면 fast-forward한다 — 체크아웃된 브랜치와 아닌 브랜치 모두', async () => {
+    const ahead = pushFromOtherClone('master', 'remote-1.txt')
+    expect(await git.syncToRemote('master')).toBe(ahead)
+    expect(fs.existsSync(path.join(repos.work, 'remote-1.txt'))).toBe(true)
+    await git.createBranch('side', 'master')
+    await git.push('side')
+    const sideAhead = pushFromOtherClone('side', 'remote-2.txt')
+    expect(repos.git(['symbolic-ref', '--short', 'HEAD'])).toBe('master')
+    expect(await git.syncToRemote('side')).toBe(sideAhead)
+    expect(await git.headSha('side')).toBe(sideAhead)
+  })
+
+  it('같거나 로컬이 앞서면 그대로 둔다', async () => {
+    const m0 = await git.headSha('master')
+    expect(await git.syncToRemote('master')).toBe(m0)
+    write('local.txt', 'l\n')
+    const local = await git.commitAll('local ahead')
+    expect(await git.syncToRemote('master')).toBe(local)
+  })
+
+  it('갈라졌으면 throw하고 로컬을 바꾸지 않는다', async () => {
+    pushFromOtherClone('master', 'remote-3.txt')
+    write('local.txt', 'l\n')
+    const local = await git.commitAll('local')
+    await expect(git.syncToRemote('master')).rejects.toThrow(/갈라/)
+    expect(await git.headSha('master')).toBe(local)
+  })
+})

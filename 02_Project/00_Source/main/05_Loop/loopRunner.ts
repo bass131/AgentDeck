@@ -8,33 +8,50 @@
 // action 노드는 모두 「확인 뒤 실행」이다. 이미 있는 브랜치·PR은 이번 실행의 것일 때만 받는다 —
 //   브랜치는 상태에 적은 시작 SHA의 계보일 때, 병합된 PR은 이번에 push한 머리(goal이면 CI를 통과한 머리)와 같을 때.
 //   아니면 stop이다. 그래서 「실행은 됐는데 상태 저장 전에 꺼짐」 뒤의 재개가 같은 일을 두 번 하지 않고, 남의 것을 받지도 않는다.
-// 재개: load()가 run-state.json을 스키마와 템플릿 해시로 확인하고 같은 노드를 고른다. git·gh와 맞추는 일은 다음 step의 action이 한다.
+// 재개: load()가 run-state.json을 다이제스트·스키마·템플릿 해시로 확인하고 같은 노드를 고른다. git·gh와 맞추는 일은 다음 step의 action이 한다.
+//
+// M09 G2 — 앱 쪽 다이제스트(ports.digest). 상태를 쓸 때마다 정규 JSON의 sha256을 앱 영역에 적고, load·step·submit·start는
+//   저장본이 그와 다르면 사람을 부른다(kind 'needs-user', 「상태 파일이 실행기 밖에서 바뀌었다」). 다이제스트 없이 파일만 있거나
+//   파일 없이 다이제스트만 있어도 같다 — 다이제스트는 start만 만든다. 불일치 때는 아무것도 쓰지 않는다. 쓰기 직전에도 한 번 더 본다
+//   (작업 노드 세션이 그 노드 동안 상태 파일을 고쳤으면 덮어쓰지 않고 멈춘다).
+//   쓰기 순서는 run-state.json → 다이제스트 → verification.md다. 앞 둘 사이에 꺼지면 재개 때 불일치로 멈추고, 지금은 복구 수단이 없다(G3).
+// M09 G2 — load는 직렬화 줄 밖이다(끝나지 않는 노드 동안에도 읽힌다). 쓰는 중에 읽어 불일치가 나면 그 쓰기가 끝난 뒤 한 번 다시 읽는다.
+// M09 G2 — CI 기다림 상한(ciWaitLimit). pending·gh 오류·머리 불일치로 판정 없이 기다린 step을 같은 goal·같은 push 머리마다 센다.
+//   상한을 넘으면 그 CI 노드의 stop으로 멈춘다(FAIL로 세지 않는다). 판정이 나거나 멈추면 0으로 돌아간다. 계수는 실행기 메모리에만 있다.
 import {
   applyVerdict, checkResumable, expectedJudge, judgeCi, judgeCommands, nextStep, oneSentence,
   type CommandRun, type NextStep, type Verdict,
 } from './executor'
+import { repoKeyOf, stateDigest } from './digestStore'
 import { computeGrade, type FileChange } from './grade'
 import type { LoopPorts } from './ports'
-import { createRunState, type GoalState, type RunState } from './runState'
-import { readGoalSeeds, readNodeDocs, readRunState, writeRunState, writeVerification } from './survivalDocs'
+import { createRunState, validateRunState, type GoalState, type RunState } from './runState'
+import { DOCS, readGoalSeeds, readNodeDocs, writeRunState, writeVerification } from './survivalDocs'
 import type { ActionNode, GateNode, SchemaError, StepNode, Template, WorkNode } from './template'
+
+export const DEFAULT_CI_WAIT_LIMIT = 120
+export const TAMPERED_REASON = '상태 파일이 실행기 밖에서 바뀌었다'
 
 export interface LoopRunnerDeps {
   template: Template
   hash: string
   ports: LoopPorts
-  // 작업 저장소 뿌리 — 검사 명령의 cwd
+  // 작업 저장소 뿌리 — 검사 명령의 cwd, 다이제스트 키(repoKeyOf)
   cwd: string
+  // 판정 없이 기다린 CI step 수의 상한. 넘으면 멈춘다.
+  ciWaitLimit?: number
 }
 
 export type StepOutcome =
   | { kind: 'advanced' | 'failed' | 'halted' | 'resumed' | 'done'; state: RunState; verdict: Verdict | null }
   | { kind: 'waiting'; on: 'human' | 'ci'; state: RunState }
   | { kind: 'blocked'; reason: string; state: RunState | null; errors?: SchemaError[] }
+  | { kind: 'needs-user'; reason: string; state: null }
 
 export type LoadResult =
   | { kind: 'missing' }
   | { kind: 'blocked'; reason: string; errors?: SchemaError[] }
+  | { kind: 'needs-user'; reason: string }
   | { kind: 'ok'; state: RunState; next: NextStep }
 
 export interface LoopRunner {
@@ -55,7 +72,16 @@ export function branchNames(template: Template, milestoneId: string, goalId: str
   }
 }
 
-type Produced = { kind: 'verdict'; verdict: Verdict } | { kind: 'waiting'; on: 'human' | 'ci' }
+type Produced = { kind: 'verdict'; verdict: Verdict } | { kind: 'waiting'; on: 'human' | 'ci'; why?: string }
+
+// 저장본 읽기의 결과. ok에는 읽은 파일의 다이제스트를 싣는다(쓰기 직전 대조에 쓴다).
+type Checked =
+  | { kind: 'missing' }
+  | { kind: 'tampered'; reason: string }
+  | { kind: 'invalid'; errors: SchemaError[] }
+  | { kind: 'ok'; state: RunState; digest: string }
+
+class Tampered extends Error {}
 
 // 실행기가 매 단계 쓰는 생존 문서는 goal의 변경이 아니므로 등급 통계에서 뺀다(템플릿과 관계없이).
 const EXECUTOR_OWNED = /^(\.[\\/])*\.agentdeck[\\/]/
@@ -63,36 +89,77 @@ const short = (sha: string | null | undefined): string => (sha ? sha.slice(0, 8)
 const errorText = (e: unknown): string => oneSentence(e instanceof Error ? e.message : String(e))
 const v = (node: StepNode, verdict: Verdict['verdict'], evidence: string, facts?: Verdict['facts']): Verdict =>
   ({ node: node.id, judge: expectedJudge(node), verdict, evidence, facts })
+const tamperedStep = (reason: string): StepOutcome => ({ kind: 'needs-user', reason, state: null })
 
 export function createLoopRunner(deps: LoopRunnerDeps): LoopRunner {
   const { template, hash, ports, cwd } = deps
   const { git, gh } = ports
+  const repoKey = repoKeyOf(cwd)
+  const ciWaitLimit = deps.ciWaitLimit ?? DEFAULT_CI_WAIT_LIMIT
 
-  // 호출 직렬화 — 앞 호출이 끝난 뒤에 다음 호출이 저장본을 읽는다.
+  // 호출 직렬화 — 앞 호출이 끝난 뒤에 다음 호출이 저장본을 읽는다. load는 줄 밖이다.
   let chain: Promise<unknown> = Promise.resolve()
   function exclusive<T>(fn: () => Promise<T>): Promise<T> {
     const run = chain.then(fn, fn)
     chain = run.catch(() => undefined)
     return run
   }
+  let persisting: Promise<void> | null = null
+  let ciWait: { key: string; count: number } | null = null
 
-  async function persist(state: RunState): Promise<void> {
-    await writeRunState(ports.fs, state)
-    await writeVerification(ports.fs, state)
+  async function readChecked(): Promise<Checked> {
+    const text = await ports.fs.read(DOCS.runState)
+    const stored = await ports.digest.read(repoKey)
+    if (text === null) {
+      return stored === null ? { kind: 'missing' } : { kind: 'tampered', reason: `${TAMPERED_REASON} — 앱에 다이제스트가 있는데 상태 파일이 없다` }
+    }
+    if (stored === null) return { kind: 'tampered', reason: `${TAMPERED_REASON} — 앱에 이 저장소의 다이제스트가 없다(다이제스트는 새로 시작할 때만 만든다)` }
+    let raw: unknown
+    try { raw = JSON.parse(text) } catch { return { kind: 'tampered', reason: `${TAMPERED_REASON} — JSON으로 읽히지 않는다` } }
+    const digest = stateDigest(raw)
+    if (digest !== stored) return { kind: 'tampered', reason: `${TAMPERED_REASON} — 앱에 적은 다이제스트와 다르다` }
+    const checked = validateRunState(raw)
+    return checked.ok ? { kind: 'ok', state: checked.state, digest } : { kind: 'invalid', errors: checked.errors }
   }
 
-  async function readCurrent(): Promise<{ ok: true; state: RunState } | { ok: false; outcome: StepOutcome }> {
-    const read = await readRunState(ports.fs)
+  // expected: 이번 호출이 읽은 저장본의 다이제스트(새로 시작이면 null — 파일이 없어야 한다).
+  async function persist(state: RunState, expected: string | null): Promise<void> {
+    const run = (async () => {
+      const now = await ports.fs.read(DOCS.runState)
+      const nowDigest = now === null ? null : (() => { try { return stateDigest(JSON.parse(now)) } catch { return 'unreadable' } })()
+      if (nowDigest !== expected) throw new Tampered(`${TAMPERED_REASON} — 이번 단계가 읽은 뒤 상태 파일이 바뀌어 덮어쓰지 않았다`)
+      await writeRunState(ports.fs, state)
+      await ports.digest.write(repoKey, stateDigest(JSON.parse(JSON.stringify(state))))
+      await writeVerification(ports.fs, state)
+    })()
+    persisting = run
+    try { await run } finally { if (persisting === run) persisting = null }
+  }
+
+  async function readCurrent(): Promise<{ ok: true; state: RunState; digest: string } | { ok: false; outcome: StepOutcome }> {
+    const read = await readChecked()
     if (read.kind === 'missing') return { ok: false, outcome: { kind: 'blocked', reason: '실행 상태가 없다 — start로 시작한다', state: null } }
+    if (read.kind === 'tampered') return { ok: false, outcome: tamperedStep(read.reason) }
     if (read.kind === 'invalid') {
       return { ok: false, outcome: { kind: 'blocked', reason: '실행 상태가 스키마에 맞지 않는다', state: null, errors: read.errors } }
     }
     const check = checkResumable(template, hash, read.state)
     if (!check.ok) return { ok: false, outcome: { kind: 'blocked', reason: check.reason, state: read.state } }
-    return { ok: true, state: read.state }
+    return { ok: true, state: read.state, digest: read.digest }
   }
 
-  async function commit(state: RunState, verdict: Verdict, origin: 'executor' | 'outside'): Promise<StepOutcome> {
+  async function save(next: RunState, digest: string): Promise<StepOutcome | null> {
+    try {
+      await persist(next, digest)
+      return null
+    } catch (e) {
+      if (e instanceof Tampered) return tamperedStep(e.message)
+      throw e
+    }
+  }
+
+  async function commit(state: RunState, digest: string, verdict: Verdict, origin: 'executor' | 'outside'): Promise<StepOutcome> {
+    ciWait = null
     let applied = applyVerdict(template, state, verdict, ports.clock.now())
     if (!applied.ok) {
       if (origin === 'outside') return { kind: 'blocked', reason: applied.reason, state }
@@ -102,11 +169,13 @@ export function createLoopRunner(deps: LoopRunnerDeps): LoopRunner {
       const stop: Verdict = { node: here.node.id, judge: expectedJudge(here.node), verdict: 'stop', evidence: `실행기가 만든 판정을 상태 기계가 거부했다 — ${applied.reason}` }
       applied = applyVerdict(template, state, stop, ports.clock.now())
       if (!applied.ok) return { kind: 'blocked', reason: applied.reason, state }
-      await persist(applied.state)
+      const refused = await save(applied.state, digest)
+      if (refused) return refused
       return { kind: 'halted', state: applied.state, verdict: stop }
     }
     const s = applied.state
-    await persist(s)
+    const refused = await save(s, digest)
+    if (refused) return refused
     if (state.status === 'needs-user' && s.status === 'running') return { kind: 'resumed', state: s, verdict }
     const kind = s.status === 'done' ? 'done'
       : s.status === 'needs-user' ? 'halted'
@@ -149,12 +218,16 @@ export function createLoopRunner(deps: LoopRunnerDeps): LoopRunner {
         }
         case 'ci': {
           if (!goal || goal.pr === null) return { kind: 'verdict', verdict: v(node, 'fail', 'PR 번호가 없어 CI를 읽을 수 없다') }
-          // gh 읽기 오류는 FAIL이 아니라 기다림이다(마일스톤 병합 게이트와 같다). 기다림의 상한은 G2가 실제 포트와 함께 둔다.
+          // gh 읽기 오류는 FAIL이 아니라 기다림이다(마일스톤 병합 게이트와 같다). 기다림의 상한은 step이 센다.
           let ci
-          try { ci = await gh.ciStatus(goal.pr) } catch { return { kind: 'waiting', on: 'ci' } }
+          try { ci = await gh.ciStatus(goal.pr) } catch (e) { return { kind: 'waiting', on: 'ci', why: `gh 오류 — ${errorText(e)}` } }
           // 이번에 push한 머리의 결과가 아니면 판정하지 않는다.
           const judged = judgeCi(node, ci, goal.pushedSha)
-          return judged ? { kind: 'verdict', verdict: judged } : { kind: 'waiting', on: 'ci' }
+          if (judged) return { kind: 'verdict', verdict: judged }
+          const why = ci.state === 'pending'
+            ? `CI가 아직 끝나지 않았다(머리 ${short(ci.headSha)}, ${ci.summary})`
+            : `CI가 보고한 머리 ${short(ci.headSha)}가 이번에 push한 머리 ${short(goal.pushedSha)}가 아니다`
+          return { kind: 'waiting', on: 'ci', why }
         }
         default:
           return { kind: 'verdict', verdict: v(node, 'fail', '규칙이 없는 규칙 게이트다') }
@@ -298,9 +371,10 @@ export function createLoopRunner(deps: LoopRunnerDeps): LoopRunner {
     }
   }
 
-  async function load(): Promise<LoadResult> {
-    const read = await readRunState(ports.fs)
+  async function loadOnce(): Promise<LoadResult> {
+    const read = await readChecked()
     if (read.kind === 'missing') return read
+    if (read.kind === 'tampered') return { kind: 'needs-user', reason: read.reason }
     if (read.kind === 'invalid') return { kind: 'blocked', reason: '실행 상태가 스키마에 맞지 않는다', errors: read.errors }
     const check = checkResumable(template, hash, read.state)
     if (!check.ok) return { kind: 'blocked', reason: check.reason }
@@ -309,15 +383,28 @@ export function createLoopRunner(deps: LoopRunnerDeps): LoopRunner {
 
   return {
     start: (milestoneId) => exclusive(async () => {
-      const existing = await readRunState(ports.fs)
+      const existing = await readChecked()
+      if (existing.kind === 'tampered') return { kind: 'needs-user', reason: existing.reason }
       if (existing.kind !== 'missing') return { kind: 'blocked', reason: '실행 상태가 이미 있다 — 새로 시작하지 않는다(load로 이어 간다)' }
       const created = createRunState(template, hash, milestoneId)
       if (!created.ok) return { kind: 'blocked', reason: created.reason }
-      await persist(created.state)
+      try {
+        await persist(created.state, null)
+      } catch (e) {
+        if (e instanceof Tampered) return { kind: 'needs-user', reason: e.message }
+        throw e
+      }
       return { kind: 'ok', state: created.state, next: nextStep(template, created.state) }
     }),
 
-    load: () => exclusive(load),
+    // 직렬화 줄 밖 — 끝나지 않는 노드 동안에도 읽힌다. 상태 파일과 다이제스트를 따로 읽으므로 그 사이에 쓰기가 끼면 어긋날 수 있다.
+    // 불일치면 진행 중인 쓰기가 있으면 끝나기를 기다린 뒤, 없으면 바로 한 번 다시 읽는다. 다시 읽어도 다르면 멈춤이다.
+    load: async () => {
+      const first = await loadOnce()
+      if (first.kind !== 'needs-user') return first
+      await persisting?.catch(() => undefined)
+      return loadOnce()
+    },
 
     step: () => exclusive(async () => {
       const cur = await readCurrent()
@@ -328,8 +415,15 @@ export function createLoopRunner(deps: LoopRunnerDeps): LoopRunner {
       if (next.kind === 'needs-user') return { kind: 'halted', state, verdict: null }
       const produced = await produce(next, state)
       if (!produced) return { kind: 'halted', state, verdict: null }
-      if (produced.kind === 'waiting') return { kind: 'waiting', on: produced.on, state }
-      return commit(state, produced.verdict, 'executor')
+      if (produced.kind === 'waiting') {
+        if (produced.on !== 'ci' || next.kind !== 'gate') return { kind: 'waiting', on: produced.on, state }
+        const key = `${next.goal?.id ?? ''}@${next.goal?.pushedSha ?? ''}`
+        ciWait = ciWait?.key === key ? { key, count: ciWait.count + 1 } : { key, count: 1 }
+        if (ciWait.count <= ciWaitLimit) return { kind: 'waiting', on: 'ci', state }
+        const stop = v(next.node, 'stop', `CI 기다림이 상한 ${ciWaitLimit}번을 넘었다 — 마지막: ${produced.why ?? '판정 없음'}`)
+        return commit(state, cur.digest, stop, 'executor')
+      }
+      return commit(state, cur.digest, produced.verdict, 'executor')
     }),
 
     submit: (verdict) => exclusive(async () => {
@@ -344,7 +438,7 @@ export function createLoopRunner(deps: LoopRunnerDeps): LoopRunner {
       if (state.status === 'running' && next.kind === 'gate' && next.node.watch && verdict.verdict === 'pass') {
         return { kind: 'blocked', reason: `${next.node.id}는 PR 병합 사실로만 통과한다 — 병합 버튼으로 병합한다`, state }
       }
-      return commit(state, verdict, 'outside')
+      return commit(state, cur.digest, verdict, 'outside')
     }),
   }
 }

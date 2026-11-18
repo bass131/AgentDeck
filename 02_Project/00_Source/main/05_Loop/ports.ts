@@ -1,13 +1,12 @@
-// M09 G1 — 실행기가 바깥 세계를 만지는 포트. G1은 인터페이스와 시험용 가짜만 둔다.
-// 실제 구현(Agent SDK 세션, git·gh 실행, 작업 저장소 파일)은 G2의 몫이다. 아래 계약은 G2 구현이 지켜야 하는 것이다.
+// M09 G1 — 실행기가 바깥 세계를 만지는 포트. G1은 인터페이스와 시험용 가짜를 두었다.
+// G2 실물: realPorts/(명령·git·gh·fs), digestStore.ts(앱 쪽 다이제스트). 세션 포트의 실물은 G2 2차분이다.
 // 모든 경로는 작업 저장소 뿌리 기준의 상대 경로이고 구분자는 / 다.
 //
-// G2 인계
-// - 작업 세션이 `.agentdeck/`(특히 run-state.json·verification.md)를 직접 쓰는 구멍은 G1에서 막지 못한다.
-//   실행 상태 검사는 자기 일관성(계수·멈춤)만 보므로, 줄 목록과 상태를 함께 고치면 통과한다. G2의 노드 세션 잠금 노드가
-//   `.agentdeck/` 쓰기를 거부해서 막는다(원격 쓰기 잠금과 같은 노드).
-// - `.agentdeck/`의 git 취급(gitignore, 커밋 pathspec에서 빼기, 실행기가 정한 시점에만 커밋)은 G2가 정한다.
-//   지금 commitAll은 작업 트리 전부를 싣고, 실행기는 매 단계 run-state.json을 고친다.
+// G2에서 정한 것
+// - `.agentdeck/`는 작업 저장소의 `.git/info/exclude`로 추적 밖이다(openLoop가 시작할 때 더한다). 그래서 commitAll·hasChanges·
+//   diffStat에 실리지 않는다.
+// - 상태 파일 위조는 앱 쪽 다이제스트(DigestStore)가 막는다 — 실행기가 run-state.json을 쓸 때마다 그 정규 JSON의 sha256을
+//   작업 저장소 밖에 적고, 읽을 때 다르면 멈춘다. 작업 세션의 `.agentdeck/` 쓰기 거부(잠금 노드)는 G2 2차분의 첫 겹이다.
 import type { CiStatus } from './executor'
 import type { FileChange } from './grade'
 import type { GoalState } from './runState'
@@ -80,6 +79,13 @@ export interface ReviewPort {
 
 export interface Clock { now(): string }
 
+// 앱 영역(작업 저장소 밖)의 실행 상태 다이제스트. repoKey는 작업 저장소 경로의 해시(digestStore.repoKeyOf)다.
+// 실행기만 쓴다. 실물은 Electron userData 아래 파일이다(digestStore.createFileDigestStore).
+export interface DigestStore {
+  read(repoKey: string): Promise<string | null>
+  write(repoKey: string, hash: string): Promise<void>
+}
+
 export interface LoopPorts {
   command: CommandPort
   git: GitPort
@@ -88,4 +94,5 @@ export interface LoopPorts {
   session: SessionPort
   review: ReviewPort
   clock: Clock
+  digest: DigestStore
 }

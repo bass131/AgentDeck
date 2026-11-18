@@ -86,7 +86,22 @@ if (missing.length) {
   lines.push('재개 절차: 위 좌표를 기점으로 Phase-Steps의 현재 Phase 절(목표·Steps·DoD·검증 기록)을 읽고 재개하라. 검증 기록 줄 밖의 통과 주장은 무효다.');
 }
 
-log({ event: 'SessionStart', session: input.session_id || null, source, verdict, checks, ...(planFiles ? { planFiles } : {}), reason: missing.length ? `생존 문서 결손: ${missing.join('·')}` : '생존 문서 4종 로드 확인 — work-pin 전문 재부착' });
+// 병합 감시 재장착 (M07 G10, 헌법 11조) — 감시는 세션이 닫히면 사라진다. pin의 「현재 goal」 줄이
+// 「병합 대기」와 PR 번호를 말하면, 그 PR의 감시를 백그라운드로 다시 걸라는 한 줄을 주입한다.
+// 현재 goal 줄만 읽는다(다른 줄의 옛 PR 번호를 집지 않게). 정본 꼴은 「(병합 대기, PR N)」이고(goal 템플릿 마감 줄),
+// 「병합 대기 (PR N)」·「병합 대기 — PR #N」·「PR N 병합 대기」도 읽는다(PR 77 검수 중요 2).
+// compact는 같은 세션이 이어지는 것이라 감시가 살아 있다 — 다시 걸라고 하지 않는다(중요 3, 중복 감시 방지).
+let mergeWatchPr = null;
+if (!missing.length && source !== 'compact') {
+  const goalLine = (pinText.match(/^- 현재 goal:.*$/m) || [''])[0];
+  const m = goalLine.match(/병합\s*대기[\s,(·—–-]{0,6}PR\s*#?(\d{1,9})\b/) || goalLine.match(/PR\s*#?(\d{1,9})\s*(?:의\s*)?병합\s*대기/);
+  if (m) {
+    mergeWatchPr = Number(m[1]);
+    lines.push(`[병합 감시] 현재 goal이 PR ${mergeWatchPr}의 병합을 기다린다. 메인 세션이고 이 PR의 감시가 이미 돌고 있지 않을 때만 백그라운드로 걸어라: node 99_Others/Dashboard/wait-merge.mjs ${mergeWatchPr} — 끝나면 gh pr view로 다시 읽는다. MERGED면 종결 기록까지만 하고 다음 goal은 열지 않는다. CLOSED면 기록 없이 사용자에게 알린다. ERROR면 아직 열려 있을 때 한 번 다시 걸고, 또 ERROR면 사용자에게 알린다 (헌법 11조).`);
+  }
+}
+
+log({ event: 'SessionStart', session: input.session_id || null, source, verdict, checks, ...(planFiles ? { planFiles } : {}), ...(mergeWatchPr ? { mergeWatchPr } : {}), reason: missing.length ? `생존 문서 결손: ${missing.join('·')}` : '생존 문서 4종 로드 확인 — work-pin 전문 재부착' });
 
 process.stdout.write(JSON.stringify({
   hookSpecificOutput: { hookEventName: 'SessionStart', additionalContext: lines.join('\n') },

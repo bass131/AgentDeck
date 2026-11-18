@@ -122,6 +122,46 @@ try {
     const resumeLine = r.added.find(l => l.hook === 'start-brief')
     check('resume 기동의 checks 네 항목이 전부 참이다', !!resumeLine && resumeLine.verdict === 'allow'
       && ['Phase-Steps', '결정-대장', '검증-기록', 'work-pin'].every(k => resumeLine.checks?.[k] === true), JSON.stringify(resumeLine?.checks))
+
+    // M07 G10 — pin의 현재 goal 줄이 「병합 대기」와 PR 번호를 말하면, 세션이 병합 감시를 다시 걸도록 명령 한 줄을 주입한다.
+    // 감시는 세션이 닫히면 사라지므로 재개 때마다 다시 건다. 번호가 없거나 병합 대기가 아니면 주입하지 않는다
+    const briefWith = (goalLine, sid) => {
+      const pinRel = `01_Milestones/M01_Bootstrap/smoke-pin-${sid}.md`
+      writeFileSync(join(MIRROR, pinRel), `# pin\n\n## 좌표\n\n- 현재 goal: ${goalLine}\n- 다른 줄: 병합 대기 (PR 999)는 현재 goal 줄이 아니다\n\n## 마감 요약\n\n- 스탬프: x\n`)
+      setConfig({ planPath: REAL_PLAN, workPinPath: pinRel })
+      const res = run(H, { session_id: `smoke-10-${sid}`, source: 'startup' })
+      const text = (() => { try { return JSON.parse(res.stdout).hookSpecificOutput.additionalContext } catch { return '' } })()
+      return { res, text, watch: text.split('\n').filter(l => l.startsWith('[병합 감시]')) }
+    }
+    const w1 = briefWith('**G10 병합 완료 감지 (병합 대기, PR 77)** — 문서', 'w1')
+    check('「병합 대기, PR 77」이면 감시 줄이 하나 주입된다', w1.watch.length === 1, w1.watch.join(' | '))
+    check('감시 줄에 그 PR의 감시 명령이 있다', (w1.watch[0] ?? '').includes('node 99_Others/Dashboard/wait-merge.mjs 77'), w1.watch[0] ?? '')
+    check('감시 줄이 백그라운드 실행을 말한다', (w1.watch[0] ?? '').includes('백그라운드'), w1.watch[0] ?? '')
+    check('감시 줄이 GitHub에서 다시 읽고 종결 기록까지만 하라고 말한다', (w1.watch[0] ?? '').includes('다시 읽') && (w1.watch[0] ?? '').includes('다음 goal'), w1.watch[0] ?? '')
+    check('판정 기록에 감시 PR 번호가 남는다', w1.res.added.some(l => l.hook === 'start-brief' && l.mergeWatchPr === 77), JSON.stringify(w1.res.added.at(-1)))
+    const w2 = briefWith('G9 현황판 병합 버튼 · 상태: 병합 대기 (PR 75)', 'w2')
+    check('「병합 대기 (PR 75)」 꼴도 읽는다', (w2.watch[0] ?? '').includes('wait-merge.mjs 75'), w2.watch.join(' | '))
+    const w3 = briefWith('**G10 병합 완료 감지 (실행 중)** — PR 77을 만든다', 'w3')
+    check('병합 대기가 아니면 감시 줄이 없다(다른 줄의 「병합 대기 (PR 999)」도 읽지 않는다)', w3.watch.length === 0, w3.watch.join(' | '))
+    const w4 = briefWith('**G9 (병합 대기)** — 번호 없음', 'w4')
+    check('PR 번호가 없으면 감시 줄이 없다', w4.watch.length === 0, w4.watch.join(' | '))
+    // PR 77 검수: 다른 구분자와 #, 번호가 앞에 오는 꼴도 읽는다
+    for (const [goal, n, sid] of [['G10 (병합 대기 — PR #78)', 78, 'w5'], ['G10 (병합 대기 · PR 79)', 79, 'w6'], ['G6 — PR 80 병합 대기', 80, 'w7']]) {
+      const w = briefWith(goal, sid)
+      check(`「${goal}」에서 PR ${n}을 읽는다`, (w.watch[0] ?? '').includes(`wait-merge.mjs ${n}`), w.watch.join(' | '))
+    }
+    // 중복 감시를 막는 문구와 끝난 뒤의 분기(헌법 11조)
+    check('감시 줄이 「이미 돌고 있으면 걸지 않는다」·「메인 세션만」을 말한다', (w1.watch[0] ?? '').includes('이미') && (w1.watch[0] ?? '').includes('메인 세션'), w1.watch[0] ?? '')
+    check('감시 줄이 CLOSED·ERROR 분기를 말한다', (w1.watch[0] ?? '').includes('CLOSED') && (w1.watch[0] ?? '').includes('ERROR'), w1.watch[0] ?? '')
+    // compact는 같은 세션이 이어지는 것이라 감시가 살아 있다 — 다시 걸라고 하지 않는다
+    {
+      writeFileSync(join(MIRROR, '01_Milestones/M01_Bootstrap/smoke-pin-wc.md'), '# pin\n\n## 좌표\n\n- 현재 goal: G10 (병합 대기, PR 77)\n\n## 마감 요약\n\n- 스탬프: x\n')
+      setConfig({ planPath: REAL_PLAN, workPinPath: '01_Milestones/M01_Bootstrap/smoke-pin-wc.md' })
+      const rc = run(H, { session_id: 'smoke-10-wc', source: 'compact' })
+      const tc = (() => { try { return JSON.parse(rc.stdout).hookSpecificOutput.additionalContext } catch { return '' } })()
+      check('compact 기동에는 감시 줄을 주입하지 않는다', !tc.includes('[병합 감시]'), tc.split('\n').find(l => l.includes('병합 감시')) ?? '')
+    }
+    setConfig({ planPath: REAL_PLAN, workPinPath: REAL_PIN })
   }
 
   // ---- 20_plan-gate (PreToolUse: Task|Agent) ------------------------------

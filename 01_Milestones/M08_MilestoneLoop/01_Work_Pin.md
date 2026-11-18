@@ -1,0 +1,24 @@
+# work-pin — 작업 좌표 (M08)
+
+세션 재개의 단일 인수인계 표면입니다.
+좌표와 마감 요약은 현재 상태만 덮어쓰기로 유지하고, 이력은 git이 보유합니다.
+결정과 검증의 정본은 `gate-config.json`의 `planPath`가 가리키는 goal 문서와 그 출발점인 마일스톤 스펙입니다(헌법 2조).
+
+## 좌표
+
+- 로드맵: `01_Milestones/00_Roadmap.md` — M07 사용자 컨트롤(종결) → **M08 마일스톤 루프 장치** → M09 v1 줄기 → M10 설치본과 업데이트(후보).
+- 마일스톤 스펙: `01_Milestones/M08_MilestoneLoop/00_마일스톤-스펙.md` — 2026-11-18 합의. goal은 셋(병합 길 장치, 병합 경계 ADR과 안내 글, 마일스톤 회귀 검증과 마일스톤 PR)이고 합의 문답 없이 이어진다(헌법 11조).
+- 현재 goal: **G1 병합 길 장치 (병합 대기, PR 88)** — `10_Goal-G1-병합-길-장치.md`, 브랜치 `feat/m08-g1-merge-path`. 과도기라 PR은 `master`로 열고 사용자가 병합한다. 이 goal의 병합이 헌법 10조 효력 날이다.
+- 효력 날 뒤: `master`에서 `milestone/m08-milestone-loop`를 가르고, G2부터는 goal 브랜치를 그 위에서 갈라 에이전트가 로컬 `git merge --no-ff`로 병합하고 push한다. 병합 조건은 goal PR의 `hard-gates` 통과, 검증 기록 마지막 줄 `PASS`, 강 등급이면 독립 검수 반영이다.
+- goal 병합의 정형 절차(G1 독립 검수 중요 5·6): ① goal 브랜치의 마지막 커밋까지 push한다. ② `gh pr view <N> --json headRefOid,statusCheckRollup`으로 `hard-gates` 통과와 머리 SHA를 읽는다(`gh pr checks`·`gh run watch`는 allow 밖이라 무인 루프가 멈춘다). ③ `git fetch origin` 뒤 `git switch milestone/m08-milestone-loop`, `git merge --no-ff -m "<메시지>" origin/<goal 브랜치>` — `--no-ff`를 맨 앞에 두고 전략 옵션(`-s`·`-X`)은 쓰지 않는다. ④ 병합한 `origin/<goal 브랜치>`의 SHA가 ②의 머리 SHA와 같은지 확인한 뒤 `git push -u origin milestone/m08-milestone-loop`.
+- push는 항상 `-u origin <브랜치>`로 원격 브랜치를 명시합니다. `master`로 가는 병합은 사용자가 직접 합니다 — 에이전트는 PR 번호와 `gh pr merge <번호> --merge --match-head-commit <SHA>` 한 줄을 알립니다.
+- 멈추는 곳: 마일스톤의 완료조건이나 범위를 바꿔야 할 때, FAIL 세 번, 승인 항목(`master` 병합·직접 push, 릴리스, 패키지 배포, 강제 push, 브랜치 삭제).
+- 규율: 판정 장치는 마일스톤 스펙 「건드릴 곳」에 이름이 있고 goal 진척 단계에 적힌 것만 고칩니다. 범위 밖 발견은 `M08_MilestoneLoop/99_Backlog.md`에 한 줄로 남깁니다.
+- SDK·CLI 동작은 공개 타입·공식 문서·요청이 돌려준 값으로만 검증합니다. 번들 내부를 열람하지 않습니다(사용자 지시). 모델 라우팅 정본은 `00_Documents/02_Rules/02_모델-라우팅-정책.md`입니다.
+
+## 마감 요약 (최신 1건 — 3줄: 바뀐 것 / 내린 결정 / 봐야 할 것)
+
+- 스탬프: 2026-11-18T20:28:37+09:00
+- 바뀐 것: M08 스펙을 합의하고, G1에서 `git merge --no-ff` 허용·`milestone/**` CI·CLI 실측 표를 넣어 PR 88로 올렸습니다. 독립 검수 11건을 반영했습니다.
+- 내린 결정: 스펙에 없던 판정 장치 수정은 사용자 「a로」로 스펙에 더했습니다. 실측 빈틈(`master` 위 맨 push 묶음)과 `--no-ff` 뒤 전략 옵션은 Backlog 2·3입니다.
+- 봐야 할 것: PR 88을 사용자가 병합하면 헌법 10조 효력 날이고, G2부터 pin의 정형 절차로 마일스톤 브랜치에서 에이전트가 병합합니다.

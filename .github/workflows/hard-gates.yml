@@ -1,4 +1,5 @@
-# 하드 게이트 다섯 종 (헌법 6조) — master로 가는 PR마다 서버에서 돈다 (M07 G6).
+# 하드 게이트 다섯 종 (헌법 6조) — master와 마일스톤 브랜치(milestone/**)로 가는 PR마다 서버에서 돈다 (M07 G6, M08 G1).
+# 마일스톤 브랜치로 가는 goal PR의 이 검사 통과가 에이전트 goal 병합의 조건이다(헌법 10조). 그 브랜치에는 보호가 없어 규범으로 지킨다.
 # 검사 이름은 작업 이름 `hard-gates` 하나다. 사용자가 master 보호의 필수 검사로 이 이름을 건다.
 # 러너는 Windows다 — 개발 PC와 같은 환경에서 훅 테스트·경로 처리를 본다(G6 결정 대장).
 # `npm test`는 하드 게이트가 아니라 기준선 차분으로 읽는 검사라 여기서 돌리지 않는다.
@@ -7,7 +8,7 @@ name: hard-gates
 # 수동 실행(workflow_dispatch)은 두지 않는다 — master와 병합하지 않은 코드로 같은 이름의 검사를 PR head에 남길 수 있다(G6 검수 중요 3).
 on:
   pull_request:
-    branches: [master]
+    branches: [master, 'milestone/**']
 
 permissions:
   contents: read

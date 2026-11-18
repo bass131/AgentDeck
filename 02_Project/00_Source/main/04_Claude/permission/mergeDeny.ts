@@ -147,14 +147,22 @@ function tokenize(segment: string): string[] {
 
 // 래퍼 — 뒤의 낱말을 명령으로 실행한다. 값을 다음 낱말로 받는 옵션과, 명령 앞의 위치 인자 수(`timeout <시간>`)를 적는다.
 // 값이 붙은 꼴(`-o0`, `--signal=KILL`)은 한 낱말이라 따로 적지 않는다 (독립 검수 중요 3).
+// split(M09 G3)은 `env -S` 문자열 판독 칸이다 — 그 글자와 값을 받는 짧은 옵션 글자, 긴 옵션의 종류(splitScriptOf가 읽는다).
+interface SplitSpec {
+  short: string
+  valueShort: string
+  long: Readonly<Record<string, 'split' | 'value' | 'flag'>>
+}
 interface WrapperSpec {
   valueOpts: readonly string[]
   positional: number
+  split?: SplitSpec
 }
+// 가드(.claude/hooks/dangerous-cmd-guard.mjs)의 WRAPPER_SPECS와 행 글이 같다 — cmd-guard-equivalence.test.mjs가 지킨다.
 const WRAPPERS: ReadonlyMap<string, WrapperSpec> = new Map<string, WrapperSpec>([
   ['sudo', { valueOpts: ['-u', '-g', '-h', '-p', '-C', '-U', '-r', '-t', '-D', '-R', '-T', '--user', '--group', '--host', '--prompt', '--close-from', '--other-user', '--role', '--type', '--chdir', '--chroot', '--command-timeout'], positional: 0 }],
   ['doas', { valueOpts: ['-u', '-C'], positional: 0 }],
-  ['env', { valueOpts: ['-u', '-C', '--unset', '--chdir'], positional: 0 }],
+  ['env', { valueOpts: ['-u', '-C', '--unset', '--chdir'], positional: 0, split: { short: 'S', valueShort: 'uC', long: { chdir: 'value', 'split-string': 'split', unset: 'value', argv0: 'value', 'ignore-environment': 'flag', null: 'flag', debug: 'flag', 'block-signal': 'flag', 'default-signal': 'flag', 'ignore-signal': 'flag', 'list-signal-handling': 'flag', help: 'flag', version: 'flag' } } }],
   ['nohup', { valueOpts: [], positional: 0 }],
   ['time', { valueOpts: ['-f', '-o', '--format', '--output'], positional: 0 }],
   ['nice', { valueOpts: ['-n', '--adjustment'], positional: 0 }],
@@ -261,6 +269,43 @@ function windowsShellScripts(c: Cmd): string[] | null {
   return out
 }
 
+// `env -S`·`--split-string` (M09 G3) — GNU env는 문자열을 낱말로 나눠 그 자리에 끼우고 옵션 읽기를 잇는다. 그래서 다시 읽을 글은
+// `env <문자열> <뒤 낱말>`이다(`env -S "-i gh …"`의 `-i`도 옵션으로 읽힌다). 뒤 낱말은 작은따옴표로 감싸 낱말 하나로 남긴다.
+// 옵션은 getopt처럼 읽는다(loopLock.ts의 wrapperOpts와 같다) — 묶은 짧은 옵션은 값 옵션 글자에서 끝나고(`-vS`는 -S,
+// `-uS`의 S는 -u의 값), 값은 붙여 쓰거나(`-S"…"`·`--split-string=…`) 다음 낱말이며, 긴 옵션은 표에서 유일한 접두면 줄여 쓴다(`--sp`).
+// 가드(dangerous-cmd-guard.mjs)의 splitScriptOf와 같은 판독이다. 없으면 null.
+const shQuote = (t: string): string => `'${t.replace(/'/g, "'\\''")}'`
+function splitScriptOf(c: Cmd): string | null {
+  const spec = WRAPPERS.get(c.base.replace(/\.exe$/, ''))?.split
+  if (!spec) return null
+  const args = c.args
+  for (let i = 0; i < args.length; i++) {
+    const t = args[i]
+    let value: string | undefined
+    if (t === '--') return null
+    if (t === '-') continue
+    if (t.startsWith('--')) {
+      const eq = t.indexOf('=')
+      const name = t.slice(2, eq < 0 ? undefined : eq)
+      const hits = Object.keys(spec.long).filter((l) => l.startsWith(name))
+      const kind = Object.hasOwn(spec.long, name) ? spec.long[name] : hits.length === 1 ? spec.long[hits[0]] : undefined
+      if (kind === undefined || kind === 'flag') continue
+      value = eq < 0 ? args[++i] : t.slice(eq + 1)
+      if (kind !== 'split') continue
+    } else if (t.startsWith('-')) {
+      let k = 1
+      while (k < t.length && t[k] !== spec.short && !spec.valueShort.includes(t[k])) k++
+      if (k === t.length) continue
+      value = k + 1 < t.length ? t.slice(k + 1) : args[++i]
+      if (t[k] !== spec.short) continue
+    } else if (RE_ASSIGN.test(t)) continue
+    else return null
+    if (value === undefined) return null
+    return [c.base, value, ...args.slice(i + 1).map(shQuote)].join(' ')
+  }
+  return null
+}
+
 function scriptReason(script: string, rawText: string, depth: number): string | null {
   if (depth > 4) return null
   const text = stripHeredocBodies(script.replace(/\\\r?\n/g, ' '))
@@ -270,6 +315,13 @@ function scriptReason(script: string, rawText: string, depth: number): string | 
   }
   for (const seg of splitSegments(text)) {
     for (const c of commandsOf(tokenize(seg))) {
+      // `env -S` 문자열은 셸 `-c` 스크립트처럼 다시 판독한다 (M09 G3)
+      const split = splitScriptOf(c)
+      if (split !== null) {
+        const r = scriptReason(split, rawText, depth + 1)
+        if (r) return r
+        continue
+      }
       if (SHELLS.has(c.base)) {
         const k = c.args.findIndex((t) => RE_SHELL_C.test(t))
         if (k >= 0 && k + 1 < c.args.length) {

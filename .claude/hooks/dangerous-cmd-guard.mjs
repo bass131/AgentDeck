@@ -135,7 +135,7 @@ const FIND_EXEC = new Set(['-exec', '-execdir', '-ok', '-okdir'])
 const WRAPPER_SPECS = new Map([
   ['sudo', { valueOpts: ['-u', '-g', '-h', '-p', '-C', '-U', '-r', '-t', '-D', '-R', '-T', '--user', '--group', '--host', '--prompt', '--close-from', '--other-user', '--role', '--type', '--chdir', '--chroot', '--command-timeout'], positional: 0 }],
   ['doas', { valueOpts: ['-u', '-C'], positional: 0 }],
-  ['env', { valueOpts: ['-u', '-C', '--unset', '--chdir'], positional: 0 }],
+  ['env', { valueOpts: ['-u', '-C', '--unset', '--chdir'], positional: 0, split: { short: 'S', valueShort: 'uC', long: { chdir: 'value', 'split-string': 'split', unset: 'value', argv0: 'value', 'ignore-environment': 'flag', null: 'flag', debug: 'flag', 'block-signal': 'flag', 'default-signal': 'flag', 'ignore-signal': 'flag', 'list-signal-handling': 'flag', help: 'flag', version: 'flag' } } }],
   ['nohup', { valueOpts: [], positional: 0 }],
   ['time', { valueOpts: ['-f', '-o', '--format', '--output'], positional: 0 }],
   ['nice', { valueOpts: ['-n', '--adjustment'], positional: 0 }],
@@ -158,6 +158,43 @@ function takesValue(spec, t) {
 }
 const RE_ASSIGN = /^[A-Za-z_][A-Za-z0-9_]*=/   // `FOO=1` 류 환경변수 할당 토큰
 const RE_SHELL_C = /^-[A-Za-z]*c$/             // `-c`·`-lc`·`-ec` — 다음 토큰이 셸 스크립트 문자열
+
+// `env -S`·`--split-string` (M09 G3) — GNU env는 문자열을 낱말로 나눠 그 자리에 끼우고 옵션 읽기를 잇는다. 그래서 다시 읽을 글은
+// `env <문자열> <뒤 낱말>`이다(`env -S "-i gh …"`의 `-i`도 옵션으로 읽힌다). 뒤 낱말은 작은따옴표로 감싸 낱말 하나로 남긴다.
+// 옵션은 getopt처럼 읽는다(루프 잠금 loopLock.ts의 wrapperOpts와 같다) — 묶은 짧은 옵션은 값 옵션 글자에서 끝나고(`-vS`는 -S,
+// `-uS`의 S는 -u의 값), 값은 붙여 쓰거나(`-S"…"`·`--split-string=…`) 다음 낱말이며, 긴 옵션은 표에서 유일한 접두면 줄여 쓴다(`--sp`).
+// 앱 잠금 노드 mergeDeny.ts의 splitScriptOf와 같은 판독이다. 없으면 null.
+const shQuote = (t) => `'${t.replace(/'/g, "'\\''")}'`
+function splitScriptOf(c) {
+  const spec = WRAPPER_SPECS.get(c.base.replace(/\.exe$/, ''))?.split
+  if (!spec) return null
+  const args = c.args
+  for (let i = 0; i < args.length; i++) {
+    const t = args[i]
+    let value
+    if (t === '--') return null
+    if (t === '-') continue
+    if (t.startsWith('--')) {
+      const eq = t.indexOf('=')
+      const name = t.slice(2, eq < 0 ? undefined : eq)
+      const hits = Object.keys(spec.long).filter((l) => l.startsWith(name))
+      const kind = Object.hasOwn(spec.long, name) ? spec.long[name] : hits.length === 1 ? spec.long[hits[0]] : undefined
+      if (kind === undefined || kind === 'flag') continue
+      value = eq < 0 ? args[++i] : t.slice(eq + 1)
+      if (kind !== 'split') continue
+    } else if (t.startsWith('-')) {
+      let k = 1
+      while (k < t.length && t[k] !== spec.short && !spec.valueShort.includes(t[k])) k++
+      if (k === t.length) continue
+      value = k + 1 < t.length ? t.slice(k + 1) : args[++i]
+      if (t[k] !== spec.short) continue
+    } else if (RE_ASSIGN.test(t)) continue
+    else return null
+    if (value === undefined) return null
+    return [c.base, value, ...args.slice(i + 1).map(shQuote)].join(' ')
+  }
+  return null
+}
 
 function baseName(token) {
   const s = String(token)
@@ -1076,7 +1113,11 @@ function contextsOf(command, depth = 0) {
     for (const c of commandsOf(toks)) {
       // seg — 세그먼트의 토큰 전부다 (M05 H1). `master` 글자 판정이 머리의 할당(`GIT_CONFIG_VALUE_0=HEAD:master git push`)까지 보게 한다
       out.push({ ...c, seg: toks, git: isGit(c.base) ? gitSub(c.args) : null })
-      if (depth >= SHELL_DEPTH_LIMIT || !SHELLS.has(c.base)) continue
+      if (depth >= SHELL_DEPTH_LIMIT) continue
+      // `env -S` 문자열은 셸 `-c` 스크립트처럼 같은 파이프라인으로 다시 판정한다 (M09 G3)
+      const split = splitScriptOf(c)
+      if (split !== null) out.push(...contextsOf(split, depth + 1))
+      if (!SHELLS.has(c.base)) continue
       for (const script of shellScriptsOf(c.args)) {
         if (typeof script === 'string' && script.trim()) out.push(...contextsOf(script, depth + 1))
       }

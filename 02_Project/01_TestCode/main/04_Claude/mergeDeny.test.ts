@@ -156,6 +156,72 @@ describe('merge-deny — 오탐 꼴은 지나간다 (M07 G8)', () => {
   }
 })
 
+// M09 G3 — `env -S`(`--split-string`)는 문자열을 낱말로 나눠 그 자리에 끼우고 옵션 읽기를 잇는다(GNU env).
+// 그 문자열과 뒤 낱말을 명령으로 다시 읽어 다른 병합 호출과 같은 사유로 거부한다. 같은 사례를 가드 시험과 같음 시험에도 둔다.
+describe('merge-deny — env -S 문자열을 명령으로 다시 읽는다 (M09 G3)', () => {
+  const denied = [
+    'env -S "gh pr merge 1"',
+    'env -S"gh pr merge 1"',
+    'env -vS "gh pr merge 1"',
+    'env --split-string="gh pr merge 1"',
+    'env -S "gh api -X PUT repos/o/r/pulls/1/merge"',
+    'env --split-string "gh pr merge 1"',
+    'env --split "gh pr merge 1"',
+    'env --sp="gh pr merge 1"',
+    'env --s "gh pr merge 1"',
+    'env -iS "gh pr merge 1"',
+    'env -0vS"gh pr merge 1"',
+    'env -S gh pr merge 1',
+    'env -S "gh pr" merge 1',
+    'env -S "-i gh pr merge 1"',
+    'env -S "FOO=1 gh pr merge 1"',
+    'env -u X -S "gh pr merge 1"',
+    'env -C /tmp -S "gh pr merge 1"',
+    'env -C/tmp -S "gh pr merge 1"',
+    'env --unset X --debug -S "gh pr merge 1"',
+    "env -S \"env -S 'gh pr merge 1'\"",
+    "env -S \"bash -c 'gh pr merge 1'\"",
+    'env -S "bash -c" "gh pr merge 1"',
+    'sudo env -S "gh pr merge 1"',
+    '/usr/bin/env -S "gh pr merge 1"',
+    'ENV.EXE -S "gh pr merge 1"',
+    'npm test && env -S "gh pr merge 1"',
+    "bash -c 'env -S \"gh pr merge 1\"'",
+    'env -S "gh api graphql -f query=\'mutation { mergePullRequest(input: {}) { clientMutationId } }\'"',
+  ]
+  for (const cmd of denied) {
+    it(`거부: ${JSON.stringify(cmd)}`, () => {
+      expect(mergeDenyReason(cmd)).toMatch(/「병합」 버튼/)
+    })
+  }
+  const passed = [
+    'env -S "npm test"',
+    'env FOO=1 npm test',
+    'env -u X ls',
+    'env -S "gh pr view 1"',
+    'env -S "echo gh pr merge 1"',
+    // 뒤 낱말은 낱말 하나다 — 그 안의 `;`는 구분자가 아니다
+    'env -S "npm test" "a; gh pr merge 1"',
+    'env -u S npm test',
+    // 묶음에서 값 옵션이 먼저 오면 그 뒤 글자는 값이다(`-uS`의 S는 -u의 값)
+    'env -uS "npm test"',
+    'env --unset=S npm test',
+    'env -S',
+    'env -S ""',
+    'env -- -S "gh pr merge 1"',
+    // 글로만 적힌 꼴
+    'echo \'env -S "gh pr merge 1"\'',
+    'git commit -m \'env -S "gh pr merge 1" 차단\'',
+    "git commit -F - <<'EOF'\nfix: x\n\nenv -S \"gh pr merge 1\" 차단\nEOF",
+    "gh pr create --title t --body \"$(cat <<'EOF'\nenv -S \"gh pr merge 1\" 도 거부된다\nEOF\n)\"",
+  ]
+  for (const cmd of passed) {
+    it(`통과: ${JSON.stringify(cmd)}`, () => {
+      expect(mergeDenyReason(cmd)).toBeNull()
+    })
+  }
+})
+
 describe('merge-deny 훅과 노드 정보 (M07 G8)', () => {
   it('훅은 command 입력의 병합 꼴을 거부 결정으로, 나머지는 빈 출력으로 돌려준다', async () => {
     const matcher = buildMergeDenyHook()

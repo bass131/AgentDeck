@@ -20,9 +20,9 @@ const REAL_ORDER = [
 ]
 
 interface Ctx { template: Template; hash: string; rig: Rig; runner: LoopRunner }
-function setup(text?: string, rig: Rig = makeRig()): Ctx {
+function setup(text?: string, rig: Rig = makeRig(), extra: { ciWaitLimit?: number } = {}): Ctx {
   const { template, hash } = loaded(text)
-  return { template, hash, rig, runner: createLoopRunner({ template, hash, ports: rig.ports, cwd: CWD }) }
+  return { template, hash, rig, runner: createLoopRunner({ template, hash, ports: rig.ports, cwd: CWD, ...extra }) }
 }
 async function reload(ctx: Ctx): Promise<RunState> {
   const r = await ctx.runner.load()
@@ -47,10 +47,14 @@ const stateOf = (out: StepOutcome): RunState => {
   if (out.state === null) throw new Error(`상태 없는 결과: ${JSON.stringify(out)}`)
   return out.state
 }
-// 「실행은 됐는데 상태 저장 전에 꺼짐」 — 생존 문서를 실행 전으로 되돌린다(git·gh 쪽의 일은 남는다).
+// 「실행은 됐는데 상태 저장 전에 꺼짐」 — 생존 문서와 앱 쪽 다이제스트를 실행 전으로 되돌린다(git·gh 쪽의 일은 남는다).
 function snapshot(rig: Rig): () => void {
   const saved = new Map(rig.fs.files)
-  return () => { rig.fs.files.clear(); for (const [k, v] of saved) rig.fs.files.set(k, v) }
+  const digests = new Map(rig.digest.digests)
+  return () => {
+    rig.fs.files.clear(); for (const [k, v] of saved) rig.fs.files.set(k, v)
+    rig.digest.digests.clear(); for (const [k, v] of digests) rig.digest.digests.set(k, v)
+  }
 }
 
 describe('실제 템플릿으로 마일스톤 하나를 완주한다', () => {
@@ -112,7 +116,8 @@ describe('상태는 실행기가 소유한다', () => {
   })
 
   it('실행기 껍질에도 건너뛰기·강제 통과·상태 넣기 API가 없다', () => {
-    expect(Object.keys(setup().runner).sort()).toEqual(['load', 'start', 'step', 'submit'])
+    // idle은 직렬화 줄을 기다리기만 한다(닫기용, G2 검수 사소) — 상태를 넣거나 건너뛰지 않는다
+    expect(Object.keys(setup().runner).sort()).toEqual(['idle', 'load', 'start', 'step', 'submit'])
   })
 })
 
@@ -331,6 +336,76 @@ describe('재개는 같은 노드를 고르고, action은 확인 뒤 실행이�
     expect((await reload(ctx)).failCount).toBe(0)
   })
 
+  it('CI 기다림이 상한을 넘으면 FAIL이 아니라 사람을 부르는 멈춤이다 — pending·gh 오류·머리 불일치를 모두 센다', async () => {
+    const ctx = setup(undefined, makeRig(), { ciWaitLimit: 3 })
+    await until(ctx, 'G1/ci')
+    ctx.rig.gh.ci = 'pending'
+    expect((await ctx.runner.step()).kind).toBe('waiting')
+    ctx.rig.gh.ci = 'success'
+    ctx.rig.gh.ciThrows = true
+    expect((await ctx.runner.step()).kind).toBe('waiting')
+    ctx.rig.gh.ciThrows = false
+    ctx.rig.gh.ciHead = 'f'.repeat(40)
+    expect((await ctx.runner.step()).kind).toBe('waiting')
+    const over = await ctx.runner.step()
+    expect(over.kind).toBe('halted')
+    const s = stateOf(over)
+    expect(s.haltReason).toContain('상한')
+    expect(s.haltReason).toContain('머리')
+    expect(s.failCount).toBe(0)
+    expect(s.cursor).toEqual({ node: 'ci', goal: 0 })
+    expect(s.lines.at(-1)).toMatchObject({ marker: 'PASS', node: 'goal-pr' })
+    // 사람이 이어 가면 다시 0부터 센다
+    expect((await ctx.runner.submit({ node: 'ci', judge: 'human', verdict: 'pass', evidence: '남의 push를 정리했다' })).kind).toBe('resumed')
+    for (let i = 0; i < 3; i++) expect((await ctx.runner.step()).kind).toBe('waiting')
+    ctx.rig.gh.ciHead = null
+    expect((await ctx.runner.step()).kind).toBe('advanced')
+  })
+
+  it('CI가 판정을 내면 기다림 계수는 0으로 돌아간다', async () => {
+    const ctx = setup(undefined, makeRig(), { ciWaitLimit: 2 })
+    await until(ctx, 'G1/ci')
+    ctx.rig.gh.ci = 'pending'
+    expect((await ctx.runner.step()).kind).toBe('waiting')
+    expect((await ctx.runner.step()).kind).toBe('waiting')
+    ctx.rig.gh.ci = 'failure'
+    expect((await ctx.runner.step()).kind).toBe('failed')
+    await until(ctx, 'G1/ci')
+    ctx.rig.gh.ci = 'pending'
+    expect((await ctx.runner.step()).kind).toBe('waiting')
+    expect((await ctx.runner.step()).kind).toBe('waiting')
+    expect((await ctx.runner.step()).kind).toBe('halted')
+  })
+
+  it('상태 읽기(load)는 직렬화 줄 밖이다 — 끝나지 않는 작업 노드 동안에도 읽힌다', async () => {
+    const ctx = setup()
+    await until(ctx, 'G1/implement')
+    let release: () => void = () => undefined
+    ctx.rig.session.onWork = (req) => (req.node.id === 'implement' ? new Promise<void>((res) => { release = res }) : Promise.resolve())
+    const running = ctx.runner.step()
+    await new Promise((res) => setTimeout(res, 10))
+    const during = await ctx.runner.load()
+    expect(during.kind === 'ok' && label(ctx, during.state)).toBe('G1/implement')
+    release()
+    expect((await running).kind).toBe('advanced')
+    expect(label(ctx, await reload(ctx))).toBe('G1/checks')
+  })
+
+  it('load가 상태 파일을 읽은 뒤 다이제스트를 읽기 전에 쓰기 하나가 통째로 끝나도, 가짜 멈춤 없이 다시 읽어 새 상태를 낸다', async () => {
+    const ctx = setup()
+    await until(ctx, 'G1/checks')
+    const read = ctx.rig.fs.read.bind(ctx.rig.fs)
+    let between: (() => Promise<unknown>) | null = () => ctx.runner.step()
+    ctx.rig.fs.read = async (rel) => {
+      const text = await read(rel)
+      if (rel === DOCS.runState && between) { const run = between; between = null; await run() }
+      return text
+    }
+    const r = await ctx.runner.load()
+    expect(r.kind).toBe('ok')
+    expect(r.kind === 'ok' && label(ctx, r.state)).toBe('G1/grade')
+  })
+
   it('PR이 이미 병합됐으면 다시 병합하지 않는다', async () => {
     const ctx = setup()
     await until(ctx, 'G1/merge')
@@ -377,11 +452,13 @@ describe('재개는 같은 노드를 고르고, action은 확인 뒤 실행이�
     const at = await until(ctx, 'G1/merge')
     const head = at.goals[0].ciSha as string
     await ctx.rig.git.checkout('milestone/M1')
-    await ctx.rig.git.mergeNoFf(head, '꺼지기 전 병합')
+    const merged = await ctx.rig.git.mergeNoFf(head, '꺼지기 전 병합')
     const out = await ctx.runner.step()
     expect(count(ctx.rig.git.calls, 'merge ')).toBe(1)
     expect(ctx.rig.git.calls.at(-1)).toBe('push milestone/M1')
     expect(out.kind === 'advanced' && out.verdict?.evidence).toContain('push만')
+    // 받는 것은 부모가 (원격 머리, PR 머리)인 병합 커밋 하나뿐이다(G2 검수 중요 4 — 그 밖은 loopRunner.guards.test.ts)
+    expect(ctx.rig.git.remote.get('milestone/M1')?.at(-1)).toBe(merged)
   })
 
   it('PR 머리가 CI를 통과한 머리와 다르면 병합하지 않고 CI로 돌아간다', async () => {
@@ -438,6 +515,8 @@ describe('템플릿 해시와 상태 스키마', () => {
     await ensureStarted(ctx)
     expect((await ctx.runner.start('M1')).kind).toBe('blocked')
     await ctx.rig.fs.write(DOCS.runState, '{ "schema": 1, "cursor": "merge" }')
+    // 실행기가 쓴 상태로 놓는다(옛 앱 판이 쓴 스키마 밖 상태) — 밖에서 고친 경우는 digestStore.test.ts가 본다
+    ctx.rig.digest.adopt(CWD, ctx.rig.fs)
     const r = await ctx.runner.load()
     expect(r.kind).toBe('blocked')
     expect(r.kind === 'blocked' && (r.errors ?? []).length).toBeGreaterThan(0)

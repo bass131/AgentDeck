@@ -5,10 +5,12 @@ import { fileURLToPath } from 'node:url'
 import { applyVerdict, expectedJudge, nextStep, type GoalSeed, type NextStep, type Verdict, type VerdictFacts, type CiStatus } from '@main/05_Loop/executor'
 import type { FileChange } from '@main/05_Loop/grade'
 import type { LoopRunner, StepOutcome } from '@main/05_Loop/loopRunner'
+import { repoKeyOf, stateDigest } from '@main/05_Loop/digestStore'
 import type {
-  CommandPort, CommandResult, FsPort, GhPort, GitPort, LoopPorts, PrInfo, PrState, ReviewPort, SessionPort, WorkRequest,
+  CommandPort, CommandResult, DigestStore, FsPort, GhPort, GitPort, LoopPorts, PrInfo, PrState, ReviewPort, SessionPort, WorkRequest,
 } from '@main/05_Loop/ports'
 import type { RunState } from '@main/05_Loop/runState'
+import { DOCS } from '@main/05_Loop/survivalDocs'
 import { loadTemplate, type Grade, type Template } from '@main/05_Loop/template'
 
 const TEMPLATE_PATH = fileURLToPath(new URL('../../../00_Source/main/05_Loop/templates/program-dev.json', import.meta.url))
@@ -153,14 +155,40 @@ export class FakeGit implements GitPort {
     return last(this.local.get(branch))
   }
   async isAncestor(sha: string, ref: string): Promise<boolean> { return this.local.get(ref)?.includes(sha) ?? false }
+  // 병합 커밋의 부모(첫 부모, 병합한 머리). 그 밖의 커밋은 목록에서 바로 앞 커밋 하나를 부모로 본다.
+  readonly parentsOf = new Map<string, string[]>()
   async mergeNoFf(sha: string, message: string): Promise<string> {
     this.calls.push(`merge ${sha} ${message}`)
     const hist = this.local.get(this.current) ?? []
+    const before = last(hist)
     const src = [...this.local.values()].find((h) => h.includes(sha)) ?? [sha]
     for (const x of src.slice(0, src.indexOf(sha) + 1)) if (!hist.includes(x)) hist.push(x)
     const merged = this.sha('m')
     hist.push(merged)
+    this.parentsOf.set(merged, before ? [before, sha] : [sha])
     return merged
+  }
+  // 트리가 두 부모의 깨끗한 병합이 아닌 커밋(작업 노드가 commit-tree로 만든 위조)을 흉내 낸다.
+  readonly forgedTrees = new Set<string>()
+  async verifyMerge(commit: string, first: string, second: string): Promise<string | null> {
+    this.calls.push(`verifyMerge ${commit}`)
+    const p = await this.parents(commit)
+    if (p.length !== 2 || p[0] !== first || p[1] !== second) return `병합 커밋 ${commit}의 부모가 (${first}, ${second})가 아니다`
+    return this.forgedTrees.has(commit) ? `병합 커밋 ${commit}의 트리가 두 부모를 병합한 트리가 아니다` : null
+  }
+  async remoteSha(branch: string): Promise<string | null> {
+    this.calls.push(`remoteSha ${branch}`)
+    return last(this.remote.get(branch))
+  }
+  async parents(sha: string): Promise<string[]> {
+    const known = this.parentsOf.get(sha)
+    if (known) return known
+    for (const h of this.local.values()) {
+      const i = h.indexOf(sha)
+      if (i > 0) return [h[i - 1]]
+      if (i === 0) return []
+    }
+    return []
   }
   async diffStat(base: string): Promise<FileChange[] | null> {
     this.calls.push(`diffStat ${base}`)
@@ -264,6 +292,22 @@ export class FakeReview implements ReviewPort {
   }
 }
 
+// 앱 영역의 다이제스트 저장소 흉내 — 실행기가 쓴 값만 담는다.
+export class FakeDigestStore implements DigestStore {
+  readonly digests = new Map<string, string>()
+  readonly latches = new Map<string, string>()
+  async read(repoKey: string): Promise<string | null> { return this.digests.get(repoKey) ?? null }
+  async write(repoKey: string, hash: string): Promise<void> { this.digests.set(repoKey, hash) }
+  async readLatch(repoKey: string): Promise<string | null> { return this.latches.get(repoKey) ?? null }
+  async writeLatch(repoKey: string, reason: string): Promise<void> { this.latches.set(repoKey, reason) }
+  // 시험이 상태 파일을 「실행기가 쓴 것」으로 놓을 때 쓴다(예: 옛 앱이 쓴 스키마 밖 상태).
+  adopt(cwd: string, files: FakeFs): void {
+    const text = files.files.get(DOCS.runState)
+    if (text === undefined) this.digests.delete(repoKeyOf(cwd))
+    else this.digests.set(repoKeyOf(cwd), stateDigest(JSON.parse(text)))
+  }
+}
+
 export interface Rig {
   fs: FakeFs
   git: FakeGit
@@ -271,6 +315,7 @@ export interface Rig {
   commands: FakeCommands
   session: FakeSession
   review: FakeReview
+  digest: FakeDigestStore
   ports: LoopPorts
 }
 export function makeRig(): Rig {
@@ -280,9 +325,10 @@ export function makeRig(): Rig {
   const commands = new FakeCommands()
   const session = new FakeSession(files, git)
   const review = new FakeReview()
+  const digest = new FakeDigestStore()
   let tick = 0
   const clock = { now: () => `2026-11-18T10:${String(Math.floor(tick / 60)).padStart(2, '0')}:${String(tick++ % 60).padStart(2, '0')}+09:00` }
-  return { fs: files, git, gh, commands, session, review, ports: { command: commands, git, gh, fs: files, session, review, clock } }
+  return { fs: files, git, gh, commands, session, review, digest, ports: { command: commands, git, gh, fs: files, session, review, clock, digest } }
 }
 
 // ---- 실행기 껍질 몰기 — 상태는 실행기가 저장본에서 읽는다. 사람 게이트는 사람 판정으로, 마일스톤 병합은 사람의 GitHub 병합으로 답한다 ----
@@ -311,11 +357,11 @@ export async function runLoop(
       }
       const sub = await runner.submit({ node: next.kind === 'gate' ? next.node.id : '', judge: 'human', verdict: 'pass', evidence: '사람이 승인했다' })
       lastOutcome = sub
-      if (sub.kind === 'blocked') break
+      if (sub.kind === 'blocked' || sub.kind === 'needs-user') break
       visited.push(label)
       continue
     }
-    if (out.kind === 'waiting' || out.kind === 'blocked') break
+    if (out.kind === 'waiting' || out.kind === 'blocked' || out.kind === 'needs-user') break
     visited.push(label)
   }
   return { visited, state: (await current()).state, last: lastOutcome }

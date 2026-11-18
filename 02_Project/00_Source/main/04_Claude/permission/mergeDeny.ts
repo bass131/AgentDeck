@@ -14,6 +14,7 @@ const REASON =
   'gh pr merge와 병합 API는 에이전트가 쓰지 않습니다(대상 브랜치와 관계없음). PR 병합은 사용자가 앱의 PR 카드에서 「병합」 버튼으로 합니다. 작업 폴더의 저장소 규칙이 에이전트의 로컬 병합(예: AgentDeck 헌법 10조의 마일스톤 브랜치 `git merge --no-ff`)을 정해 두었으면 그 규칙과 병합 조건을 따르고, 아니면 PR 생성까지만 하세요.'
 
 // ── 셸 판독 ──────────────────────────────────────────────────────────────
+// M09 G2: 루프 잠금 노드(loopLock.ts)가 같은 판독을 쓰도록 낱말 단위 함수를 내보낸다. 판정과 동작은 그대로다.
 // 큰따옴표 안에서는 `\"`·`\\`·`\$`·`` \` ``만, 따옴표 밖에서는 `\"`·`\'`·`\\`만 이스케이프로 읽는다(가드와 같다).
 const DQ_ESCAPABLE = new Set(['"', '\\', '$', '`'])
 const BARE_ESCAPABLE = new Set(['"', "'", '\\'])
@@ -305,6 +306,10 @@ function scriptReason(script: string, rawText: string, depth: number): string | 
 export function mergeDenyReason(command: string): string | null {
   return scriptReason(command, command, 0)
 }
+
+// 루프 잠금 노드(M09 G2, loopLock.ts)가 쓰는 판독 함수. 이 노드의 판정 경로와 같은 함수다.
+export { SHELLS, RE_SHELL_C, stripHeredocBodies, substitutions, splitSegments, tokenize, commandsOf, windowsShellScripts, ghWords, baseName }
+export type { Cmd }
 
 // ── 훅과 노드 정보 ─────────────────────────────────────────────────────────
 // 공개 타입 PreToolUseHookInput에서 이 노드가 읽는 칸만 적는다(enginePathLock.ts와 같은 모양).

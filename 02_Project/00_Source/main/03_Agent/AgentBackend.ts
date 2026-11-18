@@ -14,6 +14,11 @@ export interface AgentRunInput {
   sessionKey?: string
   // 대화가 마지막으로 잰 컨텍스트 창 — 기록을 다시 실을 때의 예산에 쓴다 (M06 G4)
   contextWindow?: number
+  // M09 G2 — 앱 안 루프의 작업 노드 세션 전용 두 칸. IPC 요청(01_Ipc/handlers/agent.ts)은 이 칸을 옮기지 않는다 — 화면이 고를 수 없다.
+  // env: 세션 프로세스의 환경(자격 없는 자식 환경). 없으면 이 프로세스의 환경이다.
+  env?: NodeJS.ProcessEnv
+  // loopLock: 있으면 루프 잠금 노드(04_Claude/permission/loopLock.ts)를 PreToolUse 맨 앞에 붙인다.
+  loopLock?: { repoRoot: string; appLoopDir: string }
 }
 
 export type RunResponse =

@@ -1,0 +1,26 @@
+// M09 G2 — 같은 폴더의 임시 파일에 쓴 뒤 이름을 바꾼다. 읽는 쪽이 반쯤 쓴 파일을 보지 않는다.
+// Windows에서는 백신·색인기가 대상 파일을 잠깐 붙들어 rename이 EPERM·EACCES·EBUSY로 실패할 수 있어 몇 번 다시 해 본다.
+// fs 포트(작업 저장소의 생존 문서)와 다이제스트 저장소(앱 영역)가 같이 쓴다.
+import { randomBytes } from 'node:crypto'
+import { promises as fsp } from 'node:fs'
+
+const RETRY = new Set(['EPERM', 'EACCES', 'EBUSY'])
+
+export async function writeFileAtomic(file: string, text: string): Promise<void> {
+  const tmp = `${file}.${process.pid}.${randomBytes(4).toString('hex')}.tmp`
+  try {
+    await fsp.writeFile(tmp, text)
+    for (let i = 0; ; i++) {
+      try {
+        await fsp.rename(tmp, file)
+        return
+      } catch (e) {
+        if (i >= 5 || !RETRY.has((e as NodeJS.ErrnoException).code ?? '')) throw e
+        await new Promise((r) => setTimeout(r, 20 * (i + 1)))
+      }
+    }
+  } catch (e) {
+    await fsp.rm(tmp, { force: true }).catch(() => undefined)
+    throw e
+  }
+}

@@ -230,3 +230,48 @@ test('styles.css: the merge card uses the existing tokens only — no new colour
   assert.match(block, /\.mg-list\{[^}]*grid-template-columns:minmax\(0,1fr\)/, '긴 제목·브랜치는 줄임표로 접히고 항목 폭을 넓히지 않는다');
   assert.match(block, /\.mg-row\[aria-current="true"\]\{[^}]*var\(--todo\)/);
 });
+
+// ── 닫힌 PR 정리 (M07 G15) ── 병합되거나 닫힌 PR의 큰 카드가 병합 영역을 차지하지 않는다.
+const openList = (...nums) => ({ ok: true, more: false, items: nums.map(n => item(n)) });
+test('card fate: an auto card whose PR is no longer the pending one is dropped; a manual card is kept', () => {
+  assert.equal(M.cardFate({ cardPr: 86, manual: false, pending: null, list: openList() }), 'drop', 'goal이 더는 그 PR을 기다리지 않는다');
+  assert.equal(M.cardFate({ cardPr: 86, manual: false, pending: 87, list: openList(87) }), 'drop');
+  assert.equal(M.cardFate({ cardPr: 86, manual: false, pending: 86, list: openList(86) }), 'keep');
+  assert.equal(M.cardFate({ cardPr: 86, manual: true, pending: null, list: openList(86) }), 'keep', '사람이 번호로 연 카드는 말없이 내리지 않는다');
+  assert.equal(M.cardFate({ cardPr: null, manual: false, pending: null }), 'keep', '카드가 없으면 할 일이 없다');
+  assert.equal(M.cardFate({ cardPr: 86, manual: false, pending: null, running: true }), 'keep', '확인 창이 떠 있는 동안은 카드를 바꾸지 않는다');
+});
+test('card fate: an open card missing from a freshly read, complete list is re-read once (it may have been merged elsewhere)', () => {
+  assert.equal(M.cardFate({ cardPr: 86, manual: true, pending: null, list: openList(), open: true }), 'reread');
+  assert.equal(M.cardFate({ cardPr: 86, manual: false, pending: 86, list: openList(85), open: true }), 'reread');
+  assert.equal(M.cardFate({ cardPr: 86, manual: true, pending: null, list: { ...openList(), more: true }, open: true }), 'keep', '50개를 넘겨 잘린 목록은 증거가 아니다');
+  assert.equal(M.cardFate({ cardPr: 86, manual: true, pending: null, list: { ok: false }, open: true }), 'keep', '목록을 못 읽었으면 증거가 아니다');
+  assert.equal(M.cardFate({ cardPr: 86, manual: true, pending: null, list: openList(), open: false }), 'keep', '이미 닫힌 카드로 읽었으면 다시 읽지 않는다');
+});
+test('closed line: merged and closed-without-merge read differently; an open PR has no line', () => {
+  assert.equal(M.closedLine(view({ number: 86, state: 'closed', merged: true })), '#86 PR은 병합됐어요. 할 일이 없어 카드를 줄였어요.');
+  assert.equal(M.closedLine(view({ number: 86, state: 'closed', merged: false })), '#86 PR은 병합 없이 닫혔어요. 할 일이 없어 카드를 줄였어요.');
+  assert.equal(M.closedLine(view({ state: 'open' })), null);
+  assert.equal(M.closedLine(null), null);
+});
+test('app.js: renderMerge drops or re-reads by cardFate; a closed card is one line with a close button and no merge button', () => {
+  const b = bodyOf(APP_SRC);
+  assert.match(b('renderMerge'), /MRG\.cardFate\(/);
+  assert.match(b('renderMerge'), /fate === 'drop'\) dropCard\(\)/);
+  assert.match(b('renderMerge'), /mg\.rereadFor !== /, '같은 목록 읽기로는 한 번만 다시 읽는다');
+  assert.match(b('mergeCard'), /MRG\.closedLine\(v\)/);
+  assert.match(b('mergeCard'), /data-merge-close/);
+  assert.match(b('mergeAction'), /v && v\.state !== 'open'\) return ''/, '닫힌 PR에는 병합 단추를 그리지 않는다');
+  assert.match(b('dropCard'), /mg\.seq\+\+/, '늦게 온 읽기가 내린 카드를 되살리지 않는다');
+  assert.match(APP_SRC, /closest\('\[data-merge-close\]'\)\) \{ if \(!mg\.running\) \{ dropCard\(\); renderMerge\(\); \} return; \}/);
+  for (const fn of ['cardFate', 'closedLine']) assert.equal(typeof M[fn], 'function', fn);
+});
+test('app.js: dropping a card clears the PR number and the manual mark, so the next pending PR loads on its own', () => {
+  const d = bodyOf(APP_SRC)('dropCard');
+  assert.match(d, /pr: null, view: null/);
+  assert.match(d, /manual: false/);
+  assert.match(d, /result: null/, '내린 카드의 병합 결과 줄도 함께 지운다');
+});
+test('app.js: the merge summary says merged or closed for a closed card instead of the merge conditions', () => {
+  assert.match(bodyOf(APP_SRC)('renderMerge'), /mg\.view\.state !== 'open' \? \(mg\.view\.merged \? '병합됐어요' : '병합 없이 닫혔어요'\)/);
+});

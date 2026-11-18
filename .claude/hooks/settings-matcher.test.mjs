@@ -136,6 +136,9 @@ if (settings) {
     { re: /^Bash\(\s*npx\s+eslint/, exact: ['Bash(npx eslint *)'] },
     { re: /^Bash\(\s*git\s+fetch/, exact: ['Bash(git fetch*)'] },
     { re: /^Bash\(\s*git\s+switch/, exact: ['Bash(git switch -c*)', 'Bash(git switch *)'] },
+    // M08 G1(헌법 10조 goal 병합의 길): goal 작업 브랜치를 마일스톤 브랜치에 합치는 `git merge --no-ff`만 묻지 않는다.
+    //   넓은 `Bash(git merge*)`는 `--squash`·`-X theirs`·`--abort` 같은 꼴까지 연다. `master`로 가는 push는 가드가 묻고 서버가 막는다.
+    { re: /^Bash\(\s*git\s+merge/, exact: ['Bash(git merge --no-ff *)'] },
   ]
   for (const { re, exact } of FAMILIES) {
     const got = allowList.filter((rule) => re.test(rule))

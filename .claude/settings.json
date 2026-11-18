@@ -26,6 +26,7 @@
       "Bash(git switch *)",
       "Bash(git fetch*)",
       "Bash(git push*)",
+      "Bash(git merge --no-ff *)",
       "Bash(npx eslint *)",
       "Bash(date)",
       "Bash(date +%Y-%m-%dT%H:%M:%S%z)",

@@ -1,0 +1,386 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>비전 스펙 검토</title>
+<style>
+/* 색과 글꼴은 AgentDeck 현황판(99_Others/Dashboard/public/styles.css)의 토큰을 따른다.
+   노랑=내가 할 일, 초록=정상·합의, 파랑=진행·방금 바뀜, 회색=덜 중요. 상태는 색만으로 전하지 않고 모양과 글자를 함께 쓴다.
+   현황판 디자인 연구(docs/디자인-연구-15종.md)의 원칙: 덜어내서 위계를 만든다. 굵기 3단, 크기 5단, 큰 요소는 둘까지. */
+:root{
+  color-scheme: dark;
+  --font:"Pretendard Variable", Pretendard, "Malgun Gothic", "맑은 고딕", "Apple SD Gothic Neo", "Noto Sans KR", system-ui, sans-serif;
+  --mono:ui-monospace, "Cascadia Mono", Consolas, monospace;
+  --bg:#191919; --surface:#242424; --surface-2:#2A2A2A;
+  --ink:#F5F5F5; --ink-2:#C4C4C4; --ink-3:#999999;
+  --rule:#2E2E2E; --rule-2:#444444;
+  --todo:#EDBE2E; --todo-ink:#1A1400; --todo-text:#F0C445; --todo-tint:rgba(237,190,46,.13);
+  --ok:#5FCF8A; --ok-tint:rgba(95,207,138,.10);
+  --info:#82AEFF; --info-tint:rgba(130,174,255,.13);
+  --fw-1:450; --fw-2:620; --fw-3:800;
+  --fs-cap:12.5px; --fs-sm:13.5px; --fs-body:15px; --fs-lg:17px; --fs-display:clamp(26px, 4vw, 34px);
+  --sp-1:4px; --sp-2:8px; --sp-3:12px; --sp-4:16px; --sp-5:24px; --sp-6:32px; --sp-7:48px;
+  --radius:8px; --radius-sm:5px;
+}
+@media (prefers-color-scheme: light){
+  :root:not([data-theme="dark"]){
+    color-scheme: light;
+    --bg:#F7F7F7; --surface:#FFFFFF; --surface-2:#EFEFEF;
+    --ink:#111111; --ink-2:#333333; --ink-3:#5B5B63;
+    --rule:#DDDDDD; --rule-2:#C4C4C4;
+    --todo:#F2C230; --todo-ink:#1A1400; --todo-text:#7A5600; --todo-tint:rgba(242,194,48,.22);
+    --ok:#1E7B43; --ok-tint:rgba(30,123,67,.08); --info:#1D5FC4; --info-tint:rgba(29,95,196,.10);
+  }
+}
+:root[data-theme="light"]{
+  color-scheme: light;
+  --bg:#F7F7F7; --surface:#FFFFFF; --surface-2:#EFEFEF;
+  --ink:#111111; --ink-2:#333333; --ink-3:#5B5B63;
+  --rule:#DDDDDD; --rule-2:#C4C4C4;
+  --todo:#F2C230; --todo-ink:#1A1400; --todo-text:#7A5600; --todo-tint:rgba(242,194,48,.22);
+  --ok:#1E7B43; --ok-tint:rgba(30,123,67,.08); --info:#1D5FC4; --info-tint:rgba(29,95,196,.10);
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth; scroll-padding-top:var(--sp-5)}
+@media (prefers-reduced-motion: reduce){ html{scroll-behavior:auto} *{transition:none!important; animation:none!important} }
+body{margin:0; background:var(--bg); color:var(--ink); font-family:var(--font); font-size:var(--fs-body); line-height:1.65; font-weight:var(--fw-1); word-break:keep-all; overflow-wrap:anywhere}
+a{color:var(--info)}
+code{font-family:var(--mono); font-size:.88em; background:var(--surface-2); padding:1px 5px; border-radius:4px}
+:focus-visible{outline:2px solid var(--info); outline-offset:2px}
+
+.shell{display:grid; grid-template-columns:240px minmax(0,1fr); gap:var(--sp-7); max-width:1180px; margin:0 auto; padding:var(--sp-6) var(--sp-5) 180px}
+@media (max-width: 900px){ .shell{grid-template-columns:1fr; gap:var(--sp-5); padding:var(--sp-5) var(--sp-4) 200px} }
+
+/* 왼쪽 목차 — 방향 잡기용이라 본문보다 한 단 흐리다 */
+nav.toc{position:sticky; top:var(--sp-6); align-self:start; font-size:var(--fs-sm)}
+@media (max-width: 900px){ nav.toc{position:static} }
+.toc-title{color:var(--ink-3); margin:0 0 var(--sp-3)}
+.toc ol{list-style:none; margin:0; padding:0; display:grid; gap:2px}
+.toc a{display:flex; justify-content:space-between; gap:var(--sp-2); padding:7px 10px; border-radius:var(--radius-sm); color:var(--ink-2); text-decoration:none}
+.toc a:hover{background:var(--surface)}
+.toc a.is-here{background:var(--surface); color:var(--ink)}
+.toc .left{color:var(--todo-text); white-space:nowrap}
+.toc .done{color:var(--ink-3); white-space:nowrap}
+.theme{margin-top:var(--sp-5); background:none; border:1px solid var(--rule-2); color:var(--ink-2); border-radius:var(--radius-sm); padding:6px 10px; font:inherit; font-size:var(--fs-cap); cursor:pointer}
+
+main{max-width:46rem; min-width:0}
+header.hero{margin-bottom:var(--sp-7)}
+.hero h1{font-size:var(--fs-display); line-height:1.25; font-weight:var(--fw-3); margin:0 0 var(--sp-4); letter-spacing:-.01em}
+.hero p{color:var(--ink-2); margin:0 0 var(--sp-3); max-width:40rem}
+.legend{display:flex; flex-wrap:wrap; gap:var(--sp-4); margin-top:var(--sp-5); font-size:var(--fs-sm); color:var(--ink-2)}
+.legend span{display:inline-flex; align-items:center; gap:6px}
+
+/* 상태 표시: 합의=초록 원, 제안=노랑 점선 고리, 열린 질문=노랑 네모 */
+.mk{display:inline-block; width:11px; height:11px; flex:none}
+.mk.agreed{border-radius:50%; background:var(--ok)}
+.mk.proposal{border-radius:50%; border:2px dashed var(--todo)}
+.mk.open{border-radius:2px; background:var(--todo)}
+
+section.sec{margin-bottom:var(--sp-7)}
+.sec h2{font-size:22px; font-weight:var(--fw-3); margin:0 0 var(--sp-2); line-height:1.35}
+.sec .lead{color:var(--ink-2); margin:0 0 var(--sp-5)}
+.sec .src{font-size:var(--fs-cap); color:var(--ink-3)}
+
+.item{border-top:1px solid var(--rule); padding:var(--sp-4) 0}
+.item:last-of-type{border-bottom:1px solid var(--rule)}
+.item-head{display:flex; align-items:baseline; gap:var(--sp-2)}
+.item-head .mk{position:relative; top:1px}
+.item h3{font-size:var(--fs-lg); font-weight:var(--fw-2); margin:0; line-height:1.45}
+.kind{font-size:var(--fs-cap); color:var(--ink-3); margin-left:auto; white-space:nowrap}
+.kind.todo{color:var(--todo-text)}
+.body{color:var(--ink-2); margin:var(--sp-2) 0 0 19px}
+.body p{margin:0 0 var(--sp-2)}
+.body ul, .body ol{margin:0 0 var(--sp-2); padding-left:1.2em}
+.body li{margin:2px 0}
+.body table{border-collapse:collapse; width:100%; font-size:var(--fs-sm); margin:var(--sp-2) 0}
+.body th, .body td{text-align:left; vertical-align:top; padding:6px 8px; border-bottom:1px solid var(--rule)}
+.body th{color:var(--ink-3); font-weight:var(--fw-2)}
+.table-wrap{overflow-x:auto}
+
+/* 답하는 자리 — 노랑은 내가 할 일에만 쓴다 */
+.answer{margin:var(--sp-3) 0 0 19px}
+.choices{display:flex; flex-wrap:wrap; gap:var(--sp-2)}
+.choice{font:inherit; font-size:var(--fs-sm); padding:6px 12px; border-radius:999px; border:1px solid var(--rule-2); background:transparent; color:var(--ink-2); cursor:pointer}
+.choice:hover{border-color:var(--ink-3); color:var(--ink)}
+.choice[aria-pressed="true"]{background:var(--todo); border-color:var(--todo); color:var(--todo-ink); font-weight:var(--fw-2)}
+.choice.quiet{border-style:dashed}
+textarea{display:block; width:100%; margin-top:var(--sp-2); min-height:76px; resize:vertical; font:inherit; font-size:var(--fs-body); line-height:1.6; color:var(--ink); background:var(--surface); border:1px solid var(--rule-2); border-radius:var(--radius-sm); padding:10px 12px}
+textarea[hidden]{display:none}
+textarea::placeholder{color:var(--ink-3)}
+textarea:focus{border-color:var(--todo); outline:none; box-shadow:0 0 0 3px var(--todo-tint)}
+.item.is-answered .item-head .kind.todo{color:var(--ink-3)}
+.item.is-answered .item-head .kind.todo::after{content:" · 답함"; color:var(--ok)}
+.sec-note{margin-top:var(--sp-4)}
+.sec-note label{font-size:var(--fs-sm); color:var(--ink-3)}
+
+/* 보낼 글 — 이 페이지에서 가장 중요한 한 곳. 아래에 붙어 있고, 펼치면 메인 세션에 갈 글을 그대로 보인다 */
+.tray{position:fixed; left:0; right:0; bottom:0; background:var(--surface); border-top:1px solid var(--rule-2); box-shadow:0 -8px 28px rgba(0,0,0,.28); z-index:5}
+.tray-bar{max-width:1180px; margin:0 auto; padding:var(--sp-3) var(--sp-5); display:flex; align-items:center; gap:var(--sp-4); flex-wrap:wrap}
+.tray-count{flex:1 1 auto; min-width:12rem}
+.tray-count strong{font-weight:var(--fw-3); font-size:var(--fs-lg)}
+.tray-count span{color:var(--ink-3); font-size:var(--fs-sm); display:block}
+.btn{font:inherit; font-size:var(--fs-sm); font-weight:var(--fw-2); padding:9px 16px; border-radius:var(--radius-sm); cursor:pointer; border:1px solid var(--rule-2); background:transparent; color:var(--ink)}
+.btn.primary{background:var(--todo); border-color:var(--todo); color:var(--todo-ink)}
+.btn.primary:disabled{opacity:.45; cursor:not-allowed}
+.tray-preview{display:none; max-width:1180px; margin:0 auto; padding:0 var(--sp-5) var(--sp-4)}
+.tray.is-open .tray-preview{display:block}
+.tray-preview pre{margin:0; max-height:42vh; overflow:auto; white-space:pre-wrap; font-family:var(--mono); font-size:var(--fs-sm); line-height:1.55; color:var(--ink-2); background:var(--bg); border:1px solid var(--rule); border-radius:var(--radius-sm); padding:var(--sp-3) var(--sp-4)}
+.toast{position:fixed; left:50%; bottom:96px; transform:translate(-50%, 8px); opacity:0; background:var(--ink); color:var(--bg); padding:8px 14px; border-radius:var(--radius-sm); font-size:var(--fs-sm); transition:opacity .18s, transform .18s; pointer-events:none; z-index:6}
+.toast.show{opacity:1; transform:translate(-50%,0)}
+.sr{position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0)}
+</style>
+</head>
+<body>
+<div class="shell">
+  <nav class="toc" aria-label="장 목록">
+    <p class="toc-title">장</p>
+    <ol id="toc"></ol>
+    <button class="theme" id="theme" type="button">밝게 보기</button>
+  </nav>
+  <main>
+    <header class="hero">
+      <h1>AgentDeck 비전 스펙 검토</h1>
+      <p>2026-11-18 큰 목표 문답 다섯 번으로 쓴 스펙 초안을 장별로 정리했어. 원문은 <code>01_Milestones/00_Vision/</code>의 마크다운 여덟 장이야(커밋 <code>4e2049e5</code>).</p>
+      <p>노란 표시가 붙은 항목만 답하면 돼. 합의한 항목도 고칠 게 있으면 「고칠 것 있음」을 눌러 적어 줘. 다 적었으면 아래의 「보낼 글 복사」를 눌러 메인 세션 입력창에 한 번에 붙여 넣으면 돼.</p>
+      <div class="legend" aria-label="표시의 뜻">
+        <span><i class="mk agreed" aria-hidden="true"></i>합의 — 문답에서 네가 답한 것</span>
+        <span><i class="mk proposal" aria-hidden="true"></i>제안 — 내가 채운 것, 확인 필요</span>
+        <span><i class="mk open" aria-hidden="true"></i>열린 질문 — 아직 안 정한 것</span>
+      </div>
+    </header>
+    <div id="sections"></div>
+    <section class="sec" id="sec-all">
+      <h2>전체 의견</h2>
+      <p class="lead">장을 가리지 않는 의견, 빠진 것, 순서에 대한 생각을 적어 줘.</p>
+      <textarea id="overall" placeholder="예: 「작업 그래프」 장을 따로 떼어 더 자세히 쓰자" aria-label="전체 의견"></textarea>
+    </section>
+  </main>
+</div>
+
+<div class="tray" id="tray">
+  <div class="tray-bar">
+    <div class="tray-count" aria-live="polite"><strong id="count">아직 적은 답이 없어</strong><span id="left"></span></div>
+    <button class="btn" id="toggle" type="button" aria-expanded="false" aria-controls="preview">보낼 글 보기</button>
+    <button class="btn primary" id="copy" type="button" disabled>보낼 글 복사</button>
+  </div>
+  <div class="tray-preview" id="preview"><pre id="out"></pre></div>
+</div>
+<div class="toast" id="toast" role="status"></div>
+<textarea class="sr" id="clip" aria-hidden="true" tabindex="-1"></textarea>
+
+<script>
+// 항목 종류: agreed(합의) · proposal(제안) · open(열린 질문). 내용은 00_Vision/*.md 초안(4e2049e5)을 줄인 것이다.
+const SPEC = [
+  { id:'overview', name:'개요', src:'00_개요.md', lead:'무엇을, 누구를 위해, 어디까지 만드는지.', items:[
+    { id:'summary', kind:'agreed', title:'한 문단 요약', body:'<p>사람이 목표와 Taste만 정하면 에이전트가 마일스톤 단위로 구현과 운영을 끝까지 맡는 데스크톱 작업 환경이다. 사람에게는 마일스톤 끝의 보고와 병합 버튼, 그리고 진짜 예외만 돌아온다.</p>' },
+    { id:'why', kind:'agreed', title:'왜 만드는가', body:'<p>에이전트가 일을 그르치는 원인은 모델이 아니라 구조다. 텍스트 지시는 끝까지 지켜지지 않으니, 지켜야 할 순서와 검사를 작업 그래프로 만들고 프로그램이 실행하게 한다. 노션 Layer 0 Goal Based Loop를 실제로 돌리는 일이고, 프로젝트 유형마다 다른 그래프를 쓴다.</p>' },
+    { id:'who', kind:'agreed', title:'누가 쓰는가', body:'<ul><li>1순위는 너 한 사람.</li><li>그래도 완성형으로 배포한다 — 건네받은 사람이 설명서 없이 설치해 쓸 수 있게.</li><li>저장소는 비공개. 팀원 연결 기능은 넣지 않는다(중앙 서버 비용).</li></ul>' },
+    { id:'scope', kind:'agreed', title:'AgentDeck이 맡는 것', body:'<ul><li>지금의 Orca + Claude Code CLI 작업 환경을 대체하는 메인 작업 환경.</li><li>실행기는 공식 Claude Code를 재사용한다. Codex는 구독이 없어 지금은 쓰지 않는다.</li><li>AgentDeck은 목표, 작업 그래프, 검증, 현황판, 문서, 화면을 맡는다.</li><li>첫 두 대상: 프로그램 개발(AgentDeck 자신), 게임 개발(Dawnholder의 서버·백엔드·하네스 몫).</li></ul>' },
+    { id:'goal-number', kind:'open', title:'궁극 목표의 숫자 완료선', body:'<p>「새 프로젝트를 열어 목표와 Taste 스펙만 쓰고 마일스톤 여러 개를 사람 개입 없이 완주한다」는 합의했다. 이걸 몇 개, 개입 몇 번으로 셀지는 안 정했다.</p>', ph:'예: 마일스톤 3개, 마일스톤마다 개입은 합의 1번 + 병합 1번' },
+  ]},
+  { id:'people', name:'사람과 에이전트', src:'10_사람과-에이전트.md', lead:'누가 무엇을 하고, 언제 사람을 부르는지.', items:[
+    { id:'human', kind:'agreed', title:'사람의 몫', body:'<div class="table-wrap"><table><tr><th>언제</th><th>하는 일</th></tr><tr><td>처음 한 번</td><td>전역 Taste를 세운다</td></tr><tr><td>프로젝트를 열 때</td><td>궁극 목표·기획·작업 영역·프로젝트 Taste(프로젝트 헌장)</td></tr><tr><td>마일스톤마다</td><td>메인 세션과 브레인스토밍해 마일스톤 스펙 한 장을 합의</td></tr><tr><td>마일스톤 끝</td><td>보고를 읽고 <code>master</code> 병합 버튼</td></tr><tr><td>예외가 왔을 때</td><td>결정하거나 방향을 고친다</td></tr><tr><td>원할 때</td><td>작업 그래프를 직접 고치거나 에이전트와 논의해 고치게 한다</td></tr></table></div><p>릴리스, 패키지 배포, 보호 설정 변경, 강제 push는 언제나 사람 몫이다.</p>' },
+    { id:'agent', kind:'agreed', title:'에이전트의 몫', body:'<ul><li>마일스톤 스펙을 goal로 나누고, goal마다 구현·검증·PR·마일스톤 브랜치 병합.</li><li>문서화와 현황판 갱신 — 사람이 언제든 「무엇이 개발됐고 시스템이 지금 어떤지」 볼 수 있게.</li><li>운영: Backlog 정리, 기존 실패 수리, 의존성 업데이트, CI 관리.</li><li>다음 마일스톤을 스스로 시작하지 않는다.</li></ul>' },
+    { id:'events', kind:'agreed', title:'사람을 부르는 사건 넷', body:'<div class="table-wrap"><table><tr><th>사건</th><th>급함</th></tr><tr><td>범위나 완료조건을 바꿔야 하는 결정</td><td>바로 알린다</td></tr><tr><td>같은 곳의 검증 실패 세 번</td><td>바로 알린다</td></tr><tr><td>마일스톤이 끝나 병합 대기</td><td>나중에 봐도 된다</td></tr><tr><td>사용량 한도로 멈춤</td><td>나중에 봐도 된다</td></tr></table></div><p>알림은 PC에서만. 휴대폰은 지금 넣지 않는다.</p>' },
+    { id:'screen', kind:'agreed', title:'화면에서 세션이 보이는 방식', body:'<p>메인 세션은 언제나 보인다. 서브에이전트와 노드 담당 세션은 평소에 「무슨 작업 중인지」 한 줄로 보이고, 누르면 채팅 세션 전체가 펼쳐진다. 현황판은 앱 안에 있다.</p>' },
+    { id:'notify-channel', kind:'proposal', title:'사건별 알림 경로', body:'<p>바로 알리는 사건은 Windows 알림 + 앱 안 표시, 나중에 봐도 되는 사건은 앱 안 표시로만.</p>' },
+    { id:'not-verifier', kind:'proposal', title:'사람은 검증자가 아니다', body:'<p>결정론 검사는 프로그램이, Taste·설계 타당성은 구현 문맥 없는 별도 에이전트가 판정한다. 사람이 직접 봐야만 판정할 수 있는 게 생기면, 그걸 판정할 수 있게 Taste 스펙을 보강하는 게 먼저다.</p>' },
+    { id:'notify-detail', kind:'open', title:'알림의 세부', body:'<p>소리, 반복, 자리 비움 감지, 사건별 채널. 네가 「범위가 너무 넓어서 이야기 더 해봐야 할 거 같은데」라고 했던 부분이야.</p>', ph:'생각나는 것부터 적어 줘. 「나중에」를 눌러 미뤄도 돼' },
+  ]},
+  { id:'taste', name:'Taste', src:'20_Taste.md', lead:'에이전트가 취향을 스스로 판정하게 만드는 기준.', items:[
+    { id:'layers', kind:'agreed', title:'두 층', body:'<p>전역 Taste는 모든 프로젝트에 들어가고(정보 밀도, 말투, 코드 스타일, 일하는 방식), 프로젝트 Taste가 그 위에서 세부화한다(AgentDeck의 화면 톤, Dawnholder의 서버 코드 규율).</p>' },
+    { id:'spec-driven', kind:'agreed', title:'Spec-Driven으로 쓴다', body:'<p>사람이 읽기 좋은 스펙 문서로 쓴다. 사람이 혼자 채우지 않고, 메인 세션이 모호한 곳이 없어질 때까지 여러 턴 묻고 정리한다. 한 항목은 에이전트가 판정할 수 있는 꼴이어야 한다 — 「보기 좋게」가 아니라 「한 화면에 카드 여섯 장 이상」.</p>' },
+    { id:'home', kind:'agreed', title:'정본은 앱 안', body:'<p>앱을 건네도 Taste 구조가 그대로 돌아야 해서 앱 안에 둔다. Second Brain의 <code>개발-성향.md</code>와 응답 규칙은 처음 채울 때 가져오는 재료다.</p>' },
+    { id:'conflict', kind:'proposal', title:'두 층이 부딪히면 프로젝트 Taste가 이긴다', body:'<p>전역 「장식은 적게」와 게임 프로젝트 「연출은 화려하게」가 부딪히면 프로젝트 쪽을 따른다.</p>' },
+    { id:'shape', kind:'proposal', title:'항목의 꼴: 원칙 · 레퍼런스 · 금지', body:'<div class="table-wrap"><table><tr><th>칸</th><th>내용</th><th>판정</th></tr><tr><td>원칙</td><td>「정보 밀도는 높게, 장식은 적게」 같은 문장</td><td>검수 에이전트가 체크리스트로 읽는다</td></tr><tr><td>레퍼런스</td><td>닮고 싶은 화면·앱·게임의 캡처와 링크</td><td>결과물 스크린샷과 나란히 놓고 대조</td></tr><tr><td>금지</td><td>「이런 건 싫다」는 예시</td><td>걸리면 FAIL</td></tr></table></div><p>검수 결과는 검증 기록에 PASS·FAIL 줄로 남는다.</p>' },
+    { id:'brain-sync', kind:'open', title:'앱의 Taste가 바뀌면 Second Brain에도 다시 쓸까', body:'<p>정본이 앱 쪽이라 둘이 갈라질 수 있다. 다시 쓴다면 누가, 언제 쓸지.</p>', ph:'예: 마일스톤이 끝날 때 바뀐 Taste만 Second Brain에 요약해 남긴다' },
+  ]},
+  { id:'loop', name:'마일스톤 루프', src:'30_마일스톤-루프.md', lead:'브레인스토밍부터 사람 병합까지의 흐름.', items:[
+    { id:'flow', kind:'agreed', title:'일곱 단계', body:'<ol><li>브레인스토밍 — 메인 세션이 모호한 곳이 없어질 때까지 묻는다.</li><li>마일스톤 스펙 — 만들 것·하지 않을 것·완료조건 한 장. 사람이 승인하면 시작.</li><li>분해 — 에이전트가 goal로 나눈다. 크기는 목표 유형에 따라 다르다.</li><li>goal 실행 — 구현 → 검증 → PR → 검사 통과 → 마일스톤 브랜치에 병합.</li><li>운영 — 문서·현황판 갱신, 범위 안 Backlog와 기존 실패.</li><li>마일스톤 끝 — 회귀 검증, 보고서, <code>master</code>로 가는 PR.</li><li>사람 병합 — 버튼 한 번. 다음 마일스톤은 1부터.</li></ol>' },
+    { id:'branches', kind:'agreed', title:'브랜치와 병합', body:'<p>goal 브랜치는 마일스톤 브랜치에서 갈라지고 에이전트가 병합한다. 마일스톤 브랜치는 <code>master</code>에서 갈라지고 사람이 병합한다. 마일스톤 도중 방향이 틀어져도 <code>master</code>는 움직이지 않는다.</p>' },
+    { id:'graph', kind:'agreed', title:'작업 그래프', body:'<ul><li>작업 노드: 계획·구현·검증·PR·문서화처럼 일을 한다. 노드마다 담당 세션.</li><li>게이트 노드: 막고 묻고 통과시킨다. 판정 주체는 규칙(코드)·모델(검수 에이전트)·사람.</li><li>프로젝트 유형별 템플릿에서 시작한다. 사람이 직접 고치거나 에이전트와 논의해 대신 고치게 한다.</li></ul>' },
+    { id:'limit', kind:'agreed', title:'사용량 한도', body:'<p>앱이 남은 사용량을 보고, 마일스톤 도중 한도가 다 되면 안전한 지점에서 멈췄다가 한도가 풀리면 스스로 이어 간다.</p>' },
+    { id:'goal-merge-cond', kind:'proposal', title:'goal 병합 조건', body:'<p>CI 하드 게이트 통과 + goal 검증 기록 PASS + 강 등급이면 독립 검수 반영. 셋이 다 차면 에이전트가 마일스톤 브랜치에 병합한다.</p>' },
+    { id:'milestone-ci', kind:'proposal', title:'마일스톤 브랜치에도 CI를 건다', body:'<p>지금 <code>hard-gates</code>는 <code>master</code>로 가는 PR에만 돈다. goal PR이 마일스톤 브랜치로 갈 때도 같은 검사를 돌린다.</p>' },
+    { id:'graph-approve', kind:'open', title:'그래프를 고치면 사람 승인을 받을까', body:'<p>그래프는 판정 장치라서, 고친 그래프가 다음 실행부터 적용되기 전에 사람 승인을 받자는 게 내 제안이야. 에이전트가 대신 고칠 때만 받을지, 사람이 직접 고칠 때도 확인 창을 띄울지.</p>', ph:'예: 에이전트가 고칠 때만 승인, 내가 고칠 땐 바로 적용' },
+    { id:'ops-range', kind:'open', title:'마일스톤 사이의 운영 범위', body:'<p>마일스톤 사이에 에이전트가 혼자 하는 운영(Backlog, 실패 수리, 의존성 업데이트)의 한도를 누가 어떻게 정할지. 그 결과물도 마일스톤 브랜치를 거칠지.</p>', ph:'예: 운영도 「운영 마일스톤」으로 묶어서 같은 병합 버튼을 쓴다' },
+  ]},
+  { id:'release', name:'배포와 업데이트', src:'40_배포와-업데이트.md', lead:'남에게 건넬 수 있는 완성형 배포본.', items:[
+    { id:'release-agreed', kind:'agreed', title:'GitHub Release와 앱 안 업데이트', body:'<ul><li>배포본은 GitHub Release로 낸다. 한 번 설치하면 앱이 새 버전을 감지해 스스로 업데이트한다.</li><li>Release는 소스와 같은 비공개 저장소에. 업데이트는 협업자로 초대된 사람만 받는다.</li><li>완성형 최소선: 설명서 없이 설치 → 계정 연결 → 프로젝트 열기 → 목표·Taste 쓰기 → 첫 마일스톤 시작.</li></ul>' },
+    { id:'portable', kind:'agreed', title:'남에게 건넬 수 있는 조건', body:'<p>네 PC에만 있는 것에 기대지 않는다 — <code>C:\\Dev\\...</code> 경로, Second Brain, 네 gh 로그인, Orca. 계정 연결은 처음 켤 때 앱이 안내한다.</p>' },
+    { id:'auth', kind:'proposal', title:'업데이트는 쓰는 사람 자신의 GitHub 로그인으로 받는다', body:'<p>앱 안에 토큰을 넣지 않는다. 넣으면 설치 파일을 받은 누구나 꺼낼 수 있다. 협업자가 아닌 사람은 업데이트를 못 받는다. 로그인 방식(기기 인증 등)은 정하지 않았다.</p>' },
+    { id:'installer', kind:'proposal', title:'Windows만, 코드 서명 없음', body:'<p>설치 파일 하나. macOS·Linux는 지금 안 만든다. 서명 인증서 비용을 아끼고, 설치할 때 Windows 경고가 한 번 뜨는 걸 감수한다.</p>' },
+    { id:'their-taste', kind:'proposal', title:'받는 사람은 자기 전역 Taste를 쓴다', body:'<p>네 전역 Taste는 설치본에 따라가지 않는다.</p>' },
+    { id:'release-notes', kind:'proposal', title:'릴리스 후보와 노트 초안은 에이전트가', body:'<p>에이전트가 릴리스 후보를 빌드하고 릴리스 노트 초안을 쓴다. 릴리스를 내는 행위는 사람이 승인한다.</p>' },
+  ]},
+  { id:'v1', name:'v1 범위', src:'50_v1-범위.md', lead:'첫 버전에 넣는 것과 미루는 것.', items:[
+    { id:'v1-line', kind:'agreed', title:'v1은 한 줄기', body:'<ol><li>설치와 계정 연결</li><li>전역 Taste와 프로젝트 헌장 쓰기</li><li>마일스톤 하나 무인 완주 — 그래프는 「프로그램 개발」 템플릿 하나로 고정</li><li>현황판과 문서 갱신</li><li>마일스톤 병합 버튼</li><li>자동 업데이트</li></ol><p>곁가지: 메인 세션 상시 표시와 노드 세션 요약, 네 사건과 PC 알림, 한도 멈춤과 이어 가기.</p>' },
+    { id:'v2', kind:'agreed', title:'v2 이후로 미루는 것', body:'<p>n8n식 그래프 편집기, 게임 개발 템플릿(Dawnholder), Codex 실행기·교차 검수, 휴대폰 알림, 팀원 연결, macOS·Linux 설치본.</p>' },
+    { id:'v1-done', kind:'proposal', title:'v1의 완료선', body:'<p>이 저장소 밖의 새 프로그램 프로젝트 하나에서, 마일스톤 하나를 v1 설치본만으로 완주한다. 사람의 개입은 Taste·헌장 문답, 마일스톤 승인 한 번, 병합 한 번뿐이다. 예외 호출은 횟수와 이유를 기록한다.</p>' },
+  ]},
+  { id:'change', name:'기존에서 바뀌는 것', src:'60_기존에서-바뀌는-것.md', lead:'지금 저장소에서 살리는 것, 옮기는 것, 버리는 것.', items:[
+    { id:'keep', kind:'agreed', title:'살리는 것', body:'<p>Agent SDK 실행 코어·멀티 세션·컨텍스트 관리·Tool·MCP, 컨트롤 노드 골격과 잠금 노드, 엔진 경로 잠금과 봉인, 컨트롤 패널, CI 필수 검사, 병합 버튼, 생존 문서와 검증 기록 줄.</p>' },
+    { id:'move', kind:'agreed', title:'앱 안으로 옮기는 것', body:'<p>로컬 HTML 현황판(goal 진척, 결정 응답, PR 목록, 병합 확인 창), 결정 보드, 병합 감시.</p>' },
+    { id:'drop', kind:'agreed', title:'버리는 것', body:'<p>goal마다 사람이 합의하고 병합하는 규칙(헌법 10·11조, goal 템플릿). 스펙이 승인된 뒤, 계획 문서에 단계로 이름을 적은 goal에서만 고친다. M07의 남은 계획과 M08은 로드맵을 다시 쓸 때까지 멈춘다.</p>' },
+    { id:'agent-merge-deny', kind:'proposal', title:'에이전트 병합 거부는 master 병합에만 남긴다', body:'<p>지금은 가드와 잠금 노드가 모든 <code>gh pr merge</code>를 막는다. 마일스톤 브랜치로 가는 goal 병합은 에이전트가 해야 하니, 거부를 <code>master</code>로 가는 병합에만 남긴다.</p>' },
+    { id:'private-protect', kind:'open', title:'비공개로 돌린 뒤의 서버 보호', body:'<p>GitHub 무료 요금제의 비공개 저장소에서는 브랜치 보호와 필수 검사가 작동하지 않는다고 알고 있어(요금제 확인 필요). 그러면 <code>master</code>를 서버에서 지키는 장치가 사라지고 앱의 잠금 노드만 남아. 요금제를 올릴지, 앱 쪽 장치로 갈음할지.</p>', ph:'예: 지금 요금제는 ○○. Pro로 올린다 / 앱 장치로 간다' },
+  ]},
+];
+
+const KIND = { agreed:{ mk:'agreed', label:'합의' }, proposal:{ mk:'proposal', label:'제안 · 확인 필요' }, open:{ mk:'open', label:'열린 질문' } };
+const STORE = 'agentdeck-vision-review-4e2049e5';
+let state = { items:{}, notes:{}, overall:'' };
+try { const s = JSON.parse(localStorage.getItem(STORE) || 'null'); if (s && typeof s === 'object') state = { items:s.items || {}, notes:s.notes || {}, overall:s.overall || '' }; } catch {}
+const save = () => { try { localStorage.setItem(STORE, JSON.stringify(state)); } catch {} };
+const el = (tag, attrs = {}, html) => { const n = document.createElement(tag); for (const [k, v] of Object.entries(attrs)) n.setAttribute(k, v); if (html != null) n.innerHTML = html; return n; };
+const key = (s, i) => `${s.id}/${i.id}`;
+
+function choicesFor(kind) {
+  if (kind === 'proposal') return [['ok', '좋아'], ['fix', '고칠래'], ['later', '나중에']];
+  if (kind === 'open') return [['later', '나중에']];
+  return [['fix', '고칠 것 있음']];
+}
+// 답한 것으로 치는 조건: 제안은 고름이 있고 「고칠래」면 글도 있음, 열린 질문은 글이 있거나 「나중에」, 합의는 글이 있을 때만(선택)
+function answered(kind, a) {
+  if (!a) return false;
+  const text = (a.text || '').trim();
+  if (kind === 'proposal') return a.pick === 'ok' || a.pick === 'later' || (a.pick === 'fix' && !!text);
+  if (kind === 'open') return a.pick === 'later' || !!text;
+  return !!text;
+}
+
+function render() {
+  const root = document.getElementById('sections'), toc = document.getElementById('toc');
+  for (const s of SPEC) {
+    const sec = el('section', { class:'sec', id:'sec-' + s.id });
+    sec.append(el('h2', {}, s.name), el('p', { class:'lead' }, `${s.lead} <span class="src">원문 <code>${s.src}</code></span>`));
+    for (const it of s.items) {
+      const k = key(s, it), a = state.items[k] || {}, K = KIND[it.kind];
+      const box = el('div', { class:'item', id:'it-' + k.replace('/', '-') });
+      box.dataset.kind = it.kind; box.dataset.key = k;
+      const head = el('div', { class:'item-head' });
+      head.append(el('i', { class:'mk ' + K.mk, 'aria-hidden':'true' }), el('h3', {}, it.title), el('span', { class:'kind' + (it.kind === 'agreed' ? '' : ' todo') }, K.label));
+      box.append(head, el('div', { class:'body' }, it.body));
+      const ans = el('div', { class:'answer' }), row = el('div', { class:'choices', role:'group', 'aria-label':it.title + ' 답' });
+      for (const [v, label] of choicesFor(it.kind)) {
+        const b = el('button', { type:'button', class:'choice' + (it.kind === 'agreed' ? ' quiet' : ''), 'aria-pressed': String(a.pick === v) }, label);
+        b.dataset.v = v; row.append(b);
+      }
+      ans.append(row);
+      const showText = it.kind === 'open' || a.pick === 'fix' || (a.text || '').trim();
+      const ta = el('textarea', { 'aria-label':it.title + ' — 적을 말', placeholder: it.ph || (it.kind === 'agreed' ? '무엇을 어떻게 고칠지' : '어떻게 고칠지 적어 줘') });
+      ta.value = a.text || ''; ta.hidden = !showText;
+      ans.append(ta); box.append(ans); sec.append(box);
+    }
+    const note = el('div', { class:'sec-note' });
+    const nid = 'note-' + s.id;
+    note.append(el('label', { for:nid }, `「${s.name}」 장 전체에 대한 의견 (선택)`));
+    const nta = el('textarea', { id:nid, placeholder:'이 장에 빠진 것, 순서, 표현' }); nta.value = state.notes[s.id] || ''; nta.dataset.note = s.id;
+    note.append(nta); sec.append(note); root.append(sec);
+    const li = el('li'); li.append(el('a', { href:'#sec-' + s.id, 'data-sec':s.id }, `<span>${s.name}</span><span class="left"></span>`)); toc.append(li);
+  }
+  const li = el('li'); li.append(el('a', { href:'#sec-all', 'data-sec':'all' }, '<span>전체 의견</span><span></span>')); toc.append(li);
+  document.getElementById('overall').value = state.overall;
+}
+
+function onClick(e) {
+  const b = e.target.closest('.choice'); if (!b) return;
+  const box = b.closest('.item'), k = box.dataset.key, kind = box.dataset.kind, ta = box.querySelector('textarea');
+  const a = state.items[k] || (state.items[k] = {});
+  a.pick = a.pick === b.dataset.v ? null : b.dataset.v;
+  box.querySelectorAll('.choice').forEach(x => x.setAttribute('aria-pressed', String(x.dataset.v === a.pick)));
+  const show = kind === 'open' || a.pick === 'fix' || (a.text || '').trim();
+  ta.hidden = !show;
+  if (a.pick === 'fix') ta.focus();
+  save(); refresh();
+}
+function onInput(e) {
+  const t = e.target;
+  if (t.id === 'overall') state.overall = t.value;
+  else if (t.dataset.note) state.notes[t.dataset.note] = t.value;
+  else { const box = t.closest('.item'); if (!box) return; (state.items[box.dataset.key] || (state.items[box.dataset.key] = {})).text = t.value; }
+  save(); refresh();
+}
+
+// 메인 세션에 붙여 넣을 글. 메인 세션이 장·항목 이름으로 스펙 파일의 자리를 찾을 수 있게 원문 파일과 표시 종류를 함께 적는다
+function compose() {
+  const lines = [], now = new Date();
+  const stamp = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+  let n = 0;
+  for (const s of SPEC) {
+    const part = [];
+    for (const it of s.items) {
+      const a = state.items[key(s, it)], text = (a?.text || '').trim();
+      if (!a || (!a.pick && !text)) continue;
+      const tag = it.kind === 'agreed' ? '합의 수정' : it.kind === 'proposal' ? '제안' : '열린 질문';
+      const verdict = it.kind === 'agreed' ? '' : a.pick === 'ok' ? '좋아' : a.pick === 'fix' ? '고칠래' : a.pick === 'later' ? '나중에' : '';
+      if (it.kind === 'proposal' && a.pick === 'fix' && !text) continue;
+      const tail = [verdict, text].filter(Boolean).join(' — ');
+      part.push(`- [${tag}] ${it.title}: ${tail.replace(/\n+/g, ' / ')}`); n++;
+    }
+    const note = (state.notes[s.id] || '').trim();
+    if (note) { part.push(`- [장 의견] ${note.replace(/\n+/g, ' / ')}`); n++; }
+    if (part.length) lines.push('', `## ${s.name} (${s.src})`, ...part);
+  }
+  const overall = state.overall.trim();
+  if (overall) { lines.push('', '## 전체 의견', overall); n++; }
+  if (!n) return { n:0, text:'' };
+  return { n, text:[`비전 스펙 검토 답변 — 초안 4e2049e5, 01_Milestones/00_Vision/ (${stamp} 작성, 99_검토.html)`, '항목별 답을 스펙에 반영하고, 「고칠래」와 열린 질문 답은 반영 전에 해석이 맞는지 한 번 확인해 줘.', ...lines].join('\n') };
+}
+
+function refresh() {
+  let total = 0, left = 0;
+  for (const s of SPEC) {
+    let secLeft = 0;
+    for (const it of s.items) {
+      const box = document.querySelector(`[data-key="${key(s, it)}"]`), done = answered(it.kind, state.items[key(s, it)]);
+      box.classList.toggle('is-answered', done && it.kind !== 'agreed');
+      if (it.kind !== 'agreed') { total++; if (!done) { left++; secLeft++; } }
+    }
+    const t = document.querySelector(`#toc a[data-sec="${s.id}"] span:last-child`);
+    const todo = s.items.filter(i => i.kind !== 'agreed').length;
+    t.className = secLeft ? 'left' : 'done';
+    t.textContent = !todo ? '' : secLeft ? `남은 ${secLeft}` : '다 봄';
+  }
+  const { n, text } = compose();
+  document.getElementById('count').textContent = n ? `답 ${n}개를 적었어` : '아직 적은 답이 없어';
+  document.getElementById('left').textContent = left ? `확인할 항목 ${total}개 중 ${left}개가 남았어 — 남은 채로 보내도 돼` : `확인할 항목 ${total}개를 다 봤어`;
+  document.getElementById('out').textContent = text || '아직 보낼 글이 없어. 노란 표시 항목부터 답해 줘.';
+  document.getElementById('copy').disabled = !n;
+}
+
+function toast(msg) { const t = document.getElementById('toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toast.h); toast.h = setTimeout(() => t.classList.remove('show'), 2200); }
+async function copy() {
+  const { text } = compose(); if (!text) return;
+  try { await navigator.clipboard.writeText(text); toast('복사했어. 메인 세션 입력창에 붙여 넣어 줘.'); return; } catch {}
+  const c = document.getElementById('clip'); c.value = text; c.select();
+  try { document.execCommand('copy') ? toast('복사했어. 메인 세션 입력창에 붙여 넣어 줘.') : toast('복사하지 못했어. 「보낼 글 보기」에서 직접 골라 복사해 줘.'); }
+  catch { toast('복사하지 못했어. 「보낼 글 보기」에서 직접 골라 복사해 줘.'); }
+}
+
+// 목차에서 지금 읽는 장을 표시한다
+function watchSections() {
+  if (!('IntersectionObserver' in window)) return;
+  const links = [...document.querySelectorAll('#toc a')];
+  const io = new IntersectionObserver(es => { for (const e of es) if (e.isIntersecting) { const id = e.target.id.replace('sec-', ''); links.forEach(a => a.classList.toggle('is-here', a.dataset.sec === id)); } }, { rootMargin:'-20% 0px -70% 0px' });
+  document.querySelectorAll('section.sec').forEach(s => io.observe(s));
+}
+
+function theme() {
+  const btn = document.getElementById('theme'), root = document.documentElement;
+  const isLight = () => root.dataset.theme ? root.dataset.theme === 'light' : matchMedia('(prefers-color-scheme: light)').matches;
+  const label = () => { btn.textContent = isLight() ? '어둡게 보기' : '밝게 보기'; };
+  try { const t = localStorage.getItem(STORE + ':theme'); if (t) root.dataset.theme = t; } catch {}
+  label();
+  btn.addEventListener('click', () => { root.dataset.theme = isLight() ? 'dark' : 'light'; try { localStorage.setItem(STORE + ':theme', root.dataset.theme); } catch {} label(); });
+}
+
+render(); refresh(); watchSections(); theme();
+document.addEventListener('click', onClick);
+document.addEventListener('input', onInput);
+document.getElementById('copy').addEventListener('click', copy);
+document.getElementById('toggle').addEventListener('click', e => { const open = document.getElementById('tray').classList.toggle('is-open'); e.currentTarget.setAttribute('aria-expanded', String(open)); e.currentTarget.textContent = open ? '보낼 글 닫기' : '보낼 글 보기'; });
+</script>
+</body>
+</html>

@@ -130,6 +130,7 @@ function tokenize(segment) {
 const WRAPPERS = new Set(['sudo', 'doas', 'env', 'nohup', 'time', 'nice', 'ionice', 'xargs', 'command', 'busybox'])
 const SHELLS = new Set(['sh', 'bash', 'dash', 'zsh', 'ksh', 'ash', 'sh.exe', 'bash.exe'])
 const FIND_EXEC = new Set(['-exec', '-execdir', '-ok', '-okdir'])
+const TIMEOUT_VALUE_OPTS = new Set(['-s', '-k', '--signal', '--kill-after'])
 const RE_ASSIGN = /^[A-Za-z_][A-Za-z0-9_]*=/   // `FOO=1` 류 환경변수 할당 토큰
 const RE_SHELL_C = /^-[A-Za-z]*c$/             // `-c`·`-lc`·`-ec` — 다음 토큰이 셸 스크립트 문자열
 
@@ -155,9 +156,16 @@ function commandsOf(rawTokens) {
   while (head < tokens.length - 1 && RE_ASSIGN.test(tokens[head]) && !tokens[head].includes('(')) head++
   const pos = new Set([head])
   let i = head
-  while (i < tokens.length - 1 && WRAPPERS.has(low(baseName(tokens[i])))) {
+  while (i < tokens.length - 1) {
+    const w = low(baseName(tokens[i]))
     let j = i + 1
-    while (j < tokens.length && (tokens[j].startsWith('-') || RE_ASSIGN.test(tokens[j]))) j++
+    if (WRAPPERS.has(w)) {
+      while (j < tokens.length && (tokens[j].startsWith('-') || RE_ASSIGN.test(tokens[j]))) j++
+    } else if (w === 'timeout') {
+      // `timeout [옵션] <시간> <명령>` (M07 G12) — `-s`·`-k`·`--signal`·`--kill-after`는 붙여 쓰지 않으면 다음 낱말을 값으로 먹는다
+      while (j < tokens.length && tokens[j].startsWith('-')) j += TIMEOUT_VALUE_OPTS.has(tokens[j]) ? 2 : 1
+      j++ // 시간 낱말
+    } else break
     if (j >= tokens.length) break
     pos.add(j)
     i = j
@@ -385,6 +393,46 @@ function ghApiWrites(args) {
 const RE_GH_PROTECTION = /protection|rulesets/i
 const ghApi = (c) => ghIs(c, 'api')
 
+// ── 병합 차단 (M07 G12 · 결정 대장 [USER] 「OK 가드도 Deny」) ──
+// 병합은 사람의 버튼(현황판 병합 카드·앱 PR 카드)과 사용자가 직접 치는 한 줄로만 한다(헌법 10조). 가드는 읽을 수 있는 병합 꼴을
+// 묻지 않고 차단한다 — 권한 창을 생략하는 모드에서도 사람 없이 지나가지 않게. 사용자의 `!` 명령은 이 훅을 지나지 않는다.
+// `gh api`는 끝점 낱말로 판정한다. 설정 `deny`의 글자 꼴(`gh api *pulls/*/merge*`)보다 좁다 — 본문 글에 끝점 글자가 든 다른 호출과
+// 같은 끝점의 GET(병합 여부 읽기)은 막지 않는다. 차단은 루프를 멈추므로 오탐 비용이 묻기보다 크다.
+// 읽지 못하는 꼴(변수·명령 치환·gh 별칭·`--input`·`-F query=@파일`·해석기 안 코드)은 쫓지 않는다 — goal G12 「하지 않을 것」.
+const MERGE_HINT = '병합은 사람이 합니다 — 현황판 병합 카드, 앱 PR 카드, GitHub 웹, 또는 사용자가 직접 치는 `gh pr merge <번호> --merge --match-head-commit <SHA>`. 에이전트는 그 한 줄을 적어 줄 뿐 실행하지 않습니다(헌법 10조).'
+// gh api에서 다음 낱말을 값으로 먹는 옵션 (gh 2.x `gh api --help`)
+const GH_API_VALUE_OPTS = new Set(['-X', '--method', '-H', '--header', '-f', '--raw-field', '-F', '--field', '--input', '-p', '--preview', '-q', '--jq', '-t', '--template', '--cache', '--hostname'])
+// `gh … api <끝점>`의 끝점 낱말 — `api` 낱말 뒤 첫 비옵션 낱말. 짧은 옵션 묶음(`-iX`)은 끝 글자가 값을 먹는 글자면 다음 낱말을 먹는다.
+function ghApiEndpoint(c) {
+  let i = 0, words = 0
+  for (; i < c.args.length; i++) { // ghWords와 같은 규칙으로 `api` 낱말의 자리를 찾는다
+    const t = c.args[i]
+    if (!t.startsWith('-')) { if (++words === 1) break; continue }
+    if (GH_NO_VALUE.has(t)) continue
+    if (t.startsWith('--') ? !t.includes('=') : t.length === 2) i++
+  }
+  for (i++; i < c.args.length; i++) {
+    const t = c.args[i]
+    if (t === '--') return ghWord(c.args[i + 1] ?? '')
+    if (!t.startsWith('-')) return ghWord(t)
+    if (GH_API_VALUE_OPTS.has(t)) { i++; continue }
+    if (t.startsWith('--')) continue
+    // 짧은 옵션 묶음은 앞에서부터 읽는다 — 값을 먹는 글자 뒤에 글이 붙어 있으면 그게 값이고, 끝 글자면 다음 낱말이 값이다
+    for (let j = 1; j < t.length; j++) {
+      if ('XHfFpqt'.includes(t[j])) { if (j === t.length - 1) i++; break }
+    }
+  }
+  return ''
+}
+const RE_PULL_MERGE = /(^|\/)pulls\/[^/?#]+\/merge\/?([?#].*)?$/i
+const RE_GRAPHQL = /(^|\/)graphql\/?([?#].*)?$/i
+const RE_GQL_MERGE = /mergePullRequest|enablePullRequestAutoMerge/i
+const MERGE_BLOCK = [
+  { id: 'gh-pr-merge', why: 'PR 병합 (master 진입)', match: (c) => ghPr(c, 'merge') },
+  { id: 'gh-api-병합', why: 'gh api 병합 호출 (pulls/<번호>/merge 쓰기)', match: (c) => ghApi(c) && RE_PULL_MERGE.test(ghApiEndpoint(c)) && ghApiWrites(c.args) },
+  { id: 'gh-graphql-병합', why: 'GraphQL 병합 변이 (mergePullRequest·enablePullRequestAutoMerge)', match: (c) => ghApi(c) && RE_GRAPHQL.test(ghApiEndpoint(c)) && c.args.some((t) => RE_GQL_MERGE.test(t)) },
+]
+
 // `master`가 글자로 보이는가 — 세그먼트의 모든 토큰(머리의 할당·래퍼·git 전역 옵션 포함)을 본다
 const segShowsMaster = (c) => (c.seg ?? c.args).some((t) => low(t).includes('master'))
 
@@ -398,7 +446,6 @@ const IRREVERSIBLE = [
   { id: 'gh-api-보호설정', why: 'gh api 보호 설정 경로 (branch protection·rulesets)', match: (c) => ghApi(c) && c.args.some((t) => RE_GH_PROTECTION.test(t)) },
   { id: 'gh-api-쓰기', why: 'gh api 쓰기 호출 (GitHub 상태 변경)', match: (c) => ghApi(c) && ghApiWrites(c.args) },
   { id: 'gh-repo-변경', why: 'gh repo edit / delete (저장소 설정 변경·삭제)', match: (c) => ghIs(c, 'repo', ['edit', 'delete']) },
-  { id: 'gh-pr-merge', why: 'PR 병합 (master 진입)', match: (c) => ghPr(c, 'merge') },
   {
     id: 'gh-pr-브랜치삭제',
     why: 'gh pr close --delete-branch (브랜치 삭제)',
@@ -1014,6 +1061,11 @@ function main() {
   for (const c of contexts) {
     for (const { id, match, why } of DESTRUCTIVE) {
       if (match(c)) block(id, why, '정말 필요하면 외부 셸에서 직접 실행하세요.')
+    }
+  }
+  for (const c of contexts) {
+    for (const { id, match, why } of MERGE_BLOCK) {
+      if (match(c)) block(id, why, MERGE_HINT)
     }
   }
   for (const c of contexts) {

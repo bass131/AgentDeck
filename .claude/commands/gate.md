@@ -67,6 +67,6 @@ node_modules 정션) 기준선에서 재라. 작업 트리를 stash하면 되돌
 
 push와 PR은 이 커맨드가 하지 않는다 — 게이트가 통과한 뒤 goal 루프가 잇는다.
 작업 브랜치 push와 `gh pr create`는 승인 없이 진행한다. `master`는 GitHub 브랜치 보호가 지키고,
-병합은 사용자가 현황판 병합 카드나 앱 PR 카드의 「병합」 버튼으로 직접 한다. 에이전트의 `gh pr merge`와 병합 API 호출은 `.claude/settings.json`의 거부 규칙이 질문 없이 막는다 (헌법 10조, M07 G8·G9).
+병합은 사용자가 현황판 병합 카드나 앱 PR 카드의 「병합」 버튼으로 직접 한다. 에이전트의 `gh pr merge`와 병합 API·GraphQL 병합 호출은 `.claude/settings.json`의 거부 규칙과 위험 명령 가드(`gh-pr-merge`·`gh-api-병합`·`gh-graphql-병합`, 래퍼·`bash -c`·`timeout` 감싼 꼴 포함)가 질문 없이 막는다 (헌법 10조, M07 G8·G9·G12).
 PR을 만든 뒤에는 pin 현재 goal 줄을 「(병합 대기, PR N)」으로 적고 `node 99_Others/Dashboard/wait-merge.mjs <번호>`를 백그라운드로 걸어 병합을 감시한다. 끝난 뒤의 분기(병합·닫힘·오류)는 헌법 11조를 따른다 (M07 G10).
 PR의 `hard-gates` 검사는 같은 다섯 종을 CI에서 돌리고, `master` 보호가 병합의 필수 조건으로 건다.

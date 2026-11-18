@@ -78,12 +78,12 @@ try {
     'git checkout -- 02_Project/00_Source/main/index.ts',
     'Remove-Item -Recurse -Force dist',
     'npm test && rm -rf dist',
+    'gh pr merge 12', // M07 G12 — 병합은 묻지 않고 차단한다 (결정 대장 [USER] 「OK 가드도 Deny」)
   ]) judge(cmd, 'deny')
 
   console.log('축② 비가역 → ask (exit 0 + 승인 질의 JSON)')
   for (const cmd of [
     'git push origin master',
-    'gh pr merge 12',
     'gh release create v1',
     'npm publish',
     'npm run package',
@@ -405,8 +405,9 @@ try {
   ]) {
     r.judge(label(cmd), decision(cmd), 'silent')
   }
+  // 병합 동사 판독은 그대로이고 판정만 차단이다 (M07 G12)
   for (const cmd of [
-    'gh pr -R merge merge 12', 'gh pr --repo o/r merge 12', 'gh pr --repo=o/r merge 12', 'gh -R o/r pr merge 12', 'gh -R o/r release create v1',
+    'gh pr -R merge merge 12', 'gh pr --repo o/r merge 12', 'gh pr --repo=o/r merge 12', 'gh -R o/r pr merge 12',
     // 마감 재검수 반례 — gh는 `=` 없는 긴 옵션과 두 글자 옵션 뒤의 낱말을 값으로 읽고 건너뛴다
     'gh pr -b x merge 12',
     'gh pr --body x merge 12',
@@ -417,6 +418,9 @@ try {
     'gh pr -sd merge 12',
     'gh -b x pr merge 12',
     'gh --body x pr merge 12',
+  ]) expectDeny(cmd)
+  for (const cmd of [
+    'gh -R o/r release create v1',
     'gh pr -c x close 12 -d',
     'gh pr --comment x close 12 --delete-branch',
     'gh -c x pr close 12 -d',
@@ -542,14 +546,84 @@ try {
   for (const cmd of ['git fetch origin +master:chore/x 2>&1 | tail -3', 'git fetch --prune origin refs/heads/chore/x > /dev/null',
     'git fetch --depth 1 origin master:chore/x']) expectAsk(cmd)
 
-  console.log('병합만 승인 — 병합·브랜치 삭제의 변형은 질의')
+  // ── 병합 차단 (M07 G12 · 결정 대장 [USER] 「OK 가드도 Deny」) ──
+  // 병합은 사람의 버튼(현황판·앱 PR 카드)과 사용자가 직접 치는 한 줄로만 한다(헌법 10조). 가드는 읽을 수 있는 병합 꼴을
+  // 묻지 않고 차단한다. 사용자의 `!` 명령은 이 훅을 지나지 않는다(훅 로그에 PR 74·77의 `!` 병합 기록이 없다, 2026-11-18).
+  console.log('병합 차단 — 병합 꼴은 묻지 않고 차단, 안내는 병합 길')
   for (const cmd of [
     'gh pr merge 12 --squash',
+    'gh pr merge 12 --merge --match-head-commit 84fc92833352416eb698db217cf377bc0204a5d6',
+    'gh pr merge 12 --auto --merge',
     'gh pr -R o/r merge 12',
     'gh pr --repo o/r merge 12',
     'gh.exe pr merge 12',
     '/usr/bin/gh pr merge 12',
     'GH_TOKEN=x gh pr merge 12',
+    'GH_REPO=o/r gh pr merge 12',
+    'sudo gh pr merge 12',
+    'env GH_REPO=o/r gh pr merge 12',
+    'nohup gh pr merge 12 &',
+    'bash -c "gh pr merge 12 --merge"',
+    "sh -lc 'gh pr merge 12'",
+    'npm test && gh pr merge 12',
+    '(cd x && gh pr merge 12)',
+    // `timeout` 래퍼 — 시간 낱말과 옵션 뒤가 명령 위치다
+    'timeout 30 gh pr merge 12',
+    'timeout -s KILL 30s gh pr merge 12',
+    'timeout --signal=TERM 5m gh pr merge 12',
+    'timeout -k 5 30 gh pr merge 12',
+    // 병합 API — 끝점 낱말이 pulls/<번호>/merge이고 쓰기 호출
+    'gh api -X PUT repos/o/r/pulls/12/merge',
+    'gh api --method PUT /repos/o/r/pulls/12/merge -f merge_method=merge',
+    'gh api repos/o/r/pulls/12/merge -X PUT',
+    'gh api -XPUT repos/{owner}/{repo}/pulls/12/merge',
+    'gh api repos/o/r/pulls/12/merge -f sha=abc',
+    'gh api -H "Accept: application/vnd.github+json" --method=PUT repos/o/r/pulls/12/merge',
+    'gh -R o/r api -X PUT repos/o/r/pulls/12/merge',
+    'timeout 30 gh api -X PUT repos/o/r/pulls/12/merge',
+    'gh api -iX PUT repos/o/r/pulls/12/merge',
+    'gh api --method PUT https://api.github.com/repos/o/r/pulls/12/merge',
+    'gh api -X PUT repos/o/r/pulls/12/merge/',
+    'gh api -Xput repos/o/r/pulls/12/merge', // 붙여 쓴 값의 끝 글자(t)를 값 먹는 옵션으로 읽지 않는다
+    'gh api -iXput repos/o/r/pulls/12/merge',
+    // GraphQL 병합 — 필드 값에 병합 변이 이름
+    'gh api graphql -f query=\'mutation { mergePullRequest(input: {pullRequestId: "x"}) { clientMutationId } }\'',
+    'gh api graphql -F query="mutation{enablePullRequestAutoMerge(input:{pullRequestId:\\"x\\"}){clientMutationId}}"',
+    'gh api /graphql --raw-field query=mutation{mergePullRequest(input:{pullRequestId:"x"}){clientMutationId}}',
+  ]) expectDeny(cmd)
+  {
+    const res = h.run('gh pr merge 12 --merge')
+    r.check('병합 차단 안내는 병합 길(현황판 병합 카드·사용자가 직접 치는 한 줄)을 알린다', res.code === 2 && /현황판/.test(res.stderr) && /사용자/.test(res.stderr) && !/외부 셸에서 직접 실행/.test(res.stderr),
+      `exit ${res.code} · stderr ${JSON.stringify(String(res.stderr).slice(0, 200))}`)
+    const api = h.run('gh api -X PUT repos/o/r/pulls/12/merge')
+    r.check('병합 API 차단도 같은 안내', api.code === 2 && /현황판/.test(api.stderr), `exit ${api.code}`)
+  }
+  // 오탐 — 차단은 루프를 멈추므로, 병합 글자를 적기만 하는 꼴은 무출력이어야 한다
+  for (const cmd of [
+    "git commit -F - <<'EOF'\ndocs: 병합 한 줄\n\ngh pr merge 81 --merge --match-head-commit abc\nEOF",
+    "gh pr create --base master --head feat/x --title t --body \"$(cat <<'EOF'\n병합: gh pr merge 81 --merge --match-head-commit abc\nEOF\n)\"",
+    'echo "gh pr merge 81 --merge"',
+    'grep -n "gh pr merge" CLAUDE.md',
+    'git log --grep "gh pr merge" --oneline',
+    'gh pr create --title merge --body x',
+    'gh pr view 12 --json mergeable,mergeStateStatus',
+    'gh api repos/o/r/pulls/12/merge',
+    'gh api -X GET repos/o/r/pulls/12/merge',
+    'gh api -Xget repos/o/r/pulls/12/merge',
+    'gh api -H "Accept: application/vnd.github+json" repos/o/r/pulls/12/merge',
+    'gh api repos/o/r/pulls/12 --jq .merged',
+    'timeout 30 npm test',
+    'timeout 600 gh pr checks 12 --watch',
+  ]) expectSilent(cmd)
+  // 쓰기지만 병합이 아닌 gh api — 지금처럼 묻는다(본문 글에 병합 끝점 글자가 있어도). 필드가 붙은 GraphQL 읽기도 gh가 POST로 보내 묻는다
+  for (const cmd of [
+    'gh api graphql -f query=\'{ repository(owner:"o", name:"r") { pullRequest(number: 12) { mergeable } } }\'',
+    'gh api -X POST repos/o/r/issues/12/comments -f body="see pulls/12/merge"',
+    'gh api graphql -F query=@q.graphql',
+  ]) expectAsk(cmd)
+
+  console.log('브랜치 삭제·릴리스의 변형은 질의')
+  for (const cmd of [
     'gh pr close 12 --delete-branch',
     'gh pr close 12 -d',
     'gh pr close 12 -dc "bye"',
@@ -675,14 +749,14 @@ try {
     'git push origin \\\n  --delete chore/x',
     'git push \\\n --mirror',
     'git fetch origin \\\n  +master',
-    'gh pr \\\n merge 12',
-    'gh pr merge\\\n 12 --squash',
     'gh repo \\\n edit --visibility private',
     'gh api \\\n  --method PUT \\\n  -H "Accept: application/vnd.github+json" \\\n  /repos/o/r/branches/master/protection \\\n  --input -',
     'gh api \\\n  --method DELETE \\\n  /repos/o/r/branches/master/protection',
     'gh api \\\n  -X DELETE repos/o/r/branches/master/protection/enforce_admins',
     'gh api\\\n -X DELETE repos/o/r/branches/master/protection',
   ]) expectJoined(cmd, 'ask')
+  // M07 G12 — 줄 이음으로 나눈 병합도 한 줄 꼴과 같이 차단
+  for (const cmd of ['gh pr \\\n merge 12', 'gh pr merge\\\n 12 --squash', 'gh api \\\n  -X PUT \\\n  repos/o/r/pulls/12/merge']) expectJoined(cmd, 'deny')
   for (const cmd of [
     'git push \\\n  --force origin chore/x',
     'git push \\\r\n  --force origin chore/x',
@@ -722,9 +796,9 @@ try {
   ]) expectDeny(cmd)
   for (const cmd of [
     'git status # check \\\ngit push origin master',
-    'echo done # next \\\ngh pr merge 12 --squash',
     'echo a # x \\\ngh api -X DELETE repos/o/r/branches/master/protection',
   ]) expectAsk(cmd)
+  expectDeny('echo done # next \\\ngh pr merge 12 --squash') // M07 G12 — 병합은 차단
 
   // G5 2차 검수 FAIL·사용자 결정 B — 논리 줄 판독. heredoc 본문을 bash처럼 소비한 뒤의 명령 줄에서 줄 이음을 읽는다.
   // 면제 heredoc 커밋 본문의 짝 없는 `'`, 본문 끝 `\`, 여는 줄 이음이 뒤에 이어 쓴 명령을 가리지 않는다 (한 줄 꼴과 같은 판정).

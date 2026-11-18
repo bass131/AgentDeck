@@ -122,7 +122,7 @@ const ROWS = [
   { id: 'NP-02', cmd: 'npm publish --access public', moodie: 'deny', expect: 'ask', flag: false, note: '플래그 부착' },
   { id: 'NP-03', cmd: 'echo npm publish', moodie: 'deny', expect: 'allow', flag: false, note: '언급 오탐 — 머리 토큰 판정 미적용 (Backlog 1)' },
   { id: 'GH-01', cmd: 'gh pr create --fill', moodie: 'allow', expect: 'allow', flag: false, note: 'PR 생성은 자율 — 병합만 승인 (M04 헌법 10조 개정, 종전 ask)' },
-  { id: 'GH-04', cmd: 'gh pr merge 12', moodie: 'allow', expect: 'ask', flag: false, note: 'PR 병합은 master 진입 — 승인 항목 (M04)' },
+  { id: 'GH-04', cmd: 'gh pr merge 12', moodie: 'allow', expect: 'deny', flag: false, note: 'PR 병합은 사람의 버튼으로만 — 가드 차단 (M07 G12, 종전 M04 ask)' },
   { id: 'GH-02', cmd: 'gh release create v1', moodie: 'allow', expect: 'ask', flag: false, note: 'AgentDeck 고유 축(동등 이상)' },
   { id: 'GH-03', cmd: 'echo gh pr create', moodie: 'allow', expect: 'allow', flag: false, note: '언급 오탐 — 정규식 잔존 (Backlog 1)' },
   // ── 영속 (Moodie L63)

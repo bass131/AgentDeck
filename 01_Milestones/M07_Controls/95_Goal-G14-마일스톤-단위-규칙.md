@@ -1,6 +1,6 @@
 # M07 G14 — 마일스톤 단위 규칙 · 로드맵을 비전 스펙에 맞춰 다시 쓰고, 합의·병합의 단위를 마일스톤으로 옮긴다
 
-- 마일스톤: M07 사용자 컨트롤(마지막 goal) · 작성: 2026-11-18 · 상태: 실행 중 · 검증 강도: 강(두 헌법 개정)
+- 마일스톤: M07 사용자 컨트롤(마지막 goal) · 작성: 2026-11-18 · 상태: 병합 대기 (PR 86) · 검증 강도: 강(두 헌법 개정)
 - 작업 브랜치: `docs/m07-g14-milestone-rules` — `chore/vision-close`(비전 스펙 PR 85 종결 기록, master `c8ebd5d9` 위)에서 갈랐다.
 - 출발점: 비전 스펙 `01_Milestones/00_Vision/`(PR 85)과 결정 대장 [USER] 2026-11-18.
 
@@ -19,12 +19,12 @@
   - **판정 장치(헌법 3조, 이름으로)**: `98_Management/01_GateState/gate-config.json`의 `planPath`(1단계), `CLAUDE.md`·`AGENTS.md`(3단계), `.claude/hooks/10_start-brief.cjs`의 감시 안내 글 한 줄(4단계).
   - `01_Milestones/00_Roadmap.md`, `00_Documents/02_Rules/04_Goal-한장-템플릿.md`, `00_Documents/02_Rules/05_마일스톤-스펙-템플릿.md`(새 파일), `.claude/commands/gate.md`, 이 goal 문서, `M07_Controls/01_Work_Pin.md`·`99_Backlog.md`.
 - **하지 않을 것**
-  - 장치 변경 — 가드를 `master` 병합에만 좁히기, `settings.json`에 `git merge` 허용 더하기, `hard-gates` 워크플로를 마일스톤 브랜치에도 걸기. 셋은 새 로드맵 첫 마일스톤의 일이다.
+  - 장치 변경 — `settings.json`에 `git merge` 허용 더하기, `hard-gates` 워크플로를 마일스톤 브랜치에도 걸기. 둘은 M08의 일이다. 가드의 `gh pr merge` 거부 범위는 좁히지 않는다(결정 대장 [AI], 사용자 합의안과의 차이는 PR 86 본문에 공개).
   - 6조와 10조의 GitHub 서버 보호 문장 삭제 — 저장소가 아직 공개라 그 문장은 사실이다.
   - 비전 스펙의 앱 동작(알림, 사용량 한도, 그래프 편집)을 헌법에 옮기기 — 헌법은 이 저장소의 CLI 세션을 다스린다.
   - ADR 문면 수정, 마일스톤 폴더 새로 만들기, `workPinPath` 옮기기.
 - **완료조건**
-  - 두 헌법 파일의 조항이 같다(`git diff --no-index`로 정체 선언 첫 줄의 이름만 다른지 본다).
+  - 두 헌법 파일의 조항이 같다(`git diff --no-index`로 이번 diff 전부터 있던 세 줄 — 제목, 상대 헌법 안내, 거처 — 만 다른지 본다).
   - 헌법 10·11조의 느슨해진 문장마다 결정 대장에 `[USER]` 원문 근거가 있다.
   - 로드맵의 판정 표가 다섯 계획과 옛 M08을 모두 덮는다.
   - 하드 게이트 다섯 종 exit 0, `npm test` 실패 0, PR의 `hard-gates` 통과.
@@ -39,8 +39,8 @@
 - [x] 3. 헌법 개정 — 정체 선언, 10조, 11조(판정 장치 `CLAUDE.md`·`AGENTS.md`)
 - [x] 4. 템플릿과 `gate.md`, 재개 안내 한 줄 — `.claude/hooks/10_start-brief.cjs`(판정 장치)의 병합 감시 안내 「MERGED면 … 다음 goal은 열지 않는다」를 개정 11조(goal PR이면 다음 goal, 마일스톤 PR이면 멈춤)에 맞춘다. 글 한 줄만 바꾸고 판독 로직은 건드리지 않는다.
 - [x] 5. 하드 게이트 다섯 종, `npm test`
-- [>] 6. 커밋, push, PR 생성, pin 「(병합 대기, PR N)」, 병합 감시
-- [ ] 7. 독립 검수 1회와 반영, push, 결과 보고
+- [x] 6. 커밋, push, PR 생성, pin 「(병합 대기, PR N)」, 병합 감시
+- [x] 7. 독립 검수 1회와 반영, push, 결과 보고 — 검수 반영으로 두 헌법의 2조(계획 문서에 마일스톤 스펙 포함)와 10·11조(CI 병합 조건, 과도기 브랜치, 판정 장치·FAIL 계수·마일스톤 회귀 검증)를 더 고치고, `99_Others/Dashboard/docs/병합.md` 한 줄을 맞춘다.
 
 실행 단계 일괄 승인 대상
 
@@ -58,6 +58,7 @@ DoD
 검증 기록
 
 - PASS 2026-11-18T19:06:31+09:00 — 구현분: 하드 게이트 다섯 종 exit 0(`test:hooks`의 감시 줄 시험 포함), `npm test` 449 파일·8153 시험 통과·실패 0, `git diff --no-index CLAUDE.md AGENTS.md`는 기존의 정체·거처 세 줄만 다르다. 독립 검수는 PR 뒤 7단계에서 한다. 기준 HEAD `859e0c0f` 위 작업 트리.
+- PASS 2026-11-18T19:21:06+09:00 — 독립 검수 1회(구현 문맥 없는 reviewer, fork 아님): 차단 2·중요 6·사소 8을 모두 반영했다. 병합 조건을 goal PR의 `hard-gates`(CI) 통과로, 과도기는 마일스톤 브랜치 없이 `master`로, 판정 장치·FAIL 계수·마일스톤 회귀 검증·계획 문서 정의를 더했고, 효력 날 뒤 틀릴 거부 사유 글과 감시 시험은 Backlog 36으로 넘겼다. 반영 뒤 하드 게이트 다섯 종 exit 0, 두 헌법은 기존 세 줄만 다르다. 반영분은 마크다운 글뿐이라 `npm test`는 다시 돌리지 않았다(직전 실패 0).
 
 ## 결정 대장
 

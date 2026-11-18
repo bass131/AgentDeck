@@ -254,13 +254,14 @@ test('deliver: ok:false, a non-zero exit, a missing orca and a refused input are
   assert.deepEqual(await kind(typeIntoTerminal(HANDLE, '문장', { execFileFn: fail(null, 'not json') })), UNSURE);
 });
 
-// 병합 두 경로(POST /api/merge/read·run, M07 G9)도 POST만 받는다. 그 검사는 test/merge-server.test.mjs에 있다.
-test('only the two answer paths and the two merge paths take POST; every other method and path stays 405 or 404', async t => {
+// 병합 세 경로(POST /api/merge/list·read·run, M07 G9·G11)도 POST만 받는다. 그 검사는 test/merge-server.test.mjs에 있다.
+test('only the two answer paths and the three merge paths take POST; every other method and path stays 405 or 404', async t => {
   const app = await appFor(t);
   const h = goodHeaders(app);
   for (const [method, p] of [['POST', '/'], ['POST', '/api/decisions/answers'], ['POST', '/api/answer'], ['POST', '/api/answer/send/x'], ['PUT', '/api/answer/send'],
     ['DELETE', '/api/answer/preview'], ['PATCH', '/events'], ['GET', '/api/answer/send'], ['GET', '/api/answer/preview'],
-    ['POST', '/api/merge'], ['POST', '/api/merge/send'], ['PUT', '/api/merge/run'], ['GET', '/api/merge/read'], ['GET', '/api/merge/run']])
+    ['POST', '/api/merge'], ['POST', '/api/merge/send'], ['PUT', '/api/merge/run'], ['GET', '/api/merge/read'], ['GET', '/api/merge/run'],
+    ['GET', '/api/merge/list'], ['PUT', '/api/merge/list'], ['POST', '/api/merge/list/x']])
     assert.equal((await request(app, { method, path: p, headers: h, body: method === 'GET' ? '' : '{}' }).catch(e => { throw new Error(`${method} ${p}: ${e.code}`); })).status, 405, `${method} ${p}`);
   const g = await request(app, { method: 'GET', path: '/api/answer/send' });
   assert.equal(g.headers.allow, 'POST');

@@ -10,6 +10,7 @@
 //   contents — {type:"file", encoding:"base64", content: 60자마다 줄바꿈}. 1MB를 넘으면 encoding "none".
 //   필수 검사 — 보호 API `checks:[{context:"hard-gates", app_id:15368}]`, check run `app.id: 15368`.
 // 병합 길: readPr(마지막으로 보인 SHA 기억) → prepareMerge(SHA 소비·다시 읽기·대조) → 사람 확인(정확히 {answer:'yes'}) → sendMerge(다시 읽기·PUT·결과 조회).
+// 열린 PR 목록 listPrs(M07 G11)는 이 길 밖의 읽기다. 고른 PR은 다시 readPr로 읽어야 병합 길에 들어간다.
 import { execFile } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { isDeepStrictEqual } from 'node:util';
@@ -319,7 +320,43 @@ export function createPrService({ gh, originUrl, sleep = ms => new Promise(r => 
     } finally { issued.delete(prep.ticket); }
   }
 
-  return { readPr, prepareMerge, sendMerge, mergePr };
+  // 열린 PR 목록(M07 G11) — 읽기만 한다. 보인 SHA(shown)·세대(generation)·보내기 표(issued)를 건드리지 않는다.
+  // 목록의 SHA는 화면 표시용이다. 병합에 쓰는 SHA는 언제나 readPr가 다시 읽은 값이다.
+  async function listPrs(cwd) {
+    const repo = await originRepo(cwd);
+    if (!repo) return { ok: false, reason: '저장소의 origin이 GitHub 저장소가 아니에요' };
+    let r;
+    try { r = await gh(listArgs(repo), cwd); } catch (e) { return { ok: false, reason: `열린 PR 목록을 읽지 못했어요 — ${cleanReason(e?.message)}` }; }
+    if (!r || r.code !== 0) return { ok: false, reason: `열린 PR 목록을 읽지 못했어요 — ${cleanReason(r?.stderr)}` };
+    const raw = parseJson(r.stdout);
+    if (!Array.isArray(raw)) return { ok: false, reason: '열린 PR 목록 응답을 읽지 못했어요' };
+    const items = [];
+    let dropped = 0;
+    for (const v of raw.slice(0, LIST_CAP)) { const it = listItem(v); if (it) items.push(it); else dropped++; }
+    return { ok: true, repo: `${repo.owner}/${repo.repo}`, items, more: raw.length > LIST_CAP, dropped };
+  }
+
+  return { readPr, prepareMerge, sendMerge, mergePr, listPrs };
+}
+
+// ── 열린 PR 목록 (M07 G11) ── gh pr list를 셸 없이 부른다. 저장소는 origin으로 고정한다(cwd·GH_REPO·기본 저장소 설정에 기대지 않는다).
+// 실측(2026-11-18, 읽기 전용): 성공은 exit 0과 JSON 배열(없으면 `[]`), 항목은 {author:{id,is_bot,login,name}, baseRefName, headRefName, headRefOid, isDraft, number, title, updatedAt}.
+//   봇 작성자는 {is_bot:true, login:"app/dependabot"}. 실패는 exit 1과 stderr 평문(`GraphQL: Could not resolve to a Repository …`)이라 parsePlain을 쓰지 않는다.
+// REST(`gh api …/pulls`) 대신 이 명령을 쓴 까닭: 칸 이름을 --json으로 좁혀 한 번에 받고, G10 감시(lib/waitMerge.mjs)와 같은 gh pr 꼴이다.
+export const LIST_CAP = 50;
+export const LIST_FIELDS = 'number,title,baseRefName,headRefName,headRefOid,isDraft,author,updatedAt';
+// 하나 더(51개) 받아 「더 있음」을 안다
+export const listArgs = repo => ['pr', 'list', '--repo', `${repo.owner}/${repo.repo}`, '--state', 'open', '--json', LIST_FIELDS, '--limit', String(LIST_CAP + 1)];
+const cleanReason = s => maskCredentials(String(s ?? '')).replace(/\x1b\[[0-9;]*[A-Za-z]/g, '').replace(/[\u0000-\u001f\u007f-\u009f]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 200) || '알 수 없는 오류';
+const isLogin = v => typeof v === 'string' && /^(?:app\/)?[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})(?:\[bot\])?$/.test(v);
+const isIso = v => typeof v === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$/.test(v);
+// 남이 정한 값이다. 번호·SHA가 꼴에 맞지 않으면 항목을 빼고(센다), 나머지 칸은 꼴이 맞지 않으면 비운다.
+function listItem(v) {
+  const p = rec(v);
+  if (Array.isArray(v) || !isPrNumber(p.number) || p.number > 1e9 || !isSha(p.headRefOid)) return null;
+  const login = rec(p.author).login;
+  return { number: p.number, title: str(p.title), baseRef: str(p.baseRefName), headRef: str(p.headRefName), sha: p.headRefOid,
+    draft: p.isDraft === true, author: isLogin(login) ? login : '', updatedAt: isIso(p.updatedAt) ? p.updatedAt : '' };
 }
 
 // ── 실행 배선 ── 셸 없이 인자 배열로, 대화형 질문 없이.

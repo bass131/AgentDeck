@@ -237,5 +237,30 @@ function resultLine(r) {
   return { level: 'todo', text: (r && r.message) || (r && r.reason) || '결과를 읽지 못했어요. 다시 읽기로 확인해 주세요' };
 }
 
-globalThis.AgentDeckMerge = Object.freeze({ pendingPr, fileKey, mergeGate, patchRows, parsePrInput, shortSha, checkState, resultLine });
+// ── 열린 PR 목록 (M07 G11) ── 목록은 요약만 보인다. 필수 검사·「꼭 볼 것」·병합 단추는 고른 PR 하나의 카드에서만 판정한다.
+// 항목이 이보다 많으면 목록이 자기 안에서 세로 스크롤한다(높이는 styles.css의 항목 3개 높이).
+const LIST_SCROLL_AFTER = 3;
+// 표시할 항목: 카드에 연 PR이 먼저다(목록과 카드가 어긋나지 않게). 카드가 비었으면 goal의 병합 대기 PR이 처음 고른 항목이다. 목록에 없으면 null.
+function pickedPr(items, cardPr, pendingPr) {
+  const nums = new Set((items || []).map(i => i && i.number));
+  if (cardPr != null) return nums.has(cardPr) ? cardPr : null;
+  return pendingPr != null && nums.has(pendingPr) ? pendingPr : null;
+}
+// 목록 HTML. 서버가 준 글(제목·브랜치·작성자)은 남이 정한 글이라 페이지의 이스케이프 함수(esc)로만 넣는다. 없으면 그리지 않는다.
+// 항목은 단추라 키보드로 고를 수 있다. 고른 항목은 aria-current와 is-picked로 남는다. SHA는 짧게 보이고 전체는 title에만 둔다.
+function prListHtml(items, { picked = null, esc } = {}) {
+  if (typeof esc !== 'function') throw new TypeError('prListHtml needs the page escaper');
+  const list = (items || []).filter(i => i && Number.isInteger(i.number));
+  if (!list.length) return '<p class="send-hint mg-list-empty">열린 PR이 없어요.</p>';
+  const rows = list.map(i => {
+    const on = i.number === picked;
+    const tip = `#${i.number} ${i.title || ''} · ${i.baseRef} ← ${i.headRef} · 머리 SHA ${i.sha}${i.author ? ` · 작성자 ${i.author}` : ''}${i.updatedAt ? ` · 갱신 ${i.updatedAt}` : ''}`;
+    return `<li><button type="button" class="mg-row${on ? ' is-picked' : ''}" data-merge-pick="${esc(i.number)}"${on ? ' aria-current="true"' : ''} title="${esc(tip)}">`
+      + `<span class="mg-row-top"><b class="dec-n">#${esc(i.number)}</b><span class="mg-row-t">${i.title ? esc(i.title) : '(제목 없음)'}</span>${i.draft ? '<span class="lz mg-draft">초안</span>' : ''}</span>`
+      + `<span class="mg-row-meta"><code class="inline">${esc(i.baseRef)}</code> ← <code class="inline">${esc(i.headRef)}</code> · <code class="inline">${esc(shortSha(i.sha))}</code></span></button></li>`;
+  }).join('');
+  return `<ul class="mg-list${list.length > LIST_SCROLL_AFTER ? ' is-scroll' : ''}" aria-label="열린 PR 목록">${rows}</ul>`;
+}
+
+globalThis.AgentDeckMerge = Object.freeze({ pendingPr, fileKey, mergeGate, patchRows, parsePrInput, shortSha, checkState, resultLine, LIST_SCROLL_AFTER, pickedPr, prListHtml });
 })();

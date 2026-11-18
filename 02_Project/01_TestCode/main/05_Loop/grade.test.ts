@@ -1,4 +1,4 @@
-// M09 G1 등급 규칙 — 실행기가 변경 통계로 계산한다. 세지 않는 것(문서 *.md, .agentdeck/)만 빼고 모든 변경 줄을 세어
+// M09 G1 등급 규칙 — 실행기가 변경 통계로 계산한다. 세지 않는 것(템플릿의 문서 *.md, 실행기 껍질이 빼는 루트 .agentdeck/)만 빼고 모든 변경 줄을 세어
 // 템플릿의 문턱 이상이면 강, 시험·설정·CI 같은 보호 경로를 건드리면 강, 판단할 정보가 없거나 애매하면 강이다.
 // 허용 목록(src/만 셈)이 아니라 금지 목록인 이유: 시험·설정만 바꾸거나 소스를 다른 폴더로 옮겨 검수를 끄지 못하게.
 import { describe, it, expect } from 'vitest'
@@ -16,16 +16,22 @@ describe('등급 규칙 (실제 템플릿의 문턱 50)', () => {
     expect(computeGrade(policy(), [ch('src/a.ts', 25), ch('lib/b.ts', 25)]).grade).toBe('strong')
   })
 
-  it('세지 않는 것은 문서(*.md)와 .agentdeck/뿐이다 — src/ 밖의 코드도 센다', () => {
-    expect(computeGrade(policy(), [ch('src/a.ts', 10), ch('docs/guide.md', 400), ch('README.md', 300), ch('.agentdeck/run-state.json', 500)]).grade).toBe('weak')
+  it('템플릿이 세지 않는 것은 문서(*.md)뿐이다 — src/ 밖의 코드도 센다', () => {
+    expect(computeGrade(policy(), [ch('src/a.ts', 10), ch('docs/guide.md', 400), ch('README.md', 300)]).grade).toBe('weak')
     expect(computeGrade(policy(), [ch('lib/a.js', 60)]).grade).toBe('strong')
     expect(computeGrade(policy(), [ch('scripts/build.mjs', 50)]).grade).toBe('strong')
+  })
+
+  it('중첩된 .agentdeck/ 폴더는 세지 않는 경로가 아니다 — 루트의 실행기 몫만 실행기 껍질이 뺀다', () => {
+    expect(computeGrade(policy(), [ch('src/.agentdeck/big.ts', 2000), ch('src/index.ts', 1)]).grade).toBe('strong')
+    expect(policy().uncountedPaths).not.toContain('.agentdeck/')
   })
 
   it('시험·설정·CI 경로를 건드리면 줄 수와 관계없이 강이다', () => {
     for (const path of [
       '.github/workflows/ci.yml', 'package.json', 'package-lock.json', 'src/package.json', 'tsconfig.json',
       'tsconfig.build.json', 'vitest.config.ts', 'test/a.ts', 'tests/a.ts', 'src/tests/b.ts', 'src/a.test.ts', 'a.spec.js',
+      'vite.config.ts', 'jest.config.js', 'src/__tests__/a.ts', 'spec/a.ts',
     ]) {
       const r = computeGrade(policy(), [ch(path, 1)])
       expect(r.grade, path).toBe('strong')

@@ -154,8 +154,8 @@ describe('스키마 오류를 경로와 이유로 거부한다', () => {
   it('등급 규칙은 세지 않는 목록과 보호 경로를 쓴다 — 옛 허용 목록 키(appSourcePaths)는 모르는 키다', () => {
     const r = loadTemplate(programDevText())
     if (!r.ok) throw new Error('불러오기 실패')
-    expect(r.template.grading.uncountedPaths).toEqual(['*.md', '.agentdeck/'])
-    expect(r.template.grading.protectedPaths).toEqual(expect.arrayContaining(['.github/', 'package*.json', '**/*.test.*', 'tests/']))
+    expect(r.template.grading.uncountedPaths).toEqual(['*.md'])
+    expect(r.template.grading.protectedPaths).toEqual(expect.arrayContaining(['.github/', 'package*.json', '**/*.test.*', 'tests/', 'vite.config.*', '__tests__/']))
     const errors = errorsOf(variantText((raw) => { (raw.grading as Record<string, unknown>).appSourcePaths = ['src/'] }))
     expect(hasError(errors, '$.grading.appSourcePaths', '모르는 키')).toBe(true)
   })

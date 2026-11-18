@@ -138,6 +138,8 @@ try {
     check('감시 줄에 그 PR의 감시 명령이 있다', (w1.watch[0] ?? '').includes('node 99_Others/Dashboard/wait-merge.mjs 77'), w1.watch[0] ?? '')
     check('감시 줄이 백그라운드 실행을 말한다', (w1.watch[0] ?? '').includes('백그라운드'), w1.watch[0] ?? '')
     check('감시 줄이 GitHub에서 다시 읽고 종결 기록까지만 하라고 말한다', (w1.watch[0] ?? '').includes('다시 읽') && (w1.watch[0] ?? '').includes('다음 goal'), w1.watch[0] ?? '')
+    // M08 G2(헌법 11조 마일스톤 단위): 「다음 goal」만으로는 옛 뜻(goal마다 다음으로)과 새 뜻을 가리지 못한다 — 마일스톤 PR이면 멈추고 다음 마일스톤을 열지 않는다.
+    check('감시 줄이 마일스톤 PR이면 멈추고 다음 마일스톤을 열지 않는다고 말한다', /goal PR이면[^.]*다음 goal/.test(w1.watch[0] ?? '') && /마일스톤 PR이면[^.]*멈춘다/.test(w1.watch[0] ?? '') && (w1.watch[0] ?? '').includes('다음 마일스톤은 열지 않는다'), w1.watch[0] ?? '')
     check('판정 기록에 감시 PR 번호가 남는다', w1.res.added.some(l => l.hook === 'start-brief' && l.mergeWatchPr === 77), JSON.stringify(w1.res.added.at(-1)))
     const w2 = briefWith('G9 현황판 병합 버튼 · 상태: 병합 대기 (PR 75)', 'w2')
     check('「병합 대기 (PR 75)」 꼴도 읽는다', (w2.watch[0] ?? '').includes('wait-merge.mjs 75'), w2.watch.join(' | '))

@@ -233,6 +233,50 @@ async function sshFiles(env: NodeJS.ProcessEnv): Promise<Record<string, string>>
   return out
 }
 
+// ── gh 설정 (G2 4차 검수) ───────────────────────────────────────────────────
+// 실행기 gh는 사용자 gh 설정 폴더를 그대로 쓴다(자격이 hosts.yml·keyring에 있다). config.yml의 http_unix_socket을 심으면 gh가 인증
+// 머리를 평문으로 그 소켓에 보낸다(검수자 실측). 그래서 후보 폴더 모두의 config.yml·hosts.yml을 해시로 대조하고(없으면 'absent'),
+// 열 때 실행기 gh가 실제로 읽을 폴더(gh 순서: GH_CONFIG_DIR → XDG_CONFIG_HOME/gh → Windows %APPDATA%\GitHub CLI → ~/.config/gh)에
+// 빈 값 아닌 http_unix_socket이 있으면 열지 않는다. hosts.yml은 사용자의 gh auth login·refresh로도 바뀐다 — 그때도 멈춘다(겹의 값).
+const GH_FILES = ['config.yml', 'hosts.yml']
+
+function ghDirs(env: NodeJS.ProcessEnv): { active: string | null; all: string[] } {
+  const explicit = lookup(env, 'GH_CONFIG_DIR')
+  const xdg = lookup(env, 'XDG_CONFIG_HOME')
+  const appData = lookup(env, 'APPDATA')
+  const home = lookup(env, 'HOME') ?? lookup(env, 'USERPROFILE')
+  const ordered = [
+    explicit,
+    xdg ? path.join(xdg, 'gh') : undefined,
+    process.platform === 'win32' && appData ? path.join(appData, 'GitHub CLI') : undefined,
+    process.platform !== 'win32' && home ? path.join(home, '.config', 'gh') : undefined,
+  ].filter((d): d is string => !!d).map((d) => path.resolve(d))
+  return { active: ordered[0] ?? null, all: [...new Set(ordered)] }
+}
+
+async function ghFiles(env: NodeJS.ProcessEnv): Promise<Record<string, string>> {
+  const out: Record<string, string> = {}
+  for (const dir of ghDirs(env).all) for (const f of GH_FILES) out[path.join(dir, f)] = await hashFile(path.join(dir, f))
+  return out
+}
+
+// 실행기 gh가 읽을 폴더의 빈 값 아닌 http_unix_socket — `파일: 값` 목록
+async function ghSockets(env: NodeJS.ProcessEnv): Promise<string[]> {
+  const { active } = ghDirs(env)
+  if (active === null) return []
+  const found: string[] = []
+  for (const f of GH_FILES) {
+    let text: string
+    try { text = await fsp.readFile(path.join(active, f), 'utf8') } catch { continue }
+    for (const line of text.split(/\r?\n/)) {
+      const m = /^\s*http_unix_socket\s*:\s*(.*?)\s*(?:#.*)?$/.exec(line)
+      const v = m?.[1].replace(/^(['"])(.*)\1$/, '$2').trim()
+      if (v) found.push(`${path.join(active, f)}: ${v}`)
+    }
+  }
+  return found
+}
+
 async function take(opts: ConfigGuardOptions, run: Run): Promise<Snapshot> {
   const all = await run(['config', '--list', '--show-origin', '--includes', '-z'])
   if (all.code !== 0) throw new Error(`git 설정을 읽지 못했다 — ${all.stderr.trim() || `exit ${all.code}`}`)
@@ -243,7 +287,7 @@ async function take(opts: ConfigGuardOptions, run: Run): Promise<Snapshot> {
     : []
   const files: Record<string, string> = {}
   for (const f of new Set([...globalCandidates(opts.env), ...origins].map((p) => path.resolve(opts.cwd, p)))) files[f] = await hashFile(f)
-  Object.assign(files, await sshFiles(opts.env))
+  Object.assign(files, await sshFiles(opts.env), await ghFiles(opts.env))
   return { entries, files }
 }
 
@@ -356,6 +400,13 @@ export async function createConfigGuard(opts: ConfigGuardOptions): Promise<Confi
     return {
       ok: false,
       reason: `실행기 git이 명령으로 돌릴 수 있는 키가 작업 저장소의 로컬 설정(include 포함)에 있다 — ${list(danger)}. 사람이 확인하고 그 키를 지운 뒤 다시 연다`,
+    }
+  }
+  const sockets = await ghSockets(opts.env)
+  if (sockets.length > 0) {
+    return {
+      ok: false,
+      reason: `실행기 gh가 읽을 설정에 http_unix_socket이 있다 — ${list(sockets)}. gh가 인증 머리를 그 소켓에 보낸다. 사람이 확인하고 그 키를 지운 뒤 다시 연다`,
     }
   }
   const grafts = await graftFiles(run, opts)

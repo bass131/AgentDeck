@@ -20,6 +20,9 @@
 //      남긴다. `env -C`·`env --chdir`·`sudo -D`는 그 뒤 명령의 위치로 판정한다(cd와 같은 보호 폴더 거부). eval의 인자는 다시 판독하고
 //      안쪽 cd를 밖으로 내며(판독 못 한 글이면 「모름」을 더한다), source·`.` 뒤는 「모름」이다. CDPATH를 정하는 꼴은 거부한다.
 //      env·sudo 옵션은 getopt처럼 읽고(묶은 짧은 옵션·줄인 긴 옵션), env -S의 문자열은 명령으로 다시 판독한다.
+//      G2 4차 검수 — trap 몸통은 모르는 위치에서 다시 판독하고, 위치를 바꾸거나(cd 류) 모르는 스크립트를 부르는(eval·source·`.`)
+//      몸통은 거부한다. trap 뒤 위치에는 「모름」을 더한다. BASH_ENV·ENV를 셸에 남기는 꼴은 거부하고, 명령 앞 할당이면 그 셸 -c의
+//      시작 위치를 「모름」으로 본다.
 //      앞에서 폴더를 바꿀 수 있는 명령(읽기 목록 밖 전부 — rm·mv·Remove-Item·git checkout·npm run …)이 돌았으면 뒤의 cd는 실패할 수
 //      있다고 본다(`&&` 바로 뒤의 명령은 cd가 됐을 때만 돈다).
 //   ⑧ 교체 객체 (G2 재검수 차단 A) — git replace, fast-import, update-ref --stdin, refs/replace를 건드리는 ref 쓰기, 맨 위를 덮는
@@ -34,7 +37,9 @@
 //   - 셸 함수·별칭 — 정의한 몸통의 cd는 「돌지 않을 수 있다」로만 보고, 부르는 자리(`f`)가 무엇을 하는지는 모른다. 별칭은 펼치지 않는다.
 //   - 위치를 따라가지 못하는 명령 — `git -C 폴더`(그 안의 상대 경로), make -C·npm --prefix·pnpm -C 같은 도구별 위치 옵션,
 //     xargs·find -exec로 넘긴 cd, PowerShell 함수·스크립트 블록 안의 Set-Location.
-//   - 명령 낱말 간접 참조 — `c=cd; $c .git && …`, `"c""d" .git`처럼 명령 이름을 변수·조각으로 만든 꼴은 cd로 보지 않는다.
+//   - 셸 옵션·훅 변수 — `shopt -s cdable_vars`(폴더가 아니면 같은 이름 변수로 cd), PROMPT_COMMAND, 다른 신호의 trap이 나중에 도는
+//     시점(몸통은 판독하지만 언제 도는지는 모른다), BASH_ENV 파일 자체의 내용.
+//   - 명령 낱말 간접 참조 —`c=cd; $c .git && …`, `"c""d" .git`처럼 명령 이름을 변수·조각으로 만든 꼴은 cd로 보지 않는다.
 //   - 판정과 실행 사이의 틈 — 앞에 아무 명령 없는 cd는 판정 때의 폴더를 믿는다(그 사이 다른 프로세스가 지우면 틀린다).
 //   - 경로 변수 — PWD·TEMP·TMP·TMPDIR를 혼자 선 할당·export류·$env:로 다시 정하는 꼴은 거부한다. 홈·APPDATA 재지정은 판정이 실제
 //     값(저장소 밖)으로 펼쳐 거부 쪽으로 틀어진다. 명령 앞 할당은 그 명령 환경만 바꾼다.
@@ -746,9 +751,14 @@ function wrapperOpts(b: string, args: string[]): WrapperOpts | null {
 // 판정이 펼치는 경로 변수 가운데 셸에서 다시 정하면 판정이 틀어지는 것 — PWD(따라간 위치로 펼친다)와 임시 폴더(쓰기를 허용한다).
 // 홈·APPDATA는 다시 정해도 판정이 실제 값(저장소 밖)으로 펼쳐 거부 쪽으로 틀어진다. 명령 앞 할당(`TMPDIR=x npm test`)은 그 명령의
 // 환경만 바꾸고 같은 줄의 펼치기는 옛 값이라 막지 않는다. 혼자 선 할당·export류·PowerShell $env: 할당만 거부한다.
-const PATH_VARS = /^(?:PWD|TEMP|TMP|TMPDIR)$/i
-const PS_PATH_VAR_SET = /\$env:(?:PWD|TEMP|TMP|TMPDIR)\s*[+]?=|SetEnvironmentVariable\s*\(\s*['"](?:TEMP|TMP|TMPDIR)['"]/i
-const VAR_SET = '판정이 쓰는 경로 변수(PWD·TEMP·TMP·TMPDIR)를 셸에서 다시 정하는 꼴은 작업 노드 세션에서 막습니다 — 쓰기 대상이 어디인지 판독할 수 없게 됩니다.' + TAIL
+// BASH_ENV·ENV(G2 4차 검수)는 비대화형 셸이 시작할 때 읽어 돌리는 파일이다 — 셸에 남기면 뒤의 모든 `bash -c`가 모르는 스크립트를 먼저 돈다.
+// 명령 앞 할당은 그 셸의 시작 위치를 「모름」으로 본다(마디 걷기).
+const PATH_VARS = /^(?:PWD|TEMP|TMP|TMPDIR|BASH_ENV|ENV)$/i
+// trap 몸통 안의 위치 바꾸기·모르는 스크립트 — 셸에 남아 뒤의 명령(다음 호출 포함)마다 돌므로 따라갈 수 없다
+const TRAP_MOVES = /(?:^|[\s;&|(`])(?:cd|pushd|popd|chdir|set-location|sl|push-location|pop-location|eval|source|\.)(?=$|[\s;&|)])/i
+const STARTUP_ASSIGN = /^(?:BASH_ENV|ENV)=/
+const PS_PATH_VAR_SET = /\$env:(?:PWD|TEMP|TMP|TMPDIR|BASH_ENV|ENV)\s*[+]?=|SetEnvironmentVariable\s*\(\s*['"](?:TEMP|TMP|TMPDIR|BASH_ENV|ENV)['"]/i
+const VAR_SET = '판정이 쓰는 경로 변수(PWD·TEMP·TMP·TMPDIR)나 셸 시작 파일(BASH_ENV·ENV)을 셸에서 다시 정하는 꼴은 작업 노드 세션에서 막습니다 — 쓰기 대상과 셸 위치를 판독할 수 없게 됩니다.' + TAIL
 
 function pathVarReason(tokens: string[], cmds: Cmd[]): string | null {
   if (tokens.length > 0 && tokens.every((t) => assignName(t) !== null) && tokens.some((t) => PATH_VARS.test(assignName(t) ?? ''))) return VAR_SET
@@ -881,10 +891,24 @@ function scriptReason(script: string, r: Resolved, depth: number, start: Cwd, mu
         pieceMutates = true
         break
       }
+      // trap 몸통은 신호 때마다(DEBUG면 명령마다) 돌고 셸에 남는다 — 모르는 위치에서 판독하고, 위치를 바꾸는 몸통은 거부한다(G2 4차 검수)
+      if (b === 'trap' && shellPos) {
+        const body = c.args[0]
+        if (body !== undefined && body !== '-' && !body.startsWith('-')) {
+          if (TRAP_MOVES.test(body)) return deny(CWD)
+          const inner = scriptReason(body, r, depth + 1, union(cmdCwd, [UNKNOWN]), true)
+          if (inner.reason) return deny(inner.reason)
+          evalEnd = union(cmdCwd, [UNKNOWN])
+          pieceMutates = true
+        }
+        continue
+      }
       if (SHELLS.has(c.base)) {
         const k = c.args.findIndex((t) => RE_SHELL_C.test(t))
         if (k >= 0 && k + 1 < c.args.length) {
-          const inner = scriptReason(c.args[k + 1], r, depth + 1, cmdCwd, mutated)
+          // BASH_ENV·ENV 앞 할당이면 셸이 그 파일을 먼저 돈다 — 시작 위치를 「모름」으로 본다
+          const start = tokens.some((t) => STARTUP_ASSIGN.test(t)) ? union(cmdCwd, [UNKNOWN]) : cmdCwd
+          const inner = scriptReason(c.args[k + 1], r, depth + 1, start, mutated)
           if (inner.reason) return deny(inner.reason)
           pieceMutates ||= inner.mutated
         } else pieceMutates = true

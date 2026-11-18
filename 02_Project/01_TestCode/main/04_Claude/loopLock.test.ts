@@ -417,6 +417,22 @@ const DENY_CWD = [
   'env --split-string="git push"',
   'env --sp "git push origin x"',
   'env -C src -S "rm -rf .."',
+  // G2 4차 검수 사소 — trap 몸통과 BASH_ENV·ENV(셸이 시작할 때 읽는 파일)
+  "trap 'builtin cd ~/.claude' DEBUG; echo {} > settings.json",
+  "trap 'cd src' DEBUG; echo x > a",
+  "trap 'git push' EXIT",
+  // 몸통이 위치를 바꾸면(셸에 남아 명령마다 돈다) 거부한다
+  "trap 'cd ..' DEBUG",
+  "trap 'builtin cd src' DEBUG",
+  'trap \'eval "$X"\' DEBUG',
+  "trap '. ./go.sh' DEBUG",
+  'BASH_ENV=./go.sh bash -c "echo {} > settings.json"',
+  'ENV=./go.sh sh -c "touch a"',
+  'env BASH_ENV=./go.sh bash -c "touch a"',
+  'export BASH_ENV=./go.sh',
+  'BASH_ENV=./go.sh',
+  '$env:BASH_ENV = "./go.sh"',
+  'declare -x ENV=./go.sh',
 ]
 
 // G2 재검수 차단 A — 교체 객체(refs/replace)는 실행기 병합의 트리를 바꿔치기한다
@@ -524,6 +540,11 @@ describe('loop-lock 셸 위치 (M09 G2 재검수 중요 C)', () => {
     expect(loopCommandReason('HOME=/tmp/h npm test', withSrc)).toBeNull()
     expect(loopCommandReason('env -S "npm test"', withSrc)).toBeNull()
     expect(loopCommandReason('env -C src -S "npm test"', withSrc)).toBeNull()
+    // trap 몸통·BASH_ENV가 있어도 쓰기가 없거나 절대 경로가 저장소 안이면 지나간다
+    expect(loopCommandReason("trap 'rm -f C:/work/repo/tmp.txt' EXIT; npm test", withSrc)).toBeNull()
+    expect(loopCommandReason('trap - EXIT', withSrc)).toBeNull()
+    expect(loopCommandReason('trap -p', withSrc)).toBeNull()
+    expect(loopCommandReason('BASH_ENV=./go.sh bash -c "npm test"', withSrc)).toBeNull()
   })
 
   // 래퍼(env·sudo·nohup …) 뒤의 cd는 바깥 프로그램이라 셸 위치를 바꾸지 않는다

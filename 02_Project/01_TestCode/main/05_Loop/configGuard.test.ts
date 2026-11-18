@@ -269,6 +269,62 @@ describe('실행기 git 설정 대조', () => {
     })
   })
 
+  // G2 4차 검수 — 실행기 gh는 사용자 gh 설정 폴더를 그대로 쓴다. config.yml의 http_unix_socket이면 gh가 인증 머리를 평문으로
+  // 그 소켓에 보낸다(검수자 실측). 그 폴더의 config.yml·hosts.yml을 해시로 대조하고, 열 때 소켓이 정해져 있으면 거부한다.
+  describe('gh 설정 대조', () => {
+    let ghDir: string
+    let env: NodeJS.ProcessEnv
+    beforeEach(() => {
+      ghDir = path.join(repos.root, 'gh-config')
+      fs.mkdirSync(ghDir, { recursive: true })
+      env = { ...repos.env, GH_CONFIG_DIR: ghDir }
+    })
+
+    it('열린 뒤 config.yml에 http_unix_socket을 심으면 멈추고, hosts.yml이 바뀌어도 멈춘다', async () => {
+      const r = await createConfigGuard({ cwd: repos.work, env, snapshotFile, hooksPath })
+      if (!r.ok) throw new Error(r.reason)
+      const snap = JSON.parse(fs.readFileSync(snapshotFile, 'utf8')) as { files: Record<string, string> }
+      expect(snap.files[path.resolve(ghDir, 'config.yml')]).toBe('absent')
+      expect(snap.files[path.resolve(ghDir, 'hosts.yml')]).toBe('absent')
+      expect(await r.guard.check()).toBeNull()
+      fs.writeFileSync(path.join(ghDir, 'config.yml'), 'http_unix_socket: /tmp/evil.sock\n')
+      expect(await r.guard.check()).toContain('config.yml')
+      const r2 = await createConfigGuard({ cwd: repos.work, env, snapshotFile: `${snapshotFile}.2`, hooksPath })
+      expect(r2.ok).toBe(false)
+      fs.rmSync(path.join(ghDir, 'config.yml'))
+      const r3 = await createConfigGuard({ cwd: repos.work, env, snapshotFile: `${snapshotFile}.3`, hooksPath })
+      if (!r3.ok) throw new Error(r3.reason)
+      fs.writeFileSync(path.join(ghDir, 'hosts.yml'), 'github.com:\n  user: x\n')
+      expect(await r3.guard.check()).toContain('hosts.yml')
+    })
+
+    it('열 때 실행기 gh가 읽을 config.yml에 http_unix_socket이 있으면 열지 않는다 — 빈 값은 연다', async () => {
+      fs.writeFileSync(path.join(ghDir, 'config.yml'), 'git_protocol: https\nhttp_unix_socket: "/tmp/evil.sock"\n')
+      const refused = await createConfigGuard({ cwd: repos.work, env, snapshotFile, hooksPath })
+      expect(refused.ok).toBe(false)
+      expect(!refused.ok && refused.reason).toContain('http_unix_socket')
+      expect(fs.existsSync(snapshotFile)).toBe(false)
+      fs.writeFileSync(path.join(ghDir, 'config.yml'), 'git_protocol: https\nhttp_unix_socket: ""\n')
+      expect((await createConfigGuard({ cwd: repos.work, env, snapshotFile, hooksPath })).ok).toBe(true)
+    })
+
+    it('GH_CONFIG_DIR가 없으면 XDG_CONFIG_HOME/gh, Windows는 %APPDATA%\\GitHub CLI를 본다', async () => {
+      const xdg = path.join(repos.root, 'xdg')
+      fs.mkdirSync(path.join(xdg, 'gh'), { recursive: true })
+      fs.writeFileSync(path.join(xdg, 'gh', 'config.yml'), 'http_unix_socket: /tmp/evil.sock\n')
+      const noDir: NodeJS.ProcessEnv = { ...repos.env, XDG_CONFIG_HOME: xdg, APPDATA: path.join(repos.root, 'appdata') }
+      delete noDir.GH_CONFIG_DIR
+      const r = await createConfigGuard({ cwd: repos.work, env: noDir, snapshotFile, hooksPath })
+      expect(r.ok).toBe(false)
+      fs.rmSync(path.join(xdg, 'gh', 'config.yml'))
+      const ok = await createConfigGuard({ cwd: repos.work, env: noDir, snapshotFile, hooksPath })
+      if (!ok.ok) throw new Error(ok.reason)
+      const snap = JSON.parse(fs.readFileSync(snapshotFile, 'utf8')) as { files: Record<string, string> }
+      expect(Object.keys(snap.files)).toContain(path.resolve(xdg, 'gh', 'hosts.yml'))
+      if (process.platform === 'win32') expect(Object.keys(snap.files)).toContain(path.resolve(repos.root, 'appdata', 'GitHub CLI', 'config.yml'))
+    })
+  })
+
   // G2 3차 검수 사소 — .git/info/grafts는 GIT_NO_REPLACE_OBJECTS로 꺼지지 않는다(실측). 있으면 열지 않고, 열린 뒤 생기면 멈춘다.
   it('grafts 파일이 있으면 열지 않고, 열린 뒤 생기면 실행기 git을 돌리지 않는다', async () => {
     const grafts = path.join(repos.work, '.git', 'info', 'grafts')

@@ -803,14 +803,17 @@ function decReconcile(prev) {
    펼친 기록은 메모리에만 둔다(PR·머리 SHA·경로 — chime.js fileKey). 접기 상태 저장(fold·data-id·localStorage)을 타지 않는다.
    「병합」은 서버에 PR 번호와 보인 머리 SHA만 보낸다. 서버가 띄우는 Windows 확인 창에서 사람이 「병합」을 눌러야 병합이 나간다.
    카드는 자기 영역(#merge)에만, 내용이 바뀔 때만 칠한다(cardKey). 「지금」의 초 단위 다시 칠하기가 펼친 diff를 접지 않게 하려는 것이다 */
-const mg = { pr: null, view: null, loading: false, error: null, running: false, spent: false, result: null, opened: new Set(), expanded: new Set(), autoFor: null, manual: false, cardKey: null, seq: 0 };
+/* 열린 PR 목록(M07 G11)은 카드 위에 있다. 요약만 보이고, 항목을 누르면 번호 칸과 같은 길(loadMerge)로 카드가 그 PR을 읽는다.
+   목록은 처음 그릴 때, 「목록 새로 읽기」, 병합 결과 뒤에만 읽는다(스냅샷마다 gh를 부르지 않는다). 목록의 SHA는 보이기만 하고 병합에 쓰지 않는다 */
+const mg = { pr: null, view: null, loading: false, error: null, running: false, spent: false, result: null, opened: new Set(), expanded: new Set(), autoFor: null, manual: false, cardKey: null, seq: 0,
+  list: null, listSeq: 0, listAsked: false, listLoading: false };
 const MERGE_SKELETON = `<header class="decide-head merge-head"><h2 class="q-k" id="merge-h">병합</h2><div class="area-sum" id="merge-sum"></div>
-  <label class="mg-load"><span>다른 PR</span><input type="text" inputmode="numeric" maxlength="10" placeholder="번호" data-merge-num autocomplete="off"><button type="button" class="ghost" data-merge-load>불러오기</button></label></header>
-  <div id="merge-card"></div><div class="mg-act" id="merge-act" aria-live="polite"></div>`;
+  <label class="mg-load"><span>목록에 없는 PR</span><input type="text" inputmode="numeric" maxlength="10" placeholder="번호" data-merge-num autocomplete="off"><button type="button" class="ghost" data-merge-load>불러오기</button></label></header>
+  <div class="mg-list-box" id="merge-list"></div><div id="merge-card"></div><div class="mg-act" id="merge-act" aria-live="polite"></div>`;
 function mergeBox() {
   let el = $('#merge');
   if (!el) { el = document.createElement('section'); el.className = 'merge'; el.id = 'merge'; el.setAttribute('aria-labelledby', 'merge-h'); ($('#decide') || $('#now')).after(el); }
-  if (!el.querySelector('#merge-card')) el.innerHTML = MERGE_SKELETON;
+  if (!el.querySelector('#merge-card') || !el.querySelector('#merge-list')) el.innerHTML = MERGE_SKELETON;
   return el;
 }
 async function postMerge(kind, body) {
@@ -861,8 +864,13 @@ function renderMerge() {
   const want = MRG.pendingPr(SUM().hand);
   if (want !== mg.autoFor) { mg.autoFor = want; if (want && !mg.manual && !mg.running && mg.pr !== want) void loadMerge(want, false); }
   box.classList.toggle('is-empty', !mg.view && !mg.loading && !mg.error && !mg.result);
+  /* 목록은 처음 그릴 때 한 번 읽는다. 그 뒤는 「목록 새로 읽기」와 병합 결과 뒤에만 */
+  if (!mg.listAsked) { mg.listAsked = true; void loadPrList(); }
+  /* 병합 대기 PR이 목록에 없으면(목록을 읽은 뒤 새 PR이 생김) 그 번호에 한 번 다시 읽는다(PR 79 검수 중요 1) */
+  else if (want && mg.list?.ok && !mg.list.items.some(i => i.number === want) && mg.listMissFor !== want && !mg.listLoading) { mg.listMissFor = want; void loadPrList(); }
+  renderPrList();
   paint($('#merge-sum'), mg.view ? `<span>PR ${esc(mg.view.number)} · ${mg.view.canMerge ? '병합 조건을 채웠어요' : '병합 조건을 채우지 못했어요'}</span>`
-    : `<span>${want ? `병합 대기 PR ${esc(want)}` : '병합을 기다리는 PR이 없어요. 번호로 다른 PR을 불러올 수 있어요'}</span>`);
+    : `<span>${want ? `병합 대기 PR ${esc(want)}` : '병합을 기다리는 PR이 없어요. 목록에서 고르거나 번호로 불러올 수 있어요'}</span>`);
   const v = mg.view, key = JSON.stringify([mg.pr, v, mg.loading, mg.error, v ? v.mustSee.filter(m => mg.opened.has(mergeKey(v, m.path))).map(m => m.path) : []]);
   if (key !== mg.cardKey) { paint($('#merge-card'), mergeCard()); mg.cardKey = key; }
   paint($('#merge-act'), mergeAction());
@@ -877,7 +885,12 @@ async function loadMerge(n, manual) {
   if (seq !== mg.seq) return;
   mg.loading = false;
   /* 읽기에 실패하면 옛 카드를 남기지 않는다(옛 머리 SHA로 단추가 켜져 있지 않게) */
-  if (r?.ok && r.pr && Array.isArray(r.pr.mustSee)) { mg.view = r.pr; mg.spent = false; }
+  if (r?.ok && r.pr && Array.isArray(r.pr.mustSee)) {
+    mg.view = r.pr; mg.spent = false;
+    /* 목록 행의 SHA가 카드와 다르면(그 사이 push) 목록이 낡은 것이다 — 다시 읽어 나란히 다른 값이 보이지 않게 한다(PR 79 검수 사소 4) */
+    const row = mg.list?.ok ? mg.list.items.find(i => i.number === r.pr.number) : null;
+    if (row && row.sha !== r.pr.headSha && !mg.listLoading) void loadPrList();
+  }
   else { mg.view = null; mg.error = r?.reason || 'PR을 읽지 못했어요.'; }
   renderMerge();
 }
@@ -885,6 +898,47 @@ function loadFromInput() {
   const n = MRG.parsePrInput($('[data-merge-num]')?.value);
   if (!n) { toast('PR 번호를 숫자로 넣어 주세요.'); return; }
   if (!mg.running) void loadMerge(n, true);
+}
+/* 목록 항목: 번호 칸과 같은 길로 부른다. 확인 창이 떠 있는 동안(running)은 카드를 바꾸지 않는다 */
+function pickFromList(btn) {
+  const n = MRG.parsePrInput(btn?.dataset.mergePick);
+  if (!n) return;
+  if (mg.running) { toast('확인 창을 먼저 닫아 주세요.'); return; }
+  void loadMerge(n, true);
+}
+async function loadPrList() {
+  const seq = ++mg.listSeq;
+  mg.listLoading = true;
+  renderPrList();
+  let r;
+  try { r = await postMerge('list', {}); } catch { r = { ok: false, reason: '서버에 닿지 못했어요. 연결을 확인해 주세요.' }; }
+  if (seq !== mg.listSeq) return;
+  mg.listLoading = false;
+  mg.list = r?.ok && Array.isArray(r.items) ? { ok: true, items: r.items, more: r.more === true, dropped: Number(r.dropped) || 0 }
+    : { ok: false, reason: r?.reason || '열린 PR 목록을 읽지 못했어요.' };
+  renderPrList();
+}
+/* 고른 항목은 카드에 연 PR에서 정한다(chime.js pickedPr). paint는 innerHTML을 바꾸므로, 목록의 스크롤 자리와 누른 단추의 초점을 되살린다 */
+function renderPrList() {
+  const box = $('#merge-list');
+  if (!box) return;
+  const L = mg.list, ok = !!L?.ok, n = ok ? L.items.length : 0;
+  const say = mg.listLoading ? '읽는 중…' : !ok || !n ? '' : n > MRG.LIST_SCROLL_AFTER ? '목록 안에서 스크롤해요 · 고르면 아래 카드가 그 PR을 읽어요' : '고르면 아래 카드가 그 PR을 읽어요';
+  const head = `<div class="mg-list-head"><h3 class="sub-h">열린 PR${ok ? ` ${esc(n)}개${L.more ? ' 넘게' : ''}` : ''} <span>${esc(say)}</span></h3><button type="button" class="ghost" data-merge-list-reload${mg.listLoading ? ' disabled' : ''}>목록 새로 읽기</button></div>`;
+  let body = '';
+  if (ok) {
+    body = MRG.prListHtml(L.items, { esc, picked: MRG.pickedPr(L.items, mg.pr, MRG.pendingPr(SUM().hand)) });
+    if (L.more) body += `<p class="send-note">열린 PR이 50개보다 많아요. 50개까지만 보여요 — 나머지는 번호로 불러오세요.</p>`;
+    if (L.dropped) body += `<p class="send-note">꼴이 맞지 않는 PR ${esc(L.dropped)}개는 목록에서 뺐어요.</p>`;
+  } else if (L) body = `<p class="send-refusal">${G.note}<span>${esc(L.reason)} 번호로는 그대로 불러올 수 있어요.</span></p>`;
+  else if (mg.listLoading) body = '<p class="send-hint">열린 PR 목록을 읽는 중이에요…</p>';
+  const ul = box.querySelector('.mg-list'), top = ul ? ul.scrollTop : 0;
+  const f = document.activeElement && box.contains(document.activeElement) ? document.activeElement : null;
+  const fSel = f?.dataset?.mergePick ? `[data-merge-pick="${f.dataset.mergePick}"]` : f?.matches?.('[data-merge-list-reload]') ? '[data-merge-list-reload]' : null;
+  if (!paint(box, head + body)) return;
+  const nu = box.querySelector('.mg-list');
+  if (nu) nu.scrollTop = top;
+  if (fSel) box.querySelector(fSel)?.focus({ preventScroll: true });
 }
 /* 펼친 기록: patch가 있는 파일은 접힘을 펼칠 때, patch가 없는 파일은 GitHub diff 링크를 누를 때 본 것으로 친다 */
 function markOpened(path) {
@@ -907,6 +961,8 @@ async function runMerge() {
   try { r = await postMerge('run', { pr: v.number, sha: v.headSha }); } catch { r = { ok: false, status: 'unknown', message: '서버에 닿지 못했어요. 결과를 모르니 다시 읽기로 확인해 주세요.' }; }
   mg.running = false; mg.spent = true; mg.result = r;
   renderMerge();
+  /* 병합 결과 뒤에는 목록을 다시 읽는다(병합된 PR이 목록에서 빠진다) */
+  void loadPrList();
 }
 
 /* ---------- 그리기와 시계 ---------- */
@@ -1036,6 +1092,9 @@ document.addEventListener('click', e => {
   /* 병합 카드: 불러오기·다시 읽기·병합. GitHub diff 링크는 기본 동작(새 탭)을 막지 않고 본 것으로만 친다 */
   if (MRG) {
     if (e.target.closest('[data-merge-load]')) { loadFromInput(); return; }
+    const pick = e.target.closest('[data-merge-pick]');
+    if (pick) { pickFromList(pick); return; }
+    if (e.target.closest('[data-merge-list-reload]')) { if (!mg.listLoading) void loadPrList(); return; }
     if (e.target.closest('[data-merge-reload]')) { if (mg.pr && !mg.running) void loadMerge(mg.pr, mg.manual); return; }
     if (e.target.closest('[data-merge-run]')) { void runMerge(); return; }
     const ml = e.target.closest('[data-merge-link]');

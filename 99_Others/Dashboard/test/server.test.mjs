@@ -19,9 +19,9 @@ async function appFor(t, options = {}) {
   return Object.assign(app, { calls });
 }
 
-// POST를 받는 곳은 결정 응답 두 경로(POST /api/answer/preview·send, M05 H7)와 병합 두 경로(POST /api/merge/read·run, M07 G9) 넷뿐이다.
-// 그 밖의 POST는 그대로 405이고, 네 경로도 토큰 없는 요청은 403이다. 자세한 검사는 test/answer.test.mjs와 test/merge-server.test.mjs에 있다.
-test('page, header, loopback bind, bootstrap snapshot and methods: only the two answer paths and the two merge paths take POST', async t => {
+// POST를 받는 곳은 결정 응답 두 경로(POST /api/answer/preview·send, M05 H7)와 병합 세 경로(POST /api/merge/list·read·run, M07 G9·G11) 다섯뿐이다.
+// 그 밖의 POST는 그대로 405이고, 다섯 경로도 토큰 없는 요청은 403이다. 자세한 검사는 test/answer.test.mjs와 test/merge-server.test.mjs에 있다.
+test('page, header, loopback bind, bootstrap snapshot and methods: only the two answer paths and the three merge paths take POST', async t => {
   const app = await appFor(t, { watchFn: fakeWatch().fn });
   assert.equal(app.server.address().address, '127.0.0.1');
   const response = await fetch(app.origin);
@@ -32,7 +32,7 @@ test('page, header, loopback bind, bootstrap snapshot and methods: only the two 
   assert.equal((await fetch(app.origin + '/', { method: 'POST', body: '{}' })).status, 405);
   assert.equal((await fetch(app.origin + '/api/decisions/answers', { method: 'POST', body: '{}' })).status, 405);
   assert.equal((await fetch(app.origin + '/api/merge', { method: 'POST', body: '{}' })).status, 405);
-  for (const p of ['/api/answer/preview', '/api/answer/send', '/api/merge/read', '/api/merge/run']) {
+  for (const p of ['/api/answer/preview', '/api/answer/send', '/api/merge/list', '/api/merge/read', '/api/merge/run']) {
     assert.equal((await fetch(app.origin + p, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' })).status, 403, `${p}는 토큰 없이 403`);
     assert.equal((await fetch(app.origin + p)).status, 405, `${p}의 GET은 405`);
   }

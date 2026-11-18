@@ -15,8 +15,8 @@ export const HEADER = 'X-AgentDeck-Dashboard';
 export const TOKEN_HEADER = 'x-dashboard-token';
 export const BODY_MAX = 64 * 1024;
 export const ANSWER_PATHS = Object.freeze({ '/api/answer/preview': false, '/api/answer/send': true });
-// 병합 두 경로(M07 G9, docs/병합.md): PR 읽기와 확인 창 → 병합. 토큰·출처 검사는 결정 응답과 같고, 사람 증명은 확인 창이다.
-export const MERGE_PATHS = Object.freeze({ '/api/merge/read': 'read', '/api/merge/run': 'run' });
+// 병합 세 경로(docs/병합.md): 열린 PR 목록(M07 G11, 읽기 전용), PR 읽기와 확인 창 → 병합(M07 G9). 토큰·출처 검사는 결정 응답과 같고, 사람 증명은 확인 창이다.
+export const MERGE_PATHS = Object.freeze({ '/api/merge/list': 'list', '/api/merge/read': 'read', '/api/merge/run': 'run' });
 const isPr = n => Number.isSafeInteger(n) && n > 0 && n <= 1e9;
 // 이 서버가 앞에 문장을 넣은 뒤 다른 문장을 넣을 때 앞에 붙이는 고정 글. 입력창에 앞 문장이 남아 있어도 두 문장이 붙지 않고,
 // 메인이 마지막 문장을 답으로 읽게 한다(docs/결정-응답.md 「문장」).
@@ -29,8 +29,9 @@ const types = { '/app.js': 'text/javascript; charset=utf-8', '/chime.js': 'text/
   '/fonts/PretendardVariable.woff2': 'font/woff2' };
 
 // 현황판 서버. 저장소에 쓰는 API와 임의 파일 열기 API는 없다.
-// POST를 받는 곳은 넷뿐이다. 결정 응답 두 경로(POST /api/answer/preview·send)는 메인 입력창에 문장을 넣기만 하고(M05 H7, docs/결정-응답.md),
-// 병합 두 경로(POST /api/merge/read·run)는 PR을 읽고, 사람 확인 창에서 「병합」을 받은 뒤에만 GitHub 병합 API를 부른다(M07 G9, docs/병합.md).
+// POST를 받는 곳은 다섯뿐이다. 결정 응답 두 경로(POST /api/answer/preview·send)는 메인 입력창에 문장을 넣기만 하고(M05 H7, docs/결정-응답.md),
+// 병합 세 경로(POST /api/merge/list·read·run)는 열린 PR 목록과 PR을 읽고, 사람 확인 창에서 「병합」을 받은 뒤에만 GitHub 병합 API를 부른다
+// (M07 G9·G11, docs/병합.md). 목록 경로는 읽기만 하고 병합 길(보인 SHA 기억)을 건드리지 않는다.
 // 주입 지점은 함수 인자뿐이다(환경변수·설정 스위치 없음). `type`은 넣는 함수, `prService`는 병합 모듈, `confirm`은 확인 창,
 // `confirmTimeoutMs`는 확인 창 시간 초과, `mergeFn`은 확인 뒤 보내는 함수(없으면 prService.sendMerge)다. 시험과 실측 서버는 가짜를 넘긴다.
 export async function createDashboard(config, { collectFn = collect, watchFn, debounceMs, maxWaitMs, pollMs, pingMs = 15000, now = () => new Date(), type = typeIntoTerminal,
@@ -159,6 +160,12 @@ export async function createDashboard(config, { collectFn = collect, watchFn, de
     if (!authorized(request)) return json(response, 403, { ok: false, reason: '현황판 토큰이나 요청 출처를 확인하지 못했어요. 화면을 새로고침해 주세요.' });
     let body;
     try { body = await readBody(request); } catch (e) { if (e instanceof AnswerError) return json(response, e.status ?? 400, { ok: false, reason: e.message }); throw e; }
+    // 목록: 본문의 칸은 보지 않는다. 병합 중(merging)이어도 막지 않는다 — 읽기만 하고 병합 길에 들어가지 않는다.
+    if (kind === 'list') {
+      let r;
+      try { r = typeof prService.listPrs === 'function' ? await prService.listPrs(config.repoPath) : null; } catch { r = null; }
+      return json(response, 200, r?.ok ? { ok: true, repo: r.repo, items: r.items, more: !!r.more, dropped: r.dropped ?? 0 } : { ok: false, reason: r?.reason || '열린 PR 목록을 읽지 못했어요.' });
+    }
     const pr = body?.pr;
     if (!isPr(pr)) return json(response, 400, { ok: false, reason: 'PR 번호는 양의 정수여야 해요.' });
     if (kind === 'read') {
@@ -195,7 +202,7 @@ export async function createDashboard(config, { collectFn = collect, watchFn, de
         if (request.method !== 'POST') { response.setHeader('Allow', 'POST'); return json(response, 405, { ok: false, reason: '병합 요청은 POST로만 받아요.' }); }
         return await merge(request, response, MERGE_PATHS[url.pathname]);
       }
-      if (request.method !== 'GET' && request.method !== 'HEAD') return json(response, 405, { ok: false, reason: '이 현황판은 결정 응답 두 경로와 병합 두 경로 밖에서는 GET만 받아요.' });
+      if (request.method !== 'GET' && request.method !== 'HEAD') return json(response, 405, { ok: false, reason: '이 현황판은 결정 응답 두 경로와 병합 세 경로 밖에서는 GET만 받아요.' });
       if (url.pathname === '/') {
         response.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; connect-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; frame-ancestors 'none'");
         response.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });

@@ -568,6 +568,25 @@ details[open] > summary .chev{transform:rotate(45deg)}
 .mg-act{margin-top:var(--sp-3)}
 .mg-act .send-actions{margin-top:0}
 .mg-act [disabled]{opacity:.45; cursor:not-allowed; transform:none}
+/* 열린 PR 목록 (G11): 카드 위. 항목 높이(--mg-row)를 고정해 항목 3개 높이가 정확하고, 넘으면 목록 안에서만 세로 스크롤한다.
+   안쪽 여백 3px은 초점 테두리가 스크롤 상자에 잘리지 않게 하려는 것이다. 고른 항목은 결정 카드의 고른 선택지와 같은 노랑 테두리다 */
+.mg-list-box{--mg-row:60px; margin-top:var(--sp-3)}
+.mg-list-box:empty{display:none}
+.mg-list-head{display:flex; align-items:center; flex-wrap:wrap; gap:var(--sp-2) var(--sp-3)}
+.mg-list-head .sub-h{flex:1 1 auto; margin:0}
+.mg-list-head [disabled]{opacity:.45; cursor:not-allowed}
+.mg-list{display:grid; grid-template-columns:minmax(0,1fr); gap:6px; margin-top:var(--sp-2); padding:3px}
+.mg-list.is-scroll{max-height:calc(var(--mg-row) * 3 + 18px); overflow-y:auto; overscroll-behavior:contain; scrollbar-gutter:stable}
+.mg-list-empty{margin-top:var(--sp-2)}
+.mg-row{display:grid; align-content:center; gap:2px; width:100%; height:var(--mg-row); padding:8px 12px; text-align:left; border-radius:4px; border:1px solid var(--rule-2); background:var(--surface); cursor:pointer; transition:border-color .18s ease-out, background .18s ease-out}
+.mg-row:hover{border-color:var(--ink-3)}
+.mg-row[aria-current="true"]{border-color:var(--todo); background:var(--todo-tint); box-shadow:inset 0 0 0 1px var(--todo)}
+.mg-row-top{display:flex; align-items:center; gap:8px; min-width:0}
+.mg-row-t{flex:1 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:var(--fs-sm); font-weight:var(--fw-2); color:var(--ink)}
+.mg-row-meta{display:flex; align-items:center; gap:8px; min-width:0; white-space:nowrap; font-size:var(--fs-cap); color:var(--ink-3)}
+.mg-row-sha{flex:none}
+.mg-row-br{flex:1 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis}
+.mg-row .lz{flex:none; min-height:18px; padding:0 7px}
 @container dash (width < 720px){ .mg{padding:16px} .mg-load{margin-left:0} }
 
 @media (prefers-reduced-motion: reduce){

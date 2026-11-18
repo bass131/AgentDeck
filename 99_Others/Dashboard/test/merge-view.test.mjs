@@ -97,6 +97,113 @@ test('app.js: the merge card posts with the page token, keeps its own area, and 
   assert.match(app, /쓰기는 결정 응답\(메인 입력창에 글 넣기\)과 병합 카드\(확인 창을 거친 PR 병합\)뿐입니다/);
 });
 
+// ── 열린 PR 목록 (M07 G11) ── 목록은 요약만 보이고, 필수 검사·「꼭 볼 것」·병합 단추는 고른 PR 하나의 카드에서만 판정한다.
+// 시험은 이스케이프 함수를 베끼지 않고 app.js의 실제 esc를 꺼내 쓴다(PR 79 검수 중요 2). 따옴표가 빠지면 아래 단정이 깨진다
+const APP_SRC = (await readFile(new URL('../public/app.js', import.meta.url), 'utf8')).replace(/\r\n/g, '\n');
+const pageEsc = new Function(`return ${APP_SRC.match(/^const esc = (s => .+);$/m)[1]}`)();
+
+test("the page escaper (app.js esc) covers & < > \" ' — list titles land inside a title attribute", () => {
+  assert.equal(pageEsc(`&<>"'`), '&amp;&lt;&gt;&quot;&#39;');
+});
+
+test('review fixes (PR 79): a pending PR missing from the list re-reads it; a card SHA that differs from its row re-reads it; picking while the window is up says why', () => {
+  const b = bodyOf(APP_SRC);
+  assert.match(b('renderMerge'), /want && mg\.list\?\.ok && !mg\.list\.items\.some\(i => i\.number === want\)/, '병합 대기 PR이 목록에 없으면 목록을 다시 읽는다');
+  assert.match(b('renderMerge'), /void loadPrList\(\)/);
+  assert.match(b('renderMerge'), /mg\.listMissFor !== want/, '같은 번호로는 한 번만 다시 읽는다(스냅샷마다 gh를 부르지 않게)');
+  assert.match(b('loadMerge'), /row && row\.sha !== r\.pr\.headSha/, '카드 SHA와 목록 행 SHA가 다르면 목록을 다시 읽는다');
+  assert.match(b('pickFromList'), /if \(mg\.running\) \{ toast\('확인 창을 먼저 닫아 주세요\.'\); return; \}/);
+});
+
+test('list rows put the short SHA before the branch names so a long head branch cannot clip it', () => {
+  const html = M.prListHtml([item(9, { headRef: 'dependabot/npm_and_yarn/' + 'x'.repeat(80) })], { esc: pageEsc });
+  const meta = html.slice(html.indexOf('mg-row-meta'));
+  assert.ok(meta.indexOf(M.shortSha(SHA)) < meta.indexOf('dependabot/'), 'SHA가 브랜치 이름보다 앞');
+  assert.match(meta, /<code class="inline mg-row-sha">/);
+  assert.match(meta, /<span class="mg-row-br">/);
+});
+
+test('styles.css: in a row the SHA keeps its width and only the branch names shrink', async () => {
+  const css = await read('../public/styles.css');
+  assert.match(css, /\.mg-row-meta\{display:flex;[^}]*min-width:0/);
+  assert.match(css, /\.mg-row-sha\{flex:none\}/);
+  assert.match(css, /\.mg-row-br\{[^}]*min-width:0;[^}]*overflow:hidden;[^}]*text-overflow:ellipsis/);
+});
+const item =(n, over = {}) => ({ number: n, title: `PR ${n}`, baseRef: 'master', headRef: `feat/x-${n}`, sha: SHA, draft: false, author: 'bass131', updatedAt: '2026-11-18T00:08:22Z', ...over });
+
+test('list helpers are on the frozen merge module', () => {
+  for (const fn of ['prListHtml', 'pickedPr']) assert.equal(typeof M[fn], 'function', fn);
+  assert.equal(M.LIST_SCROLL_AFTER, 3);
+});
+
+test('list HTML: rows escape every server string with the page escaper; draft badge; short SHA; base ← head', () => {
+  const html = M.prListHtml([item(7, { title: '<img src=x onerror=alert(1)>', headRef: 'a"b<c', baseRef: "m'n", author: '<b>', draft: true })], { esc: pageEsc });
+  assert.doesNotMatch(html, /<img|<b>|a"b|m'n/);
+  assert.match(html, /&lt;img src=x onerror=alert\(1\)&gt;/);
+  assert.match(html, /a&quot;b&lt;c/);
+  assert.match(html, /#7/);
+  assert.match(html, /f4e0ff3/); assert.doesNotMatch(html, new RegExp(SHA + '<'), '목록의 SHA는 짧게(전체는 title)');
+  assert.match(html, /m&#39;n<\/code> ← <code class="inline">a&quot;b&lt;c/);
+  assert.match(html, />초안</);
+  assert.doesNotMatch(M.prListHtml([item(8)], { esc: pageEsc }), /초안/);
+  assert.match(html, /<button type="button"[^>]*data-merge-pick="7"/, '항목은 키보드로 누를 수 있는 단추다');
+  assert.throws(() => M.prListHtml([item(1)], {}), TypeError, '이스케이프 함수 없이 그리지 않는다');
+});
+
+test('list HTML: more than three rows scroll inside the list; three or fewer do not; empty is one calm line', () => {
+  assert.doesNotMatch(M.prListHtml([1, 2, 3].map(n => item(n)), { esc: pageEsc }), /is-scroll/);
+  assert.match(M.prListHtml([1, 2, 3, 4].map(n => item(n)), { esc: pageEsc }), /class="mg-list is-scroll"/);
+  assert.match(M.prListHtml([], { esc: pageEsc }), /열린 PR이 없어요/);
+  assert.doesNotMatch(M.prListHtml([], { esc: pageEsc }), /<ul/);
+  // 번호가 정수가 아닌 항목은 그리지 않는다(서버가 이미 거르지만 화면도 한 번 더)
+  assert.match(M.prListHtml([null, { number: '5' }, { number: 1.5 }], { esc: pageEsc }), /열린 PR이 없어요/);
+  assert.doesNotMatch(M.prListHtml([null, item(3), item(4), { number: 'x' }, item(5)], { esc: pageEsc }), /is-scroll/, '그릴 수 있는 항목 수로 센다');
+});
+
+test('list HTML: only the picked row is marked (aria-current and a class)', () => {
+  const html = M.prListHtml([1, 2, 3].map(n => item(n)), { esc: pageEsc, picked: 2 });
+  assert.equal((html.match(/aria-current="true"/g) || []).length, 1);
+  assert.match(html, /class="mg-row is-picked" data-merge-pick="2" aria-current="true"/);
+  assert.doesNotMatch(M.prListHtml([1, 2].map(n => item(n)), { esc: pageEsc, picked: 9 }), /aria-current/);
+});
+
+test('picked row: the PR in the card wins; with an empty card the goal\'s pending PR is the first pick when it is in the list', () => {
+  const items = [item(75), item(76)];
+  assert.equal(M.pickedPr(items, 76, 75), 76, '카드에 연 PR');
+  assert.equal(M.pickedPr(items, 12, 75), null, '카드의 PR이 목록에 없으면(닫힌 PR 등) 아무 항목도 고르지 않는다');
+  assert.equal(M.pickedPr(items, null, 75), 75, '병합 대기 PR이 처음 고른 항목');
+  assert.equal(M.pickedPr(items, null, 12), null);
+  assert.equal(M.pickedPr(items, null, null), null);
+  assert.equal(M.pickedPr(null, 75, 75), null);
+});
+
+test('app.js: the list sits at the top of the merge area, picks load the card the same way as the number input, and is re-read after a merge', async () => {
+  const app = await read('../public/app.js'), body = bodyOf(app);
+  const sk = app.slice(app.indexOf('const MERGE_SKELETON'), app.indexOf('function mergeBox('));
+  assert.ok(sk.indexOf('id="merge-list"') > 0 && sk.indexOf('id="merge-list"') < sk.indexOf('id="merge-card"'), '목록이 카드 위');
+  assert.match(sk, /data-merge-num/, '번호 칸은 남는다');
+  assert.match(sk, /목록에 없는 PR/, '번호 칸은 목록에 없는 PR(닫힌 PR 등)을 위한 것이다');
+  assert.match(body('mergeBox'), /#merge-list/, '목록 자리가 없는 옛 뼈대면 다시 깐다');
+  assert.match(body('loadPrList'), /postMerge\('list', \{\}\)/);
+  assert.match(body('loadPrList'), /seq !== mg\.listSeq/, '늦게 온 앞 목록은 버린다');
+  assert.match(body('renderPrList'), /MRG\.prListHtml\(/);
+  assert.match(body('renderPrList'), /esc\b/, '페이지의 이스케이프 함수를 넘긴다');
+  assert.match(body('renderPrList'), /MRG\.pickedPr\(/);
+  assert.match(body('renderPrList'), /scrollTop/, '다시 칠해도 목록 스크롤 자리를 지킨다');
+  assert.match(body('renderPrList'), /focus\(/, '다시 칠해도 누른 항목에 초점이 남는다');
+  assert.match(body('renderMerge'), /renderPrList\(/);
+  assert.match(body('renderPrList'), /MRG\.pendingPr\(SUM\(\)\.hand\)/, '카드가 비었으면 병합 대기 PR이 처음 고른 항목');
+  assert.match(body('renderPrList'), /data-merge-list-reload/);
+  assert.match(body('renderPrList'), /번호로는 그대로 불러올 수 있어요/, '목록을 못 읽어도 번호 칸과 카드는 그대로 쓴다');
+  assert.doesNotMatch(body('loadPrList'), /setTimeout|setInterval/, '실패해도 저절로 다시 읽지 않는다');
+  assert.match(body('renderMerge'), /mg\.listAsked/, '처음 그릴 때 한 번 읽는다');
+  assert.match(body('runMerge'), /loadPrList\(\)/, '병합 결과 뒤 목록을 다시 읽는다');
+  assert.match(app, /closest\('\[data-merge-pick\]'\)/);
+  assert.match(app, /closest\('\[data-merge-list-reload\]'\)\) \{ if \(!mg\.listLoading\) void loadPrList\(\)/, '읽는 중에는 겹쳐 읽지 않는다');
+  assert.match(body('pickFromList'), /if \(mg\.running\) \{ toast\([^)]*\); return; \}\n  void loadMerge\(n, true\)/, '확인 창이 떠 있는 동안 카드를 바꾸지 않고(이유를 알린다), 번호 칸과 같은 길로 부른다');
+  assert.doesNotMatch(body('pickFromList'), /headSha|\.sha\b/, '목록의 SHA는 보이기만 한다 — 병합에 쓰는 SHA는 읽기에서 온다');
+});
+
 test('index.html: the merge area sits between the decision requests and the hand list', async () => {
   const html = await read('../public/index.html');
   const d = html.indexOf('id="decide"'), m = html.indexOf('id="merge"'), b = html.indexOf('id="brief"');
@@ -115,4 +222,10 @@ test('styles.css: the merge card uses the existing tokens only — no new colour
   assert.match(block, /@container dash \(width < 720px\)/);
   assert.match(block, /\.mg-act \[disabled\]\{[^}]*cursor:not-allowed/, '꺼진 병합 단추는 꺼져 보인다');
   assert.ok(!block.includes('/api/'), '주석에 경로를 쓰지 않는다(별표·빗금이 주석을 일찍 닫을 수 있다)');
+  // 열린 PR 목록(G11): 항목 3개 높이를 넘으면 목록 안에서만 세로 스크롤한다. 고른 항목은 노랑 테두리로 남는다
+  assert.match(block, /\.mg-list\.is-scroll\{[^}]*max-height:calc\(var\(--mg-row\) \* 3[^}]*overflow-y:auto/);
+  assert.match(block, /\.mg-list\.is-scroll\{[^}]*overscroll-behavior:contain/, '목록 끝에서 페이지가 따라 스크롤되지 않는다');
+  assert.match(block, /\.mg-row\{[^}]*height:var\(--mg-row\)/, '항목 높이가 고정이라 세 개 높이가 정확하다');
+  assert.match(block, /\.mg-list\{[^}]*grid-template-columns:minmax\(0,1fr\)/, '긴 제목·브랜치는 줄임표로 접히고 항목 폭을 넓히지 않는다');
+  assert.match(block, /\.mg-row\[aria-current="true"\]\{[^}]*var\(--todo\)/);
 });

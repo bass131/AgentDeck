@@ -5,7 +5,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { createPrService, mergeEligibility, parseGithubRepo, mustSeeWhy, FILES_CAP } from '../lib/merge.mjs';
+import { createPrService, mergeEligibility, parseGithubRepo, mustSeeWhy, FILES_CAP, LIST_CAP, LIST_FIELDS, listArgs } from '../lib/merge.mjs';
 
 const SHA = 'f4e0ff3812cde4caf1585a73ac77d3f9836bc2dd';
 const OTHER = '0123456789abcdef0123456789abcdef01234567';
@@ -512,4 +512,92 @@ test('confirm: a ticket from prepareMerge alone is not armed — only mergePr ar
   let kept = null;
   const r2 = await again.svc.mergePr(CWD, 12, SHA, { confirm: async () => ({ answer: 'no' }), send: async t => { kept = t; return { status: 'merged' }; } });
   assert.equal(r2.status, 'cancelled'); assert.equal(kept, null, '취소면 send를 부르지도 않는다');
+});
+
+// ── 열린 PR 목록 (M07 G11) ── 실측(2026-11-18, 읽기 전용): `gh pr list --repo bass131/AgentDeck --state open --json <LIST_FIELDS> --limit 51`
+// 성공은 exit 0과 JSON 배열(열린 PR이 없으면 `[]`), 실패는 exit 1과 stderr 평문(`GraphQL: Could not resolve to a Repository …`). 봇 작성자는 `app/dependabot`.
+const LIST = /^pr list /;
+const listed = (n, over = {}) => ({ author: { id: 'MDQ6VXNlcjMzMDg0NTkw', is_bot: false, login: 'bass131', name: 'Moodie' }, baseRefName: 'master', headRefName: `feat/x-${n}`,
+  headRefOid: SHA, isDraft: false, number: n, title: `PR ${n}`, updatedAt: '2026-11-18T00:08:22Z', ...over });
+const listSvc = (res, opts = {}) => setup({ ...opts, extra: [[LIST, res], ...(opts.extra ?? [])] });
+
+test('list: one read-only gh pr list call, args array, repo pinned to origin, open only, capped fields and limit 51', async () => {
+  assert.equal(LIST_CAP, 50);
+  assert.equal(LIST_FIELDS, 'number,title,baseRefName,headRefName,headRefOid,isDraft,author,updatedAt');
+  assert.deepEqual(listArgs({ owner: 'bass131', repo: 'AgentDeck' }), ['pr', 'list', '--repo', 'bass131/AgentDeck', '--state', 'open', '--json', LIST_FIELDS, '--limit', '51']);
+  const { svc, f } = listSvc(ok([listed(78, { title: 'M07 G10 종결 기록', headRefName: 'chore/m07-g10-close', headRefOid: '84fc92833352416eb698db217cf377bc0204a5d6' })]));
+  const r = await svc.listPrs(CWD);
+  assert.deepEqual(r, { ok: true, repo: 'bass131/AgentDeck', more: false, dropped: 0, items: [
+    { number: 78, title: 'M07 G10 종결 기록', baseRef: 'master', headRef: 'chore/m07-g10-close', sha: '84fc92833352416eb698db217cf377bc0204a5d6', draft: false, author: 'bass131', updatedAt: '2026-11-18T00:08:22Z' }] });
+  assert.deepEqual(f.calls, [listArgs({ owner: 'bass131', repo: 'AgentDeck' })], '한 번, 인자 배열 그대로');
+  assert.ok(!joinedCalls(f).some(c => /merge|-X|PUT|POST/i.test(c)), '병합·쓰기 호출이 없다');
+});
+
+test('list: the service surface grows by exactly one read — listPrs', () => {
+  assert.deepEqual(Object.keys(setup().svc).sort(), ['listPrs', 'mergePr', 'prepareMerge', 'readPr', 'sendMerge']);
+});
+
+test('list: the repo comes from origin only; a non-GitHub origin is a reason and no gh call', async () => {
+  const ssh = listSvc(ok([]), { origin: 'git@github.com:someone/Other.git' });
+  assert.equal((await ssh.svc.listPrs(CWD)).repo, 'someone/Other');
+  assert.equal(ssh.f.calls[0][3], 'someone/Other');
+  const bad = listSvc(ok([]), { origin: 'https://gitlab.com/x/y.git' });
+  const r = await bad.svc.listPrs(CWD);
+  assert.equal(r.ok, false); assert.match(r.reason, /origin/);
+  assert.equal(bad.f.calls.length, 0);
+});
+
+test('list: 50 at most; a 51st means more; an empty list is ok and empty', async () => {
+  const many = n => Array.from({ length: n }, (_, i) => listed(100 + i));
+  const r51 = await listSvc(ok(many(51))).svc.listPrs(CWD);
+  assert.deepEqual([r51.ok, r51.items.length, r51.more], [true, 50, true]);
+  assert.equal(r51.items.at(-1).number, 149, '앞의 50개를 순서대로');
+  const r50 = await listSvc(ok(many(50))).svc.listPrs(CWD);
+  assert.deepEqual([r50.items.length, r50.more], [50, false]);
+  assert.deepEqual(await listSvc(ok([])).svc.listPrs(CWD), { ok: true, repo: 'bass131/AgentDeck', items: [], more: false, dropped: 0 });
+});
+
+test('list: every field is untrusted — bad number or SHA drops the row (counted), other bad fields are blanked', async () => {
+  const r = await listSvc(ok([
+    listed(1), listed(0), listed(2.5), listed('3'), listed(4, { headRefOid: 'abc' }), listed(5, { headRefOid: null }), null, 'x',
+    listed(6, { title: 42, baseRefName: ['m'], headRefName: { a: 1 }, isDraft: 'true', author: { login: 'evil name<b>' }, updatedAt: 'yesterday' }),
+    listed(7, { isDraft: true, author: { is_bot: true, login: 'app/dependabot' }, headRefOid: SHA.toUpperCase() }),
+    listed(8, { author: null }),
+  ])).svc.listPrs(CWD);
+  assert.equal(r.ok, true);
+  assert.deepEqual(r.items.map(i => i.number), [1, 6, 7, 8]);
+  assert.equal(r.dropped, 7);
+  assert.deepEqual(r.items[1], { number: 6, title: '', baseRef: '', headRef: '', sha: SHA, draft: false, author: '', updatedAt: '' });
+  assert.deepEqual([r.items[2].draft, r.items[2].author, r.items[2].sha], [true, 'app/dependabot', SHA.toUpperCase()]);
+  assert.equal(r.items[3].author, '');
+});
+
+test('list: a failed read gives a reason with credentials masked and control characters removed; odd output is a reason too', async () => {
+  const leak = await listSvc({ code: 1, stdout: '', stderr: 'error connecting to https://x:ghp_secret@github.com/\u001b[31mred\u001b[0m\nline2' }).svc.listPrs(CWD);
+  assert.equal(leak.ok, false);
+  assert.doesNotMatch(leak.reason, /ghp_secret|\u001b|\n/);
+  assert.match(leak.reason, /\*\*\*@github\.com/);
+  const gql = await listSvc({ code: 1, stdout: '', stderr: "GraphQL: Could not resolve to a Repository with the name 'bass131/NoSuch'. (repository)" }).svc.listPrs(CWD);
+  assert.match(gql.reason, /Could not resolve/);
+  assert.ok((await listSvc({ code: 1, stdout: '', stderr: 'y'.repeat(5000) }).svc.listPrs(CWD)).reason.length <= 300, '긴 오류는 자른다');
+  for (const stdout of ['not json', '{"number":1}', 'null']) {
+    const r = await listSvc({ code: 0, stdout, stderr: '' }).svc.listPrs(CWD);
+    assert.equal(r.ok, false, stdout); assert.equal(typeof r.reason, 'string');
+  }
+  const thrown = setup({ extra: [[LIST, () => { throw new Error('spawn gh ENOENT'); }]] });
+  assert.equal((await thrown.svc.listPrs(CWD)).ok, false, '실행기가 던져도 이유로 돌려준다');
+});
+
+test('list: it never arms a merge — the list SHA is display only; a shown SHA from readPr survives a list read', async () => {
+  const alone = listSvc(ok([listed(12)]));
+  await alone.svc.listPrs(CWD);
+  const refused = await alone.svc.prepareMerge(CWD, 12, SHA);
+  assert.equal(refused.ok, false, '목록만 읽은 SHA로는 병합 준비가 열리지 않는다');
+  assert.match(refused.result.message, /마지막으로 읽은 값과 달라요/);
+  const s = listSvc(ok([listed(12, { headRefOid: OTHER })]));
+  await read(s.svc);
+  await s.svc.listPrs(CWD);
+  const prep = await s.svc.prepareMerge(CWD, 12, SHA);
+  assert.equal(prep.ok, true, '목록 읽기가 readPr이 보인 SHA를 지우거나 바꾸지 않는다');
+  assert.equal(prep.view.sha, SHA);
 });

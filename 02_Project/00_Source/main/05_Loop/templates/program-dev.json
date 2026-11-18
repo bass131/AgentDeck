@@ -4,8 +4,17 @@
   "title": "프로그램 개발",
   "grading": {
     "strongLineThreshold": 50,
-    "appSourcePaths": ["src/"],
-    "protectedPaths": [".github/", "package.json", "package-lock.json"]
+    "uncountedPaths": ["*.md", ".agentdeck/"],
+    "protectedPaths": [
+      ".github/",
+      "package*.json",
+      "tsconfig*",
+      "vitest.config.*",
+      "test/",
+      "tests/",
+      "**/*.test.*",
+      "**/*.spec.*"
+    ]
   },
   "branches": {
     "base": "master",

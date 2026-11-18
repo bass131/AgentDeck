@@ -141,6 +141,25 @@ describe('스키마 오류를 경로와 이유로 거부한다', () => {
     expect(hasError(errors, '$.nodes[4].steps[8].kind', '고리 안에')).toBe(true)
   })
 
+  it('마일스톤 구획에서 goal 고리를 건너 고리 앞을 가리키는 실패 참조를 거부한다', () => {
+    const errors = errorsOf(variantText((raw) => { findRawNode(raw, 'regression').onFail = { goto: 'milestone-branch' } }))
+    expect(hasError(errors, '$.nodes[5].onFail.goto', 'goal 고리를 건너')).toBe(true)
+  })
+
+  it('마일스톤 브랜치 꼴에 {goal} 자리를 두면 거부한다', () => {
+    const errors = errorsOf(variantText((raw) => { (raw.branches as Record<string, unknown>).milestone = 'milestone/{milestone}-{goal}' }))
+    expect(hasError(errors, '$.branches.milestone', '{goal}')).toBe(true)
+  })
+
+  it('등급 규칙은 세지 않는 목록과 보호 경로를 쓴다 — 옛 허용 목록 키(appSourcePaths)는 모르는 키다', () => {
+    const r = loadTemplate(programDevText())
+    if (!r.ok) throw new Error('불러오기 실패')
+    expect(r.template.grading.uncountedPaths).toEqual(['*.md', '.agentdeck/'])
+    expect(r.template.grading.protectedPaths).toEqual(expect.arrayContaining(['.github/', 'package*.json', '**/*.test.*', 'tests/']))
+    const errors = errorsOf(variantText((raw) => { (raw.grading as Record<string, unknown>).appSourcePaths = ['src/'] }))
+    expect(hasError(errors, '$.grading.appSourcePaths', '모르는 키')).toBe(true)
+  })
+
   it('형식 판과 브랜치 꼴을 검사한다', () => {
     expect(hasError(errorsOf(variantText((raw) => { raw.version = 2 })), '$.version', '1뿐')).toBe(true)
     expect(hasError(errorsOf(variantText((raw) => { (raw.branches as Record<string, unknown>).goal = 'goal/x' })),

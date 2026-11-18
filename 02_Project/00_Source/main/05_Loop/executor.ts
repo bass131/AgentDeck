@@ -3,14 +3,17 @@
 // 건너뛰기·강제 통과·커서 설정·계수 리셋 API는 없다. 멈춘 실행을 다시 돌리는 것도 같은 꼴의 사람 판정(pass)이며,
 // 그 판정은 USER-INPUT 줄을 쓰고 커서는 그대로 둔다 — 멈춘 노드를 다시 돌 뿐 통과시키지 않는다.
 // 판정의 node가 현재 커서와 다르거나 judge가 노드의 판정 주체와 다르면 거부한다. 작업·동작 노드의 판정 주체는 'executor'다.
+// 사람의 반려(사람 게이트의 fail)는 검증 실패가 아니라 사람의 입력이라 FAIL로 세지 않고 USER-INPUT 줄로 남긴다(헌법 7조는 검증 실패를 센다).
 import {
   isNonEmptyString,
   type ActionNode, type GateNode, type GoalLoopNode, type Grade, type Judge, type StepNode, type Template, type WorkNode,
 } from './template'
-import { GOAL_ID, failsSinceUserInput, scopeOf, type Cursor, type GoalState, type Marker, type RunState } from './runState'
+import {
+  FAIL_LIMIT, GOAL_ID, failsSinceUserInput, scopeOf, type Cursor, type GoalState, type Marker, type RunState,
+} from './runState'
 
-// 헌법 7조의 수다. 템플릿이 바꾸지 못하게 코드에 둔다.
-export const FAIL_LIMIT = 3
+// 헌법 7조의 수. 템플릿이 바꾸지 못하게 코드에 둔다(정본은 runState — 상태 검사도 같은 수를 본다).
+export { FAIL_LIMIT }
 
 export type VerdictJudge = Judge | 'executor'
 export type VerdictKind = 'pass' | 'fail' | 'stop'
@@ -20,6 +23,10 @@ export interface VerdictFacts {
   grade?: Grade
   goals?: GoalSeed[]
   pr?: number
+  // 브랜치를 가른 시작 SHA — 재개 때 이미 있는 브랜치가 이번 실행의 계보인지 본다.
+  baseSha?: string
+  // goal PR 동작이 push한 머리 — CI는 이 머리의 결과만 판정한다.
+  pushedSha?: string
   ciSha?: string
   mergedSha?: string
 }
@@ -156,7 +163,10 @@ function applyFacts(node: StepNode, s: RunState, goal: GoalState | null, facts: 
         return `goal 꼴이 틀렸다 — ${JSON.stringify(id)}`
       }
       ids.add(id)
-      goals.push({ id, title: oneSentence(title), grade: null, status: 'pending', pr: null, ciSha: null, mergedSha: null })
+      goals.push({
+        id, title: oneSentence(title), grade: null, status: 'pending',
+        baseSha: null, pr: null, pushedSha: null, ciSha: null, mergedSha: null,
+      })
     }
     s.goals = goals
     return null
@@ -174,11 +184,24 @@ function applyFacts(node: StepNode, s: RunState, goal: GoalState | null, facts: 
   }
   if (node.kind !== 'action') return null
   const pr = facts?.pr
+  const baseSha = facts?.baseSha
   switch (node.action) {
-    case 'openGoalPr':
-      if (!goal || !isPr(pr)) return 'goal PR 번호가 있어야 한다'
-      goal.pr = pr
+    case 'createMilestoneBranch':
+      if (!isNonEmptyString(baseSha)) return '마일스톤 브랜치의 시작 SHA가 있어야 한다'
+      s.milestoneBase = baseSha
       return null
+    case 'createGoalBranch':
+      if (!goal || !isNonEmptyString(baseSha)) return 'goal 브랜치의 시작 SHA가 있어야 한다'
+      goal.baseSha = baseSha
+      return null
+    case 'openGoalPr': {
+      const pushed = facts?.pushedSha
+      if (!goal || !isPr(pr)) return 'goal PR 번호가 있어야 한다'
+      if (!isNonEmptyString(pushed)) return 'goal PR에는 push한 머리 SHA가 있어야 한다'
+      goal.pr = pr
+      goal.pushedSha = pushed
+      return null
+    }
     case 'mergeGoal': {
       if (!goal) return '병합할 goal이 없다'
       const sha = facts?.mergedSha
@@ -188,8 +211,6 @@ function applyFacts(node: StepNode, s: RunState, goal: GoalState | null, facts: 
     case 'openMilestonePr':
       if (!isPr(pr)) return '마일스톤 PR 번호가 있어야 한다'
       s.milestonePr = pr
-      return null
-    default:
       return null
   }
 }
@@ -233,7 +254,8 @@ export function applyVerdict(template: Template, state: RunState, verdict: Verdi
     moveForward(template, s)
     settle(template, s)
   } else if (verdict.verdict === 'fail') {
-    line('FAIL')
+    const human = verdict.judge === 'human'
+    line(human ? 'USER-INPUT' : 'FAIL', human ? `사람이 반려했다 — ${verdict.evidence}` : verdict.evidence)
     const fails = failsSinceUserInput(s.lines, scope)
     if (here.node.onFail) {
       s.cursor = { node: here.node.onFail.goto, goal: s.cursor.goal }
@@ -264,9 +286,10 @@ export function judgeCommands(node: GateNode, runs: readonly CommandRun[]): Verd
   return { ...base, verdict: 'pass', evidence: `${expected.join(', ')} 모두 exit 0` }
 }
 
-// CI가 아직 돌고 있으면 판정이 없다(null) — 기다림은 FAIL로 세지 않는다.
-export function judgeCi(node: GateNode, ci: CiStatus): Verdict | null {
-  if (ci.state === 'pending') return null
+// CI가 아직 돌고 있거나, 보고한 머리가 이번에 push한 머리가 아니거나, push한 머리를 모르면 판정이 없다(null).
+// 기다림은 FAIL로 세지 않는다. 옛 머리의 결과로 통과·실패하지 않는다.
+export function judgeCi(node: GateNode, ci: CiStatus, pushedSha: string | null): Verdict | null {
+  if (ci.state === 'pending' || pushedSha === null || ci.headSha !== pushedSha) return null
   const head = ci.headSha.slice(0, 8)
   if (ci.state === 'success') {
     return { node: node.id, judge: 'rule', verdict: 'pass', evidence: `CI 통과 — 머리 ${head}, ${ci.summary}`, facts: { ciSha: ci.headSha } }

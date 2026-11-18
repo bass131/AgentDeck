@@ -67,8 +67,13 @@ function factsFor(next: NextStep, goals: GoalSeed[], grades: Record<string, Grad
   if (next.kind === 'work' && next.node.produces === 'goals') return { goals }
   if (next.kind === 'gate' && next.node.rule?.type === 'grade') return next.goal && grades[next.goal.id] ? { grade: grades[next.goal.id] } : {}
   if (next.kind === 'gate' && next.node.rule?.type === 'ci') return { ciSha: 'c1' }
-  if (next.kind === 'action' && (next.node.action === 'openGoalPr' || next.node.action === 'openMilestonePr')) return { pr: 7 }
-  return undefined
+  if (next.kind !== 'action') return undefined
+  switch (next.node.action) {
+    case 'createMilestoneBranch': case 'createGoalBranch': return { baseSha: 'b1' }
+    case 'openGoalPr': return { pr: 7, pushedSha: 'c1' }
+    case 'openMilestonePr': return { pr: 8 }
+    default: return undefined
+  }
 }
 
 export interface DriveOptions { goals?: GoalSeed[]; grades?: Record<string, Grade>; until?: string; limit?: number }
@@ -102,6 +107,7 @@ export class FakeFs implements FsPort {
 }
 
 const last = (list: string[] | undefined): string | null => (list && list.length > 0 ? list[list.length - 1] : null)
+const startsWith = (whole: string[], part: string[]): boolean => whole.length >= part.length && part.every((x, i) => whole[i] === x)
 
 export class FakeGit implements GitPort {
   readonly calls: string[] = []
@@ -135,6 +141,17 @@ export class FakeGit implements GitPort {
     this.calls.push(`push ${branch}`)
     this.remote.set(branch, [...(this.local.get(branch) ?? [])])
   }
+  async syncToRemote(branch: string): Promise<string | null> {
+    this.calls.push(`sync ${branch}`)
+    const local = this.local.get(branch)
+    const remote = this.remote.get(branch)
+    if (!local) throw new Error(`없는 브랜치 ${branch}`)
+    if (remote && !startsWith(local, remote)) {
+      if (!startsWith(remote, local)) throw new Error(`${branch}의 로컬과 원격이 갈라졌다`)
+      this.local.set(branch, [...remote])
+    }
+    return last(this.local.get(branch))
+  }
   async isAncestor(sha: string, ref: string): Promise<boolean> { return this.local.get(ref)?.includes(sha) ?? false }
   async mergeNoFf(sha: string, message: string): Promise<string> {
     this.calls.push(`merge ${sha} ${message}`)
@@ -151,13 +168,16 @@ export class FakeGit implements GitPort {
   }
 }
 
-interface FakePr { number: number; head: string; base: string; state: PrState; mergedHead: string | null; mergeCommitSha: string | null }
+export interface FakePr { number: number; head: string; base: string; state: PrState; mergedHead: string | null; mergeCommitSha: string | null }
 
 export class FakeGh implements GhPort {
   readonly calls: string[] = []
   readonly prs: FakePr[] = []
   ci: CiStatus['state'] = 'success'
-  private nextNumber = 100
+  // CI가 보고하는 머리를 바꿔 「아직 옛 머리의 결과」를 흉내 낸다.
+  ciHead: string | null = null
+  ciThrows = false
+  nextNumber = 100
   constructor(private readonly git: FakeGit) {}
 
   // GitHub처럼 원격 base가 PR 머리를 품으면 병합됨으로 닫는다.
@@ -187,16 +207,24 @@ export class FakeGh implements GhPort {
   }
   async ciStatus(number: number): Promise<CiStatus> {
     this.calls.push(`ci ${number}`)
+    if (this.ciThrows) throw new Error('gh: HTTP 502')
     const info = await this.getPr(number)
-    return { state: this.ci, headSha: info?.headSha ?? '', summary: 'hard-gates' }
+    return { state: this.ci, headSha: this.ciHead ?? info?.headSha ?? '', summary: 'hard-gates' }
   }
-  // 사람이 GitHub·앱 버튼으로 병합한 것을 흉내 낸다.
-  mergeByHuman(number: number): void {
+  // 사람이 GitHub·앱 버튼으로 병합한 것을 흉내 낸다 — 원격 base에 PR 머리와 병합 커밋이 얹힌다.
+  mergeByHuman(number: number): string {
     const pr = this.prs.find((p) => p.number === number)
     if (!pr) throw new Error(`없는 PR ${number}`)
+    const headHist = this.git.remote.get(pr.head) ?? []
+    const base = [...(this.git.remote.get(pr.base) ?? [])]
+    for (const x of headHist) if (!base.includes(x)) base.push(x)
+    const merged = this.git.sha('h')
+    base.push(merged)
+    this.git.remote.set(pr.base, base)
     pr.state = 'merged'
-    pr.mergedHead = last(this.git.remote.get(pr.head))
-    pr.mergeCommitSha = 'h'.repeat(40)
+    pr.mergedHead = last(headHist)
+    pr.mergeCommitSha = merged
+    return merged
   }
 }
 
@@ -257,36 +285,38 @@ export function makeRig(): Rig {
   return { fs: files, git, gh, commands, session, review, ports: { command: commands, git, gh, fs: files, session, review, clock } }
 }
 
-// ---- 실행기 껍질 몰기 — 사람 게이트는 사람 판정으로, 마일스톤 병합은 사람의 GitHub 병합으로 답한다 ----
+// ---- 실행기 껍질 몰기 — 상태는 실행기가 저장본에서 읽는다. 사람 게이트는 사람 판정으로, 마일스톤 병합은 사람의 GitHub 병합으로 답한다 ----
 export interface RunOptions { until?: string; limit?: number; approve?: boolean }
 export async function runLoop(
-  runner: LoopRunner, template: Template, rig: Rig, state: RunState, opts: RunOptions = {},
+  runner: LoopRunner, rig: Rig, opts: RunOptions = {},
 ): Promise<{ visited: string[]; state: RunState; last: StepOutcome | null }> {
   const visited: string[] = []
-  let s = state
   let lastOutcome: StepOutcome | null = null
+  const current = async (): Promise<{ state: RunState; next: NextStep }> => {
+    const r = await runner.load()
+    if (r.kind !== 'ok') throw new Error(`시험 도우미: 상태를 읽지 못했다 — ${JSON.stringify(r)}`)
+    return r
+  }
   for (let i = 0; i < (opts.limit ?? 500); i++) {
-    const next = nextStep(template, s)
+    const { state, next } = await current()
     const label = labelOf(next)
     if (next.kind === 'done' || next.kind === 'needs-user' || label === opts.until) break
-    const out = await runner.step(s)
+    const out = await runner.step()
     lastOutcome = out
     if (out.kind === 'waiting' && out.on === 'human') {
       if (opts.approve === false) break
-      if (next.kind === 'gate' && next.node.watch === 'milestonePrMerged' && s.milestonePr !== null) {
-        rig.gh.mergeByHuman(s.milestonePr)
+      if (next.kind === 'gate' && next.node.watch === 'milestonePrMerged' && state.milestonePr !== null) {
+        rig.gh.mergeByHuman(state.milestonePr)
         continue
       }
-      const sub = await runner.submit(s, { node: next.kind === 'gate' ? next.node.id : '', judge: 'human', verdict: 'pass', evidence: '사람이 승인했다' })
+      const sub = await runner.submit({ node: next.kind === 'gate' ? next.node.id : '', judge: 'human', verdict: 'pass', evidence: '사람이 승인했다' })
       lastOutcome = sub
       if (sub.kind === 'blocked') break
       visited.push(label)
-      s = sub.state
       continue
     }
     if (out.kind === 'waiting' || out.kind === 'blocked') break
     visited.push(label)
-    s = out.state
   }
-  return { visited, state: s, last: lastOutcome }
+  return { visited, state: (await current()).state, last: lastOutcome }
 }

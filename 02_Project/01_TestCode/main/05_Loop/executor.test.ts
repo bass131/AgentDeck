@@ -104,6 +104,17 @@ describe('게이트의 불통과에서는 다음 노드로 가지 않는다', ()
     expect(labelOf(nextStep(template, s))).toBe('brainstorm')
   })
 
+  it('사람의 반려는 검증 실패가 아니다 — FAIL로 세지 않고 USER-INPUT 줄로 남긴다', () => {
+    let s = at('spec-approval')
+    for (let i = 0; i < FAIL_LIMIT; i++) {
+      s = apply(template, s, verdict('spec-approval', 'human', 'fail', `반려 ${i + 1}`))
+      s = drive(template, s, { until: 'spec-approval' }).state
+    }
+    expect(s.status).toBe('running')
+    expect(s.lines.map((l) => l.marker)).toEqual(['USER-INPUT', 'USER-INPUT', 'USER-INPUT'])
+    expect(s.failCount).toBe(0)
+  })
+
   it('실패 참조가 없는 게이트(회귀·마일스톤 병합)는 그 자리에 머문다', () => {
     const r = apply(template, at('regression'), verdict('regression', 'rule', 'fail', 'npm test exit 1'))
     expect(labelOf(nextStep(template, r))).toBe('regression')
@@ -254,9 +265,15 @@ describe('규칙 판정 함수', () => {
   })
 
   it('CI는 대기 중이면 판정이 없고, 통과면 머리 SHA를 남긴다', () => {
-    expect(judgeCi(ciNode, { state: 'pending', headSha: 'a1', summary: '' })).toBeNull()
-    expect(judgeCi(ciNode, { state: 'success', headSha: 'a1', summary: 'hard-gates' })).toMatchObject({ verdict: 'pass', facts: { ciSha: 'a1' } })
-    expect(judgeCi(ciNode, { state: 'failure', headSha: 'a1', summary: 'hard-gates' })?.verdict).toBe('fail')
+    expect(judgeCi(ciNode, { state: 'pending', headSha: 'a1', summary: '' }, 'a1')).toBeNull()
+    expect(judgeCi(ciNode, { state: 'success', headSha: 'a1', summary: 'hard-gates' }, 'a1')).toMatchObject({ verdict: 'pass', facts: { ciSha: 'a1' } })
+    expect(judgeCi(ciNode, { state: 'failure', headSha: 'a1', summary: 'hard-gates' }, 'a1')?.verdict).toBe('fail')
+  })
+
+  it('CI 결과가 push한 머리의 것이 아니거나 push한 머리를 모르면 통과·실패 모두 판정하지 않는다', () => {
+    expect(judgeCi(ciNode, { state: 'success', headSha: 'old', summary: 'hard-gates' }, 'a1')).toBeNull()
+    expect(judgeCi(ciNode, { state: 'failure', headSha: 'old', summary: 'hard-gates' }, 'a1')).toBeNull()
+    expect(judgeCi(ciNode, { state: 'success', headSha: 'a1', summary: 'hard-gates' }, null)).toBeNull()
   })
 })
 
@@ -278,6 +295,15 @@ describe('실행 상태 스키마와 재개 조건', () => {
     expect(validateRunState({ ...s, status: 'skipped' }).ok).toBe(false)
     expect(validateRunState({ ...s, cursor: { node: 'checks', goal: 9 } }).ok).toBe(false)
     expect(validateRunState({ ...s, forcePass: true }).ok).toBe(false)
+  })
+
+  it('FAIL 셋으로 멈춘 상태의 status만 running으로 고쳐도 받지 않는다 — 계수는 줄에서 다시 센다', () => {
+    let s = drive(template, fresh(template, hash), { goals: GOALS, grades: GRADES, until: 'regression' }).state
+    for (let i = 0; i < FAIL_LIMIT; i++) s = apply(template, s, verdict('regression', 'rule', 'fail', 'exit 1'))
+    expect(s.status).toBe('needs-user')
+    expect(validateRunState(JSON.parse(JSON.stringify(s))).ok).toBe(true)
+    expect(validateRunState({ ...s, status: 'running', haltReason: null }).ok).toBe(false)
+    expect(validateRunState({ ...s, haltReason: null }).ok).toBe(false)
   })
 
   it('템플릿 해시나 id가 다르거나 커서 노드가 템플릿에 없으면 이어 가지 않는다', () => {

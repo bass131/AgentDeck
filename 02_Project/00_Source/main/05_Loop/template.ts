@@ -7,7 +7,9 @@
 //   nodes: 마일스톤 구획의 순서. 노드 종은 work(담당 세션이 일함)·gate(판정 주체 rule|model|human)·action(실행기 코드의
 //          결정론적 단계)이고, goal마다 반복되는 구획은 goalLoop 하나로 적는다(steps가 goal마다 같은 순서로 돈다).
 //   onFail.goto: 불통과 때 돌아갈 노드. 같은 구획의 자기 또는 앞 노드만 가리킨다 — 앞으로 뛰면 게이트를 건너뛰는 통로다.
+//                마일스톤 구획에서 goal 고리를 건너 고리 앞을 가리키는 것도 막는다(끝난 goal 목록 위로 분해를 다시 돌게 된다).
 //   when.grade: goal 고리 안에서 그 goal의 등급이 맞을 때만 켜지는 노드. 등급을 모르면 강으로 본다.
+//   grading: 문턱(기본 50), uncountedPaths(세지 않는 경로 — 금지 목록), protectedPaths(건드리면 강). 꼴은 grade.ts의 작은 glob.
 import { createHash } from 'node:crypto'
 
 export type Judge = 'rule' | 'model' | 'human'
@@ -53,10 +55,10 @@ export type MilestoneNode = StepNode | GoalLoopNode
 
 export interface GradingPolicy {
   strongLineThreshold: number
-  appSourcePaths: string[]
+  uncountedPaths: string[]
   protectedPaths: string[]
 }
-// 브랜치 이름 꼴. {milestone}·{goal} 자리에 id가 들어간다.
+// 브랜치 이름 꼴. {milestone}·{goal} 자리에 id가 들어간다(마일스톤 꼴에는 {goal}을 둘 수 없다).
 export interface BranchPolicy {
   base: string
   milestone: string
@@ -164,16 +166,16 @@ function stringList(v: unknown, path: string, err: ErrSink): string[] | undefine
 function checkGrading(v: unknown, err: ErrSink): GradingPolicy | undefined {
   const p = '$.grading'
   if (!isObject(v)) { err(p, '등급 규칙 객체가 있어야 한다'); return undefined }
-  rejectUnknownKeys(v, p, ['strongLineThreshold', 'appSourcePaths', 'protectedPaths'], err)
+  rejectUnknownKeys(v, p, ['strongLineThreshold', 'uncountedPaths', 'protectedPaths'], err)
   const t = v.strongLineThreshold === undefined ? DEFAULT_STRONG_LINE_THRESHOLD : v.strongLineThreshold
   if (typeof t !== 'number' || !Number.isInteger(t) || t < 1) {
     err(`${p}.strongLineThreshold`, '1 이상의 정수여야 한다')
     return undefined
   }
-  const appSourcePaths = stringList(v.appSourcePaths, `${p}.appSourcePaths`, err)
+  const uncountedPaths = stringList(v.uncountedPaths, `${p}.uncountedPaths`, err)
   const protectedPaths = stringList(v.protectedPaths, `${p}.protectedPaths`, err)
-  if (!appSourcePaths || !protectedPaths) return undefined
-  return { strongLineThreshold: t, appSourcePaths, protectedPaths }
+  if (!uncountedPaths || !protectedPaths) return undefined
+  return { strongLineThreshold: t, uncountedPaths, protectedPaths }
 }
 
 function checkBranches(v: unknown, err: ErrSink): BranchPolicy | undefined {
@@ -185,6 +187,8 @@ function checkBranches(v: unknown, err: ErrSink): BranchPolicy | undefined {
   if (!isNonEmptyString(base)) { err(`${p}.base`, '기준 브랜치 이름이 있어야 한다'); ok = false }
   if (!isNonEmptyString(milestone) || !milestone.includes('{milestone}')) {
     err(`${p}.milestone`, '{milestone} 자리가 있는 꼴이어야 한다'); ok = false
+  } else if (milestone.includes('{goal}')) {
+    err(`${p}.milestone`, '마일스톤 브랜치 꼴에는 {goal} 자리를 둘 수 없다'); ok = false
   }
   if (!isNonEmptyString(goal) || !goal.includes('{goal}')) { err(`${p}.goal`, '{goal} 자리가 있는 꼴이어야 한다'); ok = false }
   return ok ? { base: base as string, milestone: milestone as string, goal: goal as string } : undefined
@@ -323,12 +327,13 @@ function checkAction(n: Obj, p: string, scope: Scope, err: ErrSink): void {
   if (want !== scope) err(`${p}.action`, `${a}는 ${want === 'loop' ? 'goal 고리' : '마일스톤 구획'}에서만 쓴다`)
 }
 
-// 실패 참조는 같은 구획의 자기 또는 앞 노드만 가리킨다.
+// 실패 참조는 같은 구획의 자기 또는 앞 노드만 가리킨다. 마일스톤 구획에서는 goal 고리를 건너지도 못한다.
 function checkGotos(list: unknown[], path: string, seen: Map<string, string>, err: ErrSink): void {
   const index = new Map<string, number>()
   list.forEach((n, i) => {
     if (isObject(n) && typeof n.id === 'string' && n.kind !== 'goalLoop' && !index.has(n.id)) index.set(n.id, i)
   })
+  const isLoop = (k: number): boolean => isObject(list[k]) && (list[k] as Obj).kind === 'goalLoop'
   list.forEach((n, i) => {
     if (!isObject(n) || !isObject(n.onFail) || typeof n.onFail.goto !== 'string') return
     const target = n.onFail.goto
@@ -338,6 +343,10 @@ function checkGotos(list: unknown[], path: string, seen: Map<string, string>, er
       err(p, seen.has(target) ? `${target}는 다른 구획의 노드다 — 같은 구획 안만 가리킨다` : `없는 id ${target}를 가리킨다`)
     } else if (j > i) {
       err(p, `${target}는 뒤에 있다 — 실패 때 앞으로 뛰면 게이트를 건너뛰므로 자기 또는 앞 노드만 가리킨다`)
+    } else {
+      for (let k = j + 1; k < i; k++) {
+        if (isLoop(k)) { err(p, `${target}로 가면 goal 고리를 건너 고리 앞으로 간다 — 끝난 goal 위로 분해를 다시 돌 수 없다`); break }
+      }
     }
   })
 }

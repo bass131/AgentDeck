@@ -171,6 +171,16 @@ describe('실행기 git 설정 대조', () => {
     ['core.alternateRefsCommand', 'x'],
     ['include.path', 'nothing.cfg'],
     ['includeIf.onbranch:main.path', 'nothing.cfg'],
+    // G2 3차 검수 사소 — 네트워크로 자격이 새는 키(프록시·인증서 검증 끄기·다른 CA·다른 push 주소)
+    ['http.proxy', 'http://evil.invalid:8080'],
+    ['http.sslVerify', 'false'],
+    ['http.sslCAInfo', 'evil.pem'],
+    ['http.sslCAPath', 'evil-ca'],
+    ['http.https://github.com/.proxy', 'http://evil.invalid:8080'],
+    ['http.https://github.com/.sslVerify', 'false'],
+    ['http.https://github.com/.sslCAInfo', 'evil.pem'],
+    ['remote.origin.pushurl', 'https://evil.invalid/x.git'],
+    ['remote.origin.proxy', 'http://evil.invalid:8080'],
   ]
   for (const [key, value] of DANGER) {
     it(`위험 키 ${key} — 처음 여는 것도 거부한다`, async () => {
@@ -197,7 +207,85 @@ describe('실행기 git 설정 대조', () => {
     repos.git(['config', 'filter.lfs.smudge', 'git-lfs smudge -- %f'])
     repos.git(['config', 'filter.lfs.process', 'git-lfs filter-process'])
     repos.git(['config', 'filter.lfs.required', 'true'])
+    repos.git(['config', 'http.sslVerify', 'true'])
+    repos.git(['config', 'http.proxy', ''])
+    repos.git(['config', 'remote.origin.proxy', ''])
     expect((await createConfigGuard({ cwd: repos.work, env: repos.env, snapshotFile, hooksPath })).ok).toBe(true)
+  })
+
+  // G2 3차 검수 — origin이 ssh면 실행기 git의 ssh가 ~/.ssh/config(ProxyCommand·Match exec)를 자격과 함께 읽는다.
+  // 실행기 환경의 GIT_SSH_COMMAND는 고정하지 않는다(사용자 IdentityFile 등이 깨진다). 대신 그 파일과 Include를 해시로 대조한다.
+  describe('ssh 설정 대조', () => {
+    let home: string
+    let env: NodeJS.ProcessEnv
+    beforeEach(() => {
+      home = path.join(repos.root, 'home')
+      fs.mkdirSync(path.join(home, '.ssh'), { recursive: true })
+      env = { ...repos.env, HOME: home, USERPROFILE: home }
+    })
+    const openWith = async (): Promise<ConfigGuard> => {
+      const r = await createConfigGuard({ cwd: repos.work, env, snapshotFile, hooksPath })
+      if (!r.ok) throw new Error(r.reason)
+      return r.guard
+    }
+
+    it('~/.ssh/config가 바뀌면 멈춘다 — 없던 파일이 생겨도 멈춘다', async () => {
+      const guard = await openWith()
+      expect(await guard.check()).toBeNull()
+      const snap = JSON.parse(fs.readFileSync(snapshotFile, 'utf8')) as { files: Record<string, string> }
+      expect(snap.files[path.resolve(home, '.ssh', 'config')]).toBe('absent')
+      fs.writeFileSync(path.join(home, '.ssh', 'config'), 'Host *\n  ProxyCommand sh -c "cat >> leak"\n')
+      expect(await guard.check()).toContain(path.join(home, '.ssh', 'config'))
+    })
+
+    it('Include가 가리키는 파일(상대·~·와일드카드)이 바뀌거나 새로 생겨도 멈춘다', async () => {
+      fs.writeFileSync(path.join(home, '.ssh', 'config'), 'Include extra.conf\nHost x\n  Include "~/.ssh/conf.d/*.conf"\n')
+      fs.writeFileSync(path.join(home, '.ssh', 'extra.conf'), 'Host y\n')
+      fs.mkdirSync(path.join(home, '.ssh', 'conf.d'))
+      const g1 = await openWith()
+      fs.appendFileSync(path.join(home, '.ssh', 'extra.conf'), '  Match exec "sh -c x"\n')
+      expect(await g1.check()).toContain('extra.conf')
+      fs.rmSync(snapshotFile)
+      fs.writeFileSync(path.join(home, '.ssh', 'extra.conf'), 'Host y\n')
+      const g2 = await openWith()
+      fs.writeFileSync(path.join(home, '.ssh', 'conf.d', 'evil.conf'), 'Host *\n  ProxyCommand x\n')
+      expect(await g2.check()).toContain('conf.d')
+    })
+
+    it('와일드카드에 맞는 폴더는 건너뛰고(읽지 못한 파일로 보지 않는다), ${변수}·%d를 펼친 Include도 따라간다', async () => {
+      const extra = path.join(repos.root, 'sshx')
+      fs.mkdirSync(extra)
+      fs.writeFileSync(path.join(extra, 'x.conf'), 'Host z\n')
+      fs.mkdirSync(path.join(home, '.ssh', 'conf.d', 'sub.conf'), { recursive: true })
+      fs.writeFileSync(path.join(home, '.ssh', 'config'), 'Include conf.d/*\nInclude ${SSHX}/x.conf\nInclude %d/.ssh/d.conf\n')
+      env = { ...env, SSHX: extra.replace(/\\/g, '/') }
+      const guard = await openWith()
+      const snap = JSON.parse(fs.readFileSync(snapshotFile, 'utf8')) as { files: Record<string, string> }
+      expect(Object.values(snap.files).some((h) => h.startsWith('unreadable:'))).toBe(false)
+      expect(snap.files[path.resolve(home, '.ssh', 'd.conf')]).toBe('absent')
+      expect(await guard.check()).toBeNull()
+      fs.appendFileSync(path.join(extra, 'x.conf'), '  ProxyCommand x\n')
+      expect(await guard.check()).toContain('x.conf')
+    })
+  })
+
+  // G2 3차 검수 사소 — .git/info/grafts는 GIT_NO_REPLACE_OBJECTS로 꺼지지 않는다(실측). 있으면 열지 않고, 열린 뒤 생기면 멈춘다.
+  it('grafts 파일이 있으면 열지 않고, 열린 뒤 생기면 실행기 git을 돌리지 않는다', async () => {
+    const grafts = path.join(repos.work, '.git', 'info', 'grafts')
+    fs.mkdirSync(path.dirname(grafts), { recursive: true })
+    fs.writeFileSync(grafts, `${repos.git(['rev-parse', 'HEAD'])}\n`)
+    const refused = await createConfigGuard({ cwd: repos.work, env: repos.env, snapshotFile, hooksPath })
+    expect(refused.ok).toBe(false)
+    expect(!refused.ok && refused.reason).toContain('grafts')
+    fs.rmSync(grafts)
+    const guard = await open()
+    const git = createGitPort({ cwd: repos.work, env: repos.env, guard })
+    fs.writeFileSync(grafts, `${repos.git(['rev-parse', 'HEAD'])}\n`)
+    expect(await guard.check()).toContain('grafts')
+    await expect(git.headSha('master')).rejects.toThrow(/grafts/)
+    // 지워도 멈춘 채다(메모리 래치)
+    fs.rmSync(grafts)
+    expect(await guard.check()).toContain('grafts')
   })
 
   // 이 기계처럼 전역·시스템에 credential.helper·filter.lfs·core.pager가 있는 것은 정상이다 — 로컬(·include)만 본다

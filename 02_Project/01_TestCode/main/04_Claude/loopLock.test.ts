@@ -372,6 +372,51 @@ const DENY_CWD = [
   // $PWD는 따라간 위치다
   'cd - && echo x > $PWD/x',
   'cd src && echo x > $PWD/../.git/config',
+  // G2 3차 검수 중요 E — cd 추적기를 피하는 꼴: builtin·command 래퍼, env -C, eval, CDPATH
+  'builtin cd ~/.claude && echo {} > settings.json',
+  'builtin cd .git && echo x >> config',
+  'builtin builtin cd .git',
+  'command cd .git && echo x >> config',
+  // 래퍼 뒤의 cd도 대상은 본다(`time`은 bash에선 셸 낱말이라 셸 위치를 옮긴다)
+  'time cd .git && echo x >> config',
+  'nohup cd .git',
+  'builtin cd ..',
+  'env -C .git sh -c "echo x >> config"',
+  'env --chdir=.git sh -c "echo x >> config"',
+  'env --chdir .git touch config',
+  'env -C.git touch config',
+  'env -C src sh -c "rm -rf .."',
+  'sudo -D .git touch config',
+  'eval "cd .git" && echo x >> config',
+  "eval 'cd ..' && echo x > .gitconfig",
+  'eval cd .git',
+  'eval "$X" && echo x > a',
+  'source ./env.sh && echo x > a',
+  '. ./env.sh; touch a',
+  'CDPATH=.git cd hooks && cd .. && echo x >> config',
+  'export CDPATH=.git',
+  'CDPATH=.git; cd hooks',
+  'env CDPATH=.git bash -c "cd hooks && cd .. && echo x >> config"',
+  '$env:CDPATH = ".git"',
+  // 판정이 쓰는 경로 변수(PWD·TEMP·TMP·TMPDIR)를 셸에서 다시 정하는 꼴 — 판정은 따라간 위치·실제 임시 폴더로 펼친다
+  'PWD=C:/Users/u; echo x > $PWD/.npmrc',
+  'export PWD=C:/Users/u',
+  'TMPDIR=C:/Users/u; echo x > $TMPDIR/.gitconfig',
+  'export TEMP=C:/Users/u',
+  'declare -x TMP=C:/Users/u',
+  '$env:TEMP = "C:\\Users\\u"',
+  'printf -v TMPDIR %s C:/Users/u',
+  // env 옵션의 다른 철자 — 묶은 짧은 옵션, 줄인 긴 옵션, -S(문자열을 명령으로 나눈다)
+  'env -vC .git touch config',
+  'env --chd=.git touch config',
+  'env --ch .git touch config',
+  'sudo --chd .git touch config',
+  'env -S "touch .git/config"',
+  'env -S "git push"',
+  'env -vS "git push"',
+  'env --split-string="git push"',
+  'env --sp "git push origin x"',
+  'env -C src -S "rm -rf .."',
 ]
 
 // G2 재검수 차단 A — 교체 객체(refs/replace)는 실행기 병합의 트리를 바꿔치기한다
@@ -459,6 +504,56 @@ describe('loop-lock 셸 위치 (M09 G2 재검수 중요 C)', () => {
     expect(loopCommandReason('f() { cd src; }; rm -rf .', withSrc)).not.toBeNull()
   })
 
+  // G2 3차 검수 중요 E — 래퍼·eval·env -C를 지나도 위치를 따라간다. 따라가서 저장소 안이면 지나간다
+  it('builtin·command·eval·env -C의 cd도 따라가고, 저장소 안이면 지나간다', () => {
+    const withSrc: LoopLockScope = { ...SCOPE, isDir: (p) => p.replace(/\\/g, '/').toLowerCase() === 'c:/work/repo/src' }
+    expect(loopCommandReason('builtin cd src && npm test', withSrc)).toBeNull()
+    expect(loopCommandReason('command cd src && rm -rf build', withSrc)).toBeNull()
+    expect(loopCommandReason('builtin cd src && rm -rf ..', withSrc)).not.toBeNull()
+    expect(loopCommandReason('eval "cd src" && rm -rf build', withSrc)).toBeNull()
+    expect(loopCommandReason('eval "cd src" && rm -rf ..', withSrc)).not.toBeNull()
+    expect(loopCommandReason('env -C src npm test', withSrc)).toBeNull()
+    expect(loopCommandReason('env -C src rm -rf build', withSrc)).toBeNull()
+    expect(loopCommandReason('env -C src rm -rf ..', withSrc)).not.toBeNull()
+    // env -C는 그 명령의 위치만 바꾼다 — 셸은 그대로다
+    expect(loopCommandReason('env -C src true; rm -rf build', withSrc)).toBeNull()
+    expect(loopCommandReason('echo $CDPATH', withSrc)).toBeNull()
+    expect(loopCommandReason('unset CDPATH', withSrc)).toBeNull()
+    // 명령 앞 할당은 그 명령의 환경만 바꾼다(셸 변수로 남지 않고, 같은 줄의 펼치기는 옛 값이다)
+    expect(loopCommandReason('TMPDIR=./tmp npm test', withSrc)).toBeNull()
+    expect(loopCommandReason('HOME=/tmp/h npm test', withSrc)).toBeNull()
+    expect(loopCommandReason('env -S "npm test"', withSrc)).toBeNull()
+    expect(loopCommandReason('env -C src -S "npm test"', withSrc)).toBeNull()
+  })
+
+  // 래퍼(env·sudo·nohup …) 뒤의 cd는 바깥 프로그램이라 셸 위치를 바꾸지 않는다
+  it('env·nohup 뒤의 cd는 셸 위치를 옮기지 않는다고 본다(옛 위치를 남긴다)', () => {
+    const withSrc: LoopLockScope = { ...SCOPE, isDir: (p) => p.replace(/\\/g, '/').toLowerCase() === 'c:/work/repo/src' }
+    expect(loopCommandReason('env cd src && rm -rf .', withSrc)).not.toBeNull()
+    expect(loopCommandReason('nohup cd src && rm -rf .', withSrc)).not.toBeNull()
+  })
+
+  // G2 3차 검수 중요 F — 판정 때 폴더가 있어도, 같은 명령 안 앞에서 지우거나 옮기면 cd는 실패할 수 있다
+  it('앞에서 그 폴더를 지우거나 옮기면(또는 무엇이든 바꿀 수 있는 명령이 돌면) 뒤의 cd는 실패할 수 있다고 본다', () => {
+    const withSrc: LoopLockScope = { ...SCOPE, isDir: (p) => p.replace(/\\/g, '/').toLowerCase() === 'c:/work/repo/src' }
+    expect(loopCommandReason('rm -rf src; cd src; echo x >> ../.gitconfig', withSrc)).not.toBeNull()
+    expect(loopCommandReason('mv src x; cd src; echo x >> ../.gitconfig', withSrc)).not.toBeNull()
+    expect(loopCommandReason('Remove-Item -Recurse src; cd src; Set-Content ../.gitconfig x', withSrc)).not.toBeNull()
+    expect(loopCommandReason('git checkout other; cd src; rm -rf .', withSrc)).not.toBeNull()
+    expect(loopCommandReason('npm run clean; cd src; rm -rf .', withSrc)).not.toBeNull()
+    // `&&` 바로 뒤의 쓰기는 cd가 됐을 때만 돈다(그때 ../.gitconfig는 저장소 뿌리의 파일이다)
+    expect(loopCommandReason('rm -rf src && cd src && echo x >> ../.gitconfig', withSrc)).toBeNull()
+    expect(loopCommandReason('rm -rf src && cd src; echo x >> ../.gitconfig', withSrc)).not.toBeNull()
+    // 앞 호출이 뒤에 남긴 일(백그라운드 지우기)이 시간이 지나 폴더를 지울 수 있다 — 읽기 명령이라도 앞에 돌면 cd는 실패할 수 있다
+    expect(loopCommandReason('sleep 5; cd src; echo x >> ../.gitconfig', withSrc)).not.toBeNull()
+    expect(loopCommandReason('git status; cd src; rm -rf .', withSrc)).not.toBeNull()
+    // 뒤의 쓰기가 옛 위치에서도 무해하면 지나간다
+    expect(loopCommandReason('ls; cd src; rm -rf build', withSrc)).toBeNull()
+    expect(loopCommandReason('cd src; rm -rf .', withSrc)).toBeNull()
+    // `&&` 바로 뒤는 cd가 됐을 때만 돈다
+    expect(loopCommandReason('rm -rf src; cd src && rm -rf .', withSrc)).toBeNull()
+  })
+
   type Out = { hookSpecificOutput?: { permissionDecision: string; permissionDecisionReason: string } }
   const signal = new AbortController().signal
   function session(scope: LoopLockScope = SCOPE): (command: string, cwd?: string) => Promise<string | null> {
@@ -496,6 +591,23 @@ describe('loop-lock 셸 위치 (M09 G2 재검수 중요 C)', () => {
     expect(await call('echo x > config', 'C:\\work\\repo')).toBeNull()
   })
 
+  // G2 3차 검수 중요 E — 호출을 나눠도 builtin cd ..는 따라간다(거부되고 위치는 뿌리에 남는다)
+  it('builtin cd ..는 거부되고, 다음 호출의 상대 쓰기는 뿌리 기준이다', async () => {
+    const call = session()
+    expect(await call('builtin cd ..')).not.toBeNull()
+    expect(await call('eval "cd .."')).not.toBeNull()
+    expect(await call('echo x > notes.txt')).toBeNull()
+    // eval 안의 cd도 호출 사이로 넘긴다
+    expect(await call('eval "cd src"')).toBeNull()
+    expect(await call('rm -rf ..', 'C:\\work\\repo\\src')).not.toBeNull()
+  })
+
+  it('앞 호출의 백그라운드 지우기를 기다리는 꼴도 cd가 실패할 수 있다고 본다', async () => {
+    const call = session({ ...SCOPE, isDir: (p) => p.replace(/\\/g, '/').toLowerCase() === 'c:/work/repo/src' })
+    expect(await call('(sleep 3; rm -rf src) &')).toBeNull()
+    expect(await call('sleep 5; cd src; echo x >> ../.gitconfig')).not.toBeNull()
+  })
+
   it('거부된 명령의 cd는 위치를 바꾸지 않는다', async () => {
     const call = session()
     expect(await call('cd .git && ls')).not.toBeNull()
@@ -526,6 +638,8 @@ describe('loop-lock 거부 사유 (M09 G2)', () => {
       expect(reason).toContain('원격은 실행기 코드만')
       expect(reason).toContain('로컬 커밋까지만')
     }
+    expect(loopCommandReason('export CDPATH=.git', SCOPE)).toContain('CDPATH')
+    expect(loopCommandReason('export CDPATH=.git', SCOPE)).toContain('원격은 실행기 코드만')
   })
 })
 

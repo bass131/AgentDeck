@@ -16,6 +16,12 @@
 //      .agentdeck 자체)나 저장소 밖을 가리키면 거부한다. `cd -`·맨 `cd`·popd는 거부하지 않고 위치를 「모름」으로 두며, 모르는 위치의
 //      상대 경로 쓰기(압축 풀기·내려받기의 암묵적 「.」 포함)는 거부한다. 맨 이름 run-state.json·verification.md 쓰기는 위치와 관계없이
 //      거부한다. 경로는 `.git`·`.claude`·`.agentdeck`가 어디에 있든 그 이름으로 본다(어느 저장소의 것이든).
+//      G2 3차 검수 중요 E·F — `builtin cd`·`command cd`도 셸의 cd로 따라가고, 그 밖의 래퍼(env·nohup·sudo …) 뒤의 cd는 옛 위치를
+//      남긴다. `env -C`·`env --chdir`·`sudo -D`는 그 뒤 명령의 위치로 판정한다(cd와 같은 보호 폴더 거부). eval의 인자는 다시 판독하고
+//      안쪽 cd를 밖으로 내며(판독 못 한 글이면 「모름」을 더한다), source·`.` 뒤는 「모름」이다. CDPATH를 정하는 꼴은 거부한다.
+//      env·sudo 옵션은 getopt처럼 읽고(묶은 짧은 옵션·줄인 긴 옵션), env -S의 문자열은 명령으로 다시 판독한다.
+//      앞에서 폴더를 바꿀 수 있는 명령(읽기 목록 밖 전부 — rm·mv·Remove-Item·git checkout·npm run …)이 돌았으면 뒤의 cd는 실패할 수
+//      있다고 본다(`&&` 바로 뒤의 명령은 cd가 됐을 때만 돈다).
 //   ⑧ 교체 객체 (G2 재검수 차단 A) — git replace, fast-import, update-ref --stdin, refs/replace를 건드리는 ref 쓰기, 맨 위를 덮는
 //      fetch refspec(`refs/*:refs/*`). 실행기 git은 교체 객체를 따르지 않지만(gitPort) 심는 길도 막는다.
 //   ⑨ 전역 패키지 설치 (G2 재검수) — npm·pnpm·bun의 -g·--global·--location=global, npm link(맨), yarn global. 실행기가 PATH에서 찾는
@@ -24,9 +30,20 @@
 // 작업 트리를 지우지 않아 지우기로 보지 않는다.
 //
 // 명령 글자 판정은 겹이다 — 보증이 아니다. 실측으로 확인한 싼 구멍만 한 줄 규칙으로 막았고, 다음은 남는다:
-// 스크립트 파일, 인터프리터(node -e·python -c·perl -e), 변수 간접 참조(판독 못 한 변수는 쓰기 대상이면 거부), git apply·worktree·
-// clone 같은 간접 쓰기, 위치를 따라가지 못하는 명령(git -C, 셸 함수·별칭), 전역 쓰기의 다른 길(npm config set prefix, corepack enable,
-// PATH 변수 바꾸기). 상태 위조는 앱 쪽 다이제스트와 위조 래치(05_Loop), 실행기 git 설정은 실행기의 설정 대조(05_Loop/configGuard.ts)가
+//   - 스크립트 파일과 인터프리터(node -e·python -c·perl -e·ruby -e)의 안 — 판독하지 않는다. source·`.`는 위치만 「모름」으로 둔다.
+//   - 셸 함수·별칭 — 정의한 몸통의 cd는 「돌지 않을 수 있다」로만 보고, 부르는 자리(`f`)가 무엇을 하는지는 모른다. 별칭은 펼치지 않는다.
+//   - 위치를 따라가지 못하는 명령 — `git -C 폴더`(그 안의 상대 경로), make -C·npm --prefix·pnpm -C 같은 도구별 위치 옵션,
+//     xargs·find -exec로 넘긴 cd, PowerShell 함수·스크립트 블록 안의 Set-Location.
+//   - 명령 낱말 간접 참조 — `c=cd; $c .git && …`, `"c""d" .git`처럼 명령 이름을 변수·조각으로 만든 꼴은 cd로 보지 않는다.
+//   - 판정과 실행 사이의 틈 — 앞에 아무 명령 없는 cd는 판정 때의 폴더를 믿는다(그 사이 다른 프로세스가 지우면 틀린다).
+//   - 경로 변수 — PWD·TEMP·TMP·TMPDIR를 혼자 선 할당·export류·$env:로 다시 정하는 꼴은 거부한다. 홈·APPDATA 재지정은 판정이 실제
+//     값(저장소 밖)으로 펼쳐 거부 쪽으로 틀어진다. 명령 앞 할당은 그 명령 환경만 바꾼다.
+//   - 상속된 CDPATH — 자식 환경에 CDPATH가 있으면 상대 cd가 옮겨 간다(자식 환경은 05_Loop/childEnv.ts가 정한다). 정하는 꼴만 거부하며,
+//     그 판정은 글자 어디서나(커밋 메시지·heredoc 본문 포함) 맞춰 오탐이 있다.
+//   - 변수 간접 참조(판독 못 한 변수는 쓰기 대상이면 거부), git apply·worktree·clone 같은 간접 쓰기.
+//   - 전역 쓰기의 다른 길(npm config set prefix, corepack enable, PATH 변수 바꾸기).
+//   - 호출 사이 위치 — 훅 입력 cwd의 의미는 G4 실주행에서 실측한다. 한 세션의 Bash·PowerShell·하위 에이전트 호출이 위치 하나를 같이 쓴다.
+// 상태 위조는 앱 쪽 다이제스트와 위조 래치(05_Loop), 실행기 git 설정·ssh 설정·grafts는 실행기의 설정 대조(05_Loop/configGuard.ts)가
 // 따로 본다. 원격 쓰기의 구조적 보증은 사용자가 범위를 좁힌 토큰이다(이 goal 밖).
 // 셸 판독은 병합 거부 노드(mergeDeny.ts)의 낱말 함수를 같이 쓴다. 명령 마디 나누기는 구분자를 알아야 해서 여기서 한다.
 import fs from 'node:fs'
@@ -69,6 +86,7 @@ const CWD = '셸 위치를 보호 폴더(.git·.agentdeck·.claude·앱 영역)�
 const MCP = 'MCP 도구는 작업 노드 세션에서 쓰지 않습니다 — 자기 자격으로 원격에 닿을 수 있습니다.' + TAIL
 const TOO_DEEP = '중첩이 깊어 판독하지 못한 명령은 작업 노드 세션에서 막습니다.' + TAIL
 const REPLACE = 'git replace와 교체 참조(refs/replace) 쓰기는 작업 노드 세션에서 막습니다 — 실행기가 병합하는 커밋의 트리를 바꿔치기합니다.' + TAIL
+const CDPATH = 'CDPATH 설정은 작업 노드 세션에서 막습니다 — 상대 cd가 어디로 가는지 판독할 수 없게 됩니다.' + TAIL
 const GLOBAL_PKG = '전역 패키지 설치(npm -g·pnpm add -g·yarn global 등)는 작업 노드 세션에서 막습니다 — 실행기가 PATH에서 찾는 git·gh를 가로챌 수 있습니다.' + TAIL
 
 // ── 경로 ─────────────────────────────────────────────────────────────────
@@ -656,6 +674,104 @@ function cdEffect(c: Cmd, b: string, r: Resolved, cwd: Cwd): CdEffect {
 
 const baseOfCmd = (c: Cmd): string => c.base.replace(/\.exe$/, '')
 
+// ── 위치를 바꾸는 다른 꼴 (G2 3차 검수 중요 E) ──────────────────────────────
+// `builtin cd`는 셸의 cd다 — 뒤의 낱말을 명령으로 다시 본다(`command`는 병합 거부 노드의 래퍼 목록에 있다).
+function withBuiltins(cmds: Cmd[], depth = 0): Cmd[] {
+  const out: Cmd[] = []
+  for (const c of cmds) {
+    out.push(c)
+    if (baseOfCmd(c) === 'builtin' && c.args.length > 0 && depth < 4) out.push(...withBuiltins(commandsOf(c.args), depth + 1))
+  }
+  return out
+}
+// 셸 자신이 도는 자리 — 앞이 `builtin`·`command`뿐이다. 그 밖의 래퍼(env·nohup·sudo …) 뒤의 cd는 바깥 프로그램이다.
+const SHELL_PREFIX = new Set(['builtin', 'command'])
+
+// `env`·`sudo`의 옵션을 getopt처럼 읽는다 — 묶은 짧은 옵션(`-vC 폴더`, `-C폴더`), 줄인 긴 옵션(`--chd=폴더`).
+// chdir은 그 뒤 명령의 위치, split은 env -S의 문자열(명령으로 나눠 돈다 — 다시 판독한다), rest는 그 뒤 낱말이다.
+interface OptSpec { chdirShort: string; splitShort: string | null; valueShort: string; long: Readonly<Record<string, 'chdir' | 'split' | 'value' | 'flag'>> }
+const OPT_SPECS: Readonly<Record<string, OptSpec>> = {
+  env: {
+    chdirShort: 'C', splitShort: 'S', valueShort: 'u',
+    long: { chdir: 'chdir', 'split-string': 'split', unset: 'value', argv0: 'value', 'ignore-environment': 'flag', null: 'flag', debug: 'flag',
+      'block-signal': 'flag', 'default-signal': 'flag', 'ignore-signal': 'flag', 'list-signal-handling': 'flag', help: 'flag', version: 'flag' },
+  },
+  sudo: {
+    chdirShort: 'D', splitShort: null, valueShort: 'ughpCUrtTR',
+    long: { chdir: 'chdir', chroot: 'value', 'close-from': 'value', 'command-timeout': 'value', user: 'value', group: 'value', host: 'value',
+      prompt: 'value', 'other-user': 'value', role: 'value', type: 'value' },
+  },
+}
+interface WrapperOpts { chdir: string | null; split: string | null; rest: string[] }
+
+function wrapperOpts(b: string, args: string[]): WrapperOpts | null {
+  const spec = OPT_SPECS[b]
+  if (!spec) return null
+  const out: WrapperOpts = { chdir: null, split: null, rest: [] }
+  const take = (kind: 'chdir' | 'split' | 'value', v: string | undefined): void => {
+    if (kind === 'chdir') out.chdir = v ?? null
+    else if (kind === 'split') out.split = v ?? ''
+  }
+  let i = 0
+  for (; i < args.length; i++) {
+    const t = args[i]
+    if (t === '--') { i++; break }
+    if (t.startsWith('--')) {
+      const [name, eq] = [t.slice(2).split('=')[0], t.includes('=') ? t.slice(t.indexOf('=') + 1) : undefined]
+      const hits = Object.keys(spec.long).filter((l) => l.startsWith(name))
+      const kind = spec.long[name] ?? (hits.length === 1 ? spec.long[hits[0]] : undefined)
+      if (kind === undefined) continue
+      if (kind === 'flag') continue
+      if (eq !== undefined) take(kind, eq)
+      else take(kind, args[++i])
+      continue
+    }
+    if (t.startsWith('-') && t.length > 1) {
+      for (let k = 1; k < t.length; k++) {
+        const ch = t[k]
+        const kind = ch === spec.chdirShort ? 'chdir' : ch === spec.splitShort ? 'split' : spec.valueShort.includes(ch) ? 'value' : null
+        if (kind === null) continue
+        take(kind, k + 1 < t.length ? t.slice(k + 1) : args[++i])
+        break
+      }
+      continue
+    }
+    if (assignName(t) !== null) continue
+    break
+  }
+  out.rest = args.slice(i)
+  return out
+}
+
+// 판정이 펼치는 경로 변수 가운데 셸에서 다시 정하면 판정이 틀어지는 것 — PWD(따라간 위치로 펼친다)와 임시 폴더(쓰기를 허용한다).
+// 홈·APPDATA는 다시 정해도 판정이 실제 값(저장소 밖)으로 펼쳐 거부 쪽으로 틀어진다. 명령 앞 할당(`TMPDIR=x npm test`)은 그 명령의
+// 환경만 바꾸고 같은 줄의 펼치기는 옛 값이라 막지 않는다. 혼자 선 할당·export류·PowerShell $env: 할당만 거부한다.
+const PATH_VARS = /^(?:PWD|TEMP|TMP|TMPDIR)$/i
+const PS_PATH_VAR_SET = /\$env:(?:PWD|TEMP|TMP|TMPDIR)\s*[+]?=|SetEnvironmentVariable\s*\(\s*['"](?:TEMP|TMP|TMPDIR)['"]/i
+const VAR_SET = '판정이 쓰는 경로 변수(PWD·TEMP·TMP·TMPDIR)를 셸에서 다시 정하는 꼴은 작업 노드 세션에서 막습니다 — 쓰기 대상이 어디인지 판독할 수 없게 됩니다.' + TAIL
+
+function pathVarReason(tokens: string[], cmds: Cmd[]): string | null {
+  if (tokens.length > 0 && tokens.every((t) => assignName(t) !== null) && tokens.some((t) => PATH_VARS.test(assignName(t) ?? ''))) return VAR_SET
+  for (const c of cmds) {
+    const b = baseOfCmd(c)
+    if (['export', 'declare', 'typeset', 'local', 'readonly', 'read', 'setx'].includes(b)) {
+      if (c.args.some((t) => PATH_VARS.test(assignName(t) ?? t))) return VAR_SET
+    }
+    if (b === 'printf') { const k = c.args.indexOf('-v'); if (k >= 0 && PATH_VARS.test(c.args[k + 1] ?? '')) return VAR_SET }
+  }
+  return null
+}
+
+// CDPATH를 정하면 상대 cd가 어디로 갈지 판독할 수 없다 — 정하는 꼴을 거부한다(셸 변수는 호출 사이에 남는다)
+const CDPATH_SET = /\bCDPATH\s*\+?=|\b(?:export|declare|typeset|readonly|local|read|mapfile|readarray|setx|set)\b[^;&|\n]*\bCDPATH\b|\bprintf\s+-v\s*CDPATH\b|(?:set-item|new-item|si|ni)\b[^;|\n]*env:[\\/]?CDPATH\b|SetEnvironmentVariable\s*\(\s*['"]CDPATH/i
+
+// ── 앞에 돈 명령 (G2 3차 검수 중요 F) ───────────────────────────────────────
+// 판정 때 폴더가 있어도, 앞의 명령이 지우거나 옮기면(rm·mv·Remove-Item·git checkout·npm run …) 뒤의 cd는 실패한다. 앞 호출이 남긴
+// 백그라운드 일도 시간이 지나면 지운다 — `sleep 5; cd src`처럼 읽기 명령으로 기다릴 수도 있다. 그래서 cd 밖 명령이 하나라도 앞에
+// 돌았으면 뒤의 cd를 실패할 수 있다고 본다(보수). 앞에 아무것도 없는 cd는 판정 때의 폴더를 믿는다(판정과 실행 사이의 틈은 남는다).
+const NO_DELAY = new Set(['builtin', 'command', 'cd', 'pushd', 'popd', 'chdir', 'set-location', 'sl', 'push-location', 'pop-location'])
+const readOnlyCmd = (c: Cmd): boolean => NO_DELAY.has(baseOfCmd(c))
+
 function cmdReason(c: Cmd, ctx: Ctx): string | null {
   const b = baseOfCmd(c)
   const check: Check = (paths, destructive) => {
@@ -679,7 +795,7 @@ function cmdReason(c: Cmd, ctx: Ctx): string | null {
   return null
 }
 
-interface Walk { reason: string | null; end: Cwd }
+interface Walk { reason: string | null; end: Cwd; mutated: boolean }
 
 // 스크립트 하나를 마디 차례로 걷는다. 명령 치환·셸 -c·Windows 셸의 안쪽은 그 자리의 위치로 다시 판독한다(안쪽 cd는 밖으로 나오지 않는다).
 // `&&` 줄은 처음 실패한 명령에서 멈춘다 — 줄 안에서 실패할 수 있는 명령(cd 밖 명령 전부, 실패할 수 있는 cd)이 돈 자리를 모아 두고,
@@ -689,15 +805,19 @@ const OPEN_KW = new Set(['if', 'while', 'until', 'for', 'select', 'case', '{'])
 const CLOSE_KW = new Set(['fi', 'done', 'esac', '}'])
 const EXIT_CMD = new Set(['exit', 'return', 'logout', 'exec'])
 
-function scriptReason(script: string, r: Resolved, depth: number, start: Cwd): Walk {
-  const deny = (reason: string): Walk => ({ reason, end: start })
+// mutated는 앞에서 폴더를 바꿀 수 있는 명령이 돌았는가다(중요 F) — 안쪽 스크립트(셸 -c·eval·명령 치환)로 넘기고 돌려받는다.
+function scriptReason(script: string, r: Resolved, depth: number, start: Cwd, mutatedAtStart = false): Walk {
+  const deny = (reason: string): Walk => ({ reason, end: start, mutated: true })
   if (depth > 4) return deny(TOO_DEEP)
   if (PS_ENV_SET.test(script) || PS_ENV_REMOVE.test(script) || DOTNET_ENV.test(script)) return deny(CREDENTIAL)
+  if (CDPATH_SET.test(script)) return deny(CDPATH)
+  if (PS_PATH_VAR_SET.test(script)) return deny(VAR_SET)
   const items = splitItems(stripHeredocBodies(script.replace(/\\\r?\n/g, ' ')))
   let cwd: Cwd = start
   let chain: Cwd = []
   let stops: Cwd = []
   let body = 0
+  let mutated = mutatedAtStart
   const stack: { cwd: Cwd; chain: Cwd }[] = []
   for (let idx = 0; idx < items.length; idx++) {
     const item = items[idx]
@@ -720,9 +840,11 @@ function scriptReason(script: string, r: Resolved, depth: number, start: Cwd): W
     const nextItem = items[idx + 1]
     const prev = prevItem?.kind === 'sep' ? prevItem.sep : null
     const next = nextItem?.kind === 'sep' ? nextItem.sep : null
+    let pieceMutates = false
     for (const s of item.subs) {
-      const inner = scriptReason(s, r, depth + 1, cwd)
+      const inner = scriptReason(s, r, depth + 1, cwd, mutated)
       if (inner.reason) return deny(inner.reason)
+      pieceMutates ||= inner.mutated
     }
     for (const target of redirectTargets(item.text)) {
       const reason = reasonOfKind(pathKind(target, r, false, cwd))
@@ -733,42 +855,84 @@ function scriptReason(script: string, r: Resolved, depth: number, start: Cwd): W
       if (assignName(t) === null) break
       if (protectedAssign(t)) return deny(CREDENTIAL)
     }
-    const cmds = commandsOf(tokens)
-    const ctx: Ctx = { r, depth, cwd }
+    const cmds = withBuiltins(commandsOf(tokens))
+    const varSet = pathVarReason(tokens, cmds)
+    if (varSet) return deny(varSet)
+    // 명령마다의 위치 — env -C·sudo -D가 그 뒤 명령의 위치를 바꾼다(셸 위치는 그대로다)
+    let cmdCwd: Cwd = cwd
+    let atShell = true
+    // 이 마디가 셸 위치를 바꾸는 꼴: cd(셸 자리·래퍼 뒤), eval·source의 끝 위치
+    let cd: { c: Cmd; external: boolean } | null = null
+    let evalEnd: Cwd | null = null
     for (const c of cmds) {
+      const b = baseOfCmd(c)
+      const shellPos = atShell
+      atShell = atShell && SHELL_PREFIX.has(b)
+      const wo = wrapperOpts(b, c.args)
+      if (wo?.chdir != null) {
+        const e = cdEffect({ base: 'cd', args: [wo.chdir] }, 'cd', r, cmdCwd)
+        if (e.reason !== null) return deny(e.reason)
+        cmdCwd = e.dirs
+      }
+      // env -S '명령 낱말들' — 문자열을 명령으로 나눠 돈다. 뒤 낱말과 이어 다시 판독한다(뒤 명령 마디는 낱말 판독이 틀린다)
+      if (wo?.split != null) {
+        const inner = scriptReason([wo.split, ...wo.rest].join(' '), r, depth + 1, cmdCwd, mutated)
+        if (inner.reason) return deny(inner.reason)
+        pieceMutates = true
+        break
+      }
       if (SHELLS.has(c.base)) {
         const k = c.args.findIndex((t) => RE_SHELL_C.test(t))
         if (k >= 0 && k + 1 < c.args.length) {
-          const inner = scriptReason(c.args[k + 1], r, depth + 1, cwd)
+          const inner = scriptReason(c.args[k + 1], r, depth + 1, cmdCwd, mutated)
           if (inner.reason) return deny(inner.reason)
-        }
+          pieceMutates ||= inner.mutated
+        } else pieceMutates = true
         continue
       }
       for (const s of windowsShellScripts(c) ?? []) {
-        const inner = scriptReason(s, r, depth + 1, cwd)
+        const inner = scriptReason(s, r, depth + 1, cmdCwd, mutated)
         if (inner.reason) return deny(inner.reason)
       }
-      const reason = cmdReason(c, ctx)
+      // eval은 인자를 이 셸에서 스크립트로 돌린다 — 안쪽 cd가 밖으로 나온다. 판독 못 한 글(변수·치환)이면 끝 위치에 「모름」을 더한다
+      if (b === 'eval' && shellPos) {
+        const text = c.args.join(' ')
+        const inner = scriptReason(text, r, depth + 1, cmdCwd, mutated)
+        if (inner.reason) return deny(inner.reason)
+        pieceMutates ||= inner.mutated
+        evalEnd = /[$`]/.test(text) ? union(inner.end, [UNKNOWN]) : inner.end
+        continue
+      }
+      // source·`.`는 파일의 스크립트를 이 셸에서 돌린다 — 안을 모르니 위치를 「모름」으로 둔다
+      if ((b === 'source' || b === '.') && shellPos && c.args.length > 0) { evalEnd = [UNKNOWN]; pieceMutates = true; continue }
+      const reason = cmdReason(c, { r, depth, cwd: cmdCwd })
       if (reason) return deny(reason)
+      if ((CD.has(b) || POP.has(b)) && cd === null) cd = { c, external: !shellPos }
+      if (!readOnlyCmd(c)) pieceMutates = true
     }
     if (cmds.some((c) => EXIT_CMD.has(baseOfCmd(c)))) stops = union(stops, cwd)
-    const cd = cmds.find((c) => CD.has(baseOfCmd(c)) || POP.has(baseOfCmd(c)))
-    if (!cd) {
+    let effect: CdEffect | null = null
+    let external = false
+    if (evalEnd !== null) effect = { reason: null, dirs: evalEnd, canFail: true }
+    else if (cd !== null) { effect = cdEffect(cd.c, baseOfCmd(cd.c), r, cwd); external = cd.external }
+    const mutatedBefore = mutated
+    mutated ||= pieceMutates
+    if (effect === null) {
       // 이 명령이 실패하면 줄이 여기서 멈춘다
       chain = union(chain, cwd)
       continue
     }
-    const effect = cdEffect(cd, baseOfCmd(cd), r, cwd)
     if (effect.reason !== null) return deny(effect.reason)
-    // 파이프·백그라운드·`||` 곁이나 조건 몸통의 cd는 하위 셸이거나 돌지 않을 수 있다 — 옛 위치를 남긴다
+    // 파이프·백그라운드·`||` 곁이나 조건 몸통, 래퍼 뒤의 cd는 하위 셸·바깥 프로그램이거나 돌지 않을 수 있다 — 옛 위치를 남긴다
     // 몸통 안이라도 `cd x && 명령`의 명령은 cd가 돈 뒤에만 돈다 — 옛 위치는 줄이 끝날 때 다시 더해진다
-    const uncertain = prev === '||' || prev === '|' || next === '|' || next === '&' || next === '||'
+    const uncertain = external || prev === '||' || prev === '|' || next === '|' || next === '&' || next === '||'
+    const canFail = effect.canFail || mutatedBefore
     const before = cwd
     cwd = uncertain || (inBody && next !== '&&') ? union(before, effect.dirs) : effect.dirs
-    if (effect.canFail || uncertain || inBody) chain = union(chain, before)
+    if (canFail || uncertain || inBody) chain = union(chain, before)
   }
   cwd = union(chain, cwd)
-  return { reason: null, end: union(stops, cwd) }
+  return { reason: null, end: union(stops, cwd), mutated }
 }
 
 // 셸 명령이 잠금에 걸리면 사유를, 아니면 null을 돌려준다. 셸 위치는 저장소 뿌리에서 시작한다(호출 사이는 훅이 넘긴다).
@@ -780,16 +944,17 @@ export function loopCommandReason(command: string, scope: LoopLockScope): string
 const EDIT_TOOLS = new Set(['Write', 'Edit', 'MultiEdit', 'NotebookEdit'])
 
 // 도구 호출 하나의 판정과, 명령이면 끝난 뒤의 셸 위치.
+// 편집 도구가 쓴 폴더는 다음 호출의 cd와 관계없다(판정 때 isDir를 다시 본다) — mutated는 호출 안에서만 쓴다.
 function toolCheck(toolName: string | undefined, toolInput: unknown, r: Resolved, cwd: Cwd): Walk {
-  if (toolName !== undefined && toolName.toLowerCase().startsWith('mcp__')) return { reason: MCP, end: cwd }
+  if (toolName !== undefined && toolName.toLowerCase().startsWith('mcp__')) return { reason: MCP, end: cwd, mutated: false }
   const ti = toolInput && typeof toolInput === 'object' ? (toolInput as Record<string, unknown>) : {}
   const command = ti['command']
   if (typeof command === 'string') return scriptReason(command, r, 0, cwd)
   if (toolName !== undefined && EDIT_TOOLS.has(toolName)) {
     const p = typeof ti['file_path'] === 'string' ? ti['file_path'] : ti['notebook_path']
-    if (typeof p === 'string') return { reason: reasonOfKind(pathKind(p, r, false, [r.rootRaw])), end: cwd }
+    if (typeof p === 'string') return { reason: reasonOfKind(pathKind(p, r, false, [r.rootRaw])), end: cwd, mutated: false }
   }
-  return { reason: null, end: cwd }
+  return { reason: null, end: cwd, mutated: false }
 }
 
 // 도구 호출 하나의 판정. mcp__ 도구는 전부 거부, `command` 입력을 가진 도구(Bash·PowerShell 등)는 명령으로, 편집 도구는 경로로 본다.

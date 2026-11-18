@@ -74,8 +74,17 @@ export function executorGitEnv(base: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
 //   core.pager·editor, pager.<명령>, sequence.editor, interactive.diffFilter   명령 키다(실행기는 터미널 없이 돌고 --no-edit를 주지만 거부한다).
 //   gpg.program·gpg.<형식>.program·gpg.ssh.defaultKeyCommand, commit·tag·push.gpgSign(참)   서명 때 PATH의 프로그램을 돌린다.
 //   trailer.<이름>.command·cmd, submodule.<이름>.update(!명령)   커밋 트레일러·서브모듈 갱신이 돌린다.
+// G2 3차 검수 사소 — 명령은 아니지만 네트워크로 자격이 새는 키:
+//   http.proxy·http.<주소>.proxy(빈 값 제외)   push·fetch의 요청(인증 머리 포함)이 그 프록시를 지난다.
+//   http.sslVerify·http.<주소>.sslVerify(거짓)   인증서 검증을 끈다 — 가로채기 쪽에 자격을 넘긴다.
+//   http.sslCAInfo·sslCAPath(·<주소>.)   다른 CA를 믿게 한다. sslCAPath는 sslCAInfo와 같은 부류라 더했다.
+//   remote.<이름>.pushurl   실행기 push(자격 있음)가 다른 주소로 간다.
+//   remote.<이름>.proxy(빈 값 제외)   그 원격의 http 요청 프록시다(git-config(1)) — http.proxy와 같은 부류라 더했다.
 // alias.*는 빼었다 — 실행기는 별칭을 부르지 않고, git은 내장 명령 이름의 별칭을 무시한다.
+const HTTP_PROXY = /^(?:http\.(?:.+\.)?|remote\..+\.)proxy$/
+const HTTP_SSL_VERIFY = /^http\.(?:.+\.)?sslverify$/
 const DANGER_KEY = new RegExp([
+  '^http\\.(?:.+\\.)?(?:sslcainfo|sslcapath)$', '^remote\\..+\\.pushurl$',
   '^core\\.(?:fsmonitor|sshcommand|askpass|gitproxy|alternaterefscommand|hookspath|pager|editor)$',
   '^filter\\.', '^diff\\.external$', '^diff\\..+\\.(?:textconv|command)$', '^merge\\..+\\.driver$',
   '^credential\\.', '^remote\\..+\\.(?:uploadpack|receivepack|vcs)$', '^url\\..+\\.(?:insteadof|pushinsteadof)$', '^protocol\\.',
@@ -99,6 +108,8 @@ function isDangerous(key: string, value: string): boolean {
   if (key === 'core.fsmonitor') return !BOOL.test(v)
   if (/^(?:commit|tag|push)\.gpgsign$/.test(key)) return !FALSE.test(v)
   if (/^submodule\..+\.update$/.test(key)) return v.startsWith('!')
+  if (HTTP_PROXY.test(key)) return v !== ''
+  if (HTTP_SSL_VERIFY.test(key)) return FALSE.test(v)
   return DANGER_KEY.test(key)
 }
 
@@ -148,6 +159,80 @@ function runnerOf(opts: ConfigGuardOptions): Run {
   return opts.runGit ?? ((args) => runProcess('git', args, { cwd: opts.cwd, env: opts.env, timeoutMs: 30_000 }))
 }
 
+// ── ssh 설정 (G2 3차 검수) ───────────────────────────────────────────────────
+// origin이 ssh면 실행기 git의 ssh가 ~/.ssh/config(ProxyCommand·Match exec·LocalCommand)를 자격과 함께 읽는다. 실행기 환경의
+// GIT_SSH_COMMAND로 설정을 끄지 않는다(사용자 IdentityFile·Host 별칭이 깨진다). 대신 그 파일과 Include가 가리키는 파일을 해시로 대조한다.
+// Include는 ~/.ssh 기준 상대 경로·`~`·이름 자리 와일드카드를 따라간다(깊이 4). 폴더 자리 와일드카드는 따라가지 못해 고정 표지만 남긴다(겹).
+// 시스템 설정(/etc/ssh/ssh_config, %ProgramData%\ssh)은 사용자 자신의 것이라 보지 않는다. HOME과 USERPROFILE을 둘 다 본다
+// (Git for Windows의 ssh는 HOME, Windows OpenSSH는 USERPROFILE).
+const SSH_GLOB = /[*?[]/
+const SSH_INCLUDE_DEPTH = 4
+
+function sshWords(rest: string): string[] {
+  const out: string[] = []
+  for (const m of rest.matchAll(/"([^"]*)"|(\S+)/g)) out.push(m[1] ?? m[2])
+  return out
+}
+
+function sshIncludes(text: string): string[] {
+  const out: string[] = []
+  for (const line of text.split(/\r?\n/)) {
+    const m = /^\s*include(?:\s*=\s*|\s+)(.+)$/i.exec(line)
+    if (m) out.push(...sshWords(m[1]))
+  }
+  return out
+}
+
+function globRegex(name: string): RegExp {
+  let re = ''
+  for (const ch of name) re += ch === '*' ? '.*' : ch === '?' ? '.' : ch.replace(/[.+^${}()|[\]\\]/g, '\\$&')
+  return new RegExp(`^${re}$`, 'i')
+}
+
+async function sshFiles(env: NodeJS.ProcessEnv): Promise<Record<string, string>> {
+  const out: Record<string, string> = {}
+  const homes = [...new Set([lookup(env, 'HOME'), lookup(env, 'USERPROFILE')].filter((h): h is string => !!h).map((h) => path.resolve(h)))]
+  const queue = homes.map((home) => ({ file: path.join(home, '.ssh', 'config'), home, depth: 0 }))
+  while (queue.length > 0) {
+    const { file, home, depth } = queue.shift() as (typeof queue)[number]
+    const key = path.resolve(file)
+    if (key in out) continue
+    out[key] = await hashFile(key)
+    if (depth >= SSH_INCLUDE_DEPTH) continue
+    let text: string
+    try { text = await fsp.readFile(key, 'utf8') } catch { continue }
+    for (const raw of sshIncludes(text)) {
+      // `~`, ${환경 변수}, %d(홈)·%%를 펼친다. 그 밖의 % 토큰·모르는 변수는 따라가지 못해 고정 표지만 남긴다(겹)
+      let unresolved = false
+      const p = raw.replace(/^~(?=$|[\\/])/, home)
+        .replace(/\$\{([A-Za-z_][A-Za-z0-9_]*)\}/g, (m, n: string) => { const v = lookup(env, n.toUpperCase()) ?? env[n]; if (v === undefined) unresolved = true; return v ?? m })
+        .replace(/%(.)/g, (m, ch: string) => {
+          if (ch === 'd') return home
+          if (ch === '%') return '%'
+          unresolved = true
+          return m
+        })
+      const full = path.resolve(path.isAbsolute(p) ? p : path.join(home, '.ssh', p))
+      if (unresolved) { out[full] = 'token-unresolved'; continue }
+      const dir = path.dirname(full)
+      const name = path.basename(full)
+      if (SSH_GLOB.test(dir)) { out[full] = 'glob-unresolved'; continue }
+      if (!SSH_GLOB.test(name)) { queue.push({ file: full, home, depth: depth + 1 }); continue }
+      let names: string[] = []
+      try {
+        const entries = await fsp.readdir(dir, { withFileTypes: true })
+        // 폴더는 ssh도 읽지 못한다 — 건너뛴다(읽지 못한 파일로 남기면 대조마다 다시 읽기를 기다린다)
+        names = entries.filter((d) => !d.isDirectory() && globRegex(name).test(d.name)).map((d) => d.name).sort()
+      } catch (e) {
+        if ((e as NodeJS.ErrnoException).code !== 'ENOENT') names = [`unreadable:${(e as NodeJS.ErrnoException).code ?? 'error'}`]
+      }
+      out[full] = sha256(names.join('\n'))
+      for (const n of names) if (!n.startsWith('unreadable:')) queue.push({ file: path.join(dir, n), home, depth: depth + 1 })
+    }
+  }
+  return out
+}
+
 async function take(opts: ConfigGuardOptions, run: Run): Promise<Snapshot> {
   const all = await run(['config', '--list', '--show-origin', '--includes', '-z'])
   if (all.code !== 0) throw new Error(`git 설정을 읽지 못했다 — ${all.stderr.trim() || `exit ${all.code}`}`)
@@ -158,7 +243,34 @@ async function take(opts: ConfigGuardOptions, run: Run): Promise<Snapshot> {
     : []
   const files: Record<string, string> = {}
   for (const f of new Set([...globalCandidates(opts.env), ...origins].map((p) => path.resolve(opts.cwd, p)))) files[f] = await hashFile(f)
+  Object.assign(files, await sshFiles(opts.env))
   return { entries, files }
+}
+
+// ── grafts (G2 3차 검수 사소) ───────────────────────────────────────────────
+// .git/info/grafts는 커밋의 부모를 바꿔치기하고 GIT_NO_REPLACE_OBJECTS로 꺼지지 않는다(실측). 있으면 열지 않고, 열린 뒤 생기면 멈춘다.
+// 작업 트리의 git 폴더와 공통 폴더(worktree), 실행기 환경의 GIT_GRAFT_FILE을 본다.
+async function graftFiles(run: Run, opts: ConfigGuardOptions): Promise<string[]> {
+  const r = await run(['rev-parse', '--git-dir', '--git-common-dir'])
+  if (r.code !== 0) throw new Error(`git 폴더를 찾지 못했다 — ${r.stderr.trim() || `exit ${r.code}`}`)
+  const dirs = r.stdout.split(/\r?\n/).map((l) => l.trim()).filter(Boolean).map((d) => path.resolve(opts.cwd, d))
+  const explicit = lookup(opts.env, 'GIT_GRAFT_FILE')
+  return [...new Set([...dirs.map((d) => path.join(d, 'info', 'grafts')), ...(explicit ? [path.resolve(opts.cwd, explicit)] : [])])]
+}
+
+// 있는 grafts 파일(확인하지 못한 것 포함). 읽기 오류(ENOENT 밖)는 짧게 다시 본다.
+async function graftsPresent(files: string[], delay: number): Promise<string[]> {
+  const found: string[] = []
+  for (const f of files) {
+    for (let i = 1; ; i++) {
+      try { await fsp.stat(f); found.push(f); break } catch (e) {
+        if ((e as NodeJS.ErrnoException).code === 'ENOENT') break
+        if (i >= READ_ATTEMPTS) { found.push(`${f}(확인하지 못함)`); break }
+      }
+      await sleep(delay)
+    }
+  }
+  return found
 }
 
 // 읽기 실패(던짐)와 읽지 못한 파일(unreadable:*)만 다시 읽는다. 마지막 시도의 결과를 그대로 쓴다(실패면 던지고, 읽지 못한 파일은 차이로 남는다).
@@ -246,6 +358,14 @@ export async function createConfigGuard(opts: ConfigGuardOptions): Promise<Confi
       reason: `실행기 git이 명령으로 돌릴 수 있는 키가 작업 저장소의 로컬 설정(include 포함)에 있다 — ${list(danger)}. 사람이 확인하고 그 키를 지운 뒤 다시 연다`,
     }
   }
+  const grafts = await graftFiles(run, opts)
+  const planted = await graftsPresent(grafts, delay)
+  if (planted.length > 0) {
+    return {
+      ok: false,
+      reason: `작업 저장소에 grafts 파일이 있다 — ${list(planted)}. 실행기 git이 병합하는 커밋의 부모를 바꿔치기한다(교체 객체 끄기로 꺼지지 않는다). 사람이 확인하고 그 파일을 지운 뒤 다시 연다`,
+    }
+  }
   const base = await takeSteady(opts, run)
   const stored = await readStored(opts.snapshotFile)
   if (stored !== null) {
@@ -267,6 +387,8 @@ export async function createConfigGuard(opts: ConfigGuardOptions): Promise<Confi
     if (tripped) return tripped
     const hooks = await hooksReason(opts.hooksPath, delay)
     if (hooks) return (tripped = hooks)
+    const graftsNow = await graftsPresent(grafts, delay)
+    if (graftsNow.length > 0) return (tripped = `${CONFIG_CHANGED} — grafts 파일이 생겼다: ${list(graftsNow)}`)
     let now: Snapshot
     try { now = await takeSteady(opts, run) } catch (e) { return (tripped = `${CONFIG_CHANGED} — 설정을 다시 읽지 못했다(${(e as Error).message})`) }
     const keys = diff(base, now)

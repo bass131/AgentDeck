@@ -4,10 +4,13 @@
 //   3. `.agentdeck/`를 작업 저장소의 .git/info/exclude에 더한다(확인 뒤 실행, 저장소 파일은 안 바꾼다).
 //   4. 자격 없는 자식 환경을 만든다 — 커밋 신원은 실행기 환경의 git config user.name·user.email을 넘겨받는다.
 //   5. 포트: 명령(자격 없는 환경), git·gh(실행기 환경 — 자격 있음, 작업 저장소 훅은 끈다), fs(뿌리 밖 거부), 다이제스트(앱 영역).
+//   6. 세션: 부르는 쪽이 백엔드를 주면 실물 작업 노드 세션 포트(workSession.ts)를 붙인다 — 자격 없는 환경, 자동 모드,
+//      루프 잠금(앱 영역 포함). 닫으면 돌고 있는 세션을 멈춘다. 시험은 세션 포트를 직접 줄 수 있다(주면 그것이 이긴다).
 // 앱 영역은 부르는 쪽이 준다(실물은 join(getUserDataDir(), 'loop') — 이 모듈은 electron을 import하지 않는다).
-// 세션·검수 포트는 부르는 쪽이 준다(세션 실물은 G2 2차분, 검수 실물은 G3). gh와 템플릿은 시험이 바꿔 끼울 수 있다.
+// 검수 포트는 부르는 쪽이 준다(실물은 G3). gh와 템플릿은 시험이 바꿔 끼울 수 있다.
 import { promises as fsp } from 'node:fs'
 import path from 'node:path'
+import type { AgentBackend } from '@main/03_Agent/AgentBackend'
 import { loadBundledTemplate } from './bundledTemplate'
 import { createCredentialFreeEnv, type CredentialFreeEnv, type GitIdentity } from './childEnv'
 import { createFileDigestStore, repoKeyOf } from './digestStore'
@@ -20,14 +23,21 @@ import { createGhExec, createGhPort } from './realPorts/ghPort'
 import { createGitPort, ensureAgentdeckExcluded } from './realPorts/gitPort'
 import { acquireRepoLock } from './repoLock'
 import type { Template } from './template'
+import { createWorkSessionPort, type CardResponder } from './workSession'
 
 export const DEFAULT_COMMAND_TIMEOUT_MS = 30 * 60_000
 
 export interface OpenLoopOptions {
   cwd: string
-  // 앱 영역 — digests/(실행 상태 다이제스트)와 locks/(저장소 잠금)가 산다
+  // 앱 영역 — digests/(실행 상태 다이제스트)와 locks/(저장소 잠금)가 산다. 루프 잠금이 이 폴더 쓰기를 막는다.
   appDataDir: string
-  session: SessionPort
+  // 세션 포트를 직접 준다(시험). 없으면 backend로 실물 포트를 만든다. 둘 다 없으면 열지 않는다.
+  session?: SessionPort
+  backend?: AgentBackend
+  // 작업 노드 세션 하나의 시간 상한. 기본은 workSession.DEFAULT_SESSION_TIMEOUT_MS
+  sessionTimeoutMs?: number
+  // 작업 노드 세션의 카드 응답자. 기본은 거부·무응답(G3 사람 게이트가 바꿔 끼운다)
+  onCard?: CardResponder
   review: ReviewPort
   clock?: Clock
   // 실행기 자신의 git·gh 환경(자격 있음). 기본은 이 프로세스의 환경
@@ -46,7 +56,7 @@ export interface OpenedLoop {
   runner: LoopRunner
   // 작업 저장소 뿌리(실제 경로)
   root: string
-  // 2차분의 작업 노드 세션도 이 환경으로 연다
+  // 작업 노드 세션과 검사 명령이 이 환경으로 돈다
   childEnv: CredentialFreeEnv
   close(): Promise<void>
 }
@@ -67,6 +77,7 @@ async function readIdentity(root: string, env: NodeJS.ProcessEnv): Promise<GitId
 const isoNow: Clock = { now: () => new Date().toISOString() }
 
 export async function openLoop(opts: OpenLoopOptions): Promise<OpenLoopResult> {
+  if (!opts.session && !opts.backend) return { ok: false, reason: '작업 노드 세션을 열 백엔드(또는 세션 포트)가 없다' }
   const executorEnv = opts.executorEnv ?? process.env
   const top = await gitOut(opts.cwd, executorEnv, ['rev-parse', '--show-toplevel'])
   if (!top) return { ok: false, reason: `${opts.cwd}는 git 작업 저장소가 아니다` }
@@ -92,6 +103,16 @@ export async function openLoop(opts: OpenLoopOptions): Promise<OpenLoopResult> {
     if ((await fsp.readdir(hooksDir)).length > 0) throw new Error(`실행기 git의 빈 훅 폴더 ${hooksDir}가 비어 있지 않다`)
     child = createCredentialFreeEnv(opts.childBaseEnv ?? executorEnv, await readIdentity(root, executorEnv))
     const gh = opts.gh ?? createGhPort(createGhExec({ cwd: root, env: executorEnv }), { requiredChecks: opts.requiredChecks })
+    const sessions = new AbortController()
+    const session = opts.session ?? createWorkSessionPort({
+      backend: opts.backend as AgentBackend,
+      cwd: root,
+      env: child.env,
+      appLoopDir: opts.appDataDir,
+      timeoutMs: opts.sessionTimeoutMs,
+      signal: sessions.signal,
+      ...(opts.onCard ? { onCard: opts.onCard } : {}),
+    })
     const runner = createLoopRunner({
       template: template.template,
       hash: template.hash,
@@ -102,7 +123,7 @@ export async function openLoop(opts: OpenLoopOptions): Promise<OpenLoopResult> {
         git: createGitPort({ cwd: root, env: executorEnv, hooksPath: hooksDir }),
         gh,
         fs: createFsPort(root),
-        session: opts.session,
+        session,
         review: opts.review,
         clock: opts.clock ?? isoNow,
         digest: createFileDigestStore(path.join(opts.appDataDir, 'digests')),
@@ -119,6 +140,7 @@ export async function openLoop(opts: OpenLoopOptions): Promise<OpenLoopResult> {
         close: async () => {
           if (closed) return
           closed = true
+          sessions.abort()
           env.dispose()
           await locked.lock.release()
         },

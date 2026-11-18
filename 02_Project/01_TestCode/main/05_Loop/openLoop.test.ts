@@ -5,6 +5,8 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import type { AgentBackend, AgentRun, AgentRunInput } from '@main/03_Agent/AgentBackend'
+import type { AgentEvent } from '@shared/agentEvents'
 import type { CiStatus } from '@main/05_Loop/executor'
 import { TAMPERED_REASON, type LoadResult } from '@main/05_Loop/loopRunner'
 import { openLoop, type OpenedLoop } from '@main/05_Loop/openLoop'
@@ -247,5 +249,93 @@ describe('openLoop — 위조 방어와 저장소당 하나', () => {
     fs.mkdirSync(plain)
     const r = await openLoop({ cwd: plain, appDataDir: appData, session, review, gh, template: TEMPLATE, executorEnv: repos.env })
     expect(r.ok).toBe(false)
+  })
+})
+
+// M09 G2 2차분 — 세션 포트 대신 백엔드를 주면 실물 작업 노드 세션 포트(workSession.ts)를 붙인다.
+interface BackendRec { starts: AgentRunInput[]; aborts: number }
+function recordingBackend(mode: 'done' | 'hang'): { backend: AgentBackend; rec: BackendRec } {
+  const rec: BackendRec = { starts: [], aborts: 0 }
+  const backend: AgentBackend = {
+    id: 'claude-code',
+    isAvailable: async () => true,
+    version: async () => null,
+    latestVersion: async () => null,
+    listSupportedCommands: () => [],
+    start(req): AgentRun {
+      rec.starts.push(req)
+      let release: () => void = () => {}
+      const aborted = new Promise<void>((r) => { release = r })
+      return {
+        events: (async function* () {
+          if (mode === 'hang') { await aborted; return }
+          yield { type: 'done' } as AgentEvent
+        })(),
+        abort() { rec.aborts++; release() },
+        interrupt() {},
+        push() {},
+        respond() {},
+      }
+    },
+  }
+  return { backend, rec }
+}
+
+async function openWithBackend(backend: AgentBackend): Promise<OpenedLoop> {
+  const r = await openLoop({ cwd: repos.work, appDataDir: appData, backend, review, gh, template: TEMPLATE, executorEnv: repos.env })
+  if (!r.ok) throw new Error(`openLoop 실패: ${r.reason}`)
+  opened.push(r.loop)
+  return r.loop
+}
+
+// 첫 작업 노드까지 간다 — 사람 게이트는 사람 판정으로 넘긴다. 작업 노드의 step 약속을 감싸 돌려준다(async가 펴지 않게).
+async function stepToFirstWork(loop: OpenedLoop): Promise<{ pending: Promise<unknown> }> {
+  expect((await loop.runner.start('M1')).kind).toBe('ok')
+  for (let i = 0; i < 10; i++) {
+    const r = await loop.runner.load()
+    if (r.kind !== 'ok') throw new Error(`load ${r.kind}`)
+    if (r.next.kind === 'work') return { pending: loop.runner.step() }
+    const out = await loop.runner.step()
+    if (out.kind === 'waiting' && out.on === 'human' && r.next.kind === 'gate') {
+      await loop.runner.submit({ node: r.next.node.id, judge: 'human', verdict: 'pass', evidence: '사람이 승인했다' })
+    }
+  }
+  throw new Error('작업 노드에 닿지 않았다')
+}
+
+describe('openLoop — 실물 작업 노드 세션 포트 (M09 G2)', () => {
+  it('세션 포트도 백엔드도 없으면 열지 않고 잠금도 남기지 않는다', async () => {
+    const r = await openLoop({ cwd: repos.work, appDataDir: appData, review, gh, template: TEMPLATE, executorEnv: repos.env })
+    expect(r).toMatchObject({ ok: false })
+    await open()
+  })
+
+  it('백엔드를 주면 작업 노드 세션을 작업 저장소 cwd·자격 없는 환경·자동 모드·루프 잠금(앱 영역)으로 연다', SLOW, async () => {
+    const { backend, rec } = recordingBackend('done')
+    const loop = await openWithBackend(backend)
+    await (await stepToFirstWork(loop)).pending
+    expect(rec.starts).toHaveLength(1)
+    const req = rec.starts[0]
+    expect(req.workspaceRoot).toBe(loop.root)
+    expect(req.env).toBe(loop.childEnv.env)
+    expect(req.env?.GH_TOKEN).toBe('agentdeck-no-credential')
+    expect(req.mode).toBe('auto')
+    expect(req.loopLock).toEqual({ repoRoot: loop.root, appLoopDir: appData })
+  })
+
+  it('실행기를 닫으면 돌고 있는 작업 노드 세션을 멈추고, 그 노드는 통과로 가지 않는다', SLOW, async () => {
+    const { backend, rec } = recordingBackend('hang')
+    const loop = await openWithBackend(backend)
+    const { pending } = await stepToFirstWork(loop)
+    for (let i = 0; i < 100 && rec.starts.length === 0; i++) await new Promise((r) => setTimeout(r, 10))
+    expect(rec.starts).toHaveLength(1)
+    await close(loop)
+    const out = (await pending) as { kind: string; verdict?: { verdict: string; evidence: string } | null }
+    expect(rec.aborts).toBeGreaterThanOrEqual(1)
+    // 지금의 동작을 고정한다: 닫기는 진행 중인 step을 기다리지 않는다. 그 step은 세션의 ok:false를 불통과 판정으로 바꿔
+    // 상태와 검증 기록에 남긴다(닫은 뒤의 저장 — G3가 닫기 순서를 정한다).
+    expect(out.kind).toBe('failed')
+    expect(out.verdict?.evidence).toContain('취소됐다')
+    expect(fs.readFileSync(path.join(repos.work, DOCS.verification), 'utf8')).toContain('취소됐다')
   })
 })

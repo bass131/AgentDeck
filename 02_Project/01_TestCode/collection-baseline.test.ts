@@ -74,7 +74,9 @@ const SKIP_DIRS = new Set(['node_modules', 'dist', 'out', 'coverage', '.git'])
 // M09 G2: 459 → 468. 실행기 포트의 실물 — 자격 없는 자식 환경 main/05_Loop/childEnv.test.ts, 명령 포트 commandPort.test.ts,
 // git 포트 gitPort.test.ts, gh 포트(녹취 JSON 해석) ghPort.test.ts, fs 포트 fsPort.test.ts, 앱 쪽 다이제스트 digestStore.test.ts,
 // 저장소당 실행기 하나 repoLock.test.ts, 번들 템플릿 bundledTemplate.test.ts, 실 git 통합 openLoop.test.ts를 더했다(모두 main/05_Loop/).
-const BASELINE_TEST_FILES = 468
+// M09 G2: 468 → 471. 2차분 — 루프 잠금 노드 main/04_Claude/loopLock.test.ts, 그 배선 main/04_Claude/sdkOptions.loop-lock.test.ts,
+// 작업 노드 세션 포트 main/05_Loop/workSession.test.ts를 더했다.
+const BASELINE_TEST_FILES = 471
 
 function collectTestFiles(dir: string, acc: string[] = []): string[] {
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {

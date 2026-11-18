@@ -2,6 +2,7 @@
 
 - 범위 밖 발견을 한 줄로 남긴다(헌법 11조). 최신 번호가 위다.
 
+6. 정형 절차 ③에서 로컬 마일스톤 브랜치를 원격에 맞추려고 `git merge --ff-only origin/milestone/…`을 한 번 썼다. 이 꼴은 allow `Bash(git merge --no-ff *)` 밖이다. 이 세션은 자동 모드라 질문 없이 지나갔고, 기본 모드였다면 질문이 떴을 것이다(추정). 길은 둘이다 — `git switch --detach origin/milestone/…`에서 `git merge --no-ff`하고 `git push origin HEAD:milestone/…`로 보내 로컬 브랜치 맞추기를 없애거나, `git merge --ff-only origin/milestone/*` 한 꼴을 allow에 더한다(설정은 판정 장치) (G2 후속 병합에서 발견).
 5. 가드 `MERGE_HINT`의 새 뜻(`master`만 사람 몫, goal은 로컬 `git merge --no-ff`)을 묶는 시험이 없다. `dangerous-cmd-guard.test.mjs`의 병합 안내 단언은 「현황판」「사용자」「외부 셸 아님」만 봐서 옛 글로 되돌려도 통과한다. 그 시험 파일은 M08 스펙 「건드릴 곳」에 없다 (G2 독립 검수 중요 5).
 4. SessionStart(`.claude/hooks/10_start-brief.cjs`)의 감시 줄은 「현재 goal이 PR N의 병합을 기다린다」로 시작해 마일스톤 PR도 goal이라 부르고, SessionStart는 마일스톤 스펙을 읽지 않는다. 그 훅은 M08 스펙 「건드릴 곳」에 없다 (M07 Backlog 36의 남은 몫, G2에서 넘김).
 3. `Bash(git merge --no-ff *)` allow는 `--no-ff` 뒤의 `-s ours`·`-X theirs`·`--allow-unrelated-histories`도 묻지 않고 연다. `-s ours`로 goal 내용이 빠진 병합 커밋을 push해도 PR 머리가 base에 닿아 GitHub가 「병합됨」으로 닫는다. `ask`에 전략 옵션 꼴을 두거나(ask가 allow를 이기는지 공식 문서 확인 필요), goal 병합 명령을 정형 한 꼴로 고정한다 (G1 독립 검수 중요 3).

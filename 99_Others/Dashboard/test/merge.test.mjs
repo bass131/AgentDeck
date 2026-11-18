@@ -557,6 +557,15 @@ test('list: 50 at most; a 51st means more; an empty list is ok and empty', async
   assert.deepEqual(await listSvc(ok([])).svc.listPrs(CWD), { ok: true, repo: 'bass131/AgentDeck', items: [], more: false, dropped: 0 });
 });
 
+// 사용자 요청(2026-11-18 「미병합 PR을 순서대로 볼 수 있게」): gh는 최신부터 주지만 목록은 번호 오름차순(먼저 연 PR부터)이다
+test('list: rows come in PR number order, oldest first; the cap still keeps the newest 50', async () => {
+  const two = await listSvc(ok([listed(79), listed(78)])).svc.listPrs(CWD);
+  assert.deepEqual(two.items.map(i => i.number), [78, 79]);
+  const desc = Array.from({ length: 51 }, (_, i) => listed(150 - i));
+  const r = await listSvc(ok(desc)).svc.listPrs(CWD);
+  assert.deepEqual([r.items[0].number, r.items.at(-1).number, r.items.length, r.more], [101, 150, 50, true]);
+});
+
 test('list: every field is untrusted — bad number or SHA drops the row (counted), other bad fields are blanked', async () => {
   const r = await listSvc(ok([
     listed(1), listed(0), listed(2.5), listed('3'), listed(4, { headRefOid: 'abc' }), listed(5, { headRefOid: null }), null, 'x',

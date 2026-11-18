@@ -923,7 +923,7 @@ function renderPrList() {
   const box = $('#merge-list');
   if (!box) return;
   const L = mg.list, ok = !!L?.ok, n = ok ? L.items.length : 0;
-  const say = mg.listLoading ? '읽는 중…' : !ok || !n ? '' : n > MRG.LIST_SCROLL_AFTER ? '목록 안에서 스크롤해요 · 고르면 아래 카드가 그 PR을 읽어요' : '고르면 아래 카드가 그 PR을 읽어요';
+  const say = mg.listLoading ? '읽는 중…' : !ok || !n ? '' : `먼저 연 PR부터 · ${n > MRG.LIST_SCROLL_AFTER ? '목록 안에서 스크롤해요 · ' : ''}고르면 아래 카드가 그 PR을 읽어요`;
   const head = `<div class="mg-list-head"><h3 class="sub-h">열린 PR${ok ? ` ${esc(n)}개${L.more ? ' 넘게' : ''}` : ''} <span>${esc(say)}</span></h3><button type="button" class="ghost" data-merge-list-reload${mg.listLoading ? ' disabled' : ''}>목록 새로 읽기</button></div>`;
   let body = '';
   if (ok) {

@@ -78,7 +78,10 @@ const SKIP_DIRS = new Set(['node_modules', 'dist', 'out', 'coverage', '.git'])
 // 작업 노드 세션 포트 main/05_Loop/workSession.test.ts를 더했다.
 // M09 G2: 471 → 473. 독립 검수 반영 — 실행기 git 설정 대조 main/05_Loop/configGuard.test.ts, 원격·로컬 대조와 래치·CI 시간 상한
 // main/05_Loop/loopRunner.guards.test.ts를 더했다.
-const BASELINE_TEST_FILES = 473
+// M09 G4: 473 → 479. 사람·모델 게이트 — 실행기의 스펙 해시·검수 트리 묶기 main/05_Loop/loopRunner.gates.test.ts, 검수 세션 포트
+// main/05_Loop/reviewSession.test.ts, 저장소마다 실행기 하나를 돌리는 구동자 main/05_Loop/loopDriver.test.ts, 읽기 전용 루프 잠금
+// main/04_Claude/loopLock.read-only.test.ts, loop IPC 핸들러 main/01_Ipc/loop.handler.test.ts, loop 계약 shared/13_Loop/loop.contract.test.ts를 더했다.
+const BASELINE_TEST_FILES = 479
 
 function collectTestFiles(dir: string, acc: string[] = []): string[] {
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {

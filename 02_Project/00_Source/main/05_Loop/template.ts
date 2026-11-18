@@ -59,8 +59,8 @@ export interface GradingPolicy {
   protectedPaths: string[]
 }
 // 브랜치 이름 꼴. {milestone}·{goal} 자리에 id가 들어간다(마일스톤 꼴에는 {goal}을 둘 수 없다).
+// M09 G4 — 기준 브랜치(base)는 템플릿에 두지 않는다. 열 때 작업 저장소 origin의 기본 브랜치를 읽고(openLoop), 시작할 때 상태에 적는다.
 export interface BranchPolicy {
-  base: string
   milestone: string
   goal: string
 }
@@ -181,17 +181,16 @@ function checkGrading(v: unknown, err: ErrSink): GradingPolicy | undefined {
 function checkBranches(v: unknown, err: ErrSink): BranchPolicy | undefined {
   const p = '$.branches'
   if (!isObject(v)) { err(p, '브랜치 꼴 객체가 있어야 한다'); return undefined }
-  rejectUnknownKeys(v, p, ['base', 'milestone', 'goal'], err)
-  const { base, milestone, goal } = v
+  rejectUnknownKeys(v, p, ['milestone', 'goal'], err)
+  const { milestone, goal } = v
   let ok = true
-  if (!isNonEmptyString(base)) { err(`${p}.base`, '기준 브랜치 이름이 있어야 한다'); ok = false }
   if (!isNonEmptyString(milestone) || !milestone.includes('{milestone}')) {
     err(`${p}.milestone`, '{milestone} 자리가 있는 꼴이어야 한다'); ok = false
   } else if (milestone.includes('{goal}')) {
     err(`${p}.milestone`, '마일스톤 브랜치 꼴에는 {goal} 자리를 둘 수 없다'); ok = false
   }
   if (!isNonEmptyString(goal) || !goal.includes('{goal}')) { err(`${p}.goal`, '{goal} 자리가 있는 꼴이어야 한다'); ok = false }
-  return ok ? { base: base as string, milestone: milestone as string, goal: goal as string } : undefined
+  return ok ? { milestone: milestone as string, goal: goal as string } : undefined
 }
 
 function checkId(n: Obj, p: string, seen: Map<string, string>, err: ErrSink): void {

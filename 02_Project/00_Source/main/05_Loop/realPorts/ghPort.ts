@@ -31,8 +31,10 @@ export function createGhExec(opts: GhExecOptions): GhExec {
   const run = opts.run ?? runProcess
   return async (args, input) => {
     await opts.guard?.assert()
-    // 하위 명령(`pr view`) 바로 뒤 — 실행기가 부르는 gh는 모두 두 낱말 하위 명령이다
-    const pinned = [...args.slice(0, 2), '-R', opts.repo, ...args.slice(2)]
+    // 하위 명령(`pr view`) 바로 뒤 — 실행기가 부르는 gh는 모두 두 낱말 하위 명령이다.
+    // `repo view`에는 -R이 없고 위치 인자 [<repository>]가 그 자리다(G4 실측) — 같은 저장소를 위치 인자로 넣는다.
+    const repoView = args[0] === 'repo' && args[1] === 'view'
+    const pinned = [...args.slice(0, 2), ...(repoView ? [opts.repo] : ['-R', opts.repo]), ...args.slice(2)]
     const r = await run('gh', pinned, { cwd: opts.cwd, env, input, timeoutMs: opts.timeoutMs ?? 60_000 })
     return { code: r.code, stdout: r.stdout, stderr: r.stderr }
   }
@@ -79,6 +81,17 @@ export function createGhPort(exec: GhExec, opts: GhPortOptions = {}): GhPort {
       const pr = await getPr(number)
       if (!pr) throw new Error(`만든 PR ${number}을 다시 읽지 못했다`)
       return pr
+    },
+    // M09 G4 — origin/HEAD가 없을 때 openLoop가 부른다. 못 읽으면 null(열지 않는다).
+    async defaultBranch() {
+      try {
+        const r = await exec(['repo', 'view', '--json', 'defaultBranchRef'])
+        if (r.code !== 0) return null
+        const name = (JSON.parse(r.stdout) as { defaultBranchRef?: { name?: unknown } | null }).defaultBranchRef?.name
+        return typeof name === 'string' && name !== '' && !name.startsWith('-') ? name : null
+      } catch {
+        return null
+      }
     },
     async ciStatus(number) {
       const r = await exec(['pr', 'view', String(number), '--json', 'headRefOid,statusCheckRollup'])

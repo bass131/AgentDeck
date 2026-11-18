@@ -125,6 +125,18 @@ export const API_ROUTES = {
     resizeEnd: call0(IPC_CHANNELS.WINDOW_RESIZE_END),
     onState: push(IPC_CHANNELS.WINDOW_STATE),
   },
+  // M09 G4 — 앱 안 마일스톤 루프. 화면(2차분)은 이 묶음만 부른다.
+  loop: {
+    open: call(IPC_CHANNELS.LOOP_OPEN),
+    start: call(IPC_CHANNELS.LOOP_START),
+    status: call(IPC_CHANNELS.LOOP_STATUS),
+    decide: call(IPC_CHANNELS.LOOP_DECIDE),
+    answerCard: call(IPC_CHANNELS.LOOP_ANSWER_CARD),
+    cancelSession: call(IPC_CHANNELS.LOOP_CANCEL_SESSION),
+    releaseLatch: call(IPC_CHANNELS.LOOP_RELEASE_LATCH),
+    close: call(IPC_CHANNELS.LOOP_CLOSE),
+    onState: push(IPC_CHANNELS.LOOP_STATE),
+  },
 } as const
 
 export type ApiRoutes = typeof API_ROUTES

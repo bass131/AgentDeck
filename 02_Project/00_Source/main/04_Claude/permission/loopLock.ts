@@ -76,7 +76,13 @@ export interface LoopLockScope {
   vars?: Record<string, string | undefined>
   // 폴더가 있는가 — `cd x; …`에서 cd가 실패할 수 있는지 본다. 기본은 파일 시스템
   isDir?: (p: string) => boolean
+  // M09 G4 — 검수 세션의 읽기 전용 꼴. 위 거부에 더해 저장소 안 쓰기 전부(편집 도구·쓰기 명령·리다이렉트), 읽기 목록 밖 git 하위 명령,
+  // 로컬에 내려받는 gh(pr checkout·repo clone·run download), 패키지 설치·npx를 거부한다. 인터프리터와 npm 스크립트의 안은 판독하지
+  // 않는다(겹) — 검수 뒤 실행기가 작업 트리 해시를 다시 대조해 바뀌었으면 그 pass를 받지 않는다(loopRunner).
+  readOnly?: boolean
 }
+
+const READONLY = '검수 세션은 읽기 전용입니다 — 저장소 쓰기·git 쓰기 하위 명령·내려받기·패키지 설치는 막습니다. 읽고 판정만 합니다.'
 
 const TAIL = ' 원격은 실행기 코드만 만지고, 작업 노드는 로컬 커밋까지만 합니다.'
 const REMOTE = 'push·원격 바꾸기·PR·저장소 설정 같은 원격 쓰기는 작업 노드 세션에서 막습니다.' + TAIL
@@ -99,7 +105,9 @@ const GLOBAL_PKG = '전역 패키지 설치(npm -g·pnpm add -g·yarn global 등
 type Cwd = readonly string[]
 const UNKNOWN = '\u0000?'
 
-interface Resolved { root: string; rootRaw: string; app: string; temps: string[]; vars: Record<string, string>; isDir: (p: string) => boolean }
+interface Resolved {
+  root: string; rootRaw: string; app: string; temps: string[]; vars: Record<string, string>; isDir: (p: string) => boolean; readOnly: boolean
+}
 
 const VAR_NAMES = ['APPDATA', 'LOCALAPPDATA', 'HOME', 'USERPROFILE', 'TEMP', 'TMP', 'TMPDIR']
 
@@ -126,6 +134,7 @@ function resolveScope(scope: LoopLockScope): Resolved {
     temps: [...(scope.tempDirs ?? [os.tmpdir()]), '/tmp'].map((t) => normalize(t, scope.repoRoot)),
     vars,
     isDir: scope.isDir ?? fsIsDir,
+    readOnly: scope.readOnly === true,
   }
 }
 
@@ -166,7 +175,8 @@ function canon(raw: string, base: string): string {
 }
 const normalize = (raw: string, base: string): string => canon(raw, base).toLowerCase()
 
-type PathKind = 'executor' | 'config' | 'claude' | 'outside' | 'unreadable'
+// readonly: 읽기 전용 꼴(G4 검수 세션)에서 저장소 안 쓰기. cd 판정에는 쓰지 않는다(저장소 안 폴더로 옮겨 다니는 것은 읽기다).
+type PathKind = 'executor' | 'config' | 'claude' | 'outside' | 'unreadable' | 'readonly'
 
 const EXECUTOR_FILE = /\/\.agentdeck\/(?:run-state\.json|verification\.md)$/
 const GIT_DIR = /\/\.git(?:\/|$)/
@@ -185,7 +195,10 @@ function kindOf(c: string, r: Resolved, destructive: boolean): PathKind | null {
   if (destructive && /\/\.agentdeck$/.test(c)) return 'executor'
   // 지우기·옮기기가 저장소 뿌리나 그 위를 가리키면 .git과 .agentdeck도 함께 간다
   if (destructive && under(r.root, c)) return 'config'
-  if (under(c, r.root)) return c.slice(r.root.length).split('/').some((s) => /~\d/.test(s)) ? 'unreadable' : null
+  if (under(c, r.root)) {
+    if (c.slice(r.root.length).split('/').some((s) => /~\d/.test(s))) return 'unreadable'
+    return r.readOnly ? 'readonly' : null
+  }
   return r.temps.some((t) => under(c, t)) ? null : 'outside'
 }
 
@@ -210,7 +223,8 @@ function globKind(c: string, r: Resolved, destructive: boolean): PathKind | null
   if (hit !== undefined) return kindOf(hit, r, destructive)
   const prefix = c.slice(0, c.search(GLOB))
   const dir = prefix.slice(0, prefix.lastIndexOf('/'))
-  return dir && kindOf(dir, r, false) === 'outside' ? 'outside' : null
+  const k = dir ? kindOf(dir, r, false) : null
+  return k === 'outside' || k === 'readonly' ? k : null
 }
 
 // 쓰기 대상 하나를 셸 위치 후보마다 풀어 본다. 모르는 위치의 상대 경로는 판독 못 함이다.
@@ -231,12 +245,16 @@ function pathKind(raw: string, r: Resolved, destructive: boolean, cwd: Cwd): Pat
 }
 
 // cd 대상의 판정 — 보호 폴더(.git·.claude·앱 영역)·.agentdeck 자체·저장소 밖. 와일드카드는 보호 폴더 이름까지 맞춰 본다.
+// 읽기 전용 꼴(readonly)은 cd를 막지 않는다 — 저장소 안 폴더로 옮기는 것은 읽기다.
 function cdKind(c: string, r: Resolved): PathKind | null {
-  if (GLOB.test(c)) return globKind(c, r, true)
-  return kindOf(c, r, false) ?? (/\/\.agentdeck$/.test(c) ? 'executor' : null)
+  const k = GLOB.test(c) ? globKind(c, r, true) : kindOf(c, r, false)
+  if (k !== null && k !== 'readonly') return k
+  return !GLOB.test(c) && /\/\.agentdeck$/.test(c) ? 'executor' : null
 }
 
-const REASON_OF: Record<PathKind, string> = { executor: EXECUTOR, config: CONFIG, claude: CLAUDE, outside: OUTSIDE, unreadable: UNREADABLE }
+const REASON_OF: Record<PathKind, string> = {
+  executor: EXECUTOR, config: CONFIG, claude: CLAUDE, outside: OUTSIDE, unreadable: UNREADABLE, readonly: READONLY,
+}
 const reasonOfKind = (k: PathKind | null): string | null => (k === null ? null : REASON_OF[k])
 
 // 편집 도구가 이 경로에 쓰면 사유를, 아니면 null을 돌려준다. 편집 도구의 경로는 저장소 뿌리 기준이다.
@@ -317,6 +335,19 @@ const firstWord = (args: string[]): string | undefined => operandsOf(args)[0]?.t
 interface Ctx { r: Resolved; depth: number; cwd: Cwd }
 type Check = (paths: string[], destructive: boolean) => string | null
 
+// 읽기 전용 꼴(G4)의 git 허용 목록 — 저장소·작업 트리·ref를 바꾸지 않는 하위 명령. config·remote는 아래 판정이 따로 본다.
+const GIT_READONLY = new Set([
+  'status', 'log', 'show', 'diff', 'ls-files', 'ls-tree', 'cat-file', 'rev-parse', 'rev-list', 'blame', 'grep', 'describe',
+  'name-rev', 'for-each-ref', 'show-ref', 'branch', 'shortlog', 'merge-base', 'ls-remote', 'help', 'version', 'var',
+  'check-ignore', 'check-attr', 'count-objects', 'diff-tree', 'diff-index', 'diff-files', 'range-diff', 'whatchanged',
+])
+// branch는 목록 꼴만 — 이름 인자가 없거나 --list·-l이 있고, 만들기·지우기·옮기기·추적 바꾸기 옵션이 없다.
+const BRANCH_WRITE = /^(?:-[dDmMcCfu]|--delete|--move|--copy|--force|--set-upstream-to(?:=.*)?|--unset-upstream|--edit-description|--track|--no-track|--create-reflog)$/
+function branchIsRead(rest: string[]): boolean {
+  if (rest.some((t) => BRANCH_WRITE.test(t))) return false
+  return rest.includes('--list') || rest.includes('-l') || operandsOf(rest).length === 0
+}
+
 function gitReason(args: string[], ctx: Ctx, check: Check): string | null {
   const recurse = (s: string): string | null => scriptReason(s, ctx.r, ctx.depth + 1, ctx.cwd).reason
   let i = 0
@@ -331,6 +362,15 @@ function gitReason(args: string[], ctx: Ctx, check: Check): string | null {
   const rest = args.slice(i + 1)
   if (sub === undefined) return null
   if (sub === 'push' || sub === 'send-pack' || sub === 'http-push') return REMOTE
+  // 읽기 전용 꼴(G4) — 읽기 목록 밖 하위 명령은 거부한다. 원격·설정 판정은 아래가 계속 본다(config 쓰기는 CONFIG).
+  if (ctx.r.readOnly && sub !== 'config') {
+    // remote는 보기 꼴(맨 이름·-v·show·get-url)만 — update·prune은 원격 추적 ref를 쓴다
+    if (sub === 'remote') { if (!['', 'show', 'get-url'].includes(firstWord(rest) ?? '')) return READONLY }
+    else if (!GIT_READONLY.has(sub)) return READONLY
+    if (sub === 'branch' && !branchIsRead(rest)) return READONLY
+    // diff·log 류의 --output은 파일에 쓴다
+    if (rest.some((t) => t === '--output' || t.startsWith('--output='))) return READONLY
+  }
   if ((sub === 'lfs' || sub === 'subtree') && firstWord(rest) === 'push') return REMOTE
   if (sub === 'remote') return REMOTE_MUTATE.has(firstWord(rest) ?? '') ? REMOTE : null
   if (sub === 'config') return configIsRead(rest) ? null : CONFIG
@@ -404,10 +444,14 @@ function apiIsWrite(args: string[]): boolean {
   return false
 }
 
-function ghReason(args: string[]): string | null {
+// 읽기 전용 꼴(G4)에서 더 막는 gh — 작업 트리·로컬에 내려받는다
+const GH_LOCAL_WRITE = new Set(['pr checkout', 'repo clone', 'run download'])
+
+function ghReason(args: string[], readOnly = false): string | null {
   const [group, verb] = ghWords(args).map((w) => w.toLowerCase())
   if (group === undefined) return null
   if (group === 'auth') return CREDENTIAL
+  if (readOnly && GH_LOCAL_WRITE.has(`${group} ${verb ?? ''}`)) return READONLY
   if (group === 'api') return apiIsWrite(args) ? REMOTE : null
   const allowed = GH_READ[group]
   if (allowed === '*') return null
@@ -436,6 +480,21 @@ function globalPkgReason(b: string, a: string[]): string | null {
   // 맨 npm link는 지금 패키지를 전역에 건다
   if (name === 'npm' && (ops[0] === 'link' || ops[0] === 'ln') && ops.length === 1) return GLOBAL_PKG
   return global && !PKG_GLOBAL_READ.has(ops[0] ?? '') ? GLOBAL_PKG : null
+}
+
+// 읽기 전용 꼴(G4)의 패키지 설치·내려받아 돌리기. 맨 yarn(=install)도 설치다. npm run·test 같은 스크립트는 막지 않는다(겹, 머리 주석).
+const PKG_INSTALL = new Set(['install', 'i', 'in', 'ins', 'add', 'ci', 'update', 'up', 'upgrade', 'remove', 'rm', 'uninstall', 'un', 'r',
+  'link', 'ln', 'unlink', 'prune', 'dedupe', 'ddp', 'rebuild', 'dlx', 'exec', 'x', 'create', 'init'])
+function pkgInstallReason(b: string, a: string[]): boolean {
+  const name = b.replace(/\.(?:exe|cmd|bat|ps1)$/, '')
+  if (name === 'npx' || name === 'pnpx' || name === 'bunx') return true
+  if (name === 'pip' || name === 'pip3' || name === 'pipx' || name === 'uv' || name === 'cargo' || name === 'go' || name === 'gem') {
+    return ['install', 'add', 'sync', 'get', 'uninstall', 'remove'].includes(firstWord(a) ?? '')
+  }
+  if (name !== 'npm' && name !== 'pnpm' && name !== 'yarn' && name !== 'bun') return false
+  const op = firstWord(a)
+  if (op === undefined) return name === 'yarn'
+  return PKG_INSTALL.has(op)
 }
 
 // ── 쓰기 명령 ────────────────────────────────────────────────────────────
@@ -791,13 +850,14 @@ function cmdReason(c: Cmd, ctx: Ctx): string | null {
   if (b === 'git') return gitReason(c.args, ctx, check)
   if (b.includes('credential-manager') || b.startsWith('git-credential')) return CREDENTIAL
   if (b.startsWith('git-')) return gitReason([b.slice(4), ...c.args], ctx, check)
-  if (b === 'gh') return ghReason(c.args)
+  if (b === 'gh') return ghReason(c.args, ctx.r.readOnly)
   // 셸 위치는 마디 걷기(scriptReason)가 본다
   if (CD.has(b) || POP.has(b)) return null
   const env = envCmdReason(b, c.args)
   if (env) return env
   const pkg = globalPkgReason(b, c.args)
   if (pkg) return pkg
+  if (ctx.r.readOnly && pkgInstallReason(b, c.args)) return READONLY
   for (const t of writeTargets(b, c.args)) {
     const r = reasonOfKind(pathKind(t.path, ctx.r, t.destructive, ctx.cwd))
     if (r) return r
@@ -975,6 +1035,8 @@ function toolCheck(toolName: string | undefined, toolInput: unknown, r: Resolved
   const command = ti['command']
   if (typeof command === 'string') return scriptReason(command, r, 0, cwd)
   if (toolName !== undefined && EDIT_TOOLS.has(toolName)) {
+    // 읽기 전용 꼴(G4)은 편집 도구를 경로와 관계없이 거부한다
+    if (r.readOnly) return { reason: READONLY, end: cwd, mutated: false }
     const p = typeof ti['file_path'] === 'string' ? ti['file_path'] : ti['notebook_path']
     if (typeof p === 'string') return { reason: reasonOfKind(pathKind(p, r, false, [r.rootRaw])), end: cwd, mutated: false }
   }

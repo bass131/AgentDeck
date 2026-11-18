@@ -316,6 +316,34 @@ describe('실행 상태 스키마와 재개 조건', () => {
     expect(checkResumable(without.template, s.template.hash, s).ok).toBe(false)
   })
 
+  // M09 G4 — 기준 브랜치는 시작할 때 상태에 적고, 검수 pass는 검수한 트리 해시를 goal에 남긴다
+  it('기준 브랜치와 검수 트리 해시를 상태에 싣고 다시 읽는다 — 옛 상태(칸 없음)도 받는다', () => {
+    const made = createRunState(template, hash, 'M1', 'main')
+    if (!made.ok) throw new Error(made.reason)
+    expect(made.state.base).toBe('main')
+    expect(createRunState(template, hash, 'M1', ' ').ok).toBe(false)
+    let s = drive(template, made.state, { goals: GOALS, grades: GRADES, until: 'G1/review' }).state
+    // 트리 해시 없는 검수 pass는 받지 않는다 — 판정을 무엇에 묶을지 모른다
+    expect(applyVerdict(template, s, verdict('review', 'model', 'pass', '검수 통과'), AT).ok).toBe(false)
+    s = apply(template, s, { ...verdict('review', 'model', 'pass', '검수 통과'), facts: { reviewedTree: 'tree-1' } })
+    expect(s.goals[0].reviewedTree).toBe('tree-1')
+    const round = validateRunState(JSON.parse(JSON.stringify(s)))
+    expect(round.ok && round.state.base).toBe('main')
+    const legacy = JSON.parse(JSON.stringify(s)) as Record<string, unknown>
+    delete legacy.base
+    for (const g of legacy.goals as Record<string, unknown>[]) delete g.reviewedTree
+    expect(validateRunState(legacy).ok).toBe(true)
+    expect(validateRunState({ ...s, base: '' }).ok).toBe(false)
+    expect(validateRunState({ ...s, goals: s.goals.map((g) => ({ ...g, reviewedTree: 7 })) }).ok).toBe(false)
+  })
+
+  it('검수 불통과는 남아 있던 검수 트리 해시를 지운다 — 옛 pass로 다음 커밋을 통과시키지 않는다', () => {
+    let s = drive(template, fresh(template, hash), { goals: GOALS, grades: GRADES, until: 'G1/review' }).state
+    s.goals[0].reviewedTree = 'old-tree'
+    s = apply(template, s, verdict('review', 'model', 'fail', '경계 시험이 빠졌다'))
+    expect(s.goals[0].reviewedTree).toBeNull()
+  })
+
   it('변형본 시험의 실패 참조 가공이 실제 노드를 고친다', () => {
     const text = variantText((raw) => { findRawNode(raw, 'checks').onFail = { goto: 'checks' } })
     const { template: t, hash: h } = loaded(text)

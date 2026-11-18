@@ -56,7 +56,11 @@ function fakeBackend(events: AgentEvent[] | 'hang', opts: { id?: BackendId; thro
       return {
         events: (async function* () {
           if (events === 'hang') { await aborted; return }
-          for (const e of events) { await Promise.resolve(); yield e }
+          // 목록 안의 'hang'은 그 자리에서 취소까지 멈춘다(G4 — 카드 뒤에 기다리는 메인 세션)
+          for (const e of events as (AgentEvent | 'hang')[]) {
+            if (e === 'hang') { await aborted; return }
+            await Promise.resolve(); yield e
+          }
         })(),
         abort() { rec.aborts++; release() },
         interrupt() {},
@@ -208,6 +212,71 @@ describe('작업 노드 세션의 카드 (M09 G2)', () => {
       ['q1', { kind: 'question', answers: [['예']] }],
     ])
     expect(seen).toEqual(['permission_request', 'question_request', 'done'])
+  })
+})
+
+describe('메인 노드의 카드와 취소 (M09 G4)', () => {
+  const MAIN: WorkNode = { ...NODE, id: 'brainstorm', role: 'main', docs: ['milestoneSpec'] }
+  const card: AgentEvent = { type: 'question_request', requestId: 'q1', questions: [] }
+
+  it('메인 노드의 카드는 화면 응답자로 가고(최근 글과 노드 맥락 포함), 시간 상한이 없다 — 화면에서 취소하면 cancelled로 끝난다', async () => {
+    const { backend, rec } = fakeBackend([{ type: 'text', delta: '무엇을 만들까?', messageId: 'm1' }, card, 'hang'] as never)
+    const got: { node: string; goal: string | null; text: string; ended: boolean }[] = []
+    let endSignal: AbortSignal | null = null
+    const port = createWorkSessionPort(opts(backend, {
+      timeoutMs: 20,
+      mainCard: (_ev, ctx) => {
+        endSignal = ctx.signal
+        got.push({ node: ctx.node, goal: ctx.goal, text: ctx.text, ended: ctx.signal.aborted })
+        return new Promise<RunResponse>(() => {})
+      },
+    }))
+    const pending = port.runWork(request({ node: MAIN, goal: null }))
+    await new Promise((r) => setTimeout(r, 80))
+    expect(got).toEqual([{ node: 'brainstorm', goal: null, text: '무엇을 만들까?', ended: false }])
+    expect(port.cancel?.()).toBe(true)
+    const r = await pending
+    expect(r).toMatchObject({ ok: false, cancelled: true })
+    expect(r.summary).toContain('취소')
+    expect((endSignal as AbortSignal | null)?.aborted).toBe(true)
+    expect(rec.responses).toEqual([])
+    expect(port.cancel?.()).toBe(false)
+  })
+
+  it('작업자 노드는 화면 응답자가 있어도 거부 응답자를 쓰고 시간 상한이 있다', async () => {
+    const { backend, rec } = fakeBackend([{ type: 'permission_request', requestId: 'p1', toolName: 'Bash', summary: 'x' }, { type: 'done' }])
+    let asked = 0
+    await createWorkSessionPort(opts(backend, { mainCard: () => { asked++; return { kind: 'permission', behavior: 'allow' } } })).runWork(request())
+    await tick()
+    expect(asked).toBe(0)
+    expect(rec.responses).toEqual([['p1', { kind: 'permission', behavior: 'deny' }]])
+  })
+
+  it('실행기 닫기(취소 신호)도 cancelled다 — FAIL이 아니라 멈춤으로 센다', async () => {
+    const { backend } = fakeBackend('hang')
+    const ac = new AbortController()
+    const pending = createWorkSessionPort(opts(backend, { signal: ac.signal })).runWork(request())
+    await tick()
+    ac.abort()
+    expect(await pending).toMatchObject({ ok: false, cancelled: true })
+    expect(await createWorkSessionPort(opts(backend, { signal: ac.signal })).runWork(request())).toMatchObject({ cancelled: true })
+  })
+
+  it('응답자가 던지면 그 카드는 거부·무응답으로 넘긴다', async () => {
+    const { backend, rec } = fakeBackend([{ type: 'permission_request', requestId: 'p1', toolName: 'Bash', summary: 'x' }, 'hang'] as never)
+    const port = createWorkSessionPort(opts(backend, { mainCard: () => { throw new Error('화면 없음') } }))
+    const pending = port.runWork(request({ node: MAIN, goal: null }))
+    await new Promise((r) => setTimeout(r, 20))
+    expect(rec.responses).toEqual([['p1', { kind: 'permission', behavior: 'deny' }]])
+    port.cancel?.()
+    await pending
+  })
+
+  it('시간 초과는 cancelled가 아니다(FAIL로 센다)', async () => {
+    const { backend } = fakeBackend('hang')
+    const r = await createWorkSessionPort(opts(backend, { timeoutMs: 20 })).runWork(request())
+    expect(r.ok).toBe(false)
+    expect(r.cancelled).toBeUndefined()
   })
 })
 

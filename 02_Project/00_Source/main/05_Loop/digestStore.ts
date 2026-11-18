@@ -52,6 +52,9 @@ export function createFileDigestStore(dir: string): DigestStore {
     write: async (repoKey, hash) => put(fileOf(dir, repoKey), hash),
     readLatch: async (repoKey) => (await readText(fileOf(dir, repoKey, 'latch'))) || null,
     writeLatch: async (repoKey, reason) => put(fileOf(dir, repoKey, 'latch'), reason.replace(/\r?\n/g, ' ')),
+    // M09 G4 — 사람의 「확인하고 풀기」(loopDriver)만 부른다. 없는 파일은 그대로 지나간다.
+    clearLatch: async (repoKey) => fsp.rm(fileOf(dir, repoKey, 'latch'), { force: true }),
+    remove: async (repoKey) => fsp.rm(fileOf(dir, repoKey), { force: true }),
     latchPath: (repoKey) => fileOf(dir, repoKey, 'latch'),
   }
 }

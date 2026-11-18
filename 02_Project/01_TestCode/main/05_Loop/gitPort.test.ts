@@ -4,7 +4,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { createGitPort, ensureAgentdeckExcluded } from '@main/05_Loop/realPorts/gitPort'
+import { REVIEW_DIFF_LIMIT, createGitPort, ensureAgentdeckExcluded, readOriginDefaultBranch } from '@main/05_Loop/realPorts/gitPort'
 import type { GitPort } from '@main/05_Loop/ports'
 import { makeTempRepos, type TempRepos } from '../00_Helpers/tempGit'
 
@@ -158,6 +158,49 @@ describe('diffStat — 작업 트리와 base의 차이', () => {
 
   it('base를 읽지 못하면 null이다(등급은 강이 된다)', async () => {
     expect(await git.diffStat('no-such-base')).toBeNull()
+  })
+})
+
+describe('검수 스냅숏과 트리 해시 (M09 G4)', () => {
+  it('작업 트리(untracked 포함, .agentdeck/ 제외)의 트리 해시와 base 대비 diff를 진짜 인덱스를 건드리지 않고 만든다', async () => {
+    await ensureAgentdeckExcluded(repos.work, repos.env)
+    await git.createBranch('milestone/M1', 'master')
+    write('src/a.ts', 'export const a = 1\n')
+    write('.agentdeck/run-state.json', '{}\n')
+    const snap = await git.reviewSnapshot('milestone/M1')
+    expect(snap?.tree).toMatch(/^[0-9a-f]{40}$/)
+    expect(snap?.diff).toContain('+export const a = 1')
+    expect(snap?.diff).toContain('src/a.ts')
+    expect(snap?.diff).not.toContain('.agentdeck')
+    expect(await git.worktreeTree()).toBe(snap?.tree)
+    expect(repos.git(['diff', '--cached', '--name-only'])).toBe('')
+    // 커밋하면 그 커밋의 트리가 검수한 트리와 같다
+    await git.commitAll('a')
+    expect(await git.treeOf('master')).toBe(snap?.tree)
+    write('src/a.ts', 'export const a = 2\n')
+    expect(await git.worktreeTree()).not.toBe(snap?.tree)
+  })
+
+  it('base를 읽지 못하면 스냅숏은 null이고, 없는 ref의 트리도 null이다', async () => {
+    expect(await git.reviewSnapshot('no-such-base')).toBeNull()
+    expect(await git.treeOf('no-such-branch')).toBeNull()
+  })
+
+  it('diff가 길면 상한에서 자르고 잘렸다고 적는다', async () => {
+    await git.createBranch('milestone/M1', 'master')
+    write('big.txt', `${'x'.repeat(100)}\n`.repeat(6000))
+    const snap = await git.reviewSnapshot('milestone/M1')
+    expect(snap?.diff.length).toBeLessThan(REVIEW_DIFF_LIMIT + 200)
+    expect(snap?.diff).toContain('잘렸다')
+  })
+})
+
+describe('origin의 기본 브랜치 읽기 (M09 G4)', () => {
+  it('refs/remotes/origin/HEAD가 가리키는 브랜치 이름을 읽고, 없으면 null이다', async () => {
+    repos.git(['remote', 'set-head', 'origin', 'master'])
+    expect(await readOriginDefaultBranch(repos.work, repos.env)).toBe('master')
+    repos.git(['remote', 'set-head', 'origin', '--delete'])
+    expect(await readOriginDefaultBranch(repos.work, repos.env)).toBeNull()
   })
 })
 

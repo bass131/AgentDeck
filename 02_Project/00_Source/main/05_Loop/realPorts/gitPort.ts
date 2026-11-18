@@ -175,23 +175,66 @@ export function createGitPort(opts: GitPortOptions): GitPort {
       return tree === expected ? null : `병합 커밋 ${c.slice(0, 8)}의 트리 ${tree.slice(0, 8)}가 두 부모를 병합한 트리 ${expected.slice(0, 8)}가 아니다`
     },
     async diffStat(base) {
-      let dir: string | null = null
       try {
         if (!(await resolve(base))) return null
-        dir = await fsp.mkdtemp(path.join(os.tmpdir(), 'agentdeck-index-'))
-        const index = path.join(dir, 'index')
-        const real = path.resolve(opts.cwd, (await must(git, ['rev-parse', '--git-path', 'index'])).trim())
-        await fsp.copyFile(real, index).catch(() => undefined)
-        const extra = { GIT_INDEX_FILE: index }
-        await must(git, ['add', '-A'], extra)
-        return parseNumstatZ(await must(git, ['diff', '--cached', '--numstat', '-z', '--no-renames', base, '--'], extra))
+        return await withTempIndex((extra) => must(git, ['diff', '--cached', '--numstat', '-z', '--no-renames', base, '--'], extra).then(parseNumstatZ))
       } catch {
         return null
-      } finally {
-        if (dir) await fsp.rm(dir, { recursive: true, force: true }).catch(() => undefined)
       }
     },
+    // M09 G4 — 검수에 묶는 트리. 같은 임시 인덱스 방식이라 untracked가 들어가고 `.agentdeck/`(exclude)는 빠진다.
+    async worktreeTree() {
+      return withTempIndex(async (extra) => (await must(git, ['write-tree'], extra)).trim())
+    },
+    async reviewSnapshot(base) {
+      try {
+        if (!(await resolve(base))) return null
+        return await withTempIndex(async (extra) => {
+          const tree = (await must(git, ['write-tree'], extra)).trim()
+          const full = await must(git, ['diff', '--cached', '--no-color', '--no-ext-diff', '--no-textconv', '--no-renames', base, '--'], extra)
+          const diff = full.length > REVIEW_DIFF_LIMIT
+            ? `${full.slice(0, REVIEW_DIFF_LIMIT)}\n\n[diff가 ${REVIEW_DIFF_LIMIT}자 상한에서 잘렸다 — 전체 ${full.length}자]\n`
+            : full
+          return { tree, diff }
+        })
+      } catch {
+        return null
+      }
+    },
+    async treeOf(ref) {
+      const r = await git(['rev-parse', '--verify', '--quiet', `${safeName(ref)}^{tree}`])
+      return r.code === 0 ? r.stdout.trim() || null : null
+    },
   }
+
+  // 진짜 인덱스를 복사한 임시 인덱스(저장소 밖)에 add -A 한 뒤 fn을 돈다. 진짜 인덱스는 건드리지 않는다.
+  async function withTempIndex<T>(fn: (extra: NodeJS.ProcessEnv) => Promise<T>): Promise<T> {
+    const dir = await fsp.mkdtemp(path.join(os.tmpdir(), 'agentdeck-index-'))
+    try {
+      const index = path.join(dir, 'index')
+      const real = path.resolve(opts.cwd, (await must(git, ['rev-parse', '--git-path', 'index'])).trim())
+      await fsp.copyFile(real, index).catch(() => undefined)
+      const extra = { GIT_INDEX_FILE: index }
+      await must(git, ['add', '-A'], extra)
+      return await fn(extra)
+    } finally {
+      await fsp.rm(dir, { recursive: true, force: true }).catch(() => undefined)
+    }
+  }
+}
+
+// M09 G4 — 검수 세션에 주는 diff의 상한(문자). 넘으면 자르고 잘렸다고 적는다.
+export const REVIEW_DIFF_LIMIT = 400_000
+
+// M09 G4 — origin의 기본 브랜치(refs/remotes/origin/HEAD가 가리키는 이름). 없거나 읽지 못하면 null이다(부르는 쪽이 gh로 다시 본다).
+export async function readOriginDefaultBranch(cwd: string, env: NodeJS.ProcessEnv = process.env, remote = 'origin'): Promise<string | null> {
+  const git = makeGit(cwd, env, 30_000)
+  const r = await git(['symbolic-ref', '--quiet', `refs/remotes/${remote}/HEAD`])
+  if (r.code !== 0) return null
+  const prefix = `refs/remotes/${remote}/`
+  const ref = r.stdout.trim()
+  const name = ref.startsWith(prefix) ? ref.slice(prefix.length) : ''
+  return name && !name.startsWith('-') ? name : null
 }
 
 // 실행기가 시작할 때 부른다. 작업 저장소의 info/exclude에 `.agentdeck/` 줄이 없으면 더한다(있으면 그대로). 저장소 파일은 안 바꾼다.

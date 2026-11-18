@@ -21,6 +21,7 @@ import { registerControlsHandlers } from './handlers/controls'
 import { registerPersonalizationHandlers } from './handlers/personalization'
 import { registerMultiHandlers } from './handlers/multi'
 import { registerWindowHandlers } from './handlers/window'
+import { registerLoopHandlers, type LoopDriverApi } from './handlers/loop'
 
 // IPC 등록부 — 조립 지점(00_App/bootstrap)이 만든 객체를 deps로 받아 핸들러를 등록만 한다 (M05 G11).
 // 한 번만 등록하는 가드와 store 초기화는 조립 지점이 쥔다.
@@ -37,6 +38,8 @@ export interface IpcDeps {
   getProfileStore: () => ProfileStore | null
   getMultiStorePath: () => string | null
   getModelList?: () => Promise<ModelListResponse>
+  // M09 G4 — 앱 안 루프 구동자(조립 지점이 만든다). 없으면 루프 채널을 등록하지 않는다.
+  loopDriver?: LoopDriverApi
 }
 
 export function registerIpc(deps: IpcDeps): void {
@@ -66,4 +69,5 @@ export function registerIpc(deps: IpcDeps): void {
   registerMultiHandlers({
     getMultiStorePath: deps.getMultiStorePath,
   })
+  if (deps.loopDriver) registerLoopHandlers({ driver: deps.loopDriver })
 }

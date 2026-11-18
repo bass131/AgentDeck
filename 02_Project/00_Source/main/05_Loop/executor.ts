@@ -29,6 +29,8 @@ export interface VerdictFacts {
   pushedSha?: string
   ciSha?: string
   mergedSha?: string
+  // M09 G4 — 모델 게이트가 pass를 낸 작업 트리 해시(실행기가 검수 입력을 만든 임시 인덱스의 write-tree)
+  reviewedTree?: string
 }
 export interface Verdict {
   node: string
@@ -165,7 +167,7 @@ function applyFacts(node: StepNode, s: RunState, goal: GoalState | null, facts: 
       ids.add(id)
       goals.push({
         id, title: oneSentence(title), grade: null, status: 'pending',
-        baseSha: null, pr: null, pushedSha: null, ciSha: null, mergedSha: null,
+        baseSha: null, pr: null, pushedSha: null, ciSha: null, mergedSha: null, reviewedTree: null,
       })
     }
     s.goals = goals
@@ -180,6 +182,13 @@ function applyFacts(node: StepNode, s: RunState, goal: GoalState | null, facts: 
     const sha = facts?.ciSha
     if (!isNonEmptyString(sha)) return 'CI 통과에는 머리 SHA가 있어야 한다'
     goal.ciSha = sha
+    return null
+  }
+  // M09 G4 — 검수 pass는 검수한 트리에 묶인다. goal PR 동작이 커밋·push 직전에 이 해시와 지금 트리를 대조한다.
+  if (node.kind === 'gate' && node.judge === 'model' && goal) {
+    const tree = facts?.reviewedTree
+    if (!isNonEmptyString(tree)) return '검수 통과에는 검수한 트리 해시가 있어야 한다'
+    goal.reviewedTree = tree
     return null
   }
   if (node.kind !== 'action') return null
@@ -254,6 +263,8 @@ export function applyVerdict(template: Template, state: RunState, verdict: Verdi
     moveForward(template, s)
     settle(template, s)
   } else if (verdict.verdict === 'fail') {
+    // 검수 불통과는 앞의 검수 트리를 지운다 — 옛 pass의 해시로 다음 goal 커밋을 통과시키지 않는다(G4)
+    if (here.node.kind === 'gate' && here.node.judge === 'model' && goal) goal.reviewedTree = null
     const human = verdict.judge === 'human'
     line(human ? 'USER-INPUT' : 'FAIL', human ? `사람이 반려했다 — ${verdict.evidence}` : verdict.evidence)
     const fails = failsSinceUserInput(s.lines, scope)

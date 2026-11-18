@@ -17,7 +17,7 @@ const EVIL = `e${'0'.repeat(39)}`
 interface Ctx { template: Template; hash: string; rig: Rig; runner: LoopRunner }
 function setup(rig: Rig = makeRig(), extra: { ciWaitLimit?: number; ciWaitMs?: number } = {}): Ctx {
   const { template, hash } = loaded()
-  return { template, hash, rig, runner: createLoopRunner({ template, hash, ports: rig.ports, cwd: CWD, ...extra }) }
+  return { template, hash, rig, runner: createLoopRunner({ template, hash, ports: rig.ports, cwd: CWD, base: 'master', ...extra }) }
 }
 async function until(ctx: Ctx, target: string): Promise<RunState> {
   if ((await ctx.runner.load()).kind === 'missing') expect((await ctx.runner.start('M1')).kind).toBe('ok')

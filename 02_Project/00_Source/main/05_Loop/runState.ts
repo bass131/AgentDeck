@@ -39,6 +39,9 @@ export interface GoalState {
   pushedSha: string | null
   ciSha: string | null
   mergedSha: string | null
+  // M09 G4 — 모델 게이트(검수)가 pass를 낸 작업 트리 해시. goal PR 동작이 커밋·push 직전에 지금 트리와 대조한다.
+  // 옛 상태에는 없을 수 있다(없으면 null로 읽는다).
+  reviewedTree?: string | null
 }
 // goal은 goal 고리 안이면 goal 목록의 위치, 마일스톤 구획이면 null.
 export interface Cursor { node: string; goal: number | null }
@@ -47,6 +50,8 @@ export interface RunState {
   schema: 1
   milestoneId: string
   template: { id: string; hash: string }
+  // M09 G4 — 시작할 때 읽은 기준 브랜치(origin 기본 브랜치). 다시 열 때 읽은 값과 다르면 실행기가 멈춘다. 옛 상태에는 없을 수 있다.
+  base?: string | null
   status: RunStatus
   haltReason: string | null
   cursor: Cursor
@@ -68,10 +73,11 @@ const STATUSES: readonly RunStatus[] = ['running', 'needs-user', 'done']
 const GOAL_STATUSES: readonly GoalStatus[] = ['pending', 'active', 'done']
 
 export function createRunState(
-  template: Template, hash: string, milestoneId: string,
+  template: Template, hash: string, milestoneId: string, base: string | null = null,
 ): { ok: true; state: RunState } | { ok: false; reason: string } {
   if (!MILESTONE_ID.test(milestoneId)) return { ok: false, reason: `마일스톤 id ${JSON.stringify(milestoneId)}가 id 꼴이 아니다` }
   if (!HASH.test(hash)) return { ok: false, reason: '템플릿 해시가 sha256 16진수가 아니다' }
+  if (base !== null && !isNonEmptyString(base)) return { ok: false, reason: '기준 브랜치 이름이 비었다' }
   // 스키마 검사가 goal 고리 앞에 분해 노드를 요구하므로 첫 노드는 언제나 고리가 아니다.
   const first = template.nodes[0] as StepNode
   return {
@@ -80,6 +86,7 @@ export function createRunState(
       schema: 1,
       milestoneId,
       template: { id: template.id, hash },
+      base,
       status: 'running',
       haltReason: null,
       cursor: { node: first.id, goal: null },
@@ -114,7 +121,8 @@ const oneOf = <T>(list: readonly T[], v: unknown): v is T => (list as readonly u
 
 function checkGoal(g: unknown, p: string, err: ErrSink): void {
   if (!isObject(g)) { err(p, 'goal은 객체여야 한다'); return }
-  rejectUnknownKeys(g, p, ['id', 'title', 'grade', 'status', 'baseSha', 'pr', 'pushedSha', 'ciSha', 'mergedSha'], err)
+  rejectUnknownKeys(g, p, ['id', 'title', 'grade', 'status', 'baseSha', 'pr', 'pushedSha', 'ciSha', 'mergedSha', 'reviewedTree'], err)
+  if (g.reviewedTree !== undefined && !nullOr(g.reviewedTree, isNonEmptyString)) err(`${p}.reviewedTree`, '문자열이나 null')
   if (!isNonEmptyString(g.id) || !GOAL_ID.test(g.id)) err(`${p}.id`, 'goal id 꼴이 아니다')
   if (!isNonEmptyString(g.title)) err(`${p}.title`, '제목이 있어야 한다')
   if (!(g.grade === null || g.grade === 'strong' || g.grade === 'weak')) err(`${p}.grade`, 'strong·weak·null 중 하나')
@@ -142,9 +150,10 @@ export function validateRunState(raw: unknown): RunStateCheck {
   const err: ErrSink = (path, reason) => { errors.push({ path, reason }) }
   if (!isObject(raw)) return { ok: false, errors: [{ path: '$', reason: '실행 상태는 객체여야 한다' }] }
   rejectUnknownKeys(raw, '$', [
-    'schema', 'milestoneId', 'template', 'status', 'haltReason', 'cursor', 'milestoneBase', 'goals', 'milestonePr', 'failCount', 'lines',
+    'schema', 'milestoneId', 'template', 'base', 'status', 'haltReason', 'cursor', 'milestoneBase', 'goals', 'milestonePr', 'failCount', 'lines',
   ], err)
   if (raw.schema !== 1) err('$.schema', '지원하는 상태 판은 1뿐이다')
+  if (raw.base !== undefined && !nullOr(raw.base, isNonEmptyString)) err('$.base', '기준 브랜치 이름이나 null')
   if (!isNonEmptyString(raw.milestoneId) || !MILESTONE_ID.test(raw.milestoneId)) err('$.milestoneId', '마일스톤 id 꼴이 아니다')
   const t = raw.template
   if (!isObject(t)) err('$.template', '{ id, hash } 객체여야 한다')

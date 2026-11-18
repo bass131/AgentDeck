@@ -8,11 +8,11 @@ import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import type { AgentBackend, AgentRun, AgentRunInput } from '@main/03_Agent/AgentBackend'
 import type { AgentEvent } from '@shared/agentEvents'
-import type { CiStatus } from '@main/05_Loop/executor'
 import { TAMPERED_REASON, type LoadResult } from '@main/05_Loop/loopRunner'
 import { openLoop, type OpenedLoop } from '@main/05_Loop/openLoop'
-import type { GhPort, PrInfo, PrState, ReviewPort, SessionPort, WorkRequest } from '@main/05_Loop/ports'
+import type { ReviewPort, SessionPort, WorkRequest } from '@main/05_Loop/ports'
 import { DOCS } from '@main/05_Loop/survivalDocs'
+import { BareGh } from '../00_Helpers/bareGh'
 import { labelOf, loaded, variantText, findRawNode } from '../00_Helpers/loopFakes'
 import { makeTempRepos, type TempRepos } from '../00_Helpers/tempGit'
 
@@ -27,58 +27,6 @@ const TEMPLATE = loaded(variantText((raw) => {
   probeCommands(raw, 'regression')
 }))
 
-interface BarePr { number: number; head: string; base: string; state: PrState; mergedHead: string | null; mergeCommit: string | null }
-
-// GitHub 흉내 — 원격(bare)의 브랜치를 읽는다. 원격 base가 PR 머리를 품으면 병합됨으로 닫는다(GitHub가 하는 일).
-class BareGh implements GhPort {
-  readonly calls: string[] = []
-  readonly prs: BarePr[] = []
-  constructor(private readonly repos: TempRepos) {}
-  tip(branch: string): string | null {
-    try { return this.repos.bare(['rev-parse', '--verify', '--quiet', `refs/heads/${branch}`]) || null } catch { return null }
-  }
-  private contains(base: string, sha: string): boolean {
-    try { this.repos.bare(['merge-base', '--is-ancestor', sha, base]); return true } catch { return false }
-  }
-  private view(pr: BarePr): PrInfo {
-    const head = pr.mergedHead ?? this.tip(pr.head) ?? ''
-    const base = this.tip(pr.base)
-    if (pr.state === 'open' && head && base && this.contains(base, head)) {
-      pr.state = 'merged'
-      pr.mergedHead = head
-      pr.mergeCommit = base
-    }
-    return { number: pr.number, state: pr.state, headSha: head, mergeCommitSha: pr.mergeCommit }
-  }
-  async findPr(head: string, base: string): Promise<PrInfo | null> {
-    this.calls.push(`findPr ${head}`)
-    const pr = [...this.prs].reverse().find((p) => p.head === head && p.base === base)
-    return pr ? this.view(pr) : null
-  }
-  async getPr(number: number): Promise<PrInfo | null> {
-    const pr = this.prs.find((p) => p.number === number)
-    return pr ? this.view(pr) : null
-  }
-  async createPr(req: { head: string; base: string }): Promise<PrInfo> {
-    this.calls.push(`createPr ${req.head} ${req.base}`)
-    if (!this.tip(req.head)) throw new Error(`원격에 ${req.head}가 없다`)
-    const pr: BarePr = { number: this.prs.length + 1, head: req.head, base: req.base, state: 'open', mergedHead: null, mergeCommit: null }
-    this.prs.push(pr)
-    return this.view(pr)
-  }
-  async ciStatus(number: number): Promise<CiStatus> {
-    const pr = this.prs.find((p) => p.number === number)
-    return { state: 'success', headSha: (pr && this.tip(pr.head)) ?? '', summary: 'hard-gates SUCCESS' }
-  }
-  // 사람이 GitHub에서 마일스톤 PR을 병합한 것 — 원격 base를 PR 머리로 옮긴다(fast-forward).
-  mergeByHuman(number: number): void {
-    const pr = this.prs.find((p) => p.number === number)
-    const head = pr && this.tip(pr.head)
-    if (!pr || !head) throw new Error(`병합할 PR ${number}이 없다`)
-    this.repos.bare(['update-ref', `refs/heads/${pr.base}`, head])
-  }
-}
-
 class Session implements SessionPort {
   readonly calls: string[] = []
   constructor(private readonly root: string) {}
@@ -88,6 +36,7 @@ class Session implements SessionPort {
       fs.mkdirSync(path.dirname(path.join(this.root, rel)), { recursive: true })
       fs.writeFileSync(path.join(this.root, rel), text)
     }
+    if (req.node.id === 'brainstorm') write(DOCS.milestoneSpec, '# M1\n\n만들 것: feature\n')
     if (req.node.produces === 'goals') write('.agentdeck/goals/G1.md', '# 첫 goal\n\n범위: src/feature.ts 하나\n')
     if (req.node.id === 'implement') write('src/feature.ts', 'export const feature = 1\n')
     return { ok: true, summary: '끝' }
@@ -125,7 +74,11 @@ async function drive(loop: OpenedLoop, until?: string): Promise<LoadResult> {
     const out = await loop.runner.step()
     if (out.kind === 'waiting' && out.on === 'human' && r.next.kind === 'gate') {
       if (r.next.node.watch && r.state.milestonePr !== null) gh.mergeByHuman(r.state.milestonePr)
-      else await loop.runner.submit({ node: r.next.node.id, judge: 'human', verdict: 'pass', evidence: '사람이 승인했다' })
+      else {
+        // 스펙 승인은 사람이 본 스펙의 해시에 묶인다(G4)
+        const seen = await loop.runner.specView()
+        await loop.runner.submit({ node: r.next.node.id, judge: 'human', verdict: 'pass', evidence: '사람이 승인했다' }, { specSha256: seen.sha256 ?? '' })
+      }
       continue
     }
     if (out.kind === 'waiting' || out.kind === 'blocked' || out.kind === 'needs-user' || out.kind === 'halted' || out.kind === 'failed') {
@@ -324,7 +277,7 @@ describe('openLoop — 실물 작업 노드 세션 포트 (M09 G2)', () => {
     expect(req.loopLock).toEqual({ repoRoot: loop.root, appLoopDir: appData })
   })
 
-  it('실행기를 닫으면 돌고 있는 작업 노드 세션을 멈추고, 그 노드는 통과로 가지 않는다', SLOW, async () => {
+  it('실행기를 닫으면 돌고 있는 작업 노드 세션을 멈추고, 그 노드는 통과로 가지 않으며 FAIL로도 세지 않는다(멈춤, G4)', SLOW, async () => {
     const { backend, rec } = recordingBackend('hang')
     const loop = await openWithBackend(backend)
     const { pending } = await stepToFirstWork(loop)
@@ -335,11 +288,13 @@ describe('openLoop — 실물 작업 노드 세션 포트 (M09 G2)', () => {
     await close(loop)
     // 닫기는 세션을 멈춘 뒤 진행 중인 step(직렬화 줄)이 끝나기를 기다리고, 그다음에 잠금을 푼다(G2 검수 사소)
     expect(settled).toBe(true)
-    const out = (await pending) as { kind: string; verdict?: { verdict: string; evidence: string } | null }
+    const out = (await pending) as { kind: string; state?: { failCount: number; haltReason: string | null } | null; verdict?: { verdict: string; evidence: string } | null }
     expect(rec.aborts).toBeGreaterThanOrEqual(1)
-    // 그 step은 세션의 ok:false를 불통과 판정으로 바꿔 상태와 검증 기록에 남긴다 — 잠금을 풀기 전의 저장이다
-    expect(out.kind).toBe('failed')
-    expect(out.verdict?.evidence).toContain('취소됐다')
+    // 그 step은 세션의 취소를 멈춤(stop)으로 바꿔 상태와 검증 기록에 남긴다 — FAIL로 세지 않는다(G4). 잠금을 풀기 전의 저장이다
+    expect(out.kind).toBe('halted')
+    expect(out.verdict?.verdict).toBe('stop')
+    expect(out.state?.failCount).toBe(0)
+    expect(out.state?.haltReason).toContain('취소됐다')
     expect(fs.readFileSync(path.join(repos.work, DOCS.verification), 'utf8')).toContain('취소됐다')
     expect(fs.readdirSync(path.join(appData, 'locks'))).toEqual([])
   })
@@ -424,5 +379,45 @@ describe('openLoop — 재검수 반영 (M09 G2)', () => {
     expect(repos.bare(['rev-parse', `${tip}^2`])).toBe(ci)
     expect(repos.bare(['rev-parse', `${tip}^2^{tree}`])).toBe(ciTree)
     expect(repos.bare(['ls-tree', '-r', '--name-only', tip]).split('\n')).not.toContain('evil.txt')
+  })
+})
+
+describe('openLoop — 기준 브랜치·설정 받기·검수 포트 (M09 G4)', () => {
+  it('기준 브랜치는 origin/HEAD에서 읽고, 없으면 gh의 기본 브랜치, 둘 다 없으면 열지 않는다(잠금을 남기지 않는다)', async () => {
+    expect((await open()).base).toBe('master')
+    await close(opened[0])
+    repos.git(['remote', 'set-head', 'origin', '--delete'])
+    const refused = await openLoop({ cwd: repos.work, appDataDir: appData, session, review, gh, template: TEMPLATE, executorEnv: repos.env })
+    expect(refused.ok).toBe(false)
+    expect(!refused.ok && refused.reason).toContain('기본 브랜치')
+    expect(fs.readdirSync(path.join(appData, 'locks'))).toEqual([])
+    const withDefault = Object.assign(Object.create(gh) as BareGh, { defaultBranch: async () => 'main' })
+    const r = await openLoop({ cwd: repos.work, appDataDir: appData, session, review, gh: withDefault, template: TEMPLATE, executorEnv: repos.env })
+    if (!r.ok) throw new Error(r.reason)
+    opened.push(r.loop)
+    expect(r.loop.base).toBe('main')
+  })
+
+  it('지난 스냅숏과 설정이 다르면 바뀐 키를 구조로 돌려주고, 그 목록을 받으면 연다', async () => {
+    await close(await open())
+    repos.git(['config', 'user.name', 'Someone Else'])
+    const refused = await openLoop({ cwd: repos.work, appDataDir: appData, session, review, gh, template: TEMPLATE, executorEnv: repos.env })
+    expect(!refused.ok && refused.changed).toEqual(['user.name'])
+    expect(!refused.ok && refused.root).toBe(fs.realpathSync.native(repos.work))
+    const r = await openLoop({ cwd: repos.work, appDataDir: appData, session, review, gh, template: TEMPLATE, executorEnv: repos.env, acceptConfigChanged: ['user.name'] })
+    if (!r.ok) throw new Error(r.reason)
+    opened.push(r.loop)
+    expect(r.loop.configChanges()).toEqual([])
+  })
+
+  it('검수 포트가 없으면 백엔드로 실물 검수 세션 포트를 만들고, 백엔드도 없으면 열지 않는다', async () => {
+    const noReview = await openLoop({ cwd: repos.work, appDataDir: appData, session, gh, template: TEMPLATE, executorEnv: repos.env })
+    expect(noReview.ok).toBe(false)
+    expect(!noReview.ok && noReview.reason).toContain('검수')
+    const { backend } = recordingBackend('done')
+    const r = await openLoop({ cwd: repos.work, appDataDir: appData, backend, gh, template: TEMPLATE, executorEnv: repos.env })
+    if (!r.ok) throw new Error(r.reason)
+    opened.push(r.loop)
+    expect(r.loop.cancelSession()).toBe(false)
   })
 })

@@ -44,11 +44,27 @@ describe('파일 다이제스트 저장소와 키', () => {
     expect(fs.existsSync(store.latchPath?.(key) as string)).toBe(true)
   })
 
+  // M09 G4 — 사람의 「확인하고 풀기」(loopDriver)만 부른다. 없는 것을 지워도 오류가 아니다.
+  it('래치 지우기와 다이제스트 지우기는 그 파일만 지운다', async () => {
+    const store = createFileDigestStore(path.join(dir, 'clear'))
+    const key = repoKeyOf('C:/work/clear')
+    await store.clearLatch(key)
+    await store.remove(key)
+    await store.write(key, 'c'.repeat(64))
+    await store.writeLatch(key, TAMPERED)
+    await store.clearLatch(key)
+    expect(await store.readLatch(key)).toBeNull()
+    expect(await store.read(key)).toBe('c'.repeat(64))
+    await store.remove(key)
+    expect(await store.read(key)).toBeNull()
+    await expect(store.clearLatch('../escape')).rejects.toThrow()
+  })
+
   it('래치 사유 문구에 래치 파일 경로가 실린다', async () => {
     const { template, hash } = loaded()
     const rig = makeRig()
     rig.ports.digest.latchPath = (key) => `C:/appdata/loop/digests/${key}.latch`
-    const runner = createLoopRunner({ template, hash, ports: rig.ports, cwd: CWD })
+    const runner = createLoopRunner({ template, hash, ports: rig.ports, cwd: CWD, base: 'master' })
     expect((await runner.start('M1')).kind).toBe('ok')
     rig.fs.files.set(DOCS.runState, '{}')
     const out = await runner.step()
@@ -71,7 +87,7 @@ interface Ctx { rig: Rig; runner: LoopRunner }
 async function started(): Promise<Ctx> {
   const { template, hash } = loaded()
   const rig = makeRig()
-  const runner = createLoopRunner({ template, hash, ports: rig.ports, cwd: CWD })
+  const runner = createLoopRunner({ template, hash, ports: rig.ports, cwd: CWD, base: 'master' })
   expect((await runner.start('M1')).kind).toBe('ok')
   return { rig, runner }
 }
@@ -130,7 +146,7 @@ describe('실행기는 다이제스트가 다르면 멈춘다', () => {
     expect((await runner.load()).kind).toBe('needs-user')
     expect(rig.digest.latches.get(repoKeyOf(CWD))).toContain(TAMPERED)
     const { template, hash } = loaded()
-    const fresh = createLoopRunner({ template, hash, ports: rig.ports, cwd: CWD })
+    const fresh = createLoopRunner({ template, hash, ports: rig.ports, cwd: CWD, base: 'master' })
     expect((await fresh.load()).kind).toBe('needs-user')
     expect((await fresh.step()).kind).toBe('needs-user')
     expect((await fresh.start('M1')).kind).toBe('needs-user')

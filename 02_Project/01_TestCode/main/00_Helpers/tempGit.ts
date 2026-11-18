@@ -52,6 +52,8 @@ export function makeTempRepos(prefix = 'agentdeck-g2-'): TempRepos {
   run(['commit', '--quiet', '-m', 'init'], work)
   run(['remote', 'add', 'origin', remote], work)
   run(['push', '--quiet', 'origin', 'master'], work)
+  // origin의 기본 브랜치(refs/remotes/origin/HEAD) — 실행기는 열 때 이것을 기준 브랜치로 읽는다(M09 G4). 클론이 남기는 것과 같다.
+  run(['remote', 'set-head', 'origin', 'master'], work)
   return {
     root,
     remote,

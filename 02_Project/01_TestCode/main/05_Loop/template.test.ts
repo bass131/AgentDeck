@@ -160,10 +160,19 @@ describe('스키마 오류를 경로와 이유로 거부한다', () => {
     expect(hasError(errors, '$.grading.appSourcePaths', '모르는 키')).toBe(true)
   })
 
-  it('형식 판과 브랜치 꼴을 검사한다', () => {
+  it('형식 판과 브랜치 꼴을 검사한다 — 기준 브랜치 이름은 꼴 검사 대상이 아니다(M09 G4)', () => {
     expect(hasError(errorsOf(variantText((raw) => { raw.version = 2 })), '$.version', '1뿐')).toBe(true)
     expect(hasError(errorsOf(variantText((raw) => { (raw.branches as Record<string, unknown>).goal = 'goal/x' })),
       '$.branches.goal', '{goal}')).toBe(true)
+  })
+
+  // M09 G4 — 기준 브랜치는 템플릿에 두지 않는다. 열 때 작업 저장소 origin의 기본 브랜치를 읽는다(openLoop).
+  it('브랜치 꼴에는 기준 브랜치(base)가 없고, 적으면 모르는 키로 거부한다', () => {
+    const r = loadTemplate(programDevText())
+    if (!r.ok) throw new Error('불러오기 실패')
+    expect(Object.keys(r.template.branches).sort()).toEqual(['goal', 'milestone'])
+    const errors = errorsOf(variantText((raw) => { (raw.branches as Record<string, unknown>).base = 'master' }))
+    expect(hasError(errors, '$.branches.base', '모르는 키')).toBe(true)
   })
 
   it('객체가 아니면 거부한다', () => {

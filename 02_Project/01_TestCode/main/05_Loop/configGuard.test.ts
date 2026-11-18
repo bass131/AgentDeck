@@ -129,6 +129,37 @@ describe('실행기 git 설정 대조', () => {
     expect((await createConfigGuard({ cwd: repos.work, env: repos.env, snapshotFile, hooksPath })).ok).toBe(true)
   })
 
+  // M09 G4 — 사람의 「확인하고 풀기」. 열기 거부는 바뀐 키 목록을 구조로 돌려주고, 그 목록과 정확히 같은 차이만 새 기준선으로 받는다.
+  it('지난 스냅숏과의 차이를 목록으로 돌려주고, 사람이 그 목록을 받으면 새 기준선으로 연다 — 목록이 다르면 여전히 거부한다', async () => {
+    await open()
+    repos.git(['config', 'user.name', 'Someone Else'])
+    const refused = await createConfigGuard({ cwd: repos.work, env: repos.env, snapshotFile, hooksPath })
+    expect(!refused.ok && refused.changed).toEqual(['user.name'])
+    const wrong = await createConfigGuard({ cwd: repos.work, env: repos.env, snapshotFile, hooksPath, acceptChanged: ['user.email'] })
+    expect(wrong.ok).toBe(false)
+    const accepted = await createConfigGuard({ cwd: repos.work, env: repos.env, snapshotFile, hooksPath, acceptChanged: ['user.name'] })
+    expect(accepted.ok).toBe(true)
+    // 새 기준선이 적혔다 — 받기 없이 다시 열어도 열린다
+    expect((await createConfigGuard({ cwd: repos.work, env: repos.env, snapshotFile, hooksPath })).ok).toBe(true)
+  })
+
+  it('받기 목록이 있어도 위험 키는 여전히 거부한다', async () => {
+    await open()
+    repos.git(['config', 'core.pager', 'less'])
+    const r = await createConfigGuard({ cwd: repos.work, env: repos.env, snapshotFile, hooksPath, acceptChanged: ['core.pager'] })
+    expect(r.ok).toBe(false)
+    expect(!r.ok && r.reason).toContain('core.pager')
+    expect(!r.ok && r.changed).toBeUndefined()
+  })
+
+  it('열린 뒤 바뀐 키 목록을 changes()로 읽는다(래치를 푸는 화면이 보인다)', async () => {
+    const guard = await open()
+    expect(guard.changes()).toEqual([])
+    repos.git(['config', 'user.name', 'Someone Else'])
+    expect(await guard.check()).toContain('user.name')
+    expect(guard.changes()).toEqual(['user.name'])
+  })
+
   it('위험 키가 로컬 설정에 있으면 스냅숏이 없어도, 스냅숏을 지워도 열지 않는다 — 그 키를 지우면 열린다', async () => {
     await open()
     repos.git(['config', 'core.pager', 'less'])

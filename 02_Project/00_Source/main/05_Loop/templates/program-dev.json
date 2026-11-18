@@ -21,7 +21,6 @@
     ]
   },
   "branches": {
-    "base": "master",
     "milestone": "milestone/{milestone}",
     "goal": "goal/{milestone}-{goal}"
   },

@@ -37,14 +37,20 @@ export interface ConfigGuardOptions {
   runGit?: (args: string[]) => Promise<ProcessResult>
   // 일시 실패 뒤 다시 읽기까지의 간격(기본 200ms). 다시 읽기는 모두 READ_ATTEMPTS번이다.
   retryDelayMs?: number
+  // M09 G4 — 사람이 화면에서 확인하고 받은 바뀐 키 목록. 지난 스냅숏과의 차이가 이 목록과 정확히 같을 때만 새 기준선으로 연다.
+  // 위험 키·http_unix_socket·grafts·hooksPath 검사는 이것과 관계없이 그대로 거부한다(그 검사가 먼저 돈다).
+  acceptChanged?: readonly string[]
 }
 
 export interface ConfigGuard extends ConfigCheck {
   // 바뀌었으면 사유로 던진다(git·gh 포트가 호출 직전에 부른다).
   assert(): Promise<void>
+  // 열린 뒤 기준선과 달라진 키·파일 목록(마지막 check 기준). 화면의 래치 카드가 보인다.
+  changes(): string[]
 }
 
-export type ConfigGuardResult = { ok: true; guard: ConfigGuard } | { ok: false; reason: string }
+// changed: 지난 스냅숏과의 차이로 거부했을 때만 싣는다(받기 목록으로 쓸 수 있는 차이). 다른 거부에는 없다.
+export type ConfigGuardResult = { ok: true; guard: ConfigGuard } | { ok: false; reason: string; changed?: string[] }
 
 interface Snapshot { entries: string[]; files: Record<string, string> }
 
@@ -421,10 +427,12 @@ export async function createConfigGuard(opts: ConfigGuardOptions): Promise<Confi
   const stored = await readStored(opts.snapshotFile)
   if (stored !== null) {
     const keys = diff(stored, base)
-    if (keys.length > 0) {
+    const accepted = opts.acceptChanged !== undefined && [...opts.acceptChanged].sort().join('\n') === keys.join('\n')
+    if (keys.length > 0 && !accepted) {
       return {
         ok: false,
-        reason: `실행기 git 설정이 지난 실행이 적은 스냅숏(${opts.snapshotFile})과 다르다 — 바뀐 키: ${list(keys)}. 사람이 확인하고 그 키를 지운(되돌린) 뒤 다시 연다`,
+        reason: `실행기 git 설정이 지난 실행이 적은 스냅숏(${opts.snapshotFile})과 다르다 — 바뀐 키: ${list(keys)}. 사람이 확인하고 그 키를 지운(되돌린) 뒤 다시 열거나, 화면에서 확인하고 푼다`,
+        changed: keys,
       }
     }
   }
@@ -434,6 +442,7 @@ export async function createConfigGuard(opts: ConfigGuardOptions): Promise<Confi
   await writeFileAtomic(opts.snapshotFile, `${JSON.stringify(base, null, 2)}\n`)
 
   let tripped: string | null = null
+  let changedNow: string[] = []
   const check = async (): Promise<string | null> => {
     if (tripped) return tripped
     const hooks = await hooksReason(opts.hooksPath, delay)
@@ -443,6 +452,7 @@ export async function createConfigGuard(opts: ConfigGuardOptions): Promise<Confi
     let now: Snapshot
     try { now = await takeSteady(opts, run) } catch (e) { return (tripped = `${CONFIG_CHANGED} — 설정을 다시 읽지 못했다(${(e as Error).message})`) }
     const keys = diff(base, now)
+    changedNow = keys
     if (keys.length > 0) tripped = `${CONFIG_CHANGED} — 바뀐 키: ${list(keys)}`
     return tripped
   }
@@ -450,6 +460,7 @@ export async function createConfigGuard(opts: ConfigGuardOptions): Promise<Confi
     ok: true,
     guard: {
       check,
+      changes: () => [...changedNow],
       assert: async () => {
         const reason = await check()
         if (reason) throw new Error(reason)

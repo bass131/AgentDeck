@@ -190,6 +190,13 @@ const ENV_SPLIT_ROWS = [
   { id: 'ES-14', cmd: 'env -S "npm test" "a; gh pr merge 1"', expect: 'allow' },
   { id: 'ES-15', cmd: 'env -u S npm test', expect: 'allow' },
   { id: 'ES-16', cmd: 'echo \'env -S "gh pr merge 1"\'', expect: 'allow' },
+  // G3 검수 반영 — 값 안의 낱말 머리 `#`는 값 끝까지만 주석이고(중요 1), `-a`는 값을 받는다(사소 2)
+  { id: 'ES-17', cmd: 'env -S "#" gh pr merge 1', expect: 'deny' },
+  { id: 'ES-18', cmd: 'env -S "gh pr #" merge 1', expect: 'deny' },
+  { id: 'ES-19', cmd: 'env -S "gh api #" -X PUT repos/o/r/pulls/1/merge', expect: 'deny' },
+  { id: 'ES-20', cmd: 'env -S \'FOO="a #b" gh pr merge 1\'', expect: 'deny' },
+  { id: 'ES-21', cmd: 'env -S "x #" gh pr merge 1', expect: 'allow' },
+  { id: 'ES-22', cmd: 'env -a x -S "gh pr merge 1"', expect: 'deny' },
 ]
 // 표의 행 — `['이름', { valueOpts: … }]` 꼴의 줄을 글 그대로 모은다
 const wrapperRows = (path) => readFileSync(path, 'utf8').split('\n').map((l) => l.trim()).filter((l) => /^\['[a-z]+', \{ valueOpts: /.test(l))

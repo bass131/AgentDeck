@@ -1,8 +1,30 @@
 // M07 G8 병합 거부 노드 — 앱 세션의 PreToolUse 잠금 노드 `merge-deny`가 병합 꼴을 거부하고 오탐 꼴은 지나가는지 고정한다.
 // 오탐 꼴은 저장소 가드 테스트(.claude/hooks/dangerous-cmd-guard.test.mjs 392~432행 계열)에서 빌렸다.
+import { readFileSync } from 'node:fs'
+import { stripTypeScriptTypes } from 'node:module'
+import { fileURLToPath } from 'node:url'
 import { describe, it, expect } from 'vitest'
 import { mergeDenyReason, buildMergeDenyHook, MERGE_DENY_NODE } from '@main/04_Claude/permission/mergeDeny'
 import { listControlNodes } from '@main/04_Claude/permission/controlNodes'
+
+// G3 검수 중요 4 — 하네스 같음 시험(.claude/hooks/cmd-guard-equivalence.test.mjs)이 mergeDeny.ts를 Node의 타입 지우기로 직접 import한다.
+// 값 import나 지울 수 없는 TS 문법이 들어오면 그 시험(판정 장치)만 깨지므로, 앱 시험에서 먼저 드러나게 한다.
+describe('merge-deny 소스 — Node가 타입만 지워 바로 읽을 수 있다 (M09 G3)', () => {
+  const source = readFileSync(fileURLToPath(new URL('../../../00_Source/main/04_Claude/permission/mergeDeny.ts', import.meta.url)), 'utf8')
+  it('import는 모두 import type이다 — 값 import·require·값 다시 내보내기가 없다', () => {
+    const imports = source.split('\n').filter((l) => /^\s*import\b/.test(l))
+    expect(imports.length).toBeGreaterThan(0)
+    for (const l of imports) expect(l).toMatch(/^import type /)
+    expect(source).not.toMatch(/\brequire\s*\(|\bimport\s*\(/)
+    expect(source).not.toMatch(/^export\s+(?!type\b)[^\n]*\bfrom\s+['"]/m)
+  })
+  it('enum·namespace·parameter property가 없다 — Node의 타입 지우기가 받아들인다', () => {
+    expect(source).not.toMatch(/^\s*(?:export\s+)?(?:const\s+|declare\s+)?enum\s+\w/m)
+    expect(source).not.toMatch(/^\s*(?:export\s+)?(?:declare\s+)?(?:namespace|module)\s+\w/m)
+    expect(source).not.toMatch(/constructor\s*\([^)]*\b(?:public|private|protected|readonly)\s/)
+    expect(() => stripTypeScriptTypes(source)).not.toThrow()
+  })
+})
 
 describe('merge-deny — 병합 꼴은 거부한다 (M07 G8)', () => {
   const denied = [
@@ -188,6 +210,18 @@ describe('merge-deny — env -S 문자열을 명령으로 다시 읽는다 (M09 
     'npm test && env -S "gh pr merge 1"',
     "bash -c 'env -S \"gh pr merge 1\"'",
     'env -S "gh api graphql -f query=\'mutation { mergePullRequest(input: {}) { clientMutationId } }\'"',
+    // G3 검수 중요 1 — env는 값 안의 낱말 머리 `#`부터 값 끝까지만 버리고 뒤 낱말은 그대로 돈다
+    'env -S "#" gh pr merge 1',
+    'env -S "#c" gh pr merge 1',
+    'env -S "gh pr #" merge 1',
+    'env -S "gh #" pr merge 1',
+    'env -S "gh pr #x y" merge 1',
+    'env -S "gh api #" -X PUT repos/o/r/pulls/1/merge',
+    // 따옴표 안의 `#`는 주석이 아니다
+    'env -S \'FOO="a #b" gh pr merge 1\'',
+    // G3 검수 사소 2 — `-a`(`--argv0`)는 값을 받는다
+    'env -a x -S "gh pr merge 1"',
+    'env --argv0 x -S "gh pr merge 1"',
   ]
   for (const cmd of denied) {
     it(`거부: ${JSON.stringify(cmd)}`, () => {
@@ -200,6 +234,10 @@ describe('merge-deny — env -S 문자열을 명령으로 다시 읽는다 (M09 
     'env -u X ls',
     'env -S "gh pr view 1"',
     'env -S "echo gh pr merge 1"',
+    // 값의 주석을 버리면 `x`가 명령이다(gh는 x의 인자)
+    'env -S "x #" gh pr merge 1',
+    // 따옴표 안의 `#`는 글자다 — echo의 인자
+    'env -S "echo \'#\'" gh pr merge 1',
     // 뒤 낱말은 낱말 하나다 — 그 안의 `;`는 구분자가 아니다
     'env -S "npm test" "a; gh pr merge 1"',
     'env -u S npm test',

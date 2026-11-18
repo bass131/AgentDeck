@@ -703,6 +703,17 @@ try {
     ['npm test && env -S "gh pr merge 1"', 'gh-pr-merge'],
     ["bash -c 'env -S \"gh pr merge 1\"'", 'gh-pr-merge'],
     ['env -S "gh api graphql -f query=\'mutation { mergePullRequest(input: {}) { clientMutationId } }\'"', 'gh-graphql-병합'],
+    // G3 검수 중요 1 — env는 값 안의 낱말 머리 `#`부터 값 끝까지만 버리고 뒤 낱말은 그대로 돈다
+    ['env -S "#" gh pr merge 1', 'gh-pr-merge'],
+    ['env -S "#c" gh pr merge 1', 'gh-pr-merge'],
+    ['env -S "gh pr #" merge 1', 'gh-pr-merge'],
+    ['env -S "gh #" pr merge 1', 'gh-pr-merge'],
+    ['env -S "gh pr #x y" merge 1', 'gh-pr-merge'],
+    ['env -S "gh api #" -X PUT repos/o/r/pulls/1/merge', 'gh-api-병합'],
+    ['env -S \'FOO="a #b" gh pr merge 1\'', 'gh-pr-merge'], // 따옴표 안의 `#`는 주석이 아니다
+    // G3 검수 사소 2 — `-a`(`--argv0`)는 값을 받는다
+    ['env -a x -S "gh pr merge 1"', 'gh-pr-merge'],
+    ['env --argv0 x -S "gh pr merge 1"', 'gh-pr-merge'],
     // 병합 밖의 규칙도 같은 판정이다
     ['env -S "rm -rf dist"', 'rm-재귀·강제'],
     ['env -S "git push --force origin chore/x"', 'force-push'],
@@ -716,6 +727,8 @@ try {
     'env -S "gh pr view 1"',
     'env -S "echo gh pr merge 1"',
     'env -S "npm test" "a; gh pr merge 1"', // 뒤 낱말은 낱말 하나다 — 그 안의 `;`는 구분자가 아니다
+    'env -S "x #" gh pr merge 1', // 값의 주석을 버리면 `x`가 명령이다(gh는 x의 인자)
+    'env -S "echo \'#\'" gh pr merge 1', // 따옴표 안의 `#`는 글자다 — echo의 인자
     'env -u S npm test',
     'env -uS "npm test"', // 묶음에서 값 옵션이 먼저 오면 그 뒤 글자는 값이다
     'env --unset=S npm test',

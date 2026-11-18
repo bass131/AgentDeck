@@ -135,7 +135,7 @@ const FIND_EXEC = new Set(['-exec', '-execdir', '-ok', '-okdir'])
 const WRAPPER_SPECS = new Map([
   ['sudo', { valueOpts: ['-u', '-g', '-h', '-p', '-C', '-U', '-r', '-t', '-D', '-R', '-T', '--user', '--group', '--host', '--prompt', '--close-from', '--other-user', '--role', '--type', '--chdir', '--chroot', '--command-timeout'], positional: 0 }],
   ['doas', { valueOpts: ['-u', '-C'], positional: 0 }],
-  ['env', { valueOpts: ['-u', '-C', '--unset', '--chdir'], positional: 0, split: { short: 'S', valueShort: 'uC', long: { chdir: 'value', 'split-string': 'split', unset: 'value', argv0: 'value', 'ignore-environment': 'flag', null: 'flag', debug: 'flag', 'block-signal': 'flag', 'default-signal': 'flag', 'ignore-signal': 'flag', 'list-signal-handling': 'flag', help: 'flag', version: 'flag' } } }],
+  ['env', { valueOpts: ['-u', '-C', '--unset', '--chdir'], positional: 0, split: { short: 'S', valueShort: 'uCa', long: { chdir: 'value', 'split-string': 'split', unset: 'value', argv0: 'value', 'ignore-environment': 'flag', null: 'flag', debug: 'flag', 'block-signal': 'flag', 'default-signal': 'flag', 'ignore-signal': 'flag', 'list-signal-handling': 'flag', help: 'flag', version: 'flag' } } }],
   ['nohup', { valueOpts: [], positional: 0 }],
   ['time', { valueOpts: ['-f', '-o', '--format', '--output'], positional: 0 }],
   ['nice', { valueOpts: ['-n', '--adjustment'], positional: 0 }],
@@ -165,6 +165,24 @@ const RE_SHELL_C = /^-[A-Za-z]*c$/             // `-c`·`-lc`·`-ec` — 다음 
 // `-uS`의 S는 -u의 값), 값은 붙여 쓰거나(`-S"…"`·`--split-string=…`) 다음 낱말이며, 긴 옵션은 표에서 유일한 접두면 줄여 쓴다(`--sp`).
 // 앱 잠금 노드 mergeDeny.ts의 splitScriptOf와 같은 판독이다. 없으면 null.
 const shQuote = (t) => `'${t.replace(/'/g, "'\\''")}'`
+// 값 안의 주석 (G3 검수 중요 1) — env는 따옴표 밖 낱말 머리의 `#`부터 **값 끝까지만** 버리고 뒤 낱말은 그대로 돈다.
+// 다시 읽을 글에서는 그 `#`가 뒤 낱말까지 주석으로 삼키므로, 잇기 전에 값에서 잘라 낸다. 따옴표 안의 `#`는 글자다.
+function dropSplitComment(v) {
+  let quote = null
+  let wordStart = true
+  for (let i = 0; i < v.length; i++) {
+    const ch = v[i]
+    const atStart = wordStart
+    wordStart = false
+    if (quote === "'") { if (ch === "'") quote = null; continue }
+    if (ch === '\\') { i++; continue }
+    if (quote === '"') { if (ch === '"') quote = null; continue }
+    if (ch === '"' || ch === "'") { quote = ch; continue }
+    if (/\s/.test(ch)) { wordStart = true; continue }
+    if (ch === '#' && atStart) return v.slice(0, i)
+  }
+  return v
+}
 function splitScriptOf(c) {
   const spec = WRAPPER_SPECS.get(c.base.replace(/\.exe$/, ''))?.split
   if (!spec) return null
@@ -191,7 +209,7 @@ function splitScriptOf(c) {
     } else if (RE_ASSIGN.test(t)) continue
     else return null
     if (value === undefined) return null
-    return [c.base, value, ...args.slice(i + 1).map(shQuote)].join(' ')
+    return [c.base, dropSplitComment(value), ...args.slice(i + 1).map(shQuote)].join(' ')
   }
   return null
 }

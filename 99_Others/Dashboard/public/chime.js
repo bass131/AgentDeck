@@ -262,5 +262,20 @@ function prListHtml(items, { picked = null, esc } = {}) {
   return `<ul class="mg-list${list.length > LIST_SCROLL_AFTER ? ' is-scroll' : ''}" aria-label="열린 PR 목록">${rows}</ul>`;
 }
 
-globalThis.AgentDeckMerge = Object.freeze({ pendingPr, fileKey, mergeGate, patchRows, parsePrInput, shortSha, checkState, resultLine, LIST_SCROLL_AFTER, pickedPr, prListHtml });
+// ── 닫힌 PR 정리 (M07 G15) ── 카드는 loadMerge에서만 새로 읽혀, 다른 곳에서 병합된 PR이 옛 카드로 남았다.
+// 'drop': 자동으로 연 카드인데 goal이 더는 그 PR을 기다리지 않는다. 'reread': 열린 카드인데 새로 읽은 온전한 목록에 없다(다른 곳에서 병합·닫힘일 수 있다).
+// 사람이 번호로 연 카드는 내리지 않는다. 확인 창이 떠 있는 동안은 아무것도 바꾸지 않는다.
+function cardFate({ cardPr = null, manual = false, pending = null, running = false, list = null, open = true } = {}) {
+  if (cardPr == null || running) return 'keep';
+  if (!manual && pending !== cardPr) return 'drop';
+  if (open && list && list.ok && !list.more && !(list.items || []).some(i => i && i.number === cardPr)) return 'reread';
+  return 'keep';
+}
+// 닫힌 PR 카드의 한 줄. 열린 PR이면 null.
+function closedLine(view) {
+  if (!view || view.state === 'open') return null;
+  return `#${view.number} PR은 ${view.merged ? '병합됐어요' : '병합 없이 닫혔어요'}. 할 일이 없어 카드를 줄였어요.`;
+}
+
+globalThis.AgentDeckMerge = Object.freeze({ pendingPr, fileKey, mergeGate, patchRows, parsePrInput, shortSha, checkState, resultLine, LIST_SCROLL_AFTER, pickedPr, prListHtml, cardFate, closedLine });
 })();

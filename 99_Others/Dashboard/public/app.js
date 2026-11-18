@@ -835,6 +835,8 @@ function mergeCard() {
   if (mg.error) return `<p class="send-refusal">${G.note}<span>${esc(mg.error)}</span></p>`;
   const v = mg.view;
   if (!v) return mg.loading ? `<p class="send-hint">PR #${esc(mg.pr)}을 읽는 중이에요…</p>` : '';
+  /* 닫힌 PR(M07 G15)은 한 줄과 「카드 닫기」만 — diff·필수 검사가 병합 영역을 차지하지 않게 */
+  if (v.state !== 'open') return `<p class="q-sub is-quiet">${G.quiet}<span>${esc(MRG.closedLine(v))}</span> <button type="button" class="ghost" data-merge-close>카드 닫기</button></p>`;
   const link = /^https:\/\/github\.com\//.test(v.url || '') ? ` <a href="${esc(v.url)}" target="_blank" rel="noopener noreferrer">GitHub에서 보기</a>` : '';
   const checks = v.checks?.length ? `<ul class="mg-checks">${v.checks.map(c => { const s = MRG.checkState(c.result); return `<li>${state(s.kind, s.word)}<code class="inline">${esc(c.name)}</code></li>`; }).join('')}</ul>` : '';
   const reasons = v.reasons?.length ? `<ul class="mg-reasons">${v.reasons.map(r => `<li>${G.note}<span>${esc(r)}</span></li>`).join('')}</ul>` : '';
@@ -848,6 +850,7 @@ function mergeAction() {
   const v = mg.view;
   /* 읽기에 실패해도(카드 없음) 번호가 있으면 「다시 읽기」를 남긴다 — 자동 불러오기는 번호가 바뀔 때만 다시 돈다 */
   if (!mg.pr) return '';
+  if (v && v.state !== 'open') return '';
   const gate = MRG.mergeGate(v, mg.opened, { running: mg.running, spent: mg.spent });
   const wait = mg.running ? `<p class="send-result is-todo">${G.note}<span>바탕화면의 확인 창에서 병합을 눌러 주세요. 창에 보이는 머리 SHA와 꼭 볼 것 파일이 이 카드와 같은지 확인하세요. 고르지 않으면 창이 저절로 닫히고 병합하지 않아요.</span></p>` : '';
   const r = mg.result ? MRG.resultLine(mg.result) : null;
@@ -863,17 +866,26 @@ function renderMerge() {
   /* 병합 대기 PR이 새로 보이면 한 번 불러온다. 사용자가 번호로 다른 PR을 불렀으면 덮지 않는다 */
   const want = MRG.pendingPr(SUM().hand);
   if (want !== mg.autoFor) { mg.autoFor = want; if (want && !mg.manual && !mg.running && mg.pr !== want) void loadMerge(want, false); }
+  /* 다른 곳에서 병합·닫힌 PR의 카드를 내리거나 다시 읽는다(M07 G15, chime.js cardFate) */
+  const fate = MRG.cardFate({ cardPr: mg.pr, manual: mg.manual, pending: want, running: mg.running, list: mg.list, open: !mg.view || mg.view.state === 'open' });
+  if (fate === 'drop') dropCard();
+  else if (fate === 'reread' && !mg.loading && mg.rereadFor !== `${mg.pr}:${mg.listSeq}`) { mg.rereadFor = `${mg.pr}:${mg.listSeq}`; void loadMerge(mg.pr, mg.manual); }
   box.classList.toggle('is-empty', !mg.view && !mg.loading && !mg.error && !mg.result);
   /* 목록은 처음 그릴 때 한 번 읽는다. 그 뒤는 「목록 새로 읽기」와 병합 결과 뒤에만 */
   if (!mg.listAsked) { mg.listAsked = true; void loadPrList(); }
   /* 병합 대기 PR이 목록에 없으면(목록을 읽은 뒤 새 PR이 생김) 그 번호에 한 번 다시 읽는다(PR 79 검수 중요 1) */
   else if (want && mg.list?.ok && !mg.list.items.some(i => i.number === want) && mg.listMissFor !== want && !mg.listLoading) { mg.listMissFor = want; void loadPrList(); }
   renderPrList();
-  paint($('#merge-sum'), mg.view ? `<span>PR ${esc(mg.view.number)} · ${mg.view.canMerge ? '병합 조건을 채웠어요' : '병합 조건을 채우지 못했어요'}</span>`
+  paint($('#merge-sum'), mg.view ? `<span>PR ${esc(mg.view.number)} · ${mg.view.state !== 'open' ? (mg.view.merged ? '병합됐어요' : '병합 없이 닫혔어요') : mg.view.canMerge ? '병합 조건을 채웠어요' : '병합 조건을 채우지 못했어요'}</span>`
     : `<span>${want ? `병합 대기 PR ${esc(want)}` : '병합을 기다리는 PR이 없어요. 목록에서 고르거나 번호로 불러올 수 있어요'}</span>`);
   const v = mg.view, key = JSON.stringify([mg.pr, v, mg.loading, mg.error, v ? v.mustSee.filter(m => mg.opened.has(mergeKey(v, m.path))).map(m => m.path) : []]);
   if (key !== mg.cardKey) { paint($('#merge-card'), mergeCard()); mg.cardKey = key; }
   paint($('#merge-act'), mergeAction());
+}
+/* 카드를 내린다. 늦게 온 읽기가 내린 카드를 되살리지 않게 순번을 올린다 */
+function dropCard() {
+  mg.seq++;
+  Object.assign(mg, { pr: null, view: null, loading: false, error: null, result: null, spent: false, manual: false });
 }
 async function loadMerge(n, manual) {
   const seq = ++mg.seq;
@@ -1097,6 +1109,7 @@ document.addEventListener('click', e => {
     if (e.target.closest('[data-merge-list-reload]')) { if (!mg.listLoading) void loadPrList(); return; }
     if (e.target.closest('[data-merge-reload]')) { if (mg.pr && !mg.running) void loadMerge(mg.pr, mg.manual); return; }
     if (e.target.closest('[data-merge-run]')) { void runMerge(); return; }
+    if (e.target.closest('[data-merge-close]')) { if (!mg.running) { dropCard(); renderMerge(); } return; }
     const ml = e.target.closest('[data-merge-link]');
     if (ml) { markOpened(ml.dataset.mergeLink); return; }
   }

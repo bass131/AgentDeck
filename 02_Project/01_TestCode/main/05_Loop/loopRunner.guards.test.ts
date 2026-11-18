@@ -80,6 +80,35 @@ describe('세션이 로컬 브랜치에 심은 커밋을 실행기가 push하지
     expect(calls().filter((c) => c.startsWith('push'))).toEqual([])
   })
 
+  // G2 재검수 차단 A — 부모만 (원격 머리, PR 머리)로 맞추고 트리는 CI를 거치지 않은 위조 병합 커밋(commit-tree)
+  it('goal 병합 재개 — 부모가 맞아도 트리가 두 부모의 병합이 아닌 커밋은 push하지 않고 멈춘다', async () => {
+    const ctx = setup()
+    const at = await until(ctx, 'G1/merge')
+    const ms = ctx.rig.git.local.get('milestone/M1') ?? []
+    const remote = ms[ms.length - 1]
+    ms.push(EVIL)
+    ctx.rig.git.parentsOf.set(EVIL, [remote, at.goals[0].ciSha as string])
+    ctx.rig.git.forgedTrees.add(EVIL)
+    const calls = since(ctx.rig)
+    const out = await ctx.runner.step()
+    expect(out.kind).toBe('halted')
+    expect(stateOf(out).haltReason).toContain('트리')
+    expect(calls().filter((c) => c.startsWith('push'))).toEqual([])
+    expect(remoteHas(ctx.rig, 'milestone/M1', EVIL)).toBe(false)
+  })
+
+  it('goal 병합 — 실행기가 만든 병합 커밋도 push 전에 트리를 대조하고, 어긋나면 push하지 않는다', async () => {
+    const ctx = setup()
+    await until(ctx, 'G1/merge')
+    const real = ctx.rig.git.mergeNoFf.bind(ctx.rig.git)
+    ctx.rig.git.mergeNoFf = async (sha, message) => { const m = await real(sha, message); ctx.rig.git.forgedTrees.add(m); return m }
+    const calls = since(ctx.rig)
+    const out = await ctx.runner.step()
+    expect(out.kind).toBe('halted')
+    expect(calls().some((c) => c.startsWith('verifyMerge'))).toBe(true)
+    expect(calls().filter((c) => c.startsWith('push'))).toEqual([])
+  })
+
   it('다음 goal 브랜치 — 로컬 마일스톤이 원격보다 앞서 있으면 가르지 않는다', async () => {
     const ctx = setup()
     await until(ctx, 'G2/goal-branch')

@@ -44,6 +44,9 @@ export interface GitPort {
   isAncestor(sha: string, ref: string): Promise<boolean>
   // 지금 브랜치에 sha를 --no-ff로 병합하고 병합 커밋 SHA를 돌려준다. 실패하면 `git merge --abort`로 되돌린 뒤 throw한다.
   mergeNoFf(sha: string, message: string): Promise<string>
+  // commit이 (first, second)를 부모로 한 병합 커밋이고, 그 트리가 두 부모를 깨끗하게 병합한 트리(git merge-tree --write-tree)와
+  // 같은가. 같으면 null, 아니면 사유. 작업 노드가 commit-tree로 부모만 맞춘 위조 병합 커밋을 실행기가 push하지 않게 한다(G2 재검수 차단 A).
+  verifyMerge(commit: string, first: string, second: string): Promise<string | null>
   // 작업 트리(커밋 안 된 변경과 untracked 파일 포함)와 base의 차이. rename은 옛 경로와 새 경로를 둘 다 낸다.
   // 줄 수를 모르는 파일(바이너리)은 added·removed를 null로 낸다. 얻지 못하면 null(등급은 강이 된다).
   diffStat(base: string): Promise<FileChange[] | null>
@@ -95,6 +98,8 @@ export interface DigestStore {
   // 위조 래치 — 한 번 불일치를 본 사유. 걸려 있으면 실행기는 짝이 맞아도 멈춘다. 푸는 길은 G3(사람)이다.
   readLatch(repoKey: string): Promise<string | null>
   writeLatch(repoKey: string, reason: string): Promise<void>
+  // 래치 파일의 경로(사유 문구에 싣는다 — 사람이 어디를 볼지 안다). 파일이 아닌 저장소(시험의 가짜)는 없어도 된다.
+  latchPath?: (repoKey: string) => string
 }
 
 // 실행기 git 설정 대조(configGuard.ts). 바뀌었으면 사유를, 아니면 null을 돌려준다. 한 번 바뀌면 계속 사유를 돌려준다.

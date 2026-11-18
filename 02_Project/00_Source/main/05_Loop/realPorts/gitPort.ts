@@ -31,11 +31,19 @@ export const AGENTDECK_EXCLUDE = '.agentdeck/'
 
 type Git = (args: string[], extraEnv?: NodeJS.ProcessEnv) => Promise<ProcessResult>
 
+// 교체 객체(refs/replace/*)를 따르지 않는다 — 작업 노드가 `git replace <PR 머리> <악성 커밋>`을 심으면, 따르는 git의 병합은 부모를
+// 원래 SHA로 적고 트리는 악성 것으로 만든다(G2 재검수 차단 A). 환경 변수와 명령줄 설정 둘 다 건다(자식 git·gh가 부르는 git도 환경을 받는다).
+export const NO_REPLACE_ENV = { GIT_NO_REPLACE_OBJECTS: '1' } as const
+
 function makeGit(cwd: string, env: NodeJS.ProcessEnv, timeoutMs: number, hooksPath?: string, guard?: GitPortOptions['guard']): Git {
-  const pre = ['-c', 'core.quotepath=false', ...(hooksPath ? ['-c', `core.hooksPath=${hooksPath.replace(/\\/g, '/')}`] : [])]
+  const pre = [
+    '-c', 'core.quotepath=false', '-c', 'core.useReplaceRefs=false',
+    ...(hooksPath ? ['-c', `core.hooksPath=${hooksPath.replace(/\\/g, '/')}`] : []),
+  ]
+  const base = { ...env, ...NO_REPLACE_ENV }
   return async (args, extraEnv) => {
     await guard?.assert()
-    return runProcess('git', [...pre, ...args], { cwd, env: extraEnv ? { ...env, ...extraEnv } : env, timeoutMs })
+    return runProcess('git', [...pre, ...args], { cwd, env: extraEnv ? { ...base, ...extraEnv, ...NO_REPLACE_ENV } : base, timeoutMs })
   }
 }
 
@@ -152,6 +160,19 @@ export function createGitPort(opts: GitPortOptions): GitPort {
         throw failure(['merge'], r)
       }
       return (await must(git, ['rev-parse', 'HEAD'])).trim()
+    },
+    async verifyMerge(commit, first, second) {
+      const c = safeName(commit)
+      const parents = (await must(git, ['rev-list', '--parents', '-n', '1', c, '--'])).trim().split(/\s+/).slice(1)
+      if (parents.length !== 2 || parents[0] !== first || parents[1] !== second) {
+        return `병합 커밋 ${c.slice(0, 8)}의 부모(${parents.map((p) => p.slice(0, 8)).join(', ') || '없음'})가 (${first.slice(0, 8)}, ${second.slice(0, 8)})가 아니다`
+      }
+      const tree = (await must(git, ['rev-parse', '--verify', `${c}^{tree}`])).trim()
+      const r = await git(['merge-tree', '--write-tree', '--no-messages', safeName(first), safeName(second)])
+      if (r.code === 1) return `병합 커밋 ${c.slice(0, 8)}의 두 부모는 깨끗하게 병합되지 않는다(충돌)`
+      if (r.code !== 0) throw failure(['merge-tree'], r)
+      const expected = r.stdout.split(/\r?\n/)[0].trim()
+      return tree === expected ? null : `병합 커밋 ${c.slice(0, 8)}의 트리 ${tree.slice(0, 8)}가 두 부모를 병합한 트리 ${expected.slice(0, 8)}가 아니다`
     },
     async diffStat(base) {
       let dir: string | null = null

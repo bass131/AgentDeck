@@ -2,7 +2,7 @@
 // findPr는 열림·병합·닫힘 중 가장 최근 것, ciStatus는 머리 SHA와 검사 묶음을 한 호출로 받고, 새 머리의 검사가 시작 전이거나
 // rollup이 비면 pending이다. 모르는 값은 pending이고(통과로 떨어지지 않는다), PR 상태가 모르는 값이면 던진다.
 import { describe, expect, it } from 'vitest'
-import { parseCiStatus, parsePr, pickLatestPr, prNumberFromUrl } from '@main/05_Loop/realPorts/ghParse'
+import { parseCiStatus, parsePr, pickLatestPr, prNumberFromUrl, repoSlugOf } from '@main/05_Loop/realPorts/ghParse'
 import { createGhExec, createGhPort, type GhExec } from '@main/05_Loop/realPorts/ghPort'
 import type { CommandResult } from '@main/05_Loop/ports'
 import * as fx from '../00_Helpers/ghFixtures'
@@ -67,9 +67,57 @@ describe('해석 층 — 녹취 픽스처', () => {
 describe('실행 층 — 설정 대조', () => {
   it('대조가 던지면 gh를 부르지 않는다', async () => {
     let asked = 0
-    const exec = createGhExec({ cwd: '.', guard: { assert: async () => { asked++; throw new Error('실행기 git 설정이 실행기 밖에서 바뀌었다') } } })
+    let ran = 0
+    const exec = createGhExec({
+      cwd: '.', repo: 'github.com/o/r', run: async () => { ran++; return { code: 0, stdout: '', stderr: '', timedOut: false } },
+      guard: { assert: async () => { asked++; throw new Error('실행기 git 설정이 실행기 밖에서 바뀌었다') } },
+    })
     await expect(exec(['pr', 'view', '1'])).rejects.toThrow('설정이 실행기 밖에서')
     expect(asked).toBe(1)
+    expect(ran).toBe(0)
+  })
+})
+
+// G2 재검수 중요 B — gh는 git 설정(remote.*.gh-resolved)으로 기본 저장소를 고른다. 실행기 gh는 열 때 origin 주소에서 정한
+// HOST/OWNER/REPO를 모든 호출에 -R로 준다.
+describe('실행 층 — 저장소 고정(-R)', () => {
+  it('모든 gh 호출에 -R HOST/OWNER/REPO를 하위 명령 바로 뒤에 넣고, 업데이트 알림·질의를 끈다', async () => {
+    const seen: { file: string; args: readonly string[]; env?: NodeJS.ProcessEnv }[] = []
+    const exec = createGhExec({
+      cwd: '.', repo: 'github.com/acme/widgets', env: { PATH: 'x' },
+      run: async (file, args, o) => { seen.push({ file, args, env: o.env }); return { code: 0, stdout: '[]', stderr: '', timedOut: false } },
+    })
+    const port = createGhPort(exec)
+    await port.findPr('goal/M1-G1', 'milestone/M1')
+    await port.ciStatus(7).catch(() => undefined)
+    await port.getPr(7).catch(() => undefined)
+    expect(seen.length).toBeGreaterThanOrEqual(3)
+    for (const s of seen) {
+      expect(s.file).toBe('gh')
+      expect(s.args.slice(2, 4)).toEqual(['-R', 'github.com/acme/widgets'])
+      expect(s.env?.GH_PROMPT_DISABLED).toBe('1')
+    }
+    expect(seen[0].args.slice(0, 2)).toEqual(['pr', 'list'])
+  })
+
+  it('저장소 이름이 HOST/OWNER/REPO 꼴이 아니면 만들지 않는다', () => {
+    expect(() => createGhExec({ cwd: '.', repo: '' })).toThrow()
+    expect(() => createGhExec({ cwd: '.', repo: '-R' })).toThrow()
+    expect(() => createGhExec({ cwd: '.', repo: 'acme/widgets --jq x' })).toThrow()
+  })
+
+  it('origin 주소에서 HOST/OWNER/REPO를 읽는다 — https·ssh·scp 꼴, 자격 부분과 .git을 뗀다. 로컬 경로는 null', () => {
+    expect(repoSlugOf('https://github.com/acme/widgets.git')).toBe('github.com/acme/widgets')
+    expect(repoSlugOf('https://x-access-token:abc@github.com/acme/widgets')).toBe('github.com/acme/widgets')
+    expect(repoSlugOf('git@github.com:acme/widgets.git')).toBe('github.com/acme/widgets')
+    expect(repoSlugOf('ssh://git@ghe.example.com:2222/acme/widgets.git')).toBe('ghe.example.com/acme/widgets')
+    expect(repoSlugOf('https://GitHub.com/Acme/Widgets/')).toBe('github.com/Acme/Widgets')
+    expect(repoSlugOf('C:/tmp/remote.git')).toBeNull()
+    expect(repoSlugOf('/tmp/remote.git')).toBeNull()
+    expect(repoSlugOf('file:///tmp/remote.git')).toBeNull()
+    expect(repoSlugOf('https://github.com/acme')).toBeNull()
+    expect(repoSlugOf('https://github.com/acme/widgets/extra')).toBeNull()
+    expect(repoSlugOf('ext::sh -c x')).toBeNull()
   })
 })
 

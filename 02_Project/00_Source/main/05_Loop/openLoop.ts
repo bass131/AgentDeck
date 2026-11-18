@@ -2,7 +2,9 @@
 //   1. 작업 저장소 뿌리(git rev-parse --show-toplevel의 실제 경로)를 정한다. git 저장소가 아니면 열지 않는다.
 //      실물 gh로 CI를 판정하는데 필수 검사 이름(requiredChecks)이 없으면 열지 않는다(머리의 아무 검사로 통과하지 않게).
 //   2. 저장소당 실행기 하나 — 앱 영역의 잠금(repoLock)을 잡는다. 이미 있으면 열지 않는다.
-//   3. 실행기 git 설정 대조(configGuard) — 설정 스냅숏을 앱 영역에 적는다. 지난 실행의 스냅숏과 다르면 열지 않는다.
+//   3. 실물 gh면 origin 주소에서 gh 저장소(HOST/OWNER/REPO)를 정한다 — 모든 gh 호출에 -R로 고정한다. 정하지 못하면 열지 않는다.
+//      실행기 git 설정 대조(configGuard) — 위험 키가 로컬 설정에 있으면 열지 않고, 설정 스냅숏을 앱 영역에 적는다.
+//      지난 실행의 스냅숏과 다르면 열지 않는다.
 //   4. `.agentdeck/`를 작업 저장소의 .git/info/exclude에 더한다(확인 뒤 실행, 저장소 파일은 안 바꾼다).
 //   5. 자격 없는 자식 환경을 만든다 — 커밋 신원은 실행기 환경의 git config user.name·user.email을 넘겨받는다.
 //   6. 포트: 명령(자격 없는 환경), git·gh(실행기 환경 — 자격 있음, 묻는 창 없음, 작업 저장소 훅은 끄고 호출마다 설정 대조),
@@ -24,6 +26,8 @@ import type { Clock, GhPort, ReviewPort, SessionPort } from './ports'
 import { createCommandPort } from './realPorts/commandPort'
 import { runProcess } from './realPorts/exec'
 import { createFsPort } from './realPorts/fsPort'
+import { maskCredentials } from '../08_Git/git'
+import { repoSlugOf } from './realPorts/ghParse'
 import { createGhExec, createGhPort } from './realPorts/ghPort'
 import { createGitPort, ensureAgentdeckExcluded } from './realPorts/gitPort'
 import { acquireRepoLock } from './repoLock'
@@ -65,6 +69,8 @@ export interface OpenedLoop {
   root: string
   // 작업 노드 세션과 검사 명령이 이 환경으로 돈다
   childEnv: CredentialFreeEnv
+  // 실물 gh가 모든 호출에 -R로 고정한 저장소(HOST/OWNER/REPO). 부르는 쪽이 gh 포트를 주면 null
+  ghRepo: string | null
   close(): Promise<void>
 }
 
@@ -106,6 +112,15 @@ export async function openLoop(opts: OpenLoopOptions): Promise<OpenLoopResult> {
 
   let child: CredentialFreeEnv | null = null
   try {
+    // 실물 gh는 origin 주소(실행기 git이 push하는 곳)에서 정한 HOST/OWNER/REPO로 모든 호출을 고정한다(G2 재검수 중요 B).
+    // 주소는 설정 대조가 본다(remote.origin.url). 부르는 쪽이 gh 포트를 주면 고정은 그 포트의 몫이다.
+    // 설정 스냅숏을 적기 전에 정한다 — 열지 못한 실행이 스냅숏을 남기면, origin을 고친 뒤의 다시 열기가 「설정이 바뀌었다」로 막힌다.
+    let ghRepo: string | null = null
+    if (!opts.gh) {
+      const url = await gitOut(root, executorEnv, ['remote', 'get-url', 'origin'])
+      ghRepo = url === null ? null : repoSlugOf(url)
+      if (ghRepo === null) throw new Error(`origin 주소(${url === null ? '없음' : maskCredentials(url)})에서 gh 저장소(HOST/OWNER/REPO)를 정하지 못했다`)
+    }
     // 실행기 git의 hooksPath — 만들지 않는 앱 영역 경로. 대조가 호출마다 비었는지(없는지) 본다.
     // 자식 환경에 실리는 임시 폴더와 따로 둔다(세션이 그 경로를 모르고, 앱 영역 쓰기는 루프 잠금이 막는다).
     const hooksDir = path.join(opts.appDataDir, 'no-hooks')
@@ -116,7 +131,7 @@ export async function openLoop(opts: OpenLoopOptions): Promise<OpenLoopResult> {
     const guard = guarded.guard
     await ensureAgentdeckExcluded(root, executorEnv)
     child = createCredentialFreeEnv(opts.childBaseEnv ?? executorEnv, await readIdentity(root, executorEnv))
-    const gh = opts.gh ?? createGhPort(createGhExec({ cwd: root, env: executorEnv, guard }), { requiredChecks: opts.requiredChecks })
+    const gh = opts.gh ?? createGhPort(createGhExec({ cwd: root, repo: ghRepo as string, env: executorEnv, guard }), { requiredChecks: opts.requiredChecks })
     const sessions = new AbortController()
     const session = opts.session ?? createWorkSessionPort({
       backend: opts.backend as AgentBackend,
@@ -153,6 +168,7 @@ export async function openLoop(opts: OpenLoopOptions): Promise<OpenLoopResult> {
         runner,
         root,
         childEnv: env,
+        ghRepo,
         close: async () => {
           if (closed) return
           closed = true

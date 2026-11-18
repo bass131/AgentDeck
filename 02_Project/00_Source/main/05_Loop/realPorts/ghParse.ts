@@ -85,3 +85,18 @@ export function prNumberFromUrl(text: string): number | null {
   const m = /\/pull\/(\d+)\b/.exec(text)
   return m ? Number(m[1]) : null
 }
+
+// gh -R 값의 꼴(HOST/OWNER/REPO). 낱말 하나이고 옵션처럼 보이지 않는다.
+export const REPO_SLUG = /^[a-z0-9.-]+\/[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/
+
+// G2 재검수 중요 B — origin 주소 → gh -R 값(HOST/OWNER/REPO). https·ssh·scp 꼴만 읽고, 자격 부분·포트·끝 .git·끝 /는 뗀다.
+// 로컬 경로·file://·ext:: 같은 꼴이나 OWNER/REPO가 아닌 경로는 null이다(실행기 gh를 열지 않는다).
+export function repoSlugOf(url: string): string | null {
+  const u = url.trim()
+  const m = /^(?:https?|ssh|git):\/\/(?:[^@/]+@)?([^/:]+)(?::\d+)?\/(.+)$/i.exec(u) ?? /^(?:[^@/\s]+@)([^/:\s]+):(?!\/)(.+)$/.exec(u)
+  if (!m) return null
+  const parts = m[2].replace(/\/+$/, '').replace(/\.git$/i, '').split('/')
+  if (parts.length !== 2 || parts.some((p) => !p || p === '.' || p === '..')) return null
+  const slug = `${m[1].toLowerCase()}/${parts[0]}/${parts[1]}`
+  return REPO_SLUG.test(slug) ? slug : null
+}

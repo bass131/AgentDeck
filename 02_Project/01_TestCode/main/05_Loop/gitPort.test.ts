@@ -189,6 +189,76 @@ describe('mergeNoFf', () => {
   })
 })
 
+// G2 재검수 차단 A — 작업 노드가 `git replace <PR 머리> <악성 커밋>`을 심으면, 교체 객체를 따르는 git의 `merge --no-ff`는
+// 부모를 원래 SHA로 적고 트리는 악성 것으로 만든다(CI를 거치지 않은 트리가 원격에 간다). 실행기 git은 교체 객체를 따르지 않는다
+// (GIT_NO_REPLACE_OBJECTS=1, -c core.useReplaceRefs=false). 판정은 교체 참조가 없는 bare 원격에서 읽는다.
+describe('교체 객체(git replace)를 따르지 않는다 (G2 재검수 차단 A)', () => {
+  const names = (tree: string): string[] => tree.split(/\r?\n/).filter(Boolean)
+  // base 위에 파일 하나를 더한 트리를 만들고(작업 트리·브랜치는 그대로 둔다), 그 트리로 base의 부모를 가진 커밋을 만든다
+  function forge(base: string, file: string): { tree: string; commit: string } {
+    repos.git(['checkout', '--quiet', '-b', `forge-${file}`, base])
+    write(file, 'evil\n')
+    repos.git(['add', file])
+    repos.git(['commit', '--quiet', '-m', 'forge'])
+    const tree = repos.git(['rev-parse', 'HEAD^{tree}'])
+    repos.git(['checkout', '--quiet', 'master'])
+    const parent = repos.git(['rev-list', '--parents', '-n', '1', base]).split(' ').slice(1)
+    const commit = repos.git(['commit-tree', tree, ...parent.flatMap((p) => ['-p', p]), '-m', 'G1'])
+    return { tree, commit }
+  }
+  async function goalHead(): Promise<{ ci: string; ciTree: string; before: string }> {
+    const before = await git.headSha('master') as string
+    await git.createBranch('goal/M1-G1', 'master')
+    await git.checkout('goal/M1-G1')
+    write('src/g1.ts', 'g1\n')
+    const ci = await git.commitAll('G1')
+    await git.checkout('master')
+    return { ci, ciTree: repos.git(['rev-parse', `${ci}^{tree}`]), before }
+  }
+
+  it('PR 머리와 마일스톤 머리를 바꿔치기해도 원격의 병합 트리에 악성 파일이 없고, 둘째 부모의 트리는 CI 머리의 트리다', async () => {
+    const { ci, ciTree, before } = await goalHead()
+    const evilGoal = forge(ci, 'evil-goal.txt')
+    const evilBase = forge(before, 'evil-base.txt')
+    repos.git(['replace', ci, evilGoal.commit])
+    repos.git(['replace', before, evilBase.commit])
+    // 비교군 — 교체 객체를 따르는 평범한 git의 병합은 악성 트리를 싣는다(이 git 판에서 공격이 실제로 된다).
+    // 따로 된 작업 트리(worktree)에서 돌려 작업 저장소의 인덱스를 건드리지 않는다.
+    const control = path.join(repos.root, 'control')
+    repos.git(['worktree', 'add', '--quiet', '-b', 'control', control, 'master'])
+    repos.git(['merge', '--quiet', '--no-ff', '-m', 'control', ci], control)
+    // (마일스톤 쪽 교체는 병합 기준점도 같이 바꿔 이 꼴에서는 상쇄된다 — PR 머리 쪽 악성 파일이 실린다)
+    expect(names(repos.git(['ls-tree', '-r', '--name-only', 'HEAD'], control))).toContain('evil-goal.txt')
+    expect(repos.git(['rev-parse', 'HEAD^2'], control)).toBe(ci)
+
+    const merged = await git.mergeNoFf(ci, 'Merge PR #1: G1')
+    await git.push('master')
+    expect(remoteHead('master')).toBe(merged)
+    const remoteFiles = names(repos.bare(['ls-tree', '-r', '--name-only', 'master']))
+    expect(remoteFiles).toContain('src/g1.ts')
+    expect(remoteFiles).not.toContain('evil-goal.txt')
+    expect(remoteFiles).not.toContain('evil-base.txt')
+    expect(repos.bare(['rev-parse', 'master^1'])).toBe(before)
+    expect(repos.bare(['rev-parse', 'master^2'])).toBe(ci)
+    expect(repos.bare(['rev-parse', 'master^2^{tree}'])).toBe(ciTree)
+    // 실행기의 다른 읽기도 교체 객체를 따르지 않는다 — 부모는 진짜 커밋의 부모다
+    expect(await git.parents(ci)).toEqual([before])
+    expect(await git.verifyMerge(merged, before, ci)).toBeNull()
+  })
+
+  it('verifyMerge — 부모가 (앞 머리, PR 머리)여도 트리가 두 부모의 깨끗한 병합이 아닌 위조 커밋은 사유를 돌려준다', async () => {
+    const { ci, before } = await goalHead()
+    const evil = forge(ci, 'evil.txt')
+    // 작업 노드가 commit-tree로 만들 수 있는 「재개 꼴」 병합 커밋 — 부모는 맞고 트리는 CI를 거치지 않았다
+    const forged = repos.git(['commit-tree', evil.tree, '-p', before, '-p', ci, '-m', 'Merge PR #1: G1'])
+    expect(await git.verifyMerge(forged, before, ci)).toMatch(/트리/)
+    const merged = await git.mergeNoFf(ci, 'Merge PR #1: G1')
+    expect(await git.verifyMerge(merged, before, ci)).toBeNull()
+    expect(await git.verifyMerge(merged, ci, before)).toMatch(/부모/)
+    expect(await git.verifyMerge(ci, before, ci)).toMatch(/부모/)
+  })
+})
+
 describe('syncToRemote', () => {
   it('원격에 브랜치가 없으면 그대로 두고 로컬 머리를 돌려준다', async () => {
     await git.createBranch('milestone/M1', 'master')

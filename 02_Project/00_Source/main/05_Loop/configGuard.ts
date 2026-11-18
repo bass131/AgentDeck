@@ -7,9 +7,15 @@
 //     던진다. 실행기(loopRunner)는 단계 앞뒤로 check()를 보고, 바뀌었으면 위조 래치를 걸고 사람을 부른다.
 //   - 실행기 hooksPath(앱 영역, 만들지 않는 경로)에 무엇이 생겨도 바뀐 것으로 본다.
 //   - 한 번 바뀌면 메모리에 남는다 — 되돌려도 계속 사유를 돌려준다.
-//   - 열 때 지난 실행이 적은 스냅숏과 다르면 열지 않는다. 사람이 확인하고 그 파일을 지우면 다시 연다.
+//   - 열 때 지난 실행이 적은 스냅숏과 다르면 열지 않는다. 사람이 확인하고 그 키를 지운(되돌린) 뒤 다시 연다.
+// G2 재검수 중요 D — 스냅숏 파일을 지우고 다시 열면 심은 설정이 새 기준선이 됐다. 그래서 열 때(스냅숏이 있든 없든) 기준선과
+//   관계없이, 실행기 git이 명령으로 돌릴 수 있는 위험 키(DANGER_KEY)가 로컬 설정(include로 들어온 것 포함)에 있으면 열지 않는다.
+//   전역·시스템 설정은 사용자 자신의 것이라 이 검사에서 뺀다(전역 파일은 열린 뒤의 해시 대조가 본다).
+// G2 재검수 사소 — 다시 읽기의 일시 실패(시간 초과·EBUSY·읽지 못한 파일)는 짧게 다시 읽은 뒤에만 멈춤으로 본다. 바뀐 값은
+//   다시 읽지 않고 바로 멈춘다(되돌릴 틈을 주지 않는다).
 // 대조에서 빼는 것: branch.<이름>.remote·merge·rebase·description — 명령을 실행하지 않고, `git checkout -b x origin/y` 같은
-// 평범한 로컬 작업이 쓴다. remote.<이름>.gh-resolved — gh가 기본 저장소를 고를 때 쓸 수 있는 키다(실측하지 않았다, 명령을 실행하지 않는다).
+// 평범한 로컬 작업이 쓴다. remote.<이름>.gh-resolved는 빼지 않는다 — gh가 기본 저장소를 고르는 키라 실행기 gh를 다른 저장소로
+// 돌린다(G2 재검수 중요 B 실측: octocat/Hello-World를 넣으면 gh pr list가 그 저장소를 읽었다). 실행기 gh는 -R로도 고정한다(ghPort).
 // 한계(겹): 대조와 그 git 호출 사이의 틈(같은 순간 세션이 쓰면), 설정 밖에서 git이 읽는 것(.gitattributes 단독은 설정 없이 명령을
 // 실행하지 않는다), 환경 변수로 들어오는 설정(실행기 환경은 세션이 바꾸지 못한다).
 import { createHash } from 'node:crypto'
@@ -17,7 +23,7 @@ import { promises as fsp } from 'node:fs'
 import path from 'node:path'
 import type { ConfigCheck } from './ports'
 import { writeFileAtomic } from './realPorts/atomicWrite'
-import { runProcess } from './realPorts/exec'
+import { runProcess, type ProcessResult } from './realPorts/exec'
 
 export interface ConfigGuardOptions {
   cwd: string
@@ -27,6 +33,10 @@ export interface ConfigGuardOptions {
   snapshotFile: string
   // 실행기 git의 hooksPath — 비어 있거나 없어야 한다
   hooksPath: string
+  // 설정 읽기 git(시험이 일시 실패를 흉내 낸다). 기본은 cwd·env로 git을 돈다.
+  runGit?: (args: string[]) => Promise<ProcessResult>
+  // 일시 실패 뒤 다시 읽기까지의 간격(기본 200ms). 다시 읽기는 모두 READ_ATTEMPTS번이다.
+  retryDelayMs?: number
 }
 
 export interface ConfigGuard extends ConfigCheck {
@@ -39,14 +49,61 @@ export type ConfigGuardResult = { ok: true; guard: ConfigGuard } | { ok: false; 
 interface Snapshot { entries: string[]; files: Record<string, string> }
 
 export const CONFIG_CHANGED = '실행기 git 설정이 실행기 밖에서 바뀌었다'
-const IGNORED = /^(?:branch\..+\.(?:remote|merge|rebase|description)|remote\..+\.gh-resolved)$/i
+const IGNORED = /^branch\..+\.(?:remote|merge|rebase|description)$/i
+const READ_ATTEMPTS = 3
+const DEFAULT_RETRY_DELAY_MS = 200
 
 // 실행기 git·gh 환경 — 자격 묻는 창을 띄우지 않는다(무인 루프가 멈추지 않게, 세션이 심은 프롬프트가 뜨지 않게).
+// 교체 객체(refs/replace)도 따르지 않는다 — gh가 부르는 git과 설정 읽기도 같다(G2 재검수 차단 A, gitPort.NO_REPLACE_ENV와 같은 값).
 export function executorGitEnv(base: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
-  return { ...base, GIT_TERMINAL_PROMPT: '0', GCM_INTERACTIVE: 'never' }
+  return { ...base, GIT_TERMINAL_PROMPT: '0', GCM_INTERACTIVE: 'never', GIT_NO_REPLACE_OBJECTS: '1' }
+}
+
+// ── 위험 키 (G2 재검수 중요 D) ──────────────────────────────────────────────
+// 로컬 설정에 있으면 열지 않는 키 — 실행기 git(자격 있음)이 명령으로 돌릴 수 있는 것. 근거는 git-config(1)과 실행기가 쓰는 git 명령이다.
+//   core.fsmonitor           status·add·diff가 훅 명령으로 돌린다(hasChanges·commitAll·diffStat). 참·거짓은 내장 데몬이라 뺀다(아래).
+//   filter.<드라이버>.*       add(clean)·checkout(smudge)·process가 돌린다(commitAll·diffStat·checkout). 표준 git-lfs 값만 뺀다(아래).
+//   diff.external, diff.<드라이버>.textconv·command   diff가 돌린다(diffStat의 diff --cached).
+//   merge.<드라이버>.driver   .gitattributes의 merge=로 merge가 돌린다(mergeNoFf).
+//   credential.*(로컬)       push·fetch·ls-remote가 자격 도우미를 돌린다. 전역의 도우미는 사용자 자신의 것이라 보지 않는다.
+//   core.sshCommand·askPass·gitProxy, remote.<이름>.uploadpack·receivepack·vcs, url.<주소>.insteadOf·pushInsteadOf,
+//   protocol.*.allow         원격 명령(push·fetch·ls-remote)이 그 명령·전송(ext::, 원격 도우미)을 돌린다.
+//   core.alternateRefsCommand  push·receive 쪽에서 돈다.
+//   include.*·includeIf.*    다른 설정 파일을 끌어온다(끌어온 키도 아래 목록으로 본다 — --includes).
+//   core.hooksPath           훅 폴더. 실행기는 명령줄로 앱 영역 값을 주지만(gitPort), 로컬에 둔 값도 거부한다.
+//   core.pager·editor, pager.<명령>, sequence.editor, interactive.diffFilter   명령 키다(실행기는 터미널 없이 돌고 --no-edit를 주지만 거부한다).
+//   gpg.program·gpg.<형식>.program·gpg.ssh.defaultKeyCommand, commit·tag·push.gpgSign(참)   서명 때 PATH의 프로그램을 돌린다.
+//   trailer.<이름>.command·cmd, submodule.<이름>.update(!명령)   커밋 트레일러·서브모듈 갱신이 돌린다.
+// alias.*는 빼었다 — 실행기는 별칭을 부르지 않고, git은 내장 명령 이름의 별칭을 무시한다.
+const DANGER_KEY = new RegExp([
+  '^core\\.(?:fsmonitor|sshcommand|askpass|gitproxy|alternaterefscommand|hookspath|pager|editor)$',
+  '^filter\\.', '^diff\\.external$', '^diff\\..+\\.(?:textconv|command)$', '^merge\\..+\\.driver$',
+  '^credential\\.', '^remote\\..+\\.(?:uploadpack|receivepack|vcs)$', '^url\\..+\\.(?:insteadof|pushinsteadof)$', '^protocol\\.',
+  '^include\\.', '^includeif\\.', '^pager\\.', '^sequence\\.editor$', '^interactive\\.difffilter$',
+  '^gpg\\.(?:.+\\.)?program$', '^gpg\\.ssh\\.defaultkeycommand$', '^(?:commit|tag|push)\\.gpgsign$',
+  '^trailer\\..+\\.(?:command|cmd)$', '^submodule\\..+\\.update$',
+].join('|'))
+// `git lfs install`이 적는 표준 값 — git-lfs를 돌리지만 사용자가 그 저장소에 고른 도구다. 값이 조금이라도 다르면 위험 키다.
+const LFS_STANDARD: Readonly<Record<string, string>> = {
+  'filter.lfs.clean': 'git-lfs clean -- %f',
+  'filter.lfs.smudge': 'git-lfs smudge -- %f',
+  'filter.lfs.process': 'git-lfs filter-process',
+  'filter.lfs.required': 'true',
+}
+const BOOL = /^(?:true|false|yes|no|on|off|1|0)?$/i
+const FALSE = /^(?:false|no|off|0)$/i
+
+function isDangerous(key: string, value: string): boolean {
+  const v = value.trim()
+  if (key in LFS_STANDARD) return v !== LFS_STANDARD[key]
+  if (key === 'core.fsmonitor') return !BOOL.test(v)
+  if (/^(?:commit|tag|push)\.gpgsign$/.test(key)) return !FALSE.test(v)
+  if (/^submodule\..+\.update$/.test(key)) return v.startsWith('!')
+  return DANGER_KEY.test(key)
 }
 
 const sha256 = (b: Buffer | string): string => createHash('sha256').update(b).digest('hex')
+const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms))
 
 function lookup(env: NodeJS.ProcessEnv, name: string): string | undefined {
   const key = Object.keys(env).find((k) => k.toUpperCase() === name)
@@ -70,10 +127,9 @@ async function hashFile(file: string): Promise<string> {
 }
 
 // `origin\0key\nvalue\0`의 줄들 → `origin\tkey\tvalue`(정렬). 출처는 file: 접두를 뗀 경로다.
-function parseList(out: string): { entries: string[]; globals: string[] } {
+function parseList(out: string): string[] {
   const parts = out.split('\0')
   const entries: string[] = []
-  const globals: string[] = []
   for (let i = 0; i + 1 < parts.length; i += 2) {
     const origin = parts[i]
     const nl = parts[i + 1].indexOf('\n')
@@ -83,15 +139,19 @@ function parseList(out: string): { entries: string[]; globals: string[] } {
     if (IGNORED.test(key)) continue
     entries.push(`${origin}\t${key}\t${value}`)
   }
-  return { entries: entries.sort(), globals }
+  return entries.sort()
 }
 
-async function take(opts: ConfigGuardOptions): Promise<Snapshot> {
-  const run = (args: string[]): Promise<{ code: number; stdout: string; stderr: string }> =>
-    runProcess('git', args, { cwd: opts.cwd, env: opts.env, timeoutMs: 30_000 })
+type Run = (args: string[]) => Promise<ProcessResult>
+
+function runnerOf(opts: ConfigGuardOptions): Run {
+  return opts.runGit ?? ((args) => runProcess('git', args, { cwd: opts.cwd, env: opts.env, timeoutMs: 30_000 }))
+}
+
+async function take(opts: ConfigGuardOptions, run: Run): Promise<Snapshot> {
   const all = await run(['config', '--list', '--show-origin', '--includes', '-z'])
   if (all.code !== 0) throw new Error(`git 설정을 읽지 못했다 — ${all.stderr.trim() || `exit ${all.code}`}`)
-  const { entries } = parseList(all.stdout)
+  const entries = parseList(all.stdout)
   const globalList = await run(['config', '--global', '--list', '--show-origin', '-z'])
   const origins = globalList.code === 0
     ? globalList.stdout.split('\0').filter((_, i) => i % 2 === 0).filter((o) => o.startsWith('file:')).map((o) => o.slice(5))
@@ -99,6 +159,38 @@ async function take(opts: ConfigGuardOptions): Promise<Snapshot> {
   const files: Record<string, string> = {}
   for (const f of new Set([...globalCandidates(opts.env), ...origins].map((p) => path.resolve(opts.cwd, p)))) files[f] = await hashFile(f)
   return { entries, files }
+}
+
+// 읽기 실패(던짐)와 읽지 못한 파일(unreadable:*)만 다시 읽는다. 마지막 시도의 결과를 그대로 쓴다(실패면 던지고, 읽지 못한 파일은 차이로 남는다).
+async function takeSteady(opts: ConfigGuardOptions, run: Run): Promise<Snapshot> {
+  const delay = opts.retryDelayMs ?? DEFAULT_RETRY_DELAY_MS
+  for (let i = 1; ; i++) {
+    try {
+      const s = await take(opts, run)
+      if (i >= READ_ATTEMPTS || !Object.values(s.files).some((h) => h.startsWith('unreadable:'))) return s
+    } catch (e) {
+      if (i >= READ_ATTEMPTS) throw e
+    }
+    await sleep(delay)
+  }
+}
+
+// 로컬(·worktree) 설정과 그 include에서 온 위험 키. `scope\0origin\0key\nvalue\0` 꼴을 읽는다. 읽지 못하면 던진다.
+async function dangerousLocal(run: Run): Promise<string[]> {
+  const r = await run(['config', '--list', '--show-scope', '--show-origin', '--includes', '-z'])
+  if (r.code !== 0) throw new Error(`git 설정을 읽지 못했다 — ${r.stderr.trim() || `exit ${r.code}`}`)
+  const parts = r.stdout.split('\0')
+  const found: string[] = []
+  for (let i = 0; i + 2 < parts.length; i += 3) {
+    const scope = parts[i]
+    if (scope !== 'local' && scope !== 'worktree') continue
+    const kv = parts[i + 2]
+    const nl = kv.indexOf('\n')
+    const key = (nl < 0 ? kv : kv.slice(0, nl)).toLowerCase()
+    const value = nl < 0 ? '' : kv.slice(nl + 1)
+    if (isDangerous(key, value)) found.push(`${key}(${parts[i + 1].replace(/^file:/, '')})`)
+  }
+  return [...new Set(found)].sort()
 }
 
 function keyOf(entry: string): string { return entry.split('\t')[1] ?? '' }
@@ -119,13 +211,17 @@ function diff(a: Snapshot, b: Snapshot): string[] {
 
 const list = (keys: string[]): string => (keys.length > 6 ? `${keys.slice(0, 6).join(', ')} 외 ${keys.length - 6}개` : keys.join(', '))
 
-async function hooksReason(hooksPath: string): Promise<string | null> {
-  try {
-    const names = await fsp.readdir(hooksPath)
-    return names.length === 0 ? null : `${CONFIG_CHANGED} — 실행기 hooksPath(${hooksPath})에 파일이 생겼다: ${list(names)}`
-  } catch (e) {
-    if ((e as NodeJS.ErrnoException).code === 'ENOENT') return null
-    return `${CONFIG_CHANGED} — 실행기 hooksPath(${hooksPath})를 확인하지 못했다`
+// 빈 폴더·없는 폴더면 null. 읽기 오류(ENOENT 밖)는 짧게 다시 본 뒤에만 사유로 낸다.
+async function hooksReason(hooksPath: string, delay: number): Promise<string | null> {
+  for (let i = 1; ; i++) {
+    try {
+      const names = await fsp.readdir(hooksPath)
+      return names.length === 0 ? null : `${CONFIG_CHANGED} — 실행기 hooksPath(${hooksPath})에 파일이 생겼다: ${list(names)}`
+    } catch (e) {
+      if ((e as NodeJS.ErrnoException).code === 'ENOENT') return null
+      if (i >= READ_ATTEMPTS) return `${CONFIG_CHANGED} — 실행기 hooksPath(${hooksPath})를 확인하지 못했다`
+    }
+    await sleep(delay)
   }
 }
 
@@ -140,18 +236,28 @@ async function readStored(file: string): Promise<Snapshot | null> {
 }
 
 export async function createConfigGuard(opts: ConfigGuardOptions): Promise<ConfigGuardResult> {
-  const base = await take(opts)
+  const run = runnerOf(opts)
+  const delay = opts.retryDelayMs ?? DEFAULT_RETRY_DELAY_MS
+  // 기준선과 관계없이 먼저 본다 — 스냅숏을 지워도 심은 위험 키가 새 기준선이 되지 않는다.
+  const danger = await dangerousLocal(run)
+  if (danger.length > 0) {
+    return {
+      ok: false,
+      reason: `실행기 git이 명령으로 돌릴 수 있는 키가 작업 저장소의 로컬 설정(include 포함)에 있다 — ${list(danger)}. 사람이 확인하고 그 키를 지운 뒤 다시 연다`,
+    }
+  }
+  const base = await takeSteady(opts, run)
   const stored = await readStored(opts.snapshotFile)
   if (stored !== null) {
     const keys = diff(stored, base)
     if (keys.length > 0) {
       return {
         ok: false,
-        reason: `실행기 git 설정이 지난 실행이 적은 스냅숏과 다르다 — 바뀐 키: ${list(keys)}. 사람이 확인했으면 ${opts.snapshotFile}을 지우고 다시 연다`,
+        reason: `실행기 git 설정이 지난 실행이 적은 스냅숏(${opts.snapshotFile})과 다르다 — 바뀐 키: ${list(keys)}. 사람이 확인하고 그 키를 지운(되돌린) 뒤 다시 연다`,
       }
     }
   }
-  const early = await hooksReason(opts.hooksPath)
+  const early = await hooksReason(opts.hooksPath, delay)
   if (early) return { ok: false, reason: early }
   await fsp.mkdir(path.dirname(opts.snapshotFile), { recursive: true })
   await writeFileAtomic(opts.snapshotFile, `${JSON.stringify(base, null, 2)}\n`)
@@ -159,10 +265,10 @@ export async function createConfigGuard(opts: ConfigGuardOptions): Promise<Confi
   let tripped: string | null = null
   const check = async (): Promise<string | null> => {
     if (tripped) return tripped
-    const hooks = await hooksReason(opts.hooksPath)
+    const hooks = await hooksReason(opts.hooksPath, delay)
     if (hooks) return (tripped = hooks)
     let now: Snapshot
-    try { now = await take(opts) } catch (e) { return (tripped = `${CONFIG_CHANGED} — 설정을 다시 읽지 못했다(${(e as Error).message})`) }
+    try { now = await takeSteady(opts, run) } catch (e) { return (tripped = `${CONFIG_CHANGED} — 설정을 다시 읽지 못했다(${(e as Error).message})`) }
     const keys = diff(base, now)
     if (keys.length > 0) tripped = `${CONFIG_CHANGED} — 바뀐 키: ${list(keys)}`
     return tripped

@@ -2,6 +2,7 @@
 // 임시 폴더(AgentDeck 저장소 밖)의 작업 저장소와 bare 원격으로 goal 하나가 브랜치 가르기→커밋·push→PR→CI→로컬 --no-ff 병합→push,
 // 그리고 마일스톤 PR과 사람 병합까지 간다. 「실행은 됐는데 저장 전에 꺼짐」 뒤 실행기를 새로 만들어도 이미 된 일을 다시 하지 않고,
 // 상태 파일을 밖에서 고치면 멈추며, 저장소당 실행기는 하나다.
+// 재검수 반영: 실물 gh는 origin에서 정한 저장소로 고정하고(-R), PR 머리를 git replace로 바꿔치기해도 원격 병합 트리는 CI 머리의 트리다.
 import fs from 'node:fs'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
@@ -379,5 +380,49 @@ describe('openLoop — 검수 반영 (M09 G2)', () => {
     const again = await openLoop({ cwd: repos.work, appDataDir: appData, session, review, gh, template: TEMPLATE, executorEnv: repos.env })
     expect(again.ok).toBe(false)
     expect(!again.ok && again.reason).toContain('filter.x.clean')
+  })
+})
+
+describe('openLoop — 재검수 반영 (M09 G2)', () => {
+  // 중요 B — 실물 gh는 열 때 origin 주소에서 정한 HOST/OWNER/REPO로 모든 호출을 고정한다(-R)
+  it('실물 gh는 origin 주소에서 gh 저장소를 정한다 — 정하지 못하면(로컬 경로) 열지 않고 잠금도 남기지 않는다', async () => {
+    const bad = await openLoop({ cwd: repos.work, appDataDir: appData, session, review, template: TEMPLATE, executorEnv: repos.env, requiredChecks: ['hard-gates'] })
+    expect(bad.ok).toBe(false)
+    expect(!bad.ok && bad.reason).toContain('origin')
+    expect(fs.readdirSync(path.join(appData, 'locks'))).toEqual([])
+    // 열지 못한 실행은 설정 스냅숏을 남기지 않는다 — origin을 고친 뒤의 다시 열기가 「설정이 바뀌었다」로 막히지 않게
+    expect(fs.existsSync(path.join(appData, 'git-config'))).toBe(false)
+    repos.git(['remote', 'set-url', 'origin', 'https://github.com/acme/widgets.git'])
+    const good = await openLoop({ cwd: repos.work, appDataDir: appData, session, review, template: TEMPLATE, executorEnv: repos.env, requiredChecks: ['hard-gates'] })
+    if (!good.ok) throw new Error(good.reason)
+    opened.push(good.loop)
+    expect(good.loop.ghRepo).toBe('github.com/acme/widgets')
+    await close(good.loop)
+    // 부르는 쪽이 gh 포트를 주면 저장소 고정은 그 포트의 몫이다(시험의 가짜 gh)
+    expect((await open()).ghRepo).toBeNull()
+  })
+
+  // 차단 A — goal 병합 직전에 작업 노드가 PR 머리(CI를 통과한 커밋)를 `git replace`로 악성 커밋에 바꿔치기한다
+  it('PR 머리를 git replace로 바꿔치기해도 원격 마일스톤의 병합 트리는 CI 머리의 트리다', SLOW, async () => {
+    const loop = await open()
+    await loop.runner.start('M1')
+    await drive(loop, 'G1/merge')
+    const ci = gh.tip('goal/M1-G1') as string
+    const ciTree = repos.bare(['rev-parse', `${ci}^{tree}`])
+    // 작업 트리를 건드리지 않고 악성 트리(CI 머리 트리 + evil.txt)와 같은 부모의 커밋을 만든다
+    const blob = repos.git(['hash-object', '-w', '--stdin'], repos.work, 'evil\n')
+    const listing = `${repos.git(['ls-tree', ci])}\n100644 blob ${blob}\tevil.txt\n`
+    const evilTree = repos.git(['mktree'], repos.work, listing)
+    const parent = repos.git(['rev-parse', `${ci}^`])
+    const evil = repos.git(['commit-tree', evilTree, '-p', parent, '-m', 'G1'])
+    repos.git(['replace', ci, evil])
+    // 비교군 — 교체 객체를 따르는 git은 CI 머리의 트리를 악성 트리로 읽는다
+    expect(repos.git(['rev-parse', `${ci}^{tree}`])).toBe(evilTree)
+    const out = await loop.runner.step()
+    expect(out.kind).toBe('advanced')
+    const tip = gh.tip('milestone/M1') as string
+    expect(repos.bare(['rev-parse', `${tip}^2`])).toBe(ci)
+    expect(repos.bare(['rev-parse', `${tip}^2^{tree}`])).toBe(ciTree)
+    expect(repos.bare(['ls-tree', '-r', '--name-only', tip]).split('\n')).not.toContain('evil.txt')
   })
 })

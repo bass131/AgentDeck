@@ -28,6 +28,8 @@
 //   - 원격과 로컬 대조: 작업 노드는 로컬 브랜치에 커밋할 수 있다. 실행기는 원격에 없는 커밋을 올리지 않는다 —
 //     base·마일스톤에서 가를 때, goal을 병합할 때, 마일스톤 PR을 열 때 로컬 머리가 원격 머리와 같아야 한다. goal 병합의 재개는
 //     「부모가 (원격 머리, PR 머리)인 병합 커밋 하나」만 받아 push한다. 이미 있는 마일스톤 브랜치는 머리가 시작 SHA일 때만 push한다.
+//     G2 재검수 차단 A — 재개 꼴이든 이번 병합이든, push 전에 그 병합 커밋의 트리가 두 부모의 깨끗한 병합(git.verifyMerge)인지 본다.
+//     부모만 맞춘 위조(commit-tree)와 교체 객체로 바꾼 트리를 원격에 올리지 않는다.
 //     goal 브랜치의 커밋은 일의 결과라 push한다(CI와 PR 머리 대조를 지난다).
 import {
   applyVerdict, checkResumable, expectedJudge, judgeCi, judgeCommands, nextStep, oneSentence,
@@ -127,7 +129,9 @@ export function createLoopRunner(deps: LoopRunnerDeps): LoopRunner {
 
   // ── 위조 래치 ──
   let latched: string | null = null
-  const latchText = (reason: string): string => `${reason} ${LATCH_TAIL}`
+  // 래치 파일 경로를 사유에 싣는다(G2 재검수 사소) — 사람이 어디를 확인할지 안다. 푸는 길은 G3다.
+  const latchFile = ((): string | null => { try { return ports.digest.latchPath?.(repoKey) ?? null } catch { return null } })()
+  const latchText = (reason: string): string => `${reason} ${LATCH_TAIL}${latchFile ? ` 래치 파일: ${latchFile}` : ''}`
   async function latchedReason(): Promise<string | null> {
     if (latched === null) {
       const stored = await ports.digest.readLatch(repoKey)
@@ -398,7 +402,10 @@ export function createLoopRunner(deps: LoopRunnerDeps): LoopRunner {
     if (local !== remote) {
       // 재개 — 「로컬 병합은 됐는데 push 전에 꺼짐」만 받는다: 부모가 (원격 머리, PR 머리)인 병합 커밋 하나.
       const parents = local ? await git.parents(local) : []
-      if (parents.length === 2 && parents[0] === remote && parents[1] === pr.headSha) {
+      if (local && parents.length === 2 && parents[0] === remote && parents[1] === pr.headSha) {
+        // 부모만 맞춘 위조(commit-tree)를 받지 않는다 — 트리가 두 부모의 깨끗한 병합이어야 한다(G2 재검수 차단 A)
+        const forged = await git.verifyMerge(local, remote, pr.headSha)
+        if (forged) return v(node, 'stop', `${ms}의 로컬 머리를 push하지 않았다 — ${forged}. ${NOT_PUSHED}`)
         await git.push(ms)
         return v(node, 'pass', `${ms}의 로컬 머리 ${short(local)}가 원격 머리와 PR 머리 ${short(pr.headSha)}의 병합 커밋이다 — 다시 병합하지 않고 push만 했다`, { mergedSha: local ?? pr.headSha })
       }
@@ -408,6 +415,9 @@ export function createLoopRunner(deps: LoopRunnerDeps): LoopRunner {
       return v(node, 'pass', `머리 ${short(pr.headSha)}는 이미 원격 ${ms}에 있다 — 다시 병합하지 않았다`, { mergedSha: remote })
     }
     const merged = await git.mergeNoFf(pr.headSha, `Merge PR #${pr.number}: ${goal.id} ${goal.title}`)
+    // 실행기 git은 교체 객체를 따르지 않는다(gitPort). 그래도 push 전에 병합 커밋의 부모와 트리를 구조로 한 번 더 본다.
+    const bad = await git.verifyMerge(merged, remote, pr.headSha)
+    if (bad) return v(node, 'stop', `${ms}에 병합했지만 push하지 않았다 — ${bad}. 사람 판단이 필요하다`)
     await git.push(ms)
     return v(node, 'pass', `머리 ${short(pr.headSha)}를 ${ms}에 --no-ff로 병합하고 push했다(병합 커밋 ${short(merged)})`, { mergedSha: merged })
   }

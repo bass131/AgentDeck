@@ -52,5 +52,6 @@ export function createFileDigestStore(dir: string): DigestStore {
     write: async (repoKey, hash) => put(fileOf(dir, repoKey), hash),
     readLatch: async (repoKey) => (await readText(fileOf(dir, repoKey, 'latch'))) || null,
     writeLatch: async (repoKey, reason) => put(fileOf(dir, repoKey, 'latch'), reason.replace(/\r?\n/g, ' ')),
+    latchPath: (repoKey) => fileOf(dir, repoKey, 'latch'),
   }
 }

@@ -188,7 +188,6 @@ const DENY_OUTSIDE = [
   'tee ~/.claude/settings.json',
   'cd ~ && echo x > .gitconfig',
   'cd /c/Users/u && touch x',
-  'cd',
 ]
 
 const DENY_CLAUDE = [
@@ -223,7 +222,6 @@ const DENY_EXECUTOR_FILES = [
   'pushd .git && echo x >> config',
   'Set-Location .agentdeck; Set-Content run-state.json x',
   'sl .git',
-  'cd src && cat ../.agentdeck/verification.md',
   'echo {} > run-state.json',
   'echo x >> verification.md',
   'cp x .agentdeck/',
@@ -293,6 +291,122 @@ const ALLOW = [
   'git restore src/a.ts',
   'git -c core.quotepath=false status',
   'git rebase -i HEAD~2',
+  // G2 재검수 중요 C — 셸 위치를 명령 안에서 따라간다. 알려진 위치에서 풀어 저장소 안이면 지나가고, 읽기는 막지 않는다
+  'cd src && npm test && cd ..',
+  'cd .agentdeck/goals && ls',
+  'cd x && grep -r y --exclude-dir=.git .',
+  'cd "$(git rev-parse --show-toplevel)"',
+  'cd "$(git rev-parse --show-toplevel)" && echo x > notes.txt',
+  'cd $(git rev-parse --show-toplevel) && npm test',
+  'cd `git rev-parse --show-toplevel`',
+  'cd src && cat ../.agentdeck/verification.md',
+  'cd src && echo x > out.txt',
+  'cd src && rm -rf build',
+  'cd .agentdeck/goals && echo x > g2.md',
+  'cd src && cd ../.agentdeck/goals && ls',
+  // cd -·맨 cd·popd는 거부하지 않고 위치를 「모름」으로 둔다 — 그 뒤 읽기와 절대 경로 쓰기는 지나간다
+  'cd -',
+  'cd',
+  'cd - && ls',
+  'cd && ls',
+  'popd',
+  'cd - && echo x > /tmp/x',
+  'Pop-Location',
+  // git rm --cached는 작업 트리를 지우지 않는다
+  'git rm --cached .env',
+  'git rm -r --cached dist',
+  'git rm -r --cached .',
+  // 교체 참조 읽기는 막지 않는다
+  'git for-each-ref refs/replace/',
+  'git update-ref refs/heads/x HEAD',
+  // 저장소 안 패키지 설치와 전역 읽기는 막지 않는다
+  'npm install',
+  'npm i -D vitest',
+  'npm ci',
+  'npm ls -g',
+  'npm root -g',
+  'pnpm add zod',
+  'yarn add zod',
+  'yarn global list',
+  // 저장소 안의 알려진 위치에서 대상 없이 풀기·내려받기는 지나간다(지우기가 아니다)
+  'tar -xf a.tar',
+  'tar xzf a.tgz',
+  'unzip a.zip',
+  'unzip -l a.zip',
+  'curl -LO https://example.com/x.tgz',
+  'wget https://example.com/x',
+  'cd src && tar -xf a.tar',
+]
+
+// G2 재검수 중요 C — 위치를 따라가도 보호 폴더·저장소 밖·모르는 위치의 상대 쓰기는 막는다
+const DENY_CWD = [
+  'cd ..',
+  'cd src && cd ../..',
+  'cd .agentdeck',
+  'cd .agentdeck/goals && cd ..',
+  'cd .agentdeck/goals && echo {} > ../run-state.json',
+  'cd .agentdeck/goals && cp x ../verification.md',
+  'cd src && rm -rf ..',
+  'cd src && cp x ../.git/config',
+  'cd - && echo x > out.txt',
+  'cd && echo x > .gitconfig',
+  'cd; touch x',
+  'popd && echo x > a',
+  'cd - && rm -rf build',
+  'cd $X',
+  'cd "$(echo .git)"',
+  'echo x > $OUT',
+  // 실패할 수 있는 cd(;·|·||·백그라운드)는 옛 위치도 남겨 둔다
+  'cd nonexist; rm -rf .',
+  'cd src | true && rm -rf .',
+  'true || cd src && rm -rf .',
+  'cd src & rm -rf .',
+  // 하위 셸의 cd는 밖으로 나오지 않는다
+  '(cd src) && rm -rf .',
+  '(cd src && cd ..) && cd ..',
+  // 모르는 위치에서 압축 풀기·내려받기는 그 위치에 쓴다
+  'cd && tar -xf a.tar',
+  'cd - && unzip a.zip',
+  'cd && curl -O https://example.com/x',
+  'cd && wget https://example.com/x',
+  // $PWD는 따라간 위치다
+  'cd - && echo x > $PWD/x',
+  'cd src && echo x > $PWD/../.git/config',
+]
+
+// G2 재검수 차단 A — 교체 객체(refs/replace)는 실행기 병합의 트리를 바꿔치기한다
+const DENY_REPLACE = [
+  'git replace abc def',
+  'git replace -f abc def',
+  'git replace --graft HEAD',
+  'git update-ref refs/replace/abc def',
+  'git update-ref --stdin',
+  'echo "create refs/replace/a b" | git update-ref --stdin',
+  'git fetch origin "refs/replace/*:refs/replace/*"',
+  'git fetch origin +refs/*:refs/*',
+  'git -c remote.origin.fetch=+refs/replace/*:refs/replace/* fetch',
+  'git symbolic-ref refs/replace/x refs/heads/y',
+  'git fast-import',
+  'git notes --ref refs/replace/x add -m y',
+  'GIT-REPLACE abc def',
+]
+
+// G2 재검수 — PATH 가로채기의 싼 구멍. 전역 패키지는 실행기가 PATH에서 찾는 git·gh 이름을 덮을 수 있다
+const DENY_GLOBAL_PKG = [
+  'npm install -g x',
+  'npm i -g x',
+  'npm -g i x',
+  'npm install --global x',
+  'npm i --location=global x',
+  'npm install --location global x',
+  'npm.cmd i -g x',
+  'npm link',
+  'pnpm add -g x',
+  'pnpm add --global x',
+  'pnpm i -g x',
+  'yarn global add x',
+  'bun add -g x',
+  'sudo npm i -g x',
 ]
 
 function table(name: string, cases: string[], expectDeny: boolean): void {
@@ -314,6 +428,80 @@ table('loop-lock — 실행기 몫 파일·앱 영역 쓰기는 거부한다 (M0
 table('loop-lock — 작업 저장소 밖 쓰기는 거부한다 (M09 G2 검수 차단 1)', DENY_OUTSIDE, true)
 table('loop-lock — Claude 설정 쓰기는 거부한다 (M09 G2 검수 중요 5)', DENY_CLAUDE, true)
 table('loop-lock — 로컬 작업과 읽기는 지나간다 (M09 G2)', ALLOW, false)
+table('loop-lock — 위치를 따라가도 보호 폴더·밖·모르는 위치의 상대 쓰기는 막는다 (M09 G2 재검수 중요 C)', DENY_CWD, true)
+table('loop-lock — 교체 객체(refs/replace) 쓰기는 거부한다 (M09 G2 재검수 차단 A)', DENY_REPLACE, true)
+table('loop-lock — 전역 패키지 설치는 거부한다 (M09 G2 재검수)', DENY_GLOBAL_PKG, true)
+
+describe('loop-lock 셸 위치 (M09 G2 재검수 중요 C)', () => {
+  it('cd 뒤 ;의 다음 명령은 그 폴더가 있을 때만 그 폴더에서 돈다고 본다 — 없으면 옛 위치도 본다', () => {
+    expect(loopCommandReason('cd src; rm -rf .', SCOPE)).not.toBeNull()
+    const withSrc: LoopLockScope = { ...SCOPE, isDir: (p) => p.replace(/\\/g, '/').toLowerCase() === 'c:/work/repo/src' }
+    expect(loopCommandReason('cd src; rm -rf .', withSrc)).toBeNull()
+    expect(loopCommandReason('cd src; npm test; cd ..', withSrc)).toBeNull()
+  })
+
+  // `&&` 줄 안의 다음 명령은 cd가 됐을 때만 돈다. 줄이 끝나면(;·개행) 줄이 멈췄을 수 있는 모든 자리를 다음 명령의 위치 후보로 둔다
+  it('&& 줄이 끝난 뒤의 명령은 줄이 중간에 멈춘 자리에서도 돈다고 본다', () => {
+    const withSrc: LoopLockScope = { ...SCOPE, isDir: (p) => p.replace(/\\/g, '/').toLowerCase() === 'c:/work/repo/src' }
+    expect(loopCommandReason('cd nonexist && true; rm -rf .', SCOPE)).not.toBeNull()
+    expect(loopCommandReason('false && cd src; rm -rf .', withSrc)).not.toBeNull()
+    expect(loopCommandReason('cd src && false; rm -rf .', withSrc)).toBeNull()
+    expect(loopCommandReason('cd src && npm test\nrm -rf ..', withSrc)).not.toBeNull()
+    expect(loopCommandReason('(cd src && false) && rm -rf .', withSrc)).not.toBeNull()
+  })
+
+  it('조건·반복 몸통(then·do·else)의 cd는 돌지 않을 수 있다', () => {
+    const withSrc: LoopLockScope = { ...SCOPE, isDir: (p) => p.replace(/\\/g, '/').toLowerCase() === 'c:/work/repo/src' }
+    expect(loopCommandReason('if false; then cd src; fi; rm -rf .', withSrc)).not.toBeNull()
+    expect(loopCommandReason('for d in a; do cd src; done; rm -rf .', withSrc)).not.toBeNull()
+    expect(loopCommandReason('if true; then cd src && rm -rf .; fi', withSrc)).toBeNull()
+    expect(loopCommandReason('if true; then cd src && true; fi; rm -rf .', withSrc)).not.toBeNull()
+    expect(loopCommandReason('f() { cd src; }; rm -rf .', withSrc)).not.toBeNull()
+  })
+
+  type Out = { hookSpecificOutput?: { permissionDecision: string; permissionDecisionReason: string } }
+  const signal = new AbortController().signal
+  function session(scope: LoopLockScope = SCOPE): (command: string, cwd?: string) => Promise<string | null> {
+    const [hook] = buildLoopLockHook(scope).hooks
+    return async (command, cwd) => {
+      const out = (await hook({ hook_event_name: 'PreToolUse', tool_name: 'Bash', tool_input: { command }, ...(cwd ? { cwd } : {}) }, 't', { signal })) as Out
+      return out.hookSpecificOutput?.permissionDecisionReason ?? null
+    }
+  }
+
+  // 셸의 위치는 호출 사이에 남는다 — 한 호출의 cd가 다음 호출의 상대 경로를 바꾼다
+  it('호출 사이에 위치를 넘긴다 — 맨 cd 뒤의 다음 호출에서 상대 경로 쓰기는 막는다', async () => {
+    const call = session({ ...SCOPE, isDir: (p) => p.replace(/\\/g, '/').toLowerCase() === 'c:/work/repo' })
+    expect(loopCommandReason('echo x > .gitconfig', SCOPE)).toBeNull()
+    expect(await call('cd')).toBeNull()
+    expect(await call('echo x > .gitconfig')).not.toBeNull()
+    expect(await call('cat .gitconfig')).toBeNull()
+    // 절대 경로로 돌아오면 다시 안다
+    expect(await call('cd C:/work/repo')).toBeNull()
+    expect(await call('echo x > notes.txt')).toBeNull()
+  })
+
+  it('훅이 주는 cwd가 지금 따라간 후보 가운데 하나면 그 위치로 좁힌다', async () => {
+    const inSrc = session()
+    expect(await inSrc('cd src && npm test && cd ..')).toBeNull()
+    expect(await inSrc('cd ..', 'C:\\work\\repo\\src')).toBeNull()
+    const atRoot = session()
+    expect(await atRoot('cd src && npm test && cd ..')).toBeNull()
+    expect(await atRoot('cd ..', 'C:\\work\\repo')).not.toBeNull()
+  })
+
+  it('훅이 주는 cwd가 보호 폴더면(따라가지 못한 cd) 그 위치로 본다', async () => {
+    const call = session()
+    expect(await call('echo x > config', 'C:\\work\\repo\\.git')).not.toBeNull()
+    expect(await call('echo x > config', 'C:\\work\\repo')).toBeNull()
+  })
+
+  it('거부된 명령의 cd는 위치를 바꾸지 않는다', async () => {
+    const call = session()
+    expect(await call('cd .git && ls')).not.toBeNull()
+    expect(await call('echo x > config')).toBeNull()
+  })
+})
 
 describe('loop-lock MCP 도구 (M09 G2 검수 중요 5)', () => {
   it('루프 세션에서 mcp__ 도구는 이름과 입력에 관계없이 거부한다', () => {
@@ -333,7 +521,7 @@ describe('loop-lock 판독 한도 (M09 G2)', () => {
 
 describe('loop-lock 거부 사유 (M09 G2)', () => {
   it('모든 사유가 「원격은 실행기 코드만」과 「노드는 로컬 커밋까지만」을 말한다', () => {
-    for (const cmd of [DENY_REMOTE[0], DENY_CREDENTIAL[0], DENY_CONFIG[0], DENY_EXECUTOR_FILES[0], DENY_OUTSIDE[0], DENY_CLAUDE[0], 'cd .git', 'echo x > $SOMEVAR/x']) {
+    for (const cmd of [DENY_REMOTE[0], DENY_CREDENTIAL[0], DENY_CONFIG[0], DENY_EXECUTOR_FILES[0], DENY_OUTSIDE[0], DENY_CLAUDE[0], 'cd .git', 'echo x > $SOMEVAR/x', DENY_REPLACE[0], DENY_GLOBAL_PKG[0], DENY_CWD[0]]) {
       const reason = loopCommandReason(cmd, SCOPE) ?? ''
       expect(reason).toContain('원격은 실행기 코드만')
       expect(reason).toContain('로컬 커밋까지만')

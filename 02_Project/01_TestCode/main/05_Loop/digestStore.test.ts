@@ -39,6 +39,20 @@ describe('파일 다이제스트 저장소와 키', () => {
     expect(await store.readLatch(key)).toContain(TAMPERED)
     expect(await store.read(key)).toBeNull()
     await expect(store.writeLatch('../escape', 'x')).rejects.toThrow()
+    // 래치 파일 경로를 알려 준다(사유 문구에 싣는다 — G2 재검수 사소)
+    expect(store.latchPath?.(key)).toBe(path.join(dir, 'latch', `${key}.latch`))
+    expect(fs.existsSync(store.latchPath?.(key) as string)).toBe(true)
+  })
+
+  it('래치 사유 문구에 래치 파일 경로가 실린다', async () => {
+    const { template, hash } = loaded()
+    const rig = makeRig()
+    rig.ports.digest.latchPath = (key) => `C:/appdata/loop/digests/${key}.latch`
+    const runner = createLoopRunner({ template, hash, ports: rig.ports, cwd: CWD })
+    expect((await runner.start('M1')).kind).toBe('ok')
+    rig.fs.files.set(DOCS.runState, '{}')
+    const out = await runner.step()
+    expect(out.kind === 'needs-user' && out.reason).toContain(`C:/appdata/loop/digests/${repoKeyOf(CWD)}.latch`)
   })
 
   it('저장소 키는 경로 표기 차이로 갈리지 않는다', () => {

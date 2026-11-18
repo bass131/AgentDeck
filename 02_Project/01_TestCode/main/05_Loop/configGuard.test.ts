@@ -5,6 +5,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { createConfigGuard, executorGitEnv, type ConfigGuard } from '@main/05_Loop/configGuard'
+import { runProcess, type ProcessResult } from '@main/05_Loop/realPorts/exec'
 import { createGitPort } from '@main/05_Loop/realPorts/gitPort'
 import { makeTempRepos, type TempRepos } from '../00_Helpers/tempGit'
 
@@ -102,23 +103,153 @@ describe('실행기 git 설정 대조', () => {
     const guard = await open()
     repos.git(['config', 'branch.feature.remote', 'origin'])
     repos.git(['config', 'branch.feature.merge', 'refs/heads/feature'])
-    // gh가 기본 저장소를 고를 때 쓰는 키도 명령을 실행하지 않는다
-    repos.git(['config', 'remote.origin.gh-resolved', 'base'])
     expect(await guard.check()).toBeNull()
     // 같은 remote 절이라도 원격 주소는 뺄 수 없다
     repos.git(['config', 'remote.origin.pushurl', 'https://example.invalid/x.git'])
     expect(await guard.check()).toContain('remote.origin.pushurl')
   })
 
-  it('지난 실행이 적은 스냅숏과 다르면 열지 않고, 사람이 그 파일을 지우면 다시 연다', async () => {
+  // G2 재검수 중요 B — gh는 remote.<이름>.gh-resolved로 기본 저장소를 고른다(실측: octocat/Hello-World를 넣으면 gh pr list가 그 저장소를
+  // 읽는다). 실행기 gh는 -R로 저장소를 고정하지만, 키 자체도 대조한다.
+  it('remote.*.gh-resolved도 대조한다 — 실행기 gh를 다른 저장소로 돌리는 키다', async () => {
+    const guard = await open()
+    repos.git(['config', 'remote.origin.gh-resolved', 'octocat/Hello-World'])
+    expect(await guard.check()).toContain('remote.origin.gh-resolved')
+  })
+
+  // G2 재검수 중요 D — 스냅숏을 지우고 다시 열면 심은 설정이 새 기준선이 됐다. 이제 위험 키는 기준선과 관계없이 열기를 거부한다.
+  it('지난 스냅숏과 다르면 열지 않고 안내는 「그 키를 지운 뒤 다시 연다」다 — 되돌리면 다시 열린다', async () => {
+    await open()
+    repos.git(['config', 'user.name', 'Someone Else'])
+    const again = await createConfigGuard({ cwd: repos.work, env: repos.env, snapshotFile, hooksPath })
+    expect(again.ok).toBe(false)
+    expect(!again.ok && again.reason).toContain('user.name')
+    expect(!again.ok && again.reason).toContain('그 키를 지운')
+    repos.git(['config', 'user.name', 'Loop Test'])
+    expect((await createConfigGuard({ cwd: repos.work, env: repos.env, snapshotFile, hooksPath })).ok).toBe(true)
+  })
+
+  it('위험 키가 로컬 설정에 있으면 스냅숏이 없어도, 스냅숏을 지워도 열지 않는다 — 그 키를 지우면 열린다', async () => {
     await open()
     repos.git(['config', 'core.pager', 'less'])
+    fs.rmSync(snapshotFile)
     const again = await createConfigGuard({ cwd: repos.work, env: repos.env, snapshotFile, hooksPath })
     expect(again.ok).toBe(false)
     expect(!again.ok && again.reason).toContain('core.pager')
-    expect(!again.ok && again.reason).toContain(snapshotFile)
-    fs.rmSync(snapshotFile)
+    expect(!again.ok && again.reason).toContain('그 키를 지운 뒤 다시 연다')
+    // 거부는 스냅숏을 새로 적지 않는다(심은 설정이 기준선이 되지 않는다)
+    expect(fs.existsSync(snapshotFile)).toBe(false)
+    repos.git(['config', '--unset', 'core.pager'])
     expect((await createConfigGuard({ cwd: repos.work, env: repos.env, snapshotFile, hooksPath })).ok).toBe(true)
+  })
+
+  const DANGER: [string, string][] = [
+    ['core.fsmonitor', 'sh -c "echo x"'],
+    ['filter.x.clean', 'cat'],
+    ['filter.x.process', 'x'],
+    ['diff.x.textconv', 'cat'],
+    ['diff.external', 'x'],
+    ['merge.x.driver', 'x %O %A %B'],
+    ['credential.helper', 'store'],
+    ['credential.https://github.com.helper', 'store'],
+    ['core.sshCommand', 'ssh -i x'],
+    ['core.askPass', 'x'],
+    ['core.gitProxy', 'x'],
+    ['core.hooksPath', '.husky'],
+    ['core.pager', 'less'],
+    ['core.editor', 'vim'],
+    ['sequence.editor', 'x'],
+    ['pager.log', 'x'],
+    ['gpg.program', 'x'],
+    ['gpg.ssh.program', 'x'],
+    ['commit.gpgSign', 'true'],
+    ['remote.origin.uploadpack', 'x'],
+    ['remote.origin.receivepack', 'x'],
+    ['remote.origin.vcs', 'x'],
+    ['url.ext::sh -c x.insteadOf', 'https://github.com/'],
+    ['protocol.ext.allow', 'always'],
+    ['core.alternateRefsCommand', 'x'],
+    ['include.path', 'nothing.cfg'],
+    ['includeIf.onbranch:main.path', 'nothing.cfg'],
+  ]
+  for (const [key, value] of DANGER) {
+    it(`위험 키 ${key} — 처음 여는 것도 거부한다`, async () => {
+      repos.git(['config', key, value])
+      const r = await createConfigGuard({ cwd: repos.work, env: repos.env, snapshotFile, hooksPath })
+      expect(r.ok).toBe(false)
+      expect(!r.ok && r.reason).toContain(key.toLowerCase())
+      expect(fs.existsSync(snapshotFile)).toBe(false)
+    })
+  }
+
+  it('include로 들어온 위험 키도 거부한다(그 파일 이름과 함께)', async () => {
+    const extra = path.join(repos.root, 'extra.cfg')
+    fs.writeFileSync(extra, '[filter "y"]\n\tclean = evil\n')
+    repos.git(['config', 'include.path', extra.replace(/\\/g, '/')])
+    const r = await createConfigGuard({ cwd: repos.work, env: repos.env, snapshotFile, hooksPath })
+    expect(r.ok).toBe(false)
+    expect(!r.ok && r.reason).toContain('filter.y.clean')
+  })
+
+  it('명령이 아닌 값은 거부하지 않는다 — core.fsmonitor 참·거짓, 표준 git-lfs 필터, commit.gpgSign=false', async () => {
+    repos.git(['config', 'core.fsmonitor', 'false'])
+    repos.git(['config', 'filter.lfs.clean', 'git-lfs clean -- %f'])
+    repos.git(['config', 'filter.lfs.smudge', 'git-lfs smudge -- %f'])
+    repos.git(['config', 'filter.lfs.process', 'git-lfs filter-process'])
+    repos.git(['config', 'filter.lfs.required', 'true'])
+    expect((await createConfigGuard({ cwd: repos.work, env: repos.env, snapshotFile, hooksPath })).ok).toBe(true)
+  })
+
+  // 이 기계처럼 전역·시스템에 credential.helper·filter.lfs·core.pager가 있는 것은 정상이다 — 로컬(·include)만 본다
+  it('전역 설정의 위험 키는 열기를 막지 않는다(사용자 자신의 설정)', async () => {
+    fs.appendFileSync(repos.env.GIT_CONFIG_GLOBAL as string,
+      '[credential]\n\thelper = manager\n[filter "lfs"]\n\tclean = git-lfs clean -- %f\n[core]\n\tpager = less\n\teditor = code --wait\n')
+    expect((await createConfigGuard({ cwd: repos.work, env: repos.env, snapshotFile, hooksPath })).ok).toBe(true)
+  })
+})
+
+// G2 재검수 사소 — 설정 읽기 한 번의 일시 실패(시간 초과·EBUSY)로 곧바로 래치하지 않는다. 바뀐 값은 다시 읽지 않고 바로 멈춘다.
+describe('설정 다시 읽기의 일시 실패', () => {
+  // 열 때는 그대로 읽고, arm() 뒤의 git 호출부터 failures번 시간 초과로 실패한다
+  function flaky(failures: number): { run: (args: string[]) => Promise<ProcessResult>; arm: () => void; failed: () => number } {
+    let left = failures
+    let failed = 0
+    let armed = false
+    return {
+      run: async (args) => {
+        if (armed && left > 0) { left--; failed++; return { code: 124, stdout: '', stderr: '시간 제한을 넘었다', timedOut: true } }
+        return runProcess('git', args, { cwd: repos.work, env: repos.env, timeoutMs: 30_000 })
+      },
+      arm: () => { armed = true },
+      failed: () => failed,
+    }
+  }
+
+  it('한 번 실패하면 짧게 다시 읽고, 같으면 멈추지 않는다', async () => {
+    const f = flaky(1)
+    const r = await createConfigGuard({ cwd: repos.work, env: repos.env, snapshotFile, hooksPath, runGit: f.run, retryDelayMs: 1 })
+    if (!r.ok) throw new Error(r.reason)
+    f.arm()
+    expect(await r.guard.check()).toBeNull()
+    expect(f.failed()).toBe(1)
+  })
+
+  it('다시 읽어도 계속 실패하면 멈춘다', async () => {
+    const f = flaky(100)
+    const r = await createConfigGuard({ cwd: repos.work, env: repos.env, snapshotFile, hooksPath, runGit: f.run, retryDelayMs: 1 })
+    if (!r.ok) throw new Error(r.reason)
+    f.arm()
+    expect(await r.guard.check()).toContain('다시 읽지 못했다')
+  })
+
+  it('바뀐 값은 다시 읽어 기다리지 않고 바로 멈춘다', async () => {
+    const f = flaky(0)
+    const r = await createConfigGuard({ cwd: repos.work, env: repos.env, snapshotFile, hooksPath, runGit: f.run, retryDelayMs: 10_000 })
+    if (!r.ok) throw new Error(r.reason)
+    repos.git(['config', 'user.name', 'X'])
+    const t0 = Date.now()
+    expect(await r.guard.check()).toContain('user.name')
+    expect(Date.now() - t0).toBeLessThan(5_000)
   })
 })
 
@@ -128,6 +259,10 @@ describe('실행기 git 환경', () => {
     expect(env.GIT_TERMINAL_PROMPT).toBe('0')
     expect(env.GCM_INTERACTIVE).toBe('never')
     expect(env.PATH).toBe('x')
+  })
+
+  it('교체 객체를 따르지 않는다 — GIT_NO_REPLACE_OBJECTS=1 (G2 재검수 차단 A)', () => {
+    expect(executorGitEnv({ GIT_NO_REPLACE_OBJECTS: '' }).GIT_NO_REPLACE_OBJECTS).toBe('1')
   })
 })
 
@@ -145,6 +280,7 @@ describe('git 포트는 모든 호출 직전에 대조한다', () => {
       () => git.branchExists('x'), () => git.createBranch('x', 'master'), () => git.checkout('master'), () => git.hasChanges(),
       () => git.commitAll('m'), () => git.push('master'), () => git.syncToRemote('master'), () => git.remoteSha('master'),
       () => git.parents('HEAD'), () => git.mergeNoFf('HEAD', 'm'), () => git.isAncestor('HEAD', 'master'),
+      () => git.verifyMerge('HEAD', 'master', 'master'),
     ]) await expect(run()).rejects.toThrow('바뀌었다')
     await expect(git.headSha('master')).rejects.toThrow('바뀌었다')
     expect(repos.git(['branch', '--list', 'x'])).toBe('')

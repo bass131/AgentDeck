@@ -168,6 +168,14 @@ export class FakeGit implements GitPort {
     this.parentsOf.set(merged, before ? [before, sha] : [sha])
     return merged
   }
+  // 트리가 두 부모의 깨끗한 병합이 아닌 커밋(작업 노드가 commit-tree로 만든 위조)을 흉내 낸다.
+  readonly forgedTrees = new Set<string>()
+  async verifyMerge(commit: string, first: string, second: string): Promise<string | null> {
+    this.calls.push(`verifyMerge ${commit}`)
+    const p = await this.parents(commit)
+    if (p.length !== 2 || p[0] !== first || p[1] !== second) return `병합 커밋 ${commit}의 부모가 (${first}, ${second})가 아니다`
+    return this.forgedTrees.has(commit) ? `병합 커밋 ${commit}의 트리가 두 부모를 병합한 트리가 아니다` : null
+  }
   async remoteSha(branch: string): Promise<string | null> {
     this.calls.push(`remoteSha ${branch}`)
     return last(this.remote.get(branch))

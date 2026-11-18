@@ -167,6 +167,13 @@ describe('merge-deny 훅과 노드 정보 (M07 G8)', () => {
     const deny = await hook({ hook_event_name: 'PreToolUse', tool_name: 'Bash', tool_input: { command: 'gh pr merge 1' } }, 't1', { signal })
     expect(deny).toMatchObject({ hookSpecificOutput: { hookEventName: 'PreToolUse', permissionDecision: 'deny' } })
     expect(deny.hookSpecificOutput?.permissionDecisionReason).toMatch(/앱.*「병합」 버튼/)
+    // M08 G2(헌법 10조 효력 날 뒤): `master`로 가는 병합은 사람이고, goal은 로컬 `git merge --no-ff`로 마일스톤 브랜치에 합친다.
+    //   호출 거부는 대상 브랜치와 관계없다 — 안내가 「병합은 사용자에게 맡기세요」로 goal 병합까지 사람 몫이라 말하면 틀린다.
+    const why = deny.hookSpecificOutput?.permissionDecisionReason ?? ''
+    expect(why).toMatch(/`master`로 가는 병합/)
+    expect(why).toMatch(/git merge --no-ff/)
+    expect(why).toMatch(/마일스톤 브랜치/)
+    expect(why).not.toMatch(/병합은 사용자에게 맡기세요/)
     expect(await hook({ hook_event_name: 'PreToolUse', tool_name: 'Bash', tool_input: { command: 'gh pr view 1' } }, 't2', { signal })).toEqual({})
     expect(
       await hook({ hook_event_name: 'PreToolUse', tool_name: 'PowerShell', tool_input: { command: 'gh pr merge 1' } }, 't3', { signal })

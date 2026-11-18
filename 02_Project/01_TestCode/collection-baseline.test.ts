@@ -69,7 +69,9 @@ const SKIP_DIRS = new Set(['node_modules', 'dist', 'out', 'coverage', '.git'])
 // main/01_Ipc/agent.controls-gate-handler.test.ts를 더했다.
 // M07 G8: 451 → 455. 병합 거부 노드 main/04_Claude/mergeDeny.test.ts, PR 서비스 main/08_Git/prMerge.test.ts,
 // PR 카드 도우미 renderer/08_Git/prCardModel.test.ts, PR 카드 화면 renderer/08_Git/PrCard.test.tsx를 더했다.
-const BASELINE_TEST_FILES = 455
+// M09 G1: 455 → 459. 루프 실행기 — 템플릿 스키마 main/05_Loop/template.test.ts, 상태 기계 main/05_Loop/executor.test.ts,
+// 등급 규칙 main/05_Loop/grade.test.ts, 포트로 도는 실행기 껍질 main/05_Loop/loopRunner.test.ts를 더했다.
+const BASELINE_TEST_FILES = 459
 
 function collectTestFiles(dir: string, acc: string[] = []): string[] {
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {

@@ -1,0 +1,106 @@
+// M09 G1 — 생존 문서 읽기·쓰기. 작업 저장소의 `.agentdeck/` 폴더를 fs 포트로 다룬다.
+//   milestone-spec.md  마일스톤 스펙(메인 세션이 쓴다)
+//   goals/<id>.md      goal 문서(분해 노드가 쓴다, 첫 「# 제목」 줄이 goal 제목)
+//   decisions.md       결정 대장
+//   verification.md    검증 기록 — 실행기가 run-state.json의 줄에서 다시 그리는 출력일 뿐이다. 읽지 않는다.
+//   run-state.json     실행 상태 — 커서와 검증 줄의 정본
+// 템플릿 자체는 복사하지 않는다. 나아감의 근거는 run-state.json의 실행기 줄뿐이고, 마크다운에 누가 「PASS」를 적어도 읽히지 않는다.
+import type { GoalSeed } from './executor'
+import type { FsPort } from './ports'
+import { GOAL_ID, validateRunState, type RunState } from './runState'
+import type { DocKind, SchemaError } from './template'
+
+export const DOCS = {
+  dir: '.agentdeck',
+  milestoneSpec: '.agentdeck/milestone-spec.md',
+  decisions: '.agentdeck/decisions.md',
+  verification: '.agentdeck/verification.md',
+  runState: '.agentdeck/run-state.json',
+  goalsDir: '.agentdeck/goals',
+} as const
+
+export const goalDocPath = (goalId: string): string => `${DOCS.goalsDir}/${goalId}.md`
+
+export type RunStateRead = { kind: 'missing' } | { kind: 'invalid'; errors: SchemaError[] } | { kind: 'ok'; state: RunState }
+
+export async function readRunState(fs: FsPort): Promise<RunStateRead> {
+  const text = await fs.read(DOCS.runState)
+  if (text === null) return { kind: 'missing' }
+  let raw: unknown
+  try {
+    raw = JSON.parse(text)
+  } catch (e) {
+    return { kind: 'invalid', errors: [{ path: '$', reason: `JSON으로 읽을 수 없다 — ${(e as Error).message}` }] }
+  }
+  const checked = validateRunState(raw)
+  return checked.ok ? { kind: 'ok', state: checked.state } : { kind: 'invalid', errors: checked.errors }
+}
+
+export async function writeRunState(fs: FsPort, state: RunState): Promise<void> {
+  await fs.write(DOCS.runState, `${JSON.stringify(state, null, 2)}\n`)
+}
+
+const SCOPE_TITLE = (state: RunState, scope: string | null): string => {
+  if (scope === null) return '마일스톤'
+  const g = state.goals.find((x) => x.id === scope)
+  return g ? `${g.id} — ${g.title}` : scope
+}
+
+export function renderVerification(state: RunState): string {
+  const out = [
+    `# 검증 기록 — ${state.milestoneId}`,
+    '',
+    '실행기가 실행 상태(`run-state.json`)의 줄에서 다시 그린다. 이 파일을 고쳐도 실행은 나아가지 않고, 다음 기록 때 덮어쓴다.',
+  ]
+  const scopes: (string | null)[] = [null, ...state.goals.map((g) => g.id)]
+  for (const scope of scopes) {
+    out.push('', `## ${SCOPE_TITLE(state, scope)}`, '')
+    const lines = state.lines.filter((l) => l.goal === scope)
+    if (lines.length === 0) out.push('- (기록 없음)')
+    for (const l of lines) out.push(`- ${l.marker} ${l.at} — ${l.node}(${l.judge}): ${l.sentence}`)
+  }
+  if (state.status === 'needs-user') out.push('', `사람 판단 대기: ${state.haltReason ?? ''}`)
+  return `${out.join('\n')}\n`
+}
+
+export async function writeVerification(fs: FsPort, state: RunState): Promise<void> {
+  await fs.write(DOCS.verification, renderVerification(state))
+}
+
+// 분해 노드가 쓴 goal 문서에서 id(파일 이름)와 제목만 읽는다. 문서에 적힌 등급 같은 표시는 읽지 않는다.
+export async function readGoalSeeds(fs: FsPort): Promise<{ ok: true; goals: GoalSeed[] } | { ok: false; reason: string }> {
+  const names = (await fs.list(DOCS.goalsDir))
+    .filter((n) => n.endsWith('.md'))
+    .sort((a, b) => a.localeCompare(b, 'en', { numeric: true }))
+  if (names.length === 0) return { ok: false, reason: `${DOCS.goalsDir}에 goal 문서가 하나도 없다` }
+  const goals: GoalSeed[] = []
+  for (const name of names) {
+    const id = name.slice(0, -'.md'.length)
+    if (!GOAL_ID.test(id)) return { ok: false, reason: `goal 문서 이름 ${name}이 id 꼴이 아니다` }
+    const text = (await fs.read(goalDocPath(id))) ?? ''
+    const title = /^#\s+(.+?)\s*$/m.exec(text)?.[1]
+    if (!title) return { ok: false, reason: `${name}에 「# 제목」 줄이 없다` }
+    goals.push({ id, title })
+  }
+  return { ok: true, goals }
+}
+
+// 작업 노드에 줄 생존 문서. 템플릿이 노드마다 적은 종만 읽는다.
+export async function readNodeDocs(
+  fs: FsPort, kinds: readonly DocKind[], goalId: string | null,
+): Promise<Partial<Record<DocKind, string | null>>> {
+  const docs: Partial<Record<DocKind, string | null>> = {}
+  for (const kind of kinds) {
+    const path = kind === 'goal'
+      ? (goalId === null ? null : goalDocPath(goalId))
+      : kind === 'milestoneSpec' ? DOCS.milestoneSpec : kind === 'decisions' ? DOCS.decisions : DOCS.verification
+    docs[kind] = path === null ? null : await fs.read(path)
+  }
+  return docs
+}
+
+export async function appendDecision(fs: FsPort, entry: string): Promise<void> {
+  const prev = (await fs.read(DOCS.decisions)) ?? '# 결정 대장\n'
+  const sep = prev.endsWith('\n') ? '' : '\n'
+  await fs.write(DOCS.decisions, `${prev}${sep}- ${entry.replace(/\s+/g, ' ').trim()}\n`)
+}

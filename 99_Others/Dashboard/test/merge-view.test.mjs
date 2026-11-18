@@ -113,6 +113,7 @@ test('review fixes (PR 79): a pending PR missing from the list re-reads it; a ca
   assert.match(b('renderMerge'), /mg\.listMissFor !== want/, '같은 번호로는 한 번만 다시 읽는다(스냅샷마다 gh를 부르지 않게)');
   assert.match(b('loadMerge'), /row && row\.sha !== r\.pr\.headSha/, '카드 SHA와 목록 행 SHA가 다르면 목록을 다시 읽는다');
   assert.match(b('pickFromList'), /if \(mg\.running\) \{ toast\('확인 창을 먼저 닫아 주세요\.'\); return; \}/);
+  assert.match(b('renderPrList'), /먼저 연 PR부터/, '목록 머리에 순서(번호 오름차순)를 알린다');
 });
 
 test('list rows put the short SHA before the branch names so a long head branch cannot clip it', () => {

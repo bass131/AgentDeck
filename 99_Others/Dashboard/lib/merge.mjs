@@ -333,6 +333,8 @@ export function createPrService({ gh, originUrl, sleep = ms => new Promise(r => 
     const items = [];
     let dropped = 0;
     for (const v of raw.slice(0, LIST_CAP)) { const it = listItem(v); if (it) items.push(it); else dropped++; }
+    /* gh는 최신부터 준다. 상한은 최신 50개에 걸고, 보이는 순서는 번호 오름차순(먼저 연 PR부터 차례로 병합) */
+    items.sort((a, b) => a.number - b.number);
     return { ok: true, repo: `${repo.owner}/${repo.repo}`, items, more: raw.length > LIST_CAP, dropped };
   }
 

@@ -98,8 +98,38 @@ test('app.js: the merge card posts with the page token, keeps its own area, and 
 });
 
 // ── 열린 PR 목록 (M07 G11) ── 목록은 요약만 보이고, 필수 검사·「꼭 볼 것」·병합 단추는 고른 PR 하나의 카드에서만 판정한다.
-const pageEsc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-const item = (n, over = {}) => ({ number: n, title: `PR ${n}`, baseRef: 'master', headRef: `feat/x-${n}`, sha: SHA, draft: false, author: 'bass131', updatedAt: '2026-11-18T00:08:22Z', ...over });
+// 시험은 이스케이프 함수를 베끼지 않고 app.js의 실제 esc를 꺼내 쓴다(PR 79 검수 중요 2). 따옴표가 빠지면 아래 단정이 깨진다
+const APP_SRC = (await readFile(new URL('../public/app.js', import.meta.url), 'utf8')).replace(/\r\n/g, '\n');
+const pageEsc = new Function(`return ${APP_SRC.match(/^const esc = (s => .+);$/m)[1]}`)();
+
+test("the page escaper (app.js esc) covers & < > \" ' — list titles land inside a title attribute", () => {
+  assert.equal(pageEsc(`&<>"'`), '&amp;&lt;&gt;&quot;&#39;');
+});
+
+test('review fixes (PR 79): a pending PR missing from the list re-reads it; a card SHA that differs from its row re-reads it; picking while the window is up says why', () => {
+  const b = bodyOf(APP_SRC);
+  assert.match(b('renderMerge'), /want && mg\.list\?\.ok && !mg\.list\.items\.some\(i => i\.number === want\)/, '병합 대기 PR이 목록에 없으면 목록을 다시 읽는다');
+  assert.match(b('renderMerge'), /void loadPrList\(\)/);
+  assert.match(b('renderMerge'), /mg\.listMissFor !== want/, '같은 번호로는 한 번만 다시 읽는다(스냅샷마다 gh를 부르지 않게)');
+  assert.match(b('loadMerge'), /row && row\.sha !== r\.pr\.headSha/, '카드 SHA와 목록 행 SHA가 다르면 목록을 다시 읽는다');
+  assert.match(b('pickFromList'), /if \(mg\.running\) \{ toast\('확인 창을 먼저 닫아 주세요\.'\); return; \}/);
+});
+
+test('list rows put the short SHA before the branch names so a long head branch cannot clip it', () => {
+  const html = M.prListHtml([item(9, { headRef: 'dependabot/npm_and_yarn/' + 'x'.repeat(80) })], { esc: pageEsc });
+  const meta = html.slice(html.indexOf('mg-row-meta'));
+  assert.ok(meta.indexOf(M.shortSha(SHA)) < meta.indexOf('dependabot/'), 'SHA가 브랜치 이름보다 앞');
+  assert.match(meta, /<code class="inline mg-row-sha">/);
+  assert.match(meta, /<span class="mg-row-br">/);
+});
+
+test('styles.css: in a row the SHA keeps its width and only the branch names shrink', async () => {
+  const css = await read('../public/styles.css');
+  assert.match(css, /\.mg-row-meta\{display:flex;[^}]*min-width:0/);
+  assert.match(css, /\.mg-row-sha\{flex:none\}/);
+  assert.match(css, /\.mg-row-br\{[^}]*min-width:0;[^}]*overflow:hidden;[^}]*text-overflow:ellipsis/);
+});
+const item =(n, over = {}) => ({ number: n, title: `PR ${n}`, baseRef: 'master', headRef: `feat/x-${n}`, sha: SHA, draft: false, author: 'bass131', updatedAt: '2026-11-18T00:08:22Z', ...over });
 
 test('list helpers are on the frozen merge module', () => {
   for (const fn of ['prListHtml', 'pickedPr']) assert.equal(typeof M[fn], 'function', fn);
@@ -170,7 +200,7 @@ test('app.js: the list sits at the top of the merge area, picks load the card th
   assert.match(body('runMerge'), /loadPrList\(\)/, '병합 결과 뒤 목록을 다시 읽는다');
   assert.match(app, /closest\('\[data-merge-pick\]'\)/);
   assert.match(app, /closest\('\[data-merge-list-reload\]'\)\) \{ if \(!mg\.listLoading\) void loadPrList\(\)/, '읽는 중에는 겹쳐 읽지 않는다');
-  assert.match(body('pickFromList'), /if \(!mg\.running\) void loadMerge\(n, true\)/, '확인 창이 떠 있는 동안 카드를 바꾸지 않고, 번호 칸과 같은 길로 부른다');
+  assert.match(body('pickFromList'), /if \(mg\.running\) \{ toast\([^)]*\); return; \}\n  void loadMerge\(n, true\)/, '확인 창이 떠 있는 동안 카드를 바꾸지 않고(이유를 알린다), 번호 칸과 같은 길로 부른다');
   assert.doesNotMatch(body('pickFromList'), /headSha|\.sha\b/, '목록의 SHA는 보이기만 한다 — 병합에 쓰는 SHA는 읽기에서 온다');
 });
 

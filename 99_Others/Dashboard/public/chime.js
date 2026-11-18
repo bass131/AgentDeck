@@ -257,7 +257,7 @@ function prListHtml(items, { picked = null, esc } = {}) {
     const tip = `#${i.number} ${i.title || ''} · ${i.baseRef} ← ${i.headRef} · 머리 SHA ${i.sha}${i.author ? ` · 작성자 ${i.author}` : ''}${i.updatedAt ? ` · 갱신 ${i.updatedAt}` : ''}`;
     return `<li><button type="button" class="mg-row${on ? ' is-picked' : ''}" data-merge-pick="${esc(i.number)}"${on ? ' aria-current="true"' : ''} title="${esc(tip)}">`
       + `<span class="mg-row-top"><b class="dec-n">#${esc(i.number)}</b><span class="mg-row-t">${i.title ? esc(i.title) : '(제목 없음)'}</span>${i.draft ? '<span class="lz mg-draft">초안</span>' : ''}</span>`
-      + `<span class="mg-row-meta"><code class="inline">${esc(i.baseRef)}</code> ← <code class="inline">${esc(i.headRef)}</code> · <code class="inline">${esc(shortSha(i.sha))}</code></span></button></li>`;
+      + `<span class="mg-row-meta"><code class="inline mg-row-sha">${esc(shortSha(i.sha))}</code><span class="mg-row-br"><code class="inline">${esc(i.baseRef)}</code> ← <code class="inline">${esc(i.headRef)}</code></span></span></button></li>`;
   }).join('');
   return `<ul class="mg-list${list.length > LIST_SCROLL_AFTER ? ' is-scroll' : ''}" aria-label="열린 PR 목록">${rows}</ul>`;
 }

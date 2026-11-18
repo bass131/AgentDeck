@@ -583,7 +583,9 @@ details[open] > summary .chev{transform:rotate(45deg)}
 .mg-row[aria-current="true"]{border-color:var(--todo); background:var(--todo-tint); box-shadow:inset 0 0 0 1px var(--todo)}
 .mg-row-top{display:flex; align-items:center; gap:8px; min-width:0}
 .mg-row-t{flex:1 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:var(--fs-sm); font-weight:var(--fw-2); color:var(--ink)}
-.mg-row-meta{min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:var(--fs-cap); color:var(--ink-3)}
+.mg-row-meta{display:flex; align-items:center; gap:8px; min-width:0; white-space:nowrap; font-size:var(--fs-cap); color:var(--ink-3)}
+.mg-row-sha{flex:none}
+.mg-row-br{flex:1 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis}
 .mg-row .lz{flex:none; min-height:18px; padding:0 7px}
 @container dash (width < 720px){ .mg{padding:16px} .mg-load{margin-left:0} }
 

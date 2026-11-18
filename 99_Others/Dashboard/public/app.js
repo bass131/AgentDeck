@@ -866,6 +866,8 @@ function renderMerge() {
   box.classList.toggle('is-empty', !mg.view && !mg.loading && !mg.error && !mg.result);
   /* 목록은 처음 그릴 때 한 번 읽는다. 그 뒤는 「목록 새로 읽기」와 병합 결과 뒤에만 */
   if (!mg.listAsked) { mg.listAsked = true; void loadPrList(); }
+  /* 병합 대기 PR이 목록에 없으면(목록을 읽은 뒤 새 PR이 생김) 그 번호에 한 번 다시 읽는다(PR 79 검수 중요 1) */
+  else if (want && mg.list?.ok && !mg.list.items.some(i => i.number === want) && mg.listMissFor !== want && !mg.listLoading) { mg.listMissFor = want; void loadPrList(); }
   renderPrList();
   paint($('#merge-sum'), mg.view ? `<span>PR ${esc(mg.view.number)} · ${mg.view.canMerge ? '병합 조건을 채웠어요' : '병합 조건을 채우지 못했어요'}</span>`
     : `<span>${want ? `병합 대기 PR ${esc(want)}` : '병합을 기다리는 PR이 없어요. 목록에서 고르거나 번호로 불러올 수 있어요'}</span>`);
@@ -883,7 +885,12 @@ async function loadMerge(n, manual) {
   if (seq !== mg.seq) return;
   mg.loading = false;
   /* 읽기에 실패하면 옛 카드를 남기지 않는다(옛 머리 SHA로 단추가 켜져 있지 않게) */
-  if (r?.ok && r.pr && Array.isArray(r.pr.mustSee)) { mg.view = r.pr; mg.spent = false; }
+  if (r?.ok && r.pr && Array.isArray(r.pr.mustSee)) {
+    mg.view = r.pr; mg.spent = false;
+    /* 목록 행의 SHA가 카드와 다르면(그 사이 push) 목록이 낡은 것이다 — 다시 읽어 나란히 다른 값이 보이지 않게 한다(PR 79 검수 사소 4) */
+    const row = mg.list?.ok ? mg.list.items.find(i => i.number === r.pr.number) : null;
+    if (row && row.sha !== r.pr.headSha && !mg.listLoading) void loadPrList();
+  }
   else { mg.view = null; mg.error = r?.reason || 'PR을 읽지 못했어요.'; }
   renderMerge();
 }
@@ -896,7 +903,8 @@ function loadFromInput() {
 function pickFromList(btn) {
   const n = MRG.parsePrInput(btn?.dataset.mergePick);
   if (!n) return;
-  if (!mg.running) void loadMerge(n, true);
+  if (mg.running) { toast('확인 창을 먼저 닫아 주세요.'); return; }
+  void loadMerge(n, true);
 }
 async function loadPrList() {
   const seq = ++mg.listSeq;

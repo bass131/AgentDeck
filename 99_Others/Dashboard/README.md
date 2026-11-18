@@ -31,7 +31,7 @@ orca tab create --url http://127.0.0.1:4319 --worktree path:C:/Dev/AgentDeck --j
 |---|---|
 | `repoPath` | AgentDeck 저장소 절대경로. 현재 `C:/Dev/AgentDeck` |
 | `port` | 루프백 포트. 4319 (본보기 Second Brain 현황판은 4318) |
-| `mainTerminalHandle` | 결정 응답을 넣을 메인 Claude 터미널의 Orca handle(`term_` + 소문자 UUID). 없거나 형식이 틀리면 넣기 대신 복사만 보인다 |
+| `mainTerminalHandle` | 보통 `null`. 현황판은 넣기 직전에 Orca 목록에서 이 저장소의 Claude 터미널을 찾아 정확히 하나면 거기에 넣는다(M07 G13). 이 값(`term_` + 소문자 UUID)을 적으면 자동 대신 그 터미널이 지금 목록에 있을 때만 넣고, 없으면 넣지 않는다. Orca에 닿지 못할 때(실행 실패·시간 초과)는 이 값을 그대로 쓴다 |
 
 설정을 바꾸면 서버를 다시 시작한다. `node server.mjs C:/경로/별도설정.json`도 된다.
 판정 기준(FAIL 한도 3, hook-log 꼬리 크기 등)은 `lib/markdown.mjs`의 `RULES` 코드 상수다.

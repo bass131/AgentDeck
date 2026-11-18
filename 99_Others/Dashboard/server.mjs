@@ -7,7 +7,7 @@ import { SCHEMA, isoKst } from './lib/markdown.mjs';
 import { watchRepo } from './lib/watcher.mjs';
 import { loadConfig } from './lib/config.mjs';
 import { AnswerError, decisionSig, lineFor, validHandle } from './lib/decisions.mjs';
-import { typeIntoTerminal } from './lib/deliver.mjs';
+import { findMainTerminal, typeIntoTerminal } from './lib/deliver.mjs';
 import { createPrService, ghRunner, gitOriginUrl } from './lib/merge.mjs';
 import { CONFIRM_TIMEOUT_MS, createConfirm } from './lib/confirm.mjs';
 
@@ -34,7 +34,7 @@ const types = { '/app.js': 'text/javascript; charset=utf-8', '/chime.js': 'text/
 // (M07 G9·G11, docs/병합.md). 목록 경로는 읽기만 하고 병합 길(보인 SHA 기억)을 건드리지 않는다.
 // 주입 지점은 함수 인자뿐이다(환경변수·설정 스위치 없음). `type`은 넣는 함수, `prService`는 병합 모듈, `confirm`은 확인 창,
 // `confirmTimeoutMs`는 확인 창 시간 초과, `mergeFn`은 확인 뒤 보내는 함수(없으면 prService.sendMerge)다. 시험과 실측 서버는 가짜를 넘긴다.
-export async function createDashboard(config, { collectFn = collect, watchFn, debounceMs, maxWaitMs, pollMs, pingMs = 15000, now = () => new Date(), type = typeIntoTerminal,
+export async function createDashboard(config, { collectFn = collect, watchFn, debounceMs, maxWaitMs, pollMs, pingMs = 15000, now = () => new Date(), type = typeIntoTerminal, findMain = findMainTerminal,
   prService = createPrService({ gh: ghRunner, originUrl: gitOriginUrl }), confirmTimeoutMs = CONFIRM_TIMEOUT_MS, confirm = createConfirm({ timeoutMs: confirmTimeoutMs }), mergeFn } = {}) {
   const clients = new Set();
   const template = await readFile(new URL('./public/index.html', import.meta.url), 'utf8');
@@ -66,7 +66,7 @@ export async function createDashboard(config, { collectFn = collect, watchFn, de
           const next = await collectFn(config.repoPath, { revision: revision + 1, now: now(), watchError, previous: vm });
           if (closed) break;
           // 넣기 버튼을 보일지만 알린다. handle 자체는 페이지에 싣지 않는다.
-          next.answer = { canType: !!handle };
+          next.answer = { canType: !!handle || !!findMain };
           const before = currentList().sig;
           next.revision = ++revision; vm = next;
           // 목록이 바뀌면 같은 문장 표시를 지운다. 바뀐 목록에서 같은 문장은 다른 답일 수 있다.
@@ -123,20 +123,34 @@ export async function createDashboard(config, { collectFn = collect, watchFn, de
     }
     if (result.refusal) return json(response, 409, { ok: false, reason: result.refusal, stale: !!result.stale });
     const line = result.text;
-    if (!send) return json(response, 200, { ok: true, line, canType: !!handle });
+    if (!send) return json(response, 200, { ok: true, line, canType: !!handle || !!findMain });
     // 페이지가 「보낼 문장」 칸에 보인 문장(expect)과 지금 만든 문장이 다르면 넣지 않는다 — 화면에 안 보인 글은 터미널로 가지 않는다.
     // 예외는 고쳐 고름 표지(CORRECTION) 하나다. 서버가 붙이는 고정 글이고, 넣은 뒤 결과 줄(note)이 그 사실을 알린다.
     if (typeof body.expect !== 'string' || body.expect !== line) return json(response, 409, { ok: false, stale: true, reason: '화면의 문장이 최신이 아니에요. 「보낼 문장」을 다시 확인하고 눌러 주세요.' });
     if (sending) return json(response, 409, { ok: false, reason: '앞 문장을 넣는 중이에요. 메인 입력창을 확인해 주세요.' });
     if (typed === line) return json(response, 409, { ok: false, line, reason: typedSure ? '같은 문장을 이미 넣었어요. 메인 pane에서 Enter만 누르면 돼요.'
       : '같은 문장을 넣었는지 확인하지 못했어요. 다시 넣으면 쌓일 수 있어 넣지 않았어요. 메인 입력창을 보고, 비어 있으면 문장을 복사해 붙여 넣어 주세요.' });
-    if (!handle) return json(response, 200, { ok: false, copy: true, line, reason: '설정에 메인 handle이 없거나 형식이 맞지 않아 넣지 않았어요. 문장을 복사해 메인 입력창에 붙여 넣어 주세요.' });
+    if (!handle && !findMain) return json(response, 200, { ok: false, copy: true, line, reason: '설정에 메인 handle이 없거나 형식이 맞지 않아 넣지 않았어요. 문장을 복사해 메인 입력창에 붙여 넣어 주세요.' });
+    // 겹침 막기는 찾기 전에 건다 — 찾는 동안 들어온 두 번째 요청이 함께 넣어 줄이 쌓이지 않게.
     sending = true;
+    // 넣기 직전에 메인 Claude 터미널을 찾는다(M07 G13, lib/deliver.mjs findMainTerminal). 못 찾으면 넣지 않고 복사를 안내한다 —
+    // 아무것도 넣지 않았으니 같은 문장 표시는 건드리지 않는다. Orca에 닿지 못할 때만 설정 handle을 그대로 쓴다.
+    let target = handle;
+    if (findMain) {
+      let found;
+      try { found = await findMain(config.repoPath, handle); } catch { found = { handle: null, unreachable: true, reason: 'Orca에 닿지 못해 메인 터미널을 찾지 못했어요.' }; }
+      target = found?.handle ? validHandle(found.handle) : found?.unreachable ? handle : null;
+      if (!target) { sending = false; return json(response, 200, { ok: false, copy: true, line, reason: `${found?.reason || '메인 터미널을 찾지 못했어요.'} 문장을 복사해 메인 입력창에 붙여 넣어 주세요.` }); }
+      // 찾는 동안 결정 목록이 바뀌었으면 넣지 않는다 — 화면에서 확인한 문장이 지금 목록의 문장과 같을 때만 넣는다(PR 83 검수 중요 1)
+      let now;
+      try { now = lineFor(currentList(), body); } catch { now = null; }
+      if (!now || now.refusal || now.text !== line) { sending = false; return json(response, 409, { ok: false, stale: true, reason: '넣기 직전에 결정 목록이 바뀌어 넣지 않았어요. 「보낼 문장」을 다시 확인하고 눌러 주세요.' }); }
+    }
     // 넣기 실패가 「글은 들어갔는데 응답만 깨진」 경우일 수 있으니, 부르기 전에 같은 문장 표시를 남긴다.
     // 글이 안 들어간 것이 확실한 실패(definite)면 앞 값으로 되돌린다. 그 사이 목록이 바뀌어 표시가 지워졌으면 건드리지 않는다.
     const prev = { typed, typedSure, everTyped }, corrected = everTyped;
     typed = line; typedSure = false; everTyped = true;
-    try { await type(handle, corrected ? CORRECTION + line : line); }
+    try { await type(target, corrected ? CORRECTION + line : line); }
     catch (e) {
       if (e?.definite === true) {
         if (typed === line) ({ typed, typedSure } = prev);

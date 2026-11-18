@@ -97,7 +97,7 @@ if (!missing.length && source !== 'compact') {
   const m = goalLine.match(/병합\s*대기[\s,(·—–-]{0,6}PR\s*#?(\d{1,9})\b/) || goalLine.match(/PR\s*#?(\d{1,9})\s*(?:의\s*)?병합\s*대기/);
   if (m) {
     mergeWatchPr = Number(m[1]);
-    lines.push(`[병합 감시] 현재 goal이 PR ${mergeWatchPr}의 병합을 기다린다. 메인 세션이고 이 PR의 감시가 이미 돌고 있지 않을 때만 백그라운드로 걸어라: node 99_Others/Dashboard/wait-merge.mjs ${mergeWatchPr} — 끝나면 gh pr view로 다시 읽는다. MERGED면 종결 기록까지만 하고 다음 goal은 열지 않는다. CLOSED면 기록 없이 사용자에게 알린다. ERROR면 아직 열려 있을 때 한 번 다시 걸고, 또 ERROR면 사용자에게 알린다 (헌법 11조).`);
+    lines.push(`[병합 감시] 현재 goal이 PR ${mergeWatchPr}의 병합을 기다린다. 메인 세션이고 이 PR의 감시가 이미 돌고 있지 않을 때만 백그라운드로 걸어라: node 99_Others/Dashboard/wait-merge.mjs ${mergeWatchPr} — 끝나면 gh pr view로 다시 읽는다. MERGED면 종결 기록을 하고, goal PR이면 같은 마일스톤의 다음 goal로 가고 마일스톤 PR이면 거기서 멈춘다(다음 마일스톤은 열지 않는다). CLOSED면 기록 없이 사용자에게 알린다. ERROR면 아직 열려 있을 때 한 번 다시 걸고, 또 ERROR면 사용자에게 알린다 (헌법 11조).`);
   }
 }
 

@@ -417,12 +417,14 @@ const RE_GH_PROTECTION = /protection|rulesets/i
 const ghApi = (c) => ghIs(c, 'api')
 
 // ── 병합 차단 (M07 G12 · 결정 대장 [USER] 「OK 가드도 Deny」) ──
-// 병합은 사람의 버튼(현황판 병합 카드·앱 PR 카드)과 사용자가 직접 치는 한 줄로만 한다(헌법 10조). 가드는 읽을 수 있는 병합 꼴을
+// `master`로 가는 병합은 사람의 버튼(현황판 병합 카드·앱 PR 카드)과 사용자가 직접 치는 한 줄로만 한다(헌법 10조). goal의 로컬
+// `git merge --no-ff`는 이 구획 밖이다(M08 G2). 가드는 읽을 수 있는 병합 호출 꼴을 대상 브랜치와 관계없이
 // 묻지 않고 차단한다 — 권한 창을 생략하는 모드에서도 사람 없이 지나가지 않게. 사용자의 `!` 명령은 이 훅을 지나지 않는다.
 // `gh api`는 끝점 낱말로 판정한다. 설정 `deny`의 글자 꼴(`gh api *pulls/*/merge*`)보다 좁다 — 본문 글에 끝점 글자가 든 다른 호출과
 // 같은 끝점의 GET(병합 여부 읽기)은 막지 않는다. 차단은 루프를 멈추므로 오탐 비용이 묻기보다 크다.
 // 읽지 못하는 꼴(변수·명령 치환·gh 별칭·`--input`·`-F query=@파일`·해석기 안 코드)은 쫓지 않는다 — goal G12 「하지 않을 것」.
-const MERGE_HINT = '병합은 사람이 합니다 — 현황판 병합 카드, 앱 PR 카드, GitHub 웹, 또는 사용자가 직접 치는 `gh pr merge <번호> --merge --match-head-commit <SHA>`. 에이전트는 그 한 줄을 적어 줄 뿐 실행하지 않습니다(헌법 10조).'
+// M08 G2(헌법 10조 효력 날 뒤): `master`로 가는 병합은 사람의 길, goal은 에이전트의 로컬 `git merge --no-ff`. 차단은 대상 브랜치와 관계없다.
+const MERGE_HINT = '`master`로 가는 병합은 사람이 합니다 — 현황판 병합 카드, 앱 PR 카드, GitHub 웹, 또는 사용자가 직접 치는 `gh pr merge <번호> --merge --match-head-commit <SHA>`. 에이전트는 그 한 줄을 적어 줄 뿐 실행하지 않습니다. goal PR은 에이전트가 로컬 `git merge --no-ff`로 마일스톤 브랜치에 합치고 그 브랜치를 push합니다 — GitHub가 PR을 병합됨으로 닫습니다. `gh pr merge`·병합 API는 대상 브랜치와 관계없이 쓰지 않습니다(헌법 10조).'
 // gh api에서 다음 낱말을 값으로 먹는 옵션 (gh 2.x `gh api --help`)
 const GH_API_VALUE_OPTS = new Set(['-X', '--method', '-H', '--header', '-f', '--raw-field', '-F', '--field', '--input', '-p', '--preview', '-q', '--jq', '-t', '--template', '--cache', '--hostname'])
 // `gh … api <끝점>`의 끝점 낱말 — `api` 낱말 뒤 첫 비옵션 낱말. 짧은 옵션 묶음(`-iX`)은 끝 글자가 값을 먹는 글자면 다음 낱말을 먹는다.

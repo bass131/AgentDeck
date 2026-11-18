@@ -167,6 +167,14 @@ describe('merge-deny 훅과 노드 정보 (M07 G8)', () => {
     const deny = await hook({ hook_event_name: 'PreToolUse', tool_name: 'Bash', tool_input: { command: 'gh pr merge 1' } }, 't1', { signal })
     expect(deny).toMatchObject({ hookSpecificOutput: { hookEventName: 'PreToolUse', permissionDecision: 'deny' } })
     expect(deny.hookSpecificOutput?.permissionDecisionReason).toMatch(/앱.*「병합」 버튼/)
+    // M08 G2(헌법 10조 효력 날 뒤): 이 노드는 작업 폴더와 관계없이 모든 앱 세션에 붙는다(sdkOptions). 안내는 작업 폴더 중립이다 —
+    //   호출 거부는 대상 브랜치와 관계없고, 로컬 병합은 저장소 규칙이 정해 둔 경우에만 그 조건을 따라 하며, 아니면 PR 생성까지만.
+    //   AgentDeck 저장소 전용 지시(「마일스톤 브랜치에 합치세요」)를 명령형으로 내리면 그 규칙이 없는 저장소에서 틀린다(G2 검수 중요 1).
+    const why = deny.hookSpecificOutput?.permissionDecisionReason ?? ''
+    expect(why).toMatch(/대상 브랜치와 관계없/)
+    expect(why).toMatch(/저장소 규칙이[^.]*로컬 병합[^.]*정해 두었으면[^.]*병합 조건을 따르/)
+    expect(why).toMatch(/아니면 PR 생성까지만/)
+    expect(why).not.toMatch(/마일스톤 브랜치에 합치고/)
     expect(await hook({ hook_event_name: 'PreToolUse', tool_name: 'Bash', tool_input: { command: 'gh pr view 1' } }, 't2', { signal })).toEqual({})
     expect(
       await hook({ hook_event_name: 'PreToolUse', tool_name: 'PowerShell', tool_input: { command: 'gh pr merge 1' } }, 't3', { signal })

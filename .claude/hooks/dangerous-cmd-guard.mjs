@@ -130,7 +130,32 @@ function tokenize(segment) {
 const WRAPPERS = new Set(['sudo', 'doas', 'env', 'nohup', 'time', 'nice', 'ionice', 'xargs', 'command', 'busybox'])
 const SHELLS = new Set(['sh', 'bash', 'dash', 'zsh', 'ksh', 'ash', 'sh.exe', 'bash.exe'])
 const FIND_EXEC = new Set(['-exec', '-execdir', '-ok', '-okdir'])
-const TIMEOUT_VALUE_OPTS = new Set(['-s', '-k', '--signal', '--kill-after'])
+// 래퍼 — 뒤의 낱말을 명령으로 실행한다. 값을 다음 낱말로 받는 옵션과 명령 앞의 위치 인자 수(`timeout <시간>`)를 적는다 (M07 G12).
+// 앱 잠금 노드 `02_Project/00_Source/main/04_Claude/permission/mergeDeny.ts`의 표와 같다. 위 WRAPPERS 집합은 heredoc 소비자 판독(stageHead)용으로 그대로 둔다.
+const WRAPPER_SPECS = new Map([
+  ['sudo', { valueOpts: ['-u', '-g', '-h', '-p', '-C', '-U', '-r', '-t', '-D', '-R', '-T', '--user', '--group', '--host', '--prompt', '--close-from', '--other-user', '--role', '--type', '--chdir', '--chroot', '--command-timeout'], positional: 0 }],
+  ['doas', { valueOpts: ['-u', '-C'], positional: 0 }],
+  ['env', { valueOpts: ['-u', '-C', '--unset', '--chdir'], positional: 0 }],
+  ['nohup', { valueOpts: [], positional: 0 }],
+  ['time', { valueOpts: ['-f', '-o', '--format', '--output'], positional: 0 }],
+  ['nice', { valueOpts: ['-n', '--adjustment'], positional: 0 }],
+  ['ionice', { valueOpts: ['-c', '-n', '-p', '-P', '-u', '--class', '--classdata', '--pid', '--pgid', '--uid'], positional: 0 }],
+  ['xargs', { valueOpts: ['-a', '-d', '-E', '-I', '-L', '-n', '-P', '-s', '--arg-file', '--delimiter', '--eof', '--replace', '--max-lines', '--max-args', '--max-procs', '--max-chars', '--process-slot-var'], positional: 0 }],
+  ['command', { valueOpts: [], positional: 0 }],
+  ['busybox', { valueOpts: [], positional: 0 }],
+  ['exec', { valueOpts: ['-a'], positional: 0 }],
+  ['timeout', { valueOpts: ['-s', '-k', '--signal', '--kill-after'], positional: 1 }],
+  ['stdbuf', { valueOpts: ['-i', '-o', '-e', '--input', '--output', '--error'], positional: 0 }],
+  ['watch', { valueOpts: ['-n', '--interval', '-q', '--equexit'], positional: 0 }],
+])
+const SHELL_HEAD_WORDS = new Set(['{', '}', '!', 'then', 'do', 'else', 'elif', 'if', 'while', 'until', 'eval'])
+// 옵션 낱말이 다음 낱말을 값으로 먹는가 — 붙여 쓴 값(`-oL`·`--signal=KILL`)은 먹지 않는다.
+// 짧은 묶음(`-vs`)은 끝 글자가 값 옵션이면 먹고, `=` 없는 긴 옵션은 값 옵션의 접두(`--sig`)면 먹는다(getopt_long 축약).
+function takesValue(spec, t) {
+  if (spec.valueOpts.includes(t)) return true
+  if (t.startsWith('--')) return !t.includes('=') && t.length > 3 && spec.valueOpts.some((o) => o.startsWith('--') && o.startsWith(t))
+  return /^-[A-Za-z]{2,}$/.test(t) && spec.valueOpts.includes('-' + t.at(-1))
+}
 const RE_ASSIGN = /^[A-Za-z_][A-Za-z0-9_]*=/   // `FOO=1` 류 환경변수 할당 토큰
 const RE_SHELL_C = /^-[A-Za-z]*c$/             // `-c`·`-lc`·`-ec` — 다음 토큰이 셸 스크립트 문자열
 
@@ -152,20 +177,18 @@ function commandsOf(rawTokens) {
   // 머리의 `VAR=값` 할당은 명령이 아니다 — 그 뒤 토큰이 명령 위치다 (M04 독립 검수 결함 7).
   // 종전에는 `FOO=1 git push origin master`의 머리 토큰이 `FOO=1`이라 어떤 규칙도 걸리지 않았다.
   // `DIRS=(src rm -rf)` 같은 배열 할당은 건너뛰지 않는다 — 괄호 안 원소가 명령으로 읽힌다 (재검수 오탐).
+  // 셸 문법 낱말(`then`·`do`·`!`·`{` …)과 `eval` 뒤도 명령 위치다 (M07 G12 검수 중요 2 — 앱 잠금 노드 `mergeDeny.ts`의 표와 같다).
   let head = 0
-  while (head < tokens.length - 1 && RE_ASSIGN.test(tokens[head]) && !tokens[head].includes('(')) head++
+  while (head < tokens.length - 1 && ((RE_ASSIGN.test(tokens[head]) && !tokens[head].includes('(')) || SHELL_HEAD_WORDS.has(tokens[head]))) head++
   const pos = new Set([head])
   let i = head
   while (i < tokens.length - 1) {
-    const w = low(baseName(tokens[i]))
+    const spec = WRAPPER_SPECS.get(low(baseName(tokens[i])).replace(/\.exe$/, ''))
+    if (!spec) break
     let j = i + 1
-    if (WRAPPERS.has(w)) {
-      while (j < tokens.length && (tokens[j].startsWith('-') || RE_ASSIGN.test(tokens[j]))) j++
-    } else if (w === 'timeout') {
-      // `timeout [옵션] <시간> <명령>` (M07 G12) — `-s`·`-k`·`--signal`·`--kill-after`는 붙여 쓰지 않으면 다음 낱말을 값으로 먹는다
-      while (j < tokens.length && tokens[j].startsWith('-')) j += TIMEOUT_VALUE_OPTS.has(tokens[j]) ? 2 : 1
-      j++ // 시간 낱말
-    } else break
+    // 옵션(값을 받는 옵션은 그 값까지)과 `VAR=값`을 건너뛰고, 위치 인자(`timeout`의 시간)를 건너뛴다
+    while (j < tokens.length && (tokens[j].startsWith('-') || RE_ASSIGN.test(tokens[j]))) j += takesValue(spec, tokens[j]) ? 2 : 1
+    j += spec.positional
     if (j >= tokens.length) break
     pos.add(j)
     i = j
@@ -414,6 +437,8 @@ function ghApiEndpoint(c) {
   for (i++; i < c.args.length; i++) {
     const t = c.args[i]
     if (t === '--') return ghWord(c.args[i + 1] ?? '')
+    // 리다이렉트 낱말(`>/dev/null`·`2>&1`·떨어진 `>` 뒤의 대상)은 끝점이 아니다 (검수 사소 4)
+    if (/^(\d*|&)[<>]/.test(t)) { if (/^(\d*|&)[<>]{1,2}$/.test(t)) i++; continue }
     if (!t.startsWith('-')) return ghWord(t)
     if (GH_API_VALUE_OPTS.has(t)) { i++; continue }
     if (t.startsWith('--')) continue
@@ -424,11 +449,12 @@ function ghApiEndpoint(c) {
   }
   return ''
 }
-const RE_PULL_MERGE = /(^|\/)pulls\/[^/?#]+\/merge\/?([?#].*)?$/i
+const RE_PULL_MERGE = /(^|\/)pulls\/[^/?#]+\/merge(-async)?\/?([?#].*)?$/i
 const RE_GRAPHQL = /(^|\/)graphql\/?([?#].*)?$/i
-const RE_GQL_MERGE = /mergePullRequest|enablePullRequestAutoMerge/i
+const RE_GQL_MERGE = /mergePullRequest|enablePullRequestAutoMerge|enqueuePullRequest/i
 const MERGE_BLOCK = [
-  { id: 'gh-pr-merge', why: 'PR 병합 (master 진입)', match: (c) => ghPr(c, 'merge') },
+  // 동사에 붙은 리다이렉트(`merge>/dev/null`)도 뗀다 — ghIs (검수 사소 5)
+  { id: 'gh-pr-merge', why: 'PR 병합 (master 진입)', match: (c) => ghIs(c, 'pr', ['merge']) },
   { id: 'gh-api-병합', why: 'gh api 병합 호출 (pulls/<번호>/merge 쓰기)', match: (c) => ghApi(c) && RE_PULL_MERGE.test(ghApiEndpoint(c)) && ghApiWrites(c.args) },
   { id: 'gh-graphql-병합', why: 'GraphQL 병합 변이 (mergePullRequest·enablePullRequestAutoMerge)', match: (c) => ghApi(c) && RE_GRAPHQL.test(ghApiEndpoint(c)) && c.args.some((t) => RE_GQL_MERGE.test(t)) },
 ]
@@ -484,7 +510,7 @@ function heredocDelims(line) {
     let word = ''
     while (j < line.length && HEREDOC_WORD.test(line[j])) word += line[j++]
     if (quote && line[j] === quote) j++
-    if (word) { out.push({ delim: word, dash }); i = j - 1 }
+    if (word) { out.push({ delim: word, dash, at: i }); i = j - 1 }
   }
   return out
 }
@@ -521,6 +547,26 @@ function allConsumersExempt(line) {
   const stages = splitSegments(line)
   return stages.length > 0 && stages.every(isExemptConsumer)
 }
+// heredoc 하나의 면제 — `<<`가 든 파이프라인만 소비자로 본다(논리 줄 판독 `logicalLines`와 같은 규칙).
+// `git add -A && git commit -F - <<'EOF'`의 `git add`는 본문을 받지 않는다 (M07 G12 검수 중요 1).
+// 파이프라인 단위 면제는 그룹·서브셸·명령 치환이 없는 평평한 줄에서만 쓴다 — `{ echo; cat <<EOF; } | bash`처럼
+// 묶음 밖의 소비자가 본문을 실행하는 꼴은 파이프라인 경계로 읽히지 않는다. 그 밖은 줄 전체 규칙 그대로다.
+// 줄마다 한 번만 훑는다 — heredoc이 많은 줄에서 제곱 시간이 되지 않게(큰 입력 시험).
+function heredocExemptFor(line) {
+  if (allConsumersExempt(line)) return () => true
+  if (/[(){}`]/.test(line)) return () => false
+  const ranges = pipelineRanges(line)
+  const memo = new Map()
+  const end = line.trimEnd().length
+  return (at) => {
+    const r = rangeAt(ranges, at)
+    // heredoc이 든 파이프라인이 줄의 마지막일 때만 — 뒤에 이어지는 실행(`cat <<EOF && bash run.sh`, HD-17)은 줄 전체 규칙이다
+    if (r[1] < end) return false
+    const key = r[0] + ':' + r[1]
+    if (!memo.has(key)) memo.set(key, allConsumersExempt(line.slice(r[0], r[1])))
+    return memo.get(key)
+  }
+}
 
 function stripExemptHeredocBodies(command) {
   const lines = command.split('\n')
@@ -531,8 +577,9 @@ function stripExemptHeredocBodies(command) {
     kept.push(line)
     const delims = heredocDelims(line)
     if (!delims.length) continue
-    const exempt = allConsumersExempt(line)
+    const exemptAt = heredocExemptFor(line)
     for (const d of delims) {
+      const exempt = exemptAt(d.at)
       while (i < lines.length) {
         const raw = lines[i++]
         const probe = (d.dash ? raw.replace(/^[\t ]+/, '') : raw).replace(/\r$/, '').trim()

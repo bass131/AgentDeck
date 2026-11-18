@@ -9,7 +9,8 @@
 - 로드맵: `01_Milestones/00_Roadmap.md` — M07 사용자 컨트롤(종결) → **M08 마일스톤 루프 장치** → M09 v1 줄기 → M10 설치본과 업데이트(후보).
 - 마일스톤 스펙: `01_Milestones/M08_MilestoneLoop/00_마일스톤-스펙.md` — 2026-11-18 합의. goal은 셋(병합 길 장치, 병합 경계 ADR과 안내 글, 마일스톤 회귀 검증과 마일스톤 PR)이고 합의 문답 없이 이어진다(헌법 11조).
 - 지난 goal: G1 병합 길 장치 — 종결 (PR 88, `525c57ce`, 사용자 병합). 이 병합이 헌법 10조 효력 날(2026-11-18)이다.
-- 현재 goal: **G2 병합 경계 ADR과 안내 글 (실행 중)** — `20_Goal-G2-병합-경계-ADR.md`, 브랜치 `feat/m08-g2-merge-adr`, 기준 `milestone/m08-milestone-loop`. 에이전트가 병합하는 goal이라 「병합 대기」 꼴을 쓰지 않는다. PR 89는 검수 반영 전에 사용자가 병합했고(`cfb70214`), 반영분은 후속 PR이다.
+- 지난 goal: G2 병합 경계 ADR과 안내 글 — 종결. PR 89는 검수 반영 전에 사용자가 병합했고(`cfb70214`), 반영분 PR 90은 에이전트가 정형 절차로 병합했다(`5d2ded6e`).
+- 현재 goal: **G3 마일스톤 회귀와 PR (실행 중)** — `30_Goal-G3-마일스톤-회귀와-PR.md`, 브랜치 `feat/m08-g3-milestone-close`, 기준 `milestone/m08-milestone-loop`.
 - 효력 날 뒤: `master`에서 `milestone/m08-milestone-loop`를 갈랐고(`525c57ce`), G2부터는 goal 브랜치를 그 위에서 갈라 에이전트가 로컬 `git merge --no-ff`로 병합하고 push한다. 병합 조건은 goal PR의 `hard-gates` 통과, 검증 기록 마지막 줄 `PASS`, 강 등급이면 독립 검수 반영이다.
 - goal 병합의 정형 절차(G1 독립 검수 중요 5·6): ① goal 브랜치의 마지막 커밋까지 push한다. ② `gh pr view <N> --json headRefOid,statusCheckRollup`으로 `hard-gates` 통과와 머리 SHA를 읽는다(`gh pr checks`·`gh run watch`는 allow 밖이라 무인 루프가 멈춘다). ③ `git fetch origin` 뒤 `git switch milestone/m08-milestone-loop`, `git merge --no-ff -m "<메시지>" origin/<goal 브랜치>` — `--no-ff`를 맨 앞에 두고 전략 옵션(`-s`·`-X`)은 쓰지 않는다. ④ 병합한 `origin/<goal 브랜치>`의 SHA가 ②의 머리 SHA와 같은지 확인한 뒤 `git push -u origin milestone/m08-milestone-loop`.
 - push는 항상 `-u origin <브랜치>`로 원격 브랜치를 명시합니다. `master`로 가는 병합은 사용자가 직접 합니다 — 에이전트는 PR 번호와 `gh pr merge <번호> --merge --match-head-commit <SHA>` 한 줄을 알립니다.

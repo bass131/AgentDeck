@@ -1,6 +1,6 @@
 # M07 G12 — 가드 병합 차단 · 위험 명령 가드가 병합을 묻지 않고 막는다
 
-- 마일스톤: M07 사용자 컨트롤 · 작성: 2026-11-18 · 상태: 실행 중 · 검증 강도: 강(판정 장치 변경)
+- 마일스톤: M07 사용자 컨트롤 · 작성: 2026-11-18 · 상태: 종결 (PR 81, master `afcb0006`) — 독립 검수 반영은 종결 기록 PR에서 · 검증 강도: 강(판정 장치 변경)
 - 작업 브랜치: `feat/m07-g12-guard-merge-block` — master `45bd65d6`(PR 80)에서 갈랐다.
 - 출발점: Backlog 23과 결정 대장 [USER] 두 줄.
 
@@ -41,8 +41,9 @@
 - [x] 4. 헌법 10조와 문서 — `CLAUDE.md`·`AGENTS.md` 같은 문장, `gate.md`
 - [x] 5. 하드 게이트 다섯 종, `npm test`
 - [x] 6. 실제 경로 — 없는 PR 번호로 대표 꼴을 보내 훅 로그를 본다
-- [>] 7. 커밋, push, PR 생성, pin 「(병합 대기, PR N)」, 병합 감시
-- [ ] 8. 독립 검수 1회와 반영, push, 결과 보고
+- [x] 7. 커밋, push, PR 생성, pin 「(병합 대기, PR N)」, 병합 감시
+- [x] 8. 독립 검수 1회와 반영, push, 결과 보고 — PR 81이 검수 도중 병합되어, 반영은 종결 기록 PR에서 한다
+- [x] 9. 검수 반영(판정 장치, 이름으로) — `dangerous-cmd-guard.mjs`(heredoc 면제의 파이프라인 단위 판정, 래퍼·제어 낱말 표, `timeout` 변형, 끝점의 리다이렉트, `merge-async`·`enqueuePullRequest`, `merge>` 동사), `dangerous-cmd-guard.test.mjs`
 
 실행 단계 일괄 승인 대상 (로드맵 일회 예외로 합의 문답 없이 시작한다)
 
@@ -60,6 +61,7 @@ DoD
 검증 기록
 
 - PASS 2026-11-18T12:55:54+09:00 — 1~6단계: 이 문서를 쓰고 `planPath`를 전환했다. 먼저 사용자의 `!` 병합이 훅을 지나는지 훅 로그로 봤다 — PR 74·77의 `!` 병합 줄이 없어 지나지 않는다. 가드 시험의 병합 기대를 차단으로 뒤집고 새 꼴(래퍼·`bash -c`·`timeout`·`gh api` 끝점·GraphQL)과 오탐 꼴(heredoc 커밋·PR 본문, `echo`·`grep`·`git log --grep`, 같은 끝점 GET)을 더해 실패 52건을 먼저 봤다. 가드에 `MERGE_BLOCK` 세 규칙(`gh-pr-merge`를 묻기에서 옮김, `gh-api-병합`, `gh-graphql-병합`), `timeout` 래퍼, 병합 길 안내를 넣었다. 짧은 옵션 묶음(`-Xput`)을 끝 글자로 잘못 읽던 첫 구현을 앞에서부터 읽게 고쳤다. 필드가 붙은 GraphQL 읽기를 무출력으로 기대한 내 단정은 기존 설계(gh가 POST로 보냄 → 묻기)와 어긋나 묻기로 고쳤다. 헌법 10조를 두 파일에 같게 고쳤다(조항 diff 0), `gate.md`도. 가드 시험 926 통과·실패 0, 동등성 100 통과(GH-04 deny), 하드 게이트 다섯 종 exit 0, `npm test` 8,153 통과·실패 0(12:52:24 시작). 이 세션에서 없는 PR 999999로 다섯 꼴(`gh pr merge`, `bash -c`, `timeout 30`, `gh api -X PUT …/pulls/999999/merge`, GraphQL `mergePullRequest`)을 보내 모두 질문 없이 차단됐고 훅 로그에 `deny gh-pr-merge`·`gh-api-병합`·`gh-graphql-병합`이 남았다. `echo "gh pr merge 999999 --merge"`는 그대로 실행됐다.
+- PASS 2026-11-18T14:12:29+09:00 — 7~9단계와 종결: PR 81을 열고 감시를 걸었다. 사용자가 PR 81을 독립 검수 도중 병합했다(GitHub 재조회 — `MERGED` 2026-11-18T04:00:04Z, 병합 커밋 `afcb0006`, 머리 `800817e6`, 병합자 bass131). 검수자(Opus, 구현 문맥 없음)는 차단 0, 중요 3, 사소 7을 냈고 기준 가드 대비 약 190개 명령에서 「묻기·차단→통과」 회귀 0건을 확인했다. 반영은 master에서 딴 종결 기록 브랜치에서 했다. 중요 1(루프의 `git add … && git commit -F - <<'EOF'` 꼴에서 본문의 병합 한 줄을 차단하는 오탐): heredoc 면제를 그 heredoc이 든 파이프라인으로 판정하되, 그룹·서브셸·명령 치환이 없고 그 파이프라인이 줄의 마지막일 때만 쓴다(첫 구현은 `{ echo; cat <<EOF; } | bash` 면제와 HD-17 회귀, 큰 입력 52초를 냈고 고쳤다). 중요 2·3: 앱 잠금 노드의 래퍼·제어 낱말 표를 가드 `commandsOf`로 옮기고(`for … do`·`then`·`!`·`exec`·`eval`·`sudo -u`·`xargs -n`·`stdbuf`·`nice -n`), `timeout.exe`·`-vs`·`--sig`를 읽는다. 사소: 끝점 앞 리다이렉트, `merge>` 동사, `merge-async`, `enqueuePullRequest`. 나머지(`--body-file -` 면제, `-X GET -f`, `2>&1` 뒤 끝점)는 Backlog 34. 새 단정은 실패 24건을 먼저 봤다. 가드 시험 971 통과·실패 0, 훅 시험 전부 통과, 하드 게이트 다섯 종 exit 0, `npm test` 8,153 통과·실패 0(14:09:14 시작).
 
 ## 결정 대장
 

@@ -615,6 +615,61 @@ try {
     'timeout 30 npm test',
     'timeout 600 gh pr checks 12 --watch',
   ]) expectSilent(cmd)
+  // PR 81 검수 반영 — 제어 낱말·값을 받는 래퍼 옵션 뒤, `timeout` 변형, 리다이렉트 낀 끝점, 병합 큐·merge-async
+  for (const cmd of [
+    'for n in 81 82; do gh pr merge $n --merge; done',
+    'if gh pr checks 81; then gh pr merge 81 --merge; fi',
+    '! gh pr merge 12',
+    'exec gh pr merge 12',
+    'eval gh pr merge 12',
+    'sudo -u root gh pr merge 12',
+    'env -u X gh pr merge 12',
+    'echo 12 | xargs -n 1 gh pr merge',
+    'xargs -I {} gh pr merge {}',
+    'stdbuf -oL gh pr merge 12',
+    'nice -n 10 gh pr merge 12',
+    'timeout.exe 30 gh pr merge 12',
+    'timeout -vs KILL 30 gh pr merge 12',
+    'timeout --sig KILL 30 gh pr merge 12',
+    'timeout --kill 5 30 gh pr merge 12',
+    'timeout 30 sudo gh pr merge 12',
+    'sudo timeout 30 gh pr merge 12',
+    'gh api -X PUT >/dev/null repos/o/r/pulls/12/merge',
+    'gh api -X PUT 2>/dev/null repos/o/r/pulls/12/merge',
+    'gh api -X PUT > out.json repos/o/r/pulls/12/merge',
+    'gh pr merge>/dev/null 12',
+    'gh api -X PUT repos/o/r/pulls/12/merge-async',
+    'gh api graphql -f query=\'mutation { enqueuePullRequest(input: {pullRequestId: "x"}) { clientMutationId } }\'',
+    // `timeout`은 다른 규칙에도 감싸지 않은 꼴과 같은 판정을 낸다
+    'timeout 60 git push --force origin chore/x',
+    'timeout 60 rm -rf dist',
+  ]) expectDeny(cmd)
+  for (const cmd of ['timeout 60 npm publish', 'timeout 60 git push origin master', 'sudo -u root git push origin master']) expectAsk(cmd)
+  // `2>&1` 뒤의 낱말은 기준 판독이 다른 세그먼트로 읽는다(위 「기준 판독이 못 읽는 꼴」) — 끝점을 못 읽어도 쓰기라 묻기로 남는다
+  expectNoPass('gh api -X PUT 2>&1 repos/o/r/pulls/12/merge')
+  // 값을 받는 래퍼 옵션의 값은 명령이 아니다 — `nice -n 10 ls`의 `10`, `sudo -u rm ls`의 `rm`
+  for (const cmd of ['nice -n 10 ls', 'sudo -u rm ls -la', 'xargs -I rm echo rm', 'timeout -s rm 5 ls']) expectSilent(cmd)
+  // 루프가 실제로 쓰는 커밋·PR 꼴 — `&&` 앞 단계가 있어도 heredoc 본문은 면제 소비자의 본문이다 (검수 중요 1)
+  for (const cmd of [
+    "git add -A && git commit -q -F - <<'EOF'\nfix: x\n\ngh pr merge 81 --merge --match-head-commit abc\ngh api -X PUT repos/o/r/pulls/999999/merge\ntimeout 30 gh pr merge 999999\nEOF",
+    "cd x && git add -A && git commit -F - <<'EOF'\ntimeout 60 git push --force\nEOF",
+    "gh pr create --base master --head feat/x --title t --body \"$(cat <<'EOF'\ngh pr merge 81 --merge --match-head-commit abc\nEOF\n)\"",
+    'for f in a b; do echo "$f"; done',
+    'if true; then echo gh pr merge 12; fi',
+    'timeout 15 tail -f /dev/null',
+    'timeout 600 npx vitest run',
+  ]) expectSilent(cmd)
+  // 파일로 남는 heredoc(`cat > 파일`)과 실행되는 소비자(`| sh`)는 여전히 면제가 아니다
+  expectDeny("cat <<'EOF' | sh\ngh pr merge 12\nEOF")
+  expectDeny("git add -A && cat <<'EOF' | bash\ngh pr merge 12\nEOF")
+  expectDeny("git add -A && { echo set -e; cat <<'EOF'; } | bash\ngh pr merge 12\nEOF")
+  expectDeny("git add -A && git commit -F - <<'EOF' && bash run.sh\ngh pr merge 12\nEOF") // 뒤에 실행이 이어지면 줄 전체 규칙(HD-17)
+  {
+    const cmd = "git add -A && git commit -q -F - <<'EOF'\n" + 'gh pr merge 1 --merge\n'.repeat(3000) + 'EOF'
+    const t0 = Date.now()
+    const d = decision(cmd)
+    r.check(`긴 커밋 본문 ${cmd.length}자 → 무출력, 2초 안`, d === 'silent' && Date.now() - t0 < 2000, `실측 ${d} · ${Date.now() - t0}ms`)
+  }
   // 쓰기지만 병합이 아닌 gh api — 지금처럼 묻는다(본문 글에 병합 끝점 글자가 있어도). 필드가 붙은 GraphQL 읽기도 gh가 POST로 보내 묻는다
   for (const cmd of [
     'gh api graphql -f query=\'{ repository(owner:"o", name:"r") { pullRequest(number: 12) { mergeable } } }\'',

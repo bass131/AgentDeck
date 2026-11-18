@@ -32,6 +32,7 @@
 //   교차 구동해 moodie 열을 실측 대조한다(원본 저장소가 없으면 건너뛴다). 둘 다 test:hooks 기본 경로 밖이다.
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { pathToFileURL } from 'node:url'
 import { createRunner } from './_lib/runner.mjs'
 import { createGuardHarness, REPO_ROOT, SYNTHETIC } from './_lib/guard-spawn.mjs'
 
@@ -166,6 +167,40 @@ const PAYLOAD_ROWS = [
   { id: 'FC-03', payload: { tool_name: 'Read', tool_input: { file_path: 'a.ts' } }, moodie: 'allow', expect: 'allow', flag: false, note: '판정 대상 없음 — 조용히 통과' },
 ]
 
+// 가드와 앱 잠금 노드(mergeDeny.ts)의 같음 (M09 G3) — 두 판정기의 래퍼 표는 주석상 같은 표다(가드 WRAPPER_SPECS, 앱 WRAPPERS).
+//   이 구획은 M02 기준표(사람용 정본)의 행이 아니라 따로 둔다. Moodie 열이 없다.
+//   ① 두 표의 행 글이 같다(env 행의 `-S` 판독 칸 포함). ② 같은 명령에 두 판정기가 같은 병합 판정을 낸다 — 가드는 spawn,
+//   앱은 Node의 타입 지우기로 mergeDeny.ts를 직접 읽는다(로컬·CI 모두 Node 24). 병합 축만 비교한다 — 앱 노드는 병합만 본다.
+const APP_MERGE_DENY = join(REPO_ROOT, '02_Project', '00_Source', 'main', '04_Claude', 'permission', 'mergeDeny.ts')
+const GUARD_SOURCE = join(REPO_ROOT, '.claude', 'hooks', 'dangerous-cmd-guard.mjs')
+const ENV_SPLIT_ROWS = [
+  { id: 'ES-01', cmd: 'env -S "gh pr merge 1"', expect: 'deny' },
+  { id: 'ES-02', cmd: 'env -S"gh pr merge 1"', expect: 'deny' },
+  { id: 'ES-03', cmd: 'env -vS "gh pr merge 1"', expect: 'deny' },
+  { id: 'ES-04', cmd: 'env --split-string="gh pr merge 1"', expect: 'deny' },
+  { id: 'ES-05', cmd: 'env -S "gh api -X PUT repos/o/r/pulls/1/merge"', expect: 'deny' },
+  { id: 'ES-06', cmd: 'env --split-string "gh pr merge 1"', expect: 'deny' },
+  { id: 'ES-07', cmd: 'env --sp "gh pr merge 1"', expect: 'deny' },
+  { id: 'ES-08', cmd: 'env -S "-i FOO=1 gh pr merge 1"', expect: 'deny' },
+  { id: 'ES-09', cmd: 'env -S "bash -c" "gh pr merge 1"', expect: 'deny' },
+  { id: 'ES-10', cmd: 'env -u X -S "gh pr merge 1"', expect: 'deny' },
+  { id: 'ES-11', cmd: 'env -S "npm test"', expect: 'allow' },
+  { id: 'ES-12', cmd: 'env FOO=1 npm test', expect: 'allow' },
+  { id: 'ES-13', cmd: 'env -u X ls', expect: 'allow' },
+  { id: 'ES-14', cmd: 'env -S "npm test" "a; gh pr merge 1"', expect: 'allow' },
+  { id: 'ES-15', cmd: 'env -u S npm test', expect: 'allow' },
+  { id: 'ES-16', cmd: 'echo \'env -S "gh pr merge 1"\'', expect: 'allow' },
+  // G3 검수 반영 — 값 안의 낱말 머리 `#`는 값 끝까지만 주석이고(중요 1), `-a`는 값을 받는다(사소 2)
+  { id: 'ES-17', cmd: 'env -S "#" gh pr merge 1', expect: 'deny' },
+  { id: 'ES-18', cmd: 'env -S "gh pr #" merge 1', expect: 'deny' },
+  { id: 'ES-19', cmd: 'env -S "gh api #" -X PUT repos/o/r/pulls/1/merge', expect: 'deny' },
+  { id: 'ES-20', cmd: 'env -S \'FOO="a #b" gh pr merge 1\'', expect: 'deny' },
+  { id: 'ES-21', cmd: 'env -S "x #" gh pr merge 1', expect: 'allow' },
+  { id: 'ES-22', cmd: 'env -a x -S "gh pr merge 1"', expect: 'deny' },
+]
+// 표의 행 — `['이름', { valueOpts: … }]` 꼴의 줄을 글 그대로 모은다
+const wrapperRows = (path) => readFileSync(path, 'utf8').split('\n').map((l) => l.trim()).filter((l) => /^\['[a-z]+', \{ valueOpts: /.test(l))
+
 const report = process.argv.includes('--report')
 const crossMoodie = process.argv.includes('--moodie')
 const r = createRunner('cmd-guard 동등성 기준표')
@@ -182,6 +217,24 @@ try {
     const actual = 'raw' in row ? h.verdictRaw(row.raw) : h.verdictPayload(row.payload)
     if (report) console.log(`${row.id}\t실측 ${actual}\t기대 ${row.expect}\tflag ${row.flag}\tMoodie ${row.moodie}`)
     r.judge(label(row), actual, row.expect, { expectFail: row.flag, note: row.note })
+  }
+
+  // ── 가드와 앱 잠금 노드의 같음 (M09 G3) ─────────────────────────────────────
+  {
+    const guardRows = wrapperRows(GUARD_SOURCE)
+    const appRows = wrapperRows(APP_MERGE_DENY)
+    r.check('래퍼 표 — 가드와 앱 잠금 노드의 행 글이 같다', guardRows.length > 0 && JSON.stringify(guardRows) === JSON.stringify(appRows),
+      `가드 ${guardRows.length}행 · 앱 ${appRows.length}행`)
+    const envRow = guardRows.find((l) => l.startsWith("['env',"))
+    r.check('래퍼 표 — env 행에 -S 판독 칸이 있다', /split: \{ short: 'S'/.test(envRow ?? ''), envRow ?? '(env 행 없음)')
+    const { mergeDenyReason } = await import(pathToFileURL(APP_MERGE_DENY).href)
+    for (const row of ENV_SPLIT_ROWS) {
+      const guard = h.verdict(row.cmd)
+      const app = mergeDenyReason(row.cmd) === null ? 'allow' : 'deny'
+      if (report) console.log(`${row.id}\t가드 ${guard}\t앱 ${app}\t기대 ${row.expect}`)
+      r.judge(`${label(row)} 가드`, guard, row.expect)
+      r.judge(`${label(row)} 앱`, app, row.expect)
+    }
   }
 
   // ── 격리 규율 자체를 판정한다 (Phase 1 DoD) ────────────────────────────────

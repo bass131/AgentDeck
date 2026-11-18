@@ -664,6 +664,83 @@ try {
   expectDeny("git add -A && cat <<'EOF' | bash\ngh pr merge 12\nEOF")
   expectDeny("git add -A && { echo set -e; cat <<'EOF'; } | bash\ngh pr merge 12\nEOF")
   expectDeny("git add -A && git commit -F - <<'EOF' && bash run.sh\ngh pr merge 12\nEOF") // 뒤에 실행이 이어지면 줄 전체 규칙(HD-17)
+
+  // ── env -S 다시 판독 (M09 G3) ──
+  // GNU env의 `-S`(`--split-string`)는 문자열을 낱말로 나눠 그 자리에 끼우고 옵션 읽기를 잇는다. 가드는 그 문자열과 뒤 낱말을
+  // 셸 `-c`처럼 명령으로 다시 읽어 가드의 모든 규칙을 건다. 거부 사유는 감싸지 않은 꼴의 규칙 이름(로그 rule)으로 단정한다 —
+  // 훅 내부 오류도 exit 2라 exit만 보면 거짓 초록이 난다. 앱 잠금 노드 mergeDeny.test.ts에 같은 사례가 있다.
+  console.log('env -S — 문자열을 명령으로 다시 읽어 같은 규칙을 건다')
+  const expectDenyRule = (cmd, rule) => {
+    const res = h.run(cmd)
+    const last = h.logLines().at(-1)
+    r.check(`${label(cmd)} → 차단 ${rule}`, res.code === 2 && last?.verdict === 'deny' && last?.rule === rule,
+      `exit ${res.code} · ${last?.verdict} ${last?.rule}`)
+  }
+  for (const [cmd, rule] of [
+    ['env -S "gh pr merge 1"', 'gh-pr-merge'],
+    ['env -S"gh pr merge 1"', 'gh-pr-merge'],
+    ['env -vS "gh pr merge 1"', 'gh-pr-merge'],
+    ['env --split-string="gh pr merge 1"', 'gh-pr-merge'],
+    ['env -S "gh api -X PUT repos/o/r/pulls/1/merge"', 'gh-api-병합'],
+    ['env --split-string "gh pr merge 1"', 'gh-pr-merge'],
+    ['env --split "gh pr merge 1"', 'gh-pr-merge'],
+    ['env --sp="gh pr merge 1"', 'gh-pr-merge'],
+    ['env --s "gh pr merge 1"', 'gh-pr-merge'],
+    ['env -iS "gh pr merge 1"', 'gh-pr-merge'],
+    ['env -0vS"gh pr merge 1"', 'gh-pr-merge'],
+    ['env -S "gh pr" merge 1', 'gh-pr-merge'],
+    ['env -S "-i gh pr merge 1"', 'gh-pr-merge'],
+    ['env -S "FOO=1 gh pr merge 1"', 'gh-pr-merge'],
+    ['env -u X -S "gh pr merge 1"', 'gh-pr-merge'],
+    ['env -C /tmp -S "gh pr merge 1"', 'gh-pr-merge'],
+    ['env --unset X --debug -S "gh pr merge 1"', 'gh-pr-merge'],
+    ["env -S \"env -S 'gh pr merge 1'\"", 'gh-pr-merge'],
+    ["env -S \"bash -c 'gh pr merge 1'\"", 'gh-pr-merge'],
+    ['env -S "bash -c" "gh pr merge 1"', 'gh-pr-merge'],
+    ['sudo env -S "gh pr merge 1"', 'gh-pr-merge'],
+    ['/usr/bin/env -S "gh pr merge 1"', 'gh-pr-merge'],
+    ['ENV.EXE -S "gh pr merge 1"', 'gh-pr-merge'],
+    ['npm test && env -S "gh pr merge 1"', 'gh-pr-merge'],
+    ["bash -c 'env -S \"gh pr merge 1\"'", 'gh-pr-merge'],
+    ['env -S "gh api graphql -f query=\'mutation { mergePullRequest(input: {}) { clientMutationId } }\'"', 'gh-graphql-병합'],
+    // G3 검수 중요 1 — env는 값 안의 낱말 머리 `#`부터 값 끝까지만 버리고 뒤 낱말은 그대로 돈다
+    ['env -S "#" gh pr merge 1', 'gh-pr-merge'],
+    ['env -S "#c" gh pr merge 1', 'gh-pr-merge'],
+    ['env -S "gh pr #" merge 1', 'gh-pr-merge'],
+    ['env -S "gh #" pr merge 1', 'gh-pr-merge'],
+    ['env -S "gh pr #x y" merge 1', 'gh-pr-merge'],
+    ['env -S "gh api #" -X PUT repos/o/r/pulls/1/merge', 'gh-api-병합'],
+    ['env -S \'FOO="a #b" gh pr merge 1\'', 'gh-pr-merge'], // 따옴표 안의 `#`는 주석이 아니다
+    // G3 검수 사소 2 — `-a`(`--argv0`)는 값을 받는다
+    ['env -a x -S "gh pr merge 1"', 'gh-pr-merge'],
+    ['env --argv0 x -S "gh pr merge 1"', 'gh-pr-merge'],
+    // 병합 밖의 규칙도 같은 판정이다
+    ['env -S "rm -rf dist"', 'rm-재귀·강제'],
+    ['env -S "git push --force origin chore/x"', 'force-push'],
+  ]) expectDenyRule(cmd, rule)
+  expectAsk('env -S "git push origin master"')
+  expectAsk('env -S "npm publish"')
+  for (const cmd of [
+    'env -S "npm test"',
+    'env FOO=1 npm test',
+    'env -u X ls',
+    'env -S "gh pr view 1"',
+    'env -S "echo gh pr merge 1"',
+    'env -S "npm test" "a; gh pr merge 1"', // 뒤 낱말은 낱말 하나다 — 그 안의 `;`는 구분자가 아니다
+    'env -S "x #" gh pr merge 1', // 값의 주석을 버리면 `x`가 명령이다(gh는 x의 인자)
+    'env -S "echo \'#\'" gh pr merge 1', // 따옴표 안의 `#`는 글자다 — echo의 인자
+    'env -u S npm test',
+    'env -uS "npm test"', // 묶음에서 값 옵션이 먼저 오면 그 뒤 글자는 값이다
+    'env --unset=S npm test',
+    'env -S',
+    'env -S ""',
+    'env -- -S "gh pr merge 1"',
+    'env -S "git push origin chore/x"',
+    'echo \'env -S "gh pr merge 1"\'',
+    'git commit -m \'env -S "gh pr merge 1" 차단\'',
+    "git commit -F - <<'EOF'\nfix: x\n\nenv -S \"gh pr merge 1\" 차단\nEOF",
+    "gh pr create --title t --body \"$(cat <<'EOF'\nenv -S \"gh pr merge 1\" 도 거부된다\nEOF\n)\"",
+  ]) expectSilent(cmd)
   {
     const cmd = "git add -A && git commit -q -F - <<'EOF'\n" + 'gh pr merge 1 --merge\n'.repeat(3000) + 'EOF'
     const t0 = Date.now()

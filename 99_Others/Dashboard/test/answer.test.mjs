@@ -29,7 +29,8 @@ async function appFor(t, opts = {}) {
   const state = { list, typed: [] };
   const collectFn = async (repo, opts) => ({ schema: 'ad-dashboard/1', revision: opts.revision, collectedAt: '2026-11-16T04:40:00+09:00', sources: [], decisions: state.list });
   const typeFn = type || (async (h, text) => { state.typed.push([h, text]); return { ok: true }; });
-  const app = await createDashboard({ repoPath: 'C:/fake', port: 0, mainTerminalHandle: handle }, { collectFn, watchFn: fakeWatch(), pingMs: 60000, type: typeFn });
+  // 메인 터미널 찾기(M07 G13)는 끈다 — 이 파일은 설정 handle 길을 본다. 찾기 길은 find-main.test.mjs가 본다
+  const app = await createDashboard({ repoPath: 'C:/fake', port: 0, mainTerminalHandle: handle }, { collectFn, watchFn: fakeWatch(), pingMs: 60000, type: typeFn, findMain: null });
   t.after(() => app.close());
   const html = await (await fetch(app.origin)).text();
   const boot = JSON.parse(html.match(/<script type="application\/json" id="bootstrap">(.*?)<\/script>/s)[1]);
@@ -92,6 +93,12 @@ test('403: no token, a wrong token of any length, a foreign or missing Origin, a
     }
   }
   assert.deepEqual(app.state.typed, []);
+});
+
+test('server.mjs: the insert button shows when a handle is configured or the main terminal finder is wired (M07 G13), in the snapshot and the preview alike', async () => {
+  const src = await fsp.readFile(new URL('../server.mjs', import.meta.url), 'utf8');
+  assert.match(src, /next\.answer = \{ canType: !!handle \|\| !!findMain \};/);
+  assert.match(src, /json\(response, 200, \{ ok: true, line, canType: !!handle \|\| !!findMain \}\)/);
 });
 
 test('400 and 413: not JSON, a broken JSON body, a body over 64 KB', async t => {

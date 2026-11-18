@@ -155,14 +155,32 @@ export class FakeGit implements GitPort {
     return last(this.local.get(branch))
   }
   async isAncestor(sha: string, ref: string): Promise<boolean> { return this.local.get(ref)?.includes(sha) ?? false }
+  // 병합 커밋의 부모(첫 부모, 병합한 머리). 그 밖의 커밋은 목록에서 바로 앞 커밋 하나를 부모로 본다.
+  readonly parentsOf = new Map<string, string[]>()
   async mergeNoFf(sha: string, message: string): Promise<string> {
     this.calls.push(`merge ${sha} ${message}`)
     const hist = this.local.get(this.current) ?? []
+    const before = last(hist)
     const src = [...this.local.values()].find((h) => h.includes(sha)) ?? [sha]
     for (const x of src.slice(0, src.indexOf(sha) + 1)) if (!hist.includes(x)) hist.push(x)
     const merged = this.sha('m')
     hist.push(merged)
+    this.parentsOf.set(merged, before ? [before, sha] : [sha])
     return merged
+  }
+  async remoteSha(branch: string): Promise<string | null> {
+    this.calls.push(`remoteSha ${branch}`)
+    return last(this.remote.get(branch))
+  }
+  async parents(sha: string): Promise<string[]> {
+    const known = this.parentsOf.get(sha)
+    if (known) return known
+    for (const h of this.local.values()) {
+      const i = h.indexOf(sha)
+      if (i > 0) return [h[i - 1]]
+      if (i === 0) return []
+    }
+    return []
   }
   async diffStat(base: string): Promise<FileChange[] | null> {
     this.calls.push(`diffStat ${base}`)
@@ -269,8 +287,11 @@ export class FakeReview implements ReviewPort {
 // 앱 영역의 다이제스트 저장소 흉내 — 실행기가 쓴 값만 담는다.
 export class FakeDigestStore implements DigestStore {
   readonly digests = new Map<string, string>()
+  readonly latches = new Map<string, string>()
   async read(repoKey: string): Promise<string | null> { return this.digests.get(repoKey) ?? null }
   async write(repoKey: string, hash: string): Promise<void> { this.digests.set(repoKey, hash) }
+  async readLatch(repoKey: string): Promise<string | null> { return this.latches.get(repoKey) ?? null }
+  async writeLatch(repoKey: string, reason: string): Promise<void> { this.latches.set(repoKey, reason) }
   // 시험이 상태 파일을 「실행기가 쓴 것」으로 놓을 때 쓴다(예: 옛 앱이 쓴 스키마 밖 상태).
   adopt(cwd: string, files: FakeFs): void {
     const text = files.files.get(DOCS.runState)

@@ -82,6 +82,37 @@ describe('브랜치·머리·커밋·push', () => {
   })
 })
 
+// G2 검수 중요 4 — 실행기가 원격과 로컬을 대조하는 데 쓰는 읽기
+describe('remoteSha·parents', () => {
+  it('원격 머리를 ls-remote로 읽고, 원격에 없는 브랜치는 null이다', async () => {
+    expect(await git.remoteSha('master')).toBe(remoteHead('master'))
+    expect(await git.remoteSha('no-such-branch')).toBeNull()
+    write('a.txt', 'a\n')
+    await git.commitAll('로컬만')
+    expect(await git.remoteSha('master')).not.toBe(await git.headSha('master'))
+  })
+
+  it('병합 커밋의 부모는 첫 부모, 병합한 머리 순이다', async () => {
+    const base = await git.headSha('master') as string
+    await git.createBranch('side', 'master')
+    await git.checkout('side')
+    write('s.txt', 's\n')
+    const side = await git.commitAll('옆')
+    await git.checkout('master')
+    const merged = await git.mergeNoFf(side, '병합')
+    expect(await git.parents(merged)).toEqual([base, side])
+    expect(await git.parents(side)).toEqual([base])
+  })
+
+  it('작업 저장소의 훅 폴더가 아니라 주어진 hooksPath가 없으면(존재하지 않는 경로) 훅 없이 돈다', async () => {
+    const none = createGitPort({ cwd: repos.work, env: repos.env, hooksPath: path.join(repos.root, 'never', 'hooks') })
+    write('.git/hooks/pre-commit', '#!/bin/sh\nexit 1\n')
+    fs.chmodSync(path.join(repos.work, '.git/hooks/pre-commit'), 0o755)
+    write('y.txt', 'y\n')
+    await expect(none.commitAll('훅 없음')).resolves.toMatch(/^[0-9a-f]{40}$/)
+  })
+})
+
 describe('.agentdeck/ 추적 제외', () => {
   it('exclude 줄이 없으면 한 번 더하고, 있으면 그대로 둔다 — 상태 파일은 변경으로 잡히지 않는다', async () => {
     expect(await ensureAgentdeckExcluded(repos.work, repos.env)).toBe('added')

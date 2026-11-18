@@ -1,6 +1,7 @@
 // M09 G2 — 실물 git 포트(git CLI). ports.ts의 GitPort 계약을 그대로 구현한다.
 // 실행기 자신의 git이라 일반 환경(자격 있음)으로 돈다. 다만 작업 저장소의 훅은 돌리지 않는다 — hooksPath를 빈 폴더로 준다.
-// 훅은 작업 세션이 쓸 수 있는 코드라, 자격 있는 실행기 환경에서 돌면 안 된다.
+// 훅은 작업 세션이 쓸 수 있는 코드라, 자격 있는 실행기 환경에서 돌면 안 된다. hooksPath는 만들지 않는 앱 영역 경로다.
+// 설정도 같다 — guard(configGuard.ts)를 주면 모든 git 호출 직전에 설정 스냅숏을 대조하고, 다르면 그 호출을 돌리지 않고 던진다.
 //   hasChanges  status --porcelain(untracked 포함). `.agentdeck/`는 info/exclude로 추적 밖이라 잡히지 않는다.
 //   diffStat    진짜 인덱스를 복사한 임시 인덱스(GIT_INDEX_FILE, 저장소 밖)에 add -A 한 뒤 diff --cached --numstat --no-renames.
 //               그래서 untracked가 들어가고, rename은 지운 옛 경로와 더한 새 경로로 따로 나오며, 바이너리는 「-」라 null이다.
@@ -22,15 +23,20 @@ export interface GitPortOptions {
   timeoutMs?: number
   // 작업 저장소의 훅 대신 쓸 빈 폴더. 주지 않으면 저장소 설정의 훅이 돈다.
   hooksPath?: string
+  // 모든 git 호출 직전의 설정 대조. 던지면 그 호출을 돌리지 않는다.
+  guard?: { assert(): Promise<void> }
 }
 
 export const AGENTDECK_EXCLUDE = '.agentdeck/'
 
 type Git = (args: string[], extraEnv?: NodeJS.ProcessEnv) => Promise<ProcessResult>
 
-function makeGit(cwd: string, env: NodeJS.ProcessEnv, timeoutMs: number, hooksPath?: string): Git {
+function makeGit(cwd: string, env: NodeJS.ProcessEnv, timeoutMs: number, hooksPath?: string, guard?: GitPortOptions['guard']): Git {
   const pre = ['-c', 'core.quotepath=false', ...(hooksPath ? ['-c', `core.hooksPath=${hooksPath.replace(/\\/g, '/')}`] : [])]
-  return (args, extraEnv) => runProcess('git', [...pre, ...args], { cwd, env: extraEnv ? { ...env, ...extraEnv } : env, timeoutMs })
+  return async (args, extraEnv) => {
+    await guard?.assert()
+    return runProcess('git', [...pre, ...args], { cwd, env: extraEnv ? { ...env, ...extraEnv } : env, timeoutMs })
+  }
 }
 
 function failure(args: string[], r: ProcessResult): Error {
@@ -63,7 +69,7 @@ export function parseNumstatZ(out: string): FileChange[] {
 export function createGitPort(opts: GitPortOptions): GitPort {
   const remote = opts.remote ?? 'origin'
   const env = opts.env ?? process.env
-  const git = makeGit(opts.cwd, env, opts.timeoutMs ?? 120_000, opts.hooksPath)
+  const git = makeGit(opts.cwd, env, opts.timeoutMs ?? 120_000, opts.hooksPath, opts.guard)
 
   const resolve = async (ref: string): Promise<string | null> => {
     const r = await git(['rev-parse', '--verify', '--quiet', `${ref}^{commit}`])
@@ -107,6 +113,17 @@ export function createGitPort(opts: GitPortOptions): GitPort {
     async push(branch) {
       const b = safeName(branch)
       await must(git, ['push', '--quiet', '--no-verify', remote, `refs/heads/${b}:refs/heads/${b}`])
+    },
+    async remoteSha(branch) {
+      const b = safeName(branch)
+      const ls = await git(['ls-remote', '--exit-code', '--heads', remote, `refs/heads/${b}`])
+      if (ls.code === 2) return null
+      if (ls.code !== 0) throw failure(['ls-remote'], ls)
+      return ls.stdout.trim().split(/\s+/)[0] || null
+    },
+    async parents(sha) {
+      const out = await must(git, ['rev-list', '--parents', '-n', '1', safeName(sha), '--'])
+      return out.trim().split(/\s+/).slice(1)
     },
     async syncToRemote(branch) {
       const b = safeName(branch)

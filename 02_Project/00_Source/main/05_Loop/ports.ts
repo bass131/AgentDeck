@@ -5,8 +5,12 @@
 // G2에서 정한 것
 // - `.agentdeck/`는 작업 저장소의 `.git/info/exclude`로 추적 밖이다(openLoop가 시작할 때 더한다). 그래서 commitAll·hasChanges·
 //   diffStat에 실리지 않는다.
-// - 상태 파일 위조는 앱 쪽 다이제스트(DigestStore)가 막는다 — 실행기가 run-state.json을 쓸 때마다 그 정규 JSON의 sha256을
-//   작업 저장소 밖에 적고, 읽을 때 다르면 멈춘다. 작업 세션의 `.agentdeck/` 쓰기 거부(잠금 노드)는 G2 2차분의 첫 겹이다.
+// - 상태 파일 위조의 겹은 둘이다. 루프 잠금 노드(04_Claude/permission/loopLock.ts)가 편집 도구와 순진한 Bash 편집을 잡고,
+//   앱 쪽 다이제스트(DigestStore)가 실행기가 쓴 정규 JSON의 sha256을 작업 저장소 밖에 적어 읽을 때 다르면 멈춘다.
+//   다이제스트는 편집 도구와 순진한 Bash 편집을 잡는 겹이다 — 키 없는 해시라 세션이 앱 영역에 쓰면 맞출 수 있다(보증이 아니다).
+//   한 번 불일치를 보면 위조 래치(DigestStore.writeLatch + 실행기 메모리)가 걸려, 사람이 풀기 전까지 짝이 맞아도 멈춘다(푸는 길은 G3).
+// - 실행기 git(자격 있음)은 세션이 심은 설정 코드를 돌릴 수 있다. 그래서 열 때 git 설정 스냅숏을 앱 영역에 적고 실행기의 모든
+//   git·gh 호출 직전에 대조한다(configGuard.ts). 실행기는 단계 앞뒤로 ConfigCheck를 보고, 바뀌었으면 래치를 걸고 멈춘다.
 import type { CiStatus } from './executor'
 import type { FileChange } from './grade'
 import type { GoalState } from './runState'
@@ -29,6 +33,10 @@ export interface GitPort {
   // 지금 브랜치에 변경 전부를 커밋하고 새 머리 SHA를 돌려준다.
   commitAll(message: string): Promise<string>
   push(branch: string): Promise<void>
+  // 원격의 그 브랜치 머리(ls-remote). 원격에 없으면 null.
+  remoteSha(branch: string): Promise<string | null>
+  // 커밋의 부모들(병합 커밋이면 첫 부모, 병합한 머리 순).
+  parents(sha: string): Promise<string[]>
   // 원격을 읽고, 로컬 branch가 원격의 조상이면 원격 머리로 fast-forward한다. 같거나 로컬이 앞서면 그대로 둔다.
   // 원격에 그 브랜치가 없으면 그대로 둔다. 둘이 갈라졌으면 실패한다(throw). 맞춘 뒤의 로컬 머리를 돌려준다.
   syncToRemote(branch: string): Promise<string | null>
@@ -84,6 +92,14 @@ export interface Clock { now(): string }
 export interface DigestStore {
   read(repoKey: string): Promise<string | null>
   write(repoKey: string, hash: string): Promise<void>
+  // 위조 래치 — 한 번 불일치를 본 사유. 걸려 있으면 실행기는 짝이 맞아도 멈춘다. 푸는 길은 G3(사람)이다.
+  readLatch(repoKey: string): Promise<string | null>
+  writeLatch(repoKey: string, reason: string): Promise<void>
+}
+
+// 실행기 git 설정 대조(configGuard.ts). 바뀌었으면 사유를, 아니면 null을 돌려준다. 한 번 바뀌면 계속 사유를 돌려준다.
+export interface ConfigCheck {
+  check(): Promise<string | null>
 }
 
 export interface LoopPorts {
@@ -95,4 +111,6 @@ export interface LoopPorts {
   review: ReviewPort
   clock: Clock
   digest: DigestStore
+  // 실물은 openLoop가 붙인다. 시험의 가짜 포트에는 없을 수 있다.
+  configGuard?: ConfigCheck
 }

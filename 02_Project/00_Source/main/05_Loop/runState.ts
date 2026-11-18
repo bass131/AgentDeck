@@ -3,8 +3,9 @@
 // 검증 줄은 실행기만 쓴다(by: 'executor'). FAIL 계수는 줄 목록에서 다시 셀 수 있는 값이라 불러올 때 다시 센다.
 // 저장된 계수가 다시 센 값과 다르거나, running인데 그 범위의 FAIL이 이미 FAIL_LIMIT 이상이거나,
 // needs-user인데 멈춘 사유가 없으면 상태를 거부한다 — 계수나 status 한 칸만 고쳐서는 멈춤을 풀지 못한다.
-// 다만 이 검사는 자기 일관성만 본다. 줄 목록까지 함께 고치면 통과한다. 작업 세션이 `.agentdeck/`를 직접 쓰는 구멍은
-// G2의 노드 세션 잠금 노드가 막는다(ports.ts 머리 주석의 G2 인계).
+// 다만 이 검사는 자기 일관성만 본다. 줄 목록까지 함께 고치면 통과한다. 작업 세션이 `.agentdeck/`를 직접 쓰는 길에는 겹이 둘이다 —
+// 루프 잠금 노드와 앱 쪽 다이제스트·위조 래치. 둘 다 편집 도구와 순진한 Bash 편집을 잡는 겹이고, 다이제스트는 키 없는 해시라
+// 세션이 앱 영역에 쓰면 맞출 수 있다(ports.ts 머리 주석).
 import {
   isNonEmptyString, isObject, rejectUnknownKeys,
   type ErrSink, type Grade, type Judge, type SchemaError, type StepNode, type Template,

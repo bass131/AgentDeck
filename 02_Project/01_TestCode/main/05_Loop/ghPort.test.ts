@@ -3,7 +3,7 @@
 // rollup이 비면 pending이다. 모르는 값은 pending이고(통과로 떨어지지 않는다), PR 상태가 모르는 값이면 던진다.
 import { describe, expect, it } from 'vitest'
 import { parseCiStatus, parsePr, pickLatestPr, prNumberFromUrl } from '@main/05_Loop/realPorts/ghParse'
-import { createGhPort, type GhExec } from '@main/05_Loop/realPorts/ghPort'
+import { createGhExec, createGhPort, type GhExec } from '@main/05_Loop/realPorts/ghPort'
 import type { CommandResult } from '@main/05_Loop/ports'
 import * as fx from '../00_Helpers/ghFixtures'
 
@@ -60,6 +60,16 @@ describe('해석 층 — 녹취 픽스처', () => {
     expect(prNumberFromUrl(fx.CREATE_STDOUT)).toBe(101)
     expect(prNumberFromUrl('Warning: 1 uncommitted change\nhttps://github.com/a/b/pull/7\n')).toBe(7)
     expect(prNumberFromUrl('no url')).toBeNull()
+  })
+})
+
+// G2 검수 차단 1 — gh도 실행기 환경(자격 있음)에서 git을 부를 수 있어, 호출 직전에 git 설정을 대조한다
+describe('실행 층 — 설정 대조', () => {
+  it('대조가 던지면 gh를 부르지 않는다', async () => {
+    let asked = 0
+    const exec = createGhExec({ cwd: '.', guard: { assert: async () => { asked++; throw new Error('실행기 git 설정이 실행기 밖에서 바뀌었다') } } })
+    await expect(exec(['pr', 'view', '1'])).rejects.toThrow('설정이 실행기 밖에서')
+    expect(asked).toBe(1)
   })
 })
 

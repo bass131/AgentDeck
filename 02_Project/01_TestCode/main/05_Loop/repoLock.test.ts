@@ -38,6 +38,18 @@ describe('저장소 잠금', () => {
     if (third.ok) await third.lock.release()
   })
 
+  // G2 검수 중요 3 — 첫 await 전에 메모리 표에 예약하지 않으면 같은 프로세스의 동시 획득이 둘 다 성공했다
+  it('같은 프로세스에서 동시에 잡으면 하나만 성공한다', async () => {
+    const k = key()
+    const results = await Promise.all([1, 2, 3].map(() => acquireRepoLock(dir, k, { cwd: 'C:/work/race' })))
+    expect(results.filter((r) => r.ok)).toHaveLength(1)
+    for (const r of results) if (r.ok) await r.lock.release()
+    // 실패한 쪽은 예약을 남기지 않는다 — 풀고 나면 다시 잡힌다
+    const again = await acquireRepoLock(dir, k, { cwd: 'C:/work/race' })
+    expect(again.ok).toBe(true)
+    if (again.ok) await again.lock.release()
+  })
+
   it('살아 있는 다른 프로세스의 잠금은 거부하고 pid와 파일을 알린다', async () => {
     const k = key()
     const other = await child()

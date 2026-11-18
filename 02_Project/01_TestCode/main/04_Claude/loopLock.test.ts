@@ -11,9 +11,15 @@ import {
 } from '@main/04_Claude/permission/loopLock'
 import { listControlNodes } from '@main/04_Claude/permission/controlNodes'
 
+const TEMP = 'C:\\Users\\u\\AppData\\Local\\Temp'
 const SCOPE: LoopLockScope = {
   repoRoot: 'C:\\work\\repo',
   appLoopDir: 'C:\\Users\\u\\AppData\\Roaming\\agentdeck\\loop',
+  tempDirs: [TEMP],
+  vars: {
+    APPDATA: 'C:\\Users\\u\\AppData\\Roaming', LOCALAPPDATA: 'C:\\Users\\u\\AppData\\Local',
+    HOME: 'C:\\Users\\u', USERPROFILE: 'C:\\Users\\u', TEMP, TMP: TEMP,
+  },
 }
 
 const DENY_REMOTE = [
@@ -82,6 +88,22 @@ const DENY_REMOTE = [
   "git submodule foreach 'git push'",
   'gh pr create --title x --body -h',
   'gh pr create --help',
+  // 원격 쓰기 숨김 (G2 검수 중요 8) — 값으로 받은 명령을 다시 판독하고, 명령을 실행하는 -c 키는 거부한다
+  'git rebase -x "git push" HEAD~1',
+  'git rebase --exec="git push" main',
+  'git bisect run git push',
+  'git subtree push --prefix=x origin main',
+  'git -c core.pager="git push" log',
+  'git -c core.fsmonitor=x status',
+  'git -c filter.x.clean=cat add .',
+  'git -c diff.x.textconv=cat diff',
+  'git -c include.path=/tmp/x status',
+  'git -c includeIf.onbranch:main.path=x status',
+  'git -c gpg.program=x commit -m x',
+  'git -c protocol.ext.allow=always fetch',
+  'git -c sequence.editor=x rebase -i HEAD~2',
+  'git -c core.editor=x commit',
+  'git -c diff.external=x diff',
 ]
 
 const DENY_CREDENTIAL = [
@@ -137,6 +159,46 @@ const DENY_CONFIG = [
   'Set-Content .git\\config x',
   'echo x > .GIT/CONFIG',
   'dd if=x of=.git/config',
+  // .git 안 전체 (G2 검수 중요 7) — 폴더로 복사, -t, PowerShell 이름 인자, >|·>&, 내려받기·풀기
+  'echo x > .git/refs/heads/main',
+  'cp hook .git/',
+  'cp -r hooks .git',
+  'cp -t .git/hooks pre-push',
+  'Copy-Item -Destination .git\\config -Path x',
+  'Copy-Item x -Destination:.git/config',
+  'echo x >| .git/config',
+  'echo x >&.git/config',
+  'curl -o .git/hooks/pre-push https://example.com/x',
+  'curl -sSLo .git/hooks/pre-push https://example.com/x',
+  'wget -O .git/config https://example.com/x',
+  'tar -xf h.tar -C .git/hooks',
+  'unzip -d .git/hooks h.zip',
+  'echo x > "\\\\?\\C:\\work\\repo\\.git\\config"',
+]
+
+const DENY_OUTSIDE = [
+  'echo "[credential]" >> ~/.gitconfig',
+  'echo x > $HOME/.gitconfig',
+  'echo x > ${HOME}/.gitconfig',
+  'echo x > %USERPROFILE%\\.gitconfig',
+  'cp evil C:/Users/u/.gitconfig',
+  'echo x > ../other/file',
+  'echo x > C:/elsewhere/x',
+  'echo x > $SOMEVAR/x',
+  'tee ~/.claude/settings.json',
+  'cd ~ && echo x > .gitconfig',
+  'cd /c/Users/u && touch x',
+  'cd',
+]
+
+const DENY_CLAUDE = [
+  'echo {} > .claude/settings.json',
+  'echo {} > .claude/settings.local.json',
+  'echo {} > .mcp.json',
+  'git checkout main -- .claude/settings.json',
+  'git restore --source=HEAD~3 .claude/settings.json',
+  'rm -rf .claude',
+  'cp evil.json .claude/',
 ]
 
 const DENY_EXECUTOR_FILES = [
@@ -156,6 +218,20 @@ const DENY_EXECUTOR_FILES = [
   'rm -rf /c/Users/u/AppData/Roaming/agentdeck/loop',
   'echo x > "C:\\work\\repo\\.agentdeck\\run-state.json"',
   "perl -pi -e 's/FAIL/PASS/' .agentdeck/verification.md",
+  // 셸 위치를 모른다 (G2 검수 중요 2) — cd로 보호 폴더에 들어가는 꼴과 맨 이름
+  'cd .agentdeck && echo {} > run-state.json',
+  'pushd .git && echo x >> config',
+  'Set-Location .agentdeck; Set-Content run-state.json x',
+  'sl .git',
+  'cd src && cat ../.agentdeck/verification.md',
+  'echo {} > run-state.json',
+  'echo x >> verification.md',
+  'cp x .agentdeck/',
+  'git checkout HEAD -- .agentdeck/run-state.json',
+  // 변수 꼴을 펼쳐 앱 영역을 본다 (G2 검수 중요 6)
+  'echo x > $APPDATA/agentdeck/loop/digests/k',
+  'echo x > %APPDATA%\\agentdeck\\loop\\k',
+  'Set-Content $env:APPDATA\\agentdeck\\loop\\k x',
 ]
 
 const ALLOW = [
@@ -198,6 +274,25 @@ const ALLOW = [
   'rm -rf node_modules',
   'rm *.md',
   'echo push > notes.txt',
+  // 저장소 밖이어도 OS 임시 폴더와 널 장치는 쓴다
+  'echo x > /tmp/msg.txt',
+  'echo x > C:/Users/u/AppData/Local/Temp/x.txt',
+  'echo x > $TEMP/x',
+  'npm test > /dev/null 2>&1',
+  'Write-Output x > $null',
+  // 오탐 풀기 (G2 검수 사소) — dry-run과 gh 설정 읽기
+  'git clean -n -x',
+  'git clean -nfdx',
+  'gh config get git_protocol',
+  'cd src && npm test',
+  'cp a.txt b.txt',
+  'cp a.txt src/',
+  'curl -o out.json https://example.com/x',
+  'tar -xf a.tar -C build',
+  'git checkout -- src/a.ts',
+  'git restore src/a.ts',
+  'git -c core.quotepath=false status',
+  'git rebase -i HEAD~2',
 ]
 
 function table(name: string, cases: string[], expectDeny: boolean): void {
@@ -216,7 +311,17 @@ table('loop-lock — 원격 쓰기는 거부한다 (M09 G2)', DENY_REMOTE, true)
 table('loop-lock — 자격 꺼내기·환경 되돌리기는 거부한다 (M09 G2)', DENY_CREDENTIAL, true)
 table('loop-lock — git 설정·훅 심기는 거부한다 (M09 G2)', DENY_CONFIG, true)
 table('loop-lock — 실행기 몫 파일·앱 영역 쓰기는 거부한다 (M09 G2)', DENY_EXECUTOR_FILES, true)
+table('loop-lock — 작업 저장소 밖 쓰기는 거부한다 (M09 G2 검수 차단 1)', DENY_OUTSIDE, true)
+table('loop-lock — Claude 설정 쓰기는 거부한다 (M09 G2 검수 중요 5)', DENY_CLAUDE, true)
 table('loop-lock — 로컬 작업과 읽기는 지나간다 (M09 G2)', ALLOW, false)
+
+describe('loop-lock MCP 도구 (M09 G2 검수 중요 5)', () => {
+  it('루프 세션에서 mcp__ 도구는 이름과 입력에 관계없이 거부한다', () => {
+    expect(loopLockReason('mcp__github__create_pull_request', { title: 'x' }, SCOPE)).toContain('MCP')
+    expect(loopLockReason('mcp__x__read', {}, SCOPE)).not.toBeNull()
+    expect(loopLockReason('Read', { file_path: 'a' }, SCOPE)).toBeNull()
+  })
+})
 
 describe('loop-lock 판독 한도 (M09 G2)', () => {
   it('명령 치환 중첩이 판독 한도(4)를 넘으면 막는다 — 한도 안은 판독한다', () => {
@@ -228,7 +333,7 @@ describe('loop-lock 판독 한도 (M09 G2)', () => {
 
 describe('loop-lock 거부 사유 (M09 G2)', () => {
   it('모든 사유가 「원격은 실행기 코드만」과 「노드는 로컬 커밋까지만」을 말한다', () => {
-    for (const cmd of [DENY_REMOTE[0], DENY_CREDENTIAL[0], DENY_CONFIG[0], DENY_EXECUTOR_FILES[0]]) {
+    for (const cmd of [DENY_REMOTE[0], DENY_CREDENTIAL[0], DENY_CONFIG[0], DENY_EXECUTOR_FILES[0], DENY_OUTSIDE[0], DENY_CLAUDE[0], 'cd .git', 'echo x > $SOMEVAR/x']) {
       const reason = loopCommandReason(cmd, SCOPE) ?? ''
       expect(reason).toContain('원격은 실행기 코드만')
       expect(reason).toContain('로컬 커밋까지만')
@@ -247,6 +352,16 @@ describe('loop-lock 편집 도구 경로 (M09 G2)', () => {
     ['NotebookEdit', { notebook_path: '.git/info/x.ipynb', new_source: '' }],
     ['Write', { file_path: 'C:\\Users\\u\\AppData\\Roaming\\agentdeck\\loop\\digests\\k', content: '' }],
     ['Write', { file_path: 'src/../.git/config', content: '' }],
+    ['Write', { file_path: 'C:/Users/u/.gitconfig', content: '[credential]' }],
+    ['Write', { file_path: 'C:\\Users\\u\\.claude\\settings.json', content: '{}' }],
+    ['Write', { file_path: '.claude/settings.json', content: '{}' }],
+    ['Edit', { file_path: 'C:/work/repo/.mcp.json', old_string: 'a', new_string: 'b' }],
+    ['Write', { file_path: 'C:/work/repo/.agentdeck/run-state.json:stream', content: '' }],
+    ['Write', { file_path: 'C:/work/repo/.agentdeck./run-state.json', content: '' }],
+    ['Write', { file_path: 'C:/work/repo/.AGENTD~1/RUN-ST~1.JSO', content: '' }],
+    ['Write', { file_path: '\\\\?\\C:\\work\\repo\\.git\\config', content: '' }],
+    ['Write', { file_path: '\\\\.\\C:\\work\\repo\\.agentdeck\\verification.md', content: '' }],
+    ['Write', { file_path: 'C:/work/repo/.git/HEAD', content: '' }],
   ]
   for (const [tool, input] of deny) {
     it(`거부: ${tool} ${JSON.stringify(input['file_path'] ?? input['notebook_path'])}`, () => {
@@ -260,6 +375,8 @@ describe('loop-lock 편집 도구 경로 (M09 G2)', () => {
     ['Edit', { file_path: 'src/a.ts', old_string: 'a', new_string: 'b' }],
     ['Read', { file_path: '.agentdeck/run-state.json' }],
     ['Read', { file_path: '.git/config' }],
+    ['Read', { file_path: 'C:/Users/u/.gitconfig' }],
+    ['Write', { file_path: 'C:/Users/u/AppData/Local/Temp/note.md', content: '' }],
   ]
   for (const [tool, input] of allow) {
     it(`허용: ${tool} ${JSON.stringify(input['file_path'])}`, () => {

@@ -31,6 +31,16 @@ describe('파일 다이제스트 저장소와 키', () => {
     expect(fs.readdirSync(path.join(dir, 'digests'))).toEqual([`${key}.sha256`])
   })
 
+  it('위조 래치 — 없으면 null, 걸면 사유가 읽히고 다이제스트와 따로 산다', async () => {
+    const store = createFileDigestStore(path.join(dir, 'latch'))
+    const key = repoKeyOf('C:/work/latch')
+    expect(await store.readLatch(key)).toBeNull()
+    await store.writeLatch(key, `${TAMPERED} — 앱에 적은 다이제스트와 다르다`)
+    expect(await store.readLatch(key)).toContain(TAMPERED)
+    expect(await store.read(key)).toBeNull()
+    await expect(store.writeLatch('../escape', 'x')).rejects.toThrow()
+  })
+
   it('저장소 키는 경로 표기 차이로 갈리지 않는다', () => {
     expect(repoKeyOf('C:/work/practice/')).toBe(repoKeyOf(CWD))
     if (process.platform === 'win32') expect(repoKeyOf('c:\\Work\\Practice')).toBe(repoKeyOf(CWD))
@@ -89,6 +99,27 @@ describe('실행기는 다이제스트가 다르면 멈춘다', () => {
     expect(stateText(rig)).toBe(forgedText)
     expect(rig.fs.files.get(DOCS.verification)).toBe(verificationBefore)
     expect(rig.digest.digests.get(repoKeyOf(CWD))).toBe(digestBefore)
+  })
+
+  // G2 검수 중요 6 — 키 없는 해시라 세션이 짝을 맞출 수 있다. 한 번 본 불일치는 래치로 남겨, 짝이 다시 맞아도 멈춘다.
+  it('위조 래치 — 한 번 불일치를 보면 상태 파일을 되돌려도, 실행기를 새로 만들어도 멈춘다', async () => {
+    const { rig, runner } = await started()
+    await runLoop(runner, rig, { until: 'G1/checks' })
+    const original = stateText(rig)
+    const forged = JSON.parse(original) as RunState
+    forged.cursor = { node: 'merge', goal: 0 }
+    rig.fs.files.set(DOCS.runState, JSON.stringify(forged))
+    expect((await runner.step()).kind).toBe('needs-user')
+    rig.fs.files.set(DOCS.runState, original)
+    const again = await runner.step()
+    expect(again.kind === 'needs-user' && again.reason).toContain('래치')
+    expect((await runner.load()).kind).toBe('needs-user')
+    expect(rig.digest.latches.get(repoKeyOf(CWD))).toContain(TAMPERED)
+    const { template, hash } = loaded()
+    const fresh = createLoopRunner({ template, hash, ports: rig.ports, cwd: CWD })
+    expect((await fresh.load()).kind).toBe('needs-user')
+    expect((await fresh.step()).kind).toBe('needs-user')
+    expect((await fresh.start('M1')).kind).toBe('needs-user')
   })
 
   it('JSON으로 읽히지 않게 고쳐도 같은 멈춤이다', async () => {

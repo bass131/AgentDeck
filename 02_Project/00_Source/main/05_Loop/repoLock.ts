@@ -56,12 +56,24 @@ export async function acquireRepoLock(dir: string, repoKey: string, info: { cwd:
   const file = path.join(dir, `${repoKey}.lock`)
   const id = path.resolve(file).toLowerCase()
   if (held.has(id)) return { ok: false, reason: `이 저장소(${info.cwd})의 실행기가 이미 이 앱에서 돌고 있다` }
+  // 첫 await 전에 예약한다 — 같은 프로세스의 동시 획득이 둘 다 지나가지 않게. 실패하면 예약을 지운다.
+  held.add(id)
+  try {
+    const got = await acquireFile(dir, file, id, info)
+    if (!got.ok) held.delete(id)
+    return got
+  } catch (e) {
+    held.delete(id)
+    throw e
+  }
+}
+
+async function acquireFile(dir: string, file: string, id: string, info: { cwd: string }): Promise<LockResult> {
   await fsp.mkdir(dir, { recursive: true })
   const body: LockBody = { pid: process.pid, token: randomBytes(8).toString('hex'), cwd: info.cwd, at: new Date().toISOString() }
 
   for (let attempt = 0; attempt < 2; attempt++) {
     if (await tryCreate(file, body)) {
-      held.add(id)
       return {
         ok: true,
         lock: {

@@ -1,7 +1,8 @@
 // M09 G2 — 실행 상태의 앱 쪽 다이제스트. 실행기가 run-state.json을 쓸 때마다 그 정규 JSON(키 정렬)의 sha256을
 // 작업 저장소 밖(Electron userData 아래)에 적는다. 실행기는 읽을 때 다르면 멈춘다(loopRunner).
-// 작업 세션은 작업 저장소 안을 쓸 수 있고, Bash로 상태 파일을 고치는 길은 명령 글자 판정으로 다 닫히지 않으므로
-// 이것이 위조 방어의 정본이다. 세션이 앱 영역을 쓰는 길은 G2 2차분의 잠금 노드(앱 엔진·설정 경로 잠금과 같은 겹)가 막는다.
+// 이것은 편집 도구와 순진한 Bash 편집을 잡는 겹이다 — 키 없는 해시라 세션이 앱 영역에 쓰면 맞출 수 있다(보증이 아니다).
+// 세션의 앱 영역 쓰기는 루프 잠금 노드가 명령 글자로 막는다(역시 겹). HMAC은 쓰지 않는다 — 비밀을 세션이 읽을 수 있어 의미가 없다.
+// 위조 래치(`<key>.latch`) — 실행기가 한 번 불일치를 보면 사유를 적는다. 걸려 있으면 짝이 맞아도 멈춘다. 푸는 길은 G3(사람)이다.
 // 이 모듈은 electron을 import하지 않는다 — 경로는 부르는 쪽(G3 조립)이 getUserDataDir()로 만들어 넘긴다.
 import { createHash } from 'node:crypto'
 import { promises as fsp } from 'node:fs'
@@ -27,25 +28,29 @@ export function stateDigest(value: unknown): string {
   return sha256(canonicalJson(value))
 }
 
-function fileOf(dir: string, repoKey: string): string {
+function fileOf(dir: string, repoKey: string, ext = 'sha256'): string {
   if (!KEY.test(repoKey)) throw new Error('다이제스트 키가 sha256 16진수가 아니다')
-  return path.join(dir, `${repoKey}.sha256`)
+  return path.join(dir, `${repoKey}.${ext}`)
+}
+
+async function readText(file: string): Promise<string | null> {
+  try {
+    return (await fsp.readFile(file, 'utf8')).trim()
+  } catch (e) {
+    if ((e as NodeJS.ErrnoException).code === 'ENOENT') return null
+    throw e
+  }
 }
 
 export function createFileDigestStore(dir: string): DigestStore {
+  const put = async (file: string, text: string): Promise<void> => {
+    await fsp.mkdir(dir, { recursive: true })
+    await writeFileAtomic(file, `${text}\n`)
+  }
   return {
-    async read(repoKey) {
-      try {
-        return (await fsp.readFile(fileOf(dir, repoKey), 'utf8')).trim()
-      } catch (e) {
-        if ((e as NodeJS.ErrnoException).code === 'ENOENT') return null
-        throw e
-      }
-    },
-    async write(repoKey, hash) {
-      const file = fileOf(dir, repoKey)
-      await fsp.mkdir(dir, { recursive: true })
-      await writeFileAtomic(file, `${hash}\n`)
-    },
+    read: async (repoKey) => readText(fileOf(dir, repoKey)),
+    write: async (repoKey, hash) => put(fileOf(dir, repoKey), hash),
+    readLatch: async (repoKey) => (await readText(fileOf(dir, repoKey, 'latch'))) || null,
+    writeLatch: async (repoKey, reason) => put(fileOf(dir, repoKey, 'latch'), reason.replace(/\r?\n/g, ' ')),
   }
 }

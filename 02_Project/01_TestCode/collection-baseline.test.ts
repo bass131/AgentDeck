@@ -76,7 +76,9 @@ const SKIP_DIRS = new Set(['node_modules', 'dist', 'out', 'coverage', '.git'])
 // 저장소당 실행기 하나 repoLock.test.ts, 번들 템플릿 bundledTemplate.test.ts, 실 git 통합 openLoop.test.ts를 더했다(모두 main/05_Loop/).
 // M09 G2: 468 → 471. 2차분 — 루프 잠금 노드 main/04_Claude/loopLock.test.ts, 그 배선 main/04_Claude/sdkOptions.loop-lock.test.ts,
 // 작업 노드 세션 포트 main/05_Loop/workSession.test.ts를 더했다.
-const BASELINE_TEST_FILES = 471
+// M09 G2: 471 → 473. 독립 검수 반영 — 실행기 git 설정 대조 main/05_Loop/configGuard.test.ts, 원격·로컬 대조와 래치·CI 시간 상한
+// main/05_Loop/loopRunner.guards.test.ts를 더했다.
+const BASELINE_TEST_FILES = 473
 
 function collectTestFiles(dir: string, acc: string[] = []): string[] {
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {

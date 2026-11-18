@@ -329,13 +329,55 @@ describe('openLoop — 실물 작업 노드 세션 포트 (M09 G2)', () => {
     const { pending } = await stepToFirstWork(loop)
     for (let i = 0; i < 100 && rec.starts.length === 0; i++) await new Promise((r) => setTimeout(r, 10))
     expect(rec.starts).toHaveLength(1)
+    let settled = false
+    void pending.then(() => { settled = true })
     await close(loop)
+    // 닫기는 세션을 멈춘 뒤 진행 중인 step(직렬화 줄)이 끝나기를 기다리고, 그다음에 잠금을 푼다(G2 검수 사소)
+    expect(settled).toBe(true)
     const out = (await pending) as { kind: string; verdict?: { verdict: string; evidence: string } | null }
     expect(rec.aborts).toBeGreaterThanOrEqual(1)
-    // 지금의 동작을 고정한다: 닫기는 진행 중인 step을 기다리지 않는다. 그 step은 세션의 ok:false를 불통과 판정으로 바꿔
-    // 상태와 검증 기록에 남긴다(닫은 뒤의 저장 — G3가 닫기 순서를 정한다).
+    // 그 step은 세션의 ok:false를 불통과 판정으로 바꿔 상태와 검증 기록에 남긴다 — 잠금을 풀기 전의 저장이다
     expect(out.kind).toBe('failed')
     expect(out.verdict?.evidence).toContain('취소됐다')
     expect(fs.readFileSync(path.join(repos.work, DOCS.verification), 'utf8')).toContain('취소됐다')
+    expect(fs.readdirSync(path.join(appData, 'locks'))).toEqual([])
+  })
+})
+
+describe('openLoop — 검수 반영 (M09 G2)', () => {
+  it('실물 gh인데 필수 검사 이름이 없으면 열지 않고 잠금도 남기지 않는다', async () => {
+    const r = await openLoop({ cwd: repos.work, appDataDir: appData, session, review, template: TEMPLATE, executorEnv: repos.env })
+    expect(r).toMatchObject({ ok: false })
+    expect(!r.ok && r.reason).toContain('requiredChecks')
+    await open()
+  })
+
+  it('작업 노드가 로컬 git 설정에 filter를 심으면 실행기는 그 git을 돌리지 않고 멈추며, 다시 열어도 열리지 않는다', SLOW, async () => {
+    const marker = path.join(repos.root, 'filter-ran')
+    const planting: SessionPort = {
+      runWork: async (req) => {
+        const res = await session.runWork(req)
+        if (req.node.id === 'implement') {
+          repos.git(['config', 'filter.x.clean', `sh -c 'echo ran > "${marker.replace(/\\/g, '/')}"; cat'`])
+          fs.writeFileSync(path.join(repos.work, '.gitattributes'), '* filter=x\n')
+        }
+        return res
+      },
+    }
+    const r = await openLoop({ cwd: repos.work, appDataDir: appData, session: planting, review, gh, template: TEMPLATE, executorEnv: repos.env })
+    if (!r.ok) throw new Error(r.reason)
+    opened.push(r.loop)
+    await r.loop.runner.start('M1')
+    await drive(r.loop, 'G1/implement')
+    const out = await r.loop.runner.step()
+    expect(out.kind).toBe('needs-user')
+    expect(out.kind === 'needs-user' && out.reason).toContain('filter.x.clean')
+    // 다음 노드(검사·등급의 diffStat, goal PR의 commitAll)도 돌지 않는다
+    expect((await r.loop.runner.step()).kind).toBe('needs-user')
+    expect(fs.existsSync(marker)).toBe(false)
+    await close(r.loop)
+    const again = await openLoop({ cwd: repos.work, appDataDir: appData, session, review, gh, template: TEMPLATE, executorEnv: repos.env })
+    expect(again.ok).toBe(false)
+    expect(!again.ok && again.reason).toContain('filter.x.clean')
   })
 })

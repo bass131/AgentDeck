@@ -116,7 +116,8 @@ describe('상태는 실행기가 소유한다', () => {
   })
 
   it('실행기 껍질에도 건너뛰기·강제 통과·상태 넣기 API가 없다', () => {
-    expect(Object.keys(setup().runner).sort()).toEqual(['load', 'start', 'step', 'submit'])
+    // idle은 직렬화 줄을 기다리기만 한다(닫기용, G2 검수 사소) — 상태를 넣거나 건너뛰지 않는다
+    expect(Object.keys(setup().runner).sort()).toEqual(['idle', 'load', 'start', 'step', 'submit'])
   })
 })
 
@@ -451,11 +452,13 @@ describe('재개는 같은 노드를 고르고, action은 확인 뒤 실행이�
     const at = await until(ctx, 'G1/merge')
     const head = at.goals[0].ciSha as string
     await ctx.rig.git.checkout('milestone/M1')
-    await ctx.rig.git.mergeNoFf(head, '꺼지기 전 병합')
+    const merged = await ctx.rig.git.mergeNoFf(head, '꺼지기 전 병합')
     const out = await ctx.runner.step()
     expect(count(ctx.rig.git.calls, 'merge ')).toBe(1)
     expect(ctx.rig.git.calls.at(-1)).toBe('push milestone/M1')
     expect(out.kind === 'advanced' && out.verdict?.evidence).toContain('push만')
+    // 받는 것은 부모가 (원격 머리, PR 머리)인 병합 커밋 하나뿐이다(G2 검수 중요 4 — 그 밖은 loopRunner.guards.test.ts)
+    expect(ctx.rig.git.remote.get('milestone/M1')?.at(-1)).toBe(merged)
   })
 
   it('PR 머리가 CI를 통과한 머리와 다르면 병합하지 않고 CI로 돌아간다', async () => {

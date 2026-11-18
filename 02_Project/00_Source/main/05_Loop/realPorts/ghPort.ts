@@ -7,11 +7,19 @@ import { parseCiStatus, parsePr, pickLatestPr, prNumberFromUrl } from './ghParse
 
 export type GhExec = (args: string[], input?: string) => Promise<CommandResult>
 
-export interface GhExecOptions { cwd: string; env?: NodeJS.ProcessEnv; timeoutMs?: number }
+export interface GhExecOptions {
+  cwd: string
+  env?: NodeJS.ProcessEnv
+  timeoutMs?: number
+  // 호출 직전의 git 설정 대조(configGuard.ts) — gh는 작업 저장소에서 git을 부를 수 있다. 던지면 gh를 부르지 않는다.
+  // gh 자신이 git 설정을 쓰는지는 실측하지 않았다 — 쓰면 대조가 멈춘다(안전 쪽).
+  guard?: { assert(): Promise<void> }
+}
 
 export function createGhExec(opts: GhExecOptions): GhExec {
   const env = { ...(opts.env ?? process.env), GH_PROMPT_DISABLED: '1', GH_NO_UPDATE_NOTIFIER: '1', NO_COLOR: '1' }
   return async (args, input) => {
+    await opts.guard?.assert()
     const r = await runProcess('gh', args, { cwd: opts.cwd, env, input, timeoutMs: opts.timeoutMs ?? 60_000 })
     return { code: r.code, stdout: r.stdout, stderr: r.stderr }
   }

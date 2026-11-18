@@ -13,6 +13,8 @@ import { makeTempRepos, onPath, type TempRepos } from '../00_Helpers/tempGit'
 
 const HAS_GH = onPath('gh')
 const HAS_GIT = onPath('git')
+const GH_AUTHED = HAS_GH && spawnSync('gh', ['auth', 'status'], { env: process.env, windowsHide: true, timeout: 60_000 }).status === 0
+const GH_SKIP = HAS_GH ? '일반 환경에서 gh auth status가 0이 아니다(인증 없는 기계)' : 'gh가 PATH에 없다'
 const IDENTITY = { name: 'Loop Bot', email: 'loop-bot@example.invalid' }
 const PATHS = { root: 'T:/nocred', ghConfigDir: 'T:/nocred/gh', gitGlobalConfig: 'T:/nocred/global.gitconfig', emptyDir: 'T:/nocred/empty' }
 
@@ -89,14 +91,21 @@ describe('자격 없는 환경에서 gh·git은 자격을 얻지 못한다(동�
     expect(fs.existsSync(other.paths.root)).toBe(false)
   })
 
-  it.skipIf(!HAS_GH)('gh auth status가 0이 아닌 종료다', () => {
+  // 양성 대조(G2 검수 사소) — 일반 환경에서 gh가 인증돼 있을 때만 의미가 있다. 인증 없는 기계에서는 자식 환경도 당연히 실패해
+  // 거짓 통과가 되므로, 그때는 건너뛰고 사유를 시험 이름에 남긴다.
+  it.skipIf(!GH_AUTHED)(`gh auth status — 일반 환경은 0(양성 대조), 자식 환경은 0이 아니다${GH_AUTHED ? '' : ` [건너뜀: ${GH_SKIP}]`}`, () => {
+    expect(run('gh', ['auth', 'status'], process.env, repos.work).code).toBe(0)
     const r = run('gh', ['auth', 'status'], child.env, repos.work)
     expect(r.code, r.out).not.toBe(0)
   })
 
-  it.skipIf(!HAS_GH)('gh auth token이 keyring의 진짜 토큰을 내지 않는다 — 나오는 것은 가짜 값뿐이다', () => {
+  it.skipIf(!GH_AUTHED)(`gh auth token — 일반 환경은 진짜 토큰(양성 대조), 자식 환경은 가짜 값뿐이다${GH_AUTHED ? '' : ` [건너뜀: ${GH_SKIP}]`}`, () => {
+    const real = (spawnSync('gh', ['auth', 'token'], { cwd: repos.work, env: process.env, encoding: 'utf8', windowsHide: true }).stdout ?? '').trim()
+    expect(real.length).toBeGreaterThan(0)
     const r = spawnSync('gh', ['auth', 'token'], { cwd: repos.work, env: child.env, encoding: 'utf8', windowsHide: true })
     const out = (r.stdout ?? '').trim()
+    // 실패 메시지에 토큰이 찍히지 않게 참·거짓으로만 비교한다
+    expect(out === real).toBe(false)
     expect(out === '' || out === NO_CREDENTIAL_TOKEN).toBe(true)
   })
 

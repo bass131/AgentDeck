@@ -50,10 +50,12 @@ export function pickMain(result, repoPath, configHandle) {
   const list = Array.isArray(result?.terminals) ? result.terminals : [];
   const found = [...new Set(list.filter(x => isCandidate(x, repoPath)).map(x => x.handle))];
   if (result?.truncated === true) return { handle: null, reason: 'Orca 터미널 목록이 잘려 와서 메인 Claude 터미널을 하나로 정하지 못해 넣지 않았어요.' };
-  if (found.length === 1) return { handle: found[0] };
   if (!found.length) return { handle: null, reason: '이 저장소에서 연결된 Claude 터미널을 찾지 못했어요.' };
+  // 설정 handle이 있으면 그것이 후보 안에 있을 때만 넣는다 — 하나뿐이어도 설정을 넘어 고르지 않는다(PR 83 검수 중요 3)
   const cfg = validHandle(configHandle);
-  if (cfg && found.includes(cfg)) return { handle: cfg };
+  if (cfg) return found.includes(cfg) ? { handle: cfg }
+    : { handle: null, reason: 'config.local.json의 mainTerminalHandle이 가리키는 터미널이 지금 이 저장소의 Claude 터미널 목록에 없어 넣지 않았어요. 값을 비우면 자동으로 찾아요.' };
+  if (found.length === 1) return { handle: found[0] };
   return { handle: null, reason: `이 저장소에 Claude 터미널이 ${found.length}개라 어느 것이 메인인지 몰라 넣지 않았어요. config.local.json의 mainTerminalHandle로 메인을 지정할 수 있어요.` };
 }
 
@@ -64,10 +66,16 @@ export function findMainTerminal(repoPath, configHandle, { execFileFn = execFile
   return new Promise(resolve => {
     try {
       execFileFn(ORCA, findArgs(repoPath), { encoding: 'utf8', timeout: timeoutMs, windowsHide: true, shell: false }, (error, stdout) => {
-        let r = null;
-        try { r = JSON.parse(stdout); } catch { /* 아래에서 닿지 못함 */ }
-        if (r && r.ok === false && r.error?.code === 'selector_not_found') return resolve({ handle: null, reason: '이 저장소 폴더를 Orca가 몰라 메인 Claude 터미널을 찾지 못했어요.' });
-        if (error || !r || r.ok !== true || !Array.isArray(r.result?.terminals)) return resolve(unreachable);
+        let r = null, parsed = false;
+        try { r = JSON.parse(stdout); parsed = true; } catch { /* 아래에서 닿지 못함 */ }
+        // 읽히는 답이 왔으면 Orca는 살아 있다 — 거절이나 틀린 모양은 「찾지 못함」이고 설정 handle로 넣지 않는다(PR 83 검수 중요 2).
+        // 닿지 못함은 실행 실패·시간 초과·읽을 수 없는 출력뿐이다
+        if (parsed && r?.ok === false) {
+          return resolve({ handle: null, reason: r.error?.code === 'selector_not_found' ? '이 저장소 폴더를 Orca가 몰라 메인 Claude 터미널을 찾지 못했어요.'
+            : 'Orca가 터미널 목록을 주지 않아 메인 Claude 터미널을 찾지 못했어요.' });
+        }
+        if (parsed && !error && !(r?.ok === true && Array.isArray(r.result?.terminals))) return resolve({ handle: null, reason: 'Orca 터미널 목록의 모양이 예상과 달라 메인 Claude 터미널을 찾지 못했어요.' });
+        if (error || !parsed) return resolve(unreachable);
         resolve(pickMain(r.result, repoPath, configHandle));
       });
     } catch { resolve(unreachable); }

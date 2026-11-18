@@ -36,8 +36,11 @@ test('pick: several candidates use the configured handle only when it is among t
   assert.equal(two.handle, null);
   assert.match(two.reason, /2개/);
   assert.equal(pickMain({ terminals: [T(1), T(2)] }, REPO, H(3)).handle, null, '설정이 후보 밖이면 넣지 않는다');
-  // 후보가 하나면 설정이 낡았어도 그 하나다 — 세션을 새로 열 때마다 손으로 고치던 이유
-  assert.deepEqual(pickMain({ terminals: [T(1)] }, REPO, H(9)), { handle: H(1) });
+  // 설정 handle이 있는데 후보 밖이면 자동으로 고르지 않는다 — 사용자가 다른 곳(child worktree·Codex)을 메인으로 지정했을 수 있다 (PR 83 검수 중요 3).
+  // 설정은 보통 null이라(README) 자동이 기본이고, 낡은 설정은 복사 안내로 끝난다
+  const stale = pickMain({ terminals: [T(1)] }, REPO, H(9));
+  assert.equal(stale.handle, null);
+  assert.match(stale.reason, /mainTerminalHandle/);
   // 목록이 잘렸으면 하나라고 믿지 않는다
   const cut = pickMain({ terminals: [T(1)], truncated: true }, REPO, null);
   assert.equal(cut.handle, null);
@@ -57,10 +60,17 @@ test('findMainTerminal: no shell, a timeout, windowsHide; a missing folder is �
   // Orca 실측(2026-11-18): 없는 폴더는 exit 1과 {"ok":false,"error":{"code":"selector_not_found"}}
   const notFound = await findMainTerminal(REPO, null, { execFileFn: fake(Object.assign(new Error('Command failed'), { code: 1 }), '{"ok":false,"error":{"code":"selector_not_found","message":"selector_not_found"}}') });
   assert.equal(notFound.handle, null); assert.ok(!notFound.unreachable); assert.match(notFound.reason, /찾지 못했어요/);
+  // 닿지 못함은 실행 실패·시간 초과·읽을 수 없는 출력뿐이다 — 그때만 서버가 설정 handle을 그대로 쓴다
   for (const [err, out] of [[Object.assign(new Error('spawn orca ENOENT'), { code: 'ENOENT' }), ''], [Object.assign(new Error('timeout'), { killed: true, signal: 'SIGTERM' }), ''],
-    [null, 'not json'], [null, '{"ok":false,"error":{"code":"runtime_unavailable"}}'], [null, '{"ok":true,"result":{}}']]) {
+    [null, 'not json'], [Object.assign(new Error('Command failed'), { code: 1 }), '']]) {
     const r = await findMainTerminal(REPO, null, { execFileFn: fake(err, out) });
     assert.equal(r.handle, null); assert.equal(r.unreachable, true, String(out || err.message));
+  }
+  // Orca가 읽히는 답으로 거절하거나 모양이 틀리면 찾지 못함이다 — 설정 handle로 넣지 않는다 (PR 83 검수 중요 2)
+  for (const [err, out] of [[Object.assign(new Error('Command failed'), { code: 1 }), '{"ok":false,"error":{"code":"selector_ambiguous"}}'],
+    [null, '{"ok":false,"error":{"code":"runtime_unavailable"}}'], [null, '{"ok":true,"result":{}}'], [null, '{"ok":true}'], [null, 'null']]) {
+    const r = await findMainTerminal(REPO, H(9), { execFileFn: fake(err, out) });
+    assert.equal(r.handle, null); assert.ok(!r.unreachable, out); assert.match(r.reason, /찾지 못했어요/);
   }
   // execFile이 동기로 던져도 거부로 끝난다
   const sync = await findMainTerminal(REPO, null, { execFileFn: () => { throw new Error('boom'); } });
@@ -72,8 +82,8 @@ const opt = (key, label) => ({ key, label, effect: `${label}를 고르면 일어
 const listOf = (...decisions) => { const { items, warnings } = parseBoard(JSON.stringify({ decisions })); return { sourceId: 'decisions', status: 'ok', path: BOARD, items, warnings, skipped: 0, kept: false, sig: decisionSig(items) }; };
 const one = { id: 'g13-q', title: '물음', state: 'waiting', options: [opt('A', '가'), opt('B', '나')] };
 async function appFor(t, { handle = null, findMain } = {}) {
-  const state = { typed: [], finds: [] };
-  const collectFn = async (repo, o) => ({ schema: 'ad-dashboard/1', revision: o.revision, collectedAt: '2026-11-18T14:00:00+09:00', sources: [], decisions: listOf(one) });
+  const state = { typed: [], finds: [], list: listOf(one) };
+  const collectFn = async (repo, o) => ({ schema: 'ad-dashboard/1', revision: o.revision, collectedAt: '2026-11-18T14:00:00+09:00', sources: [], decisions: state.list });
   const type = async (h, text) => { state.typed.push([h, text]); return { ok: true }; };
   const fm = findMain && (async (repo, cfg) => { state.finds.push([repo, cfg]); return findMain(repo, cfg); });
   const app = await createDashboard({ repoPath: REPO, port: 0, mainTerminalHandle: handle }, { collectFn, watchFn: () => Object.assign(new EventEmitter(), { close() {} }), pingMs: 60000, type, findMain: fm ?? null });
@@ -141,6 +151,27 @@ test('server: Orca unreachable falls back to the configured handle only; with no
   const thrown = await appFor(t, { findMain: async () => { throw new Error('boom'); } });
   const x = await post(thrown, 'send', await sendBody(thrown));
   assert.deepEqual([x.status, x.json.copy], [200, true]);
+});
+
+test('server: the decision list changing while finding is 409 stale and types nothing (PR 83 검수 중요 1)', async t => {
+  let release;
+  const app = await appFor(t, { findMain: () => new Promise(r => { release = r; }) });
+  const body = await sendBody(app, 'A');
+  const sent = post(app, 'send', body);
+  while (!release) await new Promise(r => setTimeout(r, 5));
+  app.state.list = listOf({ ...one, title: '물음 (바뀜)' }); await app.refresh();
+  release({ handle: H(1) });
+  const r = await sent;
+  assert.deepEqual([r.status, r.json.ok, r.json.stale], [409, false, true]);
+  assert.match(r.json.reason, /바뀌어/);
+  assert.deepEqual(app.state.typed, []);
+  // 막힌 뒤에도 겹침 막기는 풀려 있다
+  release = null;
+  const fresh = { sig: app.state.list.sig, picks: { 'g13-q': 'A' } };
+  const next = post(app, 'send', { ...fresh, expect: (await post(app, 'preview', fresh)).json.line });
+  while (!release) await new Promise(r => setTimeout(r, 5));
+  release({ handle: H(1) });
+  assert.equal((await next).json.ok, true);
 });
 
 test('server: a second send while the first is still finding is 409 and types nothing extra', async t => {

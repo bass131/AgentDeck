@@ -141,6 +141,10 @@ export async function createDashboard(config, { collectFn = collect, watchFn, de
       try { found = await findMain(config.repoPath, handle); } catch { found = { handle: null, unreachable: true, reason: 'Orca에 닿지 못해 메인 터미널을 찾지 못했어요.' }; }
       target = found?.handle ? validHandle(found.handle) : found?.unreachable ? handle : null;
       if (!target) { sending = false; return json(response, 200, { ok: false, copy: true, line, reason: `${found?.reason || '메인 터미널을 찾지 못했어요.'} 문장을 복사해 메인 입력창에 붙여 넣어 주세요.` }); }
+      // 찾는 동안 결정 목록이 바뀌었으면 넣지 않는다 — 화면에서 확인한 문장이 지금 목록의 문장과 같을 때만 넣는다(PR 83 검수 중요 1)
+      let now;
+      try { now = lineFor(currentList(), body); } catch { now = null; }
+      if (!now || now.refusal || now.text !== line) { sending = false; return json(response, 409, { ok: false, stale: true, reason: '넣기 직전에 결정 목록이 바뀌어 넣지 않았어요. 「보낼 문장」을 다시 확인하고 눌러 주세요.' }); }
     }
     // 넣기 실패가 「글은 들어갔는데 응답만 깨진」 경우일 수 있으니, 부르기 전에 같은 문장 표시를 남긴다.
     // 글이 안 들어간 것이 확실한 실패(definite)면 앞 값으로 되돌린다. 그 사이 목록이 바뀌어 표시가 지워졌으면 건드리지 않는다.

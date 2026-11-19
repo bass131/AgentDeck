@@ -12,6 +12,18 @@ import { render, screen, fireEvent, cleanup, act, within } from '@testing-librar
 import type { LoopEventKind, LoopStatus, MainChatItem, MainChatView } from '../../../../02_Project/00_Source/shared/ipcContract'
 import { adaptFlatApi } from '../00_Helpers/windowApiMock'
 
+// 독립 검수 중요 2 — 기록의 글을 다시 그렸는지 센다. 진짜 마크다운 보기를 그대로 그리고, 그린 원문만 적는다
+const md = vi.hoisted(() => ({ renders: [] as string[] }))
+vi.mock('@renderer/05_Conversation', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@renderer/05_Conversation')>()
+  const { createElement } = await import('react')
+  const Spy = (p: { source: string }): ReturnType<typeof actual.MarkdownView> => {
+    md.renders.push(p.source)
+    return createElement(actual.MarkdownView, p)
+  }
+  return { ...actual, MarkdownView: Spy }
+})
+
 const CWD = 'C:\\work\\practice'
 
 const st = (over: Partial<LoopStatus> = {}): LoopStatus => ({
@@ -331,5 +343,127 @@ describe('새 메인 대화 (M10 G3)', () => {
     await click(btn('새 메인 대화'))
     await click(btn('새로 열기'))
     expect(within(chat()).getByText('새 메인 대화를 여는 중이다')).toBeTruthy()
+  })
+})
+
+// G3 독립 검수 반영 — 모르는 사건 종류, 다시 그리기, 입력칸·멈추기 알림·끝 보이기, 한글 조합 중 Enter
+describe('G3 독립 검수 반영 (M10 G3)', () => {
+  const box = (): HTMLTextAreaElement => within(chat()).getByLabelText('메인에게 말하기') as HTMLTextAreaElement
+
+  it('모르는 사건 종류(옛 빌드가 남긴 paused 꼴)가 와도 화면이 무너지지 않는다 — 이름표는 종류 이름, 모양은 muted', async () => {
+    const old = { id: 'o1', at, kind: 'event', event: { kind: 'paused', node: null, goal: null, text: '옛 깃발' } } as unknown as MainChatItem
+    install(mv({ items: [old, said('a1', '뒤에 온 글')] }))
+    const { container } = await renderChat()
+    const el = container.querySelector('[data-item="o1"]') as HTMLElement
+    expect(el.getAttribute('data-tone')).toBe('muted')
+    expect(el.querySelector('.mc-evt-k')?.textContent).toBe('paused')
+    expect(screen.getByText('옛 깃발')).toBeTruthy()
+    expect(screen.getByText('뒤에 온 글')).toBeTruthy()
+  })
+
+  it('사건 모양 고르기 — 아는 종류는 표의 모양, 모르는 종류(객체 원형의 이름 포함)는 종류 이름·muted', async () => {
+    const { EVENT_LOOK, lookOf } = await import('@renderer/13_Loop/mainChatModel')
+    expect(lookOf('fail')).toEqual(EVENT_LOOK.fail)
+    expect(lookOf('flag-raised')).toEqual(EVENT_LOOK['flag-raised'])
+    expect(lookOf('paused')).toEqual({ label: 'paused', tone: 'muted' })
+    expect(lookOf('constructor')).toEqual({ label: 'constructor', tone: 'muted' })
+  })
+
+  it('기록 한 줄의 같음 — 새 객체여도 그리는 칸이 같으면 같고, 칸 하나라도 다르면 다르다', async () => {
+    const { sameItem } = await import('@renderer/13_Loop/mainChatModel')
+    expect(sameItem(said('a1', '글'), said('a1', '글'))).toBe(true)
+    expect(sameItem(said('a1', '글'), said('a2', '글'))).toBe(false)
+    expect(sameItem(said('a1', '글'), said('a1', '글 고침'))).toBe(false)
+    expect(sameItem(said('a1', '글'), { ...said('a1', '글'), turn: 'event' } as MainChatItem)).toBe(false)
+    expect(sameItem(said('a1', '글'), { ...said('a1', '글'), at: '2026-11-19T06:00:00.000Z' } as MainChatItem)).toBe(false)
+    expect(sameItem(user('u1', '글', 'queued'), user('u1', '글', 'sent'))).toBe(false)
+    expect(sameItem(note('n1', '알림'), note('n1', '알림'))).toBe(true)
+    expect(sameItem(note('n1', '글'), said('n1', '글'))).toBe(false)
+    const e1 = ev('e1', 'fail', 'FAIL')
+    expect(sameItem(e1, ev('e1', 'fail', 'FAIL'))).toBe(true)
+    expect(sameItem(e1, ev('e1', 'halt', 'FAIL'))).toBe(false)
+    const withNode = { id: 'e1', at, kind: 'event', event: { kind: 'fail', node: 'checks', goal: 'G1', text: 'FAIL', verdict: 'fail' } } as MainChatItem
+    expect(sameItem(e1, withNode)).toBe(false)
+    expect(sameItem(withNode, { ...withNode, event: { ...(withNode as { event: object }).event, verdict: 'stop' } } as MainChatItem)).toBe(false)
+  })
+
+  it('입력칸에 쓰는 동안 기록의 글을 다시 그리지 않는다 — 같은 내용의 새 push도 다시 그리지 않고, 바뀐 글만 다시 그린다', async () => {
+    const items = (): MainChatItem[] => [said('a1', '첫 답'), said('a2', '둘째 답'), user('u1', '질문', 'queued')]
+    install(mv({ items: items() }))
+    const { container } = await renderChat()
+    expect(md.renders.length).toBeGreaterThan(0)
+    md.renders.length = 0
+    fireEvent.change(box(), { target: { value: '가' } })
+    fireEvent.change(box(), { target: { value: '가나' } })
+    expect(md.renders).toEqual([])
+    await pushView(mv({ items: items() }))
+    await pushState(st({ node: 'G1/implement' }))
+    expect(md.renders).toEqual([])
+    // 같은 id라도 내용이 바뀌면 다시 그린다 — 메인 글의 글자, 사람 글의 줄 섬 → 보냄
+    await pushView(mv({ items: [said('a1', '첫 답'), said('a2', '둘째 답 고침'), user('u1', '질문', 'sent')] }))
+    expect(md.renders).toEqual(['둘째 답 고침'])
+    expect(container.querySelector('[data-item="u1"]')?.getAttribute('data-state')).toBe('sent')
+    expect(box().value).toBe('가나')
+  })
+
+  it('보내기 응답을 기다리는 동안 새로 쓴 글은 응답 뒤에도 지우지 않는다', async () => {
+    let resolveSend: (r: { ok: boolean; view: MainChatView }) => void = () => {}
+    await renderChat()
+    api.loopMainSend.mockReturnValue(new Promise((r) => { resolveSend = r }))
+    fireEvent.change(box(), { target: { value: '첫 말' } })
+    await click(btn('보내기'))
+    expect(api.loopMainSend).toHaveBeenCalledWith({ cwd: CWD, text: '첫 말' })
+    fireEvent.change(box(), { target: { value: '다음 말' } })
+    await act(async () => { resolveSend({ ok: true, view: mv() }) })
+    await flush()
+    expect(box().value).toBe('다음 말')
+  })
+
+  it('입력칸을 떼어 낸 뒤에도 작업 폴더를 바꾸면 쓰던 글이 그대로 남는다', async () => {
+    const { MainChatView: View } = await import('@renderer/13_Loop')
+    const r = render(<View cwd={CWD} />)
+    await flush()
+    fireEvent.change(box(), { target: { value: '쓰던 글' } })
+    const OTHER = 'C:\\work\\second'
+    api.loopMainRead.mockResolvedValue(mv({ cwd: OTHER }))
+    r.rerender(<View cwd={OTHER} />)
+    await flush()
+    expect(box().value).toBe('쓰던 글')
+  })
+
+  it('멈추기 실패 알림은 멈출 것(메인 턴·작업 세션)이 모두 사라지면 함께 걷힌다', async () => {
+    install(mv({ busy: true }))
+    await renderChat()
+    api.loopCancelSession.mockResolvedValue({ ok: false })
+    await click(btn('메인 턴 멈추기'))
+    expect(within(chat()).getByText(/멈출 메인 턴이 없어요/)).toBeTruthy()
+    await pushView(mv({ busy: false }))
+    expect(within(chat()).queryByText(/멈출 메인 턴이 없어요/)).toBeNull()
+    expect(chat().querySelector('.mc-cancel')).toBeNull()
+  })
+
+  it('기록이 상한(500)에 닿아 길이가 그대로여도 새 글이 오면 기록의 끝을 보인다', async () => {
+    const many = (from: number): MainChatItem[] => Array.from({ length: 500 }, (_, i) => note(`n${from + i}`, `글 ${from + i}`))
+    install(mv({ items: many(0) }))
+    const { container } = await renderChat()
+    const thread = container.querySelector('.mc-thread') as HTMLElement
+    const set = vi.fn()
+    Object.defineProperty(thread, 'scrollHeight', { configurable: true, get: () => 9000 })
+    Object.defineProperty(thread, 'scrollTop', { configurable: true, get: () => 0, set })
+    await pushView(mv({ items: many(1) }))
+    expect(set).toHaveBeenCalledWith(9000)
+  })
+
+  it('한글 조합 중의 Enter(isComposing)는 보내지 않는다 — 조합이 끝난 Enter는 보낸다', async () => {
+    // 이 시험이 헛돌지 않는다는 받침 — 시험 환경의 키 사건이 isComposing을 정말 싣는다(싣지 않으면 막는 줄이 없어도 통과한다)
+    expect(new KeyboardEvent('keydown', { key: 'Enter', isComposing: true }).isComposing).toBe(true)
+    await renderChat()
+    fireEvent.change(box(), { target: { value: '한글' } })
+    await act(async () => { fireEvent.keyDown(box(), { key: 'Enter', isComposing: true }) })
+    await flush()
+    expect(api.loopMainSend).not.toHaveBeenCalled()
+    await act(async () => { fireEvent.keyDown(box(), { key: 'Enter' }) })
+    await flush()
+    expect(api.loopMainSend).toHaveBeenCalledWith({ cwd: CWD, text: '한글' })
   })
 })

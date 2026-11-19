@@ -4,19 +4,21 @@
 //     읽기·보내기·새로 열기·깃발 내리기 응답의 보기는 그 호출 중에 이 폴더의 push가 오지 않았을 때만 쓴다(낡은 보기로 되돌아가지 않는다).
 //   · 기록: 사람 글(줄 섬·보냄), 메인 글(MarkdownView — 원시 HTML을 그리지 않는다), 사건 줄(종류별 모양 — 깃발과 사람의 이어 가기는 다르다),
 //     알림(오류·저장 실패). 그 뒤에 대화 안 카드 — 메인의 질문·권한 카드(다시 묻는 카드 restored)와 스펙 승인 카드(LoopStatus.approval).
+//     기록 한 줄은 내용이 같으면 다시 그리지 않고, 쓰는 글은 입력칸(Composer)이 쥔다 — 글자 하나·push 하나에 기록 전체(최대 500줄)를
+//     다시 그리지 않는다(G3 독립 검수 중요 2). 모르는 사건 종류는 종류 이름·muted로 그린다(화면이 무너지지 않는다, 중요 1).
 //   · 사람 판정은 사람만: 승인·고치기는 승인 카드의 버튼을 사람이 눌렀을 때만 loop.decide로 간다(받은 sha256·expectNode를 그대로 싣는다).
 //     메인 글은 버튼·링크 동작을 갖지 않는다 — 어떤 글도 판정·카드 답·깃발·취소를 부르지 못한다.
 //   · 일시 정지: 깃발이 올라 있으면 표시와 「이어 가기」 — 깃발만 내린다(loop.lowerFlag, 판정 칸 없음). 멈춘 실행의 사람 이어 가기(decide)는
 //     루프 화면의 예외 한 줄에 그대로 있다. 취소는 대상(메인 턴 main / 작업 세션 worker)을 골라 보낸다(Backlog 9·12).
 //   · 새 메인 대화는 확인을 한 번 받은 뒤 loop.mainNew다. 화면이 내려가도 대화를 닫지 않는다(구독만 푼다).
-import { useCallback, useEffect, useRef, useState, type JSX, type KeyboardEvent } from 'react'
+import { memo, useCallback, useEffect, useRef, useState, type JSX, type KeyboardEvent } from 'react'
 import type { LoopCancelTarget, LoopCard, LoopCardResponse, LoopStatus, MainChatItem, MainChatView as ChatView } from '@shared/ipcContract'
 import { ipc } from '@renderer/01_Ipc'
 import { MarkdownView } from '@renderer/05_Conversation'
 import { QuestionModal } from '@renderer/03_Agent/prompt'
 import { ApprovalCard } from './LoopCards'
 import { errText, sameCwd } from './loopModel'
-import { CHAT_APPROVE_EVIDENCE, EVENT_LOOK, blockedReason, clockOf, workSessionLive } from './mainChatModel'
+import { CHAT_APPROVE_EVIDENCE, blockedReason, clockOf, lookOf, sameItem, workSessionLive } from './mainChatModel'
 import './LoopScreen.css'
 import './MainChat.css'
 
@@ -31,7 +33,7 @@ type Errors = Partial<Record<Where, string>>
 const CARD_REFUSED = '카드 답이 받아지지 않았어요 — 턴이 이미 끝났거나 카드가 바뀌었을 수 있어요'
 const PLACEHOLDER = '메인에게 말하기 — 질문, 「멈춰」, 「이어 가」, 「Backlog로」…'
 
-function ChatItem({ item }: { item: MainChatItem }): JSX.Element {
+function ChatItemView({ item }: { item: MainChatItem }): JSX.Element {
   switch (item.kind) {
     case 'user':
       return (
@@ -48,7 +50,7 @@ function ChatItem({ item }: { item: MainChatItem }): JSX.Element {
         </div>
       )
     case 'event': {
-      const look = EVENT_LOOK[item.event.kind]
+      const look = lookOf(item.event.kind)
       const where = item.event.goal ? `${item.event.goal}/${item.event.node ?? ''}` : item.event.node
       return (
         <div className="mc-evt" data-item={item.id} data-kind={item.event.kind} data-tone={look.tone}>
@@ -62,6 +64,9 @@ function ChatItem({ item }: { item: MainChatItem }): JSX.Element {
       return <div className="mc-notice" data-item={item.id} role="note">{item.text}</div>
   }
 }
+
+// push는 매번 새 객체를 준다 — id와 그리는 칸이 같으면 그 줄을 다시 그리지 않는다
+const ChatItem = memo(ChatItemView, (a, b) => sameItem(a.item, b.item))
 
 function ChatCard({ card, done, blocked, onAsk, onPermission }: {
   card: LoopCard
@@ -101,12 +106,59 @@ function ChatCard({ card, done, blocked, onAsk, onPermission }: {
   )
 }
 
+// 입력칸 — 쓰는 글(draft)과 보내는 중 표시를 이 컴포넌트가 쥔다. 글자 하나가 기록을 다시 그리지 않는다.
+// onSend는 받아졌는지를 돌려준다. 받아지면 입력칸을 비우되, 기다리는 동안 새로 쓴 글은 지우지 않는다(G3 독립 검수 사소 5).
+// 폴더가 바뀌어도 쓰던 글은 그대로다(이 컴포넌트를 폴더로 다시 만들지 않는다)
+const Composer = memo(function Composer({ blocked, error, onSend }: {
+  blocked: string | null
+  error: string | undefined
+  onSend: (text: string) => Promise<boolean>
+}): JSX.Element {
+  const [draft, setDraft] = useState('')
+  const [sending, setSending] = useState(false)
+
+  const submit = async (): Promise<void> => {
+    const raw = draft
+    const text = raw.trim()
+    if (text === '' || sending || blocked !== null) return
+    setSending(true)
+    try {
+      if (await onSend(text)) setDraft((now) => (now === raw ? '' : now))
+    } finally {
+      setSending(false)
+    }
+  }
+  // 한글 조합 중의 Enter(isComposing)는 글자를 끝내는 키다 — 보내지 않는다
+  const onKey = (e: KeyboardEvent<HTMLTextAreaElement>): void => {
+    if (e.key !== 'Enter' || e.shiftKey || e.nativeEvent.isComposing) return
+    e.preventDefault()
+    void submit()
+  }
+
+  return (
+    <div className="mc-composer">
+      <textarea
+        className="loop-input mc-input"
+        aria-label="메인에게 말하기"
+        placeholder={PLACEHOLDER}
+        value={draft}
+        disabled={blocked !== null}
+        onChange={(e) => setDraft(e.target.value)}
+        onKeyDown={onKey}
+      />
+      <div className="mc-composer-bar">
+        <span className="loop-muted mc-why">{blocked ?? 'Enter로 보내고 Shift+Enter로 줄을 바꿔요'}</span>
+        <button type="button" className="loop-btn pri" disabled={blocked !== null || sending || draft.trim() === ''} onClick={() => void submit()}>보내기</button>
+      </div>
+      {error !== undefined && <div className="loop-err">{error}</div>}
+    </div>
+  )
+})
+
 export function MainChatView({ cwd }: MainChatViewProps): JSX.Element {
   const [view, setView] = useState<ChatView | null>(null)
   const [status, setStatus] = useState<LoopStatus | null>(null)
   const [errors, setErrors] = useState<Errors>({})
-  const [draft, setDraft] = useState('')
-  const [sending, setSending] = useState(false)
   const [busy, setBusy] = useState(false)
   const [confirmNew, setConfirmNew] = useState(false)
   const [asking, setAsking] = useState<string | null>(null)
@@ -168,12 +220,13 @@ export function MainChatView({ cwd }: MainChatViewProps): JSX.Element {
     }
   }, [cwd, setError])
 
-  // 새 글이 오면 기록의 끝을 보인다
-  const count = view?.items.length ?? 0
+  // 새 글이 오면 기록의 끝을 보인다 — 길이가 아니라 마지막 줄의 id를 본다(상한 500에 닿으면 길이가 그대로다, G3 독립 검수 사소 6)
+  const items = view?.items ?? []
+  const lastId = items.length > 0 ? items[items.length - 1].id : null
   useEffect(() => {
     const el = threadRef.current
     if (el) el.scrollTop = el.scrollHeight
-  }, [count, view?.cards.length, status?.approval?.sha256])
+  }, [lastId, view?.cards.length, status?.approval?.sha256])
 
   // 호출 하나(판정·깃발·취소·새로 열기) — 요청 중에는 그 버튼들을 끈다. freshMain·freshState는 호출 중 그 push가 없었다는 뜻이다
   const run = async <R,>(where: Where, call: (c: string) => Promise<R>, done: (r: R, freshMain: boolean, freshState: boolean) => void): Promise<void> => {
@@ -199,30 +252,23 @@ export function MainChatView({ cwd }: MainChatViewProps): JSX.Element {
   const blocked = blockedReason(cwd, view)
   const expectNode = (): { expectNode?: string } => (status?.node != null ? { expectNode: status.node } : {})
 
-  const send = async (): Promise<void> => {
+  // 보내기 — 받아졌는지를 입력칸에 돌려준다. 그 사이 폴더가 바뀌었으면 받아진 것으로 치지 않는다(입력칸을 비우지 않는다)
+  const send = useCallback(async (text: string): Promise<boolean> => {
     const c = cwdRef.current
-    const text = draft.trim()
-    if (c === null || text === '' || sending || blocked !== null) return
-    setSending(true)
+    if (c === null) return false
     setError('send', null)
     const m0 = mainSeq.current
     try {
       const r = await ipc.loop.mainSend({ cwd: c, text })
-      if (!alive.current || !sameCwd(c, cwdRef.current)) return
-      if (r.ok) setDraft('')
-      else setError('send', r.reason ?? '보내지 못했어요')
+      if (!alive.current || !sameCwd(c, cwdRef.current)) return false
+      if (!r.ok) setError('send', r.reason ?? '보내지 못했어요')
       if (mainSeq.current === m0) setView(r.view)
+      return r.ok
     } catch (e) {
       if (alive.current) setError('send', errText(e))
-    } finally {
-      if (alive.current) setSending(false)
+      return false
     }
-  }
-  const onKey = (e: KeyboardEvent<HTMLTextAreaElement>): void => {
-    if (e.key !== 'Enter' || e.shiftKey || e.nativeEvent.isComposing) return
-    e.preventDefault()
-    void send()
-  }
+  }, [setError])
 
   const unmark = (id: string): void =>
     setAnswered((prev) => {
@@ -231,7 +277,8 @@ export function MainChatView({ cwd }: MainChatViewProps): JSX.Element {
       next.delete(id)
       return next
     })
-  // 카드 답은 다른 호출을 기다리지 않는다(질문 창에서 고른 답을 버리지 않는다). 받아지지 않으면 답한 표시를 되돌린다
+  // 카드 답은 다른 호출을 기다리지 않는다(질문 창에서 고른 답을 버리지 않는다). 받아지지 않으면 답한 표시를 되돌린다.
+  // 응답이 오기 전에 폴더가 바뀌었으면 새 폴더에 옛 폴더의 거부·오류를 보이지 않는다(G3 독립 검수 사소 8)
   const answer = async (card: LoopCard, response: LoopCardResponse): Promise<void> => {
     const c = cwdRef.current
     if (c === null) return
@@ -239,13 +286,13 @@ export function MainChatView({ cwd }: MainChatViewProps): JSX.Element {
     setAnswered((prev) => new Set(prev).add(card.requestId))
     try {
       const r = await ipc.loop.answerCard({ cwd: c, requestId: card.requestId, response })
-      if (!alive.current) return
+      if (!alive.current || !sameCwd(c, cwdRef.current)) return
       if (!r.ok) {
         unmark(card.requestId)
         setError('cards', CARD_REFUSED)
       }
     } catch (e) {
-      if (!alive.current) return
+      if (!alive.current || !sameCwd(c, cwdRef.current)) return
       unmark(card.requestId)
       setError('cards', errText(e))
     }
@@ -284,6 +331,12 @@ export function MainChatView({ cwd }: MainChatViewProps): JSX.Element {
   const approval = status?.approval ?? null
   const mainBusy = view?.busy ?? false
   const workLive = workSessionLive(status, view)
+  const stoppable = mainBusy || workLive
+
+  // 멈출 것(메인 턴·작업 세션)이 모두 사라지면 멈추기 실패 알림도 걷는다 — 버튼 없는 알림이 남지 않는다(G3 독립 검수 사소 4)
+  useEffect(() => {
+    if (!stoppable && errors.cancel !== undefined) setError('cancel', null)
+  }, [stoppable, errors.cancel, setError])
 
   return (
     <section className="main-chat" aria-label="메인 대화">
@@ -318,7 +371,7 @@ export function MainChatView({ cwd }: MainChatViewProps): JSX.Element {
         </div>
       )}
 
-      {(mainBusy || workLive || errors.cancel !== undefined) && (
+      {stoppable && (
         <div className="mc-bar mc-cancel">
           <span className="loop-muted">멈출 대상을 골라요</span>
           <div className="loop-actions">
@@ -331,10 +384,10 @@ export function MainChatView({ cwd }: MainChatViewProps): JSX.Element {
 
       <div className="mc-thread" ref={threadRef} role="log" aria-label="메인 대화 기록">
         <div className="mc-col">
-          {view !== null && view.items.length === 0 && cards.length === 0 && approval === null && (
+          {view !== null && items.length === 0 && cards.length === 0 && approval === null && (
             <div className="loop-muted mc-empty">아직 대화가 없어요 — 메인에게 먼저 말을 걸거나, 루프를 시작하면 메인이 브레인스토밍을 열어요.</div>
           )}
-          {view?.items.map((item) => <ChatItem key={item.id} item={item} />)}
+          {items.map((item) => <ChatItem key={item.id} item={item} />)}
           {cards.map((c) => (
             <ChatCard
               key={c.requestId}
@@ -365,22 +418,7 @@ export function MainChatView({ cwd }: MainChatViewProps): JSX.Element {
         </div>
       </div>
 
-      <div className="mc-composer">
-        <textarea
-          className="loop-input mc-input"
-          aria-label="메인에게 말하기"
-          placeholder={PLACEHOLDER}
-          value={draft}
-          disabled={blocked !== null}
-          onChange={(e) => setDraft(e.target.value)}
-          onKeyDown={onKey}
-        />
-        <div className="mc-composer-bar">
-          <span className="loop-muted mc-why">{blocked ?? 'Enter로 보내고 Shift+Enter로 줄을 바꿔요'}</span>
-          <button type="button" className="loop-btn pri" disabled={blocked !== null || sending || draft.trim() === ''} onClick={() => void send()}>보내기</button>
-        </div>
-        {errors.send !== undefined && <div className="loop-err">{errors.send}</div>}
-      </div>
+      <Composer blocked={blocked} error={errors.send} onSend={send} />
 
       <QuestionModal
         open={askingCard !== null}

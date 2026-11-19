@@ -216,7 +216,7 @@ export interface IpcInvokeMap {
   'loop.status': { req: LoopCwdRequest; res: LoopStatus }
   'loop.decide': { req: LoopDecideRequest; res: LoopDecideResponse }
   'loop.answerCard': { req: LoopAnswerCardRequest; res: LoopOkResponse }
-  // M10 G3 — 취소는 대상(메인 턴 main / 작업 세션 work)을 싣는다
+  // M10 G3 — 취소는 대상(메인 턴 main / 작업 세션 worker)을 싣는다
   'loop.cancelSession': { req: LoopCancelRequest; res: LoopOkResponse }
   'loop.releaseLatch': { req: LoopReleaseLatchRequest; res: LoopReleaseLatchResponse }
   'loop.close': { req: LoopCwdRequest; res: LoopOkResponse }

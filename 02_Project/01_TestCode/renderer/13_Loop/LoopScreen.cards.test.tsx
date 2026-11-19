@@ -293,6 +293,16 @@ describe('질문 카드와 권한 카드 (M09 G4)', () => {
     expect(api.loopCancelSession).toHaveBeenCalledWith({ cwd: CWD, target: 'worker' })
   })
 
+  // G3 독립 검수 사소 3 — 상태의 sessionActive는 메인 턴도 센다. 실행이 노드를 돌지 않는데(사람 기다림) 메인 턴만 돌면 작업 세션이 아니다.
+  // 메인 대화 화면의 「작업 세션 멈추기」와 같은 판단(mainChatModel.workSessionLive)을 쓴다
+  it('메인 턴만 돌고 실행이 노드를 돌지 않으면 작업 세션 취소를 보이지 않는다', async () => {
+    await renderScreen(st({ phase: 'waiting-human', sessionActive: true, mainBusy: true }))
+    expect(screen.queryByRole('button', { name: '작업 세션 취소' })).toBeNull()
+    cleanup()
+    await renderScreen(st({ phase: 'running', sessionActive: true, mainBusy: false }))
+    expect(screen.getByRole('button', { name: '작업 세션 취소' })).toBeTruthy()
+  })
+
   it('메인 대화의 카드(inChat)는 루프 화면에 그리지 않는다 — 답하는 곳은 메인 대화 한 곳이다 (M10 G3)', async () => {
     const inChat: LoopCard = { ...question, requestId: 'sx.7-q7', inChat: true }
     await renderScreen(st({ cards: [inChat, permission], sessionActive: true }))

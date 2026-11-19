@@ -108,9 +108,19 @@ async function snapshot(page: Page): Promise<string> {
 async function runAction(page: Page, a: Action): Promise<void> {
   const t = { timeout: 10_000 }
   switch (a.op) {
-    case 'click':
-      await page.locator(a.scope ?? 'body').getByRole('button', { name: a.name, exact: a.exact ?? true }).nth(a.nth ?? 0).click(t)
+    case 'click': {
+      const found = page.locator(a.scope ?? 'body').getByRole('button', { name: a.name, exact: a.exact ?? true })
+      // nth도 scope도 없으면 하나만 맞아야 한다 — 같은 이름의 버튼 둘(「이어 가기」: 루프 화면의 사람 판정 / 메인 대화의 깃발 내리기)을
+      // 첫째로 골라 누르지 않는다(G3 독립 검수 사소 7). 늦게 뜨는 버튼은 엄격 모드의 click이 여럿이면 던진다
+      if (a.nth === undefined && a.scope === undefined) {
+        const n = await found.count()
+        if (n > 1) throw new Error(`버튼 「${a.name}」이 ${n}개다 — scope나 nth를 준다`)
+        await found.click(t)
+        return
+      }
+      await found.nth(a.nth ?? 0).click(t)
       return
+    }
     case 'clickSel':
       await page.locator(a.sel).nth(a.nth ?? 0).click(t)
       return
@@ -147,7 +157,8 @@ async function runAction(page: Page, a: Action): Promise<void> {
       await page.screenshot({ path: join(CTL, `${a.name}.png`) })
       return
     case 'waitMain':
-      await page.locator('.main-chat .mc-thread', { hasText: a.text }).waitFor({ state: 'visible', timeout: a.ms ?? 180_000 })
+      // 메인의 글만 본다 — 사람 글·사건 줄·알림에 같은 글자가 있어도 기다림이 끝나지 않는다(G3 독립 검수 사소 7)
+      await page.locator('.main-chat .mc-thread .mc-msg.assistant', { hasText: a.text }).first().waitFor({ state: 'visible', timeout: a.ms ?? 180_000 })
       return
     case 'wait':
       await page.waitForTimeout(a.ms)

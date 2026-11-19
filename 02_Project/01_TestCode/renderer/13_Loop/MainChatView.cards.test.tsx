@@ -111,6 +111,36 @@ describe('대화 안 질문·권한 카드 (M10 G3)', () => {
     await click(within(card).getByRole('button', { name: '허용' }))
     expect(api.loopAnswerCard).toHaveBeenLastCalledWith({ cwd: CWD, requestId: permission.requestId, response: { kind: 'permission', behavior: 'allow' } })
   })
+
+  // G3 독립 검수 사소 8 — 옛 폴더의 카드 답 응답이 늦게 오면 새 폴더에 그 거부 알림을 보이지 않는다
+  it('카드 답의 응답이 작업 폴더를 바꾼 뒤에 오면 새 폴더에 「받아지지 않았어요」를 보이지 않는다', async () => {
+    install(mv({ cards: [permission] }))
+    let resolveAnswer: (r: { ok: boolean }) => void = () => {}
+    let rejectAnswer: (e: Error) => void = () => {}
+    api.loopAnswerCard.mockReturnValueOnce(new Promise((r) => { resolveAnswer = r }))
+    const { MainChatView: View } = await import('@renderer/13_Loop')
+    const r = render(<View cwd={CWD} />)
+    await flush()
+    await click(within(within(chat()).getByTestId(`mc-card-${permission.requestId}`)).getByRole('button', { name: '거부' }))
+    const OTHER = 'C:\\work\\second'
+    api.loopMainRead.mockResolvedValue(mv({ cwd: OTHER, cards: [] }))
+    r.rerender(<View cwd={OTHER} />)
+    await flush()
+    await act(async () => { resolveAnswer({ ok: false }) })
+    await flush()
+    expect(within(chat()).queryByText(/카드 답이 받아지지 않았어요/)).toBeNull()
+    // 예외로 끝난 응답도 같다
+    api.loopAnswerCard.mockReturnValueOnce(new Promise((_r, j) => { rejectAnswer = j }))
+    api.loopMainRead.mockResolvedValue(mv({ cards: [permission] }))
+    r.rerender(<View cwd={CWD} />)
+    await flush()
+    await click(within(within(chat()).getByTestId(`mc-card-${permission.requestId}`)).getByRole('button', { name: '허용' }))
+    r.rerender(<View cwd={OTHER} />)
+    await flush()
+    await act(async () => { rejectAnswer(new Error('옛 폴더의 연결 끊김')) })
+    await flush()
+    expect(within(chat()).queryByText(/옛 폴더의 연결 끊김/)).toBeNull()
+  })
 })
 
 describe('대화 안 스펙 승인 카드 (M10 G3 — M09 G4 승인 카드 시험을 옮겼다)', () => {

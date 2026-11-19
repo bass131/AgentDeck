@@ -25,6 +25,7 @@ import { createFsPort } from '@main/05_Loop/realPorts/fsPort'
 import { DOCS } from '@main/05_Loop/survivalDocs'
 import type { WorkNode } from '@main/05_Loop/template'
 import type { AgentEvent } from '@shared/agentEvents'
+import type { LoopEventKind } from '@shared/13_Loop/loop'
 import { scriptedBackend, textOnly, type Script, type ScriptedBackend } from '../00_Helpers/mainChatFakes'
 
 const NODE: WorkNode = {
@@ -575,7 +576,9 @@ describe('세션을 열기 전의 틈 (M10 G2 검수)', () => {
 })
 
 describe('저장본 검사와 저장 실패 (M10 G2 검수)', () => {
-  it('항목의 칸이 종류에 맞지 않으면 버리고 연다 — 생존 문서를 싣는 턴이 깨지지 않는다', async () => {
+  // G3 독립 검수 중요 1 — 모르는 사건 종류(이름이 바뀌기 전 빌드의 paused 꼴, 없는 종류)도 버린다. 화면이 모르는 종류의 모양을 찾다 무너지지 않게
+  // 저장본에서 걸러 연다(G2 검수 때는 옛 사건을 기록으로 남겼다 — 그 선택을 뒤집는다)
+  it('항목의 칸이 종류에 맞지 않거나 사건 종류를 모르면 버리고 연다 — 생존 문서를 싣는 턴이 깨지지 않는다', async () => {
     fs.mkdirSync(app, { recursive: true })
     const at = new Date().toISOString()
     fs.writeFileSync(mainChatPath(app, repoKeyOf(root)), JSON.stringify({
@@ -588,17 +591,36 @@ describe('저장본 검사와 저장 실패 (M10 G2 검수)', () => {
         { id: 'e', at, kind: 'event', event: { kind: 'paused', node: null, goal: null, text: '옛 사건' } },
         { id: 'f', at, kind: 'user', text: '남은 글', state: 'sent' },
         { id: 'g', at, kind: 'user', text: '상태가 이상한 글', state: 'lost' },
+        { id: 'h', at, kind: 'event', event: { kind: 'toString', node: null, goal: null, text: '원형 이름의 사건' } },
+        { id: 'i', at, kind: 'event', event: { kind: 'flag-raised', node: null, goal: null, text: '아는 사건' } },
       ],
     }))
     const fake = scriptedBackend(textOnly('예'))
     const chat = open(fake)
-    expect(chat.view(root).items.map((i) => i.id)).toEqual(['e', 'f'])
-    expect(readMainChatView(app, root).items.map((i) => i.id)).toEqual(['e', 'f'])
+    expect(chat.view(root).items.map((i) => i.id)).toEqual(['f', 'i'])
+    expect(readMainChatView(app, root).items.map((i) => i.id)).toEqual(['f', 'i'])
     chat.send('이어서')
     await chat.idle()
     expect(fake.starts).toHaveLength(1)
     expect(fake.prompts[0]).toContain('남은 글')
-    expect(fake.prompts[0]).toContain('옛 사건')
+    expect(fake.prompts[0]).toContain('아는 사건')
+    expect(fake.prompts[0]).not.toContain('옛 사건')
+    expect(fake.prompts[0]).not.toContain('원형 이름의 사건')
+  })
+
+  it('아는 사건 종류는 모두 저장본에서 그대로 남는다 — 종류 표가 종류 하나도 빠뜨리지 않는다 (G3 검수)', () => {
+    const kinds: LoopEventKind[] = [
+      'node-start', 'node-end', 'fail', 'halt', 'error', 'goal-merged', 'milestone-pr', 'spec-approved', 'spec-rejected',
+      'flag-raised', 'flag-lowered', 'resumed', 'backlog', 'latched', 'done',
+    ]
+    fs.mkdirSync(app, { recursive: true })
+    const at = new Date().toISOString()
+    fs.writeFileSync(mainChatPath(app, repoKeyOf(root)), JSON.stringify({
+      version: 1, root, sessionId: null, everSession: false, cards: [], queue: [], visit: null, paused: false,
+      items: kinds.map((kind, n) => ({ id: `k${n}`, at, kind: 'event', event: { kind, node: null, goal: null, text: kind } })),
+    }))
+    const items = readMainChatView(app, root).items
+    expect(items.map((i) => (i.kind === 'event' ? i.event.kind : null))).toEqual(kinds)
   })
 
   it('저장하지 못하면 대화에 알림을 한 번 남긴다 — 실패가 이어져도 알림을 되풀이하지 않는다', async () => {

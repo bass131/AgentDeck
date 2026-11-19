@@ -107,7 +107,7 @@ export interface LoopDriver {
   status(cwd: string): LoopStatus
   decide(req: LoopDecideRequest): Promise<LoopDecideResponse>
   answerCard(cwd: string, requestId: string, response: LoopCardResponse): boolean
-  // M10 G3 — 취소는 대상을 고른다: main은 메인 대화의 턴만, work는 작업·검수 세션만 멈춘다(서로 넘어가지 않는다, Backlog 12)
+  // M10 G3 — 취소는 대상을 고른다: main은 메인 대화의 턴만, worker는 작업·검수 세션만 멈춘다(서로 넘어가지 않는다, Backlog 12)
   cancelSession(cwd: string, target: LoopCancelTarget): boolean
   releaseLatch(cwd: string, token: string): Promise<LoopReleaseLatchResponse>
   close(cwd: string): Promise<void>
@@ -679,7 +679,7 @@ export function createLoopDriver(opts: LoopDriverOptions): LoopDriver {
       return e?.chat?.answerCard(requestId, response) ?? false
     },
 
-    // M10 G3 — 대상을 고른 취소(Backlog 12). main은 메인 대화의 턴만 멈추고(실행 상태와 무관), work는 작업·검수 세션만 멈춘다 —
+    // M10 G3 — 대상을 고른 취소(Backlog 12). main은 메인 대화의 턴만 멈추고(실행 상태와 무관), worker는 작업·검수 세션만 멈춘다 —
     // 작업 세션 취소의 멈춤(needs-user)은 실행기의 판정이다(M09 G4 — FAIL이 아니라 stop). 한쪽이 없어도 다른 쪽으로 넘어가지 않는다
     cancelSession: (cwd, target) => {
       const e = entryOf(cwd)

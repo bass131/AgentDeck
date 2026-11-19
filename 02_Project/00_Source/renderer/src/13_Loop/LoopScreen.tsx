@@ -16,6 +16,7 @@ import { PrCard } from '@renderer/08_Git'
 import { QuestionModal } from '@renderer/03_Agent/prompt'
 import { CardList, ExceptionBar, GoalList, LatchCard } from './LoopCards'
 import { PHASE_LABEL, RESUME_EVIDENCE, errText, sameCwd } from './loopModel'
+import { workSessionLive } from './mainChatModel'
 import './LoopScreen.css'
 
 export interface LoopScreenProps {
@@ -266,7 +267,8 @@ export function LoopScreen({ initialCwd, onCwdChange }: LoopScreenProps): JSX.El
                 </section>
               )}
 
-              {status.sessionActive && (
+              {/* 메인 대화 화면의 「작업 세션 멈추기」와 같은 판단 — 메인 턴만 도는 것은 작업 세션이 아니다(G3 독립 검수 사소 3) */}
+              {workSessionLive(status, null) && (
                 <div className="loop-actions loop-session">
                   <span className="loop-muted">세션이 떠 있어요</span>
                   <button type="button" className="loop-btn" disabled={busy} onClick={cancelSession}>작업 세션 취소</button>

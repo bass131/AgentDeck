@@ -49,7 +49,7 @@
     {
       "id": "decompose",
       "kind": "work",
-      "title": "goal 분해",
+      "title": "목표 분해",
       "role": "worker",
       "produces": "goals",
       "instruction": "승인된 마일스톤 스펙을 goal로 나눈다. goal마다 .agentdeck/goals/<id>.md 한 장을 쓰고 첫 제목 줄은 「# 제목」이다. 범위는 만들 것, 건드릴 곳, 하지 않을 것, 관찰 가능한 완료조건으로 쓴다.",
@@ -58,12 +58,12 @@
     {
       "id": "goals",
       "kind": "goalLoop",
-      "title": "goal마다",
+      "title": "목표마다",
       "steps": [
         {
           "id": "goal-branch",
           "kind": "action",
-          "title": "goal 브랜치 가르기",
+          "title": "목표 브랜치 가르기",
           "action": "createGoalBranch"
         },
         {

@@ -248,6 +248,8 @@ describe('멈춤은 일시 정지 깃발이다 (M10 G2)', () => {
     expect(await rig.actions().appendBacklog('두\n줄')).not.toContain('적었다')
     expect(fs.readFileSync(path.join(repos.work, BACKLOG_PATH), 'utf8')).toBe('# Backlog\n- 설정 화면 정리\n')
     expect(rig.d.mainRead(CWD).items.some((i) => i.kind === 'event' && i.event.kind === 'backlog')).toBe(true)
+    // M10 G5 — 화면에 보이는 사건 문장은 한글이다
+    expect(rig.d.mainRead(CWD).items.some((i) => i.kind === 'event' && i.event.text === '미룬 일에 적었다 — 설정 화면 정리')).toBe(true)
     expect(runState().lines).toEqual([])
   })
 })

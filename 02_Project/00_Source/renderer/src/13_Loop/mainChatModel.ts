@@ -7,9 +7,9 @@ import type { LoopEventKind, LoopStatus, MainChatItem, MainChatView } from '@sha
 export type EventTone = 'ok' | 'run' | 'fail' | 'human' | 'flag' | 'muted'
 
 export const EVENT_LOOK: Record<LoopEventKind, { label: string; tone: EventTone }> = {
-  'node-start': { label: 'RUN', tone: 'run' },
-  'node-end': { label: 'PASS', tone: 'ok' },
-  fail: { label: 'FAIL', tone: 'fail' },
+  'node-start': { label: '시작', tone: 'run' },
+  'node-end': { label: '통과', tone: 'ok' },
+  fail: { label: '실패', tone: 'fail' },
   halt: { label: '멈춤', tone: 'fail' },
   error: { label: '오류', tone: 'fail' },
   'goal-merged': { label: '병합', tone: 'ok' },
@@ -19,7 +19,7 @@ export const EVENT_LOOK: Record<LoopEventKind, { label: string; tone: EventTone 
   'flag-raised': { label: '깃발 올림', tone: 'flag' },
   'flag-lowered': { label: '깃발 내림', tone: 'flag' },
   resumed: { label: '사람 · 이어 가기', tone: 'human' },
-  backlog: { label: 'Backlog', tone: 'muted' },
+  backlog: { label: '미룬 일', tone: 'muted' },
   latched: { label: '래치', tone: 'fail' },
   done: { label: '끝', tone: 'ok' },
 }

@@ -14,7 +14,7 @@ const h = vi.hoisted(() => ({
 }))
 
 vi.mock('electron', () => ({
-  app: { getPath: () => h.userData, getAppPath: () => h.userData, getVersion: () => '0.0.0' },
+  app: { getPath: () => h.userData, getAppPath: () => h.userData, getVersion: () => '0.0.0', isPackaged: false, setAppUserModelId: (): void => {} },
   ipcMain: { handle: (ch: string, fn: (...a: unknown[]) => unknown): void => { h.handleCalls++; h.handlers.set(ch, fn) } },
   dialog: {},
 }))
@@ -285,6 +285,14 @@ describe('기동·종료 배선 — 00_App/bootstrap 한 곳 (M05 G11 4단계)',
     expect(boot).toMatch(/onSessionEvent: \(p\) => pushSessionEvent\(ipcState, p\)/)
     const mainRead = h.handlers.get(IPC_CHANNELS.LOOP_MAIN_READ)
     expect((await mainRead?.({}, { cwd: h.userData }) as { items: unknown[]; root: string | null }).items).toEqual([])
+    // M10 G5 — 알림 판정자도 조립 지점이 만들고, 구동자의 상태를 받으며, 그 목록을 loop.alerts가 읽는다
+    expect(boot).toMatch(/void notifier\.observe\(s\)/)
+    expect(callersOf(/\bcreateLoopNotifier\(/).filter((r) => r !== '05_Loop/loopNotifier.ts')).toEqual(['00_App/bootstrap.ts'])
+    expect(boot).toMatch(/applyDevAppUserModelId\(app\)/)
+    const alerts = h.handlers.get(IPC_CHANNELS.LOOP_ALERTS)
+    expect(await alerts?.({}, undefined)).toEqual({ alerts: [] })
+    const graph = h.handlers.get(IPC_CHANNELS.LOOP_GRAPH)
+    expect(await graph?.({}, { cwd: h.userData })).toMatchObject({ ok: true, graph: { templateId: 'program-dev' } })
   })
 
   it('조립 팩토리(store·roots·runManager·LSP·백엔드)를 부르는 곳은 00_App 안뿐이다', () => {

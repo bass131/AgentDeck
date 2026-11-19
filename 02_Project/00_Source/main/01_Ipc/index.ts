@@ -7,7 +7,7 @@ import type { ProfileStore } from '@main/11_Settings/profile'
 import type { SkillsStore } from '@main/11_Settings/skills'
 import type { McpStore } from '@main/11_Settings/mcp'
 import type { CommandsStore } from '@main/11_Settings/commands'
-import type { ModelListResponse } from '@shared/ipcContract'
+import type { LoopAlert, ModelListResponse } from '@shared/ipcContract'
 import { registerWorkspaceHandlers } from './handlers/workspace'
 import { registerAgentHandlers } from './handlers/agent'
 import { registerFsHandlers } from './handlers/fs'
@@ -38,6 +38,8 @@ export interface IpcDeps {
   getModelList?: () => Promise<ModelListResponse>
   // M09 G4 — 앱 안 루프 구동자(조립 지점이 만든다). 없으면 루프 채널을 등록하지 않는다.
   loopDriver?: LoopDriverApi
+  // M10 G5 — 알림 판정자의 지금 목록(loop.alerts)
+  loopAlerts?: { list(): LoopAlert[] }
 }
 
 export function registerIpc(deps: IpcDeps): void {
@@ -64,5 +66,5 @@ export function registerIpc(deps: IpcDeps): void {
     getPrefsStore: deps.getPrefsStore,
     getProfileStore: deps.getProfileStore,
   })
-  if (deps.loopDriver) registerLoopHandlers({ driver: deps.loopDriver })
+  if (deps.loopDriver) registerLoopHandlers({ driver: deps.loopDriver, ...(deps.loopAlerts ? { alerts: deps.loopAlerts } : {}) })
 }

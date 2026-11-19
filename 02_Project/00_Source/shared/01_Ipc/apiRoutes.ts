@@ -140,6 +140,11 @@ export const API_ROUTES = {
     lowerFlag: call(IPC_CHANNELS.LOOP_LOWER_FLAG),
     sessionLog: call(IPC_CHANNELS.LOOP_SESSION_LOG),
     mainArchives: call(IPC_CHANNELS.LOOP_MAIN_ARCHIVES),
+    // M10 G5 — 그래프 읽기(보기 전용), 알림 목록 읽기와 그 push, 알림을 눌렀을 때 여는 push
+    graph: call(IPC_CHANNELS.LOOP_GRAPH),
+    alerts: call0(IPC_CHANNELS.LOOP_ALERTS),
+    onAlerts: push(IPC_CHANNELS.LOOP_ALERTS_STATE),
+    onAlertOpen: push(IPC_CHANNELS.LOOP_ALERT_OPEN),
   },
 } as const
 

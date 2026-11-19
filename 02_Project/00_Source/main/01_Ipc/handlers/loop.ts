@@ -12,7 +12,10 @@ import type {
   LoopReleaseLatchResponse,
   LoopStatus,
 } from '@shared/ipcContract'
-import type { LoopCancelTarget, LoopMainResponse, LoopSessionEventPayload, LoopSessionLog, MainChatArchives, MainChatView } from '@shared/13_Loop/loop'
+import type {
+  LoopAlert, LoopAlertList, LoopAlertOpen, LoopCancelTarget, LoopMainResponse, LoopSessionEventPayload, LoopSessionLog, MainChatArchives, MainChatView,
+} from '@shared/13_Loop/loop'
+import type { LoopGraphResponse } from '@shared/13_Loop/graph'
 import { handle } from '../handle'
 
 const MAIN_TEXT_MAX = 20_000
@@ -26,6 +29,8 @@ export interface LoopDriverApi {
   lowerFlag(cwd: string): LoopMainResponse
   sessionLog(cwd: string): LoopSessionLog
   mainArchives(cwd: string): Promise<MainChatArchives>
+  // M10 G5 — 그 작업 폴더의 템플릿을 화면용 그래프로(보기 전용)
+  graph(cwd: string): LoopGraphResponse
   open(req: LoopOpenRequest): Promise<LoopStatus>
   start(cwd: string, milestoneId: string): Promise<LoopStatus>
   status(cwd: string): LoopStatus
@@ -36,7 +41,8 @@ export interface LoopDriverApi {
   close(cwd: string): Promise<void>
 }
 
-export interface LoopHandlerDeps { driver: LoopDriverApi }
+// alerts — 알림 판정자(main/05_Loop/loopNotifier.ts)의 지금 목록. 없으면 빈 목록이다
+export interface LoopHandlerDeps { driver: LoopDriverApi; alerts?: { list(): LoopAlert[] } }
 
 const SHA256 = /^[0-9a-f]{64}$/
 const EVIDENCE_MAX = 2000
@@ -156,6 +162,8 @@ export function registerLoopHandlers(deps: LoopHandlerDeps): void {
 
   handle(IPC_CHANNELS.LOOP_SESSION_LOG, async (_e, req) => driver.sessionLog(cwdOf(obj(req, 'loop.sessionLog'), 'loop.sessionLog')))
   handle(IPC_CHANNELS.LOOP_MAIN_ARCHIVES, async (_e, req) => driver.mainArchives(cwdOf(obj(req, 'loop.mainArchives'), 'loop.mainArchives')))
+  handle(IPC_CHANNELS.LOOP_GRAPH, async (_e, req) => driver.graph(cwdOf(obj(req, 'loop.graph'), 'loop.graph')))
+  handle(IPC_CHANNELS.LOOP_ALERTS, async () => ({ alerts: deps.alerts?.list() ?? [] }))
 }
 
 function pushTo<C extends Parameters<typeof sendPush>[1]>(state: { win: BrowserWindow | null }, ch: C, payload: Parameters<typeof sendPush<C>>[2]): void {
@@ -174,4 +182,11 @@ export function pushMainState(state: { win: BrowserWindow | null }, v: MainChatV
 }
 export function pushSessionEvent(state: { win: BrowserWindow | null }, p: LoopSessionEventPayload): void {
   pushTo(state, IPC_CHANNELS.LOOP_SESSION_EVENT, p)
+}
+// M10 G5 — 알림 목록(다음 loop.alerts가 같은 것을 돌려준다)과 Windows 알림을 눌렀을 때 열 작업 폴더
+export function pushAlerts(state: { win: BrowserWindow | null }, list: LoopAlertList): void {
+  pushTo(state, IPC_CHANNELS.LOOP_ALERTS_STATE, list)
+}
+export function pushAlertOpen(state: { win: BrowserWindow | null }, open: LoopAlertOpen): void {
+  pushTo(state, IPC_CHANNELS.LOOP_ALERT_OPEN, open)
 }

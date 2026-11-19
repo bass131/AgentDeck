@@ -4,7 +4,7 @@ import { Conversation, type InjectedInput } from '@renderer/05_Conversation'
 import { SubAgentSplitView } from '@renderer/03_Agent'
 import { TitleBar, ResizeHandles, Sidebar, SettingsModal, Profile, ZoomControl } from '.'
 import { GitModal } from '@renderer/08_Git'
-import { WorkView, useWorkStore } from '@renderer/13_Loop'
+import { WorkView, useWorkStore, startAlerts } from '@renderer/13_Loop'
 import { AskModal } from '@renderer/03_Agent/prompt'
 import { RecentFiles } from '@renderer/07_Workspace/file'
 import { FileModal } from '@renderer/07_Workspace/file'
@@ -80,6 +80,11 @@ export function Shell(): JSX.Element {
   const [profileOpen, setProfileOpen] = useState(false)
   // 첫 그리기 전에 저장된 작업 폴더를 읽어, 작업 모드가 빈 폴더로 한 번 그려지지 않게 한다
   useState(() => { useWorkStore.getState().hydrate(); return null })
+  // 알림 목록은 모드와 상관없이 구독한다 — Windows 알림을 누르면 그 작업 폴더의 작업 모드로 연다(M10 G5)
+  useEffect(() => startAlerts((cwd) => {
+    useAppStore.getState().setWorkspaceMode('work')
+    useWorkStore.getState().choose(cwd)
+  }), [])
 
   const handleOpenImage = useCallback((images: string[], index: number) => {
     setImageViewer({ images, index })

@@ -14,6 +14,7 @@ import type { AgentBackend, AgentRun, AgentRunInput, RunResponse } from '@main/0
 import { repoKeyOf } from '@main/05_Loop/digestStore'
 import { autoModeReasonOf, createLoopDriver, type LoopDriver } from '@main/05_Loop/loopDriver'
 import { openLoop } from '@main/05_Loop/openLoop'
+import { FAIL_LIMIT } from '@main/05_Loop/runState'
 import { DOCS } from '@main/05_Loop/survivalDocs'
 import type { AgentEvent } from '@shared/agentEvents'
 import type { LoopStatus } from '@shared/ipcContract'
@@ -190,9 +191,12 @@ describe('구동자 — 마일스톤 하나를 사람과 함께 끝까지 (M09 G
     const told = rec.starts.map((s) => String(s.messages.at(-1)?.content)).filter((p) => p.startsWith('[실행기 사건]'))
     expect(told.length).toBeGreaterThanOrEqual(1)
     for (const p of told) {
-      for (const line of p.split('\n').filter((l) => l.startsWith('- '))) expect(line).toMatch(/goal을 병합했다|마일스톤 PR을 열었다/)
+      for (const line of p.split('\n').filter((l) => l.startsWith('- '))) expect(line).toMatch(/목표를 병합했다|마일스톤 PR을 열었다/)
     }
-    expect(told.join('\n').match(/goal을 병합했다/g)).toHaveLength(2)
+    expect(told.join('\n').match(/목표를 병합했다/g)).toHaveLength(2)
+    // M10 G5 — 사람이 읽는 사건 문장은 한글이다(PR·이름은 그대로)
+    const texts = d.mainRead(CWD).items.flatMap((i) => (i.kind === 'event' ? [i.event.text] : []))
+    for (const t of texts) expect(t, t).not.toMatch(/goal을|goal 목록|\bFAIL\b|Backlog/)
     expect(told.join('\n')).toContain('마일스톤 PR을 열었다')
 
     // 앱을 다시 켠 것 — 구동자를 닫고 새로 만들어 연다. 같은 노드에서 이어 가고, 사람이 병합하면 끝낸다.
@@ -648,5 +652,22 @@ describe('알림은 단계가 바뀌면 지운다 (M09 G4 검수 사소 6)', () 
     d.answerCard(CWD, carded.cards[0].requestId, { kind: 'question', answers: [['덧셈']] })
     const waiting = await until((s) => s.phase === 'waiting-human' && s.approval !== null, '스펙 승인')
     expect(waiting.reason).toBeNull()
+  })
+})
+
+// M10 G5 — 그래프 읽기는 실행기를 열지 않아도 답한다(원격 없는 저장소처럼 열기가 실패한 폴더도). 열 때 쓰는 템플릿과 같은 것을 쓴다
+describe('구동자 그래프 읽기 (M10 G5)', () => {
+  it('열지 않은 폴더에도 실행기가 쓸 템플릿(시험이 끼운 것, 없으면 번들)의 그래프를 준다', () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'ad-graph-'))
+    try {
+      const custom = createLoopDriver({ appDataDir: tmp, openExtras: { template: TEMPLATE } })
+      const r = custom.graph(path.join(tmp, 'nowhere'))
+      expect(r.ok).toBe(true)
+      if (r.ok) expect([r.graph.nodes.find((n) => n.id === 'checks')?.commands, r.graph.failLimit]).toEqual([[OK_CMD], FAIL_LIMIT])
+      const bundled = createLoopDriver({ appDataDir: tmp }).graph(tmp)
+      expect(bundled.ok && bundled.graph.nodes.find((n) => n.id === 'checks')?.commands).toEqual(['npm run build', 'npm test'])
+    } finally {
+      fs.rmSync(tmp, { recursive: true, force: true })
+    }
   })
 })

@@ -114,6 +114,11 @@ export const FLAT_ROUTES = {
   loopLowerFlag: { group: 'loop', action: 'lowerFlag' },
   loopSessionLog: { group: 'loop', action: 'sessionLog' },
   loopMainArchives: { group: 'loop', action: 'mainArchives' },
+  // M10 G5 — 그래프 읽기와 알림
+  loopGraph: { group: 'loop', action: 'graph' },
+  loopAlerts: { group: 'loop', action: 'alerts' },
+  onLoopAlerts: { group: 'loop', action: 'onAlerts' },
+  onLoopAlertOpen: { group: 'loop', action: 'onAlertOpen' },
 } as const satisfies Record<string, FlatRoute>
 
 export type FlatKey = keyof typeof FLAT_ROUTES
@@ -225,6 +230,8 @@ const DEFAULT_RESULTS: { [C in InvokeChannel]?: ResOf<C> } = {
   'settings.controlsState': { status: 'none', fileReadable: false, nodes: [], engine: { seal: 'none', active: null } },
   'settings.setControlEnabled': { ok: true },
   'settings.confirmControls': { ok: true },
+  'loop.graph': { ok: false, reason: '시험 기본값 — 그래프 없음' },
+  'loop.alerts': { alerts: [] },
 }
 
 const SYNC_RESULTS: Partial<Record<FlatKey, unknown>> = {

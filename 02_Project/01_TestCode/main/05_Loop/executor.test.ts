@@ -140,6 +140,9 @@ describe('FAIL 계수 — 마지막 USER-INPUT 뒤 셋이면 멈춘다', () => {
     s = fail(s)
     expect(s.status).toBe('needs-user')
     expect(s.failCount).toBe(3)
+    // M10 G5 — 새로 만드는 멈춤 사유는 한글이다. 줄의 마커(FAIL)는 그대로다
+    expect(s.haltReason).toMatch(/^마지막 사람 입력 뒤 실패 3번 — /)
+    expect(s.lines.at(-1)?.marker).toBe('FAIL')
     expect(nextStep(template, s).kind).toBe('needs-user')
     expect(applyVerdict(template, s, verdict('regression', 'rule', 'pass'), AT).ok).toBe(false)
     expect(applyVerdict(template, s, verdict('regression', 'model', 'pass'), AT).ok).toBe(false)
@@ -151,7 +154,7 @@ describe('FAIL 계수 — 마지막 USER-INPUT 뒤 셋이면 멈춘다', () => {
     expect(s.status).toBe('running')
     expect(s.lines.at(-1)).toMatchObject({ marker: 'USER-INPUT', by: 'executor', judge: 'human' })
     // 멈춘 사유와 사람의 답이 함께 줄로 남는다 — 예외 호출의 횟수와 이유를 줄에서 셀 수 있다
-    expect(s.lines.at(-1)?.sentence).toContain('FAIL 3번')
+    expect(s.lines.at(-1)?.sentence).toContain('실패 3번')
     expect(s.lines.at(-1)?.sentence).toContain('테스트 환경을 고쳤다')
     expect(s.failCount).toBe(0)
     expect(labelOf(nextStep(template, s))).toBe('regression')

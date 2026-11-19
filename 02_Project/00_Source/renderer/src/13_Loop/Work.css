@@ -70,6 +70,19 @@
   background: var(--bg);
 }
 .board-box[data-hot='true'] { border-color: var(--yellow); box-shadow: 0 0 0 1px var(--yellow-soft); }
+.board-alert {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 8px 12px;
+  border: 1px solid var(--red);
+  border-radius: 10px;
+  background: var(--red-soft);
+  font-size: 12px;
+}
+.board-alert b { color: var(--red); font-size: 11.5px; }
+.board-alert[data-level='later'] { border-color: var(--yellow); background: var(--yellow-soft); }
+.board-alert[data-level='later'] b { color: var(--yellow); }
 .board-h {
   margin: 0;
   display: flex;

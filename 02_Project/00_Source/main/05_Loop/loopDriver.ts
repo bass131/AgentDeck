@@ -54,7 +54,10 @@ import type { AgentEvent } from '@shared/agentEvents'
 import type {
   LoopCancelTarget, LoopEventItem, LoopMainResponse, LoopSessionEventPayload, LoopSessionLog, LoopSessionTag, LoopVerificationLine, MainChatArchives, MainChatView,
 } from '@shared/13_Loop/loop'
+import type { LoopGraphResponse } from '@shared/13_Loop/graph'
+import { loadBundledTemplate } from './bundledTemplate'
 import type { NextStep } from './executor'
+import { templateGraph } from './templateGraph'
 import { createFileDigestStore, repoKeyOf, stateDigest } from './digestStore'
 import { TAMPERED_REASON, visitKeyOf } from './loopRunner'
 import { openMainChat, readMainChatView, type MainActions, type MainChat } from './mainChat'
@@ -125,6 +128,8 @@ export interface LoopDriver {
   lowerFlag(cwd: string): LoopMainResponse
   sessionLog(cwd: string): LoopSessionLog
   mainArchives(cwd: string): Promise<MainChatArchives>
+  // M10 G5 — 열 때 쓰는 템플릿(openExtras.template, 없으면 번들)의 화면용 그래프. 실행기를 열지 않아도 답한다
+  graph(cwd: string): LoopGraphResponse
 }
 
 interface OpenFailure { reason: string; changed?: string[]; root?: string }
@@ -372,7 +377,7 @@ export function createLoopDriver(opts: LoopDriverOptions): LoopDriver {
       appendBacklog: async (line) => {
         const r = await appendBacklogLine(fsPort, line)
         if (!r.ok) return `적지 않았다 — ${r.reason}`
-        record(e, { kind: 'backlog', node: null, goal: null, text: `Backlog에 적었다 — ${line.trim()}` })
+        record(e, { kind: 'backlog', node: null, goal: null, text: `미룬 일에 적었다 — ${line.trim()}` })
         return 'Backlog에 적었다'
       },
     }
@@ -520,11 +525,11 @@ export function createLoopDriver(opts: LoopDriverOptions): LoopDriver {
       const v = out.verdict
       const evidence = oneLine(v.evidence)
       if (next.kind === 'action' && v.verdict === 'pass' && next.node.action === 'mergeGoal') {
-        record(e, { kind: 'goal-merged', node, goal, verdict: 'pass', text: `${goal ?? ''} goal을 병합했다 — ${evidence}` }, true)
+        record(e, { kind: 'goal-merged', node, goal, verdict: 'pass', text: `${goal ?? ''} 목표를 병합했다 — ${evidence}` }, true)
       } else if (next.kind === 'action' && v.verdict === 'pass' && next.node.action === 'openMilestonePr') {
         record(e, { kind: 'milestone-pr', node, goal, verdict: 'pass', text: `마일스톤 PR을 열었다 — ${evidence}` }, true)
       } else if (v.verdict === 'fail') {
-        record(e, { kind: 'fail', node, goal, verdict: 'fail', text: `${label} FAIL — ${evidence}` })
+        record(e, { kind: 'fail', node, goal, verdict: 'fail', text: `${label} 실패 — ${evidence}` })
       } else if (v.verdict === 'pass') {
         record(e, { kind: 'node-end', node, goal, verdict: 'pass', text: `${label} 통과 — ${evidence}` })
       }
@@ -842,6 +847,14 @@ export function createLoopDriver(opts: LoopDriverOptions): LoopDriver {
     },
 
     mainRead: (cwd) => mainViewOf(cwd),
+
+    graph: () => {
+      const given = opts.openExtras?.template
+      if (given) return { ok: true, graph: templateGraph(given.template) }
+      const t = loadBundledTemplate()
+      if (!t.ok) return { ok: false, reason: `번들 템플릿이 스키마에 맞지 않는다 — ${t.errors.map((x) => `${x.path} ${x.reason}`).join('; ')}` }
+      return { ok: true, graph: templateGraph(t.template) }
+    },
 
     mainSend(cwd, text) {
       const chat = entryOf(cwd)?.chat

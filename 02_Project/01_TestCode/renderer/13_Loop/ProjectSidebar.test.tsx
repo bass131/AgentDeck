@@ -76,6 +76,8 @@ describe('프로젝트 목록과 진행 꼬리표 (M10 G4)', () => {
     await act(async () => { for (const h of [...stateHandlers]) h(st('c:/work/practice/', { phase: 'halted' })) })
     expect(rows()[0].querySelector('.sb-proj-tag')?.textContent).toBe('M02 · 멈춤')
     expect(rows()[0].querySelector('.sb-proj-tag')?.getAttribute('data-tone')).toBe('stop')
+    // M10 G5 — 꼬리표 옆 점은 main이 정한 알림 목록에서만 온다(상태의 멈춤만으로는 붙지 않는다 — alerts.test)
+    expect(rows().map((r) => r.querySelector('.sb-proj-alert'))).toEqual([null, null])
   })
 
   it('「프로젝트 열기」는 폴더 고르기로 더하고 목록과 고른 폴더를 설정에 남긴다', async () => {

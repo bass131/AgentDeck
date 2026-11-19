@@ -374,7 +374,7 @@ export function createLoopRunner(deps: LoopRunnerDeps): LoopRunner {
     try {
       // G4 검수 I6 — diff의 기준은 goal을 가를 때 실행기가 적은 시작 SHA다(작업 노드가 옮길 수 있는 로컬 ref 이름이 아니다)
       const baseSha = goal?.baseSha ?? null
-      if (!baseSha) return v(node, 'stop', 'goal 시작 SHA가 상태에 없어 검수 diff의 기준을 정할 수 없다 — 사람 판단이 필요하다')
+      if (!baseSha) return v(node, 'stop', '목표 시작 SHA가 상태에 없어 검수 diff의 기준을 정할 수 없다 — 사람 판단이 필요하다')
       // G4 검수 I7 — 검수 기준 문서가 분해 때 읽은 것과 같은가. 검수에 주는 본문과 대조하는 본문이 같은 읽기다
       const goalDoc = goal ? await ports.fs.read(goalDocPath(goal.id)) : null
       const drift = goalDocDrift(goal, goalDoc)
@@ -383,7 +383,7 @@ export function createLoopRunner(deps: LoopRunnerDeps): LoopRunner {
       if (!snap) return v(node, 'fail', `${names.milestone}의 goal 시작 ${short(baseSha)} 대비 diff를 만들지 못해 검수를 열지 않았다`)
       // G4 검수 I9 — 잘린 diff로 검수하지 않는다(pass가 전체 트리에 묶이므로). FAIL로 세지 않고 멈춘다
       if (snap.tooLarge) {
-        return v(node, 'stop', `검수 diff가 ${snap.chars ?? '?'}자로 상한을 넘어 검수를 열지 않았다 — goal을 나누거나 사람이 판단한다`)
+        return v(node, 'stop', `검수 diff가 ${snap.chars ?? '?'}자로 상한을 넘어 검수를 열지 않았다 — 목표를 나누거나 사람이 판단한다`)
       }
       const r = await ports.review.review({ milestoneId: state.milestoneId, node, goal, goalDoc, diff: snap.diff, base: names.milestone, baseSha })
       if (r.verdict !== 'pass') return { node: node.id, judge: 'model', verdict: r.verdict, evidence: r.evidence }
@@ -561,10 +561,10 @@ export function createLoopRunner(deps: LoopRunnerDeps): LoopRunner {
     const recorded = goal?.docSha256 ?? null
     if (!goal || recorded === null) return null
     const path = goalDocPath(goal.id)
-    if (text === null) return `분해 때 읽은 goal 문서 ${path}가 없어졌다 — 사람 판단이 필요하다.`
+    if (text === null) return `분해 때 읽은 목표 문서 ${path}가 없어졌다 — 사람 판단이 필요하다.`
     const now = sha256Text(text)
     if (now === recorded) return null
-    return `goal 문서 ${path}가 분해 때 적은 해시 ${short(recorded)}와 다르다(지금 ${short(now)}) — 검수 기준 문서가 바뀌었다. 사람이 되돌리거나 판단한다.`
+    return `목표 문서 ${path}가 분해 때 적은 해시 ${short(recorded)}와 다르다(지금 ${short(now)}) — 검수 기준 문서가 바뀌었다. 사람이 되돌리거나 판단한다.`
   }
 
   async function runAction(node: ActionNode, state: RunState, goal: GoalState | null, names: BranchNames): Promise<Verdict> {
@@ -579,7 +579,7 @@ export function createLoopRunner(deps: LoopRunnerDeps): LoopRunner {
           if (!goal || names.goal === null) return v(node, 'fail', 'goal 밖에서 goal PR을 열 수 없다')
           // G4 검수 I7 — 검수 없는(약 등급) goal도 PR 전에 goal 문서를 대조한다
           const drift = goalDocDrift(goal, await ports.fs.read(goalDocPath(goal.id)))
-          if (drift) return v(node, 'stop', `${drift} goal PR을 열지 않았다`)
+          if (drift) return v(node, 'stop', `${drift} 목표 PR을 열지 않았다`)
           const body = `goal ${goal.id} — ${goal.title}\n\n${renderGoalLines(state, goal.id)}\n`
           return await ensurePr(node, names.goal, names.milestone, `${goal.id}: ${goal.title}`, body, true, false, goal.reviewedTree ?? null)
         }

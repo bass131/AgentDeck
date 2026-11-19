@@ -1,6 +1,6 @@
 // M09 G4 루프 화면의 순수 도우미 — 저장소 경로 비교 키, 단계 이름, 예외 한 줄, 고정 근거 문구.
 // 화면은 상태를 만들지 않는다. 여기 함수는 main이 준 한 장(LoopStatus)을 읽어 보일 글만 고른다.
-import type { LoopGoalView, LoopPhase, LoopStatus } from '@shared/ipcContract'
+import type { LoopGoalView, LoopPhase, LoopStatus, LoopVerificationLine } from '@shared/ipcContract'
 
 // main의 decide 근거 상한(handlers/loop.ts EVIDENCE_MAX)과 같다 — 넘으면 main이 요청을 거부한다
 export const EVIDENCE_MAX = 2000
@@ -30,6 +30,10 @@ export const PHASE_LABEL: Record<LoopPhase, string> = {
   blocked: '진행 불가',
   done: '끝남',
 }
+
+// 검증 기록 마커의 화면 이름 — 저장 값('PASS'·'FAIL'·'USER-INPUT')은 그대로다
+export const MARKER_LABEL: Record<LoopVerificationLine['marker'], string> = { PASS: '통과', FAIL: '실패', 'USER-INPUT': '사람 입력' }
+export const VERDICT_LABEL: Record<NonNullable<LoopStatus['lastVerdict']>['verdict'], string> = { pass: '통과', fail: '실패', stop: '멈춤' }
 
 export const GOAL_STATUS_LABEL: Record<LoopGoalView['status'], string> = { pending: '대기', active: '진행', done: '완료' }
 export const GRADE_LABEL: Record<NonNullable<LoopGoalView['grade']>, string> = { strong: '강', weak: '약' }

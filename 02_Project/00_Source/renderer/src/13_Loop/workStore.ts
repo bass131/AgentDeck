@@ -9,7 +9,8 @@ export const WORK_CWD_PREF = 'work.cwd'
 export const WORK_PROJECTS_PREF = 'work.projects'
 
 export type CenterTab = 'graph' | 'main' | `session:${string}` | `archive:${string}`
-export type RightTab = 'board' | 'files'
+// node(「노드 설정」)는 그래프 탭이 열려 있을 때만 있다 — 가운데가 그래프를 떠나면 현황판으로 돌아간다
+export type RightTab = 'node' | 'board' | 'files'
 
 export interface WorkStore {
   hydrated: boolean
@@ -19,14 +20,18 @@ export interface WorkStore {
   extraTabs: CenterTab[]
   right: RightTab
   archives: MainChatArchive[]
+  selectedNode: string | null
   hydrate: () => void
   choose: (cwd: string) => void
   setCenter: (tab: CenterTab) => void
   openTab: (tab: CenterTab) => void
   closeTab: (tab: CenterTab) => void
   setRight: (tab: RightTab) => void
+  selectNode: (id: string) => void
   loadArchives: (cwd: string) => Promise<void>
 }
+
+const rightFor = (center: CenterTab, right: RightTab): RightTab => (right === 'node' && center !== 'graph' ? 'board' : right)
 
 const strings = (v: unknown): string[] => (Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string' && x.trim() !== '') : [])
 
@@ -38,6 +43,7 @@ export const useWorkStore = create<WorkStore>((set, get) => ({
   extraTabs: [],
   right: 'board',
   archives: [],
+  selectedNode: null,
 
   hydrate: () => {
     if (get().hydrated) return
@@ -56,23 +62,26 @@ export const useWorkStore = create<WorkStore>((set, get) => ({
     set({
       cwd: same && s.cwd !== null ? s.cwd : cwd,
       projects,
-      ...(same ? {} : { center: 'main' as CenterTab, extraTabs: [], archives: [] }),
+      ...(same ? {} : { center: 'main' as CenterTab, extraTabs: [], archives: [], selectedNode: null, right: rightFor('main', s.right) }),
     })
     if (!same) setPref(WORK_CWD_PREF, cwd)
     if (projects.length !== s.projects.length) setPref(WORK_PROJECTS_PREF, projects)
   },
 
-  setCenter: (tab) => set({ center: tab }),
+  setCenter: (tab) => set({ center: tab, right: rightFor(tab, get().right) }),
   openTab: (tab) => {
     const s = get()
-    if (tab === 'graph' || tab === 'main') { set({ center: tab }); return }
-    set({ center: tab, extraTabs: s.extraTabs.includes(tab) ? s.extraTabs : [...s.extraTabs, tab] })
+    const right = rightFor(tab, s.right)
+    if (tab === 'graph' || tab === 'main') { set({ center: tab, right }); return }
+    set({ center: tab, right, extraTabs: s.extraTabs.includes(tab) ? s.extraTabs : [...s.extraTabs, tab] })
   },
   closeTab: (tab) => {
     const s = get()
-    set({ extraTabs: s.extraTabs.filter((t) => t !== tab), center: s.center === tab ? 'main' : s.center })
+    const center = s.center === tab ? 'main' : s.center
+    set({ extraTabs: s.extraTabs.filter((t) => t !== tab), center, right: rightFor(center, s.right) })
   },
-  setRight: (tab) => set({ right: tab }),
+  setRight: (tab) => set({ right: rightFor(get().center, tab) }),
+  selectNode: (id) => set({ selectedNode: id, right: 'node' }),
 
   loadArchives: async (cwd) => {
     try {

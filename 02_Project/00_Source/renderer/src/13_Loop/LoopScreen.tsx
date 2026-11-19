@@ -5,10 +5,11 @@ import { ipc } from '@renderer/01_Ipc'
 import { PrCard } from '@renderer/08_Git'
 import { QuestionModal } from '@renderer/03_Agent/prompt'
 import { CardList, ExceptionBar, GoalList, LatchCard } from './LoopCards'
-import { GOAL_STATUS_LABEL, PHASE_LABEL, RESUME_EVIDENCE, errText, exceptionLine, sameCwd } from './loopModel'
+import { GOAL_STATUS_LABEL, MARKER_LABEL, PHASE_LABEL, RESUME_EVIDENCE, VERDICT_LABEL, errText, exceptionLine, sameCwd } from './loopModel'
 import { clockOf, workSessionLive } from './mainChatModel'
 import { rowLabel } from './sessionLogModel'
 import { decisionsOf, goalProgress } from './workModel'
+import { alertsOf, useAlertStore } from './alertStore'
 import './LoopScreen.css'
 
 export interface StatusBoardProps {
@@ -30,6 +31,7 @@ export function StatusBoard({ cwd, onCwdChange, onOpenSession, onOpenMain }: Sta
   const [milestoneId, setMilestoneId] = useState('')
   const [asking, setAsking] = useState<string | null>(null)
   const [answered, setAnswered] = useState<ReadonlySet<string>>(() => new Set())
+  const allAlerts = useAlertStore((s) => s.alerts)
   const cwdRef = useRef<string | null>(cwd)
   const busyRef = useRef(false)
   // 폴더가 바뀔 때마다 오른다 — 옛 폴더 호출의 끝·오류·바쁨 풀기는 새 폴더에 닿지 않는다
@@ -208,6 +210,7 @@ export function StatusBoard({ cwd, onCwdChange, onOpenSession, onOpenMain }: Sta
   const decisions = status !== null ? decisionsOf(status) : []
   const waiting = status !== null && (exceptionLine(status) !== null || status.latch !== null || cards.length > 0 || decisions.length > 0)
   const goalPrs = status?.goals.filter((g) => g.pr !== null) ?? []
+  const boardAlerts = alertsOf(allAlerts, cwd)
 
   return (
     <section className="status-board" aria-label="현황판">
@@ -248,14 +251,14 @@ export function StatusBoard({ cwd, onCwdChange, onOpenSession, onOpenMain }: Sta
                   <dd><span className="loop-mono">{status.node}</span>{status.nodeTitle !== null && <span className="loop-node-title">{status.nodeTitle}</span>}</dd>
                 </>
               )}
-              {progress !== null && (<><dt>진척</dt><dd>{`goal ${progress.done}/${progress.total} 끝`}</dd></>)}
+              {progress !== null && (<><dt>진척</dt><dd>{`목표 ${progress.done}/${progress.total} 끝`}</dd></>)}
               {status.base !== null && (<><dt>기준 브랜치</dt><dd className="loop-mono">{status.base}</dd></>)}
               {status.ghRepo !== null && (<><dt>저장소</dt><dd className="loop-mono">{status.ghRepo}</dd></>)}
               <dt>판정</dt>
               <dd>
-                <span>{`FAIL ${status.failCount}`}</span>
+                <span>{`실패 ${status.failCount}`}</span>
                 {status.lastVerdict !== null && (
-                  <span className="loop-muted loop-verdict">{`마지막 ${status.lastVerdict.node} ${status.lastVerdict.verdict}`}</span>
+                  <span className="loop-muted loop-verdict">{`마지막 ${status.lastVerdict.node} ${VERDICT_LABEL[status.lastVerdict.verdict]}`}</span>
                 )}
               </dd>
             </dl>
@@ -264,6 +267,12 @@ export function StatusBoard({ cwd, onCwdChange, onOpenSession, onOpenMain }: Sta
 
         {status !== null && (
           <>
+            {boardAlerts.map((a) => (
+              <section key={a.key} className="board-alert" aria-label="알림" data-level={a.level}>
+                <b>{a.level === 'now' ? '사람이 필요해' : '나중에 봐도 돼'}</b>
+                <span>{a.text}</span>
+              </section>
+            ))}
             <section className="board-box" aria-label="기다리는 결정" data-hot={waiting ? 'true' : undefined}>
               <h3 className="board-h"><span>기다리는 결정</span></h3>
               <ExceptionBar status={status} busy={busy} onResume={resume} onReopen={reopen} error={errors.resume ?? null} />
@@ -306,9 +315,9 @@ export function StatusBoard({ cwd, onCwdChange, onOpenSession, onOpenMain }: Sta
               {!waiting && <div className="board-empty">지금 네 손이 필요한 일은 없어</div>}
             </section>
 
-            <section className="board-box" aria-label="goal">
-              <h3 className="board-h"><span>goal</span>{status.goals.length > 0 && <small>{status.goals.length}</small>}</h3>
-              {status.goals.length > 0 ? <GoalList goals={status.goals} /> : <div className="board-empty">아직 goal이 없어</div>}
+            <section className="board-box" aria-label="목표">
+              <h3 className="board-h"><span>목표</span>{status.goals.length > 0 && <small>{status.goals.length}</small>}</h3>
+              {status.goals.length > 0 ? <GoalList goals={status.goals} /> : <div className="board-empty">아직 목표가 없어</div>}
             </section>
 
             <section className="board-box" aria-label="노드 세션">
@@ -374,7 +383,7 @@ export function StatusBoard({ cwd, onCwdChange, onOpenSession, onOpenMain }: Sta
                 <ul className="board-lines">
                   {status.recentLines.map((l, i) => (
                     <li key={`${l.at}-${i}`} className="board-line" data-marker={l.marker}>
-                      <span className="board-line-mk">{l.marker}</span>
+                      <span className="board-line-mk">{MARKER_LABEL[l.marker]}</span>
                       <span className="loop-mono">{clockOf(l.at)}</span>
                       <span className="loop-mono">{[l.goal, l.node].filter((x) => x !== null && x !== '').join(' ')}</span>
                       <span className="board-line-txt">{l.sentence}</span>

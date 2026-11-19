@@ -21,6 +21,7 @@
     - Windows 알림은 main의 포트(`ports.ts`·`realPorts` 꼴)로 주입해 시험에서 가짜로 바꾼다. 실제 포트는 Electron `Notification`이고, 개발 빌드에서 토스트가 뜨도록 `app.setAppUserModelId`가 필요한지 확인해 둔다(지금 코드에는 없다). 캡처 세션에서 실제 포트를 한 번 띄워 본다.
   - FAIL 표시: 노드 카드의 FAIL 수는 `recentLines`의 그 노드 FAIL 줄 수(마지막 USER-INPUT 뒤), 지금 노드는 `failCount`. 최대 횟수는 실행기의 `FAIL_LIMIT`(`runState.ts`)을 그래프 읽기가 실어 준다(글자로 박지 않는다).
   - 노드 이름 대응: `LoopStatus.node`의 `G2/implement`는 goal `G2`의 반복 틀 안 `implement` 노드, 슬래시 없는 이름은 마일스톤 수준 노드다(`loopDriver.ts` `labelOf`).
+  - 작업 모드 화면 표기 통일(사용자 요청) — 사람에게 보이는 글자의 goal→목표, FAIL/PASS→실패/통과, USER-INPUT→사람 입력, Backlog→미룬 일. PR·CI, 이름(G1·M02), 저장되는 기록 형식(검증 기록의 PASS/FAIL 줄), 메인 에이전트에게 주는 프롬프트는 그대로다. 대상은 renderer `13_Loop/`·`12_Window/`의 작업 모드 글자와 main이 화면에 싣는 사건·알림 문장이다.
   - e2e 구동기(`m09-g5-practice-run.e2e.ts`)의 `openLoop`은 「현황판」·「메인 대화」 탭을 이름으로 누른다 — 「노드 설정」 탭을 더해도 이 길이 그대로 통해야 한다.
     - 앱 안 표시: 작업 모드의 현황판 「기다리는 결정」 칸 위 알림 띠와 사이드바 프로젝트 꼬리표 옆 점, 채팅 모드에서는 「작업」 모드 버튼 옆 점. Windows 알림을 누르면 앱 창을 앞으로 가져와 그 작업 폴더의 작업 모드를 연다.
 - **건드릴 곳**: `02_Project/00_Source/`(main의 그래프 읽기와 알림 `main/05_Loop/`·`main/01_Ipc/handlers/loop.ts`, `shared/` IPC 계약, renderer `13_Loop/`·`12_Window/`·`00_App/`), `02_Project/01_TestCode/`(시험, 수집 기준선, e2e 구동기), `01_Milestones/M10_LoopView/`. 판정 장치 변경 없음(1단계 `gate-config.json` 전환만).
@@ -61,5 +62,6 @@ DoD
 - [USER] M10 스펙 합의 (2026-11-19) — 이 goal은 goal 후보 5다. 근거는 최종 시안 답 「n8n에 더 가깝긴해」, 6회차 「A로 가고 이후 편집도 가능하게 하면 좋겠다」(캔버스 보기 전용, 편집 가능한 꼴), 비전 「알림」 절이다.
 - [AI] 바로 알릴 사건은 `LoopStatus.phase`의 `halted`·`latched`·`blocked`로 정한다 — 실행기에 범위 변경만 가리키는 상태가 없고(`needs-user`의 `haltReason`으로 온다), `blocked`는 진행 중 `kick`에서도 걸리며(`loopDriver.ts` `autoCheck`), 셋 모두 사람이 풀기 전에는 진행하지 않는다. 열쇠는 폴더·phase·노드이고 상태를 벗어나면 지운다 (2026-11-20).
 - [AI] 노드를 누르면 세션 탭이 아니라 「노드 설정」을 연다(스펙 문장). 세션 탭은 「노드 설정」 안 단추로 연다 — 시안 머리말의 「세션 탭이 열려」와 스펙이 갈릴 때 스펙을 따른다 (2026-11-20).
+- [USER] 작업 모드 표기 통일 (대화와 질문 도구, 2026-11-20) — 「마일스톤 GUI쪽에 영문표기랑 한글 표기가 섞였는데, 한글 표현으로 통일해줘 / goal -> 목표 ,같은식으로」. PR·CI는 「PR·CI는 그대로」를 골랐다. goal→목표, FAIL/PASS→실패/통과, USER-INPUT→사람 입력, Backlog→미룬 일로 바꾸고 이름과 저장 형식은 그대로 둔다.
 
 출처 태그는 네 가지다 — `[USER]`·`[USER·위임]`·`[AI]`·`[AI·비가역]`.

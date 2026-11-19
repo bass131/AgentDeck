@@ -33,7 +33,7 @@ const st = (over: Partial<LoopStatus> = {}): LoopStatus => ({
   mainNode: false, recentLines: [], sessions: [], ...over,
 })
 const mv = (over: Partial<MainChatView> = {}): MainChatView => ({
-  cwd: CWD, root: CWD, sessionId: 'S1', items: [], cards: [], busy: false, waitingUser: false, brainstorming: false, paused: false, queued: 0, ...over,
+  cwd: CWD, root: CWD, chapter: 'c1', sessionId: 'S1', items: [], cards: [], busy: false, waitingUser: false, brainstorming: false, paused: false, queued: 0, ...over,
 })
 const at = '2026-11-19T05:00:00.000Z'
 const user = (id: string, text: string, state: 'queued' | 'sent'): MainChatItem => ({ id, at, kind: 'user', text, state })

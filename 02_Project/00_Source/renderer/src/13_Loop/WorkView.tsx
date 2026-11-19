@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type JSX } from 'react'
+import { memo, useEffect, useRef, useState, type JSX } from 'react'
 import type { LoopStatus } from '@shared/ipcContract'
 import { ipc } from '@renderer/01_Ipc'
 import { StatusBoard } from './LoopScreen'
@@ -12,6 +12,16 @@ import './Work.css'
 
 const SESSION = 'session:'
 const ARCHIVE = 'archive:'
+
+// 세션 push마다 이 화면이 다시 그려진다 — 받은 값이 그대로인 칸은 건너뛰게 한다
+const MainChatPane = memo(MainChatView)
+const BoardPane = memo(StatusBoard)
+const NodeSessionPane = memo(NodeSessionView)
+const FilesPane = memo(FilesPanel)
+const store = useWorkStore.getState
+const openMain = (): void => store().openTab('main')
+const openSession = (key: string): void => store().openTab(`${SESSION}${key}`)
+const chooseCwd = (c: string): void => store().choose(c)
 
 function useLoopStatus(cwd: string | null): LoopStatus | null {
   const [status, setStatus] = useState<LoopStatus | null>(null)
@@ -87,7 +97,6 @@ export function WorkView(): JSX.Element {
   const archives = useWorkStore((s) => s.archives)
   const sessions = useSessionLog(cwd)
   const status = useLoopStatus(cwd)
-  const store = useWorkStore.getState
 
   const rowOf = (key: string) => status?.sessions.find((r) => r.key === key)
   const tabLabel = (t: CenterTab): string => {
@@ -127,16 +136,16 @@ export function WorkView(): JSX.Element {
         </div>
         {/* 숨기기만 한다 — 내리면 입력하던 글과 구독을 잃는다 */}
         <div className="work-panel" data-tab-panel="main" hidden={center !== 'main'}>
-          <MainChatView cwd={cwd} />
+          <MainChatPane cwd={cwd} />
         </div>
         {openSessionKey !== null && (
           <div className="work-panel" data-tab-panel={center}>
-            <NodeSessionView
+            <NodeSessionPane
               cwd={cwd}
               sessionKey={openSessionKey}
               record={sessions.get(openSessionKey)}
               row={rowOf(openSessionKey)}
-              onBack={() => store().openTab('main')}
+              onBack={openMain}
             />
           </div>
         )}
@@ -152,16 +161,11 @@ export function WorkView(): JSX.Element {
           <TabButton label="파일·변경" selected={right === 'files'} onSelect={() => store().setRight('files')} />
         </div>
         <div className="work-panel" data-tab-panel="board" hidden={right !== 'board'}>
-          <StatusBoard
-            cwd={cwd}
-            onCwdChange={(c) => store().choose(c)}
-            onOpenSession={(key) => store().openTab(`${SESSION}${key}`)}
-            onOpenMain={() => store().openTab('main')}
-          />
+          <BoardPane cwd={cwd} onCwdChange={chooseCwd} onOpenSession={openSession} onOpenMain={openMain} />
         </div>
         {right === 'files' && (
           <div className="work-panel" data-tab-panel="files">
-            <FilesPanel cwd={cwd} main={sessions.get('main')} />
+            <FilesPane cwd={cwd} main={sessions.get('main')} />
           </div>
         )}
       </aside>

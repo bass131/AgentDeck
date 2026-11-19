@@ -394,6 +394,7 @@ export function createLoopDriver(opts: LoopDriverOptions): LoopDriver {
       onTurnEnd: () => { if (e.loop === loop) void kick(e) },
       onChange: () => chatChanged(e),
       onEvent: (session, event) => sessionEvent(e.cwd, session, event),
+      onNewChat: () => log.clear(e.cwd, 'main'),
       buildTools: () => mainTools(actions),
     })
   }
@@ -562,10 +563,14 @@ export function createLoopDriver(opts: LoopDriverOptions): LoopDriver {
       const sessionNode = next.kind === 'work' || (next.kind === 'gate' && next.node.judge === 'model')
       e.sessionActive = sessionNode
       if (sessionNode) void publish(e)
-      const out = await loop.runner.step()
-      e.sessionActive = false
-      // 꼬리표에는 끝 신호가 없어서, 단계가 돌아온 때를 그 단계 노드 세션의 끝으로 본다
-      log.endAll(e.cwd)
+      let out: Awaited<ReturnType<typeof loop.runner.step>>
+      try {
+        out = await loop.runner.step()
+      } finally {
+        e.sessionActive = false
+        // 꼬리표에는 끝 신호가 없어서, 단계가 돌아오거나 깨진 때를 그 단계 노드 세션의 끝으로 본다
+        log.endAll(e.cwd)
+      }
       if (!alive(e, gen)) return
       if ('verdict' in out && out.verdict) e.lastVerdict = { node: out.verdict.node, verdict: out.verdict.verdict, evidence: out.verdict.evidence }
       recordVerdict(e, next, out)

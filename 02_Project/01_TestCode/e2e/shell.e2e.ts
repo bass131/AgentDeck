@@ -169,15 +169,18 @@ test('F8 사이드바: 채팅/작업 토글 + 세션 행 + 컨텍스트 메뉴 +
 })
 
 // M10 G1 — 멀티 에이전트 모드를 지웠다. 두 번째 모드 탭은 「작업」이고 루프 화면이 가운데 칸에 모달 없이 그려진다.
-test('F13 작업 모드: 작업 토글 → 가운데 칸의 루프 화면(모달 아님) → 채팅 복귀', async () => {
+// M10 G4 — 작업 화면은 가운데 탭(.work-center)과 오른쪽 현황판(.work-side)이다. 채팅으로 돌아가면 작업 칸이 내려간다
+test('F13 작업 모드: 작업 토글 → 가운데 탭과 오른쪽 현황판(모달 아님) → 채팅 복귀', async () => {
   const modeBtns = page.locator('.sb-mode .sb-mode-btn')
   await modeBtns.nth(1).click()
-  await expect(page.locator('.pane.work .loop-screen')).toBeVisible()
+  await expect(page.locator('.pane.work .work-center [role="tablist"]')).toBeVisible()
+  await expect(page.locator('.pane.work .work-side .status-board')).toBeVisible()
   await expect(page.locator('.modal-overlay')).toHaveCount(0)
   await expect(page.locator('.pane.chat')).toHaveCount(0)
   await page.screenshot({ path: join(SHOT_DIR, 'work-mode.png'), fullPage: false })
 
   await modeBtns.nth(0).click()
-  await expect(page.locator('.loop-screen')).toHaveCount(0)
+  await expect(page.locator('.pane.work')).toHaveCount(0)
+  await expect(page.locator('.work-center')).toHaveCount(0)
   await expect(page.locator('.pane.chat')).toBeVisible()
 })

@@ -402,6 +402,27 @@ describe('새 메인 대화와 일시 정지 깃발 (M10 G2)', () => {
     expect(chat.view(root).sessionId).toBe('S2')
   })
 
+  // G4 검수 3·10 — 세션 id는 새 장을 알리지 못한다(null에서 null). 장 표지가 바뀌고, 새 장의 턴이 돌기 전에 알린다
+  it('새 메인 대화는 보기의 장 표지를 바꾸고, 새 장의 첫 사건보다 먼저 onNewChat을 부른다', async () => {
+    const fake = scriptedBackend(textOnly('예'))
+    const seen: string[] = []
+    const chat = open(fake, { onNewChat: () => { seen.push('new') }, onEvent: (_t, e) => { seen.push(e.type) } })
+    const first = chat.view(root).chapter
+    expect(first).not.toBe('')
+    expect(chat.view(root).sessionId).toBeNull()
+    expect((await chat.newChat()).ok).toBe(true)
+    const second = chat.view(root).chapter
+    expect(second).not.toBe(first)
+    expect(chat.view(root).sessionId).toBeNull()
+    expect(seen).toEqual(['new'])
+    chat.send('새 장의 첫 말')
+    await chat.idle()
+    expect(seen[0]).toBe('new')
+    expect(seen.length).toBeGreaterThan(1)
+    expect(chat.view(root).chapter).toBe(second)
+    expect(readMainChatView(app, root).chapter).toBe('')
+  })
+
   it('방문이 없을 때 새 메인 대화의 첫 사용자 턴에도 생존 문서(스펙·실행 상태)를 싣는다', async () => {
     const fake = scriptedBackend(textOnly('예'))
     const chat = open(fake)

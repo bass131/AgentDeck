@@ -15,6 +15,7 @@ import type { AgentBackend, AgentRun, AgentRunInput } from '@main/03_Agent/Agent
 import { createLoopDriver, type LoopDriver } from '@main/05_Loop/loopDriver'
 import type { MainActions } from '@main/05_Loop/mainChat'
 import { BACKLOG_PATH } from '@main/05_Loop/mainChatTools'
+import { openLoop, type OpenedLoop } from '@main/05_Loop/openLoop'
 import { DOCS } from '@main/05_Loop/survivalDocs'
 import type { AgentEvent } from '@shared/agentEvents'
 import type { LoopSessionEventPayload, LoopStatus, MainChatView } from '@shared/13_Loop/loop'
@@ -89,13 +90,22 @@ let pushed: LoopStatus[] = []
 let views: MainChatView[] = []
 let tagged: LoopSessionEventPayload[] = []
 
+type Step = OpenedLoop['runner']['step']
 interface Rig { d: LoopDriver; starts: AgentRunInput[]; actions: () => MainActions }
-function driver(over: { hangDecompose?: boolean; hangMain?: boolean; autoModeCheck?: () => string | null } = {}): Rig {
+function driver(over: { hangDecompose?: boolean; hangMain?: boolean; autoModeCheck?: () => string | null; wrapStep?: (step: Step) => Step } = {}): Rig {
   const { backend, starts } = chatBackend(over)
   let actions: MainActions | null = null
+  const wrap = over.wrapStep
   const d = createLoopDriver({
     appDataDir: appData, backend, ciRetryMs: 20, humanPollMs: 20,
     ...(over.autoModeCheck ? { autoModeCheck: over.autoModeCheck } : {}),
+    ...(wrap ? {
+      openLoopImpl: async (o) => {
+        const r = await openLoop(o)
+        if (r.ok) r.loop.runner.step = wrap(r.loop.runner.step.bind(r.loop.runner))
+        return r
+      },
+    } : {}),
     openExtras: { gh, template: TEMPLATE, executorEnv: repos.env, commandTimeoutMs: 60_000 },
     onState: (s) => { pushed.push(s) },
     onMainState: (v) => { views.push(v) },
@@ -499,6 +509,26 @@ describe('노드 세션 기록과 상태의 새 칸 (M10 G4)', () => {
     expect(rig.d.status(CWD).sessions.map((r) => r.key)).toContain(row?.key)
   })
 
+  // G4 검수 7 — 끝내기가 정상 반환 뒤에만 있으면, 노드 세션을 돈 단계가 throw할 때 그 줄이 떠 있는 채로 남는다
+  it('노드 세션을 돈 단계가 throw해도 그 세션 줄은 끝으로 내려간다', SLOW, async () => {
+    let broke = false
+    const rig = driver({
+      wrapStep: (step) => async () => {
+        const out = await step()
+        if (!broke && tagged.some((p) => p.session.kind !== 'main')) { broke = true; throw new Error('세션 뒤에 깨진 단계') }
+        return out
+      },
+    })
+    const CWD = repos.work
+    const approval = await toApproval(rig)
+    expect((await rig.d.decide({ cwd: CWD, verdict: 'pass', evidence: '봤다', specSha256: approval.approval?.sha256 as string })).ok).toBe(true)
+    const noted = await until((s) => s.reason?.includes('세션 뒤에 깨진 단계') === true, '구동 오류 알림')
+    expect(broke).toBe(true)
+    expect(noted.sessions.length).toBeGreaterThan(0)
+    expect(noted.sessions.filter((r) => r.live)).toEqual([])
+    expect(rig.d.sessionLog(CWD).sessions.filter((s) => s.session.kind !== 'main' && s.live)).toEqual([])
+  })
+
   it('지난 메인 대화는 새 메인 대화가 보관한 장을 최근 것부터 보기 전용으로 읽는다', SLOW, async () => {
     const rig = driver()
     const CWD = repos.work
@@ -512,5 +542,28 @@ describe('노드 세션 기록과 상태의 새 칸 (M10 G4)', () => {
     expect(archives).toHaveLength(1)
     expect(archives[0].items.some((i) => i.kind === 'assistant' && i.text === '범위는 무엇으로 할까?')).toBe(true)
     expect(Number.isNaN(new Date(archives[0].at).getTime())).toBe(false)
+  })
+
+  // G4 검수 10 — 새 장이 열리면 메인 세션 기록(할 일·서브에이전트의 출처)을 비운다. 차례는 이어 가서 화면의 맞물림이 그대로다
+  it('새 메인 대화는 메인 세션 기록을 비우고 차례를 이어 가며, 장 표지가 바뀐 보기를 push한다', SLOW, async () => {
+    const rig = driver()
+    const CWD = repos.work
+    await rig.d.open({ cwd: CWD })
+    await rig.d.start(CWD, 'M1')
+    await until((s) => s.mainWaiting, '사람 기다림')
+    const mainRec = () => rig.d.sessionLog(CWD).sessions.find((s) => s.session.key === 'main')
+    const before = mainRec()
+    expect(before?.events.filter((e) => e.type === 'session')).toHaveLength(1)
+    const chapter = rig.d.mainRead(CWD).chapter
+    expect((await rig.d.mainNew(CWD)).ok).toBe(true)
+    expect(views.at(-1)?.chapter).not.toBe(chapter)
+    const fresh = (e: AgentEvent): boolean => e.type === 'session' && !before?.events.includes(e)
+    for (let i = 0; i < 500 && !mainRec()?.events.some(fresh); i++) await sleep(20)
+    const after = mainRec()
+    expect(after?.events.filter((e) => e.type === 'session')).toHaveLength(1)
+    expect(fresh(after?.events[0] as AgentEvent)).toBe(true)
+    const seqs = tagged.filter((p) => p.session.key === 'main').map((p) => p.seq)
+    expect(seqs).toEqual(seqs.map((_, i) => i))
+    expect(after?.next).toBe(seqs.length)
   })
 })

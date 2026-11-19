@@ -98,7 +98,9 @@ const SKIP_DIRS = new Set(['node_modules', 'dist', 'out', 'coverage', '.git'])
 // 스냅숏과 push 맞물리기·보기 전용 접기 renderer/13_Loop/sessionLogModel.test.ts, 진행 꼬리표·기다리는 결정·작업 폴더 목록
 // renderer/13_Loop/workModel.test.ts, 가운데 탭·오른쪽 탭·노드 세션 탭·지난 메인 대화·「파일·변경」 renderer/13_Loop/WorkView.test.tsx,
 // 프로젝트 사이드바와 채팅 대기 표시 renderer/13_Loop/ProjectSidebar.test.tsx를 더했다.
-const BASELINE_TEST_FILES = 477
+// M10 G4 검수 반영: 477 → 479. main과 화면이 같이 쓰는 세션 사건 잇기·상한 shared/13_Loop/sessionMerge.test.ts,
+// 세션 push의 다시 그리기 범위(무거운 칸을 대역으로 바꿔 센다) renderer/13_Loop/WorkView.render.test.tsx를 더했다.
+const BASELINE_TEST_FILES = 479
 
 function collectTestFiles(dir: string, acc: string[] = []): string[] {
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {

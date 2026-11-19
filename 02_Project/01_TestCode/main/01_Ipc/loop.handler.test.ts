@@ -25,7 +25,7 @@ const status = (over: Partial<LoopStatus> = {}): LoopStatus => ({
   paused: false, mainBusy: false, mainWaiting: false, mainNode: false, recentLines: [], sessions: [], ...over,
 })
 const view = (over: Partial<MainChatView> = {}): MainChatView => ({
-  cwd: CWD, root: CWD, sessionId: null, items: [], cards: [], busy: false, waitingUser: false, brainstorming: false, paused: false, queued: 0, ...over,
+  cwd: CWD, root: CWD, chapter: 'c1', sessionId: null, items: [], cards: [], busy: false, waitingUser: false, brainstorming: false, paused: false, queued: 0, ...over,
 })
 
 function fakeDriver(): { driver: LoopDriverApi; calls: unknown[][] } {

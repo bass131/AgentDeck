@@ -32,6 +32,8 @@ export function StatusBoard({ cwd, onCwdChange, onOpenSession, onOpenMain }: Sta
   const [answered, setAnswered] = useState<ReadonlySet<string>>(() => new Set())
   const cwdRef = useRef<string | null>(cwd)
   const busyRef = useRef(false)
+  // 폴더가 바뀔 때마다 오른다 — 옛 폴더 호출의 끝·오류·바쁨 풀기는 새 폴더에 닿지 않는다
+  const folderGen = useRef(0)
   const pushSeq = useRef(0)
   const alive = useRef(true)
   // 다른 호출이 도는 동안 고른 질문 답의 대기열(G4 검수 사소 8) — 버리지 않고 앞 호출이 끝난 뒤 하나씩 보낸다
@@ -69,6 +71,9 @@ export function StatusBoard({ cwd, onCwdChange, onOpenSession, onOpenMain }: Sta
       setAnswered(new Set())
       setAsking(null)
       queued.current = []
+      folderGen.current++
+      busyRef.current = false
+      setBusy(false)
     }
     cwdRef.current = cwd
     if (cwd === null) return
@@ -89,19 +94,20 @@ export function StatusBoard({ cwd, onCwdChange, onOpenSession, onOpenMain }: Sta
   const run = async <R,>(where: Where, call: (c: string) => Promise<R>, done: (r: R, fresh: boolean) => void): Promise<void> => {
     const c = cwdRef.current
     if (c === null || busyRef.current) return
+    const gen = folderGen.current
+    const mine = (): boolean => alive.current && gen === folderGen.current
     busyRef.current = true
     setBusy(true)
     setError(where, null)
     const before = pushSeq.current
     try {
       const r = await call(c)
-      if (!alive.current || !sameCwd(c, cwdRef.current)) return
-      done(r, pushSeq.current === before)
+      if (mine()) done(r, pushSeq.current === before)
     } catch (e) {
-      if (alive.current) setError(where, errText(e))
+      if (mine()) setError(where, errText(e))
     } finally {
-      busyRef.current = false
-      if (alive.current) {
+      if (gen === folderGen.current) busyRef.current = false
+      if (mine()) {
         setBusy(false)
         drain.current()
       }

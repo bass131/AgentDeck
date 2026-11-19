@@ -20,7 +20,7 @@ const st = (over: Partial<LoopStatus> = {}): LoopStatus => ({
   mainNode: false, recentLines: [], sessions: [], ...over,
 })
 const mv = (over: Partial<MainChatView> = {}): MainChatView => ({
-  cwd: CWD, root: CWD, sessionId: 'S1', items: [], cards: [], busy: false, waitingUser: false, brainstorming: true, paused: false, queued: 0, ...over,
+  cwd: CWD, root: CWD, chapter: 'c1', sessionId: 'S1', items: [], cards: [], busy: false, waitingUser: false, brainstorming: true, paused: false, queued: 0, ...over,
 })
 const question: LoopCard = {
   kind: 'question', requestId: 'sx.1-q1', node: 'brainstorm', goal: null, text: '범위부터 물을게', inChat: true,

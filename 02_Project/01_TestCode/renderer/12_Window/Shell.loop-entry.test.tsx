@@ -16,7 +16,7 @@ const closed: LoopStatus = {
   paused: false, mainBusy: false, mainWaiting: false, mainNode: false, recentLines: [], sessions: [],
 }
 const blankView: MainChatView = {
-  cwd: CWD, root: CWD, sessionId: null, items: [], cards: [], busy: false, waitingUser: false, brainstorming: false, paused: false, queued: 0,
+  cwd: CWD, root: CWD, chapter: 'c1', sessionId: null, items: [], cards: [], busy: false, waitingUser: false, brainstorming: false, paused: false, queued: 0,
 }
 
 afterEach(async () => {

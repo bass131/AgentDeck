@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
 import { render, screen, fireEvent, cleanup, act, within } from '@testing-library/react'
-import type { LoopStatus } from '../../../../02_Project/00_Source/shared/ipcContract'
+import type { LoopStatus, MainChatView } from '../../../../02_Project/00_Source/shared/ipcContract'
 import { installWindowApi, type InstalledWindowApi } from '../00_Helpers/windowApiMock'
 
 const A = 'C:\\work\\practice'
@@ -21,15 +21,20 @@ const STATUS: Record<string, LoopStatus> = {
 
 let installed: InstalledWindowApi<Record<string, unknown>>
 let stateHandlers: Set<(s: LoopStatus) => void>
+let mainHandlers: Set<(v: MainChatView) => void>
 let api: Record<string, ReturnType<typeof vi.fn>>
 let git: Record<string, ReturnType<typeof vi.fn>>
+const view = (over: Partial<MainChatView> = {}): MainChatView => ({
+  cwd: A, root: A, chapter: 'c1', sessionId: 'S1', items: [], cards: [], busy: false, waitingUser: false, brainstorming: false, paused: false, queued: 0, ...over,
+})
 
 beforeEach(async () => {
   stateHandlers = new Set()
+  mainHandlers = new Set()
   api = {
     loopStatus: vi.fn(async ({ cwd }: { cwd: string }) => STATUS[cwd]),
     onLoopState: vi.fn((cb: (s: LoopStatus) => void) => { stateHandlers.add(cb); return () => stateHandlers.delete(cb) }),
-    onLoopMainState: vi.fn(() => () => {}),
+    onLoopMainState: vi.fn((cb: (v: MainChatView) => void) => { mainHandlers.add(cb); return () => mainHandlers.delete(cb) }),
     loopMainArchives: vi.fn().mockResolvedValue({
       cwd: A, archives: [{ id: 'k-2026-11-18T05-00-00-000Z', at: '2026-11-18T05:00:00.000Z', items: [{ id: 'i1', at: '2026-11-18T05:00:00.000Z', kind: 'assistant', text: 'M01 방향을 정하자', turn: 'start' }] }],
     }),
@@ -109,6 +114,38 @@ describe('프로젝트 목록과 진행 꼬리표 (M10 G4)', () => {
     expect(useWorkStore.getState().center).toBe('archive:k-2026-11-18T05-00-00-000Z')
     expect(useWorkStore.getState().extraTabs).toEqual(['archive:k-2026-11-18T05-00-00-000Z'])
     expect(within(rows()[1]).queryByRole('button', { name: '메인 대화' })).toBeNull()
+  })
+
+  // G4 검수 3 — 세션 id로는 새 장을 알 수 없다(새 장은 null로 시작하고, 마운트 뒤 첫 push는 비교할 앞 값이 없다)
+  it('메인 대화의 장 표지가 바뀌면 지난 메인 대화 목록을 다시 읽는다 — 마운트 뒤 첫 push도, 세션 id가 null에서 null이어도', async () => {
+    await renderSide()
+    expect(api.loopMainArchives).toHaveBeenCalledTimes(1)
+    const archive = (id: string, at: string) => ({ id, at, items: [] })
+    api.loopMainArchives.mockResolvedValue({ cwd: A, archives: [archive('k2', '2026-11-19T05:00:00.000Z'), archive('k1', '2026-11-18T05:00:00.000Z')] })
+    const pushView = async (v: MainChatView): Promise<void> => { await act(async () => { for (const h of [...mainHandlers]) h(v) }); await flush() }
+    await pushView(view({ chapter: 'c2', sessionId: null }))
+    expect(api.loopMainArchives).toHaveBeenCalledTimes(2)
+    expect(within(rows()[0]).getAllByRole('button', { name: /지난 메인 대화/ })).toHaveLength(2)
+    await pushView(view({ chapter: 'c2', sessionId: 'S2' }))
+    await pushView(view({ chapter: 'c9', cwd: B }))
+    expect(api.loopMainArchives).toHaveBeenCalledTimes(2)
+    await pushView(view({ chapter: 'c3', sessionId: null }))
+    expect(api.loopMainArchives).toHaveBeenCalledTimes(3)
+  })
+
+  // G4 검수 8 — 브랜치는 goal이 바뀌면 바뀐다. 폴더를 고를 때 한 번만 읽지 않는다
+  it('고른 프로젝트의 노드·단계가 바뀌면 브랜치를 다시 읽는다', async () => {
+    await renderSide()
+    const reads = git.status.mock.calls.length
+    git.status.mockResolvedValue({ root: A, branch: 'goal/M02-G3', ahead: 0, behind: 0, changes: [], branches: [], remotes: [], tags: [] })
+    await act(async () => { for (const h of [...stateHandlers]) h(st(A, { node: 'G3/implement' })) })
+    await flush()
+    expect(git.status).toHaveBeenCalledTimes(reads + 1)
+    expect(within(rows()[0]).getByText('기본 폴더 · goal/M02-G3')).toBeTruthy()
+    await act(async () => { for (const h of [...stateHandlers]) h(st(A, { node: 'G3/implement', failCount: 1 })) })
+    await flush()
+    expect(git.status).toHaveBeenCalledTimes(reads + 1)
+    expect(api.loopMainArchives).toHaveBeenCalledTimes(1)
   })
 })
 

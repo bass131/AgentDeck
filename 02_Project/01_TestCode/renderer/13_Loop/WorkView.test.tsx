@@ -11,7 +11,7 @@ const st = (over: Partial<LoopStatus> = {}): LoopStatus => ({
   sessionActive: true, lastVerdict: null, latch: null, paused: false, mainBusy: false, mainWaiting: false,
   mainNode: false, recentLines: [], sessions: [{ key: 'w.1', kind: 'work', node: 'implement', goal: 'G2', live: true }], ...over,
 })
-const mv: MainChatView = { cwd: CWD, root: CWD, sessionId: 'S1', items: [], cards: [], busy: false, waitingUser: false, brainstorming: false, paused: false, queued: 0 }
+const mv: MainChatView = { cwd: CWD, root: CWD, chapter: 'c1', sessionId: 'S1', items: [], cards: [], busy: false, waitingUser: false, brainstorming: false, paused: false, queued: 0 }
 const tag = (key: string, kind: LoopSessionTag['kind'] = 'work'): LoopSessionTag =>
   kind === 'main' ? { key, kind, node: 'brainstorm', goal: null, sessionId: 'S1' } : { key, kind, node: 'implement', goal: 'G2', sessionId: 'W1' }
 const text = (messageId: string, delta: string): AgentEvent => ({ type: 'text', messageId, delta })
@@ -32,16 +32,18 @@ const snapshot = (): LoopSessionLog => ({
 
 let installed: InstalledWindowApi<Record<string, unknown>>
 let sessionHandlers: Set<(p: LoopSessionEventPayload) => void>
+let mainHandlers: Set<(v: MainChatView) => void>
 let api: Record<string, ReturnType<typeof vi.fn>>
 let git: Record<string, ReturnType<typeof vi.fn>>
 
 function install(log: Promise<LoopSessionLog> | LoopSessionLog = snapshot(), status: LoopStatus = st()): void {
   sessionHandlers = new Set()
+  mainHandlers = new Set()
   api = {
     loopStatus: vi.fn().mockResolvedValue(status),
     onLoopState: vi.fn(() => () => {}),
     loopMainRead: vi.fn().mockResolvedValue(mv),
-    onLoopMainState: vi.fn(() => () => {}),
+    onLoopMainState: vi.fn((cb: (v: MainChatView) => void) => { mainHandlers.add(cb); return () => mainHandlers.delete(cb) }),
     loopSessionLog: vi.fn(() => Promise.resolve(log)),
     loopMainArchives: vi.fn().mockResolvedValue({ cwd: CWD, archives: [] }),
     onLoopSessionEvent: vi.fn((cb: (p: LoopSessionEventPayload) => void) => { sessionHandlers.add(cb); return () => sessionHandlers.delete(cb) }),
@@ -175,13 +177,36 @@ describe('「파일·변경」 탭 (M10 G4)', () => {
     const files = screen.getByRole('region', { name: '파일·변경' })
     // 현황판은 내려가지 않고 숨는다(답한 표시·대기열이 산다)
     expect((r.container.querySelector('.work-side .status-board')?.closest('[data-tab-panel]') as HTMLElement).hidden).toBe(true)
-    expect(files.querySelector('.explorer-tree, .fx, [class*="explorer"]')).not.toBeNull()
+    // 탐색기 자리(.files-explorer) 안에 실제 FileExplorer의 뿌리(.file-explorer)가 있어야 한다
+    expect(files.querySelector('.files-explorer .file-explorer')).not.toBeNull()
     expect(git.status).toHaveBeenCalledWith({ root: CWD })
     const changed = within(files).getByRole('region', { name: '변경된 파일' })
     expect(within(changed).getByText('src/report.ts')).toBeTruthy()
     expect(within(changed).getByText('+6')).toBeTruthy()
     expect(within(files).getByText('결정 대장 쓰기')).toBeTruthy()
     expect(within(files).getByText('Explore')).toBeTruthy()
+  })
+
+  // G4 검수 10 — 새 메인 대화 뒤에 지난 장의 할 일·서브에이전트가 남지 않는다. main이 비운 기록을 다시 읽고, 차례는 이어 붙는다
+  it('메인 대화의 장 표지가 바뀌면 세션 기록을 다시 읽어 지난 장의 할 일·서브에이전트를 지운다', async () => {
+    await renderWork()
+    await click(within(tabs('오른쪽 탭')).getByRole('tab', { name: '파일·변경' }))
+    const files = (): HTMLElement => screen.getByRole('region', { name: '파일·변경' })
+    expect(within(files()).getByText('결정 대장 쓰기')).toBeTruthy()
+    const reads = api.loopSessionLog.mock.calls.length
+    const cleared = snapshot()
+    cleared.sessions[1] = { ...cleared.sessions[1], events: [] }
+    api.loopSessionLog.mockResolvedValue(cleared)
+    await act(async () => { for (const h of [...mainHandlers]) h({ ...mv, chapter: 'c2', sessionId: null }) })
+    await flush()
+    expect(api.loopSessionLog).toHaveBeenCalledTimes(reads + 1)
+    expect(within(files()).queryByText('결정 대장 쓰기')).toBeNull()
+    expect(within(files()).queryByText('Explore')).toBeNull()
+    await emitSession({ cwd: CWD, session: tag('main', 'main'), event: { type: 'todos', todos: [{ id: '2', label: '새 장의 할 일', status: 'running' }] }, seq: 2 })
+    expect(within(files()).getByText('새 장의 할 일')).toBeTruthy()
+    await act(async () => { for (const h of [...mainHandlers]) h({ ...mv, chapter: 'c2', sessionId: 'S2' }) })
+    await flush()
+    expect(api.loopSessionLog).toHaveBeenCalledTimes(reads + 1)
   })
 
   it('채팅에서 연 폴더가 없으면 탐색기가 작업 폴더를 보이지 않는다는 것을 알린다', async () => {

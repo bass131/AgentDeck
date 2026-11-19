@@ -121,6 +121,8 @@ export interface MainChatView {
   cwd: string
   // 열린 실행기가 있으면 작업 저장소 뿌리. 없으면 null(기록만 읽힌다 — 턴은 열린 뒤에 돈다)
   root: string | null
+  // 장 표지 — 새 메인 대화가 장을 바꿀 때마다 바뀐다(세션 id는 null에서 null로 남을 수 있다). 닫힌 폴더의 보기는 ''
+  chapter: string
   sessionId: string | null
   items: MainChatItem[]
   cards: LoopCard[]

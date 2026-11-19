@@ -86,7 +86,7 @@ describe('loop IPC 묶음 (M09 G4)', () => {
     const lower: ReqOf<'loop.lowerFlag'> = { cwd: 'C:/work/practice' }
     const res: ResOf<'loop.lowerFlag'> = {
       ok: true,
-      view: { cwd: lower.cwd, root: lower.cwd, sessionId: null, items: [], cards: [], busy: false, waitingUser: false, brainstorming: false, paused: false, queued: 0 },
+      view: { cwd: lower.cwd, root: lower.cwd, chapter: 'c1', sessionId: null, items: [], cards: [], busy: false, waitingUser: false, brainstorming: false, paused: false, queued: 0 },
     }
     const main: ReqOf<'loop.cancelSession'> = { cwd: lower.cwd, target: 'main' }
     const worker: ReqOf<'loop.cancelSession'> = { cwd: lower.cwd, target: 'worker' }
@@ -104,7 +104,7 @@ describe('loop IPC 묶음 (M09 G4)', () => {
 
   it('메인 대화 모양 (M10 G2) — 읽기·보내기·새로 열기는 cwd(보내기는 글)만 받고, 응답과 push는 같은 MainChatView다', () => {
     const view: MainChatView = {
-      cwd: 'C:/work/practice', root: 'C:/work/practice', sessionId: 's1', cards: [], busy: false, waitingUser: true, brainstorming: true,
+      cwd: 'C:/work/practice', root: 'C:/work/practice', chapter: 'c1', sessionId: 's1', cards: [], busy: false, waitingUser: true, brainstorming: true,
       paused: false, queued: 0,
       items: [
         { id: 'i1', at: '2026-11-19T00:00:00Z', kind: 'user', text: '범위는 덧셈', state: 'sent' },

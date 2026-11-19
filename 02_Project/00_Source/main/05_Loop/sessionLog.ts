@@ -1,8 +1,9 @@
 import type { AgentEvent } from '@shared/agentEvents'
 import type { LoopSessionLog, LoopSessionRecord, LoopSessionRow, LoopSessionTag } from '@shared/13_Loop/loop'
+import { MAX_SESSION_EVENTS, appendSessionEvent } from '@shared/13_Loop/sessionMerge'
 import { repoKeyOf } from './digestStore'
 
-export const DEFAULT_MAX_EVENTS = 4000
+export const DEFAULT_MAX_EVENTS = MAX_SESSION_EVENTS
 export const DEFAULT_MAX_SESSIONS = 40
 export const DEFAULT_MAX_FOLDERS = 16
 
@@ -16,32 +17,14 @@ export interface SessionLog {
   record(cwd: string, tag: LoopSessionTag, event: AgentEvent): { seq: number; isNew: boolean }
   // 꼬리표에는 끝 신호가 없어서, 구동자가 실행기 단계 경계에서 떠 있는 노드 세션을 끝낸다
   endAll(cwd: string): boolean
+  // 차례(next)는 이어 간다 — 화면의 「next보다 작은 차례는 스냅숏에 있다」가 그대로 맞는다
+  clear(cwd: string, key: string): void
   rows(cwd: string): LoopSessionRow[]
   read(cwd: string): LoopSessionLog
 }
 
 interface Session { tag: LoopSessionTag; events: AgentEvent[]; next: number; truncated: boolean; live: boolean }
 interface Folder { sessions: Map<string, Session> }
-
-type TextEvent = Extract<AgentEvent, { type: 'text' }>
-type ThinkingDelta = Extract<AgentEvent, { type: 'thinking_delta' }>
-
-// 조각을 하나씩 세면 사건 수 상한이 세션 앞부분을 먼저 지운다. 이미 준 스냅숏을 바꾸지 않도록 새 객체로 돌려준다
-function merged(prev: AgentEvent | undefined, ev: AgentEvent): AgentEvent | null {
-  if (!prev) return null
-  if (prev.type === 'text' && ev.type === 'text') {
-    if (prev.messageId !== ev.messageId || prev.parentToolId !== ev.parentToolId) return null
-    const out: TextEvent = { ...prev, delta: prev.delta + ev.delta }
-    return out
-  }
-  if (prev.type === 'thinking_delta' && ev.type === 'thinking_delta') {
-    const text = prev.text === undefined && ev.text === undefined ? undefined : (prev.text ?? '') + (ev.text ?? '')
-    const tokens = ev.estimatedTokens ?? prev.estimatedTokens
-    const out: ThinkingDelta = { type: 'thinking_delta', ...(text !== undefined ? { text } : {}), ...(tokens !== undefined ? { estimatedTokens: tokens } : {}) }
-    return out
-  }
-  return null
-}
 
 export function createSessionLog(opts: SessionLogOptions = {}): SessionLog {
   const maxEvents = Math.max(1, opts.maxEvents ?? DEFAULT_MAX_EVENTS)
@@ -84,16 +67,17 @@ export function createSessionLog(opts: SessionLogOptions = {}): SessionLog {
       }
       s.tag = { ...tag }
       const seq = s.next++
-      const joined = merged(s.events[s.events.length - 1], event)
-      if (joined) s.events = [...s.events.slice(0, -1), joined]
-      else {
-        s.events = [...s.events, event]
-        if (s.events.length > maxEvents) {
-          s.events = s.events.slice(s.events.length - maxEvents)
-          s.truncated = true
-        }
-      }
+      const r = appendSessionEvent(s.events, event, maxEvents)
+      s.events = r.events
+      if (r.truncated) s.truncated = true
       return { seq, isNew }
+    },
+
+    clear(cwd, key) {
+      const s = folderOf(cwd, false)?.sessions.get(key)
+      if (!s) return
+      s.events = []
+      s.truncated = false
     },
 
     endAll(cwd) {

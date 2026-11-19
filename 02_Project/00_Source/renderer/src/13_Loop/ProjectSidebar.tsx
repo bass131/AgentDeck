@@ -54,29 +54,29 @@ export function ProjectSidebar(): JSX.Element {
   const statuses = useProjectStatuses(projects)
   const [branch, setBranch] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const active = cwd === null ? undefined : statuses.get(cwdKey(cwd))
 
+  useEffect(() => { setBranch(null) }, [cwd])
+  // goal이 바뀌면 브랜치도 바뀐다 — 노드·단계가 바뀔 때마다 다시 읽는다
   useEffect(() => {
-    setBranch(null)
     if (cwd === null) return
     let alive = true
     ipc.git
       .status({ root: cwd })
       .then((g) => { if (alive) setBranch(g?.branch ?? null) })
       .catch(() => { /* 브랜치 없이 둔다 */ })
-    void useWorkStore.getState().loadArchives(cwd)
     return () => { alive = false }
-  }, [cwd])
+  }, [cwd, active?.node, active?.phase])
 
-  // 새 메인 대화가 지난 장을 보관하면 세션 id가 바뀐다 — 그때 지난 목록을 다시 읽는다
-  const sessionRef = useRef<string | null | undefined>(undefined)
+  // 새 메인 대화는 장 표지를 바꾼다. 마운트 뒤 첫 push는 그 사이 장이 바뀌었을 수 있어 다시 읽는다
   useEffect(() => {
-    sessionRef.current = undefined
     if (cwd === null) return
+    void useWorkStore.getState().loadArchives(cwd)
+    let chapter: string | null = null
     const off = ipc.loop.onMainState((v) => {
-      const now = useWorkStore.getState().cwd
-      if (!sameCwd(v.cwd, now) || now === null) return
-      if (sessionRef.current !== undefined && sessionRef.current !== v.sessionId) void useWorkStore.getState().loadArchives(now)
-      sessionRef.current = v.sessionId
+      if (!sameCwd(v.cwd, cwd) || v.chapter === chapter) return
+      chapter = v.chapter
+      void useWorkStore.getState().loadArchives(cwd)
     })
     return off
   }, [cwd])

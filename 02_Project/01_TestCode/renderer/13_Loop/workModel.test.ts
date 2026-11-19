@@ -27,6 +27,15 @@ describe('프로젝트 진행 꼬리표 (M10 G4)', () => {
     expect(projectTag(st({ phase: 'not-started', milestoneId: null }))).toEqual({ label: '시작 전', tone: 'idle' })
     expect(projectTag(st({ phase: 'done' }))).toEqual({ label: 'M02 · 끝', tone: 'idle' })
   })
+
+  // G4 검수 9 — 일시 정지 깃발이 오르면 단계가 running이어도 다음 노드로 가지 않는다. 끝난 실행과 닫힌 루프는 그대로다
+  it('일시 정지 깃발이 오르면 「멈춤」이다 — 끝·닫힘이 앞선다', () => {
+    expect(projectTag(st({ paused: true }))).toEqual({ label: 'M02 · 멈춤', tone: 'stop' })
+    expect(projectTag(st({ paused: true, mainNode: true }))).toEqual({ label: 'M02 · 멈춤', tone: 'stop' })
+    expect(projectTag(st({ paused: true, phase: 'waiting-human', milestonePr: 6 }))).toEqual({ label: 'M02 · 멈춤', tone: 'stop' })
+    expect(projectTag(st({ paused: true, phase: 'done' }))).toEqual({ label: 'M02 · 끝', tone: 'idle' })
+    expect(projectTag(st({ paused: true, phase: 'closed' }))).toBeNull()
+  })
 })
 
 describe('기다리는 결정 (M10 G4)', () => {

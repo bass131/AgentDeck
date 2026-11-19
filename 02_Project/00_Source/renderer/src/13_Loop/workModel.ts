@@ -11,6 +11,7 @@ export function projectTag(s: LoopStatus | null): ProjectTag | null {
   const pre = s.milestoneId !== null ? `${s.milestoneId} · ` : ''
   if (STOP_PHASES.has(s.phase)) return { label: `${pre}멈춤`, tone: 'stop' }
   if (s.phase === 'done') return { label: `${pre}끝`, tone: 'idle' }
+  if (s.paused) return { label: `${pre}멈춤`, tone: 'stop' }
   if (s.phase === 'not-started') return { label: `${pre}시작 전`, tone: 'idle' }
   if (s.phase === 'waiting-human' && s.milestonePr !== null) return { label: `${pre}병합 대기`, tone: 'merge' }
   const brainstorming = s.mainNode || (s.phase === 'waiting-human' && s.approval !== null)

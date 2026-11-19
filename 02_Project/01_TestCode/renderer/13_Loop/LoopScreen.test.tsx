@@ -146,6 +146,37 @@ describe('루프 화면 — 폴더와 열기·시작·닫기 (M09 G4)', () => {
     expect(screen.getByText(/cwd는 절대 경로여야 한다/)).toBeTruthy()
     expect(btn('열기').disabled).toBe(false)
   })
+
+  // G4 검수 5 — 옛 폴더의 호출이 도는 동안 폴더를 바꾸면, 그 호출의 바쁨·오류·끝이 새 폴더 현황판에 번지지 않는다
+  it('호출 중에 폴더가 바뀌면 옛 호출의 바쁨·오류가 새 폴더로 넘어가지 않고, 옛 호출의 끝이 새 호출의 바쁨을 풀지 않는다', async () => {
+    const OTHER = 'C:\\work\\other'
+    let rejectOld!: (e: Error) => void
+    let resolveNew!: (s: LoopStatus) => void
+    api.loopStatus.mockImplementation(async ({ cwd }: { cwd: string }) => st({ cwd, phase: 'closed', root: null }))
+    api.loopOpen
+      .mockImplementationOnce(() => new Promise((_r, rej) => { rejectOld = rej }))
+      .mockImplementationOnce(() => new Promise((res) => { resolveNew = res }))
+    const { StatusBoard } = await import('@renderer/13_Loop')
+    const noop = (): void => {}
+    const r = render(<StatusBoard cwd={CWD} onCwdChange={noop} />)
+    await flush()
+    await act(async () => { fireEvent.click(btn('열기')) })
+    expect(btn('폴더 고르기').disabled).toBe(true)
+    r.rerender(<StatusBoard cwd={OTHER} onCwdChange={noop} />)
+    await flush()
+    expect(btn('폴더 고르기').disabled).toBe(false)
+    await act(async () => { fireEvent.click(btn('열기')) })
+    expect(api.loopOpen).toHaveBeenLastCalledWith({ cwd: OTHER })
+    expect(btn('폴더 고르기').disabled).toBe(true)
+    await act(async () => { rejectOld(new Error('옛 폴더의 오류')) })
+    await flush()
+    expect(screen.queryByText('옛 폴더의 오류')).toBeNull()
+    expect(btn('폴더 고르기').disabled).toBe(true)
+    await act(async () => { resolveNew(st({ cwd: OTHER })) })
+    await flush()
+    expect(btn('폴더 고르기').disabled).toBe(false)
+    expect(screen.getByText(OTHER)).toBeTruthy()
+  })
 })
 
 describe('루프 화면 — 상태 push (M09 G4)', () => {

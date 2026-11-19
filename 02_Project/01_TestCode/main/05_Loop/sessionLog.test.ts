@@ -79,6 +79,23 @@ describe('노드 세션 기록 (M10 G4)', () => {
     expect(main?.live).toBe(true)
   })
 
+  it('비우기는 그 세션의 사건만 지우고 차례는 이어 간다 — 스냅숏 뒤 push가 next와 계속 맞물린다 (G4 검수 10)', () => {
+    const log = createSessionLog()
+    const main = tag('main', { kind: 'main', node: null, goal: null })
+    log.record(CWD, main, { type: 'todos', todos: [{ id: '1', label: '옛 할 일', status: 'running' }] })
+    log.record(CWD, main, text('메인'))
+    log.record(CWD, tag('a.1'), tool('t1'))
+    log.clear(CWD, 'main')
+    log.clear('C:/nowhere', 'main')
+    const cleared = log.read(CWD).sessions.find((s) => s.session.key === 'main')
+    expect(cleared?.events).toEqual([])
+    expect(cleared?.next).toBe(2)
+    expect(cleared?.truncated).toBe(false)
+    expect(log.read(CWD).sessions.find((s) => s.session.key === 'a.1')?.events).toHaveLength(1)
+    expect(log.record(CWD, main, text('새 장'))).toEqual({ seq: 2, isNew: false })
+    expect(log.read(CWD).sessions.find((s) => s.session.key === 'main')?.events).toEqual([text('새 장')])
+  })
+
   it('세션 수가 상한을 넘으면 끝난 작업 세션부터 버린다 — 메인 대화와 떠 있는 세션은 남는다', () => {
     const log = createSessionLog({ maxSessions: 3 })
     log.record(CWD, tag('main', { kind: 'main', node: null, goal: null }), text('메인'))

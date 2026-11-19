@@ -1,5 +1,6 @@
 import type { AgentEvent, SubAgentInfo, TodoItem } from '@shared/agentEvents'
 import type { LoopSessionEventPayload, LoopSessionLog, LoopSessionRecord, LoopSessionRow } from '@shared/ipcContract'
+import { MAX_SESSION_EVENTS, appendSessionEvent } from '@shared/13_Loop/sessionMerge'
 import { applyAgentEvent, makeInitialState, type AppState } from '@renderer/05_Conversation/state/reducer'
 import type { ThreadViewState } from '@renderer/05_Conversation/ThreadView'
 
@@ -9,10 +10,15 @@ export type SessionMap = ReadonlyMap<string, LoopSessionRecord>
 export function applyPush(map: SessionMap, p: LoopSessionEventPayload): SessionMap {
   const rec = map.get(p.session.key)
   if (rec && p.seq < rec.next) return map
+  const { events, truncated } = appendSessionEvent(rec?.events ?? [], p.event, MAX_SESSION_EVENTS)
   const next = new Map(map)
-  next.set(p.session.key, rec
-    ? { ...rec, session: p.session, events: [...rec.events, p.event], next: p.seq + 1, live: true }
-    : { session: p.session, events: [p.event], next: p.seq + 1, truncated: p.seq > 0, live: true })
+  next.set(p.session.key, {
+    session: p.session,
+    events,
+    next: p.seq + 1,
+    truncated: truncated || (rec ? rec.truncated : p.seq > 0),
+    live: true,
+  })
   return next
 }
 
@@ -46,6 +52,15 @@ export function foldSession(events: readonly AgentEvent[], live: boolean): Threa
     pendingQuestion: null,
     pendingPermission: null,
   }
+}
+
+// 글·사고 조각은 할 일과 서브에이전트의 이름·상태를 바꾸지 않는다
+export function panelKeyOf(rec: LoopSessionRecord | undefined): AgentEvent | undefined {
+  const events = rec?.events ?? []
+  for (let i = events.length - 1; i >= 0; i--) {
+    if (events[i].type !== 'text' && events[i].type !== 'thinking_delta') return events[i]
+  }
+  return undefined
 }
 
 export function mainPanelOf(rec: LoopSessionRecord | undefined): { todos: TodoItem[]; subagents: SubAgentInfo[] } {

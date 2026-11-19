@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import type { AgentEvent } from '../../../../02_Project/00_Source/shared/agentEvents'
 import type { LoopSessionEventPayload, LoopSessionLog, LoopSessionTag } from '../../../../02_Project/00_Source/shared/ipcContract'
-import { applyPush, foldSession, fromSnapshot, mainPanelOf, rowLabel } from '@renderer/13_Loop/sessionLogModel'
+import { MAX_SESSION_EVENTS } from '../../../../02_Project/00_Source/shared/13_Loop/sessionMerge'
+import { applyPush, foldSession, fromSnapshot, mainPanelOf, panelKeyOf, rowLabel } from '@renderer/13_Loop/sessionLogModel'
 
 const CWD = 'C:\\work\\practice'
 const tag = (key: string, over: Partial<LoopSessionTag> = {}): LoopSessionTag => ({ key, kind: 'work', node: 'implement', goal: 'G2', sessionId: null, ...over })
@@ -30,6 +31,30 @@ describe('스냅숏과 push 맞물리기 (M10 G4)', () => {
     expect(rec?.session.sessionId).toBe('S1')
     expect(rec?.live).toBe(true)
     expect([...s.keys()]).toEqual(['b.1'])
+  })
+
+  // G4 검수 1 — 글자 조각마다 사건이 하나씩 쌓이면 기록이 끝없이 길어진다. main과 같이 잇고 같은 상한으로 자른다
+  it('스냅숏 끝의 이어 붙인 글에 같은 messageId 조각이 오면 한 사건으로 합친다 — next는 조각마다 오른다', () => {
+    const snap: LoopSessionLog = {
+      cwd: CWD,
+      sessions: [{ session: tag('a.1'), events: [tool('t0'), { type: 'text', delta: '안녕', messageId: 'm1' }], next: 3, truncated: false, live: true }],
+    }
+    let s = fromSnapshot(snap, [])
+    s = applyPush(s, push('a.1', 3, { type: 'text', delta: '하세', messageId: 'm1' }))
+    s = applyPush(s, push('a.1', 4, { type: 'text', delta: '요', messageId: 'm1' }))
+    const rec = s.get('a.1')
+    expect(rec?.events).toEqual([tool('t0'), { type: 'text', delta: '안녕하세요', messageId: 'm1' }])
+    expect(rec?.next).toBe(5)
+    expect(snap.sessions[0].events[1]).toEqual({ type: 'text', delta: '안녕', messageId: 'm1' })
+  })
+
+  it('사건 수가 main의 상한을 넘으면 앞을 잘라 내고 잘렸다고 표시한다', () => {
+    let s = fromSnapshot({ cwd: CWD, sessions: [] }, [])
+    for (let i = 0; i < MAX_SESSION_EVENTS + 5; i++) s = applyPush(s, push('a.1', i, tool(`t${i}`)))
+    const rec = s.get('a.1')
+    expect(rec?.events).toHaveLength(MAX_SESSION_EVENTS)
+    expect((rec?.events[0] as { id: string }).id).toBe('t5')
+    expect(rec?.truncated).toBe(true)
   })
 })
 
@@ -74,6 +99,19 @@ describe('세션 하나 접기 — 보기 전용 (M10 G4)', () => {
 })
 
 describe('메인 대화의 할 일·서브에이전트와 줄 이름 (M10 G4)', () => {
+  it('할 일·서브에이전트를 다시 접을 열쇠는 마지막의 글·사고 아닌 사건이다 — 글 조각이 이어져도 같다', () => {
+    const todos: AgentEvent = { type: 'todos', todos: [{ id: '1', label: '결정 대장 쓰기', status: 'running' }] }
+    let s = applyPush(new Map(), push('main', 0, todos, { kind: 'main' }))
+    const key = panelKeyOf(s.get('main'))
+    expect(key).toBe(todos)
+    s = applyPush(s, push('main', 1, { type: 'text', delta: '정리', messageId: 'b1' }, { kind: 'main' }))
+    s = applyPush(s, push('main', 2, { type: 'thinking_delta', text: '생각' }, { kind: 'main' }))
+    expect(panelKeyOf(s.get('main'))).toBe(key)
+    s = applyPush(s, push('main', 3, tool('t1'), { kind: 'main' }))
+    expect(panelKeyOf(s.get('main'))).not.toBe(key)
+    expect(panelKeyOf(undefined)).toBeUndefined()
+  })
+
   it('메인 대화 세션의 마지막 할 일과 서브에이전트를 뽑는다. 기록이 없으면 비어 있다', () => {
     expect(mainPanelOf(undefined)).toEqual({ todos: [], subagents: [] })
     const events: AgentEvent[] = [

@@ -5,7 +5,7 @@ import { useAppStore, selectWorkspaceRoot } from '@renderer/00_App/appStore'
 import { TodosSection } from '@renderer/03_Agent'
 import { FileExplorer } from '@renderer/07_Workspace/file'
 import { errText, sameCwd } from './loopModel'
-import { mainPanelOf } from './sessionLogModel'
+import { mainPanelOf, panelKeyOf } from './sessionLogModel'
 import { folderName } from './workModel'
 
 export interface FilesPanelProps {
@@ -26,7 +26,9 @@ export function FilesPanel({ cwd, main }: FilesPanelProps): JSX.Element {
   const [changes, setChanges] = useState<GitChange[] | null>(null)
   const [branch, setBranch] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const panel = useMemo(() => mainPanelOf(main), [main])
+  const panelKey = panelKeyOf(main)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const panel = useMemo(() => mainPanelOf(main), [panelKey])
   const note = explorerNote(cwd, chatRoot)
 
   const reload = useCallback((): (() => void) => {

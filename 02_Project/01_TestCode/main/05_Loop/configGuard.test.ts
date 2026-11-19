@@ -129,6 +129,139 @@ describe('실행기 git 설정 대조', () => {
     expect((await createConfigGuard({ cwd: repos.work, env: repos.env, snapshotFile, hooksPath })).ok).toBe(true)
   })
 
+  // M09 G4 — 사람의 「확인하고 풀기」. 열기 거부는 바뀐 키 목록을 구조로 돌려주고, 그 목록과 정확히 같은 차이만 새 기준선으로 받는다.
+  it('지난 스냅숏과의 차이를 목록으로 돌려주고, 사람이 그 목록을 받으면 새 기준선으로 연다 — 목록이 다르면 여전히 거부한다', async () => {
+    await open()
+    repos.git(['config', 'user.name', 'Someone Else'])
+    const refused = await createConfigGuard({ cwd: repos.work, env: repos.env, snapshotFile, hooksPath })
+    const seen = !refused.ok ? refused.changed ?? [] : []
+    // G4 검수 차단 B1 — 목록은 키 이름에 값(옛 값 → 새 값)과 출처 파일을 함께 보인다
+    expect(seen).toHaveLength(1)
+    expect(seen[0]).toMatch(/^user\.name: "Loop Test" .*→ "Someone Else"/)
+    expect(seen[0]).toContain(path.join('.git', 'config').replace(/\\/g, '/'))
+    const wrong = await createConfigGuard({ cwd: repos.work, env: repos.env, snapshotFile, hooksPath, acceptChanged: ['user.name'] })
+    expect(wrong.ok).toBe(false)
+    const accepted = await createConfigGuard({ cwd: repos.work, env: repos.env, snapshotFile, hooksPath, acceptChanged: seen })
+    expect(accepted.ok).toBe(true)
+    // 새 기준선이 적혔다 — 받기 없이 다시 열어도 열린다
+    expect((await createConfigGuard({ cwd: repos.work, env: repos.env, snapshotFile, hooksPath })).ok).toBe(true)
+  })
+
+  // G4 검수 차단 B1 — 받기는 사람이 본 값에 묶인다. 본 뒤 값이 또 바뀌면 같은 키라도 받지 않는다
+  it('사람이 본 뒤 값이 바뀌면 받지 않는다 — 새로 본 목록으로만 받는다', async () => {
+    await open()
+    repos.git(['config', 'user.name', 'Someone Else'])
+    const first = await createConfigGuard({ cwd: repos.work, env: repos.env, snapshotFile, hooksPath })
+    const seen = !first.ok ? first.changed ?? [] : []
+    repos.git(['config', 'user.name', 'Third Person'])
+    expect((await createConfigGuard({ cwd: repos.work, env: repos.env, snapshotFile, hooksPath, acceptChanged: seen })).ok).toBe(false)
+    const second = await createConfigGuard({ cwd: repos.work, env: repos.env, snapshotFile, hooksPath })
+    const now = !second.ok ? second.changed ?? [] : []
+    expect(now).not.toEqual(seen)
+    expect((await createConfigGuard({ cwd: repos.work, env: repos.env, snapshotFile, hooksPath, acceptChanged: now })).ok).toBe(true)
+  })
+
+  // G4 검수 차단 B1 — 프로브 guard.ts의 꼴. 전역 설정에 심은 위험 키는 풀기로 받지 않는다(무해한 전역 키는 받는다, 전역 파일 경로를 보인다)
+  it('전역 설정 파일에 credential.helper·core.sshCommand를 심으면 풀기가 거부된다 — 무해한 전역 키 변경은 파일 경로와 함께 받는다', async () => {
+    const globalCfg = repos.env.GIT_CONFIG_GLOBAL as string
+    const guard = await open()
+    fs.appendFileSync(globalCfg, '[credential]\n\thelper = "!f() { echo pwned >&2; }; f"\n[core]\n\tsshCommand = evil-ssh\n')
+    expect(await guard.check()).toContain('credential.helper')
+    const seen = guard.changes()
+    expect(seen.some((c) => c.startsWith('credential.helper:'))).toBe(true)
+    expect(seen.some((c) => c.includes(path.resolve(globalCfg)))).toBe(true)
+    const refused = await createConfigGuard({ cwd: repos.work, env: repos.env, snapshotFile, hooksPath, acceptChanged: seen })
+    expect(refused.ok).toBe(false)
+    expect(!refused.ok && refused.reason).toContain('credential.helper')
+    expect(!refused.ok && refused.reason).toContain('core.sshcommand')
+    // 받을 수 없는 차이는 받기 목록으로 주지 않는다(화면이 풀기 카드를 보이지 않는다)
+    expect(!refused.ok && refused.changed).toBeUndefined()
+    // 사람이 직접 되돌리고 무해한 전역 키만 바꾸면 받는다
+    fs.writeFileSync(globalCfg, '[user]\n\temail = other@example.invalid\n')
+    const plain = await createConfigGuard({ cwd: repos.work, env: repos.env, snapshotFile, hooksPath })
+    const plainSeen = !plain.ok ? plain.changed ?? [] : []
+    expect(plainSeen.some((c) => c.includes(path.resolve(globalCfg)))).toBe(true)
+    expect((await createConfigGuard({ cwd: repos.work, env: repos.env, snapshotFile, hooksPath, acceptChanged: plainSeen })).ok).toBe(true)
+  })
+
+  it('보이는 값은 자격을 가리고, 가렸거나 긴 값은 전체 값의 해시를 붙인다', async () => {
+    await open()
+    repos.git(['config', 'user.name', 'https://someone:s3cret@example.invalid/'])
+    const r = await createConfigGuard({ cwd: repos.work, env: repos.env, snapshotFile, hooksPath })
+    const seen = !r.ok ? r.changed ?? [] : []
+    expect(seen.join('\n')).not.toContain('s3cret')
+    expect(seen[0]).toMatch(/\(sha256 [0-9a-f]{12}\)/)
+  })
+
+  it('remote.*.url·pushurl 변경은 풀기로 받지 않는다', async () => {
+    await open()
+    repos.git(['config', 'remote.origin.url', 'https://example.invalid/other.git'])
+    const r = await createConfigGuard({ cwd: repos.work, env: repos.env, snapshotFile, hooksPath })
+    expect(r.ok).toBe(false)
+    expect(!r.ok && r.reason).toContain('remote.origin.url')
+    expect(!r.ok && r.changed).toBeUndefined()
+    // pushurl은 로컬 위험 키라 받기 이전에 거부된다
+    repos.git(['config', 'remote.origin.pushurl', 'https://example.invalid/other.git'])
+    const p = await createConfigGuard({ cwd: repos.work, env: repos.env, snapshotFile, hooksPath })
+    expect(!p.ok && p.reason).toContain('remote.origin.pushurl')
+    expect(!p.ok && p.changed).toBeUndefined()
+  })
+
+  // G4 확인 검수 — 프로브 guard2.ts의 꼴. 실행기 git의 작업 위치(core.worktree·bare)나 원격 요청(http.extraHeader·cookieFile·proxy)을
+  // 바꾸는 키는 remote url처럼 풀기로 받지 않는다 — 받기 목록을 주지 않고, 열린 실행기가 본 목록으로 받으려 해도 거부한다
+  describe('작업 위치·원격 요청을 바꾸는 키는 풀기로 받지 않는다', () => {
+    const toSlash = (p: string): string => p.replace(/\\/g, '/')
+    const cases: [string, string, () => void][] = [
+      ['로컬 core.worktree', 'core.worktree', () => { repos.git(['config', 'core.worktree', toSlash(repos.work)]) }],
+      ['전역 core.bare', 'core.bare', () => { fs.appendFileSync(repos.env.GIT_CONFIG_GLOBAL as string, '[core]\n\tbare = false\n') }],
+      ['전역 http.extraHeader', 'http.extraheader', () => { fs.appendFileSync(repos.env.GIT_CONFIG_GLOBAL as string, '[http]\n\textraHeader = X-Probe: y\n') }],
+      ['전역 http.<주소>.extraHeader', 'http.https://github.com/.extraheader', () => {
+        fs.appendFileSync(repos.env.GIT_CONFIG_GLOBAL as string, '[http "https://github.com/"]\n\textraHeader = Authorization: Bearer x\n')
+      }],
+      ['전역 http.cookieFile', 'http.cookiefile', () => { fs.appendFileSync(repos.env.GIT_CONFIG_GLOBAL as string, '[http]\n\tcookieFile = C:/probe-cookies\n') }],
+      ['로컬 http.<주소>.cookieFile', 'http.https://github.com/.cookiefile', () => { repos.git(['config', 'http.https://github.com/.cookieFile', 'C:/probe-cookies']) }],
+      ['전역 http.proxy', 'http.proxy', () => { fs.appendFileSync(repos.env.GIT_CONFIG_GLOBAL as string, '[http]\n\tproxy = http://127.0.0.1:9\n') }],
+      ['전역 http.<주소>.proxy', 'http.https://github.com/.proxy', () => {
+        fs.appendFileSync(repos.env.GIT_CONFIG_GLOBAL as string, '[http "https://github.com/"]\n\tproxy = http://127.0.0.1:9\n')
+      }],
+    ]
+    for (const [name, key, plantKey] of cases) {
+      it(`${name} — 받기 목록을 주지 않고, 열린 뒤 본 목록으로 받으려 해도 거부한다`, async () => {
+        const guard = await open()
+        plantKey()
+        expect(await guard.check()).toContain(key)
+        const seen = guard.changes()
+        expect(seen.some((c) => c.startsWith(`${key}:`))).toBe(true)
+        const offered = await createConfigGuard({ cwd: repos.work, env: repos.env, snapshotFile, hooksPath })
+        expect(offered.ok).toBe(false)
+        expect(!offered.ok && offered.reason).toContain(key)
+        expect(!offered.ok && offered.reason).toContain('작업 위치나 원격 요청')
+        expect(!offered.ok && offered.reason).toContain('사람이 직접 되돌린 뒤 다시 연다')
+        expect(!offered.ok && offered.changed).toBeUndefined()
+        const accepted = await createConfigGuard({ cwd: repos.work, env: repos.env, snapshotFile, hooksPath, acceptChanged: seen })
+        expect(accepted.ok).toBe(false)
+      })
+    }
+  })
+
+  it('받기 목록이 있어도 위험 키는 여전히 거부한다', async () => {
+    await open()
+    repos.git(['config', 'core.pager', 'less'])
+    const r = await createConfigGuard({ cwd: repos.work, env: repos.env, snapshotFile, hooksPath, acceptChanged: ['core.pager'] })
+    expect(r.ok).toBe(false)
+    expect(!r.ok && r.reason).toContain('core.pager')
+    expect(!r.ok && r.changed).toBeUndefined()
+  })
+
+  it('열린 뒤 바뀐 키 목록을 changes()로 읽는다(래치를 푸는 화면이 보인다)', async () => {
+    const guard = await open()
+    expect(guard.changes()).toEqual([])
+    repos.git(['config', 'user.name', 'Someone Else'])
+    expect(await guard.check()).toContain('user.name')
+    expect(guard.changes()).toHaveLength(1)
+    expect(guard.changes()[0]).toMatch(/^user\.name: "Loop Test" .*→ "Someone Else"/)
+  })
+
   it('위험 키가 로컬 설정에 있으면 스냅숏이 없어도, 스냅숏을 지워도 열지 않는다 — 그 키를 지우면 열린다', async () => {
     await open()
     repos.git(['config', 'core.pager', 'less'])
@@ -267,6 +400,18 @@ describe('실행기 git 설정 대조', () => {
       fs.appendFileSync(path.join(extra, 'x.conf'), '  ProxyCommand x\n')
       expect(await guard.check()).toContain('x.conf')
     })
+
+    // G4 검수 차단 B1 — ssh 설정 파일의 변경은 풀기로 받지 않는다. 사람이 직접 되돌린다
+    it('ssh 설정 파일이 바뀌었으면 풀기로 받지 않고 직접 되돌리라고 한다', async () => {
+      const guard = await openWith()
+      fs.writeFileSync(path.join(home, '.ssh', 'config'), 'Host *\n  ProxyCommand sh -c "cat >> leak"\n')
+      expect(await guard.check()).toContain('config')
+      const r = await createConfigGuard({ cwd: repos.work, env, snapshotFile, hooksPath, acceptChanged: guard.changes() })
+      expect(r.ok).toBe(false)
+      expect(!r.ok && r.reason).toContain('직접 되돌')
+      expect(!r.ok && r.reason).toContain(path.join(home, '.ssh', 'config'))
+      expect(!r.ok && r.changed).toBeUndefined()
+    })
   })
 
   // G2 4차 검수 — 실행기 gh는 사용자 gh 설정 폴더를 그대로 쓴다. config.yml의 http_unix_socket이면 gh가 인증 머리를 평문으로
@@ -322,6 +467,18 @@ describe('실행기 git 설정 대조', () => {
       const snap = JSON.parse(fs.readFileSync(snapshotFile, 'utf8')) as { files: Record<string, string> }
       expect(Object.keys(snap.files)).toContain(path.resolve(xdg, 'gh', 'hosts.yml'))
       if (process.platform === 'win32') expect(Object.keys(snap.files)).toContain(path.resolve(repos.root, 'appdata', 'GitHub CLI', 'config.yml'))
+    })
+
+    // G4 검수 차단 B1 — gh config.yml·hosts.yml의 변경은 풀기로 받지 않는다. 사람이 직접 되돌린다
+    it('gh hosts.yml이 바뀌었으면 풀기로 받지 않고 직접 되돌리라고 한다', async () => {
+      const r = await createConfigGuard({ cwd: repos.work, env, snapshotFile, hooksPath })
+      if (!r.ok) throw new Error(r.reason)
+      fs.writeFileSync(path.join(ghDir, 'hosts.yml'), 'github.com:\n  user: x\n')
+      expect(await r.guard.check()).toContain('hosts.yml')
+      const again = await createConfigGuard({ cwd: repos.work, env, snapshotFile, hooksPath, acceptChanged: r.guard.changes() })
+      expect(again.ok).toBe(false)
+      expect(!again.ok && again.reason).toContain('직접 되돌')
+      expect(!again.ok && again.reason).toContain('hosts.yml')
     })
   })
 

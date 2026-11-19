@@ -44,11 +44,56 @@ describe('파일 다이제스트 저장소와 키', () => {
     expect(fs.existsSync(store.latchPath?.(key) as string)).toBe(true)
   })
 
+  // M09 G4 — 사람의 「확인하고 풀기」(loopDriver)만 부른다. 없는 것을 지워도 오류가 아니다.
+  it('래치 지우기와 다이제스트 지우기는 그 파일만 지운다', async () => {
+    const store = createFileDigestStore(path.join(dir, 'clear'))
+    const key = repoKeyOf('C:/work/clear')
+    await store.clearLatch(key)
+    await store.remove(key)
+    await store.write(key, 'c'.repeat(64))
+    await store.writeLatch(key, TAMPERED)
+    await store.clearLatch(key)
+    expect(await store.readLatch(key)).toBeNull()
+    expect(await store.read(key)).toBe('c'.repeat(64))
+    await store.remove(key)
+    expect(await store.read(key)).toBeNull()
+    await expect(store.clearLatch('../escape')).rejects.toThrow()
+  })
+
+  // G4 검수 중요 I1 — 실행기가 쓴 상태 본문의 사본. 위조 래치를 풀 때 이 사본으로 상태 파일을 되돌린다(위조본을 받지 않는다).
+  it('상태 사본 — 없으면 null, 쓴 글을 바이트 그대로 돌려주고(앞뒤 공백 포함) 다이제스트·래치와 따로 산다', async () => {
+    const store = createFileDigestStore(path.join(dir, 'copy'))
+    const key = repoKeyOf('C:/work/copy')
+    expect(await store.readCopy(key)).toBeNull()
+    const text = '{\n  "schema": 1\n}\n'
+    await store.writeCopy(key, text)
+    expect(await store.readCopy(key)).toBe(text)
+    expect(await store.read(key)).toBeNull()
+    expect(fs.readdirSync(path.join(dir, 'copy'))).toEqual([`${key}.state.json`])
+    await expect(store.writeCopy('../escape', 'x')).rejects.toThrow()
+  })
+
+  it('실행기는 쓸 때마다 사본을 상태 파일보다 먼저 쓰고, 사본은 상태 파일과 같은 글이다', async () => {
+    const { template, hash } = loaded()
+    const rig = makeRig()
+    const order: string[] = []
+    const fsWrite = rig.fs.write.bind(rig.fs)
+    rig.fs.write = async (rel, text) => { order.push(`fs ${rel}`); await fsWrite(rel, text) }
+    const copyWrite = rig.digest.writeCopy.bind(rig.digest)
+    rig.digest.writeCopy = async (k, text) => { order.push('copy'); await copyWrite(k, text) }
+    const digestWrite = rig.digest.write.bind(rig.digest)
+    rig.digest.write = async (k, h) => { order.push('digest'); await digestWrite(k, h) }
+    const runner = createLoopRunner({ template, hash, ports: rig.ports, cwd: CWD, base: 'master' })
+    expect((await runner.start('M1')).kind).toBe('ok')
+    expect(order.slice(0, 3)).toEqual(['copy', `fs ${DOCS.runState}`, 'digest'])
+    expect(rig.digest.copies.get(repoKeyOf(CWD))).toBe(rig.fs.files.get(DOCS.runState))
+  })
+
   it('래치 사유 문구에 래치 파일 경로가 실린다', async () => {
     const { template, hash } = loaded()
     const rig = makeRig()
     rig.ports.digest.latchPath = (key) => `C:/appdata/loop/digests/${key}.latch`
-    const runner = createLoopRunner({ template, hash, ports: rig.ports, cwd: CWD })
+    const runner = createLoopRunner({ template, hash, ports: rig.ports, cwd: CWD, base: 'master' })
     expect((await runner.start('M1')).kind).toBe('ok')
     rig.fs.files.set(DOCS.runState, '{}')
     const out = await runner.step()
@@ -71,7 +116,7 @@ interface Ctx { rig: Rig; runner: LoopRunner }
 async function started(): Promise<Ctx> {
   const { template, hash } = loaded()
   const rig = makeRig()
-  const runner = createLoopRunner({ template, hash, ports: rig.ports, cwd: CWD })
+  const runner = createLoopRunner({ template, hash, ports: rig.ports, cwd: CWD, base: 'master' })
   expect((await runner.start('M1')).kind).toBe('ok')
   return { rig, runner }
 }
@@ -130,7 +175,7 @@ describe('실행기는 다이제스트가 다르면 멈춘다', () => {
     expect((await runner.load()).kind).toBe('needs-user')
     expect(rig.digest.latches.get(repoKeyOf(CWD))).toContain(TAMPERED)
     const { template, hash } = loaded()
-    const fresh = createLoopRunner({ template, hash, ports: rig.ports, cwd: CWD })
+    const fresh = createLoopRunner({ template, hash, ports: rig.ports, cwd: CWD, base: 'master' })
     expect((await fresh.load()).kind).toBe('needs-user')
     expect((await fresh.step()).kind).toBe('needs-user')
     expect((await fresh.start('M1')).kind).toBe('needs-user')

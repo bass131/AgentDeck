@@ -54,6 +54,22 @@ describe('루프 잠금 노드 배선 (M09 G2)', () => {
     expect(write.hookSpecificOutput?.permissionDecisionReason).toContain('로컬 커밋까지만')
   })
 
+  // M09 G4 Backlog — 루프 세션은 사용자 MCP 서버를 읽지 않는다. 공개 타입(sdk.d.ts Options.strictMcpConfig)의 설명:
+  // mcpServers 옵션의 서버만 쓰고 .mcp.json·사용자 설정·플러그인의 MCP 서버를 무시한다. 런타임 효과는 실측하지 않았다(mcp__ 거부 훅이 겹).
+  it('loopLock이 있으면 strictMcpConfig로 사용자 MCP 서버를 읽지 않고 mcpServers를 주지 않는다 — 일반 앱 세션에는 없다', () => {
+    const loop = build({ loopLock: LOOP }, WIN_UD)
+    expect(loop['strictMcpConfig']).toBe(true)
+    expect(loop['mcpServers']).toBeUndefined()
+    expect(build({}, WIN_UD)['strictMcpConfig']).toBeUndefined()
+  })
+
+  it('읽기 전용 꼴(검수 세션)의 loopLock은 훅에 그대로 실려 저장소 쓰기를 거부한다', async () => {
+    const opts = build({ loopLock: { ...LOOP, readOnly: true } }, WIN_UD)
+    expect(opts['strictMcpConfig']).toBe(true)
+    expect((await decisions(opts, 'echo x > src/a.ts'))[0]).toBe('deny')
+    expect((await decisions(build({ loopLock: LOOP }, WIN_UD), 'echo x > src/a.ts'))[0]).toBeUndefined()
+  })
+
   it('자동 모드의 시작 모드는 그대로다 (훅은 모드 허용보다 앞에서 판정한다)', () => {
     const settings = build({ loopLock: LOOP })['settings'] as { permissions: { defaultMode: string } }
     expect(settings.permissions.defaultMode).toBe('acceptEdits')

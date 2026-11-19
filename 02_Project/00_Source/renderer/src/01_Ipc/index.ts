@@ -34,4 +34,8 @@ export const ipc: IpcApi = {
   get window(): IpcApi['window'] {
     return window.api.window
   },
+  // M09 G4 — 앱 안 루프 묶음. 화면(2차분)이 이 getter로 부른다.
+  get loop(): IpcApi['loop'] {
+    return window.api.loop
+  },
 }

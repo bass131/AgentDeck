@@ -242,6 +242,19 @@ describe('분해와 등급', () => {
     expect(labelOf(nextStep(template, s))).toBe('spec-approval')
   })
 
+  // G4 검수 중요 I7 — 실행기가 읽은 goal 문서 해시와 승인한 스펙 해시를 상태 사실로 싣는다. 꼴이 틀린 해시는 null(대조하지 않음)이다
+  it('분해 pass의 goal 문서 해시와 스펙 승인 pass의 스펙 해시를 상태에 싣는다 — 스키마가 받는다', () => {
+    let s = drive(template, fresh(template, hash), { until: 'spec-approval' }).state
+    s = apply(template, s, { ...verdict('spec-approval', 'human', 'pass'), facts: { specSha256: 'a'.repeat(64) } })
+    expect(s.specSha256).toBe('a'.repeat(64))
+    s = drive(template, s, { until: 'decompose' }).state
+    const seeds = [{ id: 'G1', title: '하나', docSha256: 'b'.repeat(64) }, { id: 'G2', title: '둘', docSha256: 'not-a-hash' }]
+    s = apply(template, s, { ...verdict('decompose', 'executor', 'pass'), facts: { goals: seeds } })
+    expect(s.goals.map((g) => g.docSha256)).toEqual(['b'.repeat(64), null])
+    expect(validateRunState(JSON.parse(JSON.stringify(s))).ok).toBe(true)
+    expect(validateRunState({ ...JSON.parse(JSON.stringify(s)), specSha256: 'x' }).ok).toBe(false)
+  })
+
   it('goal 없는 분해 통과는 받지 않는다', () => {
     const s = drive(template, fresh(template, hash), { until: 'decompose' }).state
     expect(applyVerdict(template, s, verdict('decompose', 'executor', 'pass'), AT).ok).toBe(false)
@@ -314,6 +327,34 @@ describe('실행 상태 스키마와 재개 조건', () => {
     expect(checkResumable(other.template, other.hash, s).ok).toBe(false)
     const without = loaded(variantText((raw) => removeRawNode(raw, 'regression')))
     expect(checkResumable(without.template, s.template.hash, s).ok).toBe(false)
+  })
+
+  // M09 G4 — 기준 브랜치는 시작할 때 상태에 적고, 검수 pass는 검수한 트리 해시를 goal에 남긴다
+  it('기준 브랜치와 검수 트리 해시를 상태에 싣고 다시 읽는다 — 옛 상태(칸 없음)도 받는다', () => {
+    const made = createRunState(template, hash, 'M1', 'main')
+    if (!made.ok) throw new Error(made.reason)
+    expect(made.state.base).toBe('main')
+    expect(createRunState(template, hash, 'M1', ' ').ok).toBe(false)
+    let s = drive(template, made.state, { goals: GOALS, grades: GRADES, until: 'G1/review' }).state
+    // 트리 해시 없는 검수 pass는 받지 않는다 — 판정을 무엇에 묶을지 모른다
+    expect(applyVerdict(template, s, verdict('review', 'model', 'pass', '검수 통과'), AT).ok).toBe(false)
+    s = apply(template, s, { ...verdict('review', 'model', 'pass', '검수 통과'), facts: { reviewedTree: 'tree-1' } })
+    expect(s.goals[0].reviewedTree).toBe('tree-1')
+    const round = validateRunState(JSON.parse(JSON.stringify(s)))
+    expect(round.ok && round.state.base).toBe('main')
+    const legacy = JSON.parse(JSON.stringify(s)) as Record<string, unknown>
+    delete legacy.base
+    for (const g of legacy.goals as Record<string, unknown>[]) delete g.reviewedTree
+    expect(validateRunState(legacy).ok).toBe(true)
+    expect(validateRunState({ ...s, base: '' }).ok).toBe(false)
+    expect(validateRunState({ ...s, goals: s.goals.map((g) => ({ ...g, reviewedTree: 7 })) }).ok).toBe(false)
+  })
+
+  it('검수 불통과는 남아 있던 검수 트리 해시를 지운다 — 옛 pass로 다음 커밋을 통과시키지 않는다', () => {
+    let s = drive(template, fresh(template, hash), { goals: GOALS, grades: GRADES, until: 'G1/review' }).state
+    s.goals[0].reviewedTree = 'old-tree'
+    s = apply(template, s, verdict('review', 'model', 'fail', '경계 시험이 빠졌다'))
+    expect(s.goals[0].reviewedTree).toBeNull()
   })
 
   it('변형본 시험의 실패 참조 가공이 실제 노드를 고친다', () => {

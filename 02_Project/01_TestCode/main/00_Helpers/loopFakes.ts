@@ -69,6 +69,8 @@ function factsFor(next: NextStep, goals: GoalSeed[], grades: Record<string, Grad
   if (next.kind === 'work' && next.node.produces === 'goals') return { goals }
   if (next.kind === 'gate' && next.node.rule?.type === 'grade') return next.goal && grades[next.goal.id] ? { grade: grades[next.goal.id] } : {}
   if (next.kind === 'gate' && next.node.rule?.type === 'ci') return { ciSha: 'c1' }
+  // 검수 pass는 검수한 트리 해시에 묶인다(G4)
+  if (next.kind === 'gate' && next.node.judge === 'model') return { reviewedTree: 't0' }
   if (next.kind !== 'action') return undefined
   switch (next.node.action) {
     case 'createMilestoneBranch': case 'createGoalBranch': return { baseSha: 'b1' }
@@ -135,13 +137,19 @@ export class FakeGit implements GitPort {
   async commitAll(message: string): Promise<string> {
     this.calls.push(`commit ${message}`)
     const sha = this.sha('c')
+    this.commitTrees.set(sha, this.tree)
     this.local.get(this.current)?.push(sha)
     this.dirty = false
     return sha
   }
-  async push(branch: string): Promise<void> {
+  // sha를 주면 그 커밋까지만 올린다(G4 검수 I8 — `<sha>:refs/heads/<b>`). 로컬 역사에 없는 sha면 던진다.
+  async push(branch: string, sha?: string): Promise<void> {
     this.calls.push(`push ${branch}`)
-    this.remote.set(branch, [...(this.local.get(branch) ?? [])])
+    const hist = this.local.get(branch) ?? []
+    if (sha === undefined) { this.remote.set(branch, [...hist]); return }
+    const i = hist.indexOf(sha)
+    if (i < 0) throw new Error(`${branch}의 역사에 ${sha}가 없다`)
+    this.remote.set(branch, hist.slice(0, i + 1))
   }
   async syncToRemote(branch: string): Promise<string | null> {
     this.calls.push(`sync ${branch}`)
@@ -194,6 +202,25 @@ export class FakeGit implements GitPort {
     this.calls.push(`diffStat ${base}`)
     return this.diff
   }
+  // M09 G4 — 작업 트리 해시 흉내. 시험이 바꿔 「검수 뒤 트리가 바뀜」을 흉내 낸다. 커밋은 그때의 트리를 적는다.
+  tree = 't0'
+  reviewDiff = 'diff --git a/src/index.ts b/src/index.ts\n+export const x = 1\n'
+  readonly commitTrees = new Map<string, string>()
+  async worktreeTree(): Promise<string | null> {
+    this.calls.push('worktreeTree')
+    return this.tree
+  }
+  // 시험이 diff 길이를 정하면 상한을 넘은 스냅숏을 흉내 낸다(G4 검수 I9)
+  reviewTooLarge: number | null = null
+  async reviewSnapshot(base: string): Promise<{ tree: string; diff: string; tooLarge?: boolean; chars?: number } | null> {
+    this.calls.push(`reviewSnapshot ${base}`)
+    if (this.reviewTooLarge !== null) return { tree: this.tree, diff: '', tooLarge: true, chars: this.reviewTooLarge }
+    return { tree: this.tree, diff: this.reviewDiff, chars: this.reviewDiff.length }
+  }
+  async treeOf(ref: string): Promise<string | null> {
+    const sha = last(this.local.get(ref)) ?? ref
+    return this.commitTrees.get(sha) ?? this.tree
+  }
 }
 
 export interface FakePr { number: number; head: string; base: string; state: PrState; mergedHead: string | null; mergeCommitSha: string | null }
@@ -227,8 +254,11 @@ export class FakeGh implements GhPort {
     const pr = this.prs.find((p) => p.number === number)
     return pr ? this.view(pr) : null
   }
+  // PR 머리 브랜치 → 본문(G4 — goal PR 본문의 검증 줄을 본다)
+  readonly bodies = new Map<string, string>()
   async createPr(req: { head: string; base: string; title: string; body: string }): Promise<PrInfo> {
     this.calls.push(`createPr ${req.head} ${req.base}`)
+    this.bodies.set(req.head, req.body)
     const pr: FakePr = { number: this.nextNumber++, head: req.head, base: req.base, state: 'open', mergedHead: null, mergeCommitSha: null }
     this.prs.push(pr)
     return this.view(pr)
@@ -265,14 +295,19 @@ export class FakeCommands implements CommandPort {
   }
 }
 
-// 작업 세션 흉내 — 분해 노드면 goal 문서를 쓰고(에이전트가 적은 「등급: 약」 포함), 구현 노드면 작업 트리를 더럽힌다.
+// 작업 세션 흉내 — 브레인스토밍이면 마일스톤 스펙을, 분해 노드면 goal 문서를 쓰고(에이전트가 적은 「등급: 약」 포함), 구현 노드면 작업 트리를 더럽힌다.
+export const SPEC_TEXT = '# M1 스펙\n\n만들 것: 시험\n'
 export class FakeSession implements SessionPort {
   readonly calls: string[] = []
   goals: { id: string; title: string; extra?: string }[] = GOALS.map((g) => ({ ...g }))
   onWork: ((req: WorkRequest) => Promise<void>) | null = null
+  // 다음 결과를 바꾼다(취소 흉내 등). 한 번 쓰고 비운다.
+  nextResult: { ok: boolean; summary: string; cancelled?: boolean } | null = null
   constructor(private readonly files: FakeFs, private readonly git: FakeGit) {}
-  async runWork(req: WorkRequest): Promise<{ ok: boolean; summary: string }> {
+  async runWork(req: WorkRequest): Promise<{ ok: boolean; summary: string; cancelled?: boolean }> {
     this.calls.push(req.goal ? `${req.goal.id}/${req.node.id}` : req.node.id)
+    if (this.nextResult) { const r = this.nextResult; this.nextResult = null; return r }
+    if (req.node.id === 'brainstorm') await this.files.write(DOCS.milestoneSpec, SPEC_TEXT)
     if (req.node.produces === 'goals') {
       for (const g of this.goals) await this.files.write(`.agentdeck/goals/${g.id}.md`, `# ${g.title}\n\n등급: 약\n${g.extra ?? ''}`)
     }
@@ -285,8 +320,13 @@ export class FakeSession implements SessionPort {
 export class FakeReview implements ReviewPort {
   readonly calls: string[] = []
   readonly queue: ('pass' | 'fail' | 'stop')[] = []
+  readonly requests: Parameters<ReviewPort['review']>[0][] = []
+  // 검수 동안 일어나는 일(작업 트리 바꾸기 등)을 흉내 낸다
+  during: (() => void) | null = null
   async review(req: Parameters<ReviewPort['review']>[0]): Promise<{ verdict: 'pass' | 'fail' | 'stop'; evidence: string }> {
     this.calls.push(req.goal ? `${req.goal.id}/${req.node.id}` : req.node.id)
+    this.requests.push(req)
+    this.during?.()
     const verdict = this.queue.shift() ?? 'pass'
     return { verdict, evidence: verdict === 'pass' ? '검수 통과' : '경계 시험이 빠졌다' }
   }
@@ -296,15 +336,23 @@ export class FakeReview implements ReviewPort {
 export class FakeDigestStore implements DigestStore {
   readonly digests = new Map<string, string>()
   readonly latches = new Map<string, string>()
+  // G4 검수 I1 — 실행기가 쓴 상태 본문의 사본
+  readonly copies = new Map<string, string>()
+  async writeCopy(repoKey: string, text: string): Promise<void> { this.copies.set(repoKey, text) }
+  async readCopy(repoKey: string): Promise<string | null> { return this.copies.get(repoKey) ?? null }
   async read(repoKey: string): Promise<string | null> { return this.digests.get(repoKey) ?? null }
   async write(repoKey: string, hash: string): Promise<void> { this.digests.set(repoKey, hash) }
   async readLatch(repoKey: string): Promise<string | null> { return this.latches.get(repoKey) ?? null }
   async writeLatch(repoKey: string, reason: string): Promise<void> { this.latches.set(repoKey, reason) }
+  async clearLatch(repoKey: string): Promise<void> { this.latches.delete(repoKey) }
+  async remove(repoKey: string): Promise<void> { this.digests.delete(repoKey) }
   // 시험이 상태 파일을 「실행기가 쓴 것」으로 놓을 때 쓴다(예: 옛 앱이 쓴 스키마 밖 상태).
   adopt(cwd: string, files: FakeFs): void {
     const text = files.files.get(DOCS.runState)
-    if (text === undefined) this.digests.delete(repoKeyOf(cwd))
-    else this.digests.set(repoKeyOf(cwd), stateDigest(JSON.parse(text)))
+    if (text === undefined) { this.digests.delete(repoKeyOf(cwd)); this.copies.delete(repoKeyOf(cwd)) } else {
+      this.digests.set(repoKeyOf(cwd), stateDigest(JSON.parse(text)))
+      this.copies.set(repoKeyOf(cwd), text)
+    }
   }
 }
 
@@ -355,7 +403,12 @@ export async function runLoop(
         rig.gh.mergeByHuman(state.milestonePr)
         continue
       }
-      const sub = await runner.submit({ node: next.kind === 'gate' ? next.node.id : '', judge: 'human', verdict: 'pass', evidence: '사람이 승인했다' })
+      // 스펙 승인은 사람이 본 스펙 해시와 함께 넣는다(G4)
+      const seen = await runner.specView()
+      const sub = await runner.submit(
+        { node: next.kind === 'gate' ? next.node.id : '', judge: 'human', verdict: 'pass', evidence: '사람이 승인했다' },
+        seen.sha256 ? { specSha256: seen.sha256 } : undefined,
+      )
       lastOutcome = sub
       if (sub.kind === 'blocked' || sub.kind === 'needs-user') break
       visited.push(label)

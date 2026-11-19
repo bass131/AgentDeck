@@ -63,6 +63,15 @@ function safeName(name: string): string {
   return name
 }
 
+const SHA_HEX = /^(?:[0-9a-f]{40}|[0-9a-f]{64})$/
+// G4 검수 I6 — 브랜치 이름은 `refs/heads/<이름>`으로 읽는다. 짧은 이름은 같은 이름의 태그(refs/tags)가 먼저 잡혀 가릴 수 있다.
+// 전체 SHA·`refs/` 경로·HEAD는 그대로 둔다.
+export function qualifyRef(ref: string): string {
+  const r = safeName(ref)
+  if (SHA_HEX.test(r) || r.startsWith('refs/') || r === 'HEAD') return r
+  return `refs/heads/${r}`
+}
+
 export function parseNumstatZ(out: string): FileChange[] {
   const changes: FileChange[] = []
   for (const rec of out.split('\0')) {
@@ -80,12 +89,14 @@ export function createGitPort(opts: GitPortOptions): GitPort {
   const git = makeGit(opts.cwd, env, opts.timeoutMs ?? 120_000, opts.hooksPath, opts.guard)
 
   const resolve = async (ref: string): Promise<string | null> => {
-    const r = await git(['rev-parse', '--verify', '--quiet', `${ref}^{commit}`])
+    const r = await git(['rev-parse', '--verify', '--quiet', `${qualifyRef(ref)}^{commit}`])
     return r.code === 0 ? r.stdout.trim() || null : null
   }
   const isAncestor = async (sha: string, ref: string): Promise<boolean> => {
-    if (!(await resolve(sha)) || !(await resolve(ref))) return false
-    const r = await git(['merge-base', '--is-ancestor', sha, ref])
+    const a = await resolve(sha)
+    const b = await resolve(ref)
+    if (!a || !b) return false
+    const r = await git(['merge-base', '--is-ancestor', a, b])
     if (r.code === 0) return true
     if (r.code === 1) return false
     throw failure(['merge-base'], r)
@@ -103,7 +114,7 @@ export function createGitPort(opts: GitPortOptions): GitPort {
       throw failure(['show-ref'], r)
     },
     async createBranch(name, from) {
-      await must(git, ['branch', '--no-track', safeName(name), safeName(from)])
+      await must(git, ['branch', '--no-track', safeName(name), qualifyRef(from)])
     },
     async checkout(name) {
       await must(git, ['checkout', '--quiet', safeName(name), '--'])
@@ -118,9 +129,11 @@ export function createGitPort(opts: GitPortOptions): GitPort {
       await must(git, ['commit', '--quiet', '--no-verify', '-m', message])
       return (await must(git, ['rev-parse', 'HEAD'])).trim()
     },
-    async push(branch) {
+    // G4 검수 I8 — sha를 주면 그 커밋만 push한다(트리를 대조한 바로 그 커밋. 사이에 로컬 브랜치가 옮겨져도 따라가지 않는다).
+    async push(branch, sha) {
       const b = safeName(branch)
-      await must(git, ['push', '--quiet', '--no-verify', remote, `refs/heads/${b}:refs/heads/${b}`])
+      if (sha !== undefined && !SHA_HEX.test(sha)) throw new Error(`push할 커밋 ${JSON.stringify(sha)}이 SHA 꼴이 아니다`)
+      await must(git, ['push', '--quiet', '--no-verify', remote, `${sha ?? `refs/heads/${b}`}:refs/heads/${b}`])
     },
     async remoteSha(branch) {
       const b = safeName(branch)
@@ -174,24 +187,69 @@ export function createGitPort(opts: GitPortOptions): GitPort {
       const expected = r.stdout.split(/\r?\n/)[0].trim()
       return tree === expected ? null : `병합 커밋 ${c.slice(0, 8)}의 트리 ${tree.slice(0, 8)}가 두 부모를 병합한 트리 ${expected.slice(0, 8)}가 아니다`
     },
+    // base는 해석한 커밋 SHA로 diff에 넘긴다(이름을 다시 읽지 않는다 — G4 검수 I6)
     async diffStat(base) {
-      let dir: string | null = null
       try {
-        if (!(await resolve(base))) return null
-        dir = await fsp.mkdtemp(path.join(os.tmpdir(), 'agentdeck-index-'))
-        const index = path.join(dir, 'index')
-        const real = path.resolve(opts.cwd, (await must(git, ['rev-parse', '--git-path', 'index'])).trim())
-        await fsp.copyFile(real, index).catch(() => undefined)
-        const extra = { GIT_INDEX_FILE: index }
-        await must(git, ['add', '-A'], extra)
-        return parseNumstatZ(await must(git, ['diff', '--cached', '--numstat', '-z', '--no-renames', base, '--'], extra))
+        const b = await resolve(base)
+        if (!b) return null
+        return await withTempIndex((extra) => must(git, ['diff', '--cached', '--numstat', '-z', '--no-renames', b, '--'], extra).then(parseNumstatZ))
       } catch {
         return null
-      } finally {
-        if (dir) await fsp.rm(dir, { recursive: true, force: true }).catch(() => undefined)
       }
     },
+    // M09 G4 — 검수에 묶는 트리. 같은 임시 인덱스 방식이라 untracked가 들어가고 `.agentdeck/`(exclude)는 빠진다.
+    async worktreeTree() {
+      return withTempIndex(async (extra) => (await must(git, ['write-tree'], extra)).trim())
+    },
+    // G4 검수 I9 — 상한을 넘으면 잘린 diff를 주지 않는다(tooLarge, 전체 길이). 실행기가 검수를 열지 않고 멈춘다.
+    async reviewSnapshot(base) {
+      try {
+        const b = await resolve(base)
+        if (!b) return null
+        return await withTempIndex(async (extra) => {
+          const tree = (await must(git, ['write-tree'], extra)).trim()
+          const full = await must(git, ['diff', '--cached', '--no-color', '--no-ext-diff', '--no-textconv', '--no-renames', b, '--'], extra)
+          if (full.length > REVIEW_DIFF_LIMIT) return { tree, diff: '', tooLarge: true, chars: full.length }
+          return { tree, diff: full, chars: full.length }
+        })
+      } catch {
+        return null
+      }
+    },
+    async treeOf(ref) {
+      const r = await git(['rev-parse', '--verify', '--quiet', `${qualifyRef(ref)}^{tree}`])
+      return r.code === 0 ? r.stdout.trim() || null : null
+    },
   }
+
+  // 진짜 인덱스를 복사한 임시 인덱스(저장소 밖)에 add -A 한 뒤 fn을 돈다. 진짜 인덱스는 건드리지 않는다.
+  async function withTempIndex<T>(fn: (extra: NodeJS.ProcessEnv) => Promise<T>): Promise<T> {
+    const dir = await fsp.mkdtemp(path.join(os.tmpdir(), 'agentdeck-index-'))
+    try {
+      const index = path.join(dir, 'index')
+      const real = path.resolve(opts.cwd, (await must(git, ['rev-parse', '--git-path', 'index'])).trim())
+      await fsp.copyFile(real, index).catch(() => undefined)
+      const extra = { GIT_INDEX_FILE: index }
+      await must(git, ['add', '-A'], extra)
+      return await fn(extra)
+    } finally {
+      await fsp.rm(dir, { recursive: true, force: true }).catch(() => undefined)
+    }
+  }
+}
+
+// M09 G4 — 검수 세션에 주는 diff의 상한(문자). 넘으면 자르고 잘렸다고 적는다.
+export const REVIEW_DIFF_LIMIT = 400_000
+
+// M09 G4 — origin의 기본 브랜치(refs/remotes/origin/HEAD가 가리키는 이름). 없거나 읽지 못하면 null이다(부르는 쪽이 gh로 다시 본다).
+export async function readOriginDefaultBranch(cwd: string, env: NodeJS.ProcessEnv = process.env, remote = 'origin'): Promise<string | null> {
+  const git = makeGit(cwd, env, 30_000)
+  const r = await git(['symbolic-ref', '--quiet', `refs/remotes/${remote}/HEAD`])
+  if (r.code !== 0) return null
+  const prefix = `refs/remotes/${remote}/`
+  const ref = r.stdout.trim()
+  const name = ref.startsWith(prefix) ? ref.slice(prefix.length) : ''
+  return name && !name.startsWith('-') ? name : null
 }
 
 // 실행기가 시작할 때 부른다. 작업 저장소의 info/exclude에 `.agentdeck/` 줄이 없으면 더한다(있으면 그대로). 저장소 파일은 안 바꾼다.

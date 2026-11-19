@@ -17,7 +17,7 @@ const EVIL = `e${'0'.repeat(39)}`
 interface Ctx { template: Template; hash: string; rig: Rig; runner: LoopRunner }
 function setup(rig: Rig = makeRig(), extra: { ciWaitLimit?: number; ciWaitMs?: number } = {}): Ctx {
   const { template, hash } = loaded()
-  return { template, hash, rig, runner: createLoopRunner({ template, hash, ports: rig.ports, cwd: CWD, ...extra }) }
+  return { template, hash, rig, runner: createLoopRunner({ template, hash, ports: rig.ports, cwd: CWD, base: 'master', ...extra }) }
 }
 async function until(ctx: Ctx, target: string): Promise<RunState> {
   if ((await ctx.runner.load()).kind === 'missing') expect((await ctx.runner.start('M1')).kind).toBe('ok')
@@ -107,6 +107,42 @@ describe('세션이 로컬 브랜치에 심은 커밋을 실행기가 push하지
     expect(out.kind).toBe('halted')
     expect(calls().some((c) => c.startsWith('verifyMerge'))).toBe(true)
     expect(calls().filter((c) => c.startsWith('push'))).toEqual([])
+  })
+
+  // G4 확인 검수 — goal PR의 I8과 같은 꼴. 확인(verifyMerge)한 병합 SHA를 `<sha>:refs/heads/<마일스톤 브랜치>`로 push한다.
+  // 이번 병합(mergeNoFf 뒤)과 재개(로컬 병합은 됐는데 push 전에 꺼짐) 두 길 모두 본다
+  it('goal 병합 — 확인과 push 사이에 로컬 마일스톤 브랜치가 옮겨져도 원격에는 확인한 병합 SHA가 간다', async () => {
+    const ctx = setup()
+    await until(ctx, 'G1/merge')
+    const verify = ctx.rig.git.verifyMerge.bind(ctx.rig.git)
+    let verified: string | null = null
+    ctx.rig.git.verifyMerge = async (commit, first, second) => {
+      const r = await verify(commit, first, second)
+      if (r === null) { verified = commit; plant(ctx.rig, 'milestone/M1') }
+      return r
+    }
+    const out = await ctx.runner.step()
+    expect(out.kind).toBe('advanced')
+    expect(verified).not.toBeNull()
+    expect(remoteHas(ctx.rig, 'milestone/M1', EVIL)).toBe(false)
+    expect(ctx.rig.git.remote.get('milestone/M1')?.at(-1)).toBe(verified)
+  })
+
+  it('goal 병합 재개 — 확인과 push 사이에 로컬 마일스톤 브랜치가 옮겨져도 원격에는 확인한 병합 SHA가 간다', async () => {
+    const ctx = setup()
+    const at = await until(ctx, 'G1/merge')
+    await ctx.rig.git.checkout('milestone/M1')
+    const merged = await ctx.rig.git.mergeNoFf(at.goals[0].ciSha as string, '꺼지기 전 병합')
+    const verify = ctx.rig.git.verifyMerge.bind(ctx.rig.git)
+    ctx.rig.git.verifyMerge = async (commit, first, second) => {
+      const r = await verify(commit, first, second)
+      if (r === null) plant(ctx.rig, 'milestone/M1')
+      return r
+    }
+    const out = await ctx.runner.step()
+    expect(out.kind).toBe('advanced')
+    expect(remoteHas(ctx.rig, 'milestone/M1', EVIL)).toBe(false)
+    expect(ctx.rig.git.remote.get('milestone/M1')?.at(-1)).toBe(merged)
   })
 
   it('다음 goal 브랜치 — 로컬 마일스톤이 원격보다 앞서 있으면 가르지 않는다', async () => {

@@ -149,9 +149,11 @@ void routeCases
 describe('M05 G10 — IPC 채널 타입 맵', () => {
   // M06 G4: 70 → 71. 모델 목록 채널 agent.listModels(invoke)를 더했다.
   // M07 G5: 71 → 74. 컨트롤 패널 채널 settings.controlsState·setControlEnabled·confirmControls(invoke)를 더했다.
-  it('채널 수는 재실측 기준에서 미사용 3개를 빼고 M06 G4의 agent.listModels, M07 G5의 컨트롤 셋, M07 G8의 PR 카드 둘을 더한 수다 (invoke 67+1+3+2=73 + push 3)', () => {
-    expect(Object.values(IPC_CHANNELS)).toHaveLength(76)
-    expect(new Set(Object.values(IPC_CHANNELS)).size).toBe(76)
+  // M09 G4: 76 → 85. 앱 안 루프 묶음 loop의 invoke 여덟(open·start·status·decide·answerCard·cancelSession·releaseLatch·close)과
+  // push 하나(loop.state)를 더했다.
+  it('채널 수는 재실측 기준에서 미사용 3개를 빼고 M06 G4의 agent.listModels, M07 G5의 컨트롤 셋, M07 G8의 PR 카드 둘, M09 G4의 loop 아홉을 더한 수다 (invoke 67+1+3+2+8=81 + push 3+1)', () => {
+    expect(Object.values(IPC_CHANNELS)).toHaveLength(85)
+    expect(new Set(Object.values(IPC_CHANNELS)).size).toBe(85)
     const values = Object.values(IPC_CHANNELS) as string[]
     for (const gone of ['window.getBounds', 'window.setBounds', 'engine.versionState']) expect(values).not.toContain(gone)
   })
@@ -181,8 +183,8 @@ describe('M05 G10 — IPC 채널 타입 맵', () => {
     }
   })
 
-  it('push 채널은 셋이다', () => {
-    const push: PushChannel[] = ['agent.event', 'engine.installProgress', 'window.state']
+  it('push 채널은 넷이다(M09 G4 loop.state)', () => {
+    const push: PushChannel[] = ['agent.event', 'engine.installProgress', 'window.state', 'loop.state']
     const values = Object.values(IPC_CHANNELS) as string[]
     for (const ch of push) expect(values).toContain(ch)
   })

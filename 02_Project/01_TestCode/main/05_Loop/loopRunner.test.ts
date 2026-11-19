@@ -20,9 +20,9 @@ const REAL_ORDER = [
 ]
 
 interface Ctx { template: Template; hash: string; rig: Rig; runner: LoopRunner }
-function setup(text?: string, rig: Rig = makeRig(), extra: { ciWaitLimit?: number } = {}): Ctx {
+function setup(text?: string, rig: Rig = makeRig(), extra: { ciWaitLimit?: number; base?: string } = {}): Ctx {
   const { template, hash } = loaded(text)
-  return { template, hash, rig, runner: createLoopRunner({ template, hash, ports: rig.ports, cwd: CWD, ...extra }) }
+  return { template, hash, rig, runner: createLoopRunner({ template, hash, ports: rig.ports, cwd: CWD, base: 'master', ...extra }) }
 }
 async function reload(ctx: Ctx): Promise<RunState> {
   const r = await ctx.runner.load()
@@ -117,7 +117,8 @@ describe('상태는 실행기가 소유한다', () => {
 
   it('실행기 껍질에도 건너뛰기·강제 통과·상태 넣기 API가 없다', () => {
     // idle은 직렬화 줄을 기다리기만 한다(닫기용, G2 검수 사소) — 상태를 넣거나 건너뛰지 않는다
-    expect(Object.keys(setup().runner).sort()).toEqual(['idle', 'load', 'start', 'step', 'submit'])
+    // specView는 스펙 승인 카드가 보일 본문과 해시를 읽기만 한다(G4)
+    expect(Object.keys(setup().runner).sort()).toEqual(['idle', 'load', 'specView', 'start', 'step', 'submit'])
   })
 })
 
@@ -202,7 +203,8 @@ describe('게이트 불통과와 멈춤', () => {
     expect(run.last?.kind).toBe('waiting')
     expect(label(ctx, run.state)).toBe('spec-approval')
     expect(count(ctx.rig.git.calls, 'createBranch')).toBe(0)
-    const rejected = await ctx.runner.submit({ node: 'spec-approval', judge: 'human', verdict: 'fail', evidence: '범위가 넓다' })
+    const seen = await ctx.runner.specView()
+    const rejected = await ctx.runner.submit({ node: 'spec-approval', judge: 'human', verdict: 'fail', evidence: '범위가 넓다' }, { specSha256: seen.sha256 as string })
     const s = stateOf(rejected)
     expect(label(ctx, s)).toBe('brainstorm')
     expect(s.lines.at(-1)).toMatchObject({ marker: 'USER-INPUT', judge: 'human' })
@@ -528,7 +530,8 @@ describe('템플릿 해시와 상태 스키마', () => {
     const ctx = setup()
     await until(ctx, 'G1/checks')
     const written = [...ctx.rig.fs.files.keys()]
-    expect(written.filter((k) => !k.startsWith('.agentdeck/goals/')).sort()).toEqual([DOCS.runState, DOCS.verification].sort())
+    // 마일스톤 스펙은 브레인스토밍 세션(가짜)이 쓴다 — 실행기가 쓰는 것은 상태와 검증 기록뿐이다
+    expect(written.filter((k) => !k.startsWith('.agentdeck/goals/')).sort()).toEqual([DOCS.milestoneSpec, DOCS.runState, DOCS.verification].sort())
     expect(ctx.rig.fs.files.get(DOCS.runState)).not.toContain('instruction')
   })
 })

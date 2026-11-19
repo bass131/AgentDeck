@@ -17,9 +17,12 @@ export { FAIL_LIMIT }
 
 export type VerdictJudge = Judge | 'executor'
 export type VerdictKind = 'pass' | 'fail' | 'stop'
-export interface GoalSeed { id: string; title: string }
+// docSha256: 실행기가 읽은 goal 문서 본문의 sha256(G4 검수 I7). 실행기가 readGoalSeeds로 만든다.
+export interface GoalSeed { id: string; title: string; docSha256?: string }
 // 판정이 실어 오는 사실. 노드 종이 읽는 칸만 쓰이고 나머지는 버린다(분해 노드가 적은 등급 같은 것).
+// M09 G4 검수 I7 — specSha256: 스펙 승인 pass가 묶인 스펙의 sha256. 실행기가 대조한 값만 싣는다(바깥 판정의 facts는 실행기가 버린다).
 export interface VerdictFacts {
+  specSha256?: string
   grade?: Grade
   goals?: GoalSeed[]
   pr?: number
@@ -29,6 +32,8 @@ export interface VerdictFacts {
   pushedSha?: string
   ciSha?: string
   mergedSha?: string
+  // M09 G4 — 모델 게이트가 pass를 낸 작업 트리 해시(실행기가 검수 입력을 만든 임시 인덱스의 write-tree)
+  reviewedTree?: string
 }
 export interface Verdict {
   node: string
@@ -147,6 +152,7 @@ function settle(template: Template, s: RunState): void {
 }
 
 const isPr = (v: unknown): v is number => typeof v === 'number' && Number.isInteger(v) && v > 0
+const isSha256 = (v: unknown): v is string => typeof v === 'string' && /^[0-9a-f]{64}$/.test(v)
 
 // 통과 판정의 사실을 상태에 싣는다. 틀린 꼴이면 사유를 돌려주고 판정 전체를 거부한다.
 function applyFacts(node: StepNode, s: RunState, goal: GoalState | null, facts: VerdictFacts | undefined): string | null {
@@ -163,12 +169,20 @@ function applyFacts(node: StepNode, s: RunState, goal: GoalState | null, facts: 
         return `goal 꼴이 틀렸다 — ${JSON.stringify(id)}`
       }
       ids.add(id)
+      // G4 검수 I7 — 실행기가 읽은 goal 문서 해시. 검수 직전과 goal PR 직전에 대조한다(없으면 대조하지 않는다 — 옛 꼴)
+      const doc = (g as GoalSeed | null)?.docSha256
       goals.push({
         id, title: oneSentence(title), grade: null, status: 'pending',
-        baseSha: null, pr: null, pushedSha: null, ciSha: null, mergedSha: null,
+        baseSha: null, pr: null, pushedSha: null, ciSha: null, mergedSha: null, reviewedTree: null,
+        docSha256: isSha256(doc) ? doc : null,
       })
     }
     s.goals = goals
+    return null
+  }
+  // G4 검수 I7 — 스펙 승인 pass는 실행기가 대조한 스펙 해시를 상태 사실로 남긴다. 뒤 노드에서 스펙이 바뀌면 실행기가 멈춘다.
+  if (node.kind === 'gate' && node.judge === 'human' && !node.watch) {
+    if (isSha256(facts?.specSha256)) s.specSha256 = facts.specSha256
     return null
   }
   if (node.kind === 'gate' && node.rule?.type === 'grade' && goal) {
@@ -180,6 +194,13 @@ function applyFacts(node: StepNode, s: RunState, goal: GoalState | null, facts: 
     const sha = facts?.ciSha
     if (!isNonEmptyString(sha)) return 'CI 통과에는 머리 SHA가 있어야 한다'
     goal.ciSha = sha
+    return null
+  }
+  // M09 G4 — 검수 pass는 검수한 트리에 묶인다. goal PR 동작이 커밋·push 직전에 이 해시와 지금 트리를 대조한다.
+  if (node.kind === 'gate' && node.judge === 'model' && goal) {
+    const tree = facts?.reviewedTree
+    if (!isNonEmptyString(tree)) return '검수 통과에는 검수한 트리 해시가 있어야 한다'
+    goal.reviewedTree = tree
     return null
   }
   if (node.kind !== 'action') return null
@@ -254,6 +275,8 @@ export function applyVerdict(template: Template, state: RunState, verdict: Verdi
     moveForward(template, s)
     settle(template, s)
   } else if (verdict.verdict === 'fail') {
+    // 검수 불통과는 앞의 검수 트리를 지운다 — 옛 pass의 해시로 다음 goal 커밋을 통과시키지 않는다(G4)
+    if (here.node.kind === 'gate' && here.node.judge === 'model' && goal) goal.reviewedTree = null
     const human = verdict.judge === 'human'
     line(human ? 'USER-INPUT' : 'FAIL', human ? `사람이 반려했다 — ${verdict.evidence}` : verdict.evidence)
     const fails = failsSinceUserInput(s.lines, scope)

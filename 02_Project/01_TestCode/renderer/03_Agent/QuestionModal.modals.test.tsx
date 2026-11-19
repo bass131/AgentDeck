@@ -122,6 +122,161 @@ describe('QuestionModal — 다중 질문', () => {
   })
 })
 
+// G4 검수 차단 B2 — 질문 창이 둘 열려 있으면 키(숫자·Enter·Esc)는 맨 위 창 하나만 받는다. 내려두면 그 아래 창이 받는다.
+describe('QuestionModal — 여러 창의 키 입력', () => {
+  const A = [{ header: 'A', question: '아래 창 질문', options: [{ label: 'a1', description: '' }], multiSelect: false }]
+  const B = [{ header: 'B', question: '위 창 질문', options: [{ label: 'b1', description: '' }], multiSelect: false }]
+
+  it('숫자 키는 맨 위 창에만 간다 — Esc는 맨 위 창만 내려두고, 그 뒤 키는 아래 창이 받는다', async () => {
+    const { QuestionModal } = await import('@renderer/03_Agent/prompt')
+    const lower = vi.fn()
+    const upper = vi.fn()
+    const lowerDismiss = vi.fn()
+    const upperDismiss = vi.fn()
+    const { container } = render(
+      <>
+        <QuestionModal open={true} questions={A} onAnswer={lower} onDismiss={lowerDismiss} />
+        <QuestionModal open={true} questions={B} onAnswer={upper} onDismiss={upperDismiss} />
+      </>,
+    )
+    await act(async () => { fireEvent.keyDown(window, { key: '1' }) })
+    expect(upper).toHaveBeenCalledWith([['b1']])
+    expect(lower).not.toHaveBeenCalled()
+    upper.mockClear()
+    await act(async () => { fireEvent.keyDown(window, { key: 'Escape' }) })
+    // 위 창만 알약으로 내려갔다 — 아래 창은 펼친 채다
+    expect(container.querySelectorAll('.q-mini-pill').length).toBe(1)
+    expect(container.querySelectorAll('.q-overlay').length).toBe(1)
+    expect(screen.getByText('아래 창 질문')).toBeTruthy()
+    expect(upperDismiss).not.toHaveBeenCalled()
+    expect(lowerDismiss).not.toHaveBeenCalled()
+    await act(async () => { fireEvent.keyDown(window, { key: '1' }) })
+    expect(lower).toHaveBeenCalledWith([['a1']])
+    expect(upper).not.toHaveBeenCalled()
+  })
+
+  it('내려둔 창을 다시 펼치면 그 창이 맨 위가 된다', async () => {
+    const { QuestionModal } = await import('@renderer/03_Agent/prompt')
+    const lower = vi.fn()
+    const upper = vi.fn()
+    const { container } = render(
+      <>
+        <QuestionModal open={true} questions={A} onAnswer={lower} onDismiss={vi.fn()} />
+        <QuestionModal open={true} questions={B} onAnswer={upper} onDismiss={vi.fn()} />
+      </>,
+    )
+    await act(async () => { fireEvent.keyDown(window, { key: 'Escape' }) })
+    await act(async () => { fireEvent.click(container.querySelector('.q-mini-pill') as HTMLElement) })
+    await act(async () => { fireEvent.keyDown(window, { key: '1' }) })
+    expect(upper).toHaveBeenCalledWith([['b1']])
+    expect(lower).not.toHaveBeenCalled()
+  })
+
+  it('맨 위 창이 닫히면 남은 창이 키를 받는다', async () => {
+    const { QuestionModal } = await import('@renderer/03_Agent/prompt')
+    const lower = vi.fn()
+    const view = render(
+      <>
+        <QuestionModal open={true} questions={A} onAnswer={lower} onDismiss={vi.fn()} />
+        <QuestionModal open={true} questions={B} onAnswer={vi.fn()} onDismiss={vi.fn()} />
+      </>,
+    )
+    view.rerender(
+      <>
+        <QuestionModal open={true} questions={A} onAnswer={lower} onDismiss={vi.fn()} />
+        <QuestionModal open={false} questions={B} onAnswer={vi.fn()} onDismiss={vi.fn()} />
+      </>,
+    )
+    await act(async () => { fireEvent.keyDown(window, { key: '1' }) })
+    expect(lower).toHaveBeenCalledWith([['a1']])
+  })
+})
+
+// G4 확인 검수 — 맨 위 판정은 화면 겹침(층)을 따른다. 루프 질문 창은 z 60 루프 오버레이 안에 있어, 나중에 열려도 z 80 대화 질문 창 아래다.
+// 순서: 펼친 창이 내려둔 창보다 먼저, 그다음 층이 높은 창, 같은 층에서는 연(펼친) 순서.
+describe('QuestionModal — 화면 층', () => {
+  const CONV = [{ header: 'C', question: '대화 창 질문', options: [{ label: 'c1', description: '' }], multiSelect: false }]
+  const LOOP = [{ header: 'L', question: '루프 창 질문', options: [{ label: 'l1', description: '' }], multiSelect: false }]
+
+  it('대화 창이 떠 있는 상태에서 루프 창을 나중에 열어도 숫자 키는 대화 창에만 간다', async () => {
+    const { QuestionModal } = await import('@renderer/03_Agent/prompt')
+    const conv = vi.fn()
+    const loop = vi.fn()
+    const view = render(
+      <>
+        <QuestionModal open={true} questions={CONV} onAnswer={conv} onDismiss={vi.fn()} />
+        <QuestionModal open={false} layer={60} questions={LOOP} onAnswer={loop} onDismiss={vi.fn()} />
+      </>,
+    )
+    view.rerender(
+      <>
+        <QuestionModal open={true} questions={CONV} onAnswer={conv} onDismiss={vi.fn()} />
+        <QuestionModal open={true} layer={60} questions={LOOP} onAnswer={loop} onDismiss={vi.fn()} />
+      </>,
+    )
+    await act(async () => { fireEvent.keyDown(window, { key: '1' }) })
+    expect(conv).toHaveBeenCalledWith([['c1']])
+    expect(loop).not.toHaveBeenCalled()
+  })
+
+  it('높은 층의 창을 내려두면 낮은 층의 펼친 창이 키를 받는다 — Esc도 그 창을 내려둘 뿐 숨은 창을 건너뛰지 않는다', async () => {
+    const { QuestionModal } = await import('@renderer/03_Agent/prompt')
+    const conv = vi.fn()
+    const convDismiss = vi.fn()
+    const loop = vi.fn()
+    const { container } = render(
+      <>
+        <QuestionModal open={true} layer={60} questions={LOOP} onAnswer={loop} onDismiss={vi.fn()} />
+        <QuestionModal open={true} questions={CONV} onAnswer={conv} onDismiss={convDismiss} />
+      </>,
+    )
+    await act(async () => { fireEvent.keyDown(window, { key: 'Escape' }) })
+    expect(container.querySelectorAll('.q-mini-pill').length).toBe(1)
+    expect(screen.getByText('루프 창 질문')).toBeTruthy()
+    await act(async () => { fireEvent.keyDown(window, { key: 'Escape' }) })
+    expect(convDismiss).not.toHaveBeenCalled()
+    expect(container.querySelectorAll('.q-mini-pill').length).toBe(2)
+  })
+
+  it('떠 있는 창의 층이 낮아지면 그 자리에서 맨 위 판정이 바뀐다', async () => {
+    const { QuestionModal } = await import('@renderer/03_Agent/prompt')
+    const conv = vi.fn()
+    const loop = vi.fn()
+    const view = render(
+      <>
+        <QuestionModal open={true} questions={CONV} onAnswer={conv} onDismiss={vi.fn()} />
+        <QuestionModal open={true} questions={LOOP} onAnswer={loop} onDismiss={vi.fn()} />
+      </>,
+    )
+    view.rerender(
+      <>
+        <QuestionModal open={true} questions={CONV} onAnswer={conv} onDismiss={vi.fn()} />
+        <QuestionModal open={true} layer={60} questions={LOOP} onAnswer={loop} onDismiss={vi.fn()} />
+      </>,
+    )
+    await act(async () => { fireEvent.keyDown(window, { key: '1' }) })
+    expect(conv).toHaveBeenCalledWith([['c1']])
+    expect(loop).not.toHaveBeenCalled()
+  })
+
+  it('층 값은 각 창의 CSS z-index와 같다 — 대화·패널 질문 창(.q-overlay) 80, 루프 오버레이 60', async () => {
+    const fs = await import('node:fs')
+    const path = await import('node:path')
+    const { DIALOG_LAYER } = await import('@renderer/03_Agent/prompt')
+    const src = path.resolve(__dirname, '../../../00_Source/renderer/src')
+    const zOf = (rel: string, selector: string): number => {
+      const css = fs.readFileSync(path.join(src, rel), 'utf8')
+      const at = css.indexOf(`${selector} {`)
+      expect(at).toBeGreaterThanOrEqual(0)
+      const block = css.slice(at, css.indexOf('}', at))
+      return Number(/z-index:\s*(\d+)/.exec(block)?.[1])
+    }
+    expect(DIALOG_LAYER.app).toBe(zOf('03_Agent/prompt/QuestionModal.css', '.q-overlay'))
+    expect(DIALOG_LAYER.loop).toBe(zOf('13_Loop/LoopScreen.css', '.modal-overlay.loop-overlay'))
+    expect(DIALOG_LAYER.app).toBeGreaterThan(DIALOG_LAYER.loop)
+  })
+})
+
 describe('QuestionModal — open=false', () => {
   it('open=false → null 렌더', async () => {
     const { QuestionModal } = await import('@renderer/03_Agent/prompt')

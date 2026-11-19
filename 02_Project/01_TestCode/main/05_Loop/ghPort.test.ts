@@ -100,6 +100,31 @@ describe('실행 층 — 저장소 고정(-R)', () => {
     expect(seen[0].args.slice(0, 2)).toEqual(['pr', 'list'])
   })
 
+  it('repo view는 -R이 없어 고정 저장소를 위치 인자로 넣는다 — 기본 브랜치를 그 저장소에서 읽는다(M09 G4)', async () => {
+    // 실측(gh 2.96.0, 2026-11-19): `gh repo view github.com/octocat/Hello-World --json defaultBranchRef`가
+    // {"defaultBranchRef":{"name":"master"}}를 돌려줬다. repo view의 도움말에는 -R이 없고 위치 인자 [<repository>]만 있다.
+    const seen: (readonly string[])[] = []
+    const exec = createGhExec({
+      cwd: '.', repo: 'github.com/acme/widgets',
+      run: async (_f, args) => { seen.push(args); return { code: 0, stdout: '{"defaultBranchRef":{"name":"main"}}', stderr: '', timedOut: false } },
+    })
+    expect(await createGhPort(exec).defaultBranch?.()).toBe('main')
+    expect(seen[0]).toEqual(['repo', 'view', 'github.com/acme/widgets', '--json', 'defaultBranchRef'])
+  })
+
+  it('기본 브랜치를 읽지 못하면(오류·빈 이름·이상한 이름) null이다', async () => {
+    const replies = [
+      { code: 1, stdout: '', stderr: 'HTTP 404' },
+      { code: 0, stdout: '{"defaultBranchRef":null}', stderr: '' },
+      { code: 0, stdout: '{"defaultBranchRef":{"name":"-x"}}', stderr: '' },
+      { code: 0, stdout: 'not json', stderr: '' },
+    ]
+    for (const r of replies) {
+      const port = createGhPort(async () => r)
+      expect(await port.defaultBranch?.()).toBeNull()
+    }
+  })
+
   it('저장소 이름이 HOST/OWNER/REPO 꼴이 아니면 만들지 않는다', () => {
     expect(() => createGhExec({ cwd: '.', repo: '' })).toThrow()
     expect(() => createGhExec({ cwd: '.', repo: '-R' })).toThrow()

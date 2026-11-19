@@ -224,7 +224,8 @@ describe('기동·종료 배선 — 00_App/bootstrap 한 곳 (M05 G11 4단계)',
     attachWindow(win1)
     expect(ipcState.win).toBe(win1)
     expect(calls(createSkillsStore) - skills0).toBe(1)
-    for (const ch of [IPC_CHANNELS.WORKSPACE_OPEN, IPC_CHANNELS.AGENT_RUN, IPC_CHANNELS.CONVERSATION_LOAD, IPC_CHANNELS.SKILL_LIST, IPC_CHANNELS.LSP_STATUS]) {
+    // M09 G4 — 루프 구동자 핸들러도 같은 한 번의 조립에서 등록된다
+    for (const ch of [IPC_CHANNELS.WORKSPACE_OPEN, IPC_CHANNELS.AGENT_RUN, IPC_CHANNELS.CONVERSATION_LOAD, IPC_CHANNELS.SKILL_LIST, IPC_CHANNELS.LSP_STATUS, IPC_CHANNELS.LOOP_OPEN, IPC_CHANNELS.LOOP_CLOSE]) {
       expect(h.handlers.has(ch)).toBe(true)
     }
 
@@ -263,9 +264,22 @@ describe('기동·종료 배선 — 00_App/bootstrap 한 곳 (M05 G11 4단계)',
     startApp()
     const s = h.conversationStores.at(-1)!
     const closeAll = vi.spyOn(runManager, 'closeAll')
-    stopApp()
+    // 루프 구동자 닫기는 기다리지 않는다(앱 종료를 막지 않는다) — stopApp은 동기로 돌아온다
+    expect(stopApp()).toBeUndefined()
     expect(closeAll).toHaveBeenCalledTimes(1)
     expect(s.close).toHaveBeenCalledTimes(1)
+  })
+
+  // M09 G4: 루프 구동자는 조립 지점이 만들고 stopApp이 닫는다(기다리지 않는다). 닫은 뒤 상태는 빈 한 장이다.
+  it('loop.status는 조립된 구동자를 읽는다 — 열린 실행기가 없으면 closed', async () => {
+    const status = h.handlers.get(IPC_CHANNELS.LOOP_STATUS)
+    if (!status) throw new Error('앞 사례가 핸들러를 등록해야 한다')
+    const s = (await status({}, { cwd: h.userData })) as { phase: string; cwd: string }
+    expect(s.phase).toBe('closed')
+    expect(callersOf(/\bcreateLoopDriver\(/).filter((r) => r !== '05_Loop/loopDriver.ts')).toEqual(['00_App/bootstrap.ts'])
+    const boot = mainSources().find((f) => f.rel === '00_App/bootstrap.ts')!.src
+    expect(boot).toMatch(/closeAll\(\)/)
+    expect(boot).toMatch(/join\(getUserDataDir\(\), 'loop'\)/)
   })
 
   it('조립 팩토리(store·roots·runManager·LSP·백엔드)를 부르는 곳은 00_App 안뿐이다', () => {

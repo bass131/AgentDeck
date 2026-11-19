@@ -397,6 +397,30 @@ describe('Shell onEscape 로직 — abortRun 조건부 호출', () => {
   })
 })
 
+describe('useGlobalShortcuts — 바꿀 모드가 없으면 Shift+Tab 기본 동작을 살린다 (M10 G1 검수 사소 5)', () => {
+  it('onModeSwitch가 없으면(작업 모드) Shift+Tab의 preventDefault를 부르지 않는다', async () => {
+    const { useGlobalShortcuts } = await import('@renderer/12_Window/useGlobalShortcuts')
+    renderHook(() => useGlobalShortcuts({ onModeSwitch: undefined }))
+    const e = new KeyboardEvent('keydown', { key: 'Tab', shiftKey: true, cancelable: true, bubbles: true })
+    await act(async () => {
+      document.dispatchEvent(e)
+    })
+    expect(e.defaultPrevented).toBe(false)
+  })
+
+  it('onModeSwitch가 있으면(채팅 모드) Shift+Tab을 가로챈다', async () => {
+    const { useGlobalShortcuts } = await import('@renderer/12_Window/useGlobalShortcuts')
+    const onModeSwitch = vi.fn()
+    renderHook(() => useGlobalShortcuts({ onModeSwitch }))
+    const e = new KeyboardEvent('keydown', { key: 'Tab', shiftKey: true, cancelable: true, bubbles: true })
+    await act(async () => {
+      document.dispatchEvent(e)
+    })
+    expect(e.defaultPrevented).toBe(true)
+    expect(onModeSwitch).toHaveBeenCalledOnce()
+  })
+})
+
 describe('useGlobalShortcuts — Shift+Tab → onModeSwitch', () => {
   it('Shift+Tab → onModeSwitch 콜백 호출', async () => {
     const { useGlobalShortcuts } = await import('@renderer/12_Window/useGlobalShortcuts')

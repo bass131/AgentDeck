@@ -79,9 +79,10 @@ export function useGlobalShortcuts(opts: GlobalShortcutOptions): void {
       }
 
       if (e.key === 'Tab' && e.shiftKey) {
-        if (isAnyModalOpen()) return
+        // 바꿀 모드가 없는 화면(작업 모드)에서는 브라우저 기본 동작(역방향 포커스 이동)을 살린다(M10 G1 검수 사소 5)
+        if (isAnyModalOpen() || !opts.onModeSwitch) return
         e.preventDefault()
-        opts.onModeSwitch?.()
+        opts.onModeSwitch()
         return
       }
     }

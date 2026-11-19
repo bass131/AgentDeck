@@ -380,7 +380,14 @@ function SidebarInner({ onCollapse, onOpenSettings }: SidebarProps): JSX.Element
     void useAppStore.getState().listConversations()
   }, [])
 
+  // 목록은 늘 채팅이다 — 작업 모드에서 대화를 고르거나 새로 열면 보이는 화면도 채팅으로 바꾼다(M10 G1 검수 사소 6)
+  const showChat = (): void => {
+    const s = useAppStore.getState()
+    if (s.workspaceMode !== 'single') s.setWorkspaceMode('single')
+  }
+
   const handleSelect = (id: string): void => {
+    showChat()
     void useAppStore.getState().selectConversation(id)
   }
 
@@ -393,6 +400,7 @@ function SidebarInner({ onCollapse, onOpenSettings }: SidebarProps): JSX.Element
   }
 
   const handleNew = (): void => {
+    showChat()
     useAppStore.getState().newConversation()
   }
 

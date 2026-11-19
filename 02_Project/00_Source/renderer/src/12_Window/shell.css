@@ -41,6 +41,8 @@
 .pane.work {
   flex: 1;
   min-width: 0;
+  /* 루프 질문 창(.q-overlay, absolute inset 0)이 창 전체가 아니라 이 칸만 덮게 한다(M10 G1 검수 사소 7) */
+  position: relative;
 }
 .pane.agent {
   flex: 0 0 var(--agent-w);

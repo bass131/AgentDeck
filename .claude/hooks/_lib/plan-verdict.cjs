@@ -40,18 +40,18 @@ function readPlanPointer(root) {
 
 const LEDGER_TAG = /^-\s*\[(USER·위임|USER|AI·비가역|AI)\]/;
 
-// goal 머리말(첫 `## ` 앞)의 「마일스톤 스펙 `<경로>`」가 가리키는 스펙 대장의 태그 수 (판정 ③ 합산용).
-// 받는 것: 저장소 안 `01_Milestones/` 아래의 .md이고 계획 자신이 아닌 파일뿐이다. 못 읽거나 대장이 없으면 null.
-function readSpecTally(root, text, planAbs) {
-  const head = text.split(/^##\s/m)[0];
-  const m = head.match(/마일스톤 스펙\s*`([^`]+\.md)`/);
-  if (!m) return null;
+// 계획 문서와 같은 폴더의 마일스톤 스펙 대장의 태그 수 (판정 ③ 합산용).
+// 머리말의 경로 글자는 읽지 않는다 — 다른 마일스톤의 스펙을 가리켜 [USER]를 빌려 오는 길을 닫는다(M10 G1 독립 검수 중요 2).
+// 받는 것: 저장소 안 `01_Milestones/` 아래이고 계획 자신이 아닌 `00_마일스톤-스펙.md`뿐이다. 못 읽거나 대장 절이 없으면 null.
+const SPEC_NAME = '00_마일스톤-스펙.md';
+function readSpecTally(root, planAbs) {
   const base = path.resolve(root, '01_Milestones');
-  const abs = path.resolve(root, m[1]);
-  if (!abs.startsWith(base + path.sep) || abs === path.resolve(planAbs)) return null;
+  const plan = path.resolve(planAbs);
+  const abs = path.join(path.dirname(plan), SPEC_NAME);
+  if (!abs.startsWith(base + path.sep) || abs.toLowerCase() === plan.toLowerCase()) return null;
   let specText;
   try { specText = fs.readFileSync(abs, 'utf8'); } catch (e) { return null; }
-  const counts = { path: m[1], USER: 0, 'USER·위임': 0, AI: 0, 'AI·비가역': 0 };
+  const counts = { path: path.relative(path.resolve(root), abs).split(path.sep).join('/'), USER: 0, 'USER·위임': 0, AI: 0, 'AI·비가역': 0 };
   let inLedger = false, found = false;
   for (const l of specText.split(/\r?\n/)) {
     if (/^##\s/.test(l)) { inLedger = /^##\s+결정 대장/.test(l); found = found || inLedger; continue; }
@@ -190,14 +190,14 @@ function evaluatePlan(opts = {}) {
     tally[m[1]]++;
     if (m[1] === 'AI' || m[1] === 'AI·비가역') aiLines.push(l.slice(0, 80));
   }
-  if (tally['AI·비가역'] >= 1) {
-    return deny(3, '주도권-즉시발동', `[AI·비가역] ${tally['AI·비가역']}건 — 개수 무관 즉시 발동. 비가역은 위임으로 못 덮는다. 선택지형 문답으로 분기하라`, { planPath: planRel, tally, aiLines });
-  }
   // 헌법 11조 뒤로 사람의 합의는 마일스톤 스펙 대장에 모이고 goal 대장은 [AI] 위주다. 그래서 주도권은
-  // 마일스톤 단위로 센다 — goal 머리말이 가리키는 스펙 대장의 태그를 합친다(양쪽 모두). 스펙을 못 찾거나
+  // 마일스톤 단위로 센다 — 같은 폴더 스펙 대장의 태그를 합친다(양쪽 모두, 비가역 포함). 스펙이 없거나
   // 01_Milestones 밖이면 goal 대장만 센다(닫힌 쪽). 근거: M10 스펙 결정 대장 [USER] 2026-11-19 「고쳐 쓴다」.
-  tally.spec = readSpecTally(root, text, planAbs);
+  tally.spec = readSpecTally(root, planAbs);
   const sum = (k) => tally[k] + (tally.spec ? tally.spec[k] : 0);
+  if (sum('AI·비가역') >= 1) {
+    return deny(3, '주도권-즉시발동', `[AI·비가역] ${sum('AI·비가역')}건(goal ${tally['AI·비가역']} · 마일스톤 스펙 ${tally.spec ? tally.spec['AI·비가역'] : 0}) — 개수 무관 즉시 발동. 비가역은 위임으로 못 덮는다. 선택지형 문답으로 분기하라`, { planPath: planRel, tally, aiLines });
+  }
   const aiSide = sum('AI');
   const userSide = sum('USER') + sum('USER·위임'); // 위임 자체가 사용자의 결정 — USER 쪽으로 센다
   if (aiSide > userSide) {

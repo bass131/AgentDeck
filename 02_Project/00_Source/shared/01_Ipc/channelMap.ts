@@ -110,12 +110,16 @@ import type {
   LoopCwdRequest,
   LoopDecideRequest,
   LoopDecideResponse,
+  LoopMainResponse,
+  LoopMainSendRequest,
   LoopOkResponse,
   LoopOpenRequest,
   LoopReleaseLatchRequest,
   LoopReleaseLatchResponse,
+  LoopSessionEventPayload,
   LoopStartRequest,
   LoopStatus,
+  MainChatView,
 } from '../13_Loop/loop'
 import type { Ack } from '../02_Common/common'
 import type {
@@ -214,6 +218,10 @@ export interface IpcInvokeMap {
   'loop.cancelSession': { req: LoopCwdRequest; res: LoopOkResponse }
   'loop.releaseLatch': { req: LoopReleaseLatchRequest; res: LoopReleaseLatchResponse }
   'loop.close': { req: LoopCwdRequest; res: LoopOkResponse }
+  // M10 G2 — 메인 대화(main/05_Loop/mainChat.ts). 카드 답은 loop.answerCard다
+  'loop.mainRead': { req: LoopCwdRequest; res: MainChatView }
+  'loop.mainSend': { req: LoopMainSendRequest; res: LoopMainResponse }
+  'loop.mainNew': { req: LoopCwdRequest; res: LoopMainResponse }
 }
 
 // main → renderer push 채널. 값은 payload 타입이다.
@@ -222,6 +230,8 @@ export interface IpcPushMap {
   'engine.installProgress': EngineInstallProgress
   'window.state': WindowStatePayload
   'loop.state': LoopStatus
+  'loop.mainState': MainChatView
+  'loop.sessionEvent': LoopSessionEventPayload
 }
 
 export type InvokeChannel = keyof IpcInvokeMap

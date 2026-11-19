@@ -4,7 +4,7 @@
 // goal 둘(G1 강 — 검수 세션, G2 약)을 지나 마일스톤 PR에서 사람의 병합을 기다린다, 새 구동자로 다시 열면 이어 가고 병합을 보면 끝낸다,
 // 자동 모드 허용 노드가 꺼져 있으면 시작 전에 멈춘다, 위조 래치는 사람이 본 token으로만 풀리고 설정 차이는 그 목록만 받는다.
 // G4 확인 검수: 카드 차례는 구동자 전역에서 단조 증가한다(닫았다 열어도, 새 구동자여도 겹치지 않는다), 풀기 중 상태 파일이 바뀌어
-// 거부되면 새 token의 래치가 다시 뜬다.
+// 거부되면 새 token의 래치가 다시 뜬다. M10 G2 검수: 구동 오류는 메인 대화 기록에 예외 사건(error)으로도 남는다(모델 턴 없이).
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -50,15 +50,25 @@ function fakeBackend(): { backend: AgentBackend; rec: Rec } {
       const answered = new Promise<RunResponse>((r) => { answer = r })
       let stop: () => void = () => {}
       const stopped = new Promise<void>((r) => { stop = r })
+      // M10 G2 — 메인 대화는 턴마다 마지막 글만 보낸다(resume). SDK처럼 세션 id를 먼저 알린다
+      const last = String(req.messages.at(-1)?.content ?? '')
       return {
         events: (async function* (): AsyncGenerator<AgentEvent> {
+          yield { type: 'session', sessionId: req.resumeSessionId ?? `S${rec.starts.length}` }
           if (req.loopLock?.readOnly) {
             rec.reviews.push(prompt)
             yield { type: 'text', delta: '완료조건을 채웠다.\nVERDICT: pass', messageId: 'r1' }
             yield { type: 'done' }
             return
           }
-          if (prompt.startsWith('사람과 다음 마일스톤')) {
+          // M10 G2 — 다시 물은 카드의 답(앱을 다시 연 뒤)은 사용자 턴으로 온다
+          if (last.startsWith('[다시 물은 질문의 답]')) {
+            write(DOCS.milestoneSpec, `# M1 스펙\n\n만들 것: ${last}\n`)
+            yield { type: 'done' }
+            return
+          }
+          // 브레인스토밍 여는 턴(시작 지시) 또는 같은 세션의 반려 턴
+          if (prompt.startsWith('사람과 다음 마일스톤') || last.startsWith('[스펙 반려]')) {
             yield { type: 'text', delta: '무엇을 만들까?', messageId: 'b1' }
             yield { type: 'question_request', requestId: 'q-brainstorm', questions: [{ question: '범위는?', options: [{ label: '덧셈' }] }] }
             const r = await Promise.race([answered, stopped.then(() => null)])
@@ -171,6 +181,18 @@ describe('구동자 — 마일스톤 하나를 사람과 함께 끝까지 (M09 G
     expect(gh.bodies.get('goal/M1-G1')).toMatch(/review\(model\)/)
     // 마일스톤 병합 게이트는 사람 판정으로 넘기지 않는다
     expect((await d.decide({ cwd: CWD, verdict: 'pass', evidence: '끝' })).ok).toBe(false)
+    // M10 G2 — 사건 줄은 모델 없이 기록에 남고, 메인은 경계(goal 병합 둘·마일스톤 PR)에서만 말한다(노드 시작·통과로는 말하지 않는다)
+    for (let i = 0; i < 250 && d.mainRead(CWD).busy; i++) await new Promise((r) => setTimeout(r, 20))
+    const kinds = d.mainRead(CWD).items.flatMap((i) => (i.kind === 'event' ? [i.event.kind] : []))
+    expect(kinds.filter((k) => k === 'goal-merged')).toHaveLength(2)
+    expect(kinds).toEqual(expect.arrayContaining(['node-start', 'node-end', 'spec-approved', 'milestone-pr']))
+    const told = rec.starts.map((s) => String(s.messages.at(-1)?.content)).filter((p) => p.startsWith('[실행기 사건]'))
+    expect(told.length).toBeGreaterThanOrEqual(1)
+    for (const p of told) {
+      for (const line of p.split('\n').filter((l) => l.startsWith('- '))) expect(line).toMatch(/goal을 병합했다|마일스톤 PR을 열었다/)
+    }
+    expect(told.join('\n').match(/goal을 병합했다/g)).toHaveLength(2)
+    expect(told.join('\n')).toContain('마일스톤 PR을 열었다')
 
     // 앱을 다시 켠 것 — 구동자를 닫고 새로 만들어 연다. 같은 노드에서 이어 가고, 사람이 병합하면 끝낸다.
     await d.closeAll()
@@ -211,33 +233,46 @@ describe('카드 id는 세션 차례에 묶인다 (M09 G4 검수 I2)', () => {
 
 // G4 확인 검수 — 차례는 저장소 항목마다가 아니라 구동자 전역에서 단조 증가하고, 시작값에 구동자마다 무작위 접두를 섞는다.
 // 루프를 닫으면 항목이 지워지므로, 항목마다 0부터 세면 다시 연 뒤 새 세션의 첫 카드가 옛 카드와 같은 id(s1-…)가 된다.
-describe('카드 차례는 구동자 전역에서 단조 증가한다 (M09 G4 확인 검수)', () => {
-  it('루프를 닫았다 열고 이어 가면 새 세션의 첫 질문 카드 id가 옛 id와 다르다 — 새 구동자(앱 재시작)에서도 겹치지 않는다', SLOW, async () => {
+// M10 G2 — 브레인스토밍은 메인 대화가 소유한다. 닫기는 멈춤(halted)이 아니다 — 다시 열면 같은 방문이고, 꺼질 때 남은 질문 카드는
+// 같은 id로 다시 묻는다(restored). 새로 뜨는 카드의 차례는 여전히 구동자 전역에서 이어지고 새 구동자의 접두는 다르다.
+describe('카드 차례는 구동자 전역에서 단조 증가한다 (M09 G4 확인 검수, M10 G2)', () => {
+  it('루프를 닫았다 열면 같은 브레인스토밍이고 남은 카드를 다시 묻는다 — 새 카드 id는 구동자 전역 차례로 이어지고 새 구동자에서도 겹치지 않는다', SLOW, async () => {
     const { d } = driver()
     const CWD = repos.work
     await d.open({ cwd: CWD })
     await d.start(CWD, 'M1')
     const first = (await until((s) => s.cards.length === 1, '첫 질문')).cards[0].requestId
+    // 카드 id 꼴은 `s<구동자 접두>.<차례>-<원래 id>`다
+    expect(first).toMatch(/^s[0-9a-f]{8}\.\d+-q-brainstorm$/)
     await d.close(CWD)
     pushed = []
-    expect((await d.open({ cwd: CWD })).phase).toBe('halted')
-    expect((await d.decide({ cwd: CWD, verdict: 'pass', evidence: '다시 연 뒤 이어 간다' })).ok).toBe(true)
-    const second = (await until((s) => s.cards.length === 1, '다시 연 뒤 질문')).cards[0].requestId
-    expect(second).not.toBe(first)
-    // 카드 id 꼴은 `s<구동자 접두>.<차례>-<원래 id>`다 — 같은 구동자 안에서 차례가 이어진다
-    expect(first).toMatch(/^s[0-9a-f]{8}\.\d+-q-brainstorm$/)
+    const reopened = await d.open({ cwd: CWD })
+    expect(reopened.phase).toBe('running')
+    expect(reopened.failCount).toBe(0)
+    const restored = (await until((s) => s.cards.length === 1, '다시 묻는 카드')).cards[0]
+    expect(restored).toMatchObject({ requestId: first, restored: true, kind: 'question' })
+    expect(d.answerCard(CWD, first, { kind: 'question', answers: [['덧셈']] })).toBe(true)
+    const approval = await until((s) => s.phase === 'waiting-human' && s.approval !== null, '다시 물은 답 뒤 스펙 승인')
+    expect(approval.approval?.spec).toContain('덧셈')
+    // 반려 → 같은 세션의 반려 턴이 새 카드를 낸다. 차례는 같은 구동자 안에서 이어진다
+    expect((await d.decide({ cwd: CWD, verdict: 'fail', evidence: '다시', specSha256: approval.approval?.sha256 as string })).ok).toBe(true)
+    const second = (await until((s) => s.cards.length === 1 && s.cards[0].requestId !== first, '반려 뒤 질문')).cards[0].requestId
     expect(second.split('-')[0].split('.')[0]).toBe(first.split('-')[0].split('.')[0])
     expect(Number(second.split('-')[0].split('.')[1])).toBeGreaterThan(Number(first.split('-')[0].split('.')[1]))
     expect(d.answerCard(CWD, first, { kind: 'question', answers: [['덧셈']] })).toBe(false)
-    // 앱을 다시 켠 것 — 새 구동자의 차례도 앞 구동자의 id와 겹치지 않는다
+    // 앱을 다시 켠 것 — 남은 카드는 같은 id로 다시 묻고, 그 뒤 새 카드의 접두는 앞 구동자와 다르다
     await d.closeAll()
     pushed = []
     const again = driver().d
-    expect((await again.open({ cwd: CWD })).phase).toBe('halted')
-    expect((await again.decide({ cwd: CWD, verdict: 'pass', evidence: '앱을 다시 켜고 이어 간다' })).ok).toBe(true)
-    const third = (await until((s) => s.cards.length === 1, '새 구동자의 질문')).cards[0].requestId
+    await again.open({ cwd: CWD })
+    expect((await until((s) => s.cards.length === 1, '새 구동자의 다시 묻는 카드')).cards[0].requestId).toBe(second)
+    // 반려 뒤 방문은 스펙이 바뀌어야 끝난다 — 앞과 다른 답을 준다
+    expect(again.answerCard(CWD, second, { kind: 'question', answers: [['곱셈']] })).toBe(true)
+    const next = await until((s) => s.phase === 'waiting-human' && s.approval !== null, '새 구동자의 스펙 승인')
+    expect((await again.decide({ cwd: CWD, verdict: 'fail', evidence: '한 번 더', specSha256: next.approval?.sha256 as string })).ok).toBe(true)
+    const third = (await until((s) => s.cards.length === 1 && s.cards[0].requestId !== second, '새 구동자의 새 질문')).cards[0].requestId
+    expect(third.split('-')[0].split('.')[0]).not.toBe(first.split('-')[0].split('.')[0])
     expect(new Set([first, second, third]).size).toBe(3)
-    expect(again.answerCard(CWD, third, { kind: 'question', answers: [['덧셈']] })).toBe(true)
   })
 })
 
@@ -278,17 +313,19 @@ describe('구동자 — 멈추는 곳 (M09 G4)', () => {
     await d.start(repos.work, 'M1')
     await until((x) => x.cards.length === 1, '켜면 시작한다')
     expect(rec.starts).toHaveLength(1)
-    // 이어 가기 전에도 본다 — 돌던 세션은 닫기로 취소돼 멈춤(FAIL 아님)이 되고, 꺼진 채 이어 가기를 누르면 받지 않는다
+    // 다시 열 때도 본다 — 닫기는 브레인스토밍을 멈춤으로 만들지 않고(M10 G2, FAIL 아님), 꺼진 채면 구동 전에 사유와 함께 멈춘다
     off = true
     await d.closeAll()
     const again = driver({ autoModeCheck: () => (off ? '컨트롤 노드 mode-auto-bypass-allow가 꺼져 있다' : null) })
-    const reopened = await again.d.open({ cwd: repos.work })
-    expect(reopened.phase).toBe('halted')
+    await again.d.open({ cwd: repos.work })
+    const reopened = await until((x) => x.phase === 'blocked', '다시 연 뒤 자동 모드 사유')
     expect(reopened.failCount).toBe(0)
-    expect(reopened.reason).toContain('취소')
+    expect(reopened.reason).toContain('mode-auto-bypass-allow')
+    // 실행은 멈추지 않았다(브레인스토밍 running) — 이어 가기는 사람 판정 노드가 아니라서 거부된다. 멈춘 실행(needs-user)의
+    // 이어 가기가 자동 모드 사유로 거부되는 것은 loopDriver.main-chat.test.ts 「멈춘 실행의 이어 가기는 자동 모드 …」가 고정한다
     const resume = await again.d.decide({ cwd: repos.work, verdict: 'pass', evidence: '다시 돌린다' })
     expect(resume.ok).toBe(false)
-    expect(resume.reason).toContain('mode-auto-bypass-allow')
+    expect(resume.reason).toContain('사람 판정을 받지 않는다')
     expect(again.rec.starts).toEqual([])
   })
 
@@ -370,10 +407,12 @@ describe('구동자 — 멈추는 곳 (M09 G4)', () => {
     await until((s) => s.cards.length === 1, '질문 카드')
     await d.closeAll()
     pushed = []
-    // 닫기로 세션이 취소돼 멈춘 상태를 실행기가 썼다. 그 다음 쓰기를 흉내 낸다 — 사본과 상태 파일은 새것, 다이제스트는 옛것
+    // 실행기가 마지막으로 쓴 상태(M10 G2 — 닫기는 브레인스토밍을 멈추지 않는다)의 다음 쓰기를 흉내 낸다 — 사본과 상태 파일은 새것,
+    // 다이제스트는 옛것. 다음 쓰기는 사람이 멈춘 실행(needs-user)이라고 둔다
     const file = path.join(repos.work, DOCS.runState)
-    const next = JSON.parse(fs.readFileSync(file, 'utf8')) as { haltReason: string | null }
-    next.haltReason = `${next.haltReason ?? ''} (다음 쓰기)`
+    const next = JSON.parse(fs.readFileSync(file, 'utf8')) as { haltReason: string | null; status: string }
+    next.status = 'needs-user'
+    next.haltReason = '닫기 뒤 (다음 쓰기)'
     const text = `${JSON.stringify(next, null, 2)}\n`
     const copy = path.join(appData, 'digests', `${repoKeyOf(fs.realpathSync.native(repos.work))}.state.json`)
     expect(fs.existsSync(copy)).toBe(true)
@@ -572,7 +611,7 @@ describe('알림은 단계가 바뀌면 지운다 (M09 G4 검수 사소 6)', () 
   it('알림은 그 단계 동안만 보이고, 단계가 바뀐 상태에는 남지 않는다', SLOW, async () => {
     // 첫 step 한 번만 깨지게 한다 — 구동 오류 알림이 running 단계에 뜬다
     let broke = false
-    const { backend } = fakeBackend()
+    const { backend, rec } = fakeBackend()
     const d = createLoopDriver({
       appDataDir: appData, backend, ciRetryMs: 20, humanPollMs: 20,
       openExtras: { gh, template: TEMPLATE, executorEnv: repos.env, commandTimeoutMs: 60_000 },
@@ -595,6 +634,11 @@ describe('알림은 단계가 바뀌면 지운다 (M09 G4 검수 사소 6)', () 
     await d.start(CWD, 'M1')
     const noted = await until((s) => s.reason?.includes('한 번 깨진 단계') === true, '구동 오류 알림')
     expect(noted.phase).toBe('running')
+    // M10 G2 검수 — 구동 오류는 메인 대화 기록에 예외 사건(error)으로도 남는다. 모델 턴은 열지 않는다
+    const errors = d.mainRead(CWD).items.flatMap((i) => (i.kind === 'event' && i.event.kind === 'error' ? [i.event.text] : []))
+    expect(errors).toHaveLength(1)
+    expect(errors[0]).toContain('한 번 깨진 단계')
+    expect(rec.starts.some((s) => String(s.messages.at(-1)?.content).includes('한 번 깨진 단계'))).toBe(false)
     // 같은 단계에서는 알림이 남는다 — 다시 열면 구동을 다시 걸어 질문 카드가 뜬다(단계는 그대로 running)
     await d.open({ cwd: CWD })
     const carded = await until((s) => s.cards.length === 1, '질문 카드')

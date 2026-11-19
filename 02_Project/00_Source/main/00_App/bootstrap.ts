@@ -3,7 +3,7 @@ import { join } from 'node:path'
 import { getUserDataDir } from '@main/02_Common/userData'
 import { getWorkspaceRootPath } from '@main/07_Workspace/roots'
 import { registerIpc } from '@main/01_Ipc/index'
-import { pushLoopState } from '@main/01_Ipc/handlers/loop'
+import { pushLoopState, pushMainState, pushSessionEvent } from '@main/01_Ipc/handlers/loop'
 import { controlsForRun } from '@main/04_Claude/permission/controlsStore'
 import { autoModeReasonOf, createLoopDriver, type LoopDriver } from '@main/05_Loop/loopDriver'
 import { getBackend } from './registry'
@@ -61,6 +61,9 @@ export function attachWindow(win: BrowserWindow): void {
     backend: getBackend('claude-code'),
     autoModeCheck: () => autoModeReasonOf(controlsForRun(getUserDataDir())),
     onState: (s) => pushLoopState(ipcState, s),
+    // M10 G2 — 메인 대화 보기와 루프 세션 사건(꼬리표 동봉)도 창으로 push한다
+    onMainState: (v) => pushMainState(ipcState, v),
+    onSessionEvent: (p) => pushSessionEvent(ipcState, p),
   })
 
   registerIpc({

@@ -11,8 +11,10 @@
 //     (화면이 남은 카드를 거둔다). 시간 상한이 없다 — 사람이 화면에서 취소한다(cancel).
 //   - 작업자 노드(role worker)는 G2와 같다 — 카드는 거부·무응답(onCard로 바꿔 끼울 수 있다), 시간 상한이 있다.
 // 세션 한 번을 돌리는 고리(runNodeSession)는 검수 세션(reviewSession.ts)과 함께 쓴다.
+import { randomBytes } from 'node:crypto'
 import type { AgentBackend, AgentRun, AgentRunInput, RunResponse } from '@main/03_Agent/AgentBackend'
 import type { AgentEvent } from '@shared/agentEvents'
+import type { LoopSessionTag } from '@shared/13_Loop/loop'
 import type { SessionPort, WorkRequest, WorkResult } from './ports'
 import { DOCS, goalDocPath } from './survivalDocs'
 import type { DocKind } from './template'
@@ -43,8 +45,28 @@ export interface WorkSessionOptions {
   onCard?: CardResponder
   // 메인 노드의 카드 응답자(G4 — 화면). 없으면 메인 노드도 onCard·기본을 쓴다
   mainCard?: CardResponder
-  // 화면이 세션 진행을 볼 수 있게 이벤트를 흘린다
-  onEvent?: (e: AgentEvent) => void
+  // 화면이 세션 진행을 볼 수 있게 이벤트를 흘린다. M10 G2 — 세션 꼬리표(kind work, 앱이 정한 key, 노드·goal, SDK 세션 id)를 함께 준다
+  onEvent?: (e: AgentEvent, tag: LoopSessionTag) => void
+  // M10 G2 — 메인 노드(role main)를 메인 대화(mainChat.brainstorm)로 보낸다. 주면 메인 노드에 세션을 열지 않는다
+  mainWork?: (req: WorkRequest) => Promise<WorkResult>
+}
+
+// M10 G2 — 세션 꼬리표. key는 구동자 수명 동안 겹치지 않는 앱 이름(`<무작위 접두>.<차례>`)이다 — G4 노드 세션 탭이 같은 길을 쓴다.
+const SESSION_KEY_PREFIX = randomBytes(3).toString('hex')
+let sessionKeySeq = 0
+export const nextSessionKey = (): string => `${SESSION_KEY_PREFIX}.${++sessionKeySeq}`
+
+// 세션의 사건을 꼬리표와 함께 넘기는 고리. session 사건을 보면 그 id를 꼬리표에 싣는다(그 사건부터).
+export function taggedEvents(
+  onEvent: ((e: AgentEvent, tag: LoopSessionTag) => void) | undefined,
+  tag: Omit<LoopSessionTag, 'sessionId'>,
+): ((e: AgentEvent) => void) | undefined {
+  if (!onEvent) return undefined
+  let sessionId: string | null = null
+  return (e) => {
+    if (e.type === 'session') sessionId = e.sessionId
+    onEvent(e, { ...tag, sessionId })
+  }
 }
 
 const DOC_LABEL: Record<DocKind, string> = {
@@ -72,16 +94,21 @@ export const MAIN_NODE_RULE = [
 ].join('\n')
 
 // 노드가 고른 문서 종(node.docs)의 순서로만 싣는다 — req.docs에 다른 종이 있어도 넣지 않는다.
-// 메인 노드(role main)에는 끝에 MAIN_NODE_RULE을 붙인다.
-export function buildWorkPrompt(req: WorkRequest): string {
+// M10 G2 — 메인 대화(mainChat.ts)의 브레인스토밍 여는 턴도 이 꼴을 쓴다(규칙은 그쪽이 붙인다).
+export function buildNodePrompt(req: WorkRequest): string {
   const parts = [req.node.instruction.trim()]
   for (const kind of req.node.docs) {
     const p = docPathOf(kind, req)
     const body = req.docs[kind]
     parts.push(`## ${DOC_LABEL[kind]}${p ? ` (${p})` : ''}\n\n${body ?? '(아직 없음)'}`)
   }
-  if (req.node.role === 'main') parts.push(MAIN_NODE_RULE)
   return parts.join('\n\n')
+}
+
+// 메인 노드(role main)에는 끝에 MAIN_NODE_RULE을 붙인다(메인 대화 없이 한 세션으로 도는 길).
+export function buildWorkPrompt(req: WorkRequest): string {
+  const body = buildNodePrompt(req)
+  return req.node.role === 'main' ? `${body}\n\n${MAIN_NODE_RULE}` : body
 }
 
 export const oneLine = (s: string): string => {
@@ -187,6 +214,7 @@ export function createWorkSessionPort(opts: WorkSessionOptions): SessionPort {
         return { ok: false, summary: `작업 노드 세션은 루프 잠금을 붙일 수 있는 claude-code 백엔드로만 연다 — ${opts.backend.id}` }
       }
       if (opts.signal?.aborted) return { ok: false, summary: '취소됐다 — 세션을 열지 않았다', cancelled: true }
+      if (req.node.role === 'main' && opts.mainWork) return opts.mainWork(req)
       const main = req.node.role === 'main' && opts.mainCard !== undefined
       const session = runNodeSession({
         backend: opts.backend,
@@ -203,7 +231,7 @@ export function createWorkSessionPort(opts: WorkSessionOptions): SessionPort {
         signal: opts.signal,
         onCard: main ? (opts.mainCard as CardResponder) : (opts.onCard ?? denyCards),
         cardContext: { node: req.node.id, goal: req.goal?.id ?? null },
-        onEvent: opts.onEvent,
+        onEvent: taggedEvents(opts.onEvent, { key: nextSessionKey(), kind: 'work', node: req.node.id, goal: req.goal?.id ?? null }),
       })
       current = session.cancel
       try {

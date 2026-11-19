@@ -67,6 +67,10 @@ import type { ActionNode, GateNode, SchemaError, StepNode, Template, WorkNode } 
 export const DEFAULT_CI_WAIT_LIMIT = 120
 export const DEFAULT_CI_WAIT_MS = 60 * 60_000
 export const TAMPERED_REASON = '상태 파일이 실행기 밖에서 바뀌었다'
+
+// M10 G2 — 메인 노드 방문의 키. 기다리는 동안은 줄이 늘지 않아 같고, 판정(반려·FAIL)이 줄을 더하면 바뀐다.
+// 메인 대화 포트(WorkRequest.visit)와 구동자의 쓰기 창 판정이 같이 쓴다.
+export const visitKeyOf = (state: RunState): string => `${state.milestoneId}#${state.lines.length}`
 export const LATCH_TAIL = '— 위조 래치가 걸렸다. 사람이 화면에서 확인하고 풀기 전까지 짝이 맞아도 멈춘다.'
 
 export interface LoopRunnerDeps {
@@ -273,24 +277,46 @@ export function createLoopRunner(deps: LoopRunnerDeps): LoopRunner {
     return { kind, state: s, verdict }
   }
 
-  async function runWork(node: WorkNode, state: RunState, goal: GoalState | null): Promise<Verdict> {
+  // M10 G2 — 사람 반려가 이 노드로 되돌렸으면 그 줄의 문장(메인 대화의 반려 사유 턴). 마지막 줄이 그 반려일 때만이다.
+  function rejectedInto(state: RunState, node: WorkNode): string | null {
+    const last = state.lines.at(-1)
+    if (!last || last.marker !== 'USER-INPUT' || last.judge !== 'human') return null
+    const gate = template.nodes.find((n) => n.kind === 'gate' && n.id === last.node)
+    return gate?.kind === 'gate' && gate.onFail?.goto === node.id ? last.sentence : null
+  }
+
+  // null: 메인 노드의 여러 턴 대화가 아직 끝나지 않았다(M10 G2 — 판정 없이 기다린다)
+  async function runWork(node: WorkNode, state: RunState, goal: GoalState | null): Promise<Verdict | null> {
     try {
       const docs = await readNodeDocs(ports.fs, node.docs, goal?.id ?? null)
-      const res = await ports.session.runWork({ milestoneId: state.milestoneId, node, goal, docs })
+      const visit = { key: visitKeyOf(state), rejected: rejectedInto(state, node) }
+      const res = await ports.session.runWork({ milestoneId: state.milestoneId, node, goal, docs, visit })
+      // M10 G2 — 대화 중(사람을 기다림)은 판정이 아니다. 메인 노드에만 받는다
+      if (res.waiting) {
+        if (node.role === 'main') return null
+        return v(node, 'fail', `작업자 노드 세션이 끝나지 않은 채 돌아왔다 — ${res.summary}`)
+      }
       // 취소(실행기 닫기·화면의 취소)는 검증 실패가 아니다 — FAIL로 세지 않고 멈춘다(G4, Backlog 3)
       if (res.cancelled) return v(node, 'stop', `작업 세션이 취소됐다 — ${res.summary}. 사람이 이어 가기로 같은 노드를 다시 돌린다`)
       if (!res.ok) return v(node, 'fail', `작업 세션이 일을 마치지 못했다 — ${res.summary}`)
       // G5 실주행 — 스펙을 다루는 메인 노드(브레인스토밍)는 스펙 파일을 남겨야 끝난 것이다. 없거나 비었으면 다시 돈다.
       // 독립 검수 중요 1: 반려 뒤나 다음 마일스톤에서는 옛 스펙이 남아 있으므로, 이번 세션에서 스펙이나 결정 대장이 바뀌었는지도 본다
       // (세션 전 본문은 위 readNodeDocs가 읽어 둔 값이다).
+      // M10 G2 — 메인 대화 포트가 방문의 처음 스펙 해시(baseline)를 주면 스펙만 그것과 대조한다(결정 대장은 턴마다 바뀐다).
       if (node.role === 'main' && node.docs.includes('milestoneSpec')) {
         const spec = await ports.fs.read(DOCS.milestoneSpec)
         if (spec === null || spec.trim() === '') {
           return v(node, 'fail', `작업 세션이 ${DOCS.milestoneSpec}를 쓰지 않고 끝났다 — ${res.summary}`)
         }
-        const decisionsSame = !node.docs.includes('decisions') || (await ports.fs.read(DOCS.decisions)) === (docs.decisions ?? null)
-        if (spec === (docs.milestoneSpec ?? null) && decisionsSame) {
-          return v(node, 'fail', `이번 세션에서 ${DOCS.milestoneSpec}도 ${DOCS.decisions}도 바뀌지 않았다 — ${res.summary}`)
+        if (res.baseline) {
+          if (sha256Text(spec) === res.baseline.specSha256) {
+            return v(node, 'fail', `이번 브레인스토밍 방문에서 ${DOCS.milestoneSpec}가 바뀌지 않았다 — ${res.summary}`)
+          }
+        } else {
+          const decisionsSame = !node.docs.includes('decisions') || (await ports.fs.read(DOCS.decisions)) === (docs.decisions ?? null)
+          if (spec === (docs.milestoneSpec ?? null) && decisionsSame) {
+            return v(node, 'fail', `이번 세션에서 ${DOCS.milestoneSpec}도 ${DOCS.decisions}도 바뀌지 않았다 — ${res.summary}`)
+          }
         }
       }
       if (node.produces !== 'goals') return v(node, 'pass', `작업 세션이 끝났다 — ${res.summary}`)
@@ -572,7 +598,11 @@ export function createLoopRunner(deps: LoopRunnerDeps): LoopRunner {
     if (next.kind === 'done' || next.kind === 'needs-user') return null
     const names = branchNames(template, state.milestoneId, next.goal?.id ?? null, state.base ?? base)
     switch (next.kind) {
-      case 'work': return { kind: 'verdict', verdict: await runWork(next.node, state, next.goal) }
+      case 'work': {
+        const verdict = await runWork(next.node, state, next.goal)
+        // M10 G2 — 메인 노드의 대화가 사람을 기다린다. 판정 없이 기다림으로 돌려준다(줄을 쓰지 않는다)
+        return verdict === null ? { kind: 'waiting', on: 'human' } : { kind: 'verdict', verdict }
+      }
       case 'gate': return runGate(next.node, state, next.goal, names)
       case 'action': return { kind: 'verdict', verdict: await runAction(next.node, state, next.goal, names) }
     }

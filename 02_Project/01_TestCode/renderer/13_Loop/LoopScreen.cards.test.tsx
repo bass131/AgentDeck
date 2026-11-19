@@ -14,7 +14,7 @@ const TOKEN = 'cd'.repeat(32)
 const st = (over: Partial<LoopStatus> = {}): LoopStatus => ({
   cwd: CWD, root: ROOT, phase: 'running', milestoneId: 'M01', node: null, nodeTitle: null, reason: null,
   base: 'main', ghRepo: 'me/practice', failCount: 0, goals: [], approval: null, milestonePr: null, cards: [],
-  sessionActive: false, lastVerdict: null, latch: null, ...over,
+  sessionActive: false, lastVerdict: null, latch: null, paused: false, mainBusy: false, mainWaiting: false, ...over,
 })
 
 type Fn = ReturnType<typeof vi.fn>

@@ -104,6 +104,12 @@ export const FLAT_ROUTES = {
   loopReleaseLatch: { group: 'loop', action: 'releaseLatch' },
   loopClose: { group: 'loop', action: 'close' },
   onLoopState: { group: 'loop', action: 'onState' },
+  // M10 G2 — 메인 대화(화면은 G3)
+  loopMainRead: { group: 'loop', action: 'mainRead' },
+  loopMainSend: { group: 'loop', action: 'mainSend' },
+  loopMainNew: { group: 'loop', action: 'mainNew' },
+  onLoopMainState: { group: 'loop', action: 'onMainState' },
+  onLoopSessionEvent: { group: 'loop', action: 'onSessionEvent' },
 } as const satisfies Record<string, FlatRoute>
 
 export type FlatKey = keyof typeof FLAT_ROUTES

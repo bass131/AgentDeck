@@ -6,7 +6,9 @@ import {
   IPC_CHANNELS,
   LOOP_CHANNELS,
   type LoopCard,
+  type LoopEventKind,
   type LoopStatus,
+  type MainChatView,
   type PayloadOf,
   type ReqOf,
   type ResOf,
@@ -16,13 +18,14 @@ const STATUS: LoopStatus = {
   cwd: 'C:/work/practice', root: 'C:/work/practice', phase: 'waiting-human', milestoneId: 'M1', node: 'spec-approval',
   nodeTitle: '스펙 승인', reason: null, base: 'main', ghRepo: 'github.com/o/r', failCount: 0, goals: [],
   approval: { node: 'spec-approval', title: '스펙 승인', spec: '# M1', sha256: 'a'.repeat(64) },
-  milestonePr: null, cards: [], sessionActive: false, lastVerdict: null, latch: null,
+  milestonePr: null, cards: [], sessionActive: false, lastVerdict: null, latch: null, paused: false, mainBusy: false, mainWaiting: false,
 }
 
 describe('loop IPC 묶음 (M09 G4)', () => {
-  it('채널 이름 — invoke 여덟과 push 하나', () => {
+  it('채널 이름 — invoke 열하나와 push 셋(M10 G2: 메인 대화 읽기·보내기·새로 열기, 메인 대화 push, 세션 사건 push)', () => {
     expect(Object.values(LOOP_CHANNELS).sort()).toEqual([
-      'loop.answerCard', 'loop.cancelSession', 'loop.close', 'loop.decide', 'loop.open', 'loop.releaseLatch', 'loop.start', 'loop.state', 'loop.status',
+      'loop.answerCard', 'loop.cancelSession', 'loop.close', 'loop.decide', 'loop.mainNew', 'loop.mainRead', 'loop.mainSend', 'loop.mainState',
+      'loop.open', 'loop.releaseLatch', 'loop.sessionEvent', 'loop.start', 'loop.state', 'loop.status',
     ])
     for (const v of Object.values(LOOP_CHANNELS)) expect(Object.values(IPC_CHANNELS)).toContain(v)
     // push는 상태 한 장 하나뿐이다 — 카드·승인·래치도 그 안에 실린다
@@ -40,7 +43,51 @@ describe('loop IPC 묶음 (M09 G4)', () => {
       releaseLatch: { kind: 'call', channel: 'loop.releaseLatch' },
       close: { kind: 'call', channel: 'loop.close' },
       onState: { kind: 'push', channel: 'loop.state' },
+      mainRead: { kind: 'call', channel: 'loop.mainRead' },
+      mainSend: { kind: 'call', channel: 'loop.mainSend' },
+      mainNew: { kind: 'call', channel: 'loop.mainNew' },
+      onMainState: { kind: 'push', channel: 'loop.mainState' },
+      onSessionEvent: { kind: 'push', channel: 'loop.sessionEvent' },
     })
+  })
+
+  it('메인 대화 모양 (M10 G2) — 읽기·보내기·새로 열기는 cwd(보내기는 글)만 받고, 응답과 push는 같은 MainChatView다', () => {
+    const view: MainChatView = {
+      cwd: 'C:/work/practice', root: 'C:/work/practice', sessionId: 's1', cards: [], busy: false, waitingUser: true, brainstorming: true,
+      paused: false, queued: 0,
+      items: [
+        { id: 'i1', at: '2026-11-19T00:00:00Z', kind: 'user', text: '범위는 덧셈', state: 'sent' },
+        { id: 'i2', at: '2026-11-19T00:00:01Z', kind: 'assistant', text: '적었어', turn: 'user' },
+        { id: 'i3', at: '2026-11-19T00:00:02Z', kind: 'event', event: { kind: 'goal-merged', node: 'merge', goal: 'G1', text: 'G1 병합' } },
+        { id: 'i4', at: '2026-11-19T00:00:03Z', kind: 'notice', text: '새 메인 대화' },
+      ],
+    }
+    const read: ReqOf<'loop.mainRead'> = { cwd: view.cwd }
+    const send: ReqOf<'loop.mainSend'> = { cwd: view.cwd, text: '안녕' }
+    const fresh: ReqOf<'loop.mainNew'> = { cwd: view.cwd }
+    const res: ResOf<'loop.mainSend'> = { ok: true, view }
+    const pushedView: PayloadOf<'loop.mainState'> = view
+    const ev: PayloadOf<'loop.sessionEvent'> = {
+      cwd: view.cwd, session: { key: 'main', kind: 'main', node: null, goal: null, sessionId: 's1' }, event: { type: 'text', delta: '안' },
+    }
+    expect([read.cwd, send.text, fresh.cwd, res.ok, pushedView.items.length, ev.session.kind]).toEqual([view.cwd, '안녕', view.cwd, true, 4, 'main'])
+    // @ts-expect-error 메인 대화 보내기는 실행 상태·판정을 싣지 못한다
+    const forged: ReqOf<'loop.mainSend'> = { cwd: view.cwd, text: 'x', verdict: 'pass' }
+    void forged
+  })
+
+  // G2 독립 검수 — 메인의 일시 정지 깃발 사건(flag-raised·flag-lowered)은 사람이 멈춘 실행을 이어 간 사건(resumed)과 이름이 다르다.
+  // 표가 종류 전부를 키로 가져야 컴파일된다 — 종류가 늘거나 줄면 이 표도 바뀐다
+  it('실행기 사건의 종류 (M10 G2)', () => {
+    const KINDS: Record<LoopEventKind, true> = {
+      'node-start': true, 'node-end': true, fail: true, halt: true, error: true, 'goal-merged': true, 'milestone-pr': true,
+      'spec-approved': true, 'spec-rejected': true, 'flag-raised': true, 'flag-lowered': true, resumed: true, backlog: true,
+      latched: true, done: true,
+    }
+    expect(Object.keys(KINDS)).not.toContain('paused')
+    // @ts-expect-error 「paused」는 사건 종류가 아니다(깃발은 flag-raised)
+    const old: LoopEventKind = 'paused'
+    void old
   })
 
   it('요청·응답·push 모양이 계약 표에 있다', () => {

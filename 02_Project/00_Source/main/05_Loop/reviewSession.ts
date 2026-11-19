@@ -10,9 +10,10 @@
 // pass를 검수한 트리에 묶는 일(검수 뒤 트리 대조, 커밋·push 전 대조)은 실행기(loopRunner)가 한다.
 import type { AgentBackend } from '@main/03_Agent/AgentBackend'
 import type { AgentEvent } from '@shared/agentEvents'
+import type { LoopSessionTag } from '@shared/13_Loop/loop'
 import type { ReviewPort, ReviewRequest } from './ports'
 import { DOCS, goalDocPath } from './survivalDocs'
-import { DEFAULT_SESSION_TIMEOUT_MS, denyCards, oneLine, runNodeSession } from './workSession'
+import { DEFAULT_SESSION_TIMEOUT_MS, denyCards, nextSessionKey, oneLine, runNodeSession, taggedEvents } from './workSession'
 
 export const DEFAULT_REVIEW_TIMEOUT_MS = 30 * 60_000
 
@@ -26,7 +27,8 @@ export interface ReviewSessionOptions {
   model?: string
   effort?: string
   signal?: AbortSignal
-  onEvent?: (e: AgentEvent) => void
+  // M10 G2 — 세션 꼬리표(kind review)와 함께 흘린다
+  onEvent?: (e: AgentEvent, tag: LoopSessionTag) => void
 }
 
 // G4 검수 사소 3 — 정확히 일치만 받는다(대소문자·띄어쓰기 구분). 줄 앞뒤 공백만 무시한다.
@@ -103,7 +105,7 @@ export function createReviewSessionPort(opts: ReviewSessionOptions): ReviewPort 
         signal: opts.signal,
         onCard: denyCards,
         cardContext: { node: req.node.id, goal: req.goal?.id ?? null },
-        onEvent: opts.onEvent,
+        onEvent: taggedEvents(opts.onEvent, { key: nextSessionKey(), kind: 'review', node: req.node.id, goal: req.goal?.id ?? null }),
       })
       current = session.cancel
       try {

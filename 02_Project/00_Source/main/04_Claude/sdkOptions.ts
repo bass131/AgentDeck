@@ -127,6 +127,8 @@ export function buildClaudeSdkOptions(params: {
     // 루프 세션(M09 G4)은 사용자 MCP 서버(.mcp.json·사용자 설정·플러그인)를 읽지 않는다 — mcpServers 옵션을 주지 않으므로 MCP 서버가 없다.
     // 공개 타입 Options.strictMcpConfig의 설명을 따른다. mcp__ 도구 거부(루프 잠금 훅)는 겹으로 남는다.
     ...(loopLock ? { strictMcpConfig: true } : {}),
+    // M10 G2 — 메인 대화의 앱 안 도구 서버. 루프 잠금이 붙은 입력에서만 싣는다(잠금의 메인 대화 꼴이 그 서버의 mcp__ 도구만 지나보낸다)
+    ...(loopLock && req.loopMcpServers ? { mcpServers: req.loopMcpServers } : {}),
     // 병합 거부 훅(M07 G8)은 userData 경로가 필요 없어 언제나 넣는다. 엔진 경로 잠금 훅 뒤에 붙인다.
     // 루프 잠금 훅(M09 G2)은 루프 작업 노드 세션에만, 맨 앞에 붙인다.
     hooks: { PreToolUse: [...(loopLock ? [loopLock] : []), ...(lock ? [lock.hook] : []), buildMergeDenyHook()] },

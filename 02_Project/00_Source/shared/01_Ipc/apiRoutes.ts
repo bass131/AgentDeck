@@ -50,12 +50,6 @@ export const API_ROUTES = {
     save: call(IPC_CHANNELS.CONVERSATION_SAVE),
     delete: call(IPC_CHANNELS.CONVERSATION_DELETE),
     rename: call(IPC_CHANNELS.CONVERSATION_RENAME),
-    multiLoad: call0(IPC_CHANNELS.MULTI_SESSION_LOAD),
-    multiUpsert: call(IPC_CHANNELS.MULTI_CMD_UPSERT),
-    multiCreate: call0(IPC_CHANNELS.MULTI_CMD_CREATE),
-    multiDelete: call(IPC_CHANNELS.MULTI_CMD_DELETE),
-    multiRename: call(IPC_CHANNELS.MULTI_CMD_RENAME),
-    multiSelect: call(IPC_CHANNELS.MULTI_CMD_SELECT),
   },
   workspace: {
     open: call(IPC_CHANNELS.WORKSPACE_OPEN),

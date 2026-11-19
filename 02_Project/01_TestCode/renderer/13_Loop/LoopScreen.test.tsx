@@ -47,13 +47,12 @@ const flush = async (): Promise<void> => { await act(async () => { await new Pro
 const emit = async (s: LoopStatus): Promise<void> => { await act(async () => { for (const h of [...handlers]) h(s) }) }
 const btn = (name: string): HTMLButtonElement => screen.getByRole('button', { name }) as HTMLButtonElement
 
-async function renderScreen(props: { initialCwd?: string | null; onClose?: () => void; onCwdChange?: (c: string) => void } = {}) {
+async function renderScreen(props: { initialCwd?: string | null; onCwdChange?: (c: string) => void } = {}) {
   const { LoopScreen } = await import('@renderer/13_Loop')
   const r = render(
     <LoopScreen
       initialCwd={props.initialCwd === undefined ? CWD : props.initialCwd}
       onCwdChange={props.onCwdChange ?? (() => {})}
-      onClose={props.onClose ?? (() => {})}
     />,
   )
   await flush()
@@ -99,19 +98,30 @@ describe('루프 화면 — 폴더와 열기·시작·닫기 (M09 G4)', () => {
     expect(screen.getByText('도는 중')).toBeTruthy()
   })
 
-  it('닫기는 loop.close({cwd})를 부르고 상태를 다시 읽는다. 화면을 닫는 것은 루프를 닫지 않는다', async () => {
+  it('닫기는 loop.close({cwd})를 부르고 상태를 다시 읽는다', async () => {
     install(st())
-    const onClose = vi.fn()
-    await renderScreen({ onClose })
+    await renderScreen()
     api.loopStatus.mockResolvedValue(st({ phase: 'closed', root: null }))
     await act(async () => { fireEvent.click(btn('루프 닫기')) })
     await flush()
     expect(api.loopClose).toHaveBeenCalledWith({ cwd: CWD })
     expect(api.loopStatus).toHaveBeenLastCalledWith({ cwd: CWD })
     expect(screen.getByText('닫힘')).toBeTruthy()
-    fireEvent.click(btn('화면 닫기'))
-    expect(onClose).toHaveBeenCalledTimes(1)
     expect(api.loopClose).toHaveBeenCalledTimes(1)
+  })
+
+  // M10 G1 — 루프 화면은 작업 모드의 몸체다. 모달·화면 닫기 버튼·Esc 닫기가 없고, 사라지는 것(모드 전환)은 루프를 닫지 않는다.
+  it('모달이 아니다 — 겹침 창·화면 닫기 버튼이 없고, 화면이 내려가도 loop.close를 부르지 않는다', async () => {
+    install(st())
+    const r = await renderScreen()
+    expect(r.container.querySelector('.loop-screen')).not.toBeNull()
+    expect(document.querySelector('.modal-overlay, .loop-overlay')).toBeNull()
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(screen.queryByRole('button', { name: '화면 닫기' })).toBeNull()
+    await act(async () => { fireEvent.keyDown(document, { key: 'Escape' }) })
+    expect(r.container.querySelector('.loop-screen')).not.toBeNull()
+    r.unmount()
+    expect(api.loopClose).not.toHaveBeenCalled()
   })
 
   it('호출이 거부(throw)되면 사유를 보이고 버튼을 다시 켠다', async () => {
@@ -182,10 +192,12 @@ describe('루프 화면 — goal 목록과 지금 노드 (M09 G4)', () => {
 })
 
 describe('루프 화면 — 껍데기 (M09 G4)', () => {
-  it('화면이 떠 있으면 전역 단축키가 모달로 본다(Esc가 뒤 대화의 실행을 멈추지 않는다)', async () => {
+  // M10 G1 — 루프 화면은 「작업」 모드의 가운데 칸이라 모달이 아니다. 전역 단축키가 모달로 보면 작업 모드의 단축키가 막힌다.
+  // Esc가 뒤 대화의 실행을 멈추지 않는 것은 Shell의 Esc 처리가 채팅 배치에서만 도는 것으로 지킨다(panelSession.difference-pins B2).
+  it('화면이 떠 있어도 전역 단축키는 모달로 보지 않는다(모달 아님)', async () => {
     const { isAnyModalOpen } = await import('@renderer/12_Window/useGlobalShortcuts')
     await renderScreen()
-    expect(isAnyModalOpen()).toBe(true)
+    expect(isAnyModalOpen()).toBe(false)
   })
 
   it('13_Loop 소스에는 병합을 부르는 길이 없다 — 병합은 PR 카드의 「병합」 버튼뿐이다', () => {

@@ -16,7 +16,6 @@ import {
   getStore,
   initStores,
   initLsp,
-  initMultiStore,
   disposeAllRuns,
   getPrefsStore,
   getProfileStore,
@@ -28,7 +27,8 @@ import {
 
 // main 프로세스의 조립 지점 (M05 G11) — 객체 생성과 배선은 여기서 한 번 일어난다.
 // 진입점(index.ts)은 창을 만들고 Electron 수명주기 이벤트에서 아래 셋을 부르기만 한다.
-// 기동 순서는 옮기기 전과 같다: 대화 저장소 → multi 경로 → (창 생성) → 창 붙이기.
+// 기동 순서: 대화 저장소 → (창 생성) → 창 붙이기. M10 G1에서 멀티 에이전트 모드를 지워 멀티 저장 경로 단계가 없어졌다
+// (사용자 디스크의 옛 멀티 저장 파일은 지우지도 읽지도 않는다).
 
 // 창을 만들기 전의 기동 — 실패해도 앱은 뜬다(영속화만 꺼진다)
 export function startApp(): void {
@@ -40,12 +40,6 @@ export function startApp(): void {
         'JSON 디렉토리 생성 또는 파일 I/O 오류:',
       err
     )
-  }
-
-  try {
-    initMultiStore(getUserDataDir())
-  } catch (err) {
-    console.error('[main] multiStore 초기화 실패 — 멀티 세션 영속 비활성:', err)
   }
 }
 
@@ -81,7 +75,6 @@ export function attachWindow(win: BrowserWindow): void {
     getCommandsStore,
     getPrefsStore,
     getProfileStore,
-    getMultiStorePath: () => ipcState.multiStorePath,
     getModelList: () => getModelListProvider().load(),
   })
 }

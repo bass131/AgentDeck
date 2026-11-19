@@ -167,10 +167,11 @@ describe('(A) usePanelSlot — respondPermission 계약', () => {
   })
 })
 
-async function renderMultiWorkspace(workspaceRoot: string | null = '/test/workspace') {
-  useAppStore.setState({ workspaceRoot, workspaceMode: 'multi' })
-  const { MultiWorkspace } = await import('@renderer/12_Window/MultiWorkspace')
-  const { container } = render(<MultiWorkspace />)
+// M10 G1 — 멀티 화면을 지웠다. 패널 기계(usePanelSlot + PanelView)를 패널 하네스로 그려 같은 배선을 본다.
+async function renderPanels(workspaceRoot: string | null = '/test/workspace') {
+  useAppStore.setState({ workspaceRoot })
+  const { PanelHarness } = await import('../00_Helpers/panelHarness')
+  const { container } = render(<PanelHarness sessionId="bf3-p06" />)
   return container
 }
 
@@ -190,9 +191,9 @@ async function sendFromPanel(container: Element, slot: number, text: string): Pr
   return result.runId
 }
 
-describe('(B) MultiWorkspace — 패널 권한 카드 배선(usePanelSlot)', () => {
+describe('(B) 패널 하네스 — 패널 권한 카드 배선(usePanelSlot)', () => {
   it('(5) 패널 0 권한 대기 → 패널 0에만 .perm-card 렌더, 패널 1 무영향', async () => {
-    const container = await renderMultiWorkspace()
+    const container = await renderPanels()
     const runId0 = await sendFromPanel(container, 0, '패널0 메시지')
 
     act(() => {
@@ -206,7 +207,7 @@ describe('(B) MultiWorkspace — 패널 권한 카드 배선(usePanelSlot)', () 
   })
 
   it('(6) 패널 0 카드 응답 → 패널 0의 runId/requestId로 permissionRespond 호출 + 카드 사라짐', async () => {
-    const container = await renderMultiWorkspace()
+    const container = await renderPanels()
     const runId0 = await sendFromPanel(container, 0, '패널0 메시지')
 
     act(() => {
@@ -226,7 +227,7 @@ describe('(B) MultiWorkspace — 패널 권한 카드 배선(usePanelSlot)', () 
   })
 
   it('(7) 패널 0·1 동시 권한 대기 — 패널 0 카드에 dispatch한 keydown은 패널 0만 응답', async () => {
-    const container = await renderMultiWorkspace()
+    const container = await renderPanels()
     const runId0 = await sendFromPanel(container, 0, '패널0 메시지')
     const runId1 = await sendFromPanel(container, 1, '패널1 메시지')
 
@@ -254,7 +255,7 @@ describe('(B) MultiWorkspace — 패널 권한 카드 배선(usePanelSlot)', () 
   })
 
   it('(8) 패널 0 컴포저 타이핑 중 숫자키 → permissionRespond 미호출(오발동 0)', async () => {
-    const container = await renderMultiWorkspace()
+    const container = await renderPanels()
     const runId0 = await sendFromPanel(container, 0, '패널0 메시지')
 
     act(() => {

@@ -68,24 +68,25 @@ async function launch(userDataDir: string): Promise<{ app: ElectronApplication; 
   return { app, page }
 }
 
-// 루프 화면을 열고 연습 저장소를 골라 연다(열기 버튼이 켜져 있을 때만)
+// 작업 모드로 들어 루프 화면을 띄우고 연습 저장소를 골라 연다(열기 버튼이 켜져 있을 때만).
+// M10 G1부터 루프 화면은 사이드바 버튼·모달이 아니라 「작업」 모드의 몸체다.
 async function openLoop(page: Page): Promise<void> {
-  if (!(await page.locator('.loop-modal').isVisible().catch(() => false))) {
-    await page.locator('.sb-loop').click({ timeout: 10_000 })
-    await page.locator('.loop-modal').waitFor({ state: 'visible', timeout: 10_000 })
+  if (!(await page.locator('.loop-screen').isVisible().catch(() => false))) {
+    await page.locator('.sb-mode-btn', { hasText: '작업' }).click({ timeout: 10_000 })
+    await page.locator('.loop-screen').waitFor({ state: 'visible', timeout: 10_000 })
   }
-  const modal = page.locator('.loop-modal')
-  await modal.getByRole('button', { name: '폴더 고르기', exact: true }).click({ timeout: 10_000 })
+  const screen = page.locator('.loop-screen')
+  await screen.getByRole('button', { name: '폴더 고르기', exact: true }).click({ timeout: 10_000 })
   await page.waitForTimeout(800)
-  const openBtn = modal.getByRole('button', { name: '열기', exact: true })
+  const openBtn = screen.getByRole('button', { name: '열기', exact: true })
   if (await openBtn.isEnabled().catch(() => false)) await openBtn.click({ timeout: 10_000 })
 }
 
 async function snapshot(page: Page): Promise<string> {
   return page.evaluate(() => {
     const parts: string[] = []
-    const loop = document.querySelector('.loop-modal') as HTMLElement | null
-    parts.push(loop ? `[loop]\n${loop.innerText}` : '[loop] (닫힘)')
+    const loop = document.querySelector('.loop-screen') as HTMLElement | null
+    parts.push(loop ? `[loop]\n${loop.innerText}` : '[loop] (작업 모드 아님)')
     const q = document.querySelector('.q-modal') as HTMLElement | null
     if (q) parts.push(`[question]\n${q.innerText}`)
     const pill = document.querySelector('.q-mini-pill') as HTMLElement | null

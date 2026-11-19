@@ -9,7 +9,7 @@ import { installFlatWindowApi, installWindowApi } from '../00_Helpers/windowApiM
 
 const SRC_ROOT = fileURLToPath(new URL('../../../00_Source/renderer/src/', import.meta.url))
 
-// G10에서 클라이언트로 옮긴 파일 32개 — 전수 검사가 이 파일들을 실제로 훑는지 함께 본다.
+// G10에서 클라이언트로 옮긴 파일(32개, M10 G1에 지운 셋을 빼 29개) — 전수 검사가 이 파일들을 실제로 훑는지 함께 본다.
 const MIGRATED: string[] = [
   '00_App/AppGate.tsx',
   'main.tsx',
@@ -25,8 +25,6 @@ const MIGRATED: string[] = [
   '06_Sessions/state/conversationPayload.ts',
   '06_Sessions/state/conversation.ts',
   '06_Sessions/state/sessions.ts',
-  '06_Sessions/state/multiSession.ts',
-  '06_Sessions/hooks/useMultiPersist.ts',
   '07_Workspace/state/viewer.ts',
   '07_Workspace/CodeViewer.tsx',
   '07_Workspace/DiffViewerPane.tsx',
@@ -36,7 +34,6 @@ const MIGRATED: string[] = [
   '10_Engine/EngineUpdateNotice.tsx',
   '11_Settings/prefs.ts',
   '11_Settings/SettingsModal.tsx',
-  '12_Window/MultiWorkspace.tsx',
   '12_Window/ResizeHandles.tsx',
   '12_Window/Shell.tsx',
   '12_Window/Sidebar.tsx',
@@ -76,8 +73,9 @@ describe('M05 G10 — window.api 직접 호출 0', () => {
     expect(offenders).toEqual([])
   })
 
-  it('전수 검사는 옮긴 32파일을 모두 훑는다', () => {
-    expect(MIGRATED).toHaveLength(32)
+  // M10 G1: 32 → 29. 멀티 에이전트 모드를 지우며 그 세 파일(멀티 세션 상태·멀티 저장 훅·멀티 화면)이 없어졌다.
+  it('전수 검사는 옮긴 파일(G10의 32에서 M10 G1에 지운 셋을 뺀 29)을 모두 훑는다', () => {
+    expect(MIGRATED).toHaveLength(29)
     for (const rel of MIGRATED) expect(files).toContain(rel)
   })
 
@@ -213,40 +211,29 @@ describe('M05 G10 — 클라이언트', () => {
     expect(ipc.sessions.rename).toBe(conversationRename)
   })
 
-  it('sessions 묶음: 멀티 명령은 요청 객체를 받아 평면 위치 인자로 넘긴다 (옛 평면 mock 어댑터)', async () => {
+  // M10 G1 — 멀티 에이전트 모드의 sessions 멀티 명령을 지워, 위치 인자 어댑터는 engine 묶음으로 본다.
+  it('engine 묶음: install·setActive는 요청 객체를 받아 평면 위치 인자로 넘긴다 (옛 평면 mock 어댑터)', async () => {
     const calls: unknown[][] = []
     const rec = (name: string) => async (...args: unknown[]): Promise<unknown> => {
       calls.push([name, ...args])
-      return { ok: true, state: { version: 2, activeSessionId: '', sessions: [] } }
+      return { ok: true }
     }
-    setWindowApi({ multiCmdDelete: rec('delete'), multiCmdRename: rec('rename'), multiCmdSelect: rec('select') })
-    await ipc.sessions.multiDelete({ id: 'a' })
-    await ipc.sessions.multiRename({ id: 'a', title: 't' })
-    await ipc.sessions.multiSelect({ id: 'b' })
-    expect(calls).toEqual([['delete', 'a'], ['rename', 'a', 't'], ['select', 'b']])
-  })
-
-  it('sessions 묶음: multiUpsert는 { session }을 받아 평면 multiCmdUpsert(session)으로 넘긴다', async () => {
-    const seen: unknown[] = []
-    setWindowApi({ multiCmdUpsert: async (s: unknown) => { seen.push(s); return { ok: true } } })
-    const session = { id: 's', count: 2, panels: [] }
-    await ipc.sessions.multiUpsert({ session })
-    expect(seen).toEqual([session])
-  })
-
-  it('sessions 묶음: multiLoad·multiCreate는 인자 없는 같은 함수로 이어진다', () => {
-    const multiSessionLoad = async (): Promise<{ state: null }> => ({ state: null })
-    const multiCmdCreate = async (): Promise<{ ok: boolean }> => ({ ok: true })
-    setWindowApi({ multiSessionLoad, multiCmdCreate })
-    expect(ipc.sessions.multiLoad).toBe(multiSessionLoad)
-    expect(ipc.sessions.multiCreate).toBe(multiCmdCreate)
+    setWindowApi({ installEngine: rec('install'), setActiveEngine: rec('setActive') })
+    await ipc.engine.install({ version: '1.2.3' })
+    await ipc.engine.setActive({ version: '1.2.4' })
+    expect(calls).toEqual([['install', '1.2.3'], ['setActive', '1.2.4']])
   })
 
   it('없는 평면 함수는 묶음에서도 없음이다 (기능 감지가 그대로 동작)', () => {
     setWindowApi({})
     expect(hasBridge()).toBe(true)
-    expect(typeof ipc.sessions.multiUpsert).toBe('undefined')
-    expect(typeof ipc.sessions.multiLoad).toBe('undefined')
+    expect(typeof ipc.sessions.load).toBe('undefined')
+    expect(typeof ipc.engine.install).toBe('undefined')
+  })
+
+  it('sessions 묶음에는 대화 넷만 있다 — 멀티 명령은 없다 (M10 G1)', () => {
+    installWindowApi()
+    expect(Object.keys(ipc.sessions).sort()).toEqual(['delete', 'load', 'rename', 'save'])
   })
 
   it('workspace 묶음: open·tree는 workspace* 평면 함수로 이어진다', () => {

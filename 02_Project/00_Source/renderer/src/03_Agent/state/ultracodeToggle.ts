@@ -1,6 +1,6 @@
 import { useCallback, type Dispatch, type SetStateAction } from 'react'
 import { create } from 'zustand'
-import { convKey, multiPrefix } from './sessionKeys'
+import { convKey } from './sessionKeys'
 
 // UltraCode 토글의 범위 키는 세션 레지스트리 키다(G9c) — 대화는 convKey(id), id가 없는 새 대화는
 // convKey(null), 멀티 패널은 패널 키. 꺼 둔 키만 기억하고(기본 ON) 영속하지 않는다.
@@ -60,17 +60,3 @@ export function pruneConversationScope(id: string): void {
   })
 }
 
-export function pruneMultiSessionScope(sessionId: string): void {
-  const prefix = multiPrefix(sessionId)
-  useUltracodeToggleStore.setState((s) => {
-    let changed = false
-    const next = new Set(s.offKeys)
-    for (const k of s.offKeys) {
-      if (k.startsWith(prefix)) {
-        next.delete(k)
-        changed = true
-      }
-    }
-    return changed ? { offKeys: next } : s
-  })
-}

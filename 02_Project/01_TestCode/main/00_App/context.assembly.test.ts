@@ -93,7 +93,6 @@ import {
 } from '@main/00_App/context'
 import { getBackend } from '@main/00_App/registry'
 import { startApp, attachWindow, stopApp } from '@main/00_App/bootstrap'
-import { getMultiStorePath } from '@main/06_Sessions/multiStore'
 import { IPC_CHANNELS } from '../../../../02_Project/00_Source/shared/ipcContract'
 
 const MAIN_DIR = path.resolve(__dirname, '../../../00_Source/main')
@@ -204,11 +203,12 @@ describe('skills·MCP store — 같은 앱 수명에서 실행 두 번이 조립
   })
 })
 
-// 기동 순서는 옮기기 전과 같다: 대화 저장소 → multi 경로 → (진입점이 창 생성) → 창 붙이기(win 대입, 첫 번째면 store 다섯·LSP·핸들러 등록)
+// 기동 순서: 대화 저장소 → (진입점이 창 생성) → 창 붙이기(win 대입, 첫 번째면 store 다섯·LSP·핸들러 등록).
+// M10 G1에서 멀티 에이전트 모드를 지워 startApp의 멀티 저장 경로 단계가 없어졌다(사용자 디스크의 옛 파일은 읽지 않을 뿐이다).
 describe('기동·종료 배선 — 00_App/bootstrap 한 곳 (M05 G11 4단계)', () => {
   const calls = (fn: unknown): number => vi.mocked(fn as () => unknown).mock.calls.length
 
-  it('startApp은 저장소와 multi 경로만, 첫 attachWindow가 store·핸들러를 한 번 조립하고, 다음 창은 win만 바꾼다', () => {
+  it('startApp은 대화 저장소만, 첫 attachWindow가 store·핸들러를 한 번 조립하고, 다음 창은 win만 바꾼다', () => {
     const conv0 = calls(createConversationStore)
     const skills0 = calls(createSkillsStore)
     h.handlers.clear()
@@ -216,7 +216,7 @@ describe('기동·종료 배선 — 00_App/bootstrap 한 곳 (M05 G11 4단계)',
     startApp()
     expect(calls(createConversationStore) - conv0).toBe(1)
     expect(vi.mocked(createConversationStore).mock.calls.at(-1)).toEqual([path.join(h.userData, 'chats')])
-    expect(ipcState.multiStorePath).toBe(getMultiStorePath(h.userData))
+    expect(Object.keys(ipcState)).toEqual(['win'])
     expect(calls(createSkillsStore) - skills0).toBe(0)
     expect(h.handlers.size).toBe(0)
 

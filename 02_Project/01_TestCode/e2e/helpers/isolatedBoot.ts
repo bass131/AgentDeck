@@ -64,7 +64,8 @@ export async function isolatedBoot(options: IsolatedBootOptions = {}): Promise<I
   }
   await page.keyboard.press('Escape').catch(() => {})
 
-  const singleTab = page.getByRole('tab', { name: /단일 에이전트/ })
+  // M10 G1 — 모드 탭은 「채팅 · 작업」이다(옛 「단일 에이전트」).
+  const singleTab = page.getByRole('tab', { name: '채팅', exact: true })
   if (await singleTab.isVisible().catch(() => false)) await singleTab.click().catch(() => {})
   await page.locator('.pane.chat').waitFor({ state: 'visible', timeout: 15_000 })
 

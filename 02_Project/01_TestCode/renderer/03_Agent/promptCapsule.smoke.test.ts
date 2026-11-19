@@ -25,6 +25,7 @@ describe('prompt 캡슐 — 공개 표면 스모크', () => {
   // G4 확인 검수 — 질문 창의 화면 층 값도 캡슐 경로로 낸다(루프 화면이 자기 층을 넘긴다)
   it('DIALOG_LAYER가 캡슐 경로에서 export된다', async () => {
     const { DIALOG_LAYER } = await import('@renderer/03_Agent/prompt')
-    expect(DIALOG_LAYER).toEqual({ app: 80, loop: 60 })
+    // M10 G1: 루프 화면이 모달을 벗어나 겹침 맥락이 없어져 loop 층(60)을 뺐다.
+    expect(DIALOG_LAYER).toEqual({ app: 80 })
   })
 })

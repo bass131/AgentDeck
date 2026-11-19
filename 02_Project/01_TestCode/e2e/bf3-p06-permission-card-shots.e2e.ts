@@ -126,55 +126,7 @@ test.describe('BF3 P06: 권한 인라인 카드 육안 스크린샷 (LIVE_SDK=1 
       await expect(page.locator(PERM_CARD)).toBeHidden({ timeout: 15_000 })
       await expect(page.locator(CHAT).locator(STOP)).toBeHidden({ timeout: 15_000 })
       log('단일챗: 거부 후 카드 소멸 + ■ 잔존 없음(정상 종료)')
-
-      await freshConversation(page)
-      const multiTab = page.getByRole('tab', { name: /멀티 에이전트/ })
-      const multiTabVisible = await multiTab.isVisible().catch(() => false)
-      if (!multiTabVisible) {
-        log('스트레치 스킵: 멀티 에이전트 탭 미노출 — 단일챗 3샷으로 육안 게이트 충족')
-      } else {
-        await multiTab.click().catch(() => {})
-        const panel0 = page.locator('.ma-panel[data-slot="0"]')
-        const panelUp = await panel0
-          .waitFor({ state: 'visible', timeout: 15_000 })
-          .then(() => true)
-          .catch(() => false)
-        if (!panelUp) {
-          log('스트레치 스킵: 패널0 미등장(멀티 진입 실패) — 단일챗 3샷으로 육안 게이트 충족')
-        } else {
-          await page.getByRole('button', { name: '새 대화' }).click().catch(() => {})
-          await page.waitForTimeout(500)
-          const pInput = panel0.locator(INPUT)
-          const ready = await pInput.waitFor({ state: 'visible', timeout: 10_000 }).then(() => true).catch(() => false)
-          const disabled = ready ? await pInput.isDisabled().catch(() => true) : true
-          if (!ready || disabled) {
-            log(
-              `스트레치 스킵: 패널0 입력 미준비(ready=${ready} disabled=${disabled}, workspaceRoot 미상속 추정) — 단일챗 3샷으로 육안 게이트 충족`,
-            )
-          } else {
-            const pModeBtn = panel0.getByRole('button', { name: '모드 선택', exact: true })
-            if (await pModeBtn.isVisible().catch(() => false)) {
-              await pModeBtn.click().catch(() => {})
-              await page.waitForTimeout(200)
-              const pOpt = page.getByRole('option', { name: /일반/ })
-              if (await pOpt.first().isVisible().catch(() => false)) await pOpt.first().click().catch(() => {})
-            }
-            const panelCardSel = '.ma-panel[data-slot="0"] .perm-card'
-            const panelCardUp = await triggerPermCard(page, pInput, panelCardSel, '패널0')
-            if (!panelCardUp) {
-              log('스트레치 스킵: 패널0에서 카드 미유발(후보 소진) — 단일챗 3샷으로 육안 게이트 충족')
-            } else {
-              const panelCard = page.locator(panelCardSel)
-              await panelCard.scrollIntoViewIfNeeded().catch(() => {})
-              await page.screenshot({ path: join(SHOT_DIR, 'p06-card-panel-dark.png'), fullPage: false })
-              log('캡처: p06-card-panel-dark.png')
-              await panelCard.locator(permChoiceSelector('deny')).click().catch(() => {})
-              await expect(page.locator(panelCardSel)).toBeHidden({ timeout: 15_000 }).catch(() => {})
-              log('패널0: 거부 후 카드 소멸(정상 종료)')
-            }
-          }
-        }
-      }
+      // M10 G1 — 멀티 에이전트 모드를 지워 패널0 스트레치 샷을 뺐다.
     } finally {
       await teardown()
     }

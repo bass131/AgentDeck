@@ -225,7 +225,7 @@ describe('useGlobalShortcuts — Esc onEscape 콜백 + abortRun 조건부', () =
 describe('Shell onEscape 로직 — abortRun 조건부 호출', () => {
   function makeOnEscape(
     isRunning: boolean,
-    workspaceMode: 'single' | 'multi',
+    workspaceMode: 'single' | 'work',
     abortRun: () => Promise<void>
   ): () => void {
     return () => {
@@ -285,9 +285,9 @@ describe('Shell onEscape 로직 — abortRun 조건부 호출', () => {
     document.body.removeChild(el)
   })
 
-  it('workspaceMode=multi → abortRun 미호출', () => {
+  it('workspaceMode=work → abortRun 미호출', () => {
     const abortRun = vi.fn().mockResolvedValue(undefined)
-    const onEscape = makeOnEscape(true, 'multi', abortRun)
+    const onEscape = makeOnEscape(true, 'work', abortRun)
     onEscape()
     expect(abortRun).not.toHaveBeenCalled()
   })

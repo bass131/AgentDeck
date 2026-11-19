@@ -46,12 +46,6 @@ export const FLAT_ROUTES = {
   conversationSave: { group: 'sessions', action: 'save' },
   conversationDelete: { group: 'sessions', action: 'delete' },
   conversationRename: { group: 'sessions', action: 'rename' },
-  multiSessionLoad: { group: 'sessions', action: 'multiLoad' },
-  multiCmdUpsert: { group: 'sessions', action: 'multiUpsert', args: (req: ReqOf<'multi.cmdUpsert'>) => [req.session] as const },
-  multiCmdCreate: { group: 'sessions', action: 'multiCreate' },
-  multiCmdDelete: { group: 'sessions', action: 'multiDelete', args: (req: ReqOf<'multi.cmdDelete'>) => [req.id] as const },
-  multiCmdRename: { group: 'sessions', action: 'multiRename', args: (req: ReqOf<'multi.cmdRename'>) => [req.id, req.title] as const },
-  multiCmdSelect: { group: 'sessions', action: 'multiSelect', args: (req: ReqOf<'multi.cmdSelect'>) => [req.id] as const },
 
   workspaceOpen: { group: 'workspace', action: 'open' },
   workspaceTree: { group: 'workspace', action: 'tree' },
@@ -221,7 +215,6 @@ const DEFAULT_RESULTS: { [C in InvokeChannel]?: ResOf<C> } = {
   'settings.controlsState': { status: 'none', fileReadable: false, nodes: [], engine: { seal: 'none', active: null } },
   'settings.setControlEnabled': { ok: true },
   'settings.confirmControls': { ok: true },
-  'multi.load': { state: null },
 }
 
 const SYNC_RESULTS: Partial<Record<FlatKey, unknown>> = {

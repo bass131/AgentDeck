@@ -7,7 +7,8 @@ function basename(p: string): string {
 }
 
 // 본문 문구 — 폴더 이름(basename)을 받아 그린다. 호출부가 넘기지 않으면 대화의 폴더 변경 문구다.
-// 단일·멀티 분기(multi prop)를 지우고 패널 문구는 MultiWorkspace가 넘긴다(G9c).
+// 단일·멀티 분기(multi prop)를 지우고 패널 문구는 호출부가 넘긴다(G9c). M10 G1에서 멀티 화면을 지워 지금 이 창을
+// 그리는 앱 호출부는 없다 — G3 세션 탭이 다시 쓸 수 있게 남긴다.
 export type FolderSwitchMessage = (names: { from: string; to: string }) => ReactNode
 
 const conversationMessage: FolderSwitchMessage = ({ from, to }) => (

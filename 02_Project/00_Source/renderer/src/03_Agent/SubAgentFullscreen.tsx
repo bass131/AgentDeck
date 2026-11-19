@@ -3,7 +3,7 @@ import type { SubAgentInfo } from './types'
 import { FullscreenOverlay } from '@renderer/02_Common/FullscreenOverlay'
 import { SubAgentModelBadge } from './SubAgentModelBadge'
 import { SubAgentChatStream, SA_STATUS_LABEL, panelStatusCls } from './SubAgentChatStream'
-import '@renderer/12_Window/MultiWorkspace.css'
+import './panelCard.css'
 import './SubAgentFullscreen.css'
 
 export function SubAgentFullscreen({

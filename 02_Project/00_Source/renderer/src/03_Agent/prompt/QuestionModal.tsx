@@ -30,16 +30,17 @@ export interface QuestionModalProps {
   questions: AgentQuestion[]
   onAnswer: (answers: string[][]) => void
   onDismiss: () => void
-  // 어느 패널의 질문인지(멀티) — 단일은 넘기지 않는다.
+  // 어느 패널의 질문인지 — 단일 대화는 넘기지 않는다.
   source?: string
   // 이 창이 실제로 그려지는 화면 층(그 창을 감싼 겹침 맥락의 z-index). 기본은 대화·패널 질문 창의 층이다.
   layer?: number
 }
 
-// 질문 창의 화면 층 — CSS z-index와 같은 값이다(시험이 두 CSS 파일과 대조한다).
-//   app: 대화(Conversation)와 패널(PanelView)의 질문 창 — QuestionModal.css의 .q-overlay(80)
-//   loop: 루프 화면(LoopScreen)의 질문 창 — LoopScreen.css의 .loop-overlay(60) 겹침 맥락 안에 그려진다
-export const DIALOG_LAYER = { app: 80, loop: 60 } as const
+// 질문 창의 화면 층 — CSS z-index와 같은 값이다(시험이 CSS 파일과 대조한다).
+//   app: 대화(Conversation)·패널(PanelView)·루프 화면(LoopScreen)의 질문 창 — QuestionModal.css의 .q-overlay(80)
+// M10 G1 — 루프 화면이 모달을 벗어나 작업 모드의 가운데 칸에 그려지며 겹침 맥락(옛 .loop-overlay, 60)이 없어졌다.
+// 그래서 루프 질문 창도 app 층에 그려지고 loop 층을 뺐다. 층 prop은 다른 겹침 맥락이 생길 때를 위해 남긴다.
+export const DIALOG_LAYER = { app: 80 } as const
 
 export function QuestionModal({ open, questions, onAnswer, onDismiss, source, layer = DIALOG_LAYER.app }: QuestionModalProps): JSX.Element | null {
   if (!open) return null

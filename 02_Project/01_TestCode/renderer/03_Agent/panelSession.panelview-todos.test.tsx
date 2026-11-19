@@ -27,7 +27,6 @@ const mockApi = {
   }),
   permissionRespond: vi.fn().mockResolvedValue({ ok: true }),
   conversationLoad: vi.fn().mockResolvedValue({ conversations: [] }),
-  multiSessionLoad: vi.fn().mockResolvedValue({ state: null }),
   workspaceOpen: vi.fn().mockResolvedValue({ root: null, tree: null }),
   pickFolder: vi.fn().mockResolvedValue({ path: null }),
   getUsage: vi.fn().mockResolvedValue({ fiveHour: null, weekly: null }),
@@ -71,10 +70,11 @@ afterEach(() => {
   useAppStore.setState({ workspaceMode: 'single', workspaceRoot: null })
 })
 
-async function renderMultiWorkspace() {
-  useAppStore.setState({ workspaceRoot: '/test/workspace', workspaceMode: 'multi' })
-  const { MultiWorkspace } = await import('@renderer/12_Window/MultiWorkspace')
-  const { container } = render(<MultiWorkspace />)
+// M10 G1 — 멀티 화면을 지웠다. 패널 기계(usePanelSlot + PanelView)를 패널 하네스로 그려 같은 동작을 본다.
+async function renderPanels() {
+  useAppStore.setState({ workspaceRoot: '/test/workspace' })
+  const { PanelHarness } = await import('../00_Helpers/panelHarness')
+  const { container } = render(<PanelHarness sessionId="panelview-todos" />)
   return container
 }
 
@@ -96,7 +96,7 @@ async function sendFromPanel(container: Element, slot: number, text: string): Pr
 
 describe('PanelView — todos 마운트 (GAP1 P01b, T-08)', () => {
   it('todos 이벤트 도착 전에는 할 일 섹션이 없다(빈 상태 클러터 방지)', async () => {
-    const container = await renderMultiWorkspace()
+    const container = await renderPanels()
     await sendFromPanel(container, 0, '테스트 메시지')
 
     const panel0 = container.querySelector('.ma-panel[data-slot="0"]') as HTMLElement
@@ -104,7 +104,7 @@ describe('PanelView — todos 마운트 (GAP1 P01b, T-08)', () => {
   })
 
   it('todos 이벤트 도착 → 패널에 할 일 섹션(.ag-sec) + 진행바(.progress) + 항목(.todo) 렌더', async () => {
-    const container = await renderMultiWorkspace()
+    const container = await renderPanels()
     const runId0 = await sendFromPanel(container, 0, '테스트 메시지')
 
     act(() => {
@@ -126,7 +126,7 @@ describe('PanelView — todos 마운트 (GAP1 P01b, T-08)', () => {
   })
 
   it('다른 패널(슬롯1)은 영향받지 않는다 — 슬롯0만 todos 표시(교차오염 0)', async () => {
-    const container = await renderMultiWorkspace()
+    const container = await renderPanels()
     const runId0 = await sendFromPanel(container, 0, '슬롯0 메시지')
     await sendFromPanel(container, 1, '슬롯1 메시지')
 

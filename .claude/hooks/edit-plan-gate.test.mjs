@@ -15,9 +15,9 @@
 // 역할 신호(agent_id·agent_type)는 읽지 않는다 — fork도 메인도 같은 판정이다.
 //
 // 판정 근거는 미러 hook-log 줄과 stdout의 deny JSON뿐이다 (실저장소는 건드리지 않는다).
-import { cpSync, existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 import { createRunner } from './_lib/runner.mjs'
 import { createGateHarness, REPO_ROOT } from './_lib/gate-harness.mjs'
 
@@ -196,6 +196,61 @@ try {
     const spawn = judgeRaw(noConfig, 'Task', {}, '20_plan-gate.cjs', 'plan-gate')
     r.judge('EP-22 포인터 부재 · 스폰 게이트(판정부 공유)', spawn.verdict, 'deny/계획-포인터-결손',
       { note: '판정부를 함께 쓰는 스폰 자리도 종결된 계획으로 떨어지지 않는다' })
+  }
+
+  // ---- 주도권 판정 ③은 마일스톤 스펙 대장과 합쳐 센다 (M10 G1) -----------------
+  // 헌법 11조 뒤로 사람의 합의는 마일스톤 스펙 대장에 모이고 goal 대장은 [AI] 위주다. goal 머리말의
+  // 「마일스톤 스펙 `<경로>`」가 가리키는 01_Milestones 안의 스펙 대장을 goal 대장과 합쳐 센다.
+  // 스펙을 못 찾거나 01_Milestones 밖이면 goal 대장만 센다(닫힌 쪽). [AI·비가역]은 합산과 무관하게 즉시 발동이다.
+  // 근거: M10 마일스톤 스펙 결정 대장 [USER] 2026-11-19 「고쳐 쓴다 (추천)」.
+  {
+    const SPEC_IN = '01_Milestones/M99_Probe/00_마일스톤-스펙.md'
+    const SPEC_OUT = '.claude/hooks/fixtures/spec-outside-probe.md'
+    const writeRel = (rel, text) => {
+      mkdirSync(dirname(H.path(...rel.split('/'))), { recursive: true })
+      writeFileSync(H.path(...rel.split('/')), text)
+    }
+    const spec = (rel, lines) => writeRel(rel, ['# M99 — 스펙 픽스처', '', '## 결정 대장', '', ...lines, ''].join('\n'))
+    const goal = (name, specRel, lines) => {
+      const rel = `.claude/hooks/fixtures/${name}.md`
+      writeRel(rel, [
+        `# M99 — 프로브 픽스처: 주도권 합산 (${name})`, '',
+        `- 마일스톤: M99 (마일스톤 스펙 \`${specRel}\`) · 작성: 2026-11-19 · 상태: 실행 중`, '',
+        '## 목표', '', '- 주도권 판정이 마일스톤 스펙 대장을 합쳐 세는지 실측한다.', '',
+        '## Phase 1 — 픽스처 · 태그: `hooks` · 의존: 없음', '',
+        '검증 기록', '', '- PASS 2026-11-19T16:00:00+09:00 — 픽스처 자체 점검', '',
+        '## 결정 대장', '', ...lines, '',
+      ].join('\n'))
+      return rel
+    }
+    const AI2 = ['- [AI] 프로브 결정 하나 (2026-11-19)', '- [AI] 프로브 결정 둘 (2026-11-19)']
+    spec(SPEC_IN, ['- [USER] 스펙 합의 (2026-11-19)', '- [USER·위임] 실주행 대행 (2026-11-19)'])
+    spec(SPEC_OUT, ['- [USER] 밖의 스펙 (2026-11-19)', '- [USER] 밖의 스펙 둘 (2026-11-19)'])
+
+    const merged = judge(goal('goal-ai2-spec-user2', SPEC_IN, AI2), src)
+    r.judge('EP-23 goal [AI] 2 · 스펙 [USER] 2 — 합쳐 세면 통과', merged.verdict, 'allow/통과',
+      { note: 'goal 대장만 세면 거부되던 꼴(M09 G6 [AI] 2 > [USER] 0)' })
+    r.check('EP-23b 통과 줄 tally에 스펙 경로와 수가 실린다',
+      merged.evidence?.tally?.spec?.path === SPEC_IN && merged.evidence?.tally?.spec?.USER === 1 && merged.evidence?.tally?.spec?.['USER·위임'] === 1,
+      `실측 ${JSON.stringify(merged.evidence?.tally?.spec ?? null)}`)
+
+    const missing = judge(goal('goal-ai2-spec-missing', '01_Milestones/M99_Probe/없는-스펙.md', AI2), src)
+    r.judge('EP-24 스펙 파일 없음 — goal 대장만 센다', missing.verdict, 'deny/주도권-문답분기', { note: '닫힌 쪽' })
+
+    const outside = judge(goal('goal-ai2-spec-outside', SPEC_OUT, AI2), src)
+    r.judge('EP-25 스펙이 01_Milestones 밖 — 세지 않는다', outside.verdict, 'deny/주도권-문답분기',
+      { note: '아무 파일이나 스펙으로 가리켜 [USER]를 빌려 오지 못한다' })
+
+    const escape = judge(goal('goal-ai2-spec-escape', '01_Milestones/../.claude/hooks/fixtures/spec-outside-probe.md', AI2), src)
+    r.judge('EP-26 스펙 경로가 ..으로 01_Milestones를 벗어남 — 세지 않는다', escape.verdict, 'deny/주도권-문답분기')
+
+    const irrev = judge(goal('goal-irrev-spec-user2', SPEC_IN, ['- [AI·비가역] 프로브 비가역 (2026-11-19)']), src)
+    r.judge('EP-27 [AI·비가역]은 스펙 [USER]와 무관하게 즉시 발동', irrev.verdict, 'deny/주도권-즉시발동')
+
+    spec('01_Milestones/M98_Probe/00_마일스톤-스펙.md', ['- [USER] 하나 (2026-11-19)', '- [AI] 스펙 쪽 AI 하나 (2026-11-19)', '- [AI] 스펙 쪽 AI 둘 (2026-11-19)'])
+    const specAi = judge(goal('goal-ai1-spec-ai2', '01_Milestones/M98_Probe/00_마일스톤-스펙.md', ['- [AI] 프로브 (2026-11-19)']), src)
+    r.judge('EP-28 스펙의 [AI]도 함께 센다 — 합계 [AI] 3 > [USER] 1', specAi.verdict, 'deny/주도권-문답분기',
+      { note: '원칙 2를 마일스톤 단위로 지킨다' })
   }
 
   // ---- 격리 — 미러 밖으로 새지 않는다 --------------------------------------

@@ -1,150 +1,11 @@
-.multi {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  background: var(--bg);
-  position: relative;
-}
-
-.ma-head {
-  height: 52px;
-  flex: 0 0 52px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 0 16px 0 20px;
-  border-bottom: 1px solid var(--line);
-}
-
-.ma-head-ic {
-  color: var(--accent);
-  display: grid;
-  place-items: center;
-}
-
-.ma-head-title {
-  font-family: var(--font-serif);
-  font-size: 14px;
-  font-weight: 600;
-  letter-spacing: -0.01em;
-  white-space: nowrap;
-  color: var(--text);
-}
+/* 패널 카드(.ma-*) — 서브에이전트 보기(SubAgentCell·SubAgentChatStream·SubAgentFullscreen)와 PanelView가 쓴다.
+   M10 G1에서 멀티 화면(12_Window/MultiWorkspace)을 지우며 그 CSS에서 카드 규칙만 옮겼다.
+   멀티 화면 전용 배치(.multi·머리·일괄 폴더·사용량 알약·패널 수·격자·자리표시·펼침 오버레이)는 옮기지 않았다.
+   클래스 이름(.ma-*)은 시험·e2e가 읽으므로 그대로 둔다. */
 
 .ma-spacer {
   flex: 1;
   min-width: 0;
-}
-
-.ma-batch {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  padding: 6px 11px;
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: 9px;
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--text-2);
-  transition: background 0.12s, color 0.12s, box-shadow 0.12s;
-}
-
-.ma-batch svg:first-child {
-  color: var(--accent);
-}
-
-.ma-batch svg:last-child {
-  color: var(--text-4);
-}
-
-.ma-batch:hover {
-  background: var(--surface-2);
-  color: var(--text);
-  box-shadow: var(--hover-ring);
-}
-
-.ma-usage {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  padding: 5px 11px 5px 8px;
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: 99px;
-  white-space: nowrap;
-}
-
-.ma-usage-ring {
-  width: 16px;
-  height: 16px;
-  flex: 0 0 16px;
-  border-radius: 50%;
-  position: relative;
-  background: conic-gradient(var(--accent) calc(var(--p) * 1%), var(--surface-3) 0);
-}
-
-.ma-usage-ring::after {
-  content: '';
-  position: absolute;
-  inset: 2.5px;
-  border-radius: 50%;
-  background: var(--surface);
-}
-
-.ma-usage-label {
-  font-size: 11.5px;
-  font-weight: 500;
-  color: var(--text-3);
-}
-
-.ma-usage-pct {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--accent-2);
-}
-
-.ma-count {
-  display: flex;
-  gap: 2px;
-  margin-left: 4px;
-  padding: 3px;
-  background: var(--inset);
-  border: 1px solid var(--line);
-  border-radius: 9px;
-}
-
-.ma-count-btn {
-  width: 26px;
-  height: 24px;
-  border-radius: 6px;
-  font-family: var(--font-mono);
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--text-3);
-  transition: background 0.12s, color 0.12s;
-}
-
-.ma-count-btn:hover {
-  color: var(--text);
-  background: var(--surface-2);
-}
-
-.ma-count-btn.on {
-  background: var(--accent);
-  color: var(--on-accent);
-}
-
-.ma-grid {
-  flex: 1;
-  min-height: 0;
-  overflow: auto;
-  display: grid;
-  gap: 12px;
-  padding: 12px;
-  grid-auto-rows: 1fr;
 }
 
 .ma-panel {
@@ -171,11 +32,6 @@
 .ma-panel.focused {
   border-color: var(--panel-accent);
   box-shadow: 0 0 0 1px var(--panel-accent);
-}
-
-.ma-placeholder {
-  background: var(--inset);
-  border-style: dashed;
 }
 
 .ma-p-head {
@@ -560,43 +416,6 @@
   border-top: 1px solid var(--line);
   background: var(--surface);
   border-radius: 0 0 13px 13px;
-}
-
-.ma-expand-overlay {
-  position: absolute;
-  inset: 0;
-  z-index: 90;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 28px;
-  background: oklch(0.12 0.004 60 / 0.46);
-  backdrop-filter: blur(9px);
-  animation: fade 0.16s ease both;
-}
-
-.ma-expand-card {
-  width: min(1240px, 96%);
-  height: min(92%, 980px);
-  display: flex;
-  animation: rise 0.18s var(--ease-out) both;
-}
-
-.ma-expand-card .ma-panel {
-  flex: 1;
-  min-width: 0;
-  border-color: var(--line-2);
-  box-shadow: var(--bevel), var(--shadow-lg);
-}
-
-@keyframes fade {
-  from { opacity: 0; }
-  to   { opacity: 1; }
-}
-
-@keyframes rise {
-  from { transform: translateY(14px); opacity: 0; }
-  to   { transform: translateY(0);    opacity: 1; }
 }
 
 @keyframes pulse {

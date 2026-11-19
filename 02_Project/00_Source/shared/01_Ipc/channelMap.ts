@@ -31,18 +31,6 @@ import type {
   ConversationRenameResponse,
 } from '../06_Sessions/conversation'
 import type {
-  MultiSessionLoadResponse,
-  MultiCmdUpsertRequest,
-  MultiCmdUpsertResponse,
-  MultiCmdCreateResponse,
-  MultiCmdDeleteRequest,
-  MultiCmdDeleteResponse,
-  MultiCmdRenameRequest,
-  MultiCmdRenameResponse,
-  MultiCmdSelectRequest,
-  MultiCmdSelectResponse,
-} from '../06_Sessions/multi'
-import type {
   WorkspaceOpenRequest,
   WorkspaceOpenResponse,
   WorkspaceTreeRequest,
@@ -216,13 +204,6 @@ export interface IpcInvokeMap {
   'window.dragEnd': { req: void; res: void }
   'window.resizeStart': { req: WindowResizeStartRequest; res: void }
   'window.resizeEnd': { req: void; res: void }
-
-  'multi.load': { req: void; res: MultiSessionLoadResponse }
-  'multi.cmdUpsert': { req: MultiCmdUpsertRequest; res: MultiCmdUpsertResponse }
-  'multi.cmdCreate': { req: void; res: MultiCmdCreateResponse }
-  'multi.cmdDelete': { req: MultiCmdDeleteRequest; res: MultiCmdDeleteResponse }
-  'multi.cmdRename': { req: MultiCmdRenameRequest; res: MultiCmdRenameResponse }
-  'multi.cmdSelect': { req: MultiCmdSelectRequest; res: MultiCmdSelectResponse }
 
   // M09 G4 — 앱 안 루프(main/05_Loop/loopDriver.ts)
   'loop.open': { req: LoopOpenRequest; res: LoopStatus }

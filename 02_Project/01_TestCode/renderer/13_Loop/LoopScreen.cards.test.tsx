@@ -48,7 +48,7 @@ const click = async (el: HTMLElement): Promise<void> => {
 async function renderScreen(initial: LoopStatus) {
   install(initial)
   const { LoopScreen } = await import('@renderer/13_Loop')
-  const r = render(<LoopScreen initialCwd={CWD} onCwdChange={() => {}} onClose={() => {}} />)
+  const r = render(<LoopScreen initialCwd={CWD} onCwdChange={() => {}} />)
   await flush()
   return r
 }
@@ -263,8 +263,9 @@ describe('질문 카드와 권한 카드 (M09 G4)', () => {
     expect(btn('답하기').disabled).toBe(false)
   })
 
-  // G4 확인 검수 — 루프 질문 창은 루프 오버레이(z 60) 층으로 쌓인다. 대화 질문 창(z 80)이 떠 있으면 나중에 연 루프 창은 키를 받지 않는다
-  it('대화 질문 창이 떠 있으면 나중에 연 루프 질문 창은 숫자 키를 받지 않는다', async () => {
+  // M10 G1 — 루프 화면은 모달이 아니라 작업 모드의 몸체라 겹침 맥락이 없다. 루프 질문 창은 대화 질문 창과 같은 층(app, z 80)이고,
+  // 같은 층에서는 나중에 연 창이 키를 받는다(옛 G4의 z 60 루프 오버레이 층은 없어졌다).
+  it('루프 질문 창은 대화 질문 창과 같은 층이다 — 나중에 연 루프 질문 창이 숫자 키를 받는다', async () => {
     install(st({ cards: [question], sessionActive: true }))
     const { LoopScreen } = await import('@renderer/13_Loop')
     const { QuestionModal } = await import('@renderer/03_Agent/prompt')
@@ -273,7 +274,7 @@ describe('질문 카드와 권한 카드 (M09 G4)', () => {
     render(
       <>
         <QuestionModal open={true} questions={CONV} onAnswer={conv} onDismiss={vi.fn()} />
-        <LoopScreen initialCwd={CWD} onCwdChange={() => {}} onClose={() => {}} />
+        <LoopScreen initialCwd={CWD} onCwdChange={() => {}} />
       </>,
     )
     await flush()
@@ -281,8 +282,8 @@ describe('질문 카드와 권한 카드 (M09 G4)', () => {
     expect(screen.getByText('어느 쪽으로 갈까요?')).toBeTruthy()
     await act(async () => { fireEvent.keyDown(window, { key: '1' }) })
     await flush()
-    expect(conv).toHaveBeenCalledWith([['c1']])
-    expect(api.loopAnswerCard).not.toHaveBeenCalled()
+    expect(conv).not.toHaveBeenCalled()
+    expect(api.loopAnswerCard).toHaveBeenCalledTimes(1)
   })
 
   it('세션 취소는 cancelSession({cwd})다', async () => {

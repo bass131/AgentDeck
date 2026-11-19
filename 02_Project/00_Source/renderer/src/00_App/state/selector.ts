@@ -3,7 +3,7 @@ import type { TokenUsage, TodoItem, SubAgentInfo, LoopInfo } from '../../../../s
 import type { AppState, PendingPermission, PendingQuestion, FileDiffEntry } from '@renderer/05_Conversation/state/reducer'
 import type { ThreadItem } from '@renderer/05_Conversation/state/threadTypes'
 import type { OpenedViewer } from '@renderer/07_Workspace/viewer'
-import type { AppStore, ReferenceEntry, OpenedStatus, AttachedImage, QueuedMessage, MultiSessionSummary } from './types'
+import type { AppStore, ReferenceEntry, OpenedStatus, AttachedImage, QueuedMessage } from './types'
 
 export const selectProfile = (s: AppStore): Profile | null => s.profile
 
@@ -75,9 +75,6 @@ export const selectPendingQuestion = (s: AppStore): PendingQuestion | null => s.
 export const selectUsage = (s: AppStore): UsageInfo => s.usage
 
 export const selectBackends = (s: AppStore): BackendStatus[] => s.backends
-
-export const selectMultiSessions = (s: AppStore): MultiSessionSummary[] => s.multiSessions
-export const selectActiveMultiSessionId = (s: AppStore): string => s.activeMultiSessionId
 
 export const selectFileDiffs = (s: AppStore): Record<string, FileDiffEntry> => s.fileDiffs
 

@@ -65,7 +65,6 @@ describe('컨트롤 IPC (M07 G5)', () => {
       getCommandsStore: stub,
       getPrefsStore: stub,
       getProfileStore: stub,
-      getMultiStorePath: stub,
     })
     for (const ch of [IPC_CHANNELS.CONTROLS_STATE, IPC_CHANNELS.CONTROLS_SET_ENABLED, IPC_CHANNELS.CONTROLS_CONFIRM]) {
       expect(h.handlers.has(ch)).toBe(true)

@@ -43,6 +43,7 @@ const mockApi = {
   setUiPref: vi.fn().mockResolvedValue({ ok: true }),
   getAppVersion: vi.fn().mockResolvedValue(''),
   checkEngineUpdate: vi.fn().mockResolvedValue({ current: null, latest: null, updateAvailable: false }),
+  onLoopState: vi.fn().mockReturnValue(() => {}),
 }
 
 Object.defineProperty(window, 'api', { value: adaptFlatApi(mockApi), writable: true, configurable: true })
@@ -65,7 +66,6 @@ describe('E6 현 동작 — systemPrompt는 패널만 보낸다(단일 대화에
       }],
       conversationId: 'e6', isRunning: false, replMode: false, workspaceRoot: '/w',
       listConversations: vi.fn().mockResolvedValue(undefined),
-      loadMultiSessions: vi.fn().mockResolvedValue(undefined),
     } as never)
     const { Sidebar } = await import('@renderer/12_Window/Sidebar')
     const view = render(<Sidebar onCollapse={() => {}} onOpenSettings={() => {}} />)
@@ -109,7 +109,7 @@ describe('E6 현 동작 — systemPrompt는 패널만 보낸다(단일 대화에
 })
 
 describe('P3 현 동작 — 단일 effort는 입력창 지역 상태라 재마운트하면 기본값으로 돌아간다', () => {
-  it('단일 Composer의 effort는 저장되지 않는다(패널 effort는 useMultiPersist가 패널별로 저장한다)', async () => {
+  it('단일 Composer의 effort는 저장되지 않는다(옛 패널 effort 저장은 M10 G1에서 멀티 저장과 함께 없어졌다)', async () => {
     const { Composer } = await import('@renderer/05_Conversation/Composer')
     const { DEFAULT_EFFORT } = await import('@renderer/03_Agent/pickerOptions')
     const onSend = vi.fn()
@@ -199,8 +199,9 @@ describe('L3 — @멘션 팔레트의 마우스 선택은 단일 입력창과 �
   }, 15000)
 })
 
-describe('B2 현 동작 — Esc 중단은 단일 배치에서만 한다(멀티 배치에서는 무시)', () => {
-  async function renderShell(mode: 'single' | 'multi') {
+// M10 G1 — 멀티 배치를 지웠다. 대화가 화면에 없는 배치는 이제 「작업」 모드(루프 화면)다.
+describe('B2 현 동작 — Esc 중단은 채팅 배치에서만 한다(작업 배치에서는 무시)', () => {
+  async function renderShell(mode: 'single' | 'work') {
     const abortRun = vi.fn(async () => {})
     const interruptRun = vi.fn(async () => {})
     useAppStore.setState({ workspaceMode: mode, isRunning: true, replMode: false, abortRun, interruptRun } as never)
@@ -215,11 +216,9 @@ describe('B2 현 동작 — Esc 중단은 단일 배치에서만 한다(멀티 �
     expect(abortRun).toHaveBeenCalledTimes(1)
   })
 
-  it('멀티 배치에서는 Esc가 실행 중인 패널(단발·REPL)도 단일 대화도 중단하지 않는다', async () => {
+  it('작업 배치에서는 Esc가 실행 중인 패널(단발·REPL)도 단일 대화도 중단하지 않는다', async () => {
     // 실행 중인 패널 둘을 심는다 — 단발(replMode false, 중단이면 agentAbort)과 REPL(replMode true, 중단이면
     // agentInterrupt). Esc가 패널을 중단하는 구현이면 둘 중 하나가 반드시 불린다.
-    // 반대 동작 확인(검수 경미 2, 2026-11-14): MultiWorkspace에 「Esc면 실행 중 패널 abort」를 임시로 넣자 이 테스트가
-    // agentAbort 2회(run-p0·run-p1)로 실패했고, 원복 뒤 통과했다.
     const { sessionRegistry } = await import('@renderer/03_Agent/state/sessionRegistry')
     const { panelKey } = await import('@renderer/03_Agent/state/sessionKeys')
     const { makePanelInitialState, usePanelSlot, __resetPanelSessionManagerForTests } = await import('@renderer/03_Agent/state/panelSession')
@@ -229,10 +228,9 @@ describe('B2 현 동작 — Esc 중단은 단일 배치에서만 한다(멀티 �
     })
     sessionRegistry.set(panelKey('b2', 0), running('run-p0', false))
     sessionRegistry.set(panelKey('b2', 1), running('run-p1', true))
-    useAppStore.setState({ activeMultiSessionId: 'b2' })
 
-    const { abortRun, interruptRun } = await renderShell('multi')
-    expect(document.querySelectorAll('.ma-panel').length).toBeGreaterThan(1)
+    const { abortRun, interruptRun } = await renderShell('work')
+    expect(document.querySelector('.loop-screen')).toBeTruthy()
     fireEvent.keyDown(document, { key: 'Escape' })
     await act(async () => { await Promise.resolve() })
 

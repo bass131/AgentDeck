@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import type { WorkspaceMode } from './windowMode'
 
 export const MODAL_SELECTORS =
   '.modal-overlay, .q-overlay, .perm-card, .ask-overlay, .pf-overlay, .iv-overlay, .gitm-overlay,' +
@@ -19,13 +20,13 @@ export interface GlobalShortcutOptions {
   onModeSwitch?: () => void
 }
 
-// 전역 Shift+Tab의 모드 순환 대상(P5, 사용자 결정) — 멀티에서는 입력창이 포커스된 패널이 자기 모드를
-// 돌리고(입력창 onKeyDown), 전역 처리기는 화면에 없는 단일 선택기를 돌리지 않는다.
+// 전역 Shift+Tab의 모드 순환 대상(P5, 사용자 결정) — 단일 선택기는 「채팅」 모드의 화면에만 있다.
+// 「작업」 모드(M10 G1)에서는 화면에 없는 단일 선택기를 돌리지 않는다.
 export function globalModeSwitchFor(
-  workspaceMode: string,
+  workspaceMode: WorkspaceMode,
   cycleSingle: () => void,
 ): (() => void) | undefined {
-  return workspaceMode === 'multi' ? undefined : cycleSingle
+  return workspaceMode === 'single' ? cycleSingle : undefined
 }
 
 function isInputFocused(): boolean {

@@ -37,6 +37,11 @@
   flex: 1;
   min-width: 0;
 }
+/* M10 G1 — 「작업」 모드의 가운데 칸(루프 화면). 대화 칸 자리를 그대로 채운다 */
+.pane.work {
+  flex: 1;
+  min-width: 0;
+}
 .pane.agent {
   flex: 0 0 var(--agent-w);
   background: var(--surface);

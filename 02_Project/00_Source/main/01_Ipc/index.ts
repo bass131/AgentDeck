@@ -19,7 +19,6 @@ import { registerEngineHandlers } from './handlers/engine'
 import { registerSettingsHandlers } from './handlers/settings'
 import { registerControlsHandlers } from './handlers/controls'
 import { registerPersonalizationHandlers } from './handlers/personalization'
-import { registerMultiHandlers } from './handlers/multi'
 import { registerWindowHandlers } from './handlers/window'
 import { registerLoopHandlers, type LoopDriverApi } from './handlers/loop'
 
@@ -36,7 +35,6 @@ export interface IpcDeps {
   getCommandsStore: () => CommandsStore | null
   getPrefsStore: () => PrefsStore | null
   getProfileStore: () => ProfileStore | null
-  getMultiStorePath: () => string | null
   getModelList?: () => Promise<ModelListResponse>
   // M09 G4 — 앱 안 루프 구동자(조립 지점이 만든다). 없으면 루프 채널을 등록하지 않는다.
   loopDriver?: LoopDriverApi
@@ -65,9 +63,6 @@ export function registerIpc(deps: IpcDeps): void {
   registerPersonalizationHandlers({
     getPrefsStore: deps.getPrefsStore,
     getProfileStore: deps.getProfileStore,
-  })
-  registerMultiHandlers({
-    getMultiStorePath: deps.getMultiStorePath,
   })
   if (deps.loopDriver) registerLoopHandlers({ driver: deps.loopDriver })
 }

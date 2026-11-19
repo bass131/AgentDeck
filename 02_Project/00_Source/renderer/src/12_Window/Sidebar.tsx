@@ -37,6 +37,8 @@ type WorkspaceMode = 'single' | 'multi'
 interface SidebarProps {
   onCollapse: () => void
   onOpenSettings: () => void
+  // M09 G4 — 앱 안 마일스톤 루프 화면을 여는 최소 진입점. 주지 않으면 버튼이 없다
+  onOpenLoop?: () => void
 }
 
 const isMac = typeof navigator !== 'undefined' && navigator.platform.toLowerCase().includes('mac')
@@ -356,7 +358,7 @@ function RecentChats({
   )
 }
 
-function SidebarInner({ onCollapse, onOpenSettings }: SidebarProps): JSX.Element {
+function SidebarInner({ onCollapse, onOpenSettings, onOpenLoop }: SidebarProps): JSX.Element {
   const [appVersion, setAppVersion] = useState('')
   const cancelledRef = useRef(false)
   useEffect(() => {
@@ -527,6 +529,13 @@ function SidebarInner({ onCollapse, onOpenSettings }: SidebarProps): JSX.Element
           onDelete={handleDelete}
         />
       </div>
+
+      {onOpenLoop && (
+        <button type="button" className="sb-loop" onClick={onOpenLoop}>
+          <IconGrid size={14} />
+          <span>마일스톤 루프</span>
+        </button>
+      )}
 
       <button
         type="button"

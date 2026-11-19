@@ -4,6 +4,7 @@ import { Conversation, type InjectedInput } from '@renderer/05_Conversation'
 import { SubAgentSplitView } from '@renderer/03_Agent'
 import { TitleBar, ResizeHandles, Sidebar, SettingsModal, Profile, MultiWorkspace, ZoomControl } from '.'
 import { GitModal } from '@renderer/08_Git'
+import { LoopScreen } from '@renderer/13_Loop'
 import { AskModal } from '@renderer/03_Agent/prompt'
 import { RecentFiles } from '@renderer/07_Workspace/file'
 import { FileModal } from '@renderer/07_Workspace/file'
@@ -79,6 +80,10 @@ export function Shell(): JSX.Element {
   const [engineUpdate, setEngineUpdate] = useState<EngineUpdateInfo | null>(null)
   const [appUpdateOpen, setAppUpdateOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
+  // M09 G4 루프 화면 — 화면을 닫아도 고른 저장소는 기억한다(루프는 main에서 계속 돈다)
+  const [loopOpen, setLoopOpen] = useState(false)
+  const [loopCwd, setLoopCwd] = useState<string | null>(null)
+  const closeLoop = useCallback(() => setLoopOpen(false), [])
 
   const handleOpenImage = useCallback((images: string[], index: number) => {
     setImageViewer({ images, index })
@@ -176,7 +181,11 @@ export function Shell(): JSX.Element {
 
         <div className="win-body">
         {sidebarOpen ? (
-          <Sidebar onCollapse={() => setSidebarOpen(false)} onOpenSettings={() => setSettingsOpen(true)} />
+          <Sidebar
+            onCollapse={() => setSidebarOpen(false)}
+            onOpenSettings={() => setSettingsOpen(true)}
+            onOpenLoop={() => setLoopOpen(true)}
+          />
         ) : (
           <div className="col-rail">
             <button
@@ -296,6 +305,8 @@ export function Shell(): JSX.Element {
           }}
         />
       )}
+
+      {loopOpen && <LoopScreen initialCwd={loopCwd} onCwdChange={setLoopCwd} onClose={closeLoop} />}
 
       {askOpen && (
         <AskModal

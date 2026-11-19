@@ -463,3 +463,54 @@ describe('대상을 고른 취소 (M10 G3, Backlog 12)', () => {
     await until((s) => !s.mainBusy, '메인 턴이 멈춤')
   })
 })
+
+describe('노드 세션 기록과 상태의 새 칸 (M10 G4)', () => {
+  it('브레인스토밍 동안은 메인 노드이고 노드 세션 줄이 없다 — 작업 노드 세션은 줄과 기록으로 처음부터 남고, 끝나면 live가 내려간다', SLOW, async () => {
+    const rig = driver()
+    const CWD = repos.work
+    await rig.d.open({ cwd: CWD })
+    await rig.d.start(CWD, 'M1')
+    const waiting = await until((s) => s.mainWaiting, '사람 기다림')
+    expect(waiting.mainNode).toBe(true)
+    expect(waiting.sessions).toEqual([])
+    expect(rig.d.sessionLog(CWD).sessions.map((s) => s.session.kind)).toEqual(['main'])
+    expect(rig.d.mainSend(CWD, '덧셈으로 하자').ok).toBe(true)
+    const approval = await until((s) => s.phase === 'waiting-human' && s.approval !== null, '스펙 승인')
+    expect(approval.mainNode).toBe(false)
+    expect((await rig.d.decide({ cwd: CWD, verdict: 'pass', evidence: '봤다', specSha256: approval.approval?.sha256 as string })).ok).toBe(true)
+    const ended = await until((s) => s.sessions.some((r) => r.node === 'decompose' && !r.live), 'goal 나누기 세션이 끝남')
+    const row = ended.sessions.find((r) => r.node === 'decompose')
+    expect(row).toMatchObject({ kind: 'work', goal: null, live: false })
+    // 기록은 처음 사건(session)부터 있고, push의 차례(seq)는 0부터 하나씩 오르며 next와 맞물린다
+    const rec = rig.d.sessionLog(CWD).sessions.find((s) => s.session.key === row?.key)
+    expect(rec?.events[0]).toMatchObject({ type: 'session' })
+    expect(rec?.live).toBe(false)
+    const seqs = tagged.filter((p) => p.session.key === row?.key).map((p) => p.seq)
+    expect(seqs).toEqual(seqs.map((_, i) => i))
+    expect(rec?.next).toBe(seqs.length)
+    // 최근 검증 줄은 실행 상태 lines의 끝이다
+    const lines = runState().lines as unknown as { marker: string; node: string }[]
+    const recent = rig.d.status(CWD).recentLines
+    expect(recent.length).toBe(Math.min(lines.length, 6))
+    expect(recent.at(-1)).toMatchObject({ marker: lines.at(-1)?.marker, node: lines.at(-1)?.node })
+    // 닫은 뒤에도 기록과 줄이 남는다(실행기 항목과 따로 산다)
+    await rig.d.close(CWD)
+    expect(rig.d.sessionLog(CWD).sessions.some((s) => s.session.key === row?.key)).toBe(true)
+    expect(rig.d.status(CWD).sessions.map((r) => r.key)).toContain(row?.key)
+  })
+
+  it('지난 메인 대화는 새 메인 대화가 보관한 장을 최근 것부터 보기 전용으로 읽는다', SLOW, async () => {
+    const rig = driver()
+    const CWD = repos.work
+    expect((await rig.d.mainArchives(CWD)).archives).toEqual([])
+    await rig.d.open({ cwd: CWD })
+    await rig.d.start(CWD, 'M1')
+    await until((s) => s.mainWaiting, '사람 기다림')
+    expect((await rig.d.mainNew(CWD)).ok).toBe(true)
+    const { cwd, archives } = await rig.d.mainArchives(CWD)
+    expect(cwd).toBe(CWD)
+    expect(archives).toHaveLength(1)
+    expect(archives[0].items.some((i) => i.kind === 'assistant' && i.text === '범위는 무엇으로 할까?')).toBe(true)
+    expect(Number.isNaN(new Date(archives[0].at).getTime())).toBe(false)
+  })
+})

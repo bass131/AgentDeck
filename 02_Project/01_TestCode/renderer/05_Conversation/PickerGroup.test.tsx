@@ -217,7 +217,7 @@ describe('P5 — 멀티의 Shift+Tab은 입력창이 포커스된 패널의 모�
       expect(singleAfter).not.toBe(singleBefore)
 
       await act(async () => { useAppStore.setState({ workspaceMode: 'work' }) })
-      expect(document.querySelector('.loop-screen')).toBeTruthy()
+      expect(document.querySelector('.work-center')).toBeTruthy()
       await shiftTab()
       expect(selectPickerMode(useAppStore.getState())).toBe(singleAfter)
     } finally {

@@ -16,7 +16,8 @@ const SHA = 'ab'.repeat(32)
 const st = (over: Partial<LoopStatus> = {}): LoopStatus => ({
   cwd: CWD, root: CWD, phase: 'running', milestoneId: 'M01', node: 'brainstorm', nodeTitle: '브레인스토밍', reason: null,
   base: 'main', ghRepo: 'me/practice', failCount: 0, goals: [], approval: null, milestonePr: null, cards: [],
-  sessionActive: false, lastVerdict: null, latch: null, paused: false, mainBusy: false, mainWaiting: false, ...over,
+  sessionActive: false, lastVerdict: null, latch: null, paused: false, mainBusy: false, mainWaiting: false,
+  mainNode: false, recentLines: [], sessions: [], ...over,
 })
 const mv = (over: Partial<MainChatView> = {}): MainChatView => ({
   cwd: CWD, root: CWD, sessionId: 'S1', items: [], cards: [], busy: false, waitingUser: false, brainstorming: true, paused: false, queued: 0, ...over,
@@ -223,14 +224,14 @@ describe('두 「이어 가기」는 다른 길이다 (M10 G3)', () => {
   it('메인 대화의 「이어 가기」는 깃발만 내리고, 루프 화면의 「이어 가기」만 decide를 보낸다', async () => {
     const status = st({ phase: 'halted', node: 'G1/checks', reason: 'FAIL 셋', paused: true })
     install(mv({ paused: true, brainstorming: false }), status)
-    const { LoopScreen, MainChatView } = await import('@renderer/13_Loop')
-    const { container } = render(<><LoopScreen initialCwd={CWD} onCwdChange={() => {}} /><MainChatView cwd={CWD} /></>)
+    const { StatusBoard, MainChatView } = await import('@renderer/13_Loop')
+    const { container } = render(<><StatusBoard cwd={CWD} onCwdChange={() => {}} /><MainChatView cwd={CWD} /></>)
     await flush()
     expect(screen.getAllByRole('button', { name: '이어 가기' })).toHaveLength(2)
     await click(btn('이어 가기'))
     expect(api.loopLowerFlag).toHaveBeenCalledWith({ cwd: CWD })
     expect(api.loopDecide).not.toHaveBeenCalled()
-    const loop = container.querySelector('.loop-screen') as HTMLElement
+    const loop = container.querySelector('.status-board') as HTMLElement
     await click(within(loop).getByRole('button', { name: '이어 가기' }))
     expect(api.loopDecide).toHaveBeenCalledTimes(1)
     expect(api.loopDecide.mock.calls[0][0]).toMatchObject({ cwd: CWD, verdict: 'pass', expectNode: 'G1/checks' })
@@ -243,10 +244,10 @@ describe('카드는 대화 안 한 곳에서만 답한다 (M10 G3)', () => {
     const driverCard: LoopCard = { ...permission, requestId: 'sx.9-p9', inChat: undefined, node: 'G1/implement', summary: 'src/a.ts' }
     const status = st({ phase: 'waiting-human', node: 'spec-approve', approval, cards: [question, permission, driverCard], sessionActive: true })
     install(mv({ cards: [question, permission] }), status)
-    const { LoopScreen, MainChatView } = await import('@renderer/13_Loop')
-    const { container } = render(<><LoopScreen initialCwd={CWD} onCwdChange={() => {}} /><MainChatView cwd={CWD} /></>)
+    const { StatusBoard, MainChatView } = await import('@renderer/13_Loop')
+    const { container } = render(<><StatusBoard cwd={CWD} onCwdChange={() => {}} /><MainChatView cwd={CWD} /></>)
     await flush()
-    const loop = container.querySelector('.loop-screen') as HTMLElement
+    const loop = container.querySelector('.status-board') as HTMLElement
     expect(loop.querySelector(`[data-testid="loop-card-${question.requestId}"]`)).toBeNull()
     expect(loop.querySelector(`[data-testid="loop-card-${permission.requestId}"]`)).toBeNull()
     expect(loop.querySelector(`[data-testid="loop-card-${driverCard.requestId}"]`)).not.toBeNull()

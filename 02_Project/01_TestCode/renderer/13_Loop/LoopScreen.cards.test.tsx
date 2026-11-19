@@ -14,7 +14,8 @@ const TOKEN = 'cd'.repeat(32)
 const st = (over: Partial<LoopStatus> = {}): LoopStatus => ({
   cwd: CWD, root: ROOT, phase: 'running', milestoneId: 'M01', node: null, nodeTitle: null, reason: null,
   base: 'main', ghRepo: 'me/practice', failCount: 0, goals: [], approval: null, milestonePr: null, cards: [],
-  sessionActive: false, lastVerdict: null, latch: null, paused: false, mainBusy: false, mainWaiting: false, ...over,
+  sessionActive: false, lastVerdict: null, latch: null, paused: false, mainBusy: false, mainWaiting: false,
+  mainNode: false, recentLines: [], sessions: [], ...over,
 })
 
 type Fn = ReturnType<typeof vi.fn>
@@ -47,8 +48,8 @@ const click = async (el: HTMLElement): Promise<void> => {
 
 async function renderScreen(initial: LoopStatus) {
   install(initial)
-  const { LoopScreen } = await import('@renderer/13_Loop')
-  const r = render(<LoopScreen initialCwd={CWD} onCwdChange={() => {}} />)
+  const { StatusBoard } = await import('@renderer/13_Loop')
+  const r = render(<StatusBoard cwd={CWD} onCwdChange={() => {}} />)
   await flush()
   return r
 }
@@ -267,14 +268,14 @@ describe('질문 카드와 권한 카드 (M09 G4)', () => {
   // 같은 층에서는 나중에 연 창이 키를 받는다(옛 G4의 z 60 루프 오버레이 층은 없어졌다).
   it('루프 질문 창은 대화 질문 창과 같은 층이다 — 나중에 연 루프 질문 창이 숫자 키를 받는다', async () => {
     install(st({ cards: [question], sessionActive: true }))
-    const { LoopScreen } = await import('@renderer/13_Loop')
+    const { StatusBoard } = await import('@renderer/13_Loop')
     const { QuestionModal } = await import('@renderer/03_Agent/prompt')
     const conv = vi.fn()
     const CONV = [{ header: 'C', question: '대화 창 질문', options: [{ label: 'c1', description: '' }], multiSelect: false }]
     render(
       <>
         <QuestionModal open={true} questions={CONV} onAnswer={conv} onDismiss={vi.fn()} />
-        <LoopScreen initialCwd={CWD} onCwdChange={() => {}} />
+        <StatusBoard cwd={CWD} onCwdChange={() => {}} />
       </>,
     )
     await flush()
@@ -312,6 +313,21 @@ describe('질문 카드와 권한 카드 (M09 G4)', () => {
     cleanup()
     await renderScreen(st({ cards: [inChat], sessionActive: true }))
     expect(screen.queryByRole('region', { name: '세션 카드' })).toBeNull()
+  })
+
+  it('메인 대화 카드는 「기다리는 결정」에 답 버튼 없는 가리킴으로 보이고, 누르면 메인 대화로 간다 (M10 G4)', async () => {
+    const inChat: LoopCard = { ...question, requestId: 'sx.7-q7', inChat: true }
+    install(st({ cards: [inChat] }))
+    const onOpenMain = vi.fn()
+    const { StatusBoard } = await import('@renderer/13_Loop')
+    render(<StatusBoard cwd={CWD} onCwdChange={() => {}} onOpenMain={onOpenMain} />)
+    await flush()
+    const box = screen.getByRole('region', { name: '기다리는 결정' })
+    expect(within(box).getByText(/메인 대화에 있어/)).toBeTruthy()
+    expect(within(box).queryByRole('button', { name: '답하기' })).toBeNull()
+    await click(within(box).getByRole('button', { name: /메인 대화에 있어/ }))
+    expect(onOpenMain).toHaveBeenCalledTimes(1)
+    expect(api.loopAnswerCard).not.toHaveBeenCalled()
   })
 })
 

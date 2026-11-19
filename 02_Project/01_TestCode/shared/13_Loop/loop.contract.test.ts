@@ -19,13 +19,14 @@ const STATUS: LoopStatus = {
   nodeTitle: '스펙 승인', reason: null, base: 'main', ghRepo: 'github.com/o/r', failCount: 0, goals: [],
   approval: { node: 'spec-approval', title: '스펙 승인', spec: '# M1', sha256: 'a'.repeat(64) },
   milestonePr: null, cards: [], sessionActive: false, lastVerdict: null, latch: null, paused: false, mainBusy: false, mainWaiting: false,
+  mainNode: false, recentLines: [], sessions: [],
 }
 
 describe('loop IPC 묶음 (M09 G4)', () => {
-  it('채널 이름 — invoke 열둘과 push 셋(M10 G2: 메인 대화 읽기·보내기·새로 열기, 메인 대화 push, 세션 사건 push. M10 G3: 깃발 내리기)', () => {
+  it('채널 이름 — invoke 열넷과 push 셋(M10 G2: 메인 대화 읽기·보내기·새로 열기, 메인 대화 push, 세션 사건 push. M10 G3: 깃발 내리기. M10 G4: 세션 기록 읽기·지난 메인 대화 읽기)', () => {
     expect(Object.values(LOOP_CHANNELS).sort()).toEqual([
-      'loop.answerCard', 'loop.cancelSession', 'loop.close', 'loop.decide', 'loop.lowerFlag', 'loop.mainNew', 'loop.mainRead', 'loop.mainSend', 'loop.mainState',
-      'loop.open', 'loop.releaseLatch', 'loop.sessionEvent', 'loop.start', 'loop.state', 'loop.status',
+      'loop.answerCard', 'loop.cancelSession', 'loop.close', 'loop.decide', 'loop.lowerFlag', 'loop.mainArchives', 'loop.mainNew', 'loop.mainRead', 'loop.mainSend', 'loop.mainState',
+      'loop.open', 'loop.releaseLatch', 'loop.sessionEvent', 'loop.sessionLog', 'loop.start', 'loop.state', 'loop.status',
     ])
     for (const v of Object.values(LOOP_CHANNELS)) expect(Object.values(IPC_CHANNELS)).toContain(v)
     // push는 상태 한 장 하나뿐이다 — 카드·승인·래치도 그 안에 실린다
@@ -49,7 +50,35 @@ describe('loop IPC 묶음 (M09 G4)', () => {
       onMainState: { kind: 'push', channel: 'loop.mainState' },
       onSessionEvent: { kind: 'push', channel: 'loop.sessionEvent' },
       lowerFlag: { kind: 'call', channel: 'loop.lowerFlag' },
+      sessionLog: { kind: 'call', channel: 'loop.sessionLog' },
+      mainArchives: { kind: 'call', channel: 'loop.mainArchives' },
     })
+  })
+
+  it('세션 기록·지난 메인 대화·상태의 새 칸 (M10 G4)', () => {
+    const req: ReqOf<'loop.sessionLog'> = { cwd: 'C:/work/practice' }
+    const tag = { key: 'ab12.3', kind: 'work' as const, node: 'implement', goal: 'G1', sessionId: 's9' }
+    const log: ResOf<'loop.sessionLog'> = {
+      cwd: req.cwd,
+      sessions: [{ session: tag, events: [{ type: 'text', delta: '안' }], next: 1, truncated: false, live: true }],
+    }
+    const push: PayloadOf<'loop.sessionEvent'> = { cwd: req.cwd, session: tag, event: { type: 'text', delta: '녕' }, seq: 1 }
+    const archives: ResOf<'loop.mainArchives'> = {
+      cwd: req.cwd,
+      archives: [{ id: 'k-2026-11-19T00-00-00-000Z', at: '2026-11-19T00:00:00.000Z', items: [{ id: 'i1', at: '2026-11-19T00:00:00Z', kind: 'notice', text: '보관' }] }],
+    }
+    const s: LoopStatus = {
+      ...STATUS, mainNode: true,
+      recentLines: [{ marker: 'FAIL', at: '2026-11-19T00:00:00Z', node: 'checks', goal: 'G1', sentence: 'npm test 실패' }],
+      sessions: [{ key: tag.key, kind: 'work', node: 'implement', goal: 'G1', live: true }],
+    }
+    expect([log.sessions[0].next, push.seq, archives.archives.length, s.mainNode, s.recentLines[0].marker, s.sessions[0].live]).toEqual([1, 1, 1, true, 'FAIL', true])
+    // @ts-expect-error 세션 기록 읽기는 판정을 싣지 못한다
+    const forged: ReqOf<'loop.sessionLog'> = { cwd: req.cwd, verdict: 'pass' }
+    void forged
+    // @ts-expect-error 노드 세션 줄에 메인 대화(kind main)는 들지 않는다
+    const mainRow: LoopStatus['sessions'][number] = { key: 'main', kind: 'main', node: null, goal: null, live: true }
+    void mainRow
   })
 
   // M10 G3 — 사람이 일시 정지 깃발을 내리는 길(판정 칸 없음)과 대상을 고른 취소(메인 턴 / 작업 세션)
@@ -90,7 +119,7 @@ describe('loop IPC 묶음 (M09 G4)', () => {
     const res: ResOf<'loop.mainSend'> = { ok: true, view }
     const pushedView: PayloadOf<'loop.mainState'> = view
     const ev: PayloadOf<'loop.sessionEvent'> = {
-      cwd: view.cwd, session: { key: 'main', kind: 'main', node: null, goal: null, sessionId: 's1' }, event: { type: 'text', delta: '안' },
+      cwd: view.cwd, session: { key: 'main', kind: 'main', node: null, goal: null, sessionId: 's1' }, event: { type: 'text', delta: '안' }, seq: 0,
     }
     expect([read.cwd, send.text, fresh.cwd, res.ok, pushedView.items.length, ev.session.kind]).toEqual([view.cwd, '안녕', view.cwd, true, 4, 'main'])
     // @ts-expect-error 메인 대화 보내기는 실행 상태·판정을 싣지 못한다

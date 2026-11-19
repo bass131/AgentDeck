@@ -143,7 +143,7 @@ describe('회귀 가드 C: 작업 모드로 초기 진입해도 전역 구독이
     })
 
     expect(subscribeSpyFn).toHaveBeenCalledTimes(1)
-    expect(document.querySelector('.loop-screen')).not.toBeNull()
+    expect(document.querySelector('.status-board')).not.toBeNull()
     expect(document.querySelector('.pane.chat')).toBeNull()
   })
 })
@@ -179,18 +179,19 @@ describe('회귀 가드 E: 역방향 유령 — 작업 모드에 있는 동안 �
   })
 })
 
-describe('회귀 가드 D: 보조 — Shell.tsx가 작업 모드에서 대화 대신 루프 화면을 그린다 (소스 구조 검증)', () => {
+describe('회귀 가드 D: 보조 — Shell.tsx가 작업 모드에서 대화 대신 작업 모드 몸체를 그린다 (소스 구조 검증)', () => {
   it("Shell 소스에서 <Conversation>은 workspaceMode === 'work' 분기의 다른 쪽(채팅)에만 있다", async () => {
     const shellSrc = await import('@renderer/12_Window/Shell?raw')
     const src: string = (shellSrc as unknown as { default: string }).default
 
     const workIdx = src.indexOf("workspaceMode === 'work' ? (")
     expect(workIdx).toBeGreaterThan(-1)
-    const loopIdx = src.indexOf('<LoopScreen', workIdx)
+    const loopIdx = src.indexOf('<WorkView', workIdx)
     const convIdx = src.indexOf('<Conversation', workIdx)
     expect(loopIdx).toBeGreaterThan(workIdx)
     expect(convIdx).toBeGreaterThan(loopIdx)
     expect(src.split('<Conversation').length - 1).toBe(1)
-    expect(src.split('<LoopScreen').length - 1).toBe(1)
+    expect(src.split('<WorkView').length - 1).toBe(1)
+    expect(src).not.toContain('<LoopScreen')
   })
 })

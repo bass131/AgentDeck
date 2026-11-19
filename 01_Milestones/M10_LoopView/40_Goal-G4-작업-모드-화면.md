@@ -51,7 +51,9 @@ DoD
 
 검증 기록
 
-- (기록 없음)
+- PASS 2026-11-20T06:29+09:00 — 셸 복구 뒤 하드 게이트 다섯 종(`typecheck:node`·`typecheck:web`·`lint`·`test:hooks`·`build`)이 모두 exit 0이다.
+- FAIL 2026-11-20T06:32+09:00 — `npm test` 9022건 중 1건 실패: `PickerGroup.test.tsx`의 Shift+Tab 배선 시험이 작업 모드에 옛 `.loop-screen`이 있다고 가정했다. 시도: 새 배치의 `.work-center`를 보도록 선택자만 고쳤고 그 파일 18건이 통과했다.
+- PASS 2026-11-20T06:38+09:00 — 구현분 전체(작업 하위 에이전트, 메인이 다시 돌림): `npm test` 477 파일 중 471 통과·6 건너뜀, 시험 9012 통과 실패 0. 시험 한 줄 수정 뒤 `typecheck:node`·`typecheck:web`·`lint` exit 0. 실제 앱(빌드본, 2번 모니터, 임시 userData, 가짜 origin만 있는 로컬 저장소)에서 프로젝트 사이드바·가운데 탭(그래프 자리, 메인 대화)·오른쪽 현황판 여섯 칸과 「파일·변경」 탭이 보이고, 작업 모드에서 탐색기 열이 접혔다. 채팅 모드로 돌아가면 옛 채팅 배치가 그대로였다(캡처 다섯). 기준 HEAD `f386ca1c`. 독립 검수는 push 뒤, PR 전.
 
 ## 결정 대장
 

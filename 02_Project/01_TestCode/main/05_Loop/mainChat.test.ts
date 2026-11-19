@@ -359,6 +359,27 @@ describe('재개 (M10 G2)', () => {
   })
 })
 
+describe('지난 메인 대화 읽기 (M10 G4)', () => {
+  it('그 폴더의 보관 장만 최근 것부터 읽고, 깨진 장은 건너뛰며 파일을 건드리지 않는다', async () => {
+    const { archiveRecord, blankRecord, listArchives } = await import('@main/05_Loop/mainChatStore')
+    const key = repoKeyOf(root)
+    expect(await listArchives(app, key)).toEqual([])
+    const rec = (text: string) => ({ ...blankRecord(root), items: [{ id: `i-${text}`, at: '2026-11-19T00:00:00Z', kind: 'notice' as const, text }] })
+    await archiveRecord(app, key, rec('첫 장'))
+    await sleep(5)
+    await archiveRecord(app, key, rec('둘째 장'))
+    await archiveRecord(app, repoKeyOf(path.join(tmp, 'other')), rec('다른 폴더'))
+    const dir = path.join(app, 'main-archive')
+    fs.writeFileSync(path.join(dir, `${key}-9999-broken.json`), '{ 깨짐')
+    const before = fs.readdirSync(dir).sort()
+    const got = await listArchives(app, key)
+    expect(got.map((a) => a.items.map((i) => (i.kind === 'notice' ? i.text : '')))).toEqual([['둘째 장'], ['첫 장']])
+    expect(got.every((a) => a.id.startsWith(key) && !Number.isNaN(new Date(a.at).getTime()))).toBe(true)
+    expect(await listArchives(app, key, 1)).toHaveLength(1)
+    expect(fs.readdirSync(dir).sort()).toEqual(before)
+  })
+})
+
 describe('새 메인 대화와 일시 정지 깃발 (M10 G2)', () => {
   it('새 메인 대화는 지난 기록을 보관하고 새 세션으로 연다 — 열린 방문이면 생존 문서로 시작 턴을 넣는다', async () => {
     const fake = scriptedBackend(textOnly('예'))

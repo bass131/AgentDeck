@@ -3,8 +3,8 @@
 // 대화형이다: 화면 글자를 <ctl>/state.txt로 내보내고, 메인이 쓴 <ctl>/cmd.json(seq가 오른 것)을 읽어 동작을 돌린 뒤
 // 결과를 <ctl>/res.txt와 <ctl>/shot.png에 쓴다. 'restart'는 같은 userData로 앱을 껐다 켜 재개를 실측한다. 'quit'로 끝난다.
 // 창은 2번 모니터(주 모니터가 아닌 디스플레이)에 둔다 — 하나뿐이면 그대로 둔다.
-// M10 G3 — 작업 모드의 가운데는 메인 대화(.main-chat)이고 루프 화면(.loop-screen)은 옆 열이다. 질문·승인 카드는 메인 대화 안에서 답한다
-// (스펙 승인은 「스펙 승인」·「이어서 고치기」 — scope '.main-chat'). 「이어 가기」가 두 곳(멈춘 실행의 사람 판정 — 루프 화면,
+// 작업 모드의 가운데는 메인 대화(.main-chat)이고 오른쪽은 현황판(.status-board)이다. 질문·승인 카드는 메인 대화 안에서 답한다
+// (스펙 승인은 「스펙 승인」·「이어서 고치기」 — scope '.main-chat'). 「이어 가기」가 두 곳(멈춘 실행의 사람 판정 — scope '.status-board',
 // 일시 정지 깃발 내리기 — 메인 대화)에 있으니 click에 scope를 준다. 메인에게 말하기는 'say', 이름 붙인 캡처는 'shot',
 // 메인 대화에 글이 뜨기를 기다리기는 'waitMain'이다. state.txt에 [main] 절을 싣는다.
 import { test, _electron as electron } from '@playwright/test'
@@ -75,15 +75,17 @@ async function launch(userDataDir: string): Promise<{ app: ElectronApplication; 
   return { app, page }
 }
 
-// 작업 모드로 들어 루프 화면을 띄우고 연습 저장소를 골라 연다(열기 버튼이 켜져 있을 때만).
-// M10 G1부터 루프 화면은 사이드바 버튼·모달이 아니라 「작업」 모드의 몸체다. M10 G3부터 가운데는 메인 대화, 루프 화면은 옆 열이다.
+// 「열기」는 노드 세션 줄에도 있어서, 루프 열기는 「마일스톤」 칸 안에서 누른다
 async function openLoop(page: Page): Promise<void> {
-  if (!(await page.locator('.loop-screen').isVisible().catch(() => false))) {
+  if (!(await page.locator('.pane.work').isVisible().catch(() => false))) {
     await page.locator('.sb-mode-btn', { hasText: '작업' }).click({ timeout: 10_000 })
-    await page.locator('.loop-screen').waitFor({ state: 'visible', timeout: 10_000 })
+    await page.locator('.pane.work').waitFor({ state: 'visible', timeout: 10_000 })
   }
+  await page.getByRole('tablist', { name: '오른쪽 탭' }).getByRole('tab', { name: '현황판', exact: true }).click({ timeout: 10_000 })
+  await page.getByRole('tablist', { name: '가운데 탭' }).getByRole('tab', { name: '메인 대화', exact: true }).click({ timeout: 10_000 })
+  await page.locator('.status-board').waitFor({ state: 'visible', timeout: 10_000 })
   await page.locator('.main-chat').waitFor({ state: 'visible', timeout: 10_000 })
-  const screen = page.locator('.loop-screen')
+  const screen = page.getByRole('region', { name: '마일스톤', exact: true })
   await screen.getByRole('button', { name: '폴더 고르기', exact: true }).click({ timeout: 10_000 })
   await page.waitForTimeout(800)
   const openBtn = screen.getByRole('button', { name: '열기', exact: true })
@@ -93,7 +95,8 @@ async function openLoop(page: Page): Promise<void> {
 async function snapshot(page: Page): Promise<string> {
   return page.evaluate(() => {
     const parts: string[] = []
-    const loop = document.querySelector('.loop-screen') as HTMLElement | null
+    // 현황판 탭이 숨겨져 있으면 innerText가 비어 있다
+    const loop = document.querySelector('.status-board') as HTMLElement | null
     parts.push(loop ? `[loop]\n${loop.innerText}` : '[loop] (작업 모드 아님)')
     const main = document.querySelector('.main-chat') as HTMLElement | null
     if (main) parts.push(`[main]\n${main.innerText}`)

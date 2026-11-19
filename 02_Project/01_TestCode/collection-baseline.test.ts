@@ -94,7 +94,11 @@ const SKIP_DIRS = new Set(['node_modules', 'dist', 'out', 'coverage', '.git'])
 // M10 G3: 470 → 472. 메인 대화 화면 — 기록·사건 줄·알림·읽기와 push의 순서·입력칸·일시 정지·취소 대상·새 메인 대화
 // renderer/13_Loop/MainChatView.test.tsx, 대화 안 질문·권한·스펙 승인 카드와 사람 판정 경계·루프 화면에서 빼기
 // renderer/13_Loop/MainChatView.cards.test.tsx를 더했다.
-const BASELINE_TEST_FILES = 472
+// M10 G4: 472 → 477. 작업 모드 화면 — 노드 세션 기록(차례·이어 붙이기·상한·끝) main/05_Loop/sessionLog.test.ts,
+// 스냅숏과 push 맞물리기·보기 전용 접기 renderer/13_Loop/sessionLogModel.test.ts, 진행 꼬리표·기다리는 결정·작업 폴더 목록
+// renderer/13_Loop/workModel.test.ts, 가운데 탭·오른쪽 탭·노드 세션 탭·지난 메인 대화·「파일·변경」 renderer/13_Loop/WorkView.test.tsx,
+// 프로젝트 사이드바와 채팅 대기 표시 renderer/13_Loop/ProjectSidebar.test.tsx를 더했다.
+const BASELINE_TEST_FILES = 477
 
 function collectTestFiles(dir: string, acc: string[] = []): string[] {
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {

@@ -230,7 +230,7 @@ describe('B2 현 동작 — Esc 중단은 채팅 배치에서만 한다(작업 �
     sessionRegistry.set(panelKey('b2', 1), running('run-p1', true))
 
     const { abortRun, interruptRun } = await renderShell('work')
-    expect(document.querySelector('.loop-screen')).toBeTruthy()
+    expect(document.querySelector('.status-board')).toBeTruthy()
     fireEvent.keyDown(document, { key: 'Escape' })
     await act(async () => { await Promise.resolve() })
 

@@ -24,6 +24,8 @@ export const LOOP_CHANNELS = {
   LOOP_SESSION_EVENT: 'loop.sessionEvent',
   // M10 G3 — 사람이 일시 정지 깃발을 내린다(판정 칸 없음 — 사람 판정 decide를 대신하지 않는다)
   LOOP_LOWER_FLAG: 'loop.lowerFlag',
+  LOOP_SESSION_LOG: 'loop.sessionLog',
+  LOOP_MAIN_ARCHIVES: 'loop.mainArchives',
 } as const
 
 // closed       열린 실행기가 없다(열기 전·닫은 뒤)
@@ -85,7 +87,14 @@ export interface LoopStatus {
   // M10 G2 — 메인 대화가 턴을 돌고 있다 / 브레인스토밍 중 턴이 끝나고 사람의 다음 말을 기다린다(FAIL이 아니다)
   mainBusy: boolean
   mainWaiting: boolean
+  // 참이면 sessionActive의 세션은 작업 세션이 아니라 브레인스토밍 중인 메인 대화다
+  mainNode: boolean
+  recentLines: LoopVerificationLine[]
+  sessions: LoopSessionRow[]
 }
+
+export interface LoopVerificationLine { marker: 'PASS' | 'FAIL' | 'USER-INPUT'; at: string; node: string; goal: string | null; sentence: string }
+export interface LoopSessionRow { key: string; kind: 'work' | 'review'; node: string | null; goal: string | null; live: boolean }
 
 // ── M10 G2 메인 대화 ──
 // 실행기 사건 — 실행기가 모델 없이 만든 한 줄. 메인은 경계(goal-merged, halt, milestone-pr)에서만 짧은 턴으로 말한다.
@@ -127,7 +136,12 @@ export interface LoopMainResponse { ok: boolean; reason?: string; view: MainChat
 // 세션 사건 배선 — 루프 세션 하나(메인 대화·작업 노드·검수)의 AgentEvent를 세션 꼬리표와 함께 내보낸다(G4 노드 세션 탭이 같은 길을 쓴다).
 // key는 앱이 정한 세션 이름(메인 대화는 'main'), sessionId는 SDK가 알린 세션 id(아직 모르면 null)다.
 export interface LoopSessionTag { key: string; kind: 'main' | 'work' | 'review'; node: string | null; goal: string | null; sessionId: string | null }
-export interface LoopSessionEventPayload { cwd: string; session: LoopSessionTag; event: AgentEvent }
+// 스냅숏의 next보다 작은 seq는 스냅숏에 이미 있다. 스냅숏은 조각을 이어 붙여 두므로 events.length는 next보다 작을 수 있다
+export interface LoopSessionEventPayload { cwd: string; session: LoopSessionTag; event: AgentEvent; seq: number }
+export interface LoopSessionRecord { session: LoopSessionTag; events: AgentEvent[]; next: number; truncated: boolean; live: boolean }
+export interface LoopSessionLog { cwd: string; sessions: LoopSessionRecord[] }
+export interface MainChatArchive { id: string; at: string; items: MainChatItem[] }
+export interface MainChatArchives { cwd: string; archives: MainChatArchive[] }
 
 // CI 판정에 쓸 필수 검사 이름은 main이 고정한다(['hard-gates'] — G4 검수 I5). 화면은 보내지 못한다.
 export interface LoopOpenRequest { cwd: string }

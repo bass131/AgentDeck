@@ -41,7 +41,6 @@
 .pane.work {
   flex: 1;
   min-width: 0;
-  /* M10 G3 — 가운데 메인 대화(.work-center)와 옆의 좁은 루프 화면 열(.work-side)을 가로로 놓는다. 탭·현황판 배치는 G4 몫이다 */
   flex-direction: row;
   /* 루프·메인 대화 질문 창(.q-overlay, absolute inset 0)이 창 전체가 아니라 이 칸만 덮게 한다(M10 G1 검수 사소 7) */
   position: relative;
@@ -63,7 +62,6 @@
   border-left: 1px solid var(--line);
   background: var(--surface);
 }
-.work-side .loop-screen { padding: 12px; }
 .pane.agent {
   flex: 0 0 var(--agent-w);
   background: var(--surface);

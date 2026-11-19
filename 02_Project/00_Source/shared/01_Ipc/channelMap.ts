@@ -118,6 +118,8 @@ import type {
   LoopReleaseLatchRequest,
   LoopReleaseLatchResponse,
   LoopSessionEventPayload,
+  LoopSessionLog,
+  MainChatArchives,
   LoopStartRequest,
   LoopStatus,
   MainChatView,
@@ -226,6 +228,8 @@ export interface IpcInvokeMap {
   'loop.mainNew': { req: LoopCwdRequest; res: LoopMainResponse }
   // M10 G3 — 사람이 일시 정지 깃발을 내린다(판정 칸 없음)
   'loop.lowerFlag': { req: LoopCwdRequest; res: LoopMainResponse }
+  'loop.sessionLog': { req: LoopCwdRequest; res: LoopSessionLog }
+  'loop.mainArchives': { req: LoopCwdRequest; res: MainChatArchives }
 }
 
 // main → renderer push 채널. 값은 payload 타입이다.

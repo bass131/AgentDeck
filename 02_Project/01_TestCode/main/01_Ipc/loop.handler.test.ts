@@ -22,7 +22,7 @@ const CWD = 'C:/work/practice'
 const status = (over: Partial<LoopStatus> = {}): LoopStatus => ({
   cwd: CWD, root: CWD, phase: 'closed', milestoneId: null, node: null, nodeTitle: null, reason: null, base: null, ghRepo: null,
   failCount: 0, goals: [], approval: null, milestonePr: null, cards: [], sessionActive: false, lastVerdict: null, latch: null,
-  paused: false, mainBusy: false, mainWaiting: false, ...over,
+  paused: false, mainBusy: false, mainWaiting: false, mainNode: false, recentLines: [], sessions: [], ...over,
 })
 const view = (over: Partial<MainChatView> = {}): MainChatView => ({
   cwd: CWD, root: CWD, sessionId: null, items: [], cards: [], busy: false, waitingUser: false, brainstorming: false, paused: false, queued: 0, ...over,
@@ -46,6 +46,8 @@ function fakeDriver(): { driver: LoopDriverApi; calls: unknown[][] } {
       mainSend: rec('mainSend', { ok: true, view: view({ busy: true }) }),
       mainNew: rec('mainNew', Promise.resolve({ ok: true, view: view() })),
       lowerFlag: rec('lowerFlag', { ok: true, view: view() }),
+      sessionLog: rec('sessionLog', { cwd: CWD, sessions: [] }),
+      mainArchives: rec('mainArchives', Promise.resolve({ cwd: CWD, archives: [] })),
     },
   }
 }
@@ -61,13 +63,19 @@ function register(driver: LoopDriverApi): (ch: string, req: unknown) => Promise<
 }
 
 describe('loop IPC 핸들러 (M09 G4)', () => {
-  it('열두 채널을 등록하고 구동자로 넘긴다(M10 G2 — 메인 대화 읽기·보내기·새로 열기, M10 G3 — 깃발 내리기)', async () => {
+  it('열네 채널을 등록하고 구동자로 넘긴다(M10 G2 — 메인 대화 읽기·보내기·새로 열기, M10 G3 — 깃발 내리기, M10 G4 — 세션 기록·지난 메인 대화 읽기)', async () => {
     const { driver, calls } = fakeDriver()
     const call = register(driver)
     expect([...h.handlers.keys()].sort()).toEqual([
-      'loop.answerCard', 'loop.cancelSession', 'loop.close', 'loop.decide', 'loop.lowerFlag', 'loop.mainNew', 'loop.mainRead', 'loop.mainSend',
-      'loop.open', 'loop.releaseLatch', 'loop.start', 'loop.status',
+      'loop.answerCard', 'loop.cancelSession', 'loop.close', 'loop.decide', 'loop.lowerFlag', 'loop.mainArchives', 'loop.mainNew', 'loop.mainRead', 'loop.mainSend',
+      'loop.open', 'loop.releaseLatch', 'loop.sessionLog', 'loop.start', 'loop.status',
     ])
+    expect(await call(IPC_CHANNELS.LOOP_SESSION_LOG, { cwd: CWD, verdict: 'pass' })).toEqual({ cwd: CWD, sessions: [] })
+    expect(await call(IPC_CHANNELS.LOOP_MAIN_ARCHIVES, { cwd: CWD })).toEqual({ cwd: CWD, archives: [] })
+    await expect(call(IPC_CHANNELS.LOOP_SESSION_LOG, { cwd: 'rel' })).rejects.toThrow()
+    await expect(call(IPC_CHANNELS.LOOP_MAIN_ARCHIVES, null)).rejects.toThrow()
+    await expect(call(IPC_CHANNELS.LOOP_MAIN_ARCHIVES, { cwd: '   ' })).rejects.toThrow(/loop\.mainArchives/)
+    expect(calls.splice(0)).toEqual([['sessionLog', CWD], ['mainArchives', CWD]])
     expect(await call(IPC_CHANNELS.LOOP_MAIN_READ, { cwd: CWD })).toMatchObject({ cwd: CWD, items: [] })
     expect(await call(IPC_CHANNELS.LOOP_MAIN_SEND, { cwd: CWD, text: '덧셈으로 하자' })).toMatchObject({ ok: true, view: { busy: true } })
     expect(await call(IPC_CHANNELS.LOOP_MAIN_NEW, { cwd: CWD })).toMatchObject({ ok: true })
@@ -172,7 +180,7 @@ describe('loop.state push 배선 (M09 G4)', () => {
     const send = vi.fn()
     const win = { win: { isDestroyed: () => false, webContents: { send } } as never }
     const v = view({ busy: true })
-    const p: LoopSessionEventPayload = { cwd: CWD, session: { key: 'main', kind: 'main', node: null, goal: null, sessionId: 'S1' }, event: { type: 'done' } }
+    const p: LoopSessionEventPayload = { cwd: CWD, session: { key: 'main', kind: 'main', node: null, goal: null, sessionId: 'S1' }, event: { type: 'done' }, seq: 0 }
     pushMainState(win, v)
     pushSessionEvent(win, p)
     pushMainState({ win: null }, v)

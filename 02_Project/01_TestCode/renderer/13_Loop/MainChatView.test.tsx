@@ -29,7 +29,8 @@ const CWD = 'C:\\work\\practice'
 const st = (over: Partial<LoopStatus> = {}): LoopStatus => ({
   cwd: CWD, root: CWD, phase: 'running', milestoneId: 'M01', node: 'brainstorm', nodeTitle: '브레인스토밍', reason: null,
   base: 'main', ghRepo: 'me/practice', failCount: 0, goals: [], approval: null, milestonePr: null, cards: [],
-  sessionActive: false, lastVerdict: null, latch: null, paused: false, mainBusy: false, mainWaiting: false, ...over,
+  sessionActive: false, lastVerdict: null, latch: null, paused: false, mainBusy: false, mainWaiting: false,
+  mainNode: false, recentLines: [], sessions: [], ...over,
 })
 const mv = (over: Partial<MainChatView> = {}): MainChatView => ({
   cwd: CWD, root: CWD, sessionId: 'S1', items: [], cards: [], busy: false, waitingUser: false, brainstorming: false, paused: false, queued: 0, ...over,
@@ -321,6 +322,20 @@ describe('메인 대화 보기의 순수 도우미 (M10 G3)', () => {
     expect(workSessionLive(st({ sessionActive: true }), mv({ brainstorming: true }))).toBe(false)
     expect(workSessionLive(st({ sessionActive: true, mainBusy: true, phase: 'waiting-human' }), mv({ busy: true }))).toBe(false)
     expect(workSessionLive(st({ sessionActive: true, mainBusy: true, phase: 'running' }), mv({ busy: true }))).toBe(true)
+  })
+
+  it('지금 노드가 메인 노드(브레인스토밍)면 보기 없이도 작업 세션이 아니다', async () => {
+    const { workSessionLive } = await import('@renderer/13_Loop/mainChatModel')
+    expect(workSessionLive(st({ sessionActive: true, mainNode: true }), null)).toBe(false)
+    expect(workSessionLive(st({ sessionActive: true, mainNode: true, mainBusy: true, phase: 'running' }), mv({ busy: true }))).toBe(false)
+    expect(workSessionLive(st({ sessionActive: true, mainNode: false }), null)).toBe(true)
+  })
+
+  it('입력을 막는 까닭의 안내는 현황판을 가리킨다', async () => {
+    const { blockedReason } = await import('@renderer/13_Loop/mainChatModel')
+    expect(blockedReason(null, null)).toMatch(/현황판/)
+    expect(blockedReason(CWD, mv({ root: null }))).toMatch(/현황판/)
+    expect(blockedReason(null, null)).not.toMatch(/루프 화면/)
   })
 })
 

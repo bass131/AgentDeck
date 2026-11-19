@@ -60,19 +60,18 @@ export function clockOf(iso: string): string {
 
 // 입력을 막는 까닭 — 작업 폴더가 없거나, 보기를 아직 못 읽었거나, 열린 실행기가 없으면(root null) 막는다. 막지 않으면 null
 export function blockedReason(cwd: string | null, view: MainChatView | null): string | null {
-  if (cwd === null) return '작업 폴더를 먼저 골라요 — 옆 루프 화면의 「폴더 고르기」'
+  if (cwd === null) return '작업 폴더를 먼저 골라요 — 오른쪽 현황판의 「폴더 고르기」나 왼쪽 「프로젝트 열기」'
   if (view === null) return '메인 대화를 읽는 중이에요'
-  if (view.root === null) return '실행기가 열려 있지 않아요 — 옆 루프 화면에서 「열기」를 누르면 메인 대화가 열려요'
+  if (view.root === null) return '실행기가 열려 있지 않아요 — 오른쪽 현황판에서 「열기」를 누르면 메인 대화가 열려요'
   return null
 }
 
 // 「작업 세션 멈추기」를 보일까 — 작업·검수 세션이 떠 있을 때. 브레인스토밍의 세션은 메인 대화라 작업 세션이 아니다.
 // 상태의 sessionActive는 메인 턴도 함께 센다 — 실행이 노드를 돌지 않는데(사람·CI 기다림) 메인 턴만 돌면 작업 세션이 아니다.
 // 확신할 수 없는 경우(노드를 돌며 메인 턴도 돎)는 보이고, 멈출 세션이 없으면 main이 거짓을 돌려준다.
-// 메인 대화 화면과 루프 화면의 「작업 세션 취소」가 이 한 판단을 쓴다(G3 독립 검수 사소 3). 루프 화면은 메인 대화 보기가 없어 view null이다 —
-// 그때는 브레인스토밍을 가리지 못한다(상태에 브레인스토밍 표시가 없다)
+// 메인 대화 화면과 현황판의 「작업 세션 취소」가 이 한 판단을 쓴다(G3 독립 검수 사소 3).
 export function workSessionLive(status: LoopStatus | null, view: MainChatView | null): boolean {
   if (status === null || !status.sessionActive) return false
-  if (view?.brainstorming === true) return false
+  if (status.mainNode || view?.brainstorming === true) return false
   return !(status.mainBusy && status.phase !== 'running')
 }

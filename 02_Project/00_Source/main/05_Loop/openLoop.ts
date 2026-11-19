@@ -19,12 +19,13 @@ import { promises as fsp } from 'node:fs'
 import path from 'node:path'
 import type { AgentBackend } from '@main/03_Agent/AgentBackend'
 import type { AgentEvent } from '@shared/agentEvents'
+import type { LoopSessionTag } from '@shared/13_Loop/loop'
 import { loadBundledTemplate } from './bundledTemplate'
 import { createCredentialFreeEnv, type CredentialFreeEnv, type GitIdentity } from './childEnv'
 import { createConfigGuard, executorGitEnv } from './configGuard'
 import { createFileDigestStore, repoKeyOf } from './digestStore'
 import { createLoopRunner, type LoopRunner } from './loopRunner'
-import type { Clock, DigestStore, GhPort, ReviewPort, SessionPort } from './ports'
+import type { Clock, DigestStore, GhPort, ReviewPort, SessionPort, WorkRequest, WorkResult } from './ports'
 import { createCommandPort } from './realPorts/commandPort'
 import { runProcess } from './realPorts/exec'
 import { createFsPort } from './realPorts/fsPort'
@@ -52,7 +53,10 @@ export interface OpenLoopOptions {
   onCard?: CardResponder
   // 메인 노드(브레인스토밍) 세션의 카드 응답자(G4 — 화면으로 보낸다)
   mainCard?: CardResponder
-  onSessionEvent?: (e: AgentEvent) => void
+  // M10 G2 — 메인 노드(브레인스토밍)를 메인 대화로 보낸다(실물 세션 포트일 때만 — 시험이 session을 주면 그것이 이긴다)
+  mainWork?: (req: WorkRequest) => Promise<WorkResult>
+  // M10 G2 — 작업·검수 세션의 사건을 세션 꼬리표(kind work·review, key, 노드·goal, SDK 세션 id)와 함께 흘린다
+  onSessionEvent?: (e: AgentEvent, tag: LoopSessionTag) => void
   // 검수 포트를 직접 준다(시험). 없으면 backend로 실물 검수 세션 포트를 만든다(G4). 둘 다 없으면 열지 않는다.
   review?: ReviewPort
   reviewTimeoutMs?: number
@@ -175,6 +179,7 @@ export async function openLoop(opts: OpenLoopOptions): Promise<OpenLoopResult> {
       signal: sessions.signal,
       ...(opts.onCard ? { onCard: opts.onCard } : {}),
       ...(opts.mainCard ? { mainCard: opts.mainCard } : {}),
+      ...(opts.mainWork ? { mainWork: opts.mainWork } : {}),
       ...(opts.onSessionEvent ? { onEvent: opts.onSessionEvent } : {}),
     })
     const review = opts.review ?? createReviewSessionPort({

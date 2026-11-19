@@ -1,0 +1,507 @@
+// M10 G2 — 메인 대화 엔진. 작업 폴더마다 하나, main 프로세스가 소유한다(채팅 목록·채팅 경로 agent.run과 무관).
+//   - 턴 대기열: 사용자 글·브레인스토밍 여는 턴(start·rejected)·실행기 사건 턴·다시 물은 카드의 답이 한 줄로 서서
+//     같은 SDK 세션을 차례로 이어 쓴다(resumeSessionId). 동시에 둘이 돌지 않는다. 턴마다 루프 세션 포트와 같은 입력
+//     (자동 모드, 자격 없는 자식 환경, 루프 잠금의 메인 대화 꼴 — 앱 안 도구 서버만, 셸 금지, 브레인스토밍 쓰기 창)을 쓴다.
+//   - 브레인스토밍 포트(brainstorm): 실행기가 브레인스토밍 노드를 부를 때마다 판정 대신 상태를 돌려준다.
+//     새 방문(키가 다르다)이면 여는 턴을 넣고 방문 처음의 스펙 해시를 적는다. 턴이 돌거나 줄 서 있으면 waiting.
+//     스펙이 비지 않았고 방문 처음과 다르면 ok(baseline 동봉 — 실행기가 그것과 대조한다). 아니면 waiting(사람 기다림, FAIL 아님).
+//     턴이 끝날 때마다 onTurnEnd로 구동자를 깨운다 — 실행기가 다시 부른다. 대화를 끝내는 길은 스펙 승인 게이트 하나다.
+//   - 쓰기 창(canWrite): 방문이 열려 있고(끝나지 않았고) 구동자의 판정(deps.canWrite — 실행기 커서가 그 메인 노드인가)이 참일 때만 참.
+//     잠금(loopLock.mainChatToolReason)이 도구 호출마다 묻는다.
+//   - 재개: 저장된 세션 id로 이어 간다. 여는 턴은 세션이 받은 뒤(session 사건)에 sent가 되고, 그 전이면 다음 부름에 다시 넣는다.
+//     resume한 턴이 session 사건 없이 오류로 끝나면 세션 id가 무효다 — id를 지우고 생존 문서를 실어 새 세션으로 한 번 다시 보낸다.
+//     세션 id를 잃은 장(everSession)의 새 세션에도 생존 문서를 싣는다. 꺼질 때 남은 질문 카드는 다시 묻는다(restored).
+//   - 사람 판정은 사람 몫이다. 메인의 도구(앱 안 도구)는 일시 정지 깃발과 Backlog 한 줄만 바꾼다(mainChatTools).
+//     이 모듈은 실행 상태·검증 기록을 쓰지 않는다 — 사건 줄도 이 장에만 남는다.
+import fs from 'node:fs'
+import type { AgentBackend, AgentRunInput, RunResponse } from '@main/03_Agent/AgentBackend'
+import type { AgentEvent } from '@shared/agentEvents'
+import type {
+  LoopCard, LoopCardResponse, LoopEventItem, LoopSessionTag, MainChatItem, MainChatView, MainTurnKind,
+} from '@shared/13_Loop/loop'
+import { repoKeyOf } from './digestStore'
+import {
+  MAX_ITEMS, archiveRecord, blankRecord, loadRecordSync, mainChatPath, peekRecordSync, saveRecord,
+  type MainChatRecord, type StoredTurn,
+} from './mainChatStore'
+import type { FsPort, WorkRequest, WorkResult } from './ports'
+import type { GoalState } from './runState'
+import { DOCS, readNodeDocs, sha256Text } from './survivalDocs'
+import type { WorkNode } from './template'
+import { buildNodePrompt, oneLine, runNodeSession, type CardEvent, type CardContext } from './workSession'
+
+export const MAIN_TOOL_SERVER = 'agentdeck-main'
+
+// 메인 대화의 규칙 — 턴마다 시스템 프롬프트로 싣는다(템플릿 해시를 바꾸지 않게 코드에 둔다).
+export const MAIN_CHAT_RULE = [
+  '## 너는 이 작업 폴더의 메인이다',
+  '',
+  '- 사람과 이 대화창에서 여러 턴에 걸쳐 이야기한다. 세션은 이어진다 — 턴을 끝내면 사람의 다음 말을 기다린다. 실패가 아니다.',
+  '- 사람 판정은 사람만 한다. 스펙 승인·반려, 멈춘 실행의 이어 가기, 위조 래치 풀기, 검증 판정은 앱 화면의 카드와 버튼으로 사람이 한다. 네가 했다고 말하지 않는다.',
+  '- 파일은 읽기만 한다. 쓸 수 있는 것은 브레인스토밍 중의 .agentdeck/milestone-spec.md와 .agentdeck/decisions.md 둘뿐이다. 셸 명령은 쓰지 않는다.',
+  `- 앱 안 도구(mcp__${MAIN_TOOL_SERVER}__*): pause(지금 노드가 끝나면 다음 노드로 가지 않게 하는 일시 정지 깃발 — 실행 상태를 바꾸지 않는다), resume(그 깃발만 내린다), append_backlog(.agentdeck/backlog.md에 한 줄). 사람이 원할 때만 쓴다.`,
+  '- 「[실행기 사건]」으로 시작하는 글은 실행기가 보낸 보고다. 사람에게 한두 문장으로 알린다.',
+  '- 사람에게 묻는 것은 일반 글이나 AskUserQuestion 도구 어느 쪽이든 된다 — 사람이 이 대화창에서 답한다.',
+].join('\n')
+
+// 브레인스토밍 여는 턴에 붙는다
+export const BRAINSTORM_RULE = [
+  '## 브레인스토밍',
+  '',
+  '- 여러 턴에 걸쳐 사람과 이야기한다. 턴을 끝내면 사람의 답을 기다린다.',
+  '- 합의한 답은 그때그때 결정 대장(.agentdeck/decisions.md)에 적는다.',
+  '- 마일스톤 스펙 파일(.agentdeck/milestone-spec.md)은 초안이 준비됐을 때만 쓴다. 스펙이 바뀌면 브레인스토밍이 끝나고 사람에게 승인 카드가 뜬다.',
+].join('\n')
+
+export interface MainActions {
+  pause(): Promise<string>
+  resume(): Promise<string>
+  appendBacklog(line: string): Promise<string>
+}
+
+export interface MainChatDeps {
+  // 작업 저장소 뿌리
+  root: string
+  // 앱 영역(userData/loop)
+  appDataDir: string
+  // 자격 없는 자식 환경
+  env: NodeJS.ProcessEnv
+  backend: AgentBackend
+  fs: FsPort
+  // 구동자의 쓰기 창 판정 — 실행기 커서가 그 방문의 메인 노드인가
+  canWrite(visitKey: string): Promise<boolean>
+  actions: MainActions
+  // 생존 문서에 싣는 실행 상태 요약
+  context(): Promise<string>
+  // 턴마다 하나 — 카드 id의 차례(구동자 전역에서 단조 증가)
+  nextTurnId(): string
+  // 턴이 끝났다(구동자가 실행기를 다시 부른다)
+  onTurnEnd?(): void
+  // 보기가 바뀌었다(화면 밀어 주기)
+  onChange?(): void
+  onEvent?(tag: LoopSessionTag, e: AgentEvent): void
+  // 턴마다 새 앱 안 도구 서버(SDK mcpServers 값). null이면 싣지 않는다
+  buildTools?(): Promise<Record<string, unknown> | null>
+  model?: string
+  effort?: string
+}
+
+export interface MainChat {
+  send(text: string): { ok: boolean; reason?: string }
+  recordEvent(event: LoopEventItem, speak?: boolean): void
+  brainstorm(req: WorkRequest): Promise<WorkResult>
+  cards(): LoopCard[]
+  answerCard(requestId: string, response: LoopCardResponse): boolean
+  newChat(): Promise<{ ok: boolean; reason?: string }>
+  // 실행기가 새 실행을 만들었다(start) — 앞 실행의 방문을 잊는다
+  resetVisit(): void
+  paused(): boolean
+  setPaused(on: boolean): void
+  busy(): boolean
+  waitingUser(): boolean
+  brainstorming(): boolean
+  view(cwd: string): MainChatView
+  // 돌고 있는 턴을 멈춘다(줄 선 턴은 남는다)
+  cancel(): boolean
+  idle(): Promise<void>
+  close(): Promise<void>
+}
+
+interface Turn {
+  kind: MainTurnKind
+  text: string
+  itemId: string | null
+  events?: LoopEventItem[]
+  node?: WorkNode
+  goal?: GoalState | null
+  milestoneId?: string
+}
+interface LiveCard { card: LoopCard; turnId: string; resolve: (r: RunResponse) => void }
+
+const TAIL_ITEMS = 12
+const TAIL_CHARS = 400
+let itemSeq = 0
+const newId = (): string => `${Date.now().toString(36)}-${(++itemSeq).toString(36)}`
+
+function tailLine(i: MainChatItem): string | null {
+  const cut = (s: string): string => (s.length > TAIL_CHARS ? `${s.slice(0, TAIL_CHARS - 1)}…` : s)
+  switch (i.kind) {
+    case 'user': return `- 사람: ${cut(i.text)}`
+    case 'assistant': return `- 메인: ${cut(i.text)}`
+    case 'event': return `- 사건: ${cut(i.event.text)}`
+    case 'notice': return null
+  }
+}
+
+function viewOf(rec: MainChatRecord, cwd: string, root: string | null, extra: Partial<MainChatView>): MainChatView {
+  const brainstorming = rec.visit !== null && !rec.visit.done
+  return {
+    cwd, root, sessionId: rec.sessionId, items: rec.items, cards: rec.cards,
+    busy: false, waitingUser: false, brainstorming, paused: rec.paused, queued: rec.queue.length, ...extra,
+  }
+}
+
+// 닫힌(또는 열리지 않은) 작업 폴더의 보기 — 기록만 읽는다. 남은 질문 카드는 다시 물을 것으로 보인다.
+// 장의 키는 실행기가 연 뿌리(실제 경로)다 — 받은 경로의 실제 경로를 먼저 본다(하위 폴더를 주면 찾지 못한다)
+export function readMainChatView(appDataDir: string, cwd: string): MainChatView {
+  let real = cwd
+  try { real = fs.realpathSync(cwd) } catch { /* 없는 경로면 받은 그대로 */ }
+  const rec = peekRecordSync(mainChatPath(appDataDir, repoKeyOf(real)), cwd)
+    ?? peekRecordSync(mainChatPath(appDataDir, repoKeyOf(cwd)), cwd)
+    ?? blankRecord(cwd)
+  return viewOf({ ...rec, cards: rec.cards.map((c) => ({ ...c, restored: true })) }, cwd, null, {})
+}
+
+export function openMainChat(deps: MainChatDeps): MainChat {
+  const repoKey = repoKeyOf(deps.root)
+  const file = mainChatPath(deps.appDataDir, repoKey)
+  let rec: MainChatRecord = loadRecordSync(file, deps.root) ?? blankRecord(deps.root)
+  rec.cards = rec.cards.map((c) => ({ ...c, restored: true }))
+  const queue: Turn[] = rec.queue.map((t) => ({ ...t }))
+  const live = new Map<string, LiveCard>()
+  let running: Promise<void> | null = null
+  let cancelCurrent: (() => boolean) | null = null
+  let closing = false
+  let writes: Promise<void> = Promise.resolve()
+  // 이 프로세스에서 그 방문의 여는 턴을 이미 보냈다(세션이 받지 못하고 끝났어도 다시 넣지 않는다 — 실패하는 백엔드에서 턴이 계속 돌지 않게)
+  let openTried: string | null = null
+  let lastVisitReq: WorkRequest | null = null
+
+  const stored = (): StoredTurn[] => queue
+    .filter((t): t is Turn & { kind: StoredTurn['kind'] } => t.kind === 'user' || t.kind === 'event' || t.kind === 'card-answer')
+    .map((t) => ({ kind: t.kind, text: t.text, itemId: t.itemId, ...(t.events ? { events: t.events } : {}) }))
+
+  function persist(): void {
+    rec.queue = stored()
+    if (rec.items.length > MAX_ITEMS) rec.items = rec.items.slice(-MAX_ITEMS)
+    const snap = JSON.parse(JSON.stringify(rec)) as MainChatRecord
+    writes = writes.then(() => saveRecord(file, snap)).catch(() => undefined)
+    deps.onChange?.()
+  }
+  const push = (item: MainChatItem): void => { rec.items.push(item) }
+  const notice = (text: string): void => push({ id: newId(), at: new Date().toISOString(), kind: 'notice', text })
+  const brainstorming = (): boolean => rec.visit !== null && !rec.visit.done
+
+  async function canWriteNow(): Promise<boolean> {
+    const v = rec.visit
+    if (closing || v === null || v.done) return false
+    try { return (await deps.canWrite(v.key)) === true } catch { return false }
+  }
+
+  // 방문의 여는 턴 — 세션이 있고 반려 사유가 있으면 반려 턴, 아니면 시작 턴(반려 사유는 시작 턴 끝에 붙는다)
+  function enqueueOpening(req: WorkRequest): void {
+    const v = rec.visit
+    if (v === null || queue.some((t) => t.kind === 'start' || t.kind === 'rejected')) return
+    openTried = v.key
+    const kind: MainTurnKind = rec.sessionId !== null && v.rejected !== null ? 'rejected' : 'start'
+    queue.push({ kind, text: '', itemId: null, node: req.node, goal: req.goal, milestoneId: req.milestoneId })
+  }
+
+  async function promptOf(t: Turn): Promise<string> {
+    switch (t.kind) {
+      case 'user':
+      case 'card-answer':
+        return t.text
+      case 'event':
+        return ['[실행기 사건]', ...(t.events ?? []).map((e) => `- ${e.text}`), '', '사람에게 한두 문장으로 알려라.'].join('\n')
+      case 'rejected':
+        return [
+          `[스펙 반려] 사람이 마일스톤 스펙을 반려했다 — ${rec.visit?.rejected ?? ''}`,
+          '반려 사유를 반영해 사람과 이야기를 이어 가고, 초안이 다시 준비되면 스펙 파일을 고친다.',
+        ].join('\n')
+      case 'start': {
+        const node = t.node as WorkNode
+        const docs = await readNodeDocs(deps.fs, node.docs, t.goal?.id ?? null)
+        const parts = [buildNodePrompt({ milestoneId: t.milestoneId ?? '', node, goal: t.goal ?? null, docs }), BRAINSTORM_RULE]
+        if (rec.visit?.rejected) parts.push(`## 스펙 반려\n\n사람이 앞 스펙을 반려했다 — ${rec.visit.rejected}`)
+        return parts.join('\n\n')
+      }
+    }
+  }
+
+  async function seeded(prompt: string): Promise<string> {
+    let state = ''
+    try { state = await deps.context() } catch { state = '(실행 상태를 읽지 못했다)' }
+    const spec = await deps.fs.read(DOCS.milestoneSpec).catch(() => null)
+    const decisions = await deps.fs.read(DOCS.decisions).catch(() => null)
+    const tail = rec.items.map(tailLine).filter((l): l is string => l !== null).slice(-TAIL_ITEMS)
+    return [
+      '[생존 문서 — 앞 세션을 이어 가지 못해 새 세션을 연다. 아래가 지금까지의 기록이다]',
+      `## 실행 상태\n\n${state}`,
+      `## 마일스톤 스펙 (${DOCS.milestoneSpec})\n\n${spec ?? '(아직 없음)'}`,
+      `## 결정 대장 (${DOCS.decisions})\n\n${decisions ?? '(아직 없음)'}`,
+      `## 최근 대화\n\n${tail.length > 0 ? tail.join('\n') : '(없음)'}`,
+      '---',
+      prompt,
+    ].join('\n\n')
+  }
+
+  function cardFor(turnId: string): (ev: CardEvent, ctx: CardContext) => Promise<RunResponse> {
+    return (ev, ctx) => new Promise<RunResponse>((resolve) => {
+      const requestId = `s${turnId}-${ev.requestId}`
+      const base = { requestId, node: ctx.node, goal: ctx.goal, text: ctx.text }
+      const card: LoopCard = ev.type === 'question_request'
+        ? { ...base, kind: 'question', questions: ev.questions }
+        : { ...base, kind: 'permission', toolName: ev.toolName, summary: ev.summary }
+      live.set(requestId, { card, turnId, resolve })
+      // 질문 카드는 도착하자마자 남긴다 — 꺼지면 다시 묻는다. 권한 카드는 그 세션에만 뜻이 있어 남기지 않는다
+      if (card.kind === 'question') rec.cards.push(card)
+      persist()
+    })
+  }
+
+  function dropCard(requestId: string): void {
+    live.delete(requestId)
+    rec.cards = rec.cards.filter((c) => c.requestId !== requestId)
+  }
+
+  async function runTurn(t: Turn): Promise<void> {
+    if (t.itemId !== null) {
+      const item = rec.items.find((i) => i.id === t.itemId)
+      if (item?.kind === 'user') item.state = 'sent'
+    }
+    const base = await promptOf(t)
+    // 새 세션에는 생존 문서를 싣는다 — 시작 턴은 노드 지시와 문서를 이미 싣으므로, 세션 id를 잃은 장(everSession)일 때만
+    let seed = rec.sessionId === null && (t.kind !== 'start' || rec.everSession)
+    for (let attempt = 0; attempt < 2; attempt++) {
+      if (closing) return
+      const resume = rec.sessionId
+      const prompt = seed ? await seeded(base) : base
+      const turnId = deps.nextTurnId()
+      let sawSession = false
+      const paras: string[] = []
+      let cur = ''
+      let msgId: string | undefined
+      let afterTool = false
+      const flush = (): void => { if (cur.trim() !== '') paras.push(cur.trim()); cur = '' }
+      // 도구 서버를 만들지 못하면 알린다(규칙 글은 도구를 말하므로 사람이 알아야 한다) — 턴은 도구 없이 돈다
+      const tools = deps.buildTools
+        ? await deps.buildTools().catch((e: unknown) => { notice(`앱 안 도구를 싣지 못했다 — ${oneLine(e instanceof Error ? e.message : String(e))}`); return null })
+        : null
+      const node = brainstorming() ? (rec.visit?.node ?? 'main') : 'main'
+      const input: AgentRunInput = {
+        messages: [{ role: 'user', content: prompt }],
+        workspaceRoot: deps.root,
+        mode: 'auto',
+        systemPrompt: MAIN_CHAT_RULE,
+        env: deps.env,
+        ...(deps.model !== undefined ? { model: deps.model } : {}),
+        ...(deps.effort !== undefined ? { effort: deps.effort } : {}),
+        ...(resume !== null ? { resumeSessionId: resume } : {}),
+        loopLock: { repoRoot: deps.root, appLoopDir: deps.appDataDir, mainChat: { toolServer: MAIN_TOOL_SERVER, canWrite: canWriteNow } },
+        ...(tools ? { loopMcpServers: tools } : {}),
+      }
+      const session = runNodeSession({
+        backend: deps.backend,
+        input,
+        timeoutMs: null,
+        onCard: cardFor(turnId),
+        cardContext: { node, goal: null },
+        onEvent: (ev) => {
+          if (ev.type === 'session') {
+            sawSession = true
+            if (rec.sessionId !== ev.sessionId) { rec.sessionId = ev.sessionId; rec.everSession = true; persist() }
+            if ((t.kind === 'start' || t.kind === 'rejected') && rec.visit && rec.visit.open !== 'sent') { rec.visit.open = 'sent'; persist() }
+          } else if (ev.type === 'text' && ev.parentToolId === undefined) {
+            if (afterTool || (ev.messageId !== undefined && ev.messageId !== msgId)) { flush(); msgId = ev.messageId }
+            afterTool = false
+            cur += ev.delta
+          } else if (ev.type === 'tool_call' && ev.parentToolId === undefined) {
+            afterTool = true
+          }
+          deps.onEvent?.({ key: 'main', kind: 'main', node: node === 'main' ? null : node, goal: null, sessionId: rec.sessionId }, ev)
+        },
+      })
+      cancelCurrent = session.cancel
+      const end = await session.done
+      cancelCurrent = null
+      flush()
+      // 세션이 끝난 카드는 거둔다. 닫을 때는 질문 카드를 남긴다(다시 묻는다)
+      for (const [id, c] of [...live]) {
+        if (c.turnId !== turnId) continue
+        if (closing) live.delete(id)
+        else dropCard(id)
+      }
+      if (resume !== null && !sawSession && end.kind === 'error' && attempt === 0 && !closing) {
+        rec.sessionId = null
+        notice(`저장된 세션을 이어 가지 못해(${oneLine(end.error)}) 생존 문서로 새 세션을 연다.`)
+        persist()
+        seed = true
+        continue
+      }
+      const text = paras.join('\n\n')
+      if (text !== '') push({ id: newId(), at: new Date().toISOString(), kind: 'assistant', text, turn: t.kind })
+      if (end.kind === 'error') notice(`턴이 오류로 끝났다 — ${oneLine(end.error)}`)
+      else if (end.kind === 'start-failed') notice(`턴을 열지 못했다 — ${oneLine(end.error)}`)
+      else if (end.kind === 'cancelled' && !closing) notice('턴을 멈췄다.')
+      return
+    }
+  }
+
+  function pump(): void {
+    if (running !== null || closing || queue.length === 0) return
+    const t = queue.shift() as Turn
+    persist()
+    running = (async () => {
+      try {
+        await runTurn(t)
+      } catch (e) {
+        notice(`턴을 돌리지 못했다 — ${oneLine(e instanceof Error ? e.message : String(e))}`)
+      } finally {
+        running = null
+        persist()
+        if (!closing) {
+          try { deps.onTurnEnd?.() } catch { /* 구동자 쪽 오류는 대기열을 막지 않는다 */ }
+          pump()
+        }
+      }
+    })()
+  }
+
+  persist()
+  pump()
+
+  const api: MainChat = {
+    send(text) {
+      const body = text.trim()
+      if (closing) return { ok: false, reason: '메인 대화가 닫혔다' }
+      if (body === '') return { ok: false, reason: '빈 글이다' }
+      const id = newId()
+      push({ id, at: new Date().toISOString(), kind: 'user', text: body, state: 'queued' })
+      queue.push({ kind: 'user', text: body, itemId: id })
+      persist()
+      pump()
+      return { ok: true }
+    },
+
+    recordEvent(event, speak = false) {
+      if (closing) return
+      push({ id: newId(), at: new Date().toISOString(), kind: 'event', event })
+      if (speak) {
+        const pending = queue.find((q) => q.kind === 'event')
+        if (pending) {
+          pending.events = [...(pending.events ?? []), event]
+          pending.text = (pending.events ?? []).map((e) => e.text).join('\n')
+        } else {
+          queue.push({ kind: 'event', text: event.text, itemId: null, events: [event] })
+        }
+      }
+      persist()
+      if (speak) pump()
+    },
+
+    async brainstorm(req) {
+      // 닫는 중의 부름은 기다림이다 — 취소(cancelled)는 실행기가 멈춤으로 바꾼다(닫기가 브레인스토밍을 멈추지 않는다)
+      if (closing) return { ok: false, summary: '메인 대화가 닫히는 중이다', waiting: true }
+      const key = req.visit?.key ?? `${req.milestoneId}#?`
+      if (rec.visit === null || rec.visit.key !== key) {
+        const spec = await deps.fs.read(DOCS.milestoneSpec)
+        rec.visit = { key, node: req.node.id, baselineSpecSha: spec === null ? null : sha256Text(spec), open: 'queued', rejected: req.visit?.rejected ?? null, done: false }
+        openTried = null
+        persist()
+      }
+      lastVisitReq = req
+      const v = rec.visit
+      if (v.open === 'queued' && openTried !== v.key) { enqueueOpening(req); persist(); pump() }
+      if (running !== null || queue.length > 0) {
+        if (v.done) { v.done = false; persist() }
+        return { ok: false, summary: '메인 대화가 턴을 돌고 있다', waiting: true }
+      }
+      const spec = await deps.fs.read(DOCS.milestoneSpec)
+      if (spec !== null && spec.trim() !== '' && sha256Text(spec) !== v.baselineSpecSha) {
+        if (!v.done) { v.done = true; persist() }
+        return { ok: true, summary: '브레인스토밍에서 스펙 초안을 썼다', baseline: { specSha256: v.baselineSpecSha } }
+      }
+      if (v.done) { v.done = false; persist() }
+      return { ok: false, summary: '브레인스토밍 대화 중 — 사람의 다음 말을 기다린다', waiting: true }
+    },
+
+    cards: () => [...rec.cards, ...[...live.values()].map((c) => c.card).filter((c) => c.kind === 'permission')],
+
+    answerCard(requestId, response) {
+      const l = live.get(requestId)
+      if (l) {
+        if (l.card.kind !== response.kind) return false
+        dropCard(requestId)
+        l.resolve(response as RunResponse)
+        persist()
+        return true
+      }
+      const card = rec.cards.find((c) => c.requestId === requestId && c.restored === true)
+      if (!card || card.kind !== 'question' || response.kind !== 'question') return false
+      dropCard(requestId)
+      if (response.answers !== null) {
+        const lines = card.questions.map((q, i) => `- 질문: ${q.question}\n  답: ${(response.answers?.[i] ?? []).join(', ') || '(답 없음)'}`)
+        const text = ['[다시 물은 질문의 답] 앱을 다시 열기 전에 물은 질문에 사람이 답했다.', ...lines].join('\n')
+        const id = newId()
+        push({ id, at: new Date().toISOString(), kind: 'user', text, state: 'queued' })
+        queue.push({ kind: 'card-answer', text, itemId: id })
+      }
+      persist()
+      pump()
+      return true
+    },
+
+    async newChat() {
+      if (closing) return { ok: false, reason: '메인 대화가 닫혔다' }
+      queue.splice(0)
+      cancelCurrent?.()
+      await api.idle()
+      if (closing) return { ok: false, reason: '메인 대화가 닫혔다' }
+      try {
+        await writes
+        await archiveRecord(deps.appDataDir, repoKey, rec)
+      } catch (e) {
+        return { ok: false, reason: `지난 기록을 보관하지 못했다 — ${e instanceof Error ? e.message : String(e)}` }
+      }
+      for (const id of [...live.keys()]) live.delete(id)
+      const old = rec
+      rec = { ...blankRecord(deps.root), paused: old.paused, visit: old.visit ? { ...old.visit, open: 'queued' } : null }
+      notice('새 메인 대화를 열었다 — 지난 기록은 보관했다.')
+      openTried = null
+      if (rec.visit && !rec.visit.done && lastVisitReq && lastVisitReq.visit?.key === rec.visit.key) enqueueOpening(lastVisitReq)
+      persist()
+      pump()
+      return { ok: true }
+    },
+
+    // 새 실행이 시작됐다 — 장의 방문은 앞 실행의 것이다(방문 키가 같아도 새 방문이다). 줄 선 여는 턴도 거둔다
+    resetVisit() {
+      rec.visit = null
+      openTried = null
+      for (let i = queue.length - 1; i >= 0; i--) if (queue[i].kind === 'start' || queue[i].kind === 'rejected') queue.splice(i, 1)
+      persist()
+    },
+
+    paused: () => rec.paused,
+    setPaused(on) {
+      if (rec.paused === on) return
+      rec.paused = on
+      persist()
+    },
+    busy: () => running !== null,
+    waitingUser: () => brainstorming() && running === null && queue.length === 0,
+    brainstorming,
+    view: (cwd) => viewOf(rec, cwd, deps.root, {
+      cards: api.cards(), busy: running !== null, waitingUser: api.waitingUser(), queued: queue.length,
+    }),
+    cancel: () => (cancelCurrent ? cancelCurrent() : false),
+
+    async idle() {
+      while (running !== null) await running
+      await writes
+    },
+
+    async close() {
+      if (closing) { await writes; return }
+      closing = true
+      cancelCurrent?.()
+      while (running !== null) await running
+      rec.queue = stored()
+      const snap = JSON.parse(JSON.stringify(rec)) as MainChatRecord
+      writes = writes.then(() => saveRecord(file, snap)).catch(() => undefined)
+      await writes
+    },
+  }
+  return api
+}

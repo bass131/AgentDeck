@@ -13,6 +13,7 @@ const CWD = 'C:\\work\\practice'
 const closed: LoopStatus = {
   cwd: CWD, root: null, phase: 'closed', milestoneId: null, node: null, nodeTitle: null, reason: null, base: null, ghRepo: null,
   failCount: 0, goals: [], approval: null, milestonePr: null, cards: [], sessionActive: false, lastVerdict: null, latch: null,
+  paused: false, mainBusy: false, mainWaiting: false,
 }
 
 afterEach(async () => {

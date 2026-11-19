@@ -2,6 +2,9 @@
 
 - 범위 밖 발견을 한 줄로 남긴다(헌법 11조). 최신 번호가 위다.
 
+11. (G2 탐침 관찰) 루프 세션은 `settingSources`에 user를 실어 사용자 전역 지시·자동 기억 지시가 메인 대화에도 들어간다 — 탐침에서 모델이 `~/.claude/projects/…/memory/`에 쓰려다 잠금에 막혔다. 메인 대화·작업 노드에 user 설정을 실을지 M11 헌장 문답에서 정한다.
+10. (G2 작업자 관찰 → M12) `mainChatTools.ts`가 SDK의 동료 의존성 zod를 `package.json`에 적지 않고 동적 import한다 — 빌드는 main 청크에 인라인해 지금은 돈다. 설치본 패키징(M12)에서 확인하고 필요하면 의존성으로 적는다.
+9. (G2 → G3) 일시 정지 깃발을 내리는 길이 메인의 resume 도구뿐이다 — 화면 버튼·IPC를 G3 메인 대화 화면에 붙인다. 백로그 6(두 모드의 복원)도 렌더러 몫이라 G3로 옮긴다.
 8. (G1 독립 검수 사소 10, 기존) `useGlobalShortcuts.test.tsx`의 `makeOnEscape`는 Shell의 Esc 처리를 다시 구현한 사본이라, `Shell.tsx`의 `workspaceMode !== 'single'` 가드를 지워도 그 묶음은 통과한다. 실제 가드는 `panelSession.difference-pins` B2가 본다. 사본을 진짜 Shell 렌더로 바꿀지 정한다.
 7. (G1 독립 검수 사소 11) `README.md` 15~17·33줄이 지운 멀티 에이전트 화면(「6개 패널 동시 실행」)을 소개하고, 그 그림을 만들던 `readme-shots.e2e.ts` 컷④도 지워졌다. G3 화면이 서면 README 글과 그림을 새 작업 모드로 바꾼다.
 6. (G1 독립 검수 사소 8 → G2) 작업 모드로 끈 뒤 다시 켜면 채팅의 마지막 대화가 복원되지 않는다(`restoreWorkspace.ts` — 대화 배치일 때만 복원). 작업 모드가 메인 대화를 갖는 G2에서 두 모드의 복원을 함께 정한다.

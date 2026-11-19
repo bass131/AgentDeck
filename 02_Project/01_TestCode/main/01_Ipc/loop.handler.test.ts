@@ -3,6 +3,7 @@
 // 카드 응답에 「항상 허용」은 받지 않는다, 구동자가 내는 상태 변화는 창이 있을 때만 loop.state로 push한다.
 import { describe, expect, it, vi } from 'vitest'
 import type { LoopStatus } from '@shared/ipcContract'
+import type { LoopSessionEventPayload, MainChatView } from '@shared/13_Loop/loop'
 
 const h = vi.hoisted(() => ({ handlers: new Map<string, (...args: unknown[]) => unknown>() }))
 
@@ -20,7 +21,11 @@ import { IPC_CHANNELS } from '@shared/ipcContract'
 const CWD = 'C:/work/practice'
 const status = (over: Partial<LoopStatus> = {}): LoopStatus => ({
   cwd: CWD, root: CWD, phase: 'closed', milestoneId: null, node: null, nodeTitle: null, reason: null, base: null, ghRepo: null,
-  failCount: 0, goals: [], approval: null, milestonePr: null, cards: [], sessionActive: false, lastVerdict: null, latch: null, ...over,
+  failCount: 0, goals: [], approval: null, milestonePr: null, cards: [], sessionActive: false, lastVerdict: null, latch: null,
+  paused: false, mainBusy: false, mainWaiting: false, ...over,
+})
+const view = (over: Partial<MainChatView> = {}): MainChatView => ({
+  cwd: CWD, root: CWD, sessionId: null, items: [], cards: [], busy: false, waitingUser: false, brainstorming: false, paused: false, queued: 0, ...over,
 })
 
 function fakeDriver(): { driver: LoopDriverApi; calls: unknown[][] } {
@@ -37,6 +42,9 @@ function fakeDriver(): { driver: LoopDriverApi; calls: unknown[][] } {
       cancelSession: rec('cancelSession', true),
       releaseLatch: rec('releaseLatch', Promise.resolve({ ok: true, status: status() })),
       close: rec('close', Promise.resolve()),
+      mainRead: rec('mainRead', view()),
+      mainSend: rec('mainSend', { ok: true, view: view({ busy: true }) }),
+      mainNew: rec('mainNew', Promise.resolve({ ok: true, view: view() })),
     },
   }
 }
@@ -52,12 +60,17 @@ function register(driver: LoopDriverApi): (ch: string, req: unknown) => Promise<
 }
 
 describe('loop IPC 핸들러 (M09 G4)', () => {
-  it('여덟 채널을 등록하고 구동자로 넘긴다', async () => {
+  it('열한 채널을 등록하고 구동자로 넘긴다(M10 G2 — 메인 대화 읽기·보내기·새로 열기)', async () => {
     const { driver, calls } = fakeDriver()
     const call = register(driver)
     expect([...h.handlers.keys()].sort()).toEqual([
-      'loop.answerCard', 'loop.cancelSession', 'loop.close', 'loop.decide', 'loop.open', 'loop.releaseLatch', 'loop.start', 'loop.status',
+      'loop.answerCard', 'loop.cancelSession', 'loop.close', 'loop.decide', 'loop.mainNew', 'loop.mainRead', 'loop.mainSend',
+      'loop.open', 'loop.releaseLatch', 'loop.start', 'loop.status',
     ])
+    expect(await call(IPC_CHANNELS.LOOP_MAIN_READ, { cwd: CWD })).toMatchObject({ cwd: CWD, items: [] })
+    expect(await call(IPC_CHANNELS.LOOP_MAIN_SEND, { cwd: CWD, text: '덧셈으로 하자' })).toMatchObject({ ok: true, view: { busy: true } })
+    expect(await call(IPC_CHANNELS.LOOP_MAIN_NEW, { cwd: CWD })).toMatchObject({ ok: true })
+    expect(calls.splice(0)).toEqual([['mainRead', CWD], ['mainSend', CWD, '덧셈으로 하자'], ['mainNew', CWD]])
     expect(await call(IPC_CHANNELS.LOOP_OPEN, { cwd: CWD })).toMatchObject({ phase: 'not-started' })
     await call(IPC_CHANNELS.LOOP_START, { cwd: CWD, milestoneId: 'M1' })
     await call(IPC_CHANNELS.LOOP_STATUS, { cwd: CWD })
@@ -87,7 +100,20 @@ describe('loop IPC 핸들러 (M09 G4)', () => {
     await expect(call(IPC_CHANNELS.LOOP_STATUS, null)).rejects.toThrow()
     // 스펙 해시는 sha256 16진수 꼴만 — 화면이 본 해시가 아닌 값은 구동자에 닿지 않는다
     await expect(call(IPC_CHANNELS.LOOP_DECIDE, { cwd: CWD, verdict: 'pass', evidence: 'x', specSha256: 'abc' })).rejects.toThrow()
+    // M10 G2 — 메인 대화에 보내는 글은 비지 않은 문자열, 상한 이하. 판정 칸을 실어도 구동자는 글만 받는다
+    await expect(call(IPC_CHANNELS.LOOP_MAIN_SEND, { cwd: CWD, text: '   ' })).rejects.toThrow()
+    await expect(call(IPC_CHANNELS.LOOP_MAIN_SEND, { cwd: CWD, text: 'x'.repeat(20_001) })).rejects.toThrow()
+    await expect(call(IPC_CHANNELS.LOOP_MAIN_SEND, { cwd: CWD })).rejects.toThrow()
+    await expect(call(IPC_CHANNELS.LOOP_MAIN_READ, { cwd: 'rel' })).rejects.toThrow()
+    await expect(call(IPC_CHANNELS.LOOP_MAIN_NEW, null)).rejects.toThrow()
     expect(calls).toEqual([])
+  })
+
+  it('메인 대화에 보낸 글은 판정 칸을 실어도 글만 구동자로 간다 (M10 G2)', async () => {
+    const { driver, calls } = fakeDriver()
+    const call = register(driver)
+    await call(IPC_CHANNELS.LOOP_MAIN_SEND, { cwd: CWD, text: '승인한다', verdict: 'pass', specSha256: 'a'.repeat(64) })
+    expect(calls).toEqual([['mainSend', CWD, '승인한다']])
   })
 
   it('카드 응답은 허용·거부와 질문 답만 받는다 — 「항상 허용」과 꼴이 틀린 답은 ok:false로 넘기지 않는다', async () => {
@@ -113,5 +139,18 @@ describe('loop.state push 배선 (M09 G4)', () => {
     pushLoopState({ win: null }, s)
     pushLoopState({ win: { isDestroyed: () => true, webContents: { send } } as never }, s)
     expect(send).toHaveBeenCalledTimes(1)
+  })
+
+  it('메인 대화 보기와 세션 사건도 창이 있을 때만 보낸다 (M10 G2)', async () => {
+    const { pushMainState, pushSessionEvent } = await import('@main/01_Ipc/handlers/loop')
+    const send = vi.fn()
+    const win = { win: { isDestroyed: () => false, webContents: { send } } as never }
+    const v = view({ busy: true })
+    const p: LoopSessionEventPayload = { cwd: CWD, session: { key: 'main', kind: 'main', node: null, goal: null, sessionId: 'S1' }, event: { type: 'done' } }
+    pushMainState(win, v)
+    pushSessionEvent(win, p)
+    pushMainState({ win: null }, v)
+    pushSessionEvent({ win: null }, p)
+    expect(send.mock.calls).toEqual([['loop.mainState', v], ['loop.sessionEvent', p]])
   })
 })

@@ -1,6 +1,9 @@
 // M09 G4 — 앱 안 마일스톤 루프의 IPC 계약. main의 구동자(main/05_Loop/loopDriver.ts)가 저장소마다 실행기 하나를 돌리고,
 // 화면은 이 묶음으로 열기·시작·사람 판정·카드 답·세션 취소·래치 풀기·닫기를 부르고 상태 push 하나를 듣는다.
 // 상태(LoopStatus)는 status 응답과 loop.state push가 같은 한 장이다. 화면은 상태를 넣지 못한다 — 판정할 노드도 구동자가 저장본에서 고른다.
+// M10 G2 — 메인 대화(작업 폴더마다 하나, main이 소유): 읽기·사용자 턴·새 메인 대화 invoke 셋과 메인 대화 push, 세션 사건 push.
+//   카드 답은 loop.answerCard 하나다(메인 대화의 질문 카드도 LoopStatus.cards와 MainChatView.cards에 같은 id로 실린다).
+import type { AgentEvent } from '../agentEvents'
 import type { AgentQuestion } from '../03_Agent/events/interaction'
 
 export const LOOP_CHANNELS = {
@@ -13,6 +16,11 @@ export const LOOP_CHANNELS = {
   LOOP_RELEASE_LATCH: 'loop.releaseLatch',
   LOOP_CLOSE: 'loop.close',
   LOOP_STATE: 'loop.state',
+  LOOP_MAIN_READ: 'loop.mainRead',
+  LOOP_MAIN_SEND: 'loop.mainSend',
+  LOOP_MAIN_NEW: 'loop.mainNew',
+  LOOP_MAIN_STATE: 'loop.mainState',
+  LOOP_SESSION_EVENT: 'loop.sessionEvent',
 } as const
 
 // closed       열린 실행기가 없다(열기 전·닫은 뒤)
@@ -28,8 +36,10 @@ export const LOOP_CHANNELS = {
 export type LoopPhase =
   | 'closed' | 'open-failed' | 'not-started' | 'running' | 'waiting-human' | 'waiting-ci' | 'halted' | 'latched' | 'blocked' | 'done'
 
-interface LoopCardBase { requestId: string; node: string; goal: string | null; text: string }
+// restored: 앱이 꺼질 때 답을 받지 못해 다시 묻는 카드(M10 G2). 그 질문을 낸 턴은 이미 끝났으므로 답은 메인 대화의 사용자 턴으로 간다.
+interface LoopCardBase { requestId: string; node: string; goal: string | null; text: string; restored?: boolean }
 // 메인 노드(브레인스토밍) 세션의 카드. text는 그 세션의 최근 글이다. 세션이 끝나면 카드는 상태에서 빠진다.
+// M10 G2 — 메인 대화의 카드다(node는 브레인스토밍 노드, 브레인스토밍 밖의 턴이면 'main').
 export type LoopCard =
   | (LoopCardBase & { kind: 'question'; questions: AgentQuestion[] })
   | (LoopCardBase & { kind: 'permission'; toolName: string; summary: string })
@@ -66,7 +76,53 @@ export interface LoopStatus {
   sessionActive: boolean
   lastVerdict: { node: string; verdict: 'pass' | 'fail' | 'stop'; evidence: string } | null
   latch: LoopLatch | null
+  // M10 G2 — 구동자의 일시 정지 깃발(메인의 「멈춤」). 지금 노드가 끝나면 다음 노드로 가지 않는다. 실행 상태·검증 기록과 무관하다
+  paused: boolean
+  // M10 G2 — 메인 대화가 턴을 돌고 있다 / 브레인스토밍 중 턴이 끝나고 사람의 다음 말을 기다린다(FAIL이 아니다)
+  mainBusy: boolean
+  mainWaiting: boolean
 }
+
+// ── M10 G2 메인 대화 ──
+// 실행기 사건 — 실행기가 모델 없이 만든 한 줄. 메인은 경계(goal-merged, halt, milestone-pr)에서만 짧은 턴으로 말한다.
+export type LoopEventKind =
+  | 'node-start' | 'node-end' | 'fail' | 'halt' | 'error' | 'goal-merged' | 'milestone-pr'
+  | 'spec-approved' | 'spec-rejected' | 'paused' | 'resumed' | 'backlog' | 'latched' | 'done'
+export interface LoopEventItem {
+  kind: LoopEventKind
+  node: string | null
+  goal: string | null
+  text: string
+  verdict?: 'pass' | 'fail' | 'stop'
+}
+// 메인 대화의 한 턴이 무엇으로 시작됐나 — 사용자 글, 브레인스토밍 시작, 스펙 반려, 실행기 사건(경계), 다시 물은 카드의 답
+export type MainTurnKind = 'user' | 'start' | 'rejected' | 'event' | 'card-answer'
+// 대화 기록 한 줄. user의 state: queued(줄 서 있음) → sent(세션에 넘김). 재기동 때 queued는 다시 줄을 선다.
+export type MainChatItem =
+  | { id: string; at: string; kind: 'user'; text: string; state: 'queued' | 'sent' }
+  | { id: string; at: string; kind: 'assistant'; text: string; turn: MainTurnKind }
+  | { id: string; at: string; kind: 'event'; event: LoopEventItem }
+  | { id: string; at: string; kind: 'notice'; text: string }
+export interface MainChatView {
+  cwd: string
+  // 열린 실행기가 있으면 작업 저장소 뿌리. 없으면 null(기록만 읽힌다 — 턴은 열린 뒤에 돈다)
+  root: string | null
+  sessionId: string | null
+  items: MainChatItem[]
+  cards: LoopCard[]
+  busy: boolean
+  waitingUser: boolean
+  brainstorming: boolean
+  paused: boolean
+  // 줄 서 있는 턴 수(돌고 있는 턴 제외)
+  queued: number
+}
+export interface LoopMainSendRequest { cwd: string; text: string }
+export interface LoopMainResponse { ok: boolean; reason?: string; view: MainChatView }
+// 세션 사건 배선 — 루프 세션 하나(메인 대화·작업 노드·검수)의 AgentEvent를 세션 꼬리표와 함께 내보낸다(G4 노드 세션 탭이 같은 길을 쓴다).
+// key는 앱이 정한 세션 이름(메인 대화는 'main'), sessionId는 SDK가 알린 세션 id(아직 모르면 null)다.
+export interface LoopSessionTag { key: string; kind: 'main' | 'work' | 'review'; node: string | null; goal: string | null; sessionId: string | null }
+export interface LoopSessionEventPayload { cwd: string; session: LoopSessionTag; event: AgentEvent }
 
 // CI 판정에 쓸 필수 검사 이름은 main이 고정한다(['hard-gates'] — G4 검수 I5). 화면은 보내지 못한다.
 export interface LoopOpenRequest { cwd: string }

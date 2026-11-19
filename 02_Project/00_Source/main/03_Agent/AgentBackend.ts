@@ -19,7 +19,11 @@ export interface AgentRunInput {
   env?: NodeJS.ProcessEnv
   // loopLock: 있으면 루프 잠금 노드(04_Claude/permission/loopLock.ts)를 PreToolUse 맨 앞에 붙이고, 사용자 MCP 서버를 읽지 않는다(G4).
   // readOnly: 검수 세션의 읽기 전용 꼴(G4)
-  loopLock?: { repoRoot: string; appLoopDir: string; readOnly?: boolean }
+  // mainChat: 메인 대화의 꼴(M10 G2 — 허용 목록, 셸 거부, 스펙·결정 대장 두 경로의 쓰기 창). loopLock.ts의 LoopLockScope.mainChat이다
+  loopLock?: { repoRoot: string; appLoopDir: string; readOnly?: boolean; mainChat?: { toolServer: string; canWrite: () => boolean | Promise<boolean> } }
+  // M10 G2 — 메인 대화의 앱 안 도구 서버(createSdkMcpServer의 결과, 이름 → 설정). loopLock이 있을 때만 SDK 옵션 mcpServers로 실린다.
+  // IPC 요청은 이 칸을 옮기지 않는다(loopLock과 같다).
+  loopMcpServers?: Record<string, unknown>
 }
 
 export type RunResponse =

@@ -280,6 +280,11 @@ describe('기동·종료 배선 — 00_App/bootstrap 한 곳 (M05 G11 4단계)',
     const boot = mainSources().find((f) => f.rel === '00_App/bootstrap.ts')!.src
     expect(boot).toMatch(/closeAll\(\)/)
     expect(boot).toMatch(/join\(getUserDataDir\(\), 'loop'\)/)
+    // M10 G2 — 메인 대화 보기와 루프 세션 사건도 조립 지점이 창으로 push한다
+    expect(boot).toMatch(/onMainState: \(v\) => pushMainState\(ipcState, v\)/)
+    expect(boot).toMatch(/onSessionEvent: \(p\) => pushSessionEvent\(ipcState, p\)/)
+    const mainRead = h.handlers.get(IPC_CHANNELS.LOOP_MAIN_READ)
+    expect((await mainRead?.({}, { cwd: h.userData }) as { items: unknown[]; root: string | null }).items).toEqual([])
   })
 
   it('조립 팩토리(store·roots·runManager·LSP·백엔드)를 부르는 곳은 00_App 안뿐이다', () => {

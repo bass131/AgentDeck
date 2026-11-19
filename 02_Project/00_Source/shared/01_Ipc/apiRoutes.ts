@@ -130,6 +130,12 @@ export const API_ROUTES = {
     releaseLatch: call(IPC_CHANNELS.LOOP_RELEASE_LATCH),
     close: call(IPC_CHANNELS.LOOP_CLOSE),
     onState: push(IPC_CHANNELS.LOOP_STATE),
+    // M10 G2 — 메인 대화(읽기·사용자 턴·새 메인 대화)와 그 push, 루프 세션 사건 push
+    mainRead: call(IPC_CHANNELS.LOOP_MAIN_READ),
+    mainSend: call(IPC_CHANNELS.LOOP_MAIN_SEND),
+    mainNew: call(IPC_CHANNELS.LOOP_MAIN_NEW),
+    onMainState: push(IPC_CHANNELS.LOOP_MAIN_STATE),
+    onSessionEvent: push(IPC_CHANNELS.LOOP_SESSION_EVENT),
   },
 } as const
 

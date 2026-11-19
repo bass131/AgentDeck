@@ -236,6 +236,38 @@ describe('작업 노드 세션의 카드 (M09 G2)', () => {
     ])
     expect(seen).toEqual(['permission_request', 'question_request', 'done'])
   })
+
+  // M10 G2 — 세션 사건은 꼬리표(kind work, 앱이 정한 key, 노드·goal, session 사건을 본 뒤의 SDK 세션 id)와 함께 나간다
+  it('세션 사건에 꼬리표가 붙는다 — key는 세션마다 다르고, SDK 세션 id는 session 사건부터 실린다', async () => {
+    const tags: { type: string; key: string; kind: string; node: string | null; goal: string | null; sessionId: string | null }[] = []
+    const onEvent = (e: AgentEvent, t: { key: string; kind: string; node: string | null; goal: string | null; sessionId: string | null }): void => {
+      tags.push({ type: e.type, ...t })
+    }
+    const first = fakeBackend([{ type: 'text', delta: '앞', messageId: 'm0' }, { type: 'session', sessionId: 'sdk-1' }, { type: 'done' }] as never)
+    await createWorkSessionPort(opts(first.backend, { onEvent })).runWork(request())
+    const second = fakeBackend([{ type: 'done' }])
+    await createWorkSessionPort(opts(second.backend, { onEvent })).runWork(request())
+    expect(tags.map((t) => [t.type, t.kind, t.node, t.goal, t.sessionId])).toEqual([
+      ['text', 'work', 'implement', 'g1', null],
+      ['session', 'work', 'implement', 'g1', 'sdk-1'],
+      ['done', 'work', 'implement', 'g1', 'sdk-1'],
+      ['done', 'work', 'implement', 'g1', null],
+    ])
+    expect(tags[0].key).toMatch(/^[0-9a-f]{6}\.\d+$/)
+    expect(tags[3].key).not.toBe(tags[0].key)
+  })
+
+  it('메인 대화 경로(mainWork)가 있으면 메인 노드에 세션을 열지 않고 그쪽으로 보낸다 (M10 G2)', async () => {
+    const { backend, rec } = fakeBackend([{ type: 'done' }])
+    const got: WorkRequest[] = []
+    const port = createWorkSessionPort(opts(backend, { mainWork: async (req) => { got.push(req); return { ok: false, summary: '기다린다', waiting: true } } }))
+    const main = await port.runWork({ ...request(), node: { ...NODE, id: 'brainstorm', role: 'main' } })
+    expect(main).toEqual({ ok: false, summary: '기다린다', waiting: true })
+    expect(got).toHaveLength(1)
+    expect(rec.starts).toEqual([])
+    await port.runWork(request())
+    expect(rec.starts).toHaveLength(1)
+  })
 })
 
 describe('메인 노드의 카드와 취소 (M09 G4)', () => {

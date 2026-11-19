@@ -88,7 +88,10 @@ const SKIP_DIRS = new Set(['node_modules', 'dist', 'out', 'coverage', '.git'])
 // 멀티 화면 여덟, 멀티 격리 가드·사이드바 멀티 모드, 패널 cwd·resume 셋, 패널 UltraCode 멀티판)를 지우고,
 // 작업 모드 격리 가드 renderer/12_Window/Shell.work-isolation-guard.test.tsx와
 // 패널 하네스판 UltraCode 시험 renderer/03_Agent/ultracodeToggle.panel.test.tsx를 더했다.
-const BASELINE_TEST_FILES = 465
+// M10 G2: 465 → 470. 메인 대화 엔진 — 잠금의 메인 대화 꼴 main/04_Claude/loopLock.main-chat.test.ts,
+// 실행기의 여러 턴 경계 main/05_Loop/loopRunner.main-turns.test.ts, 메인 대화 모듈 main/05_Loop/mainChat.test.ts,
+// 앱 안 도구 main/05_Loop/mainChatTools.test.ts, 구동자와 메인 대화 main/05_Loop/loopDriver.main-chat.test.ts를 더했다.
+const BASELINE_TEST_FILES = 470
 
 function collectTestFiles(dir: string, acc: string[] = []): string[] {
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {

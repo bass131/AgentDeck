@@ -12,10 +12,16 @@ import type {
   LoopReleaseLatchResponse,
   LoopStatus,
 } from '@shared/ipcContract'
+import type { LoopMainResponse, LoopSessionEventPayload, MainChatView } from '@shared/13_Loop/loop'
 import { handle } from '../handle'
+
+const MAIN_TEXT_MAX = 20_000
 
 // 핸들러가 부르는 구동자의 면. loopDriver.createLoopDriver가 이것을 채운다.
 export interface LoopDriverApi {
+  mainRead(cwd: string): MainChatView
+  mainSend(cwd: string, text: string): LoopMainResponse
+  mainNew(cwd: string): Promise<LoopMainResponse>
   open(req: LoopOpenRequest): Promise<LoopStatus>
   start(cwd: string, milestoneId: string): Promise<LoopStatus>
   status(cwd: string): LoopStatus
@@ -120,11 +126,33 @@ export function registerLoopHandlers(deps: LoopHandlerDeps): void {
     await driver.close(cwdOf(obj(req, 'loop.close'), 'loop.close'))
     return { ok: true }
   })
+
+  // ── M10 G2 메인 대화 ── 보내는 것은 글 하나뿐이다(판정 칸은 읽지 않는다). 카드 답은 loop.answerCard를 그대로 쓴다.
+  handle(IPC_CHANNELS.LOOP_MAIN_READ, async (_e, req) => driver.mainRead(cwdOf(obj(req, 'loop.mainRead'), 'loop.mainRead')))
+
+  handle(IPC_CHANNELS.LOOP_MAIN_SEND, async (_e, req) => {
+    const r = obj(req, 'loop.mainSend')
+    const cwd = cwdOf(r, 'loop.mainSend')
+    return driver.mainSend(cwd, text(r, 'text', 'loop.mainSend', MAIN_TEXT_MAX))
+  })
+
+  handle(IPC_CHANNELS.LOOP_MAIN_NEW, async (_e, req) => driver.mainNew(cwdOf(obj(req, 'loop.mainNew'), 'loop.mainNew')))
+}
+
+function pushTo<C extends Parameters<typeof sendPush>[1]>(state: { win: BrowserWindow | null }, ch: C, payload: Parameters<typeof sendPush<C>>[2]): void {
+  const win = state.win
+  if (!win || win.isDestroyed()) return
+  sendPush(win.webContents, ch, payload)
 }
 
 // 구동자의 상태 변화 → 창. 창이 없거나 닫혔으면 보내지 않는다(다음 status 호출이 같은 한 장을 돌려준다).
 export function pushLoopState(state: { win: BrowserWindow | null }, s: LoopStatus): void {
-  const win = state.win
-  if (!win || win.isDestroyed()) return
-  sendPush(win.webContents, IPC_CHANNELS.LOOP_STATE, s)
+  pushTo(state, IPC_CHANNELS.LOOP_STATE, s)
+}
+// M10 G2 — 메인 대화 보기(다음 mainRead가 같은 것을 돌려준다)와 루프 세션 사건(꼬리표 동봉)
+export function pushMainState(state: { win: BrowserWindow | null }, v: MainChatView): void {
+  pushTo(state, IPC_CHANNELS.LOOP_MAIN_STATE, v)
+}
+export function pushSessionEvent(state: { win: BrowserWindow | null }, p: LoopSessionEventPayload): void {
+  pushTo(state, IPC_CHANNELS.LOOP_SESSION_EVENT, p)
 }

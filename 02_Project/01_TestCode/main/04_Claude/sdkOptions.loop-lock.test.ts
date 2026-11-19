@@ -70,6 +70,23 @@ describe('루프 잠금 노드 배선 (M09 G2)', () => {
     expect((await decisions(build({ loopLock: LOOP }, WIN_UD), 'echo x > src/a.ts'))[0]).toBeUndefined()
   })
 
+  // M10 G2 — 메인 대화의 앱 안 도구 서버(loopMcpServers)는 루프 잠금이 붙은 입력에서만 mcpServers로 실린다. strictMcpConfig는 그대로라
+  // 사용자 MCP 서버는 여전히 읽지 않는다(sdk.d.ts: mcpServers 옵션의 서버만 쓴다). 잠금 없는 입력에 그 칸이 있어도 싣지 않는다.
+  it('메인 대화 꼴(mainChat)의 loopLock은 앱 안 도구 서버를 mcpServers로 싣고, 셸을 거부하며, 쓰기 창이 닫히면 스펙 쓰기를 거부한다', async () => {
+    let open = true
+    const servers = { 'agentdeck-main': { type: 'sdk', name: 'agentdeck-main', instance: {} } }
+    const opts = build({ loopLock: { ...LOOP, mainChat: { toolServer: 'agentdeck-main', canWrite: () => open } }, loopMcpServers: servers }, WIN_UD)
+    expect(opts['strictMcpConfig']).toBe(true)
+    expect(opts['mcpServers']).toBe(servers)
+    expect((await decisions(opts, 'git status'))[0]).toBe('deny')
+    const list = (opts['hooks'] as { PreToolUse: Matcher[] }).PreToolUse
+    const spec = { hook_event_name: 'PreToolUse', tool_name: 'Write', tool_input: { file_path: '.agentdeck/milestone-spec.md', content: '# M1' } }
+    expect((await list[0].hooks[0](spec, 't', { signal })).hookSpecificOutput).toBeUndefined()
+    open = false
+    expect((await list[0].hooks[0](spec, 't', { signal })).hookSpecificOutput?.permissionDecision).toBe('deny')
+    expect(build({ loopMcpServers: servers }, WIN_UD)['mcpServers']).toBeUndefined()
+  })
+
   it('자동 모드의 시작 모드는 그대로다 (훅은 모드 허용보다 앞에서 판정한다)', () => {
     const settings = build({ loopLock: LOOP })['settings'] as { permissions: { defaultMode: string } }
     expect(settings.permissions.defaultMode).toBe('acceptEdits')

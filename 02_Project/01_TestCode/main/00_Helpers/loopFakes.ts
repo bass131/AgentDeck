@@ -7,7 +7,7 @@ import type { FileChange } from '@main/05_Loop/grade'
 import type { LoopRunner, StepOutcome } from '@main/05_Loop/loopRunner'
 import { repoKeyOf, stateDigest } from '@main/05_Loop/digestStore'
 import type {
-  CommandPort, CommandResult, DigestStore, FsPort, GhPort, GitPort, LoopPorts, PrInfo, PrState, ReviewPort, SessionPort, WorkRequest,
+  CommandPort, CommandResult, DigestStore, FsPort, GhPort, GitPort, LoopPorts, PrInfo, PrState, ReviewPort, SessionPort, WorkRequest, WorkResult,
 } from '@main/05_Loop/ports'
 import type { RunState } from '@main/05_Loop/runState'
 import { DOCS } from '@main/05_Loop/survivalDocs'
@@ -301,10 +301,10 @@ export class FakeSession implements SessionPort {
   readonly calls: string[] = []
   goals: { id: string; title: string; extra?: string }[] = GOALS.map((g) => ({ ...g }))
   onWork: ((req: WorkRequest) => Promise<void>) | null = null
-  // 다음 결과를 바꾼다(취소 흉내 등). 한 번 쓰고 비운다.
-  nextResult: { ok: boolean; summary: string; cancelled?: boolean } | null = null
+  // 다음 결과를 바꾼다(취소 흉내, M10 G2 메인 대화의 waiting·baseline 등). 한 번 쓰고 비운다.
+  nextResult: WorkResult | null = null
   constructor(private readonly files: FakeFs, private readonly git: FakeGit) {}
-  async runWork(req: WorkRequest): Promise<{ ok: boolean; summary: string; cancelled?: boolean }> {
+  async runWork(req: WorkRequest): Promise<WorkResult> {
     this.calls.push(req.goal ? `${req.goal.id}/${req.node.id}` : req.node.id)
     if (this.nextResult) { const r = this.nextResult; this.nextResult = null; return r }
     // 브레인스토밍은 스펙을 쓰고 받은 답을 결정 대장에 한 줄 남긴다(G5 — 실행기는 이번 세션에서 둘 중 하나라도 바뀌어야 끝난 것으로 본다)

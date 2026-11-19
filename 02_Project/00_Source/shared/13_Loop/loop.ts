@@ -3,6 +3,7 @@
 // 상태(LoopStatus)는 status 응답과 loop.state push가 같은 한 장이다. 화면은 상태를 넣지 못한다 — 판정할 노드도 구동자가 저장본에서 고른다.
 // M10 G2 — 메인 대화(작업 폴더마다 하나, main이 소유): 읽기·사용자 턴·새 메인 대화 invoke 셋과 메인 대화 push, 세션 사건 push.
 //   카드 답은 loop.answerCard 하나다(메인 대화의 질문 카드도 LoopStatus.cards와 MainChatView.cards에 같은 id로 실린다).
+// M10 G3 — 사람이 깃발을 내리는 invoke(loop.lowerFlag), 취소는 대상(메인 턴 / 작업 세션)을 싣는다. LoopStatus.cards의 메인 대화 카드는 inChat이다.
 import type { AgentEvent } from '../agentEvents'
 import type { AgentQuestion } from '../03_Agent/events/interaction'
 
@@ -21,6 +22,8 @@ export const LOOP_CHANNELS = {
   LOOP_MAIN_NEW: 'loop.mainNew',
   LOOP_MAIN_STATE: 'loop.mainState',
   LOOP_SESSION_EVENT: 'loop.sessionEvent',
+  // M10 G3 — 사람이 일시 정지 깃발을 내린다(판정 칸 없음 — 사람 판정 decide를 대신하지 않는다)
+  LOOP_LOWER_FLAG: 'loop.lowerFlag',
 } as const
 
 // closed       열린 실행기가 없다(열기 전·닫은 뒤)
@@ -37,7 +40,8 @@ export type LoopPhase =
   | 'closed' | 'open-failed' | 'not-started' | 'running' | 'waiting-human' | 'waiting-ci' | 'halted' | 'latched' | 'blocked' | 'done'
 
 // restored: 앱이 꺼질 때 답을 받지 못해 다시 묻는 카드(M10 G2). 그 질문을 낸 턴은 이미 끝났으므로 답은 메인 대화의 사용자 턴으로 간다.
-interface LoopCardBase { requestId: string; node: string; goal: string | null; text: string; restored?: boolean }
+// inChat: 메인 대화의 카드다(M10 G3) — LoopStatus.cards에도 실리지만(현황판이 보인다) 답하는 곳은 메인 대화 화면 한 곳뿐이다.
+interface LoopCardBase { requestId: string; node: string; goal: string | null; text: string; restored?: boolean; inChat?: boolean }
 // 메인 노드(브레인스토밍) 세션의 카드. text는 그 세션의 최근 글이다. 세션이 끝나면 카드는 상태에서 빠진다.
 // M10 G2 — 메인 대화의 카드다(node는 브레인스토밍 노드, 브레인스토밍 밖의 턴이면 'main').
 export type LoopCard =
@@ -129,6 +133,9 @@ export interface LoopSessionEventPayload { cwd: string; session: LoopSessionTag;
 export interface LoopOpenRequest { cwd: string }
 export interface LoopStartRequest { cwd: string; milestoneId: string }
 export interface LoopCwdRequest { cwd: string }
+// M10 G3 — 취소 대상: 메인 대화의 턴(main) / 작업자 노드의 작업·검수 세션(worker). 대상 없이는 받지 않는다(Backlog 12)
+export type LoopCancelTarget = 'main' | 'worker'
+export interface LoopCancelRequest { cwd: string; target: LoopCancelTarget }
 // 사람 판정 — 스펙 승인(specSha256 필수)·반려, 또는 멈춘 실행의 이어 가기(pass). 노드는 구동자가 저장본에서 고른다.
 // expectNode: 화면이 본 노드. 주면 지금 노드와 다를 때 거부한다
 export interface LoopDecideRequest { cwd: string; verdict: 'pass' | 'fail'; evidence: string; specSha256?: string; expectNode?: string }

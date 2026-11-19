@@ -1,0 +1,162 @@
+/* M10 G3 메인 대화 보기 — 시안(01_Milestones/M10_LoopView/10_화면-시안.html) 장면 「브레인스토밍」·「goal 진행」·「사람 부름」의
+   메인 대화·대화 안 카드·사건 줄을 앱 토큰(02_Common/tokens.css)으로 옮겼다. 배치(탭·현황판)는 G4 몫이다. */
+.main-chat {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 13px;
+}
+
+.mc-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface);
+}
+.mc-title { font-family: var(--font-serif, inherit); font-size: 15px; font-weight: 600; }
+.mc-sp { flex: 1; }
+.mc-chip {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--line-2);
+  color: var(--text-2);
+  background: var(--bg);
+}
+.mc-chip.run { border-color: var(--blue); background: var(--blue-soft); color: var(--blue); }
+.mc-chip.you { border-color: var(--yellow); background: var(--yellow-soft); color: var(--yellow); font-weight: 600; }
+
+.mc-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin: 8px 16px 0;
+  padding: 8px 12px;
+  border-radius: 9px;
+  border: 1px solid var(--line);
+  background: var(--inset);
+  font-size: 12px;
+  line-height: 1.5;
+}
+.mc-bar > span { flex: 1; min-width: 200px; }
+.mc-paused {
+  border-color: var(--violet);
+  background: color-mix(in srgb, var(--violet) 14%, var(--bg));
+  color: var(--text);
+}
+.mc-confirm { border-color: var(--accent-line); background: var(--accent-soft); }
+.mc-err { margin: 8px 16px 0; }
+
+.mc-thread { flex: 1; min-height: 0; overflow: auto; padding: 20px 0; }
+.mc-col {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 0 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.mc-empty { text-align: center; padding: 24px 0; }
+
+.mc-msg { line-height: 1.65; min-width: 0; }
+.mc-msg.user {
+  align-self: flex-end;
+  max-width: 78%;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 9px 13px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.mc-msg.user .mc-text { white-space: pre-wrap; word-break: break-word; }
+.mc-msg.user[data-state='queued'] { border-style: dashed; opacity: 0.85; }
+.mc-state { align-self: flex-end; font-size: 10.5px; color: var(--text-3); }
+.mc-msg.user[data-state='queued'] .mc-state { color: var(--yellow); }
+.mc-who { font-size: 11px; color: var(--text-3); margin-bottom: 3px; }
+.mc-msg.assistant .markdown-view { background: transparent; }
+
+.mc-evt {
+  display: flex;
+  gap: 9px;
+  align-items: flex-start;
+  font-size: 12px;
+  color: var(--text-2);
+  background: var(--inset);
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  padding: 8px 11px;
+}
+.mc-evt-k {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  padding: 1px 6px;
+  border-radius: 5px;
+  white-space: nowrap;
+  background: var(--surface-2);
+  color: var(--text-2);
+}
+.mc-evt-t { flex: 1; min-width: 0; white-space: pre-wrap; word-break: break-word; }
+.mc-evt-n { font-family: var(--font-mono); font-size: 10.5px; color: var(--text-4); white-space: nowrap; }
+.mc-evt[data-tone='ok'] .mc-evt-k { background: var(--green-soft); color: var(--green); }
+.mc-evt[data-tone='run'] .mc-evt-k { background: var(--blue-soft); color: var(--blue); }
+.mc-evt[data-tone='fail'] .mc-evt-k { background: var(--red-soft); color: var(--red); }
+.mc-evt[data-tone='human'] { border-color: var(--yellow); }
+.mc-evt[data-tone='human'] .mc-evt-k { background: var(--yellow-soft); color: var(--yellow); }
+/* 메인의 일시 정지 깃발 — 사람 판정(human)과 다른 색과 점선 테두리 */
+.mc-evt[data-tone='flag'] { border-style: dashed; border-color: var(--violet); }
+.mc-evt[data-tone='flag'] .mc-evt-k { background: color-mix(in srgb, var(--violet) 16%, transparent); color: var(--violet); }
+
+.mc-notice {
+  font-size: 12px;
+  color: var(--text-2);
+  border-left: 3px solid var(--warn);
+  background: var(--warn-soft);
+  border-radius: 6px;
+  padding: 6px 10px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.mc-card { border: 1px solid var(--line-2); border-radius: 12px; background: var(--surface); overflow: hidden; }
+.mc-card.ask { border-color: var(--yellow); box-shadow: 0 0 0 3px var(--yellow-soft); }
+.mc-card-hd {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 13px;
+  border-bottom: 1px solid var(--line);
+  font-weight: 600;
+}
+.mc-tag { font-size: 11px; font-weight: 600; padding: 1px 7px; border-radius: 6px; background: var(--yellow-soft); color: var(--yellow); }
+.mc-card-bd { padding: 11px 13px; display: flex; flex-direction: column; gap: 8px; }
+.mc-card-text { color: var(--text-2); white-space: pre-wrap; word-break: break-word; }
+.mc-card-q { font-weight: 600; }
+.mc-card-btns { justify-content: flex-end; }
+.mc-card.approval { border-color: var(--yellow); }
+.mc-card.approval .loop-sec { border: 0; border-radius: 0; margin: 0; }
+
+.mc-composer {
+  max-width: 760px;
+  width: calc(100% - 56px);
+  margin: 0 auto 14px;
+  border: 1px solid var(--line-2);
+  border-radius: 12px;
+  background: var(--surface);
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.mc-input { min-height: 54px; max-height: 200px; resize: vertical; font-family: inherit; background: var(--bg); }
+.mc-input:disabled { opacity: 0.55; }
+.mc-composer-bar { display: flex; align-items: center; gap: 10px; font-size: 11px; }
+.mc-why { flex: 1; min-width: 0; }

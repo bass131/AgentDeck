@@ -91,7 +91,10 @@ const SKIP_DIRS = new Set(['node_modules', 'dist', 'out', 'coverage', '.git'])
 // M10 G2: 465 → 470. 메인 대화 엔진 — 잠금의 메인 대화 꼴 main/04_Claude/loopLock.main-chat.test.ts,
 // 실행기의 여러 턴 경계 main/05_Loop/loopRunner.main-turns.test.ts, 메인 대화 모듈 main/05_Loop/mainChat.test.ts,
 // 앱 안 도구 main/05_Loop/mainChatTools.test.ts, 구동자와 메인 대화 main/05_Loop/loopDriver.main-chat.test.ts를 더했다.
-const BASELINE_TEST_FILES = 470
+// M10 G3: 470 → 472. 메인 대화 화면 — 기록·사건 줄·알림·읽기와 push의 순서·입력칸·일시 정지·취소 대상·새 메인 대화
+// renderer/13_Loop/MainChatView.test.tsx, 대화 안 질문·권한·스펙 승인 카드와 사람 판정 경계·루프 화면에서 빼기
+// renderer/13_Loop/MainChatView.cards.test.tsx를 더했다.
+const BASELINE_TEST_FILES = 472
 
 function collectTestFiles(dir: string, acc: string[] = []): string[] {
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {

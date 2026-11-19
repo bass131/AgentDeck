@@ -110,6 +110,8 @@ export const FLAT_ROUTES = {
   loopMainNew: { group: 'loop', action: 'mainNew' },
   onLoopMainState: { group: 'loop', action: 'onMainState' },
   onLoopSessionEvent: { group: 'loop', action: 'onSessionEvent' },
+  // M10 G3 — 사람이 일시 정지 깃발을 내린다
+  loopLowerFlag: { group: 'loop', action: 'lowerFlag' },
 } as const satisfies Record<string, FlatRoute>
 
 export type FlatKey = keyof typeof FLAT_ROUTES

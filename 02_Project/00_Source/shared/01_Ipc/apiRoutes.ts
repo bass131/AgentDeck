@@ -136,6 +136,8 @@ export const API_ROUTES = {
     mainNew: call(IPC_CHANNELS.LOOP_MAIN_NEW),
     onMainState: push(IPC_CHANNELS.LOOP_MAIN_STATE),
     onSessionEvent: push(IPC_CHANNELS.LOOP_SESSION_EVENT),
+    // M10 G3 — 사람이 일시 정지 깃발을 내린다(판정 칸 없음)
+    lowerFlag: call(IPC_CHANNELS.LOOP_LOWER_FLAG),
   },
 } as const
 

@@ -22,9 +22,9 @@ const STATUS: LoopStatus = {
 }
 
 describe('loop IPC 묶음 (M09 G4)', () => {
-  it('채널 이름 — invoke 열하나와 push 셋(M10 G2: 메인 대화 읽기·보내기·새로 열기, 메인 대화 push, 세션 사건 push)', () => {
+  it('채널 이름 — invoke 열둘과 push 셋(M10 G2: 메인 대화 읽기·보내기·새로 열기, 메인 대화 push, 세션 사건 push. M10 G3: 깃발 내리기)', () => {
     expect(Object.values(LOOP_CHANNELS).sort()).toEqual([
-      'loop.answerCard', 'loop.cancelSession', 'loop.close', 'loop.decide', 'loop.mainNew', 'loop.mainRead', 'loop.mainSend', 'loop.mainState',
+      'loop.answerCard', 'loop.cancelSession', 'loop.close', 'loop.decide', 'loop.lowerFlag', 'loop.mainNew', 'loop.mainRead', 'loop.mainSend', 'loop.mainState',
       'loop.open', 'loop.releaseLatch', 'loop.sessionEvent', 'loop.start', 'loop.state', 'loop.status',
     ])
     for (const v of Object.values(LOOP_CHANNELS)) expect(Object.values(IPC_CHANNELS)).toContain(v)
@@ -48,7 +48,29 @@ describe('loop IPC 묶음 (M09 G4)', () => {
       mainNew: { kind: 'call', channel: 'loop.mainNew' },
       onMainState: { kind: 'push', channel: 'loop.mainState' },
       onSessionEvent: { kind: 'push', channel: 'loop.sessionEvent' },
+      lowerFlag: { kind: 'call', channel: 'loop.lowerFlag' },
     })
+  })
+
+  // M10 G3 — 사람이 일시 정지 깃발을 내리는 길(판정 칸 없음)과 대상을 고른 취소(메인 턴 / 작업 세션)
+  it('깃발 내리기는 cwd만, 취소는 cwd와 대상만 싣는다', () => {
+    const lower: ReqOf<'loop.lowerFlag'> = { cwd: 'C:/work/practice' }
+    const res: ResOf<'loop.lowerFlag'> = {
+      ok: true,
+      view: { cwd: lower.cwd, root: lower.cwd, sessionId: null, items: [], cards: [], busy: false, waitingUser: false, brainstorming: false, paused: false, queued: 0 },
+    }
+    const main: ReqOf<'loop.cancelSession'> = { cwd: lower.cwd, target: 'main' }
+    const worker: ReqOf<'loop.cancelSession'> = { cwd: lower.cwd, target: 'worker' }
+    expect([res.ok, main.target, worker.target]).toEqual([true, 'main', 'worker'])
+    // @ts-expect-error 깃발 내리기는 판정을 싣지 못한다
+    const forged: ReqOf<'loop.lowerFlag'> = { cwd: lower.cwd, verdict: 'pass' }
+    void forged
+    // @ts-expect-error 취소는 대상을 골라야 한다
+    const bare: ReqOf<'loop.cancelSession'> = { cwd: lower.cwd }
+    void bare
+    // @ts-expect-error 대상은 메인 턴(main)과 작업 세션(worker)뿐이다
+    const review: ReqOf<'loop.cancelSession'> = { cwd: lower.cwd, target: 'review' }
+    void review
   })
 
   it('메인 대화 모양 (M10 G2) — 읽기·보내기·새로 열기는 cwd(보내기는 글)만 받고, 응답과 push는 같은 MainChatView다', () => {
@@ -106,6 +128,12 @@ describe('loop IPC 묶음 (M09 G4)', () => {
     const r: ResOf<'loop.releaseLatch'> = { ok: true, status: STATUS }
     const pushed: PayloadOf<'loop.state'> = STATUS
     const card: LoopCard = { kind: 'question', requestId: 'q1', node: 'brainstorm', goal: null, text: '무엇을 만들까?', questions: [] }
+    // M10 G3 — 메인 대화의 카드는 상태에도 실리되 inChat 표시가 붙는다(답하는 곳은 메인 대화 화면 한 곳)
+    const chatCard: LoopCard = { ...card, requestId: 'q2', inChat: true, restored: true }
+    expect([chatCard.inChat, card.inChat]).toEqual([true, undefined])
+    // @ts-expect-error inChat은 참·거짓이다
+    const badChat: LoopCard = { ...card, inChat: 'yes' }
+    void badChat
     expect([start.milestoneId, decide.verdict, answer.requestId, allow.response.kind, release.token, s.phase, d.ok, r.ok, pushed.node, card.kind])
       .toEqual(['M1', 'pass', 'q1', 'permission', 'b'.repeat(64), 'waiting-human', false, true, 'spec-approval', 'question'])
     // @ts-expect-error 「항상 허용」은 루프 카드에 없다

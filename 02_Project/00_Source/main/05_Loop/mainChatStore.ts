@@ -7,7 +7,7 @@
 import fs from 'node:fs'
 import { promises as fsp } from 'node:fs'
 import path from 'node:path'
-import type { LoopCard, LoopEventItem, MainChatItem, MainTurnKind } from '@shared/13_Loop/loop'
+import type { LoopCard, LoopEventItem, LoopEventKind, MainChatItem, MainTurnKind } from '@shared/13_Loop/loop'
 import { writeFileAtomic } from './realPorts/atomicWrite'
 
 export const MAX_ITEMS = 500
@@ -58,15 +58,23 @@ function validVisit(v: unknown): v is StoredVisit {
 }
 
 const TURN_KINDS: readonly unknown[] = ['user', 'start', 'rejected', 'event', 'card-answer'] satisfies MainTurnKind[]
+// 사건 종류 전부 — 키가 종류 전부여야 컴파일된다(종류가 늘거나 줄면 이 표도 바뀐다)
+const EVENT_KIND_TABLE: Record<LoopEventKind, true> = {
+  'node-start': true, 'node-end': true, fail: true, halt: true, error: true, 'goal-merged': true, 'milestone-pr': true,
+  'spec-approved': true, 'spec-rejected': true, 'flag-raised': true, 'flag-lowered': true, resumed: true, backlog: true,
+  latched: true, done: true,
+}
+const EVENT_KINDS: readonly unknown[] = Object.keys(EVENT_KIND_TABLE)
 
 // 항목 하나 — 종류마다 그 종류가 쓰는 칸을 본다(G2 독립 검수). 칸이 빠진 항목은 생존 문서의 최근 대화(tailLine)를 깨뜨리고,
-// 그 뒤 새 세션의 턴이 모두 실패한다. 사건의 종류는 이름표로만 본다(문자열) — 이름이 바뀐 옛 사건(paused 꼴)도 기록으로 남는다.
+// 그 뒤 새 세션의 턴이 모두 실패한다. 사건은 아는 종류만 받는다 — 이름이 바뀌기 전 빌드의 사건(paused 꼴)이나 모르는 종류는
+// 화면이 그 모양을 찾지 못하므로 버린다(G3 독립 검수 중요 1 — G2 검수 때 옛 사건을 기록으로 남기던 선택을 뒤집었다).
 function validItem(i: unknown): boolean {
   if (!isObj(i) || !str(i['id']) || !str(i['at'])) return false
   switch (i['kind']) {
     case 'user': return str(i['text']) && (i['state'] === 'queued' || i['state'] === 'sent')
     case 'assistant': return str(i['text']) && TURN_KINDS.includes(i['turn'])
-    case 'event': { const e = i['event']; return isObj(e) && str(e['kind']) && str(e['text']) }
+    case 'event': { const e = i['event']; return isObj(e) && EVENT_KINDS.includes(e['kind']) && str(e['text']) }
     case 'notice': return str(i['text'])
     default: return false
   }

@@ -143,7 +143,8 @@ describe('구동자 — 마일스톤 하나를 사람과 함께 끝까지 (M09 G
     expect((await d.open({ cwd: CWD })).phase).toBe('not-started')
     await d.start(CWD, 'M1')
     const asked = await until((s) => s.cards.length === 1, '브레인스토밍 질문 카드')
-    expect(asked.cards[0]).toMatchObject({ kind: 'question', node: 'brainstorm', goal: null, text: '무엇을 만들까?' })
+    // M10 G3 — 메인 대화의 카드는 상태에도 실리지만 inChat 표시가 붙는다(답하는 곳은 메인 대화 화면 한 곳)
+    expect(asked.cards[0]).toMatchObject({ kind: 'question', node: 'brainstorm', goal: null, text: '무엇을 만들까?', inChat: true })
     const cardId = asked.cards[0].requestId
     // 화면의 카드 id는 세션 차례가 붙은 구동자의 id다 — 세션의 원래 id(q-brainstorm)로는 답하지 못한다(G4 검수 I2)
     expect(cardId).not.toBe('q-brainstorm')

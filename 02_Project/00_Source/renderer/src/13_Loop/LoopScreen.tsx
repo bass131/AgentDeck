@@ -5,14 +5,18 @@
 //     부른 쪽에만 돌려주므로(publish), 응답이 그 사이 온 push보다 낡을 수 있다.
 //   · 화면이 내려가는 것(작업 모드에서 나감)은 루프를 닫지 않는다(구독만 푼다). 루프 닫기는 「루프 닫기」 버튼(loop.close)이다.
 // M10 G1부터 이 화면은 모달이 아니라 「작업」 모드의 몸체다 — 앱 껍데기(Shell)가 가운데 영역(대화 자리)에 그린다.
+// M10 G3부터 가운데는 메인 대화(MainChatView)이고 이 화면은 옆의 좁은 열이다(G4가 현황판으로 바꾼다).
+//   카드에 답하는 곳은 한 곳뿐이다 — 메인 대화의 카드(inChat)와 스펙 승인 카드는 메인 대화 안에서 답하고 여기서는 그리지 않는다.
+//   이 화면의 취소는 작업 세션(target work)이다. 메인 턴의 취소는 메인 대화 화면이 보낸다(Backlog 12).
 // 병합의 길은 마일스톤 PR 카드(08_Git PrCard)의 「병합」 버튼 하나다 — 이 화면은 병합을 부르지 않는다(헌법 10조).
 import { useCallback, useEffect, useRef, useState, type JSX } from 'react'
 import type { LoopCard, LoopCardResponse, LoopStatus } from '@shared/ipcContract'
 import { ipc } from '@renderer/01_Ipc'
 import { PrCard } from '@renderer/08_Git'
 import { QuestionModal } from '@renderer/03_Agent/prompt'
-import { ApprovalCard, CardList, ExceptionBar, GoalList, LatchCard } from './LoopCards'
-import { APPROVE_EVIDENCE, PHASE_LABEL, RESUME_EVIDENCE, errText, sameCwd } from './loopModel'
+import { CardList, ExceptionBar, GoalList, LatchCard } from './LoopCards'
+import { PHASE_LABEL, RESUME_EVIDENCE, errText, sameCwd } from './loopModel'
+import { workSessionLive } from './mainChatModel'
 import './LoopScreen.css'
 
 export interface LoopScreenProps {
@@ -21,7 +25,7 @@ export interface LoopScreenProps {
   onCwdChange: (cwd: string) => void
 }
 
-type Where = 'top' | 'resume' | 'cards' | 'approval' | 'latch'
+type Where = 'top' | 'resume' | 'cards' | 'latch'
 type Errors = Partial<Record<Where, string>>
 
 const CARD_REFUSED = '카드 답이 받아지지 않았어요 — 세션이 이미 끝났거나 카드가 바뀌었을 수 있어요'
@@ -150,13 +154,6 @@ export function LoopScreen({ initialCwd, onCwdChange }: LoopScreenProps): JSX.El
     }, apply)
   const resume = (): void =>
     void run('resume', (c) => ipc.loop.decide({ cwd: c, verdict: 'pass', evidence: RESUME_EVIDENCE, ...expectNode() }), decided('resume'))
-  const approve = (sha: string): void =>
-    void run('approval', (c) => ipc.loop.decide({ cwd: c, verdict: 'pass', evidence: APPROVE_EVIDENCE, specSha256: sha, ...expectNode() }), decided('approval'))
-  // 스펙 파일이 없으면 해시 없이 반려한다(G4 검수 I3 — main은 해시 없는 반려만 받는다)
-  const reject = (sha: string | null, reason: string): void =>
-    void run('approval', (c) => ipc.loop.decide({
-      cwd: c, verdict: 'fail', evidence: reason, ...(sha !== null ? { specSha256: sha } : {}), ...expectNode(),
-    }), decided('approval'))
   const release = (token: string): void =>
     void run('latch', (c) => ipc.loop.releaseLatch({ cwd: c, token }), decided('latch'))
   // 대기열에 넣을 때 미리 답한 표시를 하므로, 보내기가 throw하거나 받아지지 않으면 표시를 되돌린다(G4 확인 검수) —
@@ -196,15 +193,17 @@ export function LoopScreen({ initialCwd, onCwdChange }: LoopScreenProps): JSX.El
     if (next) send(next.card, next.response)
   }
   const cancelSession = (): void =>
-    void run('top', (c) => ipc.loop.cancelSession({ cwd: c }), (r) => {
-      if (!r.ok) setError('top', '취소할 세션이 없어요')
+    void run('top', (c) => ipc.loop.cancelSession({ cwd: c, target: 'worker' }), (r) => {
+      if (!r.ok) setError('top', '취소할 작업 세션이 없어요')
     })
 
   const phase = status?.phase ?? null
   const canOpen = cwd !== null && (status === null || phase === 'closed' || phase === 'open-failed')
   const canStart = status !== null && (phase === 'not-started' || (phase === 'blocked' && status.milestoneId === null))
   const canClose = status !== null && phase !== 'closed'
-  const found = asking === null ? undefined : status?.cards.find((c) => c.requestId === asking)
+  // 메인 대화의 카드는 메인 대화 화면이 답한다(M10 G3) — 구동자 자신의 카드만 남긴다
+  const cards = status?.cards.filter((c) => c.inChat !== true) ?? []
+  const found = asking === null ? undefined : cards.find((c) => c.requestId === asking)
   const askingCard = found && found.kind === 'question' ? found : null
 
   return (
@@ -268,32 +267,22 @@ export function LoopScreen({ initialCwd, onCwdChange }: LoopScreenProps): JSX.El
                 </section>
               )}
 
-              {status.sessionActive && (
+              {/* 메인 대화 화면의 「작업 세션 멈추기」와 같은 판단 — 메인 턴만 도는 것은 작업 세션이 아니다(G3 독립 검수 사소 3) */}
+              {workSessionLive(status, null) && (
                 <div className="loop-actions loop-session">
                   <span className="loop-muted">세션이 떠 있어요</span>
-                  <button type="button" className="loop-btn" disabled={busy} onClick={cancelSession}>세션 취소</button>
+                  <button type="button" className="loop-btn" disabled={busy} onClick={cancelSession}>작업 세션 취소</button>
                 </div>
               )}
 
               <CardList
-                cards={status.cards}
+                cards={cards}
                 answered={answered}
                 busy={busy}
                 onAsk={(c) => setAsking(c.requestId)}
                 onPermission={(c, behavior) => answer(c, { kind: 'permission', behavior })}
                 error={errors.cards ?? null}
               />
-
-              {status.approval !== null && (
-                <ApprovalCard
-                  key={status.approval.sha256 ?? 'none'}
-                  approval={status.approval}
-                  busy={busy}
-                  onApprove={() => { if (status.approval?.sha256) approve(status.approval.sha256) }}
-                  onReject={(reason) => { if (status.approval) reject(status.approval.sha256, reason) }}
-                  error={errors.approval ?? null}
-                />
-              )}
 
               {status.latch !== null && (
                 <LatchCard

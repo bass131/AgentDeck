@@ -84,12 +84,17 @@ export function CardList({ cards, answered, busy, onAsk, onPermission, error }: 
   )
 }
 
-export function ApprovalCard({ approval, busy, onApprove, onReject, error }: {
+// M10 G3 — 승인 카드는 메인 대화 안에 뜬다(「스펙 승인 / 이어서 고치기」). 글자만 바꿀 수 있고 판정의 꼴(해시 묶기·사유 필수)은 그대로다
+export function ApprovalCard({ approval, busy, onApprove, onReject, error, approveLabel = '승인', rejectLabel = '반려', reasonLabel = '반려 사유', reasonPlaceholder = '반려 사유를 적어요' }: {
   approval: LoopApproval
   busy: boolean
   onApprove: () => void
   onReject: (reason: string) => void
   error: string | null
+  approveLabel?: string
+  rejectLabel?: string
+  reasonLabel?: string
+  reasonPlaceholder?: string
 }): JSX.Element {
   const [reason, setReason] = useState('')
   // 승인은 본 해시에 묶인다 — 해시가 없으면 끈다. 반려는 스펙 파일이 없을 때도 켠다(해시 없는 반려로 브레인스토밍에 돌아간다, G4 검수 I3)
@@ -107,13 +112,13 @@ export function ApprovalCard({ approval, busy, onApprove, onReject, error }: {
       </div>
       <pre className="loop-pre loop-spec">{approval.spec ?? '(스펙 파일이 없어요)'}</pre>
       <div className="loop-actions">
-        <button type="button" className="loop-btn pri" disabled={!bound || busy} onClick={onApprove}>승인</button>
+        <button type="button" className="loop-btn pri" disabled={!bound || busy} onClick={onApprove}>{approveLabel}</button>
       </div>
       <div className="loop-reject">
         <textarea
           className="loop-input loop-textarea"
-          aria-label="반려 사유"
-          placeholder="반려 사유를 적어요"
+          aria-label={reasonLabel}
+          placeholder={reasonPlaceholder}
           maxLength={EVIDENCE_MAX}
           value={reason}
           onChange={(e) => setReason(e.target.value)}
@@ -124,7 +129,7 @@ export function ApprovalCard({ approval, busy, onApprove, onReject, error }: {
           disabled={busy || reason.trim() === ''}
           onClick={() => onReject(reason.trim())}
         >
-          반려
+          {rejectLabel}
         </button>
       </div>
       {error !== null && <div className="loop-err">{error}</div>}

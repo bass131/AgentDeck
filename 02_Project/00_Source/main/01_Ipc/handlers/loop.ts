@@ -12,7 +12,7 @@ import type {
   LoopReleaseLatchResponse,
   LoopStatus,
 } from '@shared/ipcContract'
-import type { LoopMainResponse, LoopSessionEventPayload, MainChatView } from '@shared/13_Loop/loop'
+import type { LoopCancelTarget, LoopMainResponse, LoopSessionEventPayload, MainChatView } from '@shared/13_Loop/loop'
 import { handle } from '../handle'
 
 const MAIN_TEXT_MAX = 20_000
@@ -22,12 +22,14 @@ export interface LoopDriverApi {
   mainRead(cwd: string): MainChatView
   mainSend(cwd: string, text: string): LoopMainResponse
   mainNew(cwd: string): Promise<LoopMainResponse>
+  // M10 G3 — 사람이 깃발을 내린다(cwd만), 취소는 대상을 고른다
+  lowerFlag(cwd: string): LoopMainResponse
   open(req: LoopOpenRequest): Promise<LoopStatus>
   start(cwd: string, milestoneId: string): Promise<LoopStatus>
   status(cwd: string): LoopStatus
   decide(req: LoopDecideRequest): Promise<LoopDecideResponse>
   answerCard(cwd: string, requestId: string, response: LoopCardResponse): boolean
-  cancelSession(cwd: string): boolean
+  cancelSession(cwd: string, target: LoopCancelTarget): boolean
   releaseLatch(cwd: string, token: string): Promise<LoopReleaseLatchResponse>
   close(cwd: string): Promise<void>
 }
@@ -112,7 +114,15 @@ export function registerLoopHandlers(deps: LoopHandlerDeps): void {
     return { ok: driver.answerCard(cwd, requestId, response) }
   })
 
-  handle(IPC_CHANNELS.LOOP_CANCEL_SESSION, async (_e, req) => ({ ok: driver.cancelSession(cwdOf(obj(req, 'loop.cancelSession'), 'loop.cancelSession')) }))
+  // M10 G3 — 취소는 대상(메인 턴 main / 작업 세션 worker)을 골라야 한다. 대상이 없거나 모르면 거부한다(옛 「메인 먼저」로 기울지 않는다, Backlog 12).
+  // 판정 칸은 읽지 않는다 — 구동자는 cwd와 대상만 받는다
+  handle(IPC_CHANNELS.LOOP_CANCEL_SESSION, async (_e, req) => {
+    const r = obj(req, 'loop.cancelSession')
+    const cwd = cwdOf(r, 'loop.cancelSession')
+    const target = r['target']
+    if (target !== 'main' && target !== 'worker') throw new Error('loop.cancelSession: target은 main·worker 중 하나다')
+    return { ok: driver.cancelSession(cwd, target) }
+  })
 
   handle(IPC_CHANNELS.LOOP_RELEASE_LATCH, async (_e, req) => {
     const r = obj(req, 'loop.releaseLatch')
@@ -137,6 +147,10 @@ export function registerLoopHandlers(deps: LoopHandlerDeps): void {
   })
 
   handle(IPC_CHANNELS.LOOP_MAIN_NEW, async (_e, req) => driver.mainNew(cwdOf(obj(req, 'loop.mainNew'), 'loop.mainNew')))
+
+  // M10 G3 — 사람이 일시 정지 깃발을 내린다. cwd만 읽는다 — 판정 칸(verdict·evidence·specSha256·expectNode)이 와도 구동자에 닿지 않는다.
+  // 깃발 내리기는 사람 판정(decide)을 대신하지 않는다 — 실행 상태·검증 기록을 쓰지 않는다(USER-INPUT 줄 없음)
+  handle(IPC_CHANNELS.LOOP_LOWER_FLAG, async (_e, req) => driver.lowerFlag(cwdOf(obj(req, 'loop.lowerFlag'), 'loop.lowerFlag')))
 }
 
 function pushTo<C extends Parameters<typeof sendPush>[1]>(state: { win: BrowserWindow | null }, ch: C, payload: Parameters<typeof sendPush<C>>[2]): void {

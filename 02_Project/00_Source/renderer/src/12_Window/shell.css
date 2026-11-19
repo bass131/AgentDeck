@@ -37,13 +37,33 @@
   flex: 1;
   min-width: 0;
 }
-/* M10 G1 — 「작업」 모드의 가운데 칸(루프 화면). 대화 칸 자리를 그대로 채운다 */
+/* M10 G1 — 「작업」 모드의 가운데 칸. 대화 칸 자리를 그대로 채운다 */
 .pane.work {
   flex: 1;
   min-width: 0;
-  /* 루프 질문 창(.q-overlay, absolute inset 0)이 창 전체가 아니라 이 칸만 덮게 한다(M10 G1 검수 사소 7) */
+  /* M10 G3 — 가운데 메인 대화(.work-center)와 옆의 좁은 루프 화면 열(.work-side)을 가로로 놓는다. 탭·현황판 배치는 G4 몫이다 */
+  flex-direction: row;
+  /* 루프·메인 대화 질문 창(.q-overlay, absolute inset 0)이 창 전체가 아니라 이 칸만 덮게 한다(M10 G1 검수 사소 7) */
   position: relative;
 }
+/* 두 칸은 겹침 맥락을 만들지 않는다(위치·쌓임 순서·합성 효과 없음) — 질문 창이 .pane.work를 기준으로 뜬다 */
+.work-center {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.work-side {
+  width: 380px;
+  flex: none;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  border-left: 1px solid var(--line);
+  background: var(--surface);
+}
+.work-side .loop-screen { padding: 12px; }
 .pane.agent {
   flex: 0 0 var(--agent-w);
   background: var(--surface);

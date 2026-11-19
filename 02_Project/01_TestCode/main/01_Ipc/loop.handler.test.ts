@@ -45,6 +45,7 @@ function fakeDriver(): { driver: LoopDriverApi; calls: unknown[][] } {
       mainRead: rec('mainRead', view()),
       mainSend: rec('mainSend', { ok: true, view: view({ busy: true }) }),
       mainNew: rec('mainNew', Promise.resolve({ ok: true, view: view() })),
+      lowerFlag: rec('lowerFlag', { ok: true, view: view() }),
     },
   }
 }
@@ -60,11 +61,11 @@ function register(driver: LoopDriverApi): (ch: string, req: unknown) => Promise<
 }
 
 describe('loop IPC 핸들러 (M09 G4)', () => {
-  it('열한 채널을 등록하고 구동자로 넘긴다(M10 G2 — 메인 대화 읽기·보내기·새로 열기)', async () => {
+  it('열두 채널을 등록하고 구동자로 넘긴다(M10 G2 — 메인 대화 읽기·보내기·새로 열기, M10 G3 — 깃발 내리기)', async () => {
     const { driver, calls } = fakeDriver()
     const call = register(driver)
     expect([...h.handlers.keys()].sort()).toEqual([
-      'loop.answerCard', 'loop.cancelSession', 'loop.close', 'loop.decide', 'loop.mainNew', 'loop.mainRead', 'loop.mainSend',
+      'loop.answerCard', 'loop.cancelSession', 'loop.close', 'loop.decide', 'loop.lowerFlag', 'loop.mainNew', 'loop.mainRead', 'loop.mainSend',
       'loop.open', 'loop.releaseLatch', 'loop.start', 'loop.status',
     ])
     expect(await call(IPC_CHANNELS.LOOP_MAIN_READ, { cwd: CWD })).toMatchObject({ cwd: CWD, items: [] })
@@ -76,13 +77,38 @@ describe('loop IPC 핸들러 (M09 G4)', () => {
     await call(IPC_CHANNELS.LOOP_STATUS, { cwd: CWD })
     await call(IPC_CHANNELS.LOOP_DECIDE, { cwd: CWD, verdict: 'pass', evidence: '봤다', specSha256: 'a'.repeat(64) })
     expect(await call(IPC_CHANNELS.LOOP_ANSWER_CARD, { cwd: CWD, requestId: 'q1', response: { kind: 'question', answers: [['예']] } })).toEqual({ ok: true })
-    expect(await call(IPC_CHANNELS.LOOP_CANCEL_SESSION, { cwd: CWD })).toEqual({ ok: true })
+    expect(await call(IPC_CHANNELS.LOOP_CANCEL_SESSION, { cwd: CWD, target: 'worker' })).toEqual({ ok: true })
     await call(IPC_CHANNELS.LOOP_RELEASE_LATCH, { cwd: CWD, token: 'b'.repeat(64) })
     expect(await call(IPC_CHANNELS.LOOP_CLOSE, { cwd: CWD })).toEqual({ ok: true })
     expect(calls.map((c) => c[0])).toEqual(['open', 'start', 'status', 'decide', 'answerCard', 'cancelSession', 'releaseLatch', 'close'])
     expect(calls[0]).toEqual(['open', { cwd: CWD }])
     expect(calls[3]).toEqual(['decide', { cwd: CWD, verdict: 'pass', evidence: '봤다', specSha256: 'a'.repeat(64) }])
     expect(calls[4]).toEqual(['answerCard', CWD, 'q1', { kind: 'question', answers: [['예']] }])
+    expect(calls[5]).toEqual(['cancelSession', CWD, 'worker'])
+  })
+
+  // M10 G3 — 사람이 깃발을 내리는 길과 대상을 고른 취소. 둘 다 판정 칸을 읽지 않는다 — 구동자는 cwd(취소는 대상)만 받는다
+  it('깃발 내리기는 cwd만 구동자로 넘긴다 — 판정 칸(verdict·evidence·specSha256·expectNode)을 실어도 읽지 않는다', async () => {
+    const { driver, calls } = fakeDriver()
+    const call = register(driver)
+    expect(await call(IPC_CHANNELS.LOOP_LOWER_FLAG, { cwd: CWD })).toMatchObject({ ok: true, view: { cwd: CWD } })
+    await call(IPC_CHANNELS.LOOP_LOWER_FLAG, { cwd: CWD, verdict: 'pass', evidence: '이어 간다', specSha256: 'a'.repeat(64), expectNode: 'G1/implement' })
+    expect(calls).toEqual([['lowerFlag', CWD], ['lowerFlag', CWD]])
+    await expect(call(IPC_CHANNELS.LOOP_LOWER_FLAG, { cwd: 'rel' })).rejects.toThrow()
+    await expect(call(IPC_CHANNELS.LOOP_LOWER_FLAG, null)).rejects.toThrow()
+    expect(calls).toHaveLength(2)
+  })
+
+  it('취소는 대상(메인 턴 main·작업 세션 worker)을 골라야 한다 — 빠지거나 모르는 대상은 구동자에 닿지 않고, 판정 칸은 읽지 않는다', async () => {
+    const { driver, calls } = fakeDriver()
+    const call = register(driver)
+    await call(IPC_CHANNELS.LOOP_CANCEL_SESSION, { cwd: CWD, target: 'main' })
+    await call(IPC_CHANNELS.LOOP_CANCEL_SESSION, { cwd: CWD, target: 'worker', verdict: 'fail', evidence: '취소' })
+    expect(calls).toEqual([['cancelSession', CWD, 'main'], ['cancelSession', CWD, 'worker']])
+    for (const bad of [{ cwd: CWD }, { cwd: CWD, target: 'review' }, { cwd: CWD, target: 'work' }, { cwd: CWD, target: '' }, { cwd: CWD, target: 1 }]) {
+      await expect(call(IPC_CHANNELS.LOOP_CANCEL_SESSION, bad)).rejects.toThrow(/target/)
+    }
+    expect(calls).toHaveLength(2)
   })
 
   it('입력 꼴이 틀리면 구동자를 부르지 않는다', async () => {

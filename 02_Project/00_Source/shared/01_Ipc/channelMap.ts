@@ -107,6 +107,7 @@ import type {
 import type { Profile, UiPrefs, UiPrefsSetReq } from '../11_Settings/personalization'
 import type {
   LoopAnswerCardRequest,
+  LoopCancelRequest,
   LoopCwdRequest,
   LoopDecideRequest,
   LoopDecideResponse,
@@ -215,13 +216,16 @@ export interface IpcInvokeMap {
   'loop.status': { req: LoopCwdRequest; res: LoopStatus }
   'loop.decide': { req: LoopDecideRequest; res: LoopDecideResponse }
   'loop.answerCard': { req: LoopAnswerCardRequest; res: LoopOkResponse }
-  'loop.cancelSession': { req: LoopCwdRequest; res: LoopOkResponse }
+  // M10 G3 — 취소는 대상(메인 턴 main / 작업 세션 work)을 싣는다
+  'loop.cancelSession': { req: LoopCancelRequest; res: LoopOkResponse }
   'loop.releaseLatch': { req: LoopReleaseLatchRequest; res: LoopReleaseLatchResponse }
   'loop.close': { req: LoopCwdRequest; res: LoopOkResponse }
   // M10 G2 — 메인 대화(main/05_Loop/mainChat.ts). 카드 답은 loop.answerCard다
   'loop.mainRead': { req: LoopCwdRequest; res: MainChatView }
   'loop.mainSend': { req: LoopMainSendRequest; res: LoopMainResponse }
   'loop.mainNew': { req: LoopCwdRequest; res: LoopMainResponse }
+  // M10 G3 — 사람이 일시 정지 깃발을 내린다(판정 칸 없음)
+  'loop.lowerFlag': { req: LoopCwdRequest; res: LoopMainResponse }
 }
 
 // main → renderer push 채널. 값은 payload 타입이다.

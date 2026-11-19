@@ -286,61 +286,37 @@ describe('질문 카드와 권한 카드 (M09 G4)', () => {
     expect(api.loopAnswerCard).toHaveBeenCalledTimes(1)
   })
 
-  it('세션 취소는 cancelSession({cwd})다', async () => {
+  // M10 G3 — 메인 턴의 취소는 메인 대화 화면이 대상 main으로 보낸다. 루프 화면의 취소는 작업 세션(worker)이다(Backlog 12)
+  it('작업 세션 취소는 cancelSession({cwd, target: worker})다', async () => {
     await renderScreen(st({ cards: [permission], sessionActive: true }))
-    await click(btn('세션 취소'))
-    expect(api.loopCancelSession).toHaveBeenCalledWith({ cwd: CWD })
+    await click(btn('작업 세션 취소'))
+    expect(api.loopCancelSession).toHaveBeenCalledWith({ cwd: CWD, target: 'worker' })
+  })
+
+  it('메인 대화의 카드(inChat)는 루프 화면에 그리지 않는다 — 답하는 곳은 메인 대화 한 곳이다 (M10 G3)', async () => {
+    const inChat: LoopCard = { ...question, requestId: 'sx.7-q7', inChat: true }
+    await renderScreen(st({ cards: [inChat, permission], sessionActive: true }))
+    expect(screen.queryByTestId(`loop-card-${inChat.requestId}`)).toBeNull()
+    expect(screen.getByTestId(`loop-card-${permission.requestId}`)).toBeTruthy()
+    // 메인 대화 카드만 남으면 세션 카드 칸 자체가 없다
+    cleanup()
+    await renderScreen(st({ cards: [inChat], sessionActive: true }))
+    expect(screen.queryByRole('region', { name: '세션 카드' })).toBeNull()
   })
 })
 
-describe('스펙 승인 카드 (M09 G4)', () => {
+// M10 G3 — 스펙 승인 카드는 메인 대화 안으로 옮겼다(MainChatView.cards.test.tsx가 승인·반려 시험을 이어받는다).
+// 루프 화면은 예외 한 줄로 「사람 대기」만 보이고 승인·반려 버튼을 그리지 않는다(카드에 답하는 곳은 한 곳)
+describe('스펙 승인은 메인 대화에서 답한다 (M10 G3)', () => {
   const approval = { node: 'spec-approve', title: '스펙 승인', spec: '# 마일스톤 스펙\n\n목표: 작게', sha256: SHA }
 
-  it('스펙 본문과 sha256 앞 12자리를 보이고, 승인은 받은 sha256과 expectNode를 그대로 실어 decide pass를 보낸다', async () => {
+  it('승인 카드가 있어도 루프 화면에는 승인·반려 버튼과 사유 칸이 없고, 예외 한 줄이 사람 대기를 알린다', async () => {
     await renderScreen(st({ phase: 'waiting-human', node: 'spec-approve', approval }))
-    expect(screen.getByText(/목표: 작게/)).toBeTruthy()
-    expect(screen.getByText(SHA.slice(0, 12))).toBeTruthy()
-    await click(btn('승인'))
-    const req = api.loopDecide.mock.calls[0][0]
-    expect(req).toMatchObject({ cwd: CWD, verdict: 'pass', specSha256: SHA, expectNode: 'spec-approve' })
-    expect(req.evidence.trim().length).toBeGreaterThan(0)
-  })
-
-  it('반려는 사유가 있어야 켜지고, 사유를 evidence로 verdict:fail을 같은 sha256·expectNode와 보낸다', async () => {
-    await renderScreen(st({ phase: 'waiting-human', node: 'spec-approve', approval }))
-    expect(btn('반려').disabled).toBe(true)
-    fireEvent.change(screen.getByLabelText('반려 사유'), { target: { value: '범위가 너무 크다' } })
-    await click(btn('반려'))
-    expect(api.loopDecide).toHaveBeenCalledWith({
-      cwd: CWD, verdict: 'fail', evidence: '범위가 너무 크다', specSha256: SHA, expectNode: 'spec-approve',
-    })
-  })
-
-  it('ok:false면 reason을 보인다', async () => {
-    await renderScreen(st({ phase: 'waiting-human', node: 'spec-approve', approval }))
-    api.loopDecide.mockResolvedValue({ ok: false, reason: '사람이 본 스펙과 지금 스펙 파일이 다르다', status: st({ phase: 'waiting-human', node: 'spec-approve', approval }) })
-    await click(btn('승인'))
-    expect(screen.getByText('사람이 본 스펙과 지금 스펙 파일이 다르다')).toBeTruthy()
-  })
-
-  it('spec이나 sha256이 null이면 승인 버튼이 꺼진다', async () => {
-    await renderScreen(st({ phase: 'waiting-human', node: 'spec-approve', approval: { ...approval, spec: null, sha256: null } }))
-    expect(btn('승인').disabled).toBe(true)
-  })
-
-  // G4 검수 중요 I3 — 스펙 파일이 없을 때 빠져나갈 길. 반려는 해시 없이 보낸다(main이 해시 없는 반려만 받는다)
-  it('스펙 파일이 없으면 반려는 켜지고 해시 없이 verdict:fail을 보낸다', async () => {
-    await renderScreen(st({ phase: 'waiting-human', node: 'spec-approve', approval: { ...approval, spec: null, sha256: null } }))
-    fireEvent.change(screen.getByLabelText('반려 사유'), { target: { value: '스펙이 써지지 않았다' } })
-    expect(btn('반려').disabled).toBe(false)
-    await click(btn('반려'))
-    expect(api.loopDecide).toHaveBeenCalledWith({ cwd: CWD, verdict: 'fail', evidence: '스펙이 써지지 않았다', expectNode: 'spec-approve' })
-  })
-
-  it('지금 노드가 없으면 expectNode를 싣지 않는다', async () => {
-    await renderScreen(st({ phase: 'waiting-human', node: null, approval }))
-    await click(btn('승인'))
-    expect('expectNode' in api.loopDecide.mock.calls[0][0]).toBe(false)
+    expect(screen.queryByRole('button', { name: '승인' })).toBeNull()
+    expect(screen.queryByRole('button', { name: '반려' })).toBeNull()
+    expect(screen.queryByLabelText('반려 사유')).toBeNull()
+    expect(document.querySelector('.loop-exc-label')?.textContent).toBe('사람 대기')
+    expect(api.loopDecide).not.toHaveBeenCalled()
   })
 })
 

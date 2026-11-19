@@ -4,7 +4,7 @@ import { Conversation, type InjectedInput } from '@renderer/05_Conversation'
 import { SubAgentSplitView } from '@renderer/03_Agent'
 import { TitleBar, ResizeHandles, Sidebar, SettingsModal, Profile, ZoomControl } from '.'
 import { GitModal } from '@renderer/08_Git'
-import { LoopScreen } from '@renderer/13_Loop'
+import { LoopScreen, MainChatView } from '@renderer/13_Loop'
 import { AskModal } from '@renderer/03_Agent/prompt'
 import { RecentFiles } from '@renderer/07_Workspace/file'
 import { FileModal } from '@renderer/07_Workspace/file'
@@ -36,6 +36,9 @@ import {
 } from '@renderer/00_App/appStore'
 import { isAnyModalOpen } from './useGlobalShortcuts'
 import './shell.css'
+
+// M10 G3(Backlog 6) — 작업 모드에서 고른 작업 폴더의 설정 키
+export const WORK_CWD_PREF = 'work.cwd'
 
 // 단일 inject 채널 — 주입 출처(FileModal 선택질문·GitModal)와 무관하게 nonce를 하나씩 올려 Conversation에 재주입을 알린다.
 export function nextInject(prev: InjectedInput, text: string): InjectedInput {
@@ -79,7 +82,12 @@ export function Shell(): JSX.Element {
   const [appUpdateOpen, setAppUpdateOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
   // 루프 화면(M09 G4)은 「작업」 모드의 몸체다(M10 G1). 모드를 오가도 고른 저장소는 기억한다(루프는 main에서 계속 돈다).
-  const [loopCwd, setLoopCwd] = useState<string | null>(null)
+  // M10 G3(Backlog 6) — 고른 작업 폴더는 설정(work.cwd)에 남아 앱을 다시 켜도 그 폴더로 뜬다. 다시 켤 때 루프를 열지는 않는다(읽기만).
+  const [loopCwd, setLoopCwd] = useState<string | null>(() => getPref<string | null>(WORK_CWD_PREF, null))
+  const chooseLoopCwd = useCallback((cwd: string) => {
+    setLoopCwd(cwd)
+    setPref(WORK_CWD_PREF, cwd)
+  }, [])
 
   const handleOpenImage = useCallback((images: string[], index: number) => {
     setImageViewer({ images, index })
@@ -230,11 +238,16 @@ export function Shell(): JSX.Element {
           </div>
         ) : null}
 
-        {/* 가운데 영역 — 「작업」은 루프 화면을 모달 없이 그리고, 「채팅」은 대화를 그린다(M10 G1).
-            작업 모드에서는 탐색기와 오른쪽 서브에이전트 보기를 그리지 않는다(진짜 배치는 G2·G3 몫). */}
+        {/* 가운데 영역 — 「작업」은 가운데 메인 대화와 옆의 좁은 루프 화면 열(M10 G3)을 모달 없이 그리고, 「채팅」은 대화를 그린다(M10 G1).
+            작업 모드에서는 탐색기와 오른쪽 서브에이전트 보기를 그리지 않는다(탭·현황판 배치는 G4 몫). */}
         {workspaceMode === 'work' ? (
           <main className="pane work">
-            <LoopScreen initialCwd={loopCwd} onCwdChange={setLoopCwd} />
+            <div className="work-center">
+              <MainChatView cwd={loopCwd} />
+            </div>
+            <aside className="work-side">
+              <LoopScreen initialCwd={loopCwd} onCwdChange={chooseLoopCwd} />
+            </aside>
           </main>
         ) : (
           <main className="pane chat">

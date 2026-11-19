@@ -1,0 +1,335 @@
+// @vitest-environment jsdom
+// M10 G3 메인 대화 보기 — 작업 폴더의 메인 대화(main 소유)를 loop.mainRead와 loop.mainState push로 받아 그린다.
+// 고정하는 것:
+//   - 기록: 사람 글(줄 섬·보냄), 메인 글(마크다운), 사건 줄(종류별 모양), 알림(오류·저장 실패).
+//     메인 깃발 사건(flag-raised·flag-lowered)은 사람의 이어 가기(resumed)와 다른 모양이다.
+//   - 순서: 첫 읽기·보내기·새로 열기의 응답이 그 사이 온 push보다 늦으면 응답의 보기로 되돌아가지 않는다. 다른 폴더의 push는 버린다.
+//   - 입력칸: 열린 실행기가 없으면 막고 까닭을 보인다. 메인이 도는 중·사람을 기다림·줄 선 글 수를 보인다.
+//   - 일시 정지: 깃발이 올라 있으면 표시와 「이어 가기」 — 깃발 내리기(loop.lowerFlag)만 부르고 사람 판정(decide)은 부르지 않는다.
+//   - 취소는 대상을 골라 보낸다(메인 턴 main / 작업 세션 worker). 새 메인 대화는 확인을 한 번 받은 뒤 loop.mainNew다.
+import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
+import { render, screen, fireEvent, cleanup, act, within } from '@testing-library/react'
+import type { LoopEventKind, LoopStatus, MainChatItem, MainChatView } from '../../../../02_Project/00_Source/shared/ipcContract'
+import { adaptFlatApi } from '../00_Helpers/windowApiMock'
+
+const CWD = 'C:\\work\\practice'
+
+const st = (over: Partial<LoopStatus> = {}): LoopStatus => ({
+  cwd: CWD, root: CWD, phase: 'running', milestoneId: 'M01', node: 'brainstorm', nodeTitle: '브레인스토밍', reason: null,
+  base: 'main', ghRepo: 'me/practice', failCount: 0, goals: [], approval: null, milestonePr: null, cards: [],
+  sessionActive: false, lastVerdict: null, latch: null, paused: false, mainBusy: false, mainWaiting: false, ...over,
+})
+const mv = (over: Partial<MainChatView> = {}): MainChatView => ({
+  cwd: CWD, root: CWD, sessionId: 'S1', items: [], cards: [], busy: false, waitingUser: false, brainstorming: false, paused: false, queued: 0, ...over,
+})
+const at = '2026-11-19T05:00:00.000Z'
+const user = (id: string, text: string, state: 'queued' | 'sent'): MainChatItem => ({ id, at, kind: 'user', text, state })
+const said = (id: string, text: string): MainChatItem => ({ id, at, kind: 'assistant', text, turn: 'user' })
+const ev = (id: string, kind: LoopEventKind, text: string): MainChatItem => ({ id, at, kind: 'event', event: { kind, node: null, goal: null, text } })
+const note = (id: string, text: string): MainChatItem => ({ id, at, kind: 'notice', text })
+
+type Fn = ReturnType<typeof vi.fn>
+let api: Record<string, Fn>
+let mainHandlers: Set<(v: MainChatView) => void>
+let stateHandlers: Set<(s: LoopStatus) => void>
+
+function install(view: MainChatView = mv(), status: LoopStatus = st()): void {
+  mainHandlers = new Set()
+  stateHandlers = new Set()
+  api = {
+    loopMainRead: vi.fn().mockResolvedValue(view),
+    loopMainSend: vi.fn().mockResolvedValue({ ok: true, view }),
+    loopMainNew: vi.fn().mockResolvedValue({ ok: true, view: mv() }),
+    loopLowerFlag: vi.fn().mockResolvedValue({ ok: true, view: mv({ ...view, paused: false }) }),
+    loopStatus: vi.fn().mockResolvedValue(status),
+    loopDecide: vi.fn().mockResolvedValue({ ok: true, status }),
+    loopAnswerCard: vi.fn().mockResolvedValue({ ok: true }),
+    loopCancelSession: vi.fn().mockResolvedValue({ ok: true }),
+    onLoopMainState: vi.fn((cb: (v: MainChatView) => void) => { mainHandlers.add(cb); return () => mainHandlers.delete(cb) }),
+    onLoopState: vi.fn((cb: (s: LoopStatus) => void) => { stateHandlers.add(cb); return () => stateHandlers.delete(cb) }),
+  }
+  Object.defineProperty(window, 'api', { value: adaptFlatApi(api), writable: true, configurable: true })
+}
+
+const flush = async (): Promise<void> => { await act(async () => { await new Promise((r) => setTimeout(r, 0)) }) }
+const pushView = async (v: MainChatView): Promise<void> => { await act(async () => { for (const h of [...mainHandlers]) h(v) }) }
+const pushState = async (s: LoopStatus): Promise<void> => { await act(async () => { for (const h of [...stateHandlers]) h(s) }) }
+const chat = (): HTMLElement => screen.getByRole('region', { name: '메인 대화' })
+const btn = (name: string): HTMLButtonElement => within(chat()).getByRole('button', { name }) as HTMLButtonElement
+const click = async (el: HTMLElement): Promise<void> => { await act(async () => { fireEvent.click(el) }); await flush() }
+
+async function renderChat(cwd: string | null = CWD) {
+  const { MainChatView } = await import('@renderer/13_Loop')
+  const r = render(<MainChatView cwd={cwd} />)
+  await flush()
+  return r
+}
+
+beforeEach(() => install())
+afterEach(() => cleanup())
+
+describe('메인 대화 기록 (M10 G3)', () => {
+  it('사람 글은 줄 섬·보냄을, 메인 글은 마크다운을, 사건 줄은 종류를, 알림은 오류·저장 실패 글을 보인다', async () => {
+    install(mv({
+      items: [
+        user('u1', '범위는 덧셈', 'sent'), said('a1', '좋아, **결정 대장**에 적었어'), user('u2', '타임아웃은 짧게', 'queued'),
+        ev('e1', 'goal-merged', 'G1 goal을 병합했다'), ev('e2', 'fail', 'G2/checks FAIL — npm test'),
+        note('n1', '턴이 오류로 끝났다 — 연결 끊김'), note('n2', '대화 기록을 저장하지 못했다 — EACCES'),
+      ],
+    }))
+    const { container } = await renderChat()
+    expect(api.loopMainRead).toHaveBeenCalledWith({ cwd: CWD })
+    const sent = container.querySelector('[data-item="u1"]') as HTMLElement
+    const queued = container.querySelector('[data-item="u2"]') as HTMLElement
+    expect(sent.getAttribute('data-state')).toBe('sent')
+    expect(within(sent).getByText('보냄')).toBeTruthy()
+    expect(queued.getAttribute('data-state')).toBe('queued')
+    expect(within(queued).getByText('줄 서 있어요')).toBeTruthy()
+    // 메인 글은 기존 마크다운 보기로 그린다
+    const said1 = container.querySelector('[data-item="a1"]') as HTMLElement
+    expect(said1.querySelector('.markdown-view strong')?.textContent).toBe('결정 대장')
+    expect(container.querySelector('[data-item="e1"]')?.getAttribute('data-kind')).toBe('goal-merged')
+    expect(container.querySelector('[data-item="e2"]')?.getAttribute('data-kind')).toBe('fail')
+    expect(container.querySelector('[data-item="e1"]')?.getAttribute('data-tone')).not.toBe(container.querySelector('[data-item="e2"]')?.getAttribute('data-tone'))
+    expect(screen.getByText('턴이 오류로 끝났다 — 연결 끊김')).toBeTruthy()
+    expect(screen.getByText('대화 기록을 저장하지 못했다 — EACCES')).toBeTruthy()
+    expect(container.querySelector('[data-item="n2"]')?.classList.contains('mc-notice')).toBe(true)
+  })
+
+  it('메인 깃발 사건(flag-raised·flag-lowered)은 사람의 이어 가기(resumed)와 다른 이름표와 모양으로 그린다', async () => {
+    install(mv({
+      items: [
+        ev('f1', 'flag-raised', '일시 정지 깃발을 올렸다'), ev('f2', 'flag-lowered', '일시 정지 깃발을 내렸다'),
+        ev('r1', 'resumed', '사람이 멈춘 실행을 이어 갔다 — 봤다'),
+      ],
+    }))
+    const { container } = await renderChat()
+    const raised = container.querySelector('[data-item="f1"]') as HTMLElement
+    const lowered = container.querySelector('[data-item="f2"]') as HTMLElement
+    const resumed = container.querySelector('[data-item="r1"]') as HTMLElement
+    expect(raised.getAttribute('data-tone')).toBe('flag')
+    expect(lowered.getAttribute('data-tone')).toBe('flag')
+    expect(resumed.getAttribute('data-tone')).toBe('human')
+    const label = (el: HTMLElement): string => (el.querySelector('.mc-evt-k') as HTMLElement).textContent ?? ''
+    expect(label(raised)).toContain('깃발')
+    expect(label(lowered)).toContain('깃발')
+    expect(label(resumed)).not.toContain('깃발')
+    expect(label(resumed)).toContain('사람')
+  })
+
+  it('사건 종류마다 이름표가 있다 — 이름표 표가 종류 전부를 덮는다', async () => {
+    const { EVENT_LOOK } = await import('@renderer/13_Loop/mainChatModel')
+    const kinds: LoopEventKind[] = [
+      'node-start', 'node-end', 'fail', 'halt', 'error', 'goal-merged', 'milestone-pr', 'spec-approved', 'spec-rejected',
+      'flag-raised', 'flag-lowered', 'resumed', 'backlog', 'latched', 'done',
+    ]
+    expect(Object.keys(EVENT_LOOK).sort()).toEqual([...kinds].sort())
+    for (const k of kinds) expect(EVENT_LOOK[k].label.trim().length, k).toBeGreaterThan(0)
+  })
+})
+
+describe('읽기와 push의 순서 (M10 G3)', () => {
+  it('첫 읽기 응답이 그 사이 온 push보다 늦으면 응답의 낡은 보기로 되돌아가지 않는다', async () => {
+    let resolveRead: (v: MainChatView) => void = () => {}
+    install()
+    api.loopMainRead.mockReturnValue(new Promise<MainChatView>((r) => { resolveRead = r }))
+    await renderChat()
+    await pushView(mv({ items: [said('a2', '새 글')] }))
+    expect(screen.getByText('새 글')).toBeTruthy()
+    await act(async () => { resolveRead(mv({ items: [said('a1', '낡은 글')] })) })
+    await flush()
+    expect(screen.getByText('새 글')).toBeTruthy()
+    expect(screen.queryByText('낡은 글')).toBeNull()
+  })
+
+  it('같은 폴더의 push는 표기 차이가 있어도 받고, 다른 폴더의 push는 버린다', async () => {
+    await renderChat()
+    await pushView(mv({ cwd: 'C:\\work\\other', items: [said('x', '다른 폴더')] }))
+    expect(screen.queryByText('다른 폴더')).toBeNull()
+    await pushView(mv({ cwd: 'c:/work/practice/', items: [said('y', '같은 폴더')] }))
+    expect(screen.getByText('같은 폴더')).toBeTruthy()
+  })
+
+  it('보내기 중에 push가 오면 늦게 온 응답의 보기로 덮지 않는다', async () => {
+    let resolveSend: (r: { ok: boolean; view: MainChatView }) => void = () => {}
+    await renderChat()
+    api.loopMainSend.mockReturnValue(new Promise((r) => { resolveSend = r }))
+    fireEvent.change(within(chat()).getByLabelText('메인에게 말하기'), { target: { value: '안녕' } })
+    await click(btn('보내기'))
+    await pushView(mv({ items: [user('u1', '안녕', 'sent'), said('a1', '반가워')] }))
+    await act(async () => { resolveSend({ ok: true, view: mv({ items: [user('u1', '안녕', 'queued')] }) }) })
+    await flush()
+    expect(screen.getByText('반가워')).toBeTruthy()
+  })
+
+  it('작업 폴더가 바뀌면 옛 폴더의 보기를 지우고 새 폴더의 보기를 읽는다 — 옛 폴더의 늦은 응답과 push는 버린다', async () => {
+    let resolveOld: (v: MainChatView) => void = () => {}
+    install()
+    api.loopMainRead.mockReturnValueOnce(new Promise<MainChatView>((r) => { resolveOld = r }))
+    const { MainChatView: View } = await import('@renderer/13_Loop')
+    const r = render(<View cwd={CWD} />)
+    await flush()
+    const OTHER = 'C:\\work\\second'
+    api.loopMainRead.mockResolvedValue(mv({ cwd: OTHER, items: [said('b1', '둘째 폴더')] }))
+    r.rerender(<View cwd={OTHER} />)
+    await flush()
+    expect(api.loopMainRead).toHaveBeenLastCalledWith({ cwd: OTHER })
+    expect(screen.getByText('둘째 폴더')).toBeTruthy()
+    await act(async () => { resolveOld(mv({ items: [said('a1', '첫 폴더의 늦은 응답')] })) })
+    await pushView(mv({ items: [said('a2', '첫 폴더의 push')] }))
+    await flush()
+    expect(screen.queryByText('첫 폴더의 늦은 응답')).toBeNull()
+    expect(screen.queryByText('첫 폴더의 push')).toBeNull()
+    expect(screen.getByText('둘째 폴더')).toBeTruthy()
+  })
+
+  it('화면이 사라지면 두 push 구독을 푼다', async () => {
+    const r = await renderChat()
+    expect(mainHandlers.size).toBe(1)
+    expect(stateHandlers.size).toBe(1)
+    r.unmount()
+    expect(mainHandlers.size).toBe(0)
+    expect(stateHandlers.size).toBe(0)
+  })
+})
+
+describe('입력칸 (M10 G3)', () => {
+  it('작업 폴더가 없으면 IPC를 부르지 않고 고르라는 까닭을 보인다', async () => {
+    await renderChat(null)
+    expect(api.loopMainRead).not.toHaveBeenCalled()
+    expect(btn('보내기').disabled).toBe(true)
+    expect(within(chat()).getByText(/작업 폴더를 먼저 골라요/)).toBeTruthy()
+  })
+
+  it('열린 실행기가 없으면(root null) 입력을 막고 까닭을 보인다', async () => {
+    install(mv({ root: null, items: [said('a1', '지난 기록')] }), st({ phase: 'closed', root: null }))
+    await renderChat()
+    expect(screen.getByText('지난 기록')).toBeTruthy()
+    const box = within(chat()).getByLabelText('메인에게 말하기') as HTMLTextAreaElement
+    expect(box.disabled).toBe(true)
+    expect(btn('보내기').disabled).toBe(true)
+    expect(within(chat()).getByText(/실행기가 열려 있지 않아요/)).toBeTruthy()
+  })
+
+  it('보내기는 loop.mainSend({cwd, text})다 — 받으면 입력칸을 비우고, 받지 않으면(ok:false) 사유를 보인다. Enter도 보낸다', async () => {
+    await renderChat()
+    const box = within(chat()).getByLabelText('메인에게 말하기') as HTMLTextAreaElement
+    expect(btn('보내기').disabled).toBe(true)
+    fireEvent.change(box, { target: { value: '범위는 덧셈으로' } })
+    await click(btn('보내기'))
+    expect(api.loopMainSend).toHaveBeenCalledWith({ cwd: CWD, text: '범위는 덧셈으로' })
+    expect(box.value).toBe('')
+    api.loopMainSend.mockResolvedValue({ ok: false, reason: '메인 대화가 닫혔다', view: mv() })
+    fireEvent.change(box, { target: { value: '둘째 줄' } })
+    await act(async () => { fireEvent.keyDown(box, { key: 'Enter' }) })
+    await flush()
+    expect(api.loopMainSend).toHaveBeenLastCalledWith({ cwd: CWD, text: '둘째 줄' })
+    expect(within(chat()).getByText('메인 대화가 닫혔다')).toBeTruthy()
+    expect(box.value).toBe('둘째 줄')
+    // Shift+Enter는 줄바꿈이다(보내지 않는다)
+    await act(async () => { fireEvent.keyDown(box, { key: 'Enter', shiftKey: true }) })
+    expect(api.loopMainSend).toHaveBeenCalledTimes(2)
+  })
+
+  it('메인이 도는 중, 사람을 기다림, 줄 선 글 수를 보인다', async () => {
+    install(mv({ busy: true, queued: 2 }))
+    await renderChat()
+    expect(within(chat()).getByText('메인이 답하는 중이에요')).toBeTruthy()
+    expect(within(chat()).getByText('줄 선 글 2개')).toBeTruthy()
+    await pushView(mv({ busy: false, waitingUser: true, queued: 0 }))
+    expect(within(chat()).queryByText('메인이 답하는 중이에요')).toBeNull()
+    expect(within(chat()).getByText('메인이 네 말을 기다려요')).toBeTruthy()
+  })
+})
+
+describe('일시 정지와 취소 (M10 G3, Backlog 9·12)', () => {
+  it('깃발이 올라 있으면 대화 위에 표시와 「이어 가기」 — 깃발 내리기(lowerFlag {cwd})만 부르고 사람 판정은 부르지 않는다', async () => {
+    install(mv({ paused: true }), st({ paused: true, phase: 'halted', reason: 'FAIL 셋' }))
+    await renderChat()
+    expect(within(chat()).getByText(/일시 정지 깃발이 올라 있어요/)).toBeTruthy()
+    await click(btn('이어 가기'))
+    expect(api.loopLowerFlag).toHaveBeenCalledWith({ cwd: CWD })
+    expect(api.loopDecide).not.toHaveBeenCalled()
+    expect(within(chat()).queryByText(/일시 정지 깃발이 올라 있어요/)).toBeNull()
+  })
+
+  it('깃발 내리기가 받아지지 않으면 사유를 보인다. 깃발이 없으면 표시가 없다', async () => {
+    install(mv({ paused: true }))
+    api.loopLowerFlag.mockResolvedValue({ ok: false, reason: '일시 정지 깃발이 올라 있지 않다', view: mv({ paused: true }) })
+    await renderChat()
+    await click(btn('이어 가기'))
+    expect(within(chat()).getByText('일시 정지 깃발이 올라 있지 않다')).toBeTruthy()
+    await pushView(mv({ paused: false }))
+    expect(within(chat()).queryByRole('button', { name: '이어 가기' })).toBeNull()
+  })
+
+  it('취소는 대상을 골라 보낸다 — 메인 턴이 돌면 「메인 턴 멈추기」(main), 작업 세션이 돌면 「작업 세션 멈추기」(worker)', async () => {
+    install(mv({ busy: true }), st({ sessionActive: true, node: 'G1/implement', mainBusy: true }))
+    await renderChat()
+    await click(btn('메인 턴 멈추기'))
+    expect(api.loopCancelSession).toHaveBeenLastCalledWith({ cwd: CWD, target: 'main' })
+    await click(btn('작업 세션 멈추기'))
+    expect(api.loopCancelSession).toHaveBeenLastCalledWith({ cwd: CWD, target: 'worker' })
+    api.loopCancelSession.mockResolvedValue({ ok: false })
+    await click(btn('작업 세션 멈추기'))
+    expect(within(chat()).getByText(/멈출 작업 세션이 없어요/)).toBeTruthy()
+  })
+
+  it('도는 것이 없으면 멈추기 버튼이 없다. 브레인스토밍의 세션은 메인 대화라 작업 세션 멈추기를 보이지 않는다', async () => {
+    await renderChat()
+    expect(within(chat()).queryByRole('button', { name: '메인 턴 멈추기' })).toBeNull()
+    expect(within(chat()).queryByRole('button', { name: '작업 세션 멈추기' })).toBeNull()
+    await pushState(st({ sessionActive: true, mainBusy: false }))
+    await pushView(mv({ brainstorming: true }))
+    expect(within(chat()).queryByRole('button', { name: '작업 세션 멈추기' })).toBeNull()
+  })
+})
+
+describe('메인 대화 보기의 순수 도우미 (M10 G3)', () => {
+  it('입력을 막는 까닭 — 폴더 없음, 읽는 중, 열린 실행기 없음(root null). 열려 있으면 null', async () => {
+    const { blockedReason } = await import('@renderer/13_Loop/mainChatModel')
+    expect(blockedReason(null, null)).toMatch(/작업 폴더를 먼저 골라요/)
+    expect(blockedReason(CWD, null)).toMatch(/읽는 중/)
+    expect(blockedReason(CWD, mv({ root: null }))).toMatch(/실행기가 열려 있지 않아요/)
+    expect(blockedReason(CWD, mv())).toBeNull()
+  })
+
+  it('메인 글의 시각은 지역 시각 HH:MM이고, 읽지 못하면 비운다', async () => {
+    const { clockOf } = await import('@renderer/13_Loop/mainChatModel')
+    const d = new Date(2026, 10, 19, 9, 5)
+    expect(clockOf(d.toISOString())).toBe('09:05')
+    expect(clockOf('아님')).toBe('')
+  })
+
+  it('작업 세션 멈추기는 작업·검수 세션이 떠 있을 때만 — 브레인스토밍(메인 대화)과, 노드를 돌지 않는데 메인 턴만 도는 경우는 빼고', async () => {
+    const { workSessionLive } = await import('@renderer/13_Loop/mainChatModel')
+    expect(workSessionLive(null, mv())).toBe(false)
+    expect(workSessionLive(st({ sessionActive: false }), mv())).toBe(false)
+    expect(workSessionLive(st({ sessionActive: true }), mv())).toBe(true)
+    expect(workSessionLive(st({ sessionActive: true }), mv({ brainstorming: true }))).toBe(false)
+    expect(workSessionLive(st({ sessionActive: true, mainBusy: true, phase: 'waiting-human' }), mv({ busy: true }))).toBe(false)
+    expect(workSessionLive(st({ sessionActive: true, mainBusy: true, phase: 'running' }), mv({ busy: true }))).toBe(true)
+  })
+})
+
+describe('새 메인 대화 (M10 G3)', () => {
+  it('확인을 한 번 받은 뒤 loop.mainNew({cwd})다 — 그만두면 부르지 않는다', async () => {
+    await renderChat()
+    await click(btn('새 메인 대화'))
+    expect(api.loopMainNew).not.toHaveBeenCalled()
+    expect(within(chat()).getByText(/지금 기록을 보관하고 새 메인 대화를 열까요/)).toBeTruthy()
+    await click(btn('그만두기'))
+    expect(api.loopMainNew).not.toHaveBeenCalled()
+    await click(btn('새 메인 대화'))
+    await click(btn('새로 열기'))
+    expect(api.loopMainNew).toHaveBeenCalledWith({ cwd: CWD })
+  })
+
+  it('새로 열기가 받아지지 않으면 사유를 보인다', async () => {
+    api.loopMainNew.mockResolvedValue({ ok: false, reason: '새 메인 대화를 여는 중이다', view: mv() })
+    await renderChat()
+    await click(btn('새 메인 대화'))
+    await click(btn('새로 열기'))
+    expect(within(chat()).getByText('새 메인 대화를 여는 중이다')).toBeTruthy()
+  })
+})

@@ -6,7 +6,7 @@ import { describe, it, expect, vi, afterEach } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { render, screen, fireEvent, act, cleanup } from '@testing-library/react'
-import type { LoopStatus } from '../../../../02_Project/00_Source/shared/ipcContract'
+import type { LoopStatus, MainChatView } from '../../../../02_Project/00_Source/shared/ipcContract'
 import { installWindowApi } from '../00_Helpers/windowApiMock'
 
 const CWD = 'C:\\work\\practice'
@@ -14,6 +14,9 @@ const closed: LoopStatus = {
   cwd: CWD, root: null, phase: 'closed', milestoneId: null, node: null, nodeTitle: null, reason: null, base: null, ghRepo: null,
   failCount: 0, goals: [], approval: null, milestonePr: null, cards: [], sessionActive: false, lastVerdict: null, latch: null,
   paused: false, mainBusy: false, mainWaiting: false,
+}
+const blankView: MainChatView = {
+  cwd: CWD, root: CWD, sessionId: null, items: [], cards: [], busy: false, waitingUser: false, brainstorming: false, paused: false, queued: 0,
 }
 
 afterEach(async () => {
@@ -63,13 +66,16 @@ describe('루프 화면 진입점 — 작업 모드 (M10 G1)', () => {
   it('「작업」을 고르면 루프 화면이 가운데에 모달 없이 열리고, 모드를 오가도 고른 저장소를 기억한다', async () => {
     const loopStatus = vi.fn().mockResolvedValue(closed)
     const onLoopState = vi.fn(() => () => {})
-    const installed = installWindowApi({
+    const overrides = {
       ...shellBase(),
       loopStatus, onLoopState,
+      loopMainRead: vi.fn().mockResolvedValue(blankView),
+      onLoopMainState: vi.fn(() => () => {}),
       pickFolder: vi.fn().mockResolvedValue({ path: CWD }),
       getUiPrefs: vi.fn().mockResolvedValue({ 'whatsnew.seenVersion': '0.0.0-test' }),
       checkEngineUpdate: vi.fn().mockResolvedValue({ current: null, latest: null, updateAvailable: false }),
-    })
+    }
+    const installed = installWindowApi(overrides)
     installMatchMedia()
     try {
       const { loadPrefs } = await import('@renderer/11_Settings/prefs')
@@ -91,9 +97,12 @@ describe('루프 화면 진입점 — 작업 모드 (M10 G1)', () => {
       expect(document.querySelector('.modal-overlay')).toBeNull()
       expect(screen.queryByRole('dialog', { name: '마일스톤 루프' })).toBeNull()
       expect(screen.queryByRole('button', { name: '화면 닫기' })).toBeNull()
-      // 대화 자리를 루프 화면이 차지한다 — 대화·탐색기는 작업 모드에서 그리지 않는다
+      // 대화 자리를 작업 모드가 차지한다 — 대화·탐색기는 작업 모드에서 그리지 않는다
       expect(container.querySelector('.pane.chat')).toBeNull()
       expect(container.querySelector('.pane.explorer')).toBeNull()
+      // M10 G3 — 가운데는 메인 대화, 루프 화면은 옆의 좁은 열이다. 폴더를 고르기 전에는 메인 대화가 IPC를 부르지 않는다
+      expect(container.querySelector('.pane.work .work-center .main-chat')).not.toBeNull()
+      expect(container.querySelector('.pane.work .work-side .loop-screen')).not.toBeNull()
       expect(onLoopState).toHaveBeenCalledTimes(1)
 
       await act(async () => { fireEvent.click(screen.getByRole('button', { name: '폴더 고르기' })) })
@@ -117,6 +126,61 @@ describe('루프 화면 진입점 — 작업 모드 (M10 G1)', () => {
       installed.uninstall()
     }
   })
+
+  // M10 G3(Backlog 6) — 작업 모드로 끈 뒤 다시 켜면 그 작업 폴더로 뜬다. 고른 폴더는 설정(work.cwd)에 남는다.
+  // 다시 켤 때 루프를 저절로 열지 않는다(열기는 저장소 잠금을 잡고 실행기를 돌리는 사람의 동작이다) — 읽기만 한다
+  it('고른 작업 폴더를 설정에 남기고, 다시 켜면 그 폴더의 루프 상태와 메인 대화를 읽는다(열지는 않는다)', async () => {
+    const loopStatus = vi.fn().mockResolvedValue(closed)
+    const loopMainRead = vi.fn().mockResolvedValue({ ...blankView, root: null })
+    const loopOpen = vi.fn()
+    const setUiPref = vi.fn().mockResolvedValue({ ok: true })
+    const base = {
+      ...shellBase(),
+      loopStatus, loopMainRead, loopOpen, setUiPref,
+      onLoopState: vi.fn(() => () => {}),
+      onLoopMainState: vi.fn(() => () => {}),
+      pickFolder: vi.fn().mockResolvedValue({ path: CWD }),
+      checkEngineUpdate: vi.fn().mockResolvedValue({ current: null, latest: null, updateAvailable: false }),
+    }
+    installMatchMedia()
+    const { loadPrefs } = await import('@renderer/11_Settings/prefs')
+    const { useAppStore } = await import('@renderer/00_App/appStore')
+    const { Shell } = await import('@renderer/12_Window/Shell')
+
+    // 첫 실행 — 작업 모드에서 폴더를 고르면 설정에 남긴다
+    let installed = installWindowApi({ ...base, getUiPrefs: vi.fn().mockResolvedValue({ 'whatsnew.seenVersion': '0.0.0-test' }) })
+    try {
+      await loadPrefs()
+      useAppStore.getState().setWorkspaceMode('work')
+      render(<Shell />)
+      await flush()
+      expect(loopMainRead).not.toHaveBeenCalled()
+      await act(async () => { fireEvent.click(screen.getByRole('button', { name: '폴더 고르기' })) })
+      await flush()
+      expect(setUiPref).toHaveBeenCalledWith({ key: 'work.cwd', value: CWD })
+      expect(loopMainRead).toHaveBeenCalledWith({ cwd: CWD })
+    } finally {
+      cleanup()
+      installed.uninstall()
+    }
+
+    // 다시 켬 — 저장된 작업 폴더로 뜬다
+    loopStatus.mockClear()
+    loopMainRead.mockClear()
+    installed = installWindowApi({ ...base, getUiPrefs: vi.fn().mockResolvedValue({ 'whatsnew.seenVersion': '0.0.0-test', 'workspace.mode': 'work', 'work.cwd': CWD }) })
+    try {
+      await loadPrefs()
+      useAppStore.getState().setWorkspaceMode('work')
+      const { container } = render(<Shell />)
+      await flush()
+      expect(loopStatus).toHaveBeenCalledWith({ cwd: CWD })
+      expect(loopMainRead).toHaveBeenCalledWith({ cwd: CWD })
+      expect(loopOpen).not.toHaveBeenCalled()
+      expect(container.querySelector('.loop-cwd')?.textContent).toBe(CWD)
+    } finally {
+      installed.uninstall()
+    }
+  })
 })
 
 describe('작업 모드 배치 CSS', () => {
@@ -130,5 +194,18 @@ describe('작업 모드 배치 CSS', () => {
     expect(rule![1]).toMatch(/flex:\s*1\s*;/)
     expect(rule![1]).toMatch(/min-width:\s*0\s*;/)
     expect(css('12_Window/Sidebar.css')).not.toMatch(/\.sb-loop\b/)
+  })
+
+  // M10 G3 — 작업 칸은 가운데 메인 대화(.work-center, 남은 너비)와 옆의 좁은 루프 화면 열(.work-side, 고정 너비)로 나뉜다
+  it('작업 칸 안에서 메인 대화 칸은 남은 너비를 채우고, 루프 화면 열은 좁은 고정 너비다', () => {
+    const shell = css('12_Window/shell.css')
+    const center = shell.match(/\.work-center\s*\{([^}]*)\}/)
+    const side = shell.match(/\.work-side\s*\{([^}]*)\}/)
+    expect(center).not.toBeNull()
+    expect(side).not.toBeNull()
+    expect(center![1]).toMatch(/flex:\s*1\s*;/)
+    expect(center![1]).toMatch(/min-width:\s*0\s*;/)
+    expect(side![1]).toMatch(/width:\s*\d+px\s*;/)
+    expect(side![1]).toMatch(/flex:\s*none\s*;/)
   })
 })

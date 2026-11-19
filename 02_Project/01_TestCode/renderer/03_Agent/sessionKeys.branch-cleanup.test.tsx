@@ -211,7 +211,9 @@ describe('G9c 폴더 변경 창 — 본문은 호출부가 넘긴다', () => {
 })
 
 describe('G9c 시작 복원 — main은 12_Window의 함수만 부른다', () => {
-  it('저장된 모드를 store에 넣고, 대화 배치일 때만 마지막 대화를 복원한다', async () => {
+  // M10 G3(Backlog 6) — 두 모드의 복원. 작업 모드로 켜도 채팅의 마지막 대화를 store에 복원해 둔다 — 채팅 모드로 돌아가면
+  // 그 대화로 뜬다(옛 동작은 대화 배치일 때만 복원해, 작업 모드로 끈 뒤 켜면 채팅이 빈 화면이었다). 작업 폴더의 복원은 Shell 몫이다.
+  it('저장된 모드를 store에 넣고, 어느 모드로 켜든 마지막 대화를 한 번 복원한다', async () => {
     Object.defineProperty(window, 'api', {
       value: adaptFlatApi({ getUiPrefs: vi.fn().mockResolvedValue({}), setUiPref: vi.fn().mockResolvedValue(undefined) }),
       writable: true,
@@ -226,11 +228,11 @@ describe('G9c 시작 복원 — main은 12_Window의 함수만 부른다', () =>
     prefs.setPref('workspace.mode', 'work')
     restoreSavedWorkspace()
     expect(useAppStore.getState().workspaceMode).toBe('work')
-    expect(restore).not.toHaveBeenCalled()
+    expect(restore).toHaveBeenCalledTimes(1)
     prefs.setPref('workspace.mode', 'single')
     restoreSavedWorkspace()
     expect(useAppStore.getState().workspaceMode).toBe('single')
-    expect(restore).toHaveBeenCalledTimes(1)
+    expect(restore).toHaveBeenCalledTimes(2)
   })
 
   // M10 G1 — 멀티 에이전트 모드를 지웠다. 옛 저장값 'multi'와 모르는 값은 「채팅」으로 읽고, 저장 파일은 고치지 않는다.

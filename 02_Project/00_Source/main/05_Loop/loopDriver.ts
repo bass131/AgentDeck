@@ -50,7 +50,7 @@ import type {
   LoopReleaseLatchResponse,
   LoopStatus,
 } from '@shared/ipcContract'
-import type { LoopEventItem, LoopMainResponse, LoopSessionEventPayload, MainChatView } from '@shared/13_Loop/loop'
+import type { LoopCancelTarget, LoopEventItem, LoopMainResponse, LoopSessionEventPayload, MainChatView } from '@shared/13_Loop/loop'
 import type { NextStep } from './executor'
 import { createFileDigestStore, repoKeyOf, stateDigest } from './digestStore'
 import { TAMPERED_REASON, visitKeyOf } from './loopRunner'
@@ -107,7 +107,8 @@ export interface LoopDriver {
   status(cwd: string): LoopStatus
   decide(req: LoopDecideRequest): Promise<LoopDecideResponse>
   answerCard(cwd: string, requestId: string, response: LoopCardResponse): boolean
-  cancelSession(cwd: string): boolean
+  // M10 G3 — 취소는 대상을 고른다: main은 메인 대화의 턴만, work는 작업·검수 세션만 멈춘다(서로 넘어가지 않는다, Backlog 12)
+  cancelSession(cwd: string, target: LoopCancelTarget): boolean
   releaseLatch(cwd: string, token: string): Promise<LoopReleaseLatchResponse>
   close(cwd: string): Promise<void>
   closeAll(): Promise<void>
@@ -115,6 +116,8 @@ export interface LoopDriver {
   mainRead(cwd: string): MainChatView
   mainSend(cwd: string, text: string): LoopMainResponse
   mainNew(cwd: string): Promise<LoopMainResponse>
+  // M10 G3 — 사람이 일시 정지 깃발을 내린다(판정 칸 없음 — 실행 상태·검증 기록을 쓰지 않는다)
+  lowerFlag(cwd: string): LoopMainResponse
 }
 
 interface OpenFailure { reason: string; changed?: string[]; root?: string }
@@ -308,6 +311,18 @@ export function createLoopDriver(opts: LoopDriverOptions): LoopDriver {
     return `실행 상태: ${state.milestoneId} · ${labelOf(next) ?? cursorLabel(state)} · ${state.status} · FAIL ${state.failCount}\ngoal: ${goals}\n최근 검증 줄:\n${lines}`
   }
 
+  // 깃발 내리기 — 메인의 resume 도구와 사람의 loop.lowerFlag(M10 G3)가 같은 길을 쓴다. 깃발만 내리고 kick한다 —
+  // 실행 상태·검증 기록을 쓰지 않고 사람 판정(decide)을 대신하지 않는다. 사건 이름은 flag-lowered다(사람 판정의 resumed와 다르다)
+  function lowerFlagOf(e: Entry, by: 'main' | 'human'): { ok: boolean; reason?: string } {
+    const chat = e.chat
+    if (!chat) return { ok: false, reason: '메인 대화가 닫혔다' }
+    if (!chat.paused()) return { ok: false, reason: '일시 정지 깃발이 올라 있지 않다' }
+    chat.setPaused(false)
+    record(e, { kind: 'flag-lowered', node: null, goal: null, text: by === 'human' ? '사람이 일시 정지 깃발을 내렸다' : '일시 정지 깃발을 내렸다' })
+    if (e.loop) void kick(e)
+    return { ok: true }
+  }
+
   function attachChat(e: Entry, loop: OpenedLoop): void {
     if (!opts.backend || e.chat) return
     const fsPort = createFsPort(loop.root)
@@ -323,13 +338,8 @@ export function createLoopDriver(opts: LoopDriverOptions): LoopDriver {
         return '일시 정지 깃발을 올렸다 — 실행 상태와 검증 기록은 그대로다'
       },
       resume: async () => {
-        const chat = e.chat
-        if (!chat) return '메인 대화가 닫혔다'
-        if (!chat.paused()) return '일시 정지 깃발이 올라 있지 않다'
-        chat.setPaused(false)
-        record(e, { kind: 'flag-lowered', node: null, goal: null, text: '일시 정지 깃발을 내렸다' })
-        if (e.loop) void kick(e)
-        return '일시 정지 깃발을 내렸다 — 사람 판정을 기다리는 실행은 그대로 기다린다'
+        const r = lowerFlagOf(e, 'main')
+        return r.ok ? '일시 정지 깃발을 내렸다 — 사람 판정을 기다리는 실행은 그대로 기다린다' : (r.reason as string)
       },
       appendBacklog: async (line) => {
         const r = await appendBacklogLine(fsPort, line)
@@ -404,7 +414,8 @@ export function createLoopDriver(opts: LoopDriverOptions): LoopDriver {
     const chat = e.chat
     const v: LoopStatus = {
       ...s, root: loop.root, base: loop.base, ghRepo: loop.ghRepo,
-      cards: [...[...e.cards.values()].map((c) => c.card), ...(chat?.cards() ?? [])],
+      // M10 G3 — 메인 대화의 카드는 inChat을 붙인다(현황판은 보이고, 답하는 곳은 메인 대화 화면 한 곳이다)
+      cards: [...[...e.cards.values()].map((c) => c.card), ...(chat?.cards() ?? []).map((c) => ({ ...c, inChat: true }))],
       sessionActive: e.sessionActive || (chat?.busy() ?? false), lastVerdict: e.lastVerdict, reason: e.note,
       paused: chat?.paused() ?? false, mainBusy: chat?.busy() ?? false, mainWaiting: chat?.waitingUser() ?? false,
     }
@@ -668,11 +679,19 @@ export function createLoopDriver(opts: LoopDriverOptions): LoopDriver {
       return e?.chat?.answerCard(requestId, response) ?? false
     },
 
-    // M10 G2 — 메인 대화의 턴을 먼저 멈춘다(작업·검수 세션은 그다음)
-    cancelSession: (cwd) => {
+    // M10 G3 — 대상을 고른 취소(Backlog 12). main은 메인 대화의 턴만 멈추고(실행 상태와 무관), work는 작업·검수 세션만 멈춘다 —
+    // 작업 세션 취소의 멈춤(needs-user)은 실행기의 판정이다(M09 G4 — FAIL이 아니라 stop). 한쪽이 없어도 다른 쪽으로 넘어가지 않는다
+    cancelSession: (cwd, target) => {
       const e = entryOf(cwd)
-      if (e?.chat?.cancel()) return true
+      if (target === 'main') return e?.chat?.cancel() ?? false
       return e?.loop?.cancelSession() ?? false
+    },
+
+    lowerFlag(cwd) {
+      const e = entryOf(cwd)
+      if (!e?.chat) return { ok: false, reason: NOT_OPEN, view: mainViewOf(cwd) }
+      const r = lowerFlagOf(e, 'human')
+      return { ok: r.ok, ...(r.reason !== undefined ? { reason: r.reason } : {}), view: mainViewOf(cwd) }
     },
 
     async releaseLatch(cwd, token) {

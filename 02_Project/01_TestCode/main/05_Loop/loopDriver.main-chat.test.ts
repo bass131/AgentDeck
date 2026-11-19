@@ -29,7 +29,8 @@ const TEMPLATE = loaded(variantText((raw) => {
 }))
 
 // 브레인스토밍 여는 턴은 글로 묻고 끝낸다(스펙 없음). 사람이 「덧셈」을 말하면 결정 대장과 스펙을 쓴다.
-function chatBackend(opts: { hangDecompose?: boolean } = {}): { backend: AgentBackend; starts: AgentRunInput[] } {
+// hangMain: 사람 글에 「오래」가 있으면 메인 턴이 멈출 때까지 돈다(M10 G3 — 취소 대상 시험)
+function chatBackend(opts: { hangDecompose?: boolean; hangMain?: boolean } = {}): { backend: AgentBackend; starts: AgentRunInput[] } {
   const starts: AgentRunInput[] = []
   let seq = 0
   const backend: AgentBackend = {
@@ -52,6 +53,7 @@ function chatBackend(opts: { hangDecompose?: boolean } = {}): { backend: AgentBa
         events: (async function* (): AsyncGenerator<AgentEvent> {
           yield { type: 'session', sessionId: req.resumeSessionId ?? `S${++seq}` }
           if (opts.hangDecompose && prompt.startsWith('승인된 마일스톤 스펙을 goal로')) { await stopped; return }
+          if (opts.hangMain && prompt.includes('오래')) { await stopped; return }
           if (req.loopLock?.readOnly) {
             yield { type: 'text', delta: '완료조건을 채웠다.\nVERDICT: pass', messageId: 'r1' }
           } else if (prompt.startsWith('사람과 다음 마일스톤')) {
@@ -88,7 +90,7 @@ let views: MainChatView[] = []
 let tagged: LoopSessionEventPayload[] = []
 
 interface Rig { d: LoopDriver; starts: AgentRunInput[]; actions: () => MainActions }
-function driver(over: { hangDecompose?: boolean; autoModeCheck?: () => string | null } = {}): Rig {
+function driver(over: { hangDecompose?: boolean; hangMain?: boolean; autoModeCheck?: () => string | null } = {}): Rig {
   const { backend, starts } = chatBackend(over)
   let actions: MainActions | null = null
   const d = createLoopDriver({
@@ -133,7 +135,7 @@ async function toHalted(rig: Rig): Promise<LoopStatus> {
   await until((s) => s.node === 'decompose' && s.sessionActive, 'goal 나누기 세션')
   // 상태는 세션을 열기 직전에 push된다 — 세션이 열릴 때까지 다시 누른다
   let cancelled = false
-  for (let i = 0; i < 200 && !cancelled; i++) { cancelled = rig.d.cancelSession(CWD); if (!cancelled) await sleep(20) }
+  for (let i = 0; i < 200 && !cancelled; i++) { cancelled = rig.d.cancelSession(CWD, 'worker'); if (!cancelled) await sleep(20) }
   expect(cancelled).toBe(true)
   return until((s) => s.phase === 'halted', '멈춤')
 }
@@ -352,5 +354,112 @@ describe('메인 대화의 IPC 몫 (M10 G2)', () => {
     expect(after.root).toBeNull()
     expect(after.sessionId).toBe('S2')
     expect(after.items.some((i) => i.kind === 'assistant')).toBe(true)
+  })
+})
+
+// M10 G3 — 화면의 판정 경계(main 쪽). 사람이 깃발을 내리는 길(lowerFlag)과 대상을 고른 취소(cancelSession(cwd, target)).
+// 둘 다 판정이 아니다 — USER-INPUT 줄을 만들지 않고, 깃발 내리기와 메인 턴 취소는 실행 상태·검증 기록을 바꾸지 않는다.
+// 작업 세션 취소의 멈춤(needs-user)은 실행기의 기존 판정(M09 G4 — 취소는 FAIL이 아니라 stop)이다.
+const userInputs = (): number => runState().lines.filter((l) => l.marker === 'USER-INPUT').length
+const eventsOf = (rig: Rig): { kind: string; text: string }[] =>
+  rig.d.mainRead(repos.work).items.flatMap((i) => (i.kind === 'event' ? [{ kind: i.event.kind, text: i.event.text }] : []))
+
+describe('사람의 깃발 내리기 (M10 G3)', () => {
+  it('스펙 승인을 기다리는 동안 내리면 깃발만 내린다 — 상태·검증 파일이 그대로고 승인 카드는 남으며, 사건은 resumed가 아니라 flag-lowered다', SLOW, async () => {
+    const rig = driver()
+    const CWD = repos.work
+    expect(rig.d.lowerFlag(CWD).ok).toBe(false)
+    await toApproval(rig)
+    const stateFile = path.join(repos.work, DOCS.runState)
+    const before = fs.readFileSync(stateFile, 'utf8')
+    const verification = fs.readFileSync(path.join(repos.work, DOCS.verification), 'utf8')
+    const verdict = rig.d.status(CWD).lastVerdict
+    // 깃발이 없으면 내릴 것이 없다
+    const none = rig.d.lowerFlag(CWD)
+    expect(none.ok).toBe(false)
+    expect(none.reason).toContain('깃발')
+    await rig.actions().pause()
+    await until((s) => s.paused, '깃발 올림')
+    const r = rig.d.lowerFlag(CWD)
+    expect(r.ok).toBe(true)
+    expect(r.view.paused).toBe(false)
+    const lowered = await until((s) => !s.paused, '사람이 깃발을 내림')
+    expect(lowered.phase).toBe('waiting-human')
+    expect(lowered.approval).not.toBeNull()
+    expect(lowered.lastVerdict).toEqual(verdict)
+    expect(fs.readFileSync(stateFile, 'utf8')).toBe(before)
+    expect(fs.readFileSync(path.join(repos.work, DOCS.verification), 'utf8')).toBe(verification)
+    expect(userInputs()).toBe(0)
+    const ev = eventsOf(rig)
+    expect(ev.map((e) => e.kind)).not.toContain('resumed')
+    const human = ev.filter((e) => e.kind === 'flag-lowered')
+    expect(human).toHaveLength(1)
+    expect(human[0].text).toContain('사람')
+  })
+
+  it('멈춘 실행(needs-user)에서 내려도 실행은 사람의 이어 가기(decide)를 기다린다 — 상태 파일이 그대로다', SLOW, async () => {
+    const rig = driver({ hangDecompose: true })
+    const CWD = repos.work
+    await toHalted(rig)
+    const file = path.join(repos.work, DOCS.runState)
+    const before = fs.readFileSync(file, 'utf8')
+    await rig.actions().pause()
+    expect(rig.d.lowerFlag(CWD).ok).toBe(true)
+    await sleep(150)
+    expect(rig.d.status(CWD).phase).toBe('halted')
+    expect(rig.d.status(CWD).paused).toBe(false)
+    expect(fs.readFileSync(file, 'utf8')).toBe(before)
+    expect(userInputs()).toBe(0)
+  })
+})
+
+describe('대상을 고른 취소 (M10 G3, Backlog 12)', () => {
+  it('메인 턴 취소는 메인 턴만 멈춘다 — 작업 세션으로 넘어가지 않고 실행 상태가 그대로다. 작업 세션 취소는 메인 턴을 멈추지 않는다', SLOW, async () => {
+    const rig = driver({ hangMain: true })
+    const CWD = repos.work
+    await rig.d.open({ cwd: CWD })
+    await rig.d.start(CWD, 'M1')
+    await until((s) => s.mainWaiting, '사람 기다림')
+    // 돌던 메인 턴이 없으면 메인 취소는 거짓이다
+    expect(rig.d.cancelSession(CWD, 'main')).toBe(false)
+    expect(rig.d.mainSend(CWD, '오래 생각해 줘').ok).toBe(true)
+    await until((s) => s.mainBusy, '메인 턴이 돈다')
+    const file = path.join(repos.work, DOCS.runState)
+    const before = fs.readFileSync(file, 'utf8')
+    // 브레인스토밍의 작업 세션은 메인 대화다 — 작업 세션 취소는 메인 턴을 멈추지 않는다
+    rig.d.cancelSession(CWD, 'worker')
+    await sleep(100)
+    expect(rig.d.mainRead(CWD).busy).toBe(true)
+    expect(rig.d.cancelSession(CWD, 'main')).toBe(true)
+    const done = await until((s) => !s.mainBusy, '메인 턴이 멈춤')
+    expect(done).toMatchObject({ phase: 'running', node: 'brainstorm', failCount: 0 })
+    expect(fs.readFileSync(file, 'utf8')).toBe(before)
+    expect(runState().lines).toEqual([])
+    expect(rig.d.mainRead(CWD).items.some((i) => i.kind === 'notice' && i.text.includes('멈췄다'))).toBe(true)
+  })
+
+  it('작업 세션이 돌고 메인 턴도 돌 때 — 작업 취소는 작업 세션만 멈추고(FAIL 아님, USER-INPUT 없음) 메인 턴은 계속 돈다', SLOW, async () => {
+    const rig = driver({ hangDecompose: true, hangMain: true })
+    const CWD = repos.work
+    const approval = await toApproval(rig)
+    expect((await rig.d.decide({ cwd: CWD, verdict: 'pass', evidence: '봤다', specSha256: approval.approval?.sha256 as string })).ok).toBe(true)
+    await until((s) => s.node === 'decompose' && s.sessionActive, 'goal 나누기 세션')
+    // 메인 턴이 없을 때 메인 취소는 작업 세션으로 넘어가지 않는다
+    expect(rig.d.cancelSession(CWD, 'main')).toBe(false)
+    await sleep(100)
+    expect(rig.d.status(CWD).phase).toBe('running')
+    const lines = runState().lines.length
+    expect(rig.d.mainSend(CWD, '오래 걸리는 질문이야').ok).toBe(true)
+    await until((s) => s.mainBusy, '메인 턴이 돈다')
+    let cancelled = false
+    for (let i = 0; i < 200 && !cancelled; i++) { cancelled = rig.d.cancelSession(CWD, 'worker'); if (!cancelled) await sleep(20) }
+    expect(cancelled).toBe(true)
+    const halted = await until((s) => s.phase === 'halted', '작업 세션 취소의 멈춤')
+    expect(halted.failCount).toBe(0)
+    expect(rig.d.mainRead(CWD).busy).toBe(true)
+    expect(userInputs()).toBe(0)
+    expect(runState().lines.slice(lines).filter((l) => l.marker === 'FAIL')).toEqual([])
+    expect(rig.d.cancelSession(CWD, 'main')).toBe(true)
+    await until((s) => !s.mainBusy, '메인 턴이 멈춤')
   })
 })

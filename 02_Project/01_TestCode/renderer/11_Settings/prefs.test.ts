@@ -160,11 +160,11 @@ describe('setPref — 캐시 갱신 + setUiPref IPC 비동기 호출', () => {
     const { loadPrefs, setPref } = await freshPrefs()
 
     await loadPrefs()
-    setPref('workspace.mode', 'multi')
+    setPref('workspace.mode', 'work')
 
     await new Promise((r) => setTimeout(r, 50))
 
-    expect(mockSetUiPref).toHaveBeenCalledWith({ key: 'workspace.mode', value: 'multi' })
+    expect(mockSetUiPref).toHaveBeenCalledWith({ key: 'workspace.mode', value: 'work' })
   })
 
   it('setPref 여러 번 호출 시 마지막 값이 캐시에 반영된다', async () => {
@@ -213,26 +213,28 @@ describe('workspace.mode 영속 — getPref/setPref 인터페이스 계약', () 
     expect(getPref('workspace.mode', 'single')).toBe('single')
   })
 
-  it('getPref("workspace.mode", "single") — 저장된 "multi" 반환', async () => {
-    storedPrefs = { 'workspace.mode': 'multi' }
+  // M10 G1 — 모드는 「채팅(single) · 작업(work)」 둘이다. 저장소는 값을 그대로 돌려주고, 옛 값(멀티)을 채팅으로 읽는
+  // 해석은 restoreWorkspace의 parseWorkspaceMode가 한다(sessionKeys.branch-cleanup 테스트).
+  it('getPref("workspace.mode", "single") — 저장된 "work" 반환', async () => {
+    storedPrefs = { 'workspace.mode': 'work' }
     const { loadPrefs, getPref } = await freshPrefs()
 
     await loadPrefs()
 
-    expect(getPref('workspace.mode', 'single')).toBe('multi')
+    expect(getPref('workspace.mode', 'single')).toBe('work')
   })
 
-  it('setPref("workspace.mode", "multi") → 캐시 즉시 갱신 + IPC 호출', async () => {
+  it('setPref("workspace.mode", "work") → 캐시 즉시 갱신 + IPC 호출', async () => {
     const { loadPrefs, getPref, setPref } = await freshPrefs()
 
     await loadPrefs()
-    setPref('workspace.mode', 'multi')
+    setPref('workspace.mode', 'work')
 
-    expect(getPref('workspace.mode', 'single')).toBe('multi')
+    expect(getPref('workspace.mode', 'single')).toBe('work')
 
     await new Promise((r) => setTimeout(r, 50))
 
-    expect(mockSetUiPref).toHaveBeenCalledWith({ key: 'workspace.mode', value: 'multi' })
+    expect(mockSetUiPref).toHaveBeenCalledWith({ key: 'workspace.mode', value: 'work' })
   })
 })
 

@@ -24,10 +24,7 @@ beforeEach(() => {
     conversations: [...SAMPLE_AS_RECORDS],
     conversationId: 'sess-1',
     isRunning: true,
-    multiSessions: SAMPLE_AS_RECORDS.map((r) => ({ id: r.id, title: r.title, count: 2 })),
-    activeMultiSessionId: 'sess-1',
     listConversations: async () => {},
-    loadMultiSessions: async () => {},
     selectConversation: async (id: string) => {
       useAppStore.setState({ conversationId: id })
     },
@@ -66,7 +63,6 @@ const mockApi = {
   onWindowState: vi.fn().mockReturnValue(() => {}),
   conversationLoad: vi.fn().mockResolvedValue({ conversations: [] }),
   getAppVersion: vi.fn().mockResolvedValue('0.1.0'),
-  multiSessionLoad: vi.fn().mockResolvedValue({ state: null }),
 }
 
 Object.defineProperty(window, 'api', { value: adaptFlatApi(mockApi), writable: true, configurable: true })
@@ -84,44 +80,41 @@ async function renderSidebar(
   return container
 }
 
+// M10 G1 — 모드는 「채팅」(single)과 「작업」(work) 둘이다. 멀티 에이전트 모드는 지웠다.
 describe('F8-01: sb-mode 토글', () => {
-  it('단일/멀티 에이전트 탭 버튼 2개를 렌더한다', async () => {
+  it('채팅/작업 탭 버튼 2개를 렌더한다', async () => {
     await renderSidebar()
     const tabs = screen.getAllByRole('tab')
-    expect(tabs).toHaveLength(2)
+    expect(tabs.map((t) => t.textContent)).toEqual(['채팅', '작업'])
   })
 
-  it('초기에 단일 에이전트 탭이 aria-selected=true이다', async () => {
+  it('초기에 채팅 탭이 aria-selected=true이다', async () => {
     await renderSidebar()
-    const tabs = screen.getAllByRole('tab')
-    const singleTab = tabs.find((t) => t.textContent?.includes('단일'))
-    const multiTab = tabs.find((t) => t.textContent?.includes('멀티'))
-    expect(singleTab?.getAttribute('aria-selected')).toBe('true')
-    expect(multiTab?.getAttribute('aria-selected')).toBe('false')
+    expect(screen.getByRole('tab', { name: '채팅' }).getAttribute('aria-selected')).toBe('true')
+    expect(screen.getByRole('tab', { name: '작업' }).getAttribute('aria-selected')).toBe('false')
   })
 
-  it('멀티 탭 클릭 시 aria-selected 전환', async () => {
+  it('작업 탭 클릭 시 aria-selected 전환', async () => {
     await renderSidebar()
-    const tabs = screen.getAllByRole('tab')
-    const multiTab = tabs.find((t) => t.textContent?.includes('멀티'))!
-    fireEvent.click(multiTab)
-    expect(multiTab.getAttribute('aria-selected')).toBe('true')
-    const singleTab = tabs.find((t) => t.textContent?.includes('단일'))!
-    expect(singleTab.getAttribute('aria-selected')).toBe('false')
+    const workTab = screen.getByRole('tab', { name: '작업' })
+    fireEvent.click(workTab)
+    expect(workTab.getAttribute('aria-selected')).toBe('true')
+    expect(screen.getByRole('tab', { name: '채팅' }).getAttribute('aria-selected')).toBe('false')
+    expect(useAppStore.getState().workspaceMode).toBe('work')
   })
 
-  it('단일→멀티→단일 순환 전환', async () => {
+  it('채팅→작업→채팅 순환 전환', async () => {
     await renderSidebar()
-    const tabs = screen.getAllByRole('tab')
-    const singleTab = tabs.find((t) => t.textContent?.includes('단일'))!
-    const multiTab = tabs.find((t) => t.textContent?.includes('멀티'))!
+    const chatTab = screen.getByRole('tab', { name: '채팅' })
+    const workTab = screen.getByRole('tab', { name: '작업' })
 
-    fireEvent.click(multiTab)
-    expect(multiTab.getAttribute('aria-selected')).toBe('true')
+    fireEvent.click(workTab)
+    expect(workTab.getAttribute('aria-selected')).toBe('true')
 
-    fireEvent.click(singleTab)
-    expect(singleTab.getAttribute('aria-selected')).toBe('true')
-    expect(multiTab.getAttribute('aria-selected')).toBe('false')
+    fireEvent.click(chatTab)
+    expect(chatTab.getAttribute('aria-selected')).toBe('true')
+    expect(workTab.getAttribute('aria-selected')).toBe('false')
+    expect(useAppStore.getState().workspaceMode).toBe('single')
   })
 })
 
@@ -271,7 +264,7 @@ describe('F8-02: ctx-menu', () => {
     expect(texts.some((t) => t.includes('삭제'))).toBe(true)
   })
 
-  it('단일모드에서 ctx-menu에 프롬프트 설정 항목이 있다', async () => {
+  it('채팅 목록의 ctx-menu에 프롬프트 설정 항목이 있다 — 작업 모드에서도 목록은 채팅이다(M10 G1)', async () => {
     const container = await renderSidebar()
     const firstMore = container.querySelector('.sb-item .more') as HTMLElement
     fireEvent.click(firstMore)
@@ -279,21 +272,12 @@ describe('F8-02: ctx-menu', () => {
     const ctxMenu = container.querySelector('.ctx-menu')!
     const texts = Array.from(ctxMenu.querySelectorAll('.ctx-item')).map((i) => i.textContent ?? '')
     expect(texts.some((t) => t.includes('프롬프트 설정'))).toBe(true)
-  })
+    fireEvent.keyDown(document, { key: 'Escape' })
 
-  it('멀티모드에서 ctx-menu에 프롬프트 설정 항목이 없다', async () => {
-    const container = await renderSidebar()
-
-    const tabs = screen.getAllByRole('tab')
-    const multiTab = tabs.find((t) => t.textContent?.includes('멀티'))!
-    fireEvent.click(multiTab)
-
-    const firstMore = container.querySelector('.sb-item .more') as HTMLElement
-    fireEvent.click(firstMore)
-
-    const ctxMenu = container.querySelector('.ctx-menu')!
-    const texts = Array.from(ctxMenu.querySelectorAll('.ctx-item')).map((i) => i.textContent ?? '')
-    expect(texts.some((t) => t.includes('프롬프트 설정'))).toBe(false)
+    fireEvent.click(screen.getByRole('tab', { name: '작업' }))
+    fireEvent.click(container.querySelector('.sb-item .more') as HTMLElement)
+    const workTexts = Array.from(container.querySelectorAll('.ctx-menu .ctx-item')).map((i) => i.textContent ?? '')
+    expect(workTexts.some((t) => t.includes('프롬프트 설정'))).toBe(true)
   })
 
   it('sb-item 우클릭으로도 ctx-menu가 표시된다', async () => {

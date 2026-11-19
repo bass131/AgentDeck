@@ -84,7 +84,11 @@ const SKIP_DIRS = new Set(['node_modules', 'dist', 'out', 'coverage', '.git'])
 // M09 G4: 479 → 482. 2차분(renderer 루프 화면) — 폴더·열기·시작·닫기·push·goal 목록 renderer/13_Loop/LoopScreen.test.tsx,
 // 예외 한 줄·질문·권한·스펙 승인·래치 풀기·마일스톤 PR 카드 renderer/13_Loop/LoopScreen.cards.test.tsx,
 // 사이드바 진입점과 Shell 배선 renderer/12_Window/Shell.loop-entry.test.tsx를 더했다.
-const BASELINE_TEST_FILES = 482
+// M10 G1: 482 → 465. 멀티 에이전트 모드를 지우며 그 전용 시험 19개(멀티 저장소 main 둘, 멀티 세션 슬라이스, 멀티 저장 훅 둘,
+// 멀티 화면 여덟, 멀티 격리 가드·사이드바 멀티 모드, 패널 cwd·resume 셋, 패널 UltraCode 멀티판)를 지우고,
+// 작업 모드 격리 가드 renderer/12_Window/Shell.work-isolation-guard.test.tsx와
+// 패널 하네스판 UltraCode 시험 renderer/03_Agent/ultracodeToggle.panel.test.tsx를 더했다.
+const BASELINE_TEST_FILES = 465
 
 function collectTestFiles(dir: string, acc: string[] = []): string[] {
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {

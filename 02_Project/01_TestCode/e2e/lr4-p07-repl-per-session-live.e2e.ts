@@ -84,63 +84,7 @@ async function launchSingle(
   return { app, page }
 }
 
-async function launchMulti(
-  userDataDir: string,
-  workspace: string,
-): Promise<{ app: ElectronApplication; page: Page }> {
-  const app = await electron.launch({
-    args: [`--user-data-dir=${userDataDir}`, join(process.cwd(), 'out', 'main', 'index.js')],
-    env: {
-      ...process.env,
-      AGENTDECK_E2E: '1',
-      AGENTDECK_E2E_WORKSPACE: workspace,
-      AGENTDECK_E2E_PICK_FOLDER: workspace,
-      AGENTDECK_E2E_NO_ENGINE_UPDATE: '1',
-    },
-  })
-  const page = await app.firstWindow()
-  await page.waitForLoadState('domcontentloaded')
-
-  await focusRestoredWindow(app, page)
-
-  const nick = page.locator('.login-body input#nickname')
-  try {
-    await nick.waitFor({ state: 'visible', timeout: 6_000 })
-    await nick.fill('p07테스트')
-    await page.locator('.login-body button.submit').click().catch(() => {})
-    await page.waitForTimeout(600)
-  } catch { }
-
-  try {
-    const skip = page.locator('.eg-auth-dialog .sd-go')
-    await skip.waitFor({ state: 'visible', timeout: 6_000 })
-    await skip.click(); await page.waitForTimeout(500)
-  } catch { }
-
-  await page.waitForSelector('.titlebar', { timeout: 30_000 })
-  try {
-    const modal = page.locator('.wn-overlay, .un-overlay')
-    await modal.first().waitFor({ state: 'visible', timeout: 5_000 })
-    for (let i = 0; i < 4; i++) {
-      await page.keyboard.press('Escape').catch(() => {})
-      await page.waitForTimeout(300)
-      if (!(await modal.first().isVisible().catch(() => false))) break
-    }
-  } catch { }
-  try {
-    const later = page.locator('.set-dialog .sd-cancel', { hasText: '나중에' })
-    await later.waitFor({ state: 'visible', timeout: 4_000 })
-    await later.click(); await page.waitForTimeout(400)
-  } catch { }
-
-  const multiBtn = page.locator('.sb-mode-btn', { hasText: '멀티 에이전트' })
-  await multiBtn.waitFor({ state: 'visible', timeout: 10_000 })
-  if ((await multiBtn.getAttribute('aria-selected')) !== 'true') {
-    await multiBtn.click()
-  }
-  await page.locator('.multi').waitFor({ state: 'visible', timeout: 10_000 })
-  return { app, page }
-}
+// M10 G1 — 멀티 에이전트 모드를 지워 멀티 화면 기동 함수와 S4(멀티 패널 독립+복원)를 뺐다.
 
 function singleToggle(page: Page) {
   return page.locator('.pane.chat').getByRole('button', { name: 'REPL 지속세션 모드 토글' })
@@ -175,56 +119,6 @@ async function selectSidebar(page: Page, title: string): Promise<void> {
   await item.scrollIntoViewIfNeeded().catch(() => {})
   await item.click()
   await page.waitForTimeout(900)
-}
-
-function panelToggle(page: Page, slot: number) {
-  return page.locator(`.ma-panel[data-slot="${slot}"]`).getByRole('button', { name: 'REPL 지속세션 모드 토글' })
-}
-async function setPanelRepl(page: Page, slot: number, on: boolean): Promise<void> {
-  const t = panelToggle(page, slot)
-  await t.waitFor({ state: 'visible', timeout: 10_000 })
-  const pressed = (await t.getAttribute('aria-pressed')) === 'true'
-  if (pressed !== on) {
-    await t.click()
-    await expect(t).toHaveAttribute('aria-pressed', String(on), { timeout: 5_000 })
-  }
-}
-async function expectPanelRepl(page: Page, slot: number, on: boolean): Promise<void> {
-  await expect(panelToggle(page, slot)).toHaveAttribute('aria-pressed', String(on), { timeout: 10_000 })
-}
-async function setCount(page: Page, n: number): Promise<void> {
-  const btn = page.locator('[aria-label="패널 수"] .ma-count-btn', { hasText: String(n) })
-  await btn.waitFor({ state: 'visible', timeout: 8_000 })
-  await btn.click()
-  await expect(btn).toHaveAttribute('aria-selected', 'true', { timeout: 5_000 })
-  await page.waitForTimeout(500)
-}
-async function ensurePanelFolder(page: Page, slot: number): Promise<void> {
-  const folderBtn = page.locator(`.ma-panel[data-slot="${slot}"] .ma-p-folder`)
-  await folderBtn.waitFor({ state: 'visible', timeout: 8_000 })
-  const label = await folderBtn.locator('.ma-p-folder-name').textContent()
-  if (label && label.includes('폴더 선택')) {
-    await folderBtn.click()
-    await page.waitForTimeout(700)
-  }
-}
-async function sendPanel(page: Page, slot: number, text: string): Promise<void> {
-  const ta = page.locator(`.ma-panel[data-slot="${slot}"] .composer-ta`)
-  await ta.waitFor({ state: 'visible', timeout: 8_000 })
-  await expect(ta).toBeEnabled({ timeout: 10_000 })
-  await ta.fill(text)
-  await ta.press('Enter')
-  const stop = page.locator(`.ma-panel[data-slot="${slot}"] button.send.stop`)
-  const deadline = Date.now() + 20_000
-  await page.waitForTimeout(500)
-  while (Date.now() < deadline) {
-    if (!(await stop.isVisible().catch(() => false))) break
-    await page.waitForTimeout(500)
-  }
-  await page.waitForTimeout(500)
-}
-async function waitMultiSave(page: Page): Promise<void> {
-  await page.waitForTimeout(1400)
 }
 
 test.describe('LR4-P07 S1: 단일챗 세션별 독립', () => {
@@ -351,57 +245,6 @@ test.describe('LR4-P07 S3: 하위호환 마이그레이션', () => {
       })
     } finally {
       await app.close()
-      await safeRmDir(userDataDir)
-      await safeRmDir(workspace)
-    }
-  })
-})
-
-test.describe('LR4-P07 S4: 멀티 패널 독립+복원', () => {
-  test('패널0(OFF)/패널1(ON) send → 재시작 → 패널별 복원', async () => {
-    test.setTimeout(180_000)
-    const userDataDir = mkdtempSync(join(tmpdir(), 'lr4p07-s4-udd-'))
-    const workspace = makeWorkspace('lr4p07-s4')
-
-    const { app: app1, page: page1 } = await launchMulti(userDataDir, workspace)
-    try {
-      await withShot(page1, 's4-build', async () => {
-        await setCount(page1, 2)
-        await ensurePanelFolder(page1, 0)
-        await ensurePanelFolder(page1, 1)
-
-        await setPanelRepl(page1, 0, false)
-        await expectPanelRepl(page1, 1, true)
-
-        await sendPanel(page1, 0, '패널0 독립검증 메시지')
-        await sendPanel(page1, 1, '패널1 독립검증 메시지')
-
-        await expectPanelRepl(page1, 0, false)
-        await expectPanelRepl(page1, 1, true)
-        await waitMultiSave(page1)
-      })
-
-      const blobPath = join(userDataDir, 'multi-agent.json')
-      expect(existsSync(blobPath), 'multi-agent.json 존재').toBe(true)
-      const blob = JSON.parse(readFileSync(blobPath, 'utf8'))
-      const p0 = blob.sessions?.[0]?.panels?.[0]?.snapshot?.replMode
-      const p1 = blob.sessions?.[0]?.panels?.[1]?.snapshot?.replMode
-      console.log('[LR4-P07 S4] 디스크 snapshot.replMode — p0:', p0, 'p1:', p1)
-      expect(p0, '패널0 snapshot.replMode=false 영속').toBe(false)
-      expect(p1, '패널1 snapshot.replMode=true 영속').toBe(true)
-    } finally {
-      await app1.close()
-    }
-
-    const { app: app2, page: page2 } = await launchMulti(userDataDir, workspace)
-    try {
-      await withShot(page2, 's4-restore', async () => {
-        await page2.waitForTimeout(2000)
-        await expectPanelRepl(page2, 0, false)
-        await expectPanelRepl(page2, 1, true)
-      })
-    } finally {
-      await app2.close()
       await safeRmDir(userDataDir)
       await safeRmDir(workspace)
     }

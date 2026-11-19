@@ -18,7 +18,7 @@ import { adaptFlatApi } from '../00_Helpers/windowApiMock'
 
 // G9c B1 — Sidebar 실행 표시는 활성 대화만이 아니라 세션 레지스트리 기준이다(차이 목록 「S 의미」).
 // 대화 행: 레지스트리 isRunning(convKey(id)) — 활성 대화는 전경 저장 칸, 배경 대화는 레지스트리 항목.
-// 멀티 세션 행: 그 세션의 패널 키(multi:<id>:slot:*) 가운데 하나라도 실행 중이면 running.
+// 옛 멀티 세션 행(패널 키 기준 running)은 M10 G1에서 멀티 세션 목록과 함께 없어졌다.
 
 Object.defineProperty(window, 'api', {
   value: adaptFlatApi({
@@ -72,10 +72,7 @@ beforeEach(() => {
     conversations: [rec('active'), rec('bg-run'), rec('bg-done'), rec('cold')],
     conversationId: 'active',
     isRunning: false,
-    multiSessions: [{ id: 'ms1', title: '작업1', count: 4 }, { id: 'ms2', title: '작업2', count: 4 }],
-    activeMultiSessionId: 'ms1',
     listConversations: vi.fn().mockResolvedValue(undefined),
-    loadMultiSessions: vi.fn().mockResolvedValue(undefined),
   } as Parameters<typeof useAppStore.setState>[0])
 })
 
@@ -116,16 +113,17 @@ describe('B1 — 대화 행은 레지스트리 기준으로 실행 중을 보인
   })
 })
 
-describe('B1 — 멀티 세션 행은 그 세션의 패널 하나라도 실행 중이면 running이다', () => {
-  it('ms2의 패널 하나가 실행 중이면 ms2 행만 running이고, 끝나면 idle로 돌아간다', async () => {
-    useAppStore.setState({ workspaceMode: 'multi' })
+// M10 G1 — 멀티 세션 목록을 지워 사이드바는 어느 모드에서나 대화 목록이다. 패널 키가 실행 중이어도 대화 행은 바뀌지 않는다.
+describe('B1 — 작업 모드에서도 사이드바는 대화 목록이고 패널 실행은 대화 행에 새지 않는다', () => {
+  it('작업 모드에서 패널 하나가 실행 중이어도 대화 행은 idle이다', async () => {
+    useAppStore.setState({ workspaceMode: 'work' })
     const container = await renderSidebar()
     expect(rowRunning(container, 0)).toBe(false)
     expect(rowRunning(container, 1)).toBe(false)
     act(() => { sessionRegistry.set(panelKey('ms2', 3), { isRunning: true, currentRunId: 'r-p' }) })
     expect(rowRunning(container, 0)).toBe(false)
-    expect(rowRunning(container, 1)).toBe(true)
-    act(() => { sessionRegistry.set(panelKey('ms2', 3), { isRunning: false, currentRunId: null }) })
     expect(rowRunning(container, 1)).toBe(false)
+    act(() => { sessionRegistry.set(panelKey('ms2', 3), { isRunning: false, currentRunId: null }) })
+    useAppStore.setState({ workspaceMode: 'single' })
   })
 })

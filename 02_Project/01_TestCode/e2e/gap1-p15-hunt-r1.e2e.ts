@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test'
 import type { ElectronApplication, Page } from '@playwright/test'
-import { mkdirSync, readFileSync } from 'node:fs'
+import { mkdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { isolatedBoot } from './helpers/isolatedBoot'
 
@@ -12,7 +12,6 @@ const CHAT = '.pane.chat'
 const INPUT = '[aria-label="메시지 입력"]'
 const STOP = 'button[aria-label="실행 중단"]'
 const AI_MSG = `${CHAT} .thread .msg.ai-msg`
-const panelSel = (n: number): string => `.ma-panel[data-slot="${n}"]`
 
 function log(...a: unknown[]): void {
   console.log('[P15R1]', ...a)
@@ -186,128 +185,4 @@ test.describe('GAP1 P15 R1-H1: 연속 인터럽트 — 세션 연속성·좀비 
   })
 })
 
-test.describe('GAP1 P15 R1-H2: 다중 세션 병행 — 라우팅 격리·동시 완주·표시 혼선 (opt-in: GAP1HUNT1=1)', () => {
-  test.skip(!RUN, 'P15 라운드 1 라이브 헌팅 — GAP1HUNT1=1로 명시 실행')
-
-  test('3패널 동시 턴(서로 다른 파일 작업) → 교차 오염 0 + 전 패널 완주 + 디스크 반영', async () => {
-    test.setTimeout(480_000)
-    mkdirSync(SHOT_DIR, { recursive: true })
-
-    const { app, page, workspace, teardown } = await isolatedBoot({ slug: 'p15hunt-h2' })
-    const tapped = attachMainConsoleTap(app)
-    try {
-      const multiTab = page.getByRole('tab', { name: /멀티 에이전트/ })
-      if (await multiTab.isVisible().catch(() => false)) {
-        await multiTab.click()
-      } else {
-        await page.locator('.sb-mode .sb-mode-btn').nth(1).click()
-      }
-      await expect(page.locator(panelSel(0))).toBeVisible({ timeout: 15_000 })
-      await page.locator('.ma-count').getByRole('tab', { name: '3', exact: true }).click()
-      for (const n of [0, 1, 2]) {
-        await expect(page.locator(panelSel(n))).toBeVisible({ timeout: 10_000 })
-        const ta = page.locator(panelSel(n)).locator('.composer-ta')
-        await expect(ta, `패널${n} 컴포저 활성(전역 workspaceRoot 상속)`).toBeEnabled({ timeout: 10_000 })
-      }
-
-      const jobs = [
-        { file: 'alpha.txt', content: 'ALPHA_R1', token: 'ALPHA_DONE' },
-        { file: 'bravo.txt', content: 'BRAVO_R1', token: 'BRAVO_DONE' },
-        { file: 'charlie.txt', content: 'CHARLIE_R1', token: 'CHARLIE_DONE' },
-      ]
-      for (const [n, j] of jobs.entries()) {
-        const ta = page.locator(panelSel(n)).locator('.composer-ta')
-        await ta.click()
-        await ta.fill(
-          `Use the Write tool exactly once to create a file named "${j.file}" in the workspace root ` +
-            `containing exactly "${j.content}". Then reply exactly ${j.token} and end your turn. ` +
-            'Do not use any other tools.'
-        )
-        await ta.press('Enter')
-        log(`패널${n} 전송: ${j.file} → ${j.token}`)
-      }
-
-      for (const n of [0, 1, 2]) {
-        await expect(
-          page.locator(panelSel(n)).locator('[aria-label="실행 중단"]'),
-          `패널${n} 턴 시작(정지버튼 등장)`
-        ).toBeVisible({ timeout: 30_000 })
-      }
-      await page.screenshot({ path: join(SHOT_DIR, 'p15r1-10-multi-3panels-running.png') })
-      for (const n of [0, 1, 2]) {
-        const st = await page.locator(panelSel(n)).locator('.ma-status').innerText().catch(() => '(없음)')
-        log(`패널${n} 실행 중 상태 배지="${st.trim()}"`)
-      }
-
-      const deadline = Date.now() + 240_000
-      while (Date.now() < deadline) {
-        let anyCard = false
-        for (const n of [0, 1, 2]) {
-          const allowBtn = page.locator(panelSel(n)).locator('.perm-card [data-perm-choice="allow"]')
-          if (await allowBtn.isVisible().catch(() => false)) {
-            anyCard = true
-            await allowBtn.click().catch(() => {})
-            log(`패널${n} 권한 카드 자동 허용(안전망 발화 — 기본 bypass 예상 밖)`)
-          }
-        }
-        if (anyCard) {
-          await page.waitForTimeout(800)
-          continue
-        }
-        const runningFlags = await Promise.all(
-          [0, 1, 2].map((n) =>
-            page.locator(panelSel(n)).locator('[aria-label="실행 중단"]').isVisible().catch(() => false)
-          )
-        )
-        if (runningFlags.every((r) => !r)) break
-        await page.waitForTimeout(1_000)
-      }
-      for (const n of [0, 1, 2]) {
-        await expect(
-          page.locator(panelSel(n)).locator('[aria-label="실행 중단"]'),
-          `패널${n} 240s 내 완주(정지버튼 소멸)`
-        ).toBeHidden({ timeout: 5_000 })
-      }
-      await page.waitForTimeout(2_000)
-
-      const threads = await Promise.all(
-        [0, 1, 2].map((n) => page.locator(panelSel(n)).locator('.ma-p-thread').innerText().catch(() => ''))
-      )
-      const marks = ['ALPHA', 'BRAVO', 'CHARLIE']
-      for (const [n, j] of jobs.entries()) {
-        expect(threads[n], `패널${n} 자기 완료 토큰(${j.token}) 미도착 — 라우팅 유실 의심`).toContain(j.token)
-        for (const [m, mark] of marks.entries()) {
-          if (m === n) continue
-          expect(
-            threads[n].includes(mark),
-            `패널${n} 스레드에 패널${m} 산출물(${mark}) 혼입 — 이벤트 교차 오염`
-          ).toBe(false)
-        }
-      }
-
-      for (const j of jobs) {
-        const onDisk = readFileSync(join(workspace, j.file), 'utf8')
-        expect(onDisk, `${j.file} 내용 불일치`).toContain(j.content)
-      }
-
-      for (const n of [0, 1, 2]) {
-        const st = await page.locator(panelSel(n)).locator('.ma-status').innerText().catch(() => '(없음)')
-        const ctx = await page.locator(panelSel(n)).locator('.ma-ctx-detail').innerText().catch(() => '(없음)')
-        log(`패널${n} 완주 후 상태 배지="${st.trim()}" 컨텍스트 게이지="${ctx.trim()}"`)
-        test.info().annotations.push({
-          type: 'panel-display',
-          description: `패널${n}: status="${st.trim()}" ctx="${ctx.trim()}"`,
-        })
-      }
-      await page.screenshot({ path: join(SHOT_DIR, 'p15r1-11-multi-3panels-done.png') })
-
-      log(`메인 콘솔 수집 ${tapped.lines.length}줄, unhandled rejection ${tapped.rejections.length}건`)
-      test.info().annotations.push({
-        type: 'main-console',
-        description: `unhandled rejection ${tapped.rejections.length}건 / 전체 ${tapped.lines.length}줄`,
-      })
-    } finally {
-      await teardown()
-    }
-  })
-})
+// M10 G1 — 멀티 에이전트 모드를 지워 R1-H2(3패널 동시 턴) 묶음을 뺐다.

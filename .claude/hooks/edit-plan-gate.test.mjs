@@ -15,9 +15,9 @@
 // 역할 신호(agent_id·agent_type)는 읽지 않는다 — fork도 메인도 같은 판정이다.
 //
 // 판정 근거는 미러 hook-log 줄과 stdout의 deny JSON뿐이다 (실저장소는 건드리지 않는다).
-import { cpSync, existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 import { createRunner } from './_lib/runner.mjs'
 import { createGateHarness, REPO_ROOT } from './_lib/gate-harness.mjs'
 
@@ -196,6 +196,79 @@ try {
     const spawn = judgeRaw(noConfig, 'Task', {}, '20_plan-gate.cjs', 'plan-gate')
     r.judge('EP-22 포인터 부재 · 스폰 게이트(판정부 공유)', spawn.verdict, 'deny/계획-포인터-결손',
       { note: '판정부를 함께 쓰는 스폰 자리도 종결된 계획으로 떨어지지 않는다' })
+  }
+
+  // ---- 주도권 판정 ③은 마일스톤 스펙 대장과 합쳐 센다 (M10 G1) -----------------
+  // 헌법 11조 뒤로 사람의 합의는 마일스톤 스펙 대장에 모이고 goal 대장은 [AI] 위주다. 계획 문서와 같은
+  // 폴더의 `00_마일스톤-스펙.md`(01_Milestones 안) 대장을 goal 대장과 합쳐 센다 — 머리말의 경로 글자는
+  // 읽지 않는다(다른 마일스톤 스펙을 가리켜 [USER]를 빌려 오는 길, 독립 검수 중요 2). 스펙이 없거나
+  // 01_Milestones 밖이거나 대장 절이 없으면 goal 대장만 센다(닫힌 쪽). [AI·비가역]은 어느 대장에 있든 즉시 발동이다.
+  // 근거: M10 마일스톤 스펙 결정 대장 [USER] 2026-11-19 「고쳐 쓴다 (추천)」.
+  {
+    const SPEC = '00_마일스톤-스펙.md'
+    const writeRel = (rel, text) => {
+      mkdirSync(dirname(H.path(...rel.split('/'))), { recursive: true })
+      writeFileSync(H.path(...rel.split('/')), text)
+    }
+    const spec = (dir, lines, heading = '## 결정 대장') =>
+      writeRel(`${dir}/${SPEC}`, ['# M99 — 스펙 픽스처', '', heading, '', ...lines, ''].join('\n'))
+    const goal = (dir, name, lines, headerSpec = `${dir}/${SPEC}`) => {
+      const rel = `${dir}/${name}.md`
+      writeRel(rel, [
+        `# M99 — 프로브 픽스처: 주도권 합산 (${name})`, '',
+        `- 마일스톤: M99 (마일스톤 스펙 \`${headerSpec}\`) · 작성: 2026-11-19 · 상태: 실행 중`, '',
+        '## 목표', '', '- 주도권 판정이 마일스톤 스펙 대장을 합쳐 세는지 실측한다.', '',
+        '## Phase 1 — 픽스처 · 태그: `hooks` · 의존: 없음', '',
+        '검증 기록', '', '- PASS 2026-11-19T16:00:00+09:00 — 픽스처 자체 점검', '',
+        '## 결정 대장', '', ...lines, '',
+      ].join('\n'))
+      return rel
+    }
+    const AI2 = ['- [AI] 프로브 결정 하나 (2026-11-19)', '- [AI] 프로브 결정 둘 (2026-11-19)']
+    const USER2 = ['- [USER] 스펙 합의 (2026-11-19)', '- [USER·위임] 실주행 대행 (2026-11-19)']
+    spec('01_Milestones/M99_Probe', USER2)
+
+    const mergedRel = goal('01_Milestones/M99_Probe', '10_Goal-G1', AI2)
+    const merged = judge(mergedRel, src)
+    r.judge('EP-23 goal [AI] 2 · 같은 폴더 스펙 [USER] 2 — 합쳐 세면 통과', merged.verdict, 'allow/통과',
+      { note: 'goal 대장만 세면 거부되던 꼴(M09 G6 [AI] 2 > [USER] 0)' })
+    r.check('EP-23b 통과 줄 tally에 스펙 경로와 수가 실린다',
+      merged.evidence?.tally?.spec?.path === `01_Milestones/M99_Probe/${SPEC}` && merged.evidence?.tally?.spec?.USER === 1 && merged.evidence?.tally?.spec?.['USER·위임'] === 1,
+      `실측 ${JSON.stringify(merged.evidence?.tally?.spec ?? null)}`)
+
+    const missing = judge(goal('01_Milestones/M97_Probe', '10_Goal-G1', AI2), src)
+    r.judge('EP-24 같은 폴더에 스펙 없음 — goal 대장만 센다', missing.verdict, 'deny/주도권-문답분기', { note: '닫힌 쪽' })
+
+    spec('.claude/hooks/fixtures/spec-outside', USER2)
+    const outside = judge(goal('.claude/hooks/fixtures/spec-outside', 'goal', AI2), src)
+    r.judge('EP-25 계획과 스펙이 01_Milestones 밖 — 세지 않는다', outside.verdict, 'deny/주도권-문답분기')
+
+    const borrowed = judge(goal('01_Milestones/M96_Probe', '10_Goal-G1', AI2, `01_Milestones/M99_Probe/${SPEC}`), src)
+    r.judge('EP-26 머리말이 다른 마일스톤 스펙을 가리켜도 빌려 오지 않는다', borrowed.verdict, 'deny/주도권-문답분기',
+      { note: '이전 goal을 복사해 경로가 남은 꼴(독립 검수 중요 2)' })
+
+    const irrev = judge(goal('01_Milestones/M99_Probe', '20_Goal-irrev', ['- [AI·비가역] 프로브 비가역 (2026-11-19)']), src)
+    r.judge('EP-27 goal의 [AI·비가역]은 스펙 [USER]와 무관하게 즉시 발동', irrev.verdict, 'deny/주도권-즉시발동')
+
+    spec('01_Milestones/M98_Probe', ['- [USER] 하나 (2026-11-19)', '- [AI] 스펙 쪽 AI 하나 (2026-11-19)', '- [AI] 스펙 쪽 AI 둘 (2026-11-19)'])
+    const specAi = judge(goal('01_Milestones/M98_Probe', '10_Goal-G1', ['- [AI] 프로브 (2026-11-19)']), src)
+    r.judge('EP-28 스펙의 [AI]도 함께 센다 — 합계 [AI] 3 > [USER] 1', specAi.verdict, 'deny/주도권-문답분기',
+      { note: '원칙 2를 마일스톤 단위로 지킨다' })
+
+    spec('01_Milestones/M95_Probe', [...USER2, '- [USER] 셋 (2026-11-19)', '- [AI·비가역] 스펙 쪽 비가역 (2026-11-19)'])
+    const specIrrev = judge(goal('01_Milestones/M95_Probe', '10_Goal-G1', ['- [USER] goal 쪽 (2026-11-19)']), src)
+    r.judge('EP-29 스펙 대장의 [AI·비가역]도 즉시 발동', specIrrev.verdict, 'deny/주도권-즉시발동',
+      { note: '독립 검수 중요 1' })
+
+    spec('01_Milestones/M94_Probe', USER2, '## 다른 절')
+    const noLedger = judge(goal('01_Milestones/M94_Probe', '10_Goal-G1', AI2), src)
+    r.judge('EP-30 스펙에 결정 대장 절이 없으면 세지 않는다', noLedger.verdict, 'deny/주도권-문답분기')
+
+    const self = judge(goal('01_Milestones/M93_Probe', SPEC.replace(/\.md$/, ''), AI2), src)
+    r.judge('EP-31 계획 자신이 스펙 이름이면 두 번 세지 않는다', self.verdict, 'deny/주도권-문답분기')
+
+    const spawn = judgeRaw(config({ planPath: mergedRel, workPinPath: PIN }), 'Task', {}, '20_plan-gate.cjs', 'plan-gate')
+    r.judge('EP-32 스폰 게이트(판정부 공유)도 스펙과 합쳐 센다', spawn.verdict, 'allow/통과')
   }
 
   // ---- 격리 — 미러 밖으로 새지 않는다 --------------------------------------

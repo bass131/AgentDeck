@@ -2,12 +2,12 @@
 // 캡슐 경계 스모크 테스트 — shell 기능 캡슐(02_Project/00_Source/renderer/src/12_Window)의
 // 공개 표면이 새 경로에서 정상 import되는지만 얕게 확인한다.
 // 재편 전에는 이 경로가 존재하지 않으므로 import 자체가 실패해 Red여야 한다.
-// 공개 표면 9종 = 앱 소비처(Shell·AppGate·SubAgentSplitView)가 실제로 소비하는
+// 공개 표면 8종 = 앱 소비처(Shell·AppGate·SubAgentSplitView)가 실제로 소비하는
 // 심볼 전부. UserProfile은 타입이라 런타임 단언 대상이 아니며 import type
-// 성립(typecheck)으로 확인한다.
+// 성립(typecheck)으로 확인한다. M10 G1에서 멀티 에이전트 화면을 지워 9종 → 8종이 됐다.
 import { describe, it, expect } from 'vitest'
+import * as shell from '@renderer/12_Window'
 import {
-  MultiWorkspace,
   Sidebar,
   SettingsModal,
   Profile,
@@ -19,8 +19,7 @@ import {
 import type { UserProfile } from '@renderer/12_Window'
 
 describe('shell 캡슐 — 공개 표면 스모크', () => {
-  it('값 심볼 8종이 캡슐 경로에서 export된다', () => {
-    expect(typeof MultiWorkspace).toBe('function')
+  it('값 심볼 7종이 캡슐 경로에서 export된다', () => {
     expect(typeof Sidebar).toBe('object') // memo 래핑 컴포넌트
     expect(typeof SettingsModal).toBe('function')
     expect(typeof Profile).toBe('function')
@@ -28,6 +27,9 @@ describe('shell 캡슐 — 공개 표면 스모크', () => {
     expect(typeof ResizeHandles).toBe('object')
     expect(typeof PaneSplitter).toBe('function')
     expect(typeof ZoomControl).toBe('function')
+    expect(Object.keys(shell).sort()).toEqual(
+      ['PaneSplitter', 'Profile', 'ResizeHandles', 'SettingsModal', 'Sidebar', 'TitleBar', 'ZoomControl'],
+    )
   })
 
   it('UserProfile 타입이 캡슐 경로에서 export된다 (컴파일 성립으로 확인)', () => {

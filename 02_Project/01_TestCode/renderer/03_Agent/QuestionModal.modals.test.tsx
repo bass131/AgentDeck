@@ -192,7 +192,8 @@ describe('QuestionModal — 여러 창의 키 입력', () => {
   })
 })
 
-// G4 확인 검수 — 맨 위 판정은 화면 겹침(층)을 따른다. 루프 질문 창은 z 60 루프 오버레이 안에 있어, 나중에 열려도 z 80 대화 질문 창 아래다.
+// G4 확인 검수 — 맨 위 판정은 화면 겹침(층)을 따른다. 낮은 층(여기서는 시험용 60)의 창은 나중에 열려도 z 80 대화 질문 창 아래다.
+// M10 G1부터 앱에 60 층을 쓰는 창은 없다(루프 화면이 모달이 아니다). 층 기계는 G3 세션 탭이 다시 쓸 수 있어 남긴다.
 // 순서: 펼친 창이 내려둔 창보다 먼저, 그다음 층이 높은 창, 같은 층에서는 연(펼친) 순서.
 describe('QuestionModal — 화면 층', () => {
   const CONV = [{ header: 'C', question: '대화 창 질문', options: [{ label: 'c1', description: '' }], multiSelect: false }]
@@ -259,7 +260,8 @@ describe('QuestionModal — 화면 층', () => {
     expect(loop).not.toHaveBeenCalled()
   })
 
-  it('층 값은 각 창의 CSS z-index와 같다 — 대화·패널 질문 창(.q-overlay) 80, 루프 오버레이 60', async () => {
+  // M10 G1 — 루프 화면이 모달에서 작업 모드 몸체로 바뀌어 z 60 루프 오버레이 층이 없어졌다. 층 값은 질문 창 CSS 하나와 대조한다.
+  it('층 값은 질문 창의 CSS z-index와 같다 — 대화·루프 질문 창(.q-overlay) 80, 루프 화면에는 겹침 맥락이 없다', async () => {
     const fs = await import('node:fs')
     const path = await import('node:path')
     const { DIALOG_LAYER } = await import('@renderer/03_Agent/prompt')
@@ -271,9 +273,9 @@ describe('QuestionModal — 화면 층', () => {
       const block = css.slice(at, css.indexOf('}', at))
       return Number(/z-index:\s*(\d+)/.exec(block)?.[1])
     }
-    expect(DIALOG_LAYER.app).toBe(zOf('03_Agent/prompt/QuestionModal.css', '.q-overlay'))
-    expect(DIALOG_LAYER.loop).toBe(zOf('13_Loop/LoopScreen.css', '.modal-overlay.loop-overlay'))
-    expect(DIALOG_LAYER.app).toBeGreaterThan(DIALOG_LAYER.loop)
+    expect(DIALOG_LAYER).toEqual({ app: zOf('03_Agent/prompt/QuestionModal.css', '.q-overlay') })
+    const loopCss = fs.readFileSync(path.join(src, '13_Loop/LoopScreen.css'), 'utf8')
+    expect(loopCss).not.toMatch(/z-index|transform|filter|isolation|contain\s*:/)
   })
 })
 

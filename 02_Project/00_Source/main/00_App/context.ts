@@ -16,7 +16,6 @@ import type { CommandsStore } from '@main/11_Settings/commands'
 import { createRootRegistry } from '@main/07_Workspace/roots'
 import { createRunManager } from '@main/03_Agent/agentRuns'
 import { initLspManager } from '@main/09_Lsp/manager'
-import { getMultiStorePath } from '@main/06_Sessions/multiStore'
 import { join } from 'node:path'
 import { getUserDataDir } from '@main/02_Common/userData'
 import { getDefaultQueryFn } from '@main/04_Claude/queryFn'
@@ -48,7 +47,6 @@ export function getModelListProvider(): ModelListProvider {
 
 export const ipcState = {
   win: null as BrowserWindow | null,
-  multiStorePath: null as string | null,
 }
 
 export const roots = createRootRegistry()
@@ -118,12 +116,4 @@ export function initLsp(): void {
 
 export function disposeAllRuns(): number {
   return runManager.closeAll()
-}
-
-export function initMultiStore(userData: string): void {
-  try {
-    ipcState.multiStorePath = getMultiStorePath(userData)
-  } catch (err) {
-    console.error('[main] multiStore 경로 초기화 실패:', err)
-  }
 }

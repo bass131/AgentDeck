@@ -1,15 +1,12 @@
 import { memo, useState, useMemo, useEffect, useRef, useSyncExternalStore, type JSX } from 'react'
 import { sessionRegistry } from '@renderer/03_Agent/state/sessionRegistry'
-import { convKey, panelPrefix } from '@renderer/03_Agent/state/sessionKeys'
+import { convKey } from '@renderer/03_Agent/state/sessionKeys'
 import {
   useAppStore,
   selectWorkspaceMode,
   selectConversations,
   selectIsRunning,
   selectProfile,
-  selectMultiSessions,
-  selectActiveMultiSessionId,
-  type MultiSessionSummary,
 } from '@renderer/00_App/appStore'
 import {
   IconSearch,
@@ -30,15 +27,12 @@ import {
 import type { ConversationRecord } from '@shared/ipcContract'
 import { ipc } from '@renderer/01_Ipc'
 import { PromptModal } from '@renderer/03_Agent/prompt'
+import type { WorkspaceMode } from './windowMode'
 import './Sidebar.css'
-
-type WorkspaceMode = 'single' | 'multi'
 
 interface SidebarProps {
   onCollapse: () => void
   onOpenSettings: () => void
-  // M09 G4 — 앱 안 마일스톤 루프 화면을 여는 최소 진입점. 주지 않으면 버튼이 없다
-  onOpenLoop?: () => void
 }
 
 const isMac = typeof navigator !== 'undefined' && navigator.platform.toLowerCase().includes('mac')
@@ -60,14 +54,10 @@ function dotClass(status: SessionStatus): string {
 }
 
 const MENU_W = 178
-
-function menuH(hasPrompt: boolean): number {
-  return hasPrompt ? 127 : 92
-}
+const MENU_H = 127
 
 // 실행 표시(B1, G9c) — 세션 레지스트리 기준이다. 대화는 isRunning(convKey(id))와 같은 판정으로, 활성 대화면
-// 전경 저장 칸(store isRunning), 아니면 레지스트리의 배경 항목을 본다. 멀티 세션은 패널 키 가운데 하나라도
-// 실행 중이면 running이다. runningKeys는 실행 중인 레지스트리 항목 키 집합이다.
+// 전경 저장 칸(store isRunning), 아니면 레지스트리의 배경 항목을 본다. runningKeys는 실행 중인 레지스트리 항목 키 집합이다.
 function conversationRunning(
   id: string,
   activeId: string | null,
@@ -75,12 +65,6 @@ function conversationRunning(
   runningKeys: ReadonlySet<string>,
 ): boolean {
   return id === activeId ? activeRunning : runningKeys.has(convKey(id))
-}
-
-function anyPanelRunning(multiSessionId: string, runningKeys: ReadonlySet<string>): boolean {
-  const prefix = panelPrefix(multiSessionId)
-  for (const k of runningKeys) if (k.startsWith(prefix)) return true
-  return false
 }
 
 function toSessionSummary(rec: ConversationRecord, running: boolean): SessionSummary {
@@ -92,20 +76,10 @@ function toSessionSummary(rec: ConversationRecord, running: boolean): SessionSum
   }
 }
 
-function toMultiSessionSummary(ms: MultiSessionSummary, running: boolean): SessionSummary {
-  return {
-    id: ms.id,
-    title: ms.title || '새 작업',
-    status: running ? 'running' : 'idle',
-    hasPrompt: false,
-  }
-}
-
 interface RecentChatsProps {
   sessions: SessionSummary[]
   activeId: string
   query: string
-  mode: WorkspaceMode
   onSelect: (id: string) => void
   onRename: (id: string, name: string) => void
   onDelete: (id: string) => void
@@ -115,13 +89,10 @@ function RecentChats({
   sessions,
   activeId,
   query,
-  mode,
   onSelect,
   onRename,
   onDelete,
 }: RecentChatsProps): JSX.Element {
-  const showPrompt = mode === 'single'
-
   const [menu, setMenu] = useState<{ id: string; x: number; y: number } | null>(null)
 
   const [dialog, setDialog] = useState<{
@@ -256,7 +227,7 @@ function RecentChats({
           className="ctx-menu"
           style={{
             left: Math.max(8, Math.min(menu.x, window.innerWidth - MENU_W - 8)),
-            top: Math.max(8, Math.min(menu.y, window.innerHeight - menuH(showPrompt) - 8)),
+            top: Math.max(8, Math.min(menu.y, window.innerHeight - MENU_H - 8)),
           }}
           onMouseDown={(e) => e.stopPropagation()}
         >
@@ -264,20 +235,18 @@ function RecentChats({
             <IconPencil size={15} />
             이름 변경
           </button>
-          {showPrompt && (
-            <button
-              type="button"
-              className="ctx-item"
-              onClick={() => {
-                const s = sessions.find((c) => c.id === menu.id)
-                setPromptSession({ id: menu.id, title: s?.title ?? '새 채팅' })
-                setMenu(null)
-              }}
-            >
-              <IconSpark size={15} />
-              프롬프트 설정
-            </button>
-          )}
+          <button
+            type="button"
+            className="ctx-item"
+            onClick={() => {
+              const s = sessions.find((c) => c.id === menu.id)
+              setPromptSession({ id: menu.id, title: s?.title ?? '새 채팅' })
+              setMenu(null)
+            }}
+          >
+            <IconSpark size={15} />
+            프롬프트 설정
+          </button>
           <div className="ctx-sep" />
           <button
             type="button"
@@ -358,7 +327,13 @@ function RecentChats({
   )
 }
 
-function SidebarInner({ onCollapse, onOpenSettings, onOpenLoop }: SidebarProps): JSX.Element {
+// 모드 전환 칸의 두 모드 — 화면 이름 「채팅」·「작업」(M10 G1). 「작업」의 몸체는 루프 화면이다(Shell).
+const MODES: ReadonlyArray<{ mode: WorkspaceMode; label: string; Icon: typeof IconSquare }> = [
+  { mode: 'single', label: '채팅', Icon: IconSquare },
+  { mode: 'work', label: '작업', Icon: IconGrid },
+]
+
+function SidebarInner({ onCollapse, onOpenSettings }: SidebarProps): JSX.Element {
   const [appVersion, setAppVersion] = useState('')
   const cancelledRef = useRef(false)
   useEffect(() => {
@@ -390,66 +365,44 @@ function SidebarInner({ onCollapse, onOpenSettings, onOpenLoop }: SidebarProps):
   const conversationId = useAppStore((s) => s.conversationId)
   const isRunning = useAppStore(selectIsRunning)
 
-  const multiSessions = useAppStore(selectMultiSessions)
-  const activeMultiSessionId = useAppStore(selectActiveMultiSessionId)
-
   const profile = useAppStore(selectProfile)
 
   const runningKeys = useSyncExternalStore(sessionRegistry.subscribe, sessionRegistry.runningKeys)
 
-  const singleSessions = useMemo(
+  // 목록은 모드와 관계없이 채팅이다 — 작업 모드의 프로젝트 목록은 G2·G3 몫이다.
+  const sessions = useMemo(
     () => conversations.map((rec) =>
       toSessionSummary(rec, conversationRunning(rec.id, conversationId, isRunning, runningKeys))),
     [conversations, conversationId, isRunning, runningKeys],
   )
-  const multiSessionsAsSummary = useMemo(
-    () => multiSessions.map((ms) => toMultiSessionSummary(ms, anyPanelRunning(ms.id, runningKeys))),
-    [multiSessions, runningKeys],
-  )
-
-  const sessions = mode === 'multi' ? multiSessionsAsSummary : singleSessions
-  const currentActiveId = mode === 'multi' ? activeMultiSessionId : (conversationId ?? '')
 
   useEffect(() => {
     void useAppStore.getState().listConversations()
-    void useAppStore.getState().loadMultiSessions()
   }, [])
 
+  // 목록은 늘 채팅이다 — 작업 모드에서 대화를 고르거나 새로 열면 보이는 화면도 채팅으로 바꾼다(M10 G1 검수 사소 6)
+  const showChat = (): void => {
+    const s = useAppStore.getState()
+    if (s.workspaceMode !== 'single') s.setWorkspaceMode('single')
+  }
+
   const handleSelect = (id: string): void => {
-    if (mode === 'multi') {
-      void useAppStore.getState().selectMultiSession(id)
-    } else {
-      void useAppStore.getState().selectConversation(id)
-    }
+    showChat()
+    void useAppStore.getState().selectConversation(id)
   }
 
   const handleRename = (id: string, name: string): void => {
-    if (mode === 'multi') {
-      void useAppStore.getState().renameMultiSession(id, name)
-    } else {
-      void useAppStore.getState().renameConversation(id, name)
-    }
+    void useAppStore.getState().renameConversation(id, name)
   }
 
   const handleDelete = (id: string): void => {
-    if (mode === 'multi') {
-      void useAppStore.getState().deleteMultiSession(id)
-    } else {
-      void useAppStore.getState().deleteConversation(id)
-    }
+    void useAppStore.getState().deleteConversation(id)
   }
 
   const handleNew = (): void => {
-    if (mode === 'multi') {
-      void useAppStore.getState().newMultiSession()
-    } else {
-      useAppStore.getState().newConversation()
-    }
+    showChat()
+    useAppStore.getState().newConversation()
   }
-
-  const labelSingle = { list: '최근 채팅', search: '대화 검색', new: '새 대화' }
-  const labelMulti  = { list: '최근 작업', search: '작업 검색', new: '새 작업' }
-  const labels = mode === 'single' ? labelSingle : labelMulti
 
   return (
     <aside className="sidebar">
@@ -472,26 +425,19 @@ function SidebarInner({ onCollapse, onOpenSettings, onOpenLoop }: SidebarProps):
       </div>
 
       <div className="sb-mode" role="tablist" aria-label="작업 모드">
-        <button
-          type="button"
-          role="tab"
-          aria-selected={mode === 'single'}
-          className={'sb-mode-btn' + (mode === 'single' ? ' on' : '')}
-          onClick={() => setMode('single')}
-        >
-          <IconSquare size={14} />
-          <span>단일 에이전트</span>
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={mode === 'multi'}
-          className={'sb-mode-btn' + (mode === 'multi' ? ' on' : '')}
-          onClick={() => setMode('multi')}
-        >
-          <IconGrid size={14} />
-          <span>멀티 에이전트</span>
-        </button>
+        {MODES.map(({ mode: m, label, Icon }) => (
+          <button
+            key={m}
+            type="button"
+            role="tab"
+            aria-selected={mode === m}
+            className={'sb-mode-btn' + (mode === m ? ' on' : '')}
+            onClick={() => setMode(m)}
+          >
+            <Icon size={14} />
+            <span>{label}</span>
+          </button>
+        ))}
       </div>
 
       <button
@@ -501,7 +447,7 @@ function SidebarInner({ onCollapse, onOpenSettings, onOpenLoop }: SidebarProps):
         onClick={handleNew}
       >
         <IconPlus size={14} />
-        <span className="sb-new-label">{labels.new}</span>
+        <span className="sb-new-label">새 대화</span>
         <kbd className="sb-kbd">{isMac ? '⌘N' : 'Ctrl N'}</kbd>
       </button>
 
@@ -510,32 +456,24 @@ function SidebarInner({ onCollapse, onOpenSettings, onOpenLoop }: SidebarProps):
         <input
           className="sb-search-input"
           type="text"
-          placeholder={labels.search}
+          placeholder="대화 검색"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           aria-label="대화 검색"
         />
       </div>
 
-      <div className="sb-label">{labels.list}</div>
+      <div className="sb-label">최근 채팅</div>
       <div className="sb-list">
         <RecentChats
           sessions={sessions}
-          activeId={currentActiveId}
+          activeId={conversationId ?? ''}
           query={query}
-          mode={mode}
           onSelect={handleSelect}
           onRename={handleRename}
           onDelete={handleDelete}
         />
       </div>
-
-      {onOpenLoop && (
-        <button type="button" className="sb-loop" onClick={onOpenLoop}>
-          <IconGrid size={14} />
-          <span>마일스톤 루프</span>
-        </button>
-      )}
 
       <button
         type="button"

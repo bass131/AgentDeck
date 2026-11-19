@@ -138,7 +138,7 @@ test('F7 설정 5탭: Claude Code/MCP/Skill/Code/테마 전환 + 탭별 캡처',
   await expect(page.locator('.modal-overlay')).toHaveCount(0)
 })
 
-test('F8 사이드바: 단일/멀티 토글 + 세션 행 + 컨텍스트 메뉴 + 이름변경 다이얼로그', async () => {
+test('F8 사이드바: 채팅/작업 토글 + 세션 행 + 컨텍스트 메뉴 + 이름변경 다이얼로그', async () => {
   const modeBtns = page.locator('.sb-mode .sb-mode-btn')
   await expect(modeBtns).toHaveCount(2)
   await modeBtns.nth(1).click()
@@ -168,25 +168,16 @@ test('F8 사이드바: 단일/멀티 토글 + 세션 행 + 컨텍스트 메뉴 +
   await expect(page.locator('.set-dialog')).toHaveCount(0)
 })
 
-test('F13 멀티에이전트: 멀티 토글 → 그리드 + count 탭 + 확장 모달', async () => {
+// M10 G1 — 멀티 에이전트 모드를 지웠다. 두 번째 모드 탭은 「작업」이고 루프 화면이 가운데 칸에 모달 없이 그려진다.
+test('F13 작업 모드: 작업 토글 → 가운데 칸의 루프 화면(모달 아님) → 채팅 복귀', async () => {
   const modeBtns = page.locator('.sb-mode .sb-mode-btn')
   await modeBtns.nth(1).click()
-  await expect(page.locator('.multi .ma-grid')).toBeVisible()
-  expect(await page.locator('.ma-grid .ma-panel').count()).toBeGreaterThanOrEqual(2)
-  await expect(page.locator('.ma-head .ma-head-title')).toContainText('멀티 에이전트')
-  await page.screenshot({ path: join(SHOT_DIR, 'multiagent-grid.png'), fullPage: false })
-
-  await page.locator('.ma-count .ma-count-btn', { hasText: '6' }).click()
-  expect(await page.locator('.ma-grid .ma-panel').count()).toBe(6)
-
-  await page.locator('.ma-panel .ma-p-body').first().hover()
-  await page.locator('.ma-panel .ma-p-zoom').first().click()
-  await expect(page.locator('.ma-expand-overlay')).toBeVisible()
-  await page.screenshot({ path: join(SHOT_DIR, 'multiagent-expand.png'), fullPage: false })
-  await page.keyboard.press('Escape')
-  await expect(page.locator('.ma-expand-overlay')).toHaveCount(0)
+  await expect(page.locator('.pane.work .loop-screen')).toBeVisible()
+  await expect(page.locator('.modal-overlay')).toHaveCount(0)
+  await expect(page.locator('.pane.chat')).toHaveCount(0)
+  await page.screenshot({ path: join(SHOT_DIR, 'work-mode.png'), fullPage: false })
 
   await modeBtns.nth(0).click()
-  await expect(page.locator('.multi')).toHaveCount(0)
+  await expect(page.locator('.loop-screen')).toHaveCount(0)
   await expect(page.locator('.pane.chat')).toBeVisible()
 })

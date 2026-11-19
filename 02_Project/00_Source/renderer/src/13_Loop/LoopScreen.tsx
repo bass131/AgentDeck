@@ -3,23 +3,22 @@
 //   · 받기: 화면이 뜰 때 loop.status, 그 뒤 loop.state push. 다른 저장소의 push는 버린다.
 //   · 호출 응답의 상태는 그 호출 중에 이 저장소의 push가 오지 않았을 때만 쓴다 — 구동자는 밀려난 계산을 push 없이
 //     부른 쪽에만 돌려주므로(publish), 응답이 그 사이 온 push보다 낡을 수 있다.
-//   · 화면을 닫는 것은 루프를 닫지 않는다(구독만 푼다). 루프 닫기는 「루프 닫기」 버튼(loop.close)이다.
+//   · 화면이 내려가는 것(작업 모드에서 나감)은 루프를 닫지 않는다(구독만 푼다). 루프 닫기는 「루프 닫기」 버튼(loop.close)이다.
+// M10 G1부터 이 화면은 모달이 아니라 「작업」 모드의 몸체다 — 앱 껍데기(Shell)가 가운데 영역(대화 자리)에 그린다.
 // 병합의 길은 마일스톤 PR 카드(08_Git PrCard)의 「병합」 버튼 하나다 — 이 화면은 병합을 부르지 않는다(헌법 10조).
 import { useCallback, useEffect, useRef, useState, type JSX } from 'react'
 import type { LoopCard, LoopCardResponse, LoopStatus } from '@shared/ipcContract'
 import { ipc } from '@renderer/01_Ipc'
 import { PrCard } from '@renderer/08_Git'
-import { DIALOG_LAYER, QuestionModal } from '@renderer/03_Agent/prompt'
-import { IconX } from '@renderer/02_Common/icons'
+import { QuestionModal } from '@renderer/03_Agent/prompt'
 import { ApprovalCard, CardList, ExceptionBar, GoalList, LatchCard } from './LoopCards'
 import { APPROVE_EVIDENCE, PHASE_LABEL, RESUME_EVIDENCE, errText, sameCwd } from './loopModel'
 import './LoopScreen.css'
 
 export interface LoopScreenProps {
-  // 앱 껍데기가 기억하는 마지막 저장소 — 화면을 다시 열면 그 저장소의 상태부터 읽는다
+  // 앱 껍데기가 기억하는 마지막 저장소 — 작업 모드에 다시 들면 그 저장소의 상태부터 읽는다
   initialCwd: string | null
   onCwdChange: (cwd: string) => void
-  onClose: () => void
 }
 
 type Where = 'top' | 'resume' | 'cards' | 'approval' | 'latch'
@@ -27,7 +26,7 @@ type Errors = Partial<Record<Where, string>>
 
 const CARD_REFUSED = '카드 답이 받아지지 않았어요 — 세션이 이미 끝났거나 카드가 바뀌었을 수 있어요'
 
-export function LoopScreen({ initialCwd, onCwdChange, onClose }: LoopScreenProps): JSX.Element {
+export function LoopScreen({ initialCwd, onCwdChange }: LoopScreenProps): JSX.Element {
   const [cwd, setCwd] = useState<string | null>(initialCwd)
   const [status, setStatus] = useState<LoopStatus | null>(null)
   const [busy, setBusy] = useState(false)
@@ -80,15 +79,6 @@ export function LoopScreen({ initialCwd, onCwdChange, onClose }: LoopScreenProps
         if (alive.current && sameCwd(cwd, cwdRef.current)) setError('top', errText(e))
       })
   }, [cwd, setError])
-
-  // 사람이 Esc로 화면을 닫는다 — 질문 창이 떠 있으면 그 창의 Esc(내려두기·건너뛰기)에 맡긴다
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent): void => {
-      if (e.key === 'Escape' && asking === null) onClose()
-    }
-    document.addEventListener('keydown', onKey)
-    return () => document.removeEventListener('keydown', onKey)
-  }, [asking, onClose])
 
   // 호출 하나 — 요청 중에는 버튼을 끄고, throw는 그 자리의 사유로 보인다. fresh는 호출 중 push가 없었다는 뜻이다.
   // 끝나면 대기열의 질문 답을 하나 보낸다.
@@ -218,14 +208,11 @@ export function LoopScreen({ initialCwd, onCwdChange, onClose }: LoopScreenProps
   const askingCard = found && found.kind === 'question' ? found : null
 
   return (
-    <div className="modal-overlay loop-overlay">
-      <div className="loop-modal" role="dialog" aria-modal="true" aria-label="마일스톤 루프">
+    <section className="loop-screen" aria-label="마일스톤 루프">
+      <div className="loop-panel">
         <div className="loop-head">
           <span className="loop-title">마일스톤 루프</span>
           {phase !== null && <span className="loop-phase" data-phase={phase}>{PHASE_LABEL[phase]}</span>}
-          <button type="button" className="loop-close" aria-label="화면 닫기" title="화면 닫기 (Esc) — 루프는 그대로 돈다" onClick={onClose}>
-            <IconX size={16} />
-          </button>
         </div>
 
         <div className="loop-body">
@@ -331,9 +318,8 @@ export function LoopScreen({ initialCwd, onCwdChange, onClose }: LoopScreenProps
         </div>
       </div>
 
-      {/* 루프 오버레이(z 60) 안에 그려진다 — 대화·패널 질문 창(z 80)보다 아래 층이다 */}
+      {/* 루프 화면에는 겹침 맥락이 없다(M10 G1) — 질문 창은 대화 질문 창과 같은 층(app, z 80)에 뜬다 */}
       <QuestionModal
-        layer={DIALOG_LAYER.loop}
         open={askingCard !== null}
         questions={askingCard?.questions ?? []}
         source={askingCard?.node}
@@ -346,7 +332,7 @@ export function LoopScreen({ initialCwd, onCwdChange, onClose }: LoopScreenProps
           if (askingCard) answer(askingCard, { kind: 'question', answers: null })
         }}
       />
-    </div>
+    </section>
   )
 }
 

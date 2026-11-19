@@ -26,7 +26,6 @@ const mockApi = {
   }),
   permissionRespond: vi.fn().mockResolvedValue({ ok: true }),
   conversationLoad: vi.fn().mockResolvedValue({ conversations: [] }),
-  multiSessionLoad: vi.fn().mockResolvedValue({ state: null }),
   workspaceOpen: vi.fn().mockResolvedValue({ root: null, tree: null }),
   pickFolder: vi.fn().mockResolvedValue({ path: null }),
   getUsage: vi.fn().mockResolvedValue({ fiveHour: null, weekly: null }),
@@ -70,10 +69,11 @@ afterEach(() => {
   useAppStore.setState({ workspaceMode: 'single', workspaceRoot: null })
 })
 
-async function renderMultiWorkspace() {
-  useAppStore.setState({ workspaceRoot: '/test/workspace', workspaceMode: 'multi' })
-  const { MultiWorkspace } = await import('@renderer/12_Window/MultiWorkspace')
-  const { container } = render(<MultiWorkspace />)
+// M10 G1 — 멀티 화면을 지웠다. 패널 기계(usePanelSlot + PanelView)를 패널 하네스로 그려 같은 동작을 본다.
+async function renderPanels() {
+  useAppStore.setState({ workspaceRoot: '/test/workspace' })
+  const { PanelHarness } = await import('../00_Helpers/panelHarness')
+  const { container } = render(<PanelHarness sessionId="scroll-reattach" />)
   return container
 }
 
@@ -100,9 +100,9 @@ function setClientHeight(el: HTMLElement, value: number): void {
   Object.defineProperty(el, 'clientHeight', { configurable: true, value })
 }
 
-describe('MultiWorkspace — 패널 자동 스크롤(.ma-p-thread) 이식', () => {
+describe('패널 하네스 — 패널 자동 스크롤(.ma-p-thread) 이식', () => {
   it('신규 텍스트 도착 시 바닥까지 자동 스크롤된다', async () => {
-    const container = await renderMultiWorkspace()
+    const container = await renderPanels()
     const runId0 = await sendFromPanel(container, 0, '테스트')
     const panel0 = container.querySelector('.ma-panel[data-slot="0"]') as HTMLElement
     const threadEl = panel0.querySelector('.ma-p-thread') as HTMLElement
@@ -119,7 +119,7 @@ describe('MultiWorkspace — 패널 자동 스크롤(.ma-p-thread) 이식', () =
   })
 
   it('사용자가 위로 스크롤한(바닥에서 41px 이상 이탈) 뒤에는 신규 텍스트가 와도 강제로 끌어내리지 않는다', async () => {
-    const container = await renderMultiWorkspace()
+    const container = await renderPanels()
     const runId0 = await sendFromPanel(container, 0, '테스트')
     const panel0 = container.querySelector('.ma-panel[data-slot="0"]') as HTMLElement
     const threadEl = panel0.querySelector('.ma-p-thread') as HTMLElement
@@ -145,7 +145,7 @@ describe('MultiWorkspace — 패널 자동 스크롤(.ma-p-thread) 이식', () =
   })
 
   it('사용자가 바닥 근처(40px 이내)로 되돌아오면 다음 신규 메시지부터 다시 자동 스크롤이 붙는다(재부착)', async () => {
-    const container = await renderMultiWorkspace()
+    const container = await renderPanels()
     const runId0 = await sendFromPanel(container, 0, '테스트')
     const panel0 = container.querySelector('.ma-panel[data-slot="0"]') as HTMLElement
     const threadEl = panel0.querySelector('.ma-p-thread') as HTMLElement
@@ -181,7 +181,7 @@ describe('MultiWorkspace — 패널 자동 스크롤(.ma-p-thread) 이식', () =
   })
 
   it('사용자가 위로 스크롤한 상태여도, 직접 새 메시지를 보내면 다시 바닥으로 따라간다(전송 시 강제 리셋 — 단일챗 sendNow와 동형)', async () => {
-    const container = await renderMultiWorkspace()
+    const container = await renderPanels()
     const runId0 = await sendFromPanel(container, 0, '테스트')
     const panel0 = container.querySelector('.ma-panel[data-slot="0"]') as HTMLElement
     const threadEl = panel0.querySelector('.ma-p-thread') as HTMLElement

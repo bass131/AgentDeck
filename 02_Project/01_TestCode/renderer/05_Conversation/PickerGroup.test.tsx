@@ -152,15 +152,16 @@ describe('P5 — 멀티의 Shift+Tab은 입력창이 포커스된 패널의 모�
     }
   })
 
-  it('전역 Shift+Tab 처리기는 멀티에서 없다 — 포커스된 패널 입력창이 없으면 아무것도 안 한다', async () => {
+  // M10 G1 — 멀티 모드를 지웠다. 작업 모드에도 화면에 단일 선택기가 없으니 전역 처리기가 없다.
+  it('전역 Shift+Tab 처리기는 작업 모드에서 없다 — 채팅에서만 단일 선택기를 돌린다', async () => {
     const { globalModeSwitchFor } = await import('@renderer/12_Window/useGlobalShortcuts')
     const cycle = vi.fn()
-    expect(globalModeSwitchFor('multi', cycle)).toBeUndefined()
+    expect(globalModeSwitchFor('work', cycle)).toBeUndefined()
     expect(globalModeSwitchFor('single', cycle)).toBe(cycle)
   })
 
   // G9b 검수 경미 — Shell이 전역 Shift+Tab 대상을 globalModeSwitchFor로 고르는지 실제 Shell로 고정한다.
-  it('Shell: 단일에서 document Shift+Tab은 단일 모드를 돌리고, 멀티에서는 돌리지 않는다(globalModeSwitchFor 배선)', async () => {
+  it('Shell: 채팅에서 document Shift+Tab은 단일 모드를 돌리고, 작업 모드에서는 돌리지 않는다(globalModeSwitchFor 배선)', async () => {
     const { act } = await import('@testing-library/react')
     const api: Record<string, unknown> = {
       conversationLoad: vi.fn().mockResolvedValue({ conversations: [] }),
@@ -192,8 +193,7 @@ describe('P5 — 멀티의 Shift+Tab은 입력창이 포커스된 패널의 모�
       setUiPref: vi.fn().mockResolvedValue({ ok: true }),
       getAppVersion: vi.fn().mockResolvedValue('1.0.0'),
       checkEngineUpdate: vi.fn().mockResolvedValue({ current: null, latest: null, updateAvailable: false }),
-      multiSessionLoad: vi.fn().mockResolvedValue({ state: null }),
-      multiCmdUpsert: vi.fn().mockResolvedValue({ ok: true }),
+      onLoopState: vi.fn().mockReturnValue(() => {}),
       getUsage: vi.fn().mockResolvedValue({ fiveHour: null, weekly: null }),
       listSlashCommands: vi.fn().mockResolvedValue([]),
       listSkills: vi.fn().mockResolvedValue([]),
@@ -216,8 +216,8 @@ describe('P5 — 멀티의 Shift+Tab은 입력창이 포커스된 패널의 모�
       const singleAfter = selectPickerMode(useAppStore.getState())
       expect(singleAfter).not.toBe(singleBefore)
 
-      await act(async () => { useAppStore.setState({ workspaceMode: 'multi' }) })
-      expect(document.querySelector('.multi')).toBeTruthy()
+      await act(async () => { useAppStore.setState({ workspaceMode: 'work' }) })
+      expect(document.querySelector('.loop-screen')).toBeTruthy()
       await shiftTab()
       expect(selectPickerMode(useAppStore.getState())).toBe(singleAfter)
     } finally {
@@ -225,13 +225,13 @@ describe('P5 — 멀티의 Shift+Tab은 입력창이 포커스된 패널의 모�
     }
   })
 
-  it('멀티의 전역 처리기(undefined)로는 document Shift+Tab이 단일 pickerMode를 바꾸지 않는다', async () => {
+  it('작업 모드의 전역 처리기(undefined)로는 document Shift+Tab이 단일 pickerMode를 바꾸지 않는다', async () => {
     const { renderHook, act } = await import('@testing-library/react')
     const { useGlobalShortcuts, globalModeSwitchFor } = await import('@renderer/12_Window/useGlobalShortcuts')
     const { useAppStore, selectPickerMode } = await import('@renderer/00_App/appStore')
     const before = selectPickerMode(useAppStore.getState())
     const cycle = vi.fn(() => useAppStore.getState().cyclePickerMode())
-    renderHook(() => useGlobalShortcuts({ onModeSwitch: globalModeSwitchFor('multi', cycle) }))
+    renderHook(() => useGlobalShortcuts({ onModeSwitch: globalModeSwitchFor('work', cycle) }))
     await act(async () => {
       document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', shiftKey: true, cancelable: true, bubbles: true }))
     })

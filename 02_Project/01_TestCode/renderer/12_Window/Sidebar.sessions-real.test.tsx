@@ -112,6 +112,29 @@ afterEach(() => {
   useAppStore.setState({ workspaceMode: 'single' })
 })
 
+describe('M10 G1 검수 사소 6: 작업 모드에서 대화를 고르면 채팅 화면으로 바뀐다', () => {
+  it('작업 모드에서 행 클릭 → workspaceMode가 single이 되고 selectConversation 호출', async () => {
+    patchStore({ workspaceMode: 'work' })
+    const container = await renderSidebar()
+    const rows = container.querySelectorAll('.sb-item')
+    await act(async () => {
+      fireEvent.click(rows[1] as HTMLElement)
+    })
+    expect(useAppStore.getState().workspaceMode).toBe('single')
+    expect(mockSelectConversation).toHaveBeenCalledWith('c2')
+  })
+
+  it('작업 모드에서 「새 대화」 → workspaceMode가 single이 되고 newConversation 호출', async () => {
+    patchStore({ workspaceMode: 'work' })
+    await renderSidebar()
+    await act(async () => {
+      fireEvent.click(screen.getByLabelText('새 대화'))
+    })
+    expect(useAppStore.getState().workspaceMode).toBe('single')
+    expect(mockNewConversation).toHaveBeenCalledOnce()
+  })
+})
+
 describe('23c: store conversations → 행 표시', () => {
   it('store conversations의 title이 행으로 표시된다 (대화1)', async () => {
     patchStore()

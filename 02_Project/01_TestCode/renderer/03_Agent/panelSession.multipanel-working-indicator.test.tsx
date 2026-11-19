@@ -30,7 +30,6 @@ const mockApi = {
   }),
   permissionRespond: vi.fn().mockResolvedValue({ ok: true }),
   conversationLoad: vi.fn().mockResolvedValue({ conversations: [] }),
-  multiSessionLoad: vi.fn().mockResolvedValue({ state: null }),
   workspaceOpen: vi.fn().mockResolvedValue({ root: null, tree: null }),
   pickFolder: vi.fn().mockResolvedValue({ path: null }),
   getUsage: vi.fn().mockResolvedValue({ fiveHour: null, weekly: null }),
@@ -74,10 +73,11 @@ afterEach(() => {
   useAppStore.setState({ workspaceMode: 'single', workspaceRoot: null })
 })
 
-async function renderMultiWorkspace() {
-  useAppStore.setState({ workspaceRoot: '/test/workspace', workspaceMode: 'multi' })
-  const { MultiWorkspace } = await import('@renderer/12_Window/MultiWorkspace')
-  const { container } = render(<MultiWorkspace />)
+// M10 G1 — 멀티 화면을 지웠다. 패널 기계(usePanelSlot + PanelView)를 패널 하네스로 그려 같은 동작을 본다.
+async function renderPanels() {
+  useAppStore.setState({ workspaceRoot: '/test/workspace' })
+  const { PanelHarness } = await import('../00_Helpers/panelHarness')
+  const { container } = render(<PanelHarness sessionId="working-indicator" />)
   return container
 }
 
@@ -122,9 +122,9 @@ describe('panelReducerFn — ADD_USER_MESSAGE/ADD_COMMAND_CARD 낙관적 isRunni
   })
 })
 
-describe('MultiWorkspace — 패널 응답 대기 인디케이터(.thinking) 이식', () => {
+describe('패널 하네스 — 패널 응답 대기 인디케이터(.thinking) 이식', () => {
   it('메시지 전송 직후(첫 텍스트 도착 전) 패널에 .thinking 인디케이터가 표시된다', async () => {
-    const container = await renderMultiWorkspace()
+    const container = await renderPanels()
     await sendFromPanel(container, 0, '테스트 메시지')
 
     const panel0 = container.querySelector('.ma-panel[data-slot="0"]') as HTMLElement
@@ -132,7 +132,7 @@ describe('MultiWorkspace — 패널 응답 대기 인디케이터(.thinking) 이
   })
 
   it('첫 텍스트 델타 도착 후에는 인디케이터가 사라지고 실 스트리밍 버블만 남는다', async () => {
-    const container = await renderMultiWorkspace()
+    const container = await renderPanels()
     const runId0 = await sendFromPanel(container, 0, '테스트 메시지')
 
     const panel0 = container.querySelector('.ma-panel[data-slot="0"]') as HTMLElement
@@ -147,7 +147,7 @@ describe('MultiWorkspace — 패널 응답 대기 인디케이터(.thinking) 이
   })
 
   it('권한 요청 대기 중에는 인디케이터가 억제된다(ADR-030 — 단일챗과 동일 정책)', async () => {
-    const container = await renderMultiWorkspace()
+    const container = await renderPanels()
     const runId0 = await sendFromPanel(container, 0, '테스트 메시지')
 
     const panel0 = container.querySelector('.ma-panel[data-slot="0"]') as HTMLElement
@@ -161,7 +161,7 @@ describe('MultiWorkspace — 패널 응답 대기 인디케이터(.thinking) 이
   })
 
   it('done 이벤트 후에는 인디케이터가 사라진다', async () => {
-    const container = await renderMultiWorkspace()
+    const container = await renderPanels()
     const runId0 = await sendFromPanel(container, 0, '테스트 메시지')
 
     act(() => {
@@ -173,7 +173,7 @@ describe('MultiWorkspace — 패널 응답 대기 인디케이터(.thinking) 이
   })
 
   it('다른 패널(슬롯1)은 영향받지 않는다 — 슬롯0만 인디케이터 표시', async () => {
-    const container = await renderMultiWorkspace()
+    const container = await renderPanels()
     await sendFromPanel(container, 0, '슬롯0 메시지')
 
     const panel1 = container.querySelector('.ma-panel[data-slot="1"]') as HTMLElement

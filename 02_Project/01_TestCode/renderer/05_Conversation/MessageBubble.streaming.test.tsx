@@ -75,16 +75,17 @@ describe('MessageBubble — streaming=false → 기존 MarkdownView (회귀 0)',
   })
 })
 
-describe('MultiWorkspace CSS — .ma-p-messages 가로 패딩', () => {
-  const CSS_PATH = '02_Project/00_Source/renderer/src/12_Window/MultiWorkspace.css'
+// M10 G1 — 멀티 에이전트 화면을 지우며 패널 카드 스타일(.ma-*)을 03_Agent/panelCard.css로 옮겼다(서브에이전트 보기·PanelView가 쓴다).
+describe('패널 카드 CSS — .ma-p-messages 가로 패딩', () => {
+  const CSS_PATH = '02_Project/00_Source/renderer/src/03_Agent/panelCard.css'
 
-  it('MultiWorkspace.css에 .ma-p-messages 규칙이 존재함', async () => {
+  it('panelCard.css에 .ma-p-messages 규칙이 존재함', async () => {
     const { readFileSync } = await import('fs')
     const css = readFileSync(CSS_PATH, 'utf-8')
     expect(css).toMatch(/\.ma-p-messages\s*\{/)
   })
 
-  it('MultiWorkspace.css .ma-p-messages에 padding 선언이 있음', async () => {
+  it('panelCard.css .ma-p-messages에 padding 선언이 있음', async () => {
     const { readFileSync } = await import('fs')
     const css = readFileSync(CSS_PATH, 'utf-8')
     const blockMatch = css.match(/\.ma-p-messages\s*\{([^}]+)\}/)

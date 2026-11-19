@@ -451,15 +451,4 @@ test('QA(P5): 설정 5탭 실데이터 — 엔진(Agent SDK)·Skill·MCP·Code·
   await expect(page.locator('.set-layout')).toHaveCount(0)
 })
 
-test('QA(P15): 멀티 패널별 cwd — 폴더 버튼 → dialog.pickFolder → 패널 cwd 갱신', async () => {
-  await page.getByRole('tab', { name: '멀티 에이전트' }).click()
-  await expect(page.locator('.ma-grid')).toBeVisible()
-  await capture('qa-multi-grid')
-
-  const folderName = page.locator('.ma-panel .ma-p-folder .ma-p-folder-name').first()
-  await page.locator('.ma-panel .ma-p-folder').first().click()
-  await expect(folderName).toContainText('agentdeck-ref', { timeout: 10_000 })
-  await capture('qa-multi-cwd')
-
-  await page.getByRole('tab', { name: '단일 에이전트' }).click()
-})
+// M10 G1 — 멀티 에이전트 모드를 지워 QA(P15) 멀티 패널별 cwd 사례를 뺐다.

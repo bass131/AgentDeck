@@ -3,6 +3,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { readFileSync } from 'fs'
 import { resolve } from 'path'
+import type { JSX } from 'react'
 import { render, fireEvent, act, cleanup } from '@testing-library/react'
 import { useAppStore } from '@renderer/00_App/appStore'
 import { __resetPanelSessionManagerForTests } from '@renderer/03_Agent/state/panelSession'
@@ -60,7 +61,6 @@ const mockApi = {
     return vi.fn()
   }),
   conversationLoad: vi.fn().mockResolvedValue({ conversations: [] }),
-  multiSessionLoad: vi.fn().mockResolvedValue({ state: null }),
   workspaceOpen: vi.fn().mockResolvedValue({ root: null, tree: null }),
   pickFolder: vi.fn().mockResolvedValue({ path: null }),
   getUsage: vi.fn().mockResolvedValue({ fiveHour: null, weekly: null }),
@@ -104,16 +104,26 @@ afterEach(() => {
   useAppStore.setState({ workspaceMode: 'single', workspaceRoot: null })
 })
 
-async function renderMultiWorkspace() {
-  useAppStore.setState({ workspaceRoot: '/test/workspace', workspaceMode: 'multi' })
-  const { MultiWorkspace } = await import('@renderer/12_Window/MultiWorkspace')
-  const { container } = render(<MultiWorkspace />)
+// M10 G1 — 멀티 에이전트 화면을 지웠다. 패널 한 장(PanelView + usePanelSlot)을 직접 그려 같은 배치를 본다.
+async function renderPanel() {
+  useAppStore.setState({ workspaceRoot: '/test/workspace' })
+  const { PanelView } = await import('@renderer/05_Conversation/PanelView')
+  const { usePanelSlot } = await import('@renderer/03_Agent/state/panelSession')
+  const noop = (): void => {}
+  function Harness(): JSX.Element {
+    const session = usePanelSlot('fb2-p08', 0)
+    return (
+      <PanelView slot={0} panel={{ title: 'p', status: 'idle', cwd: '/test/workspace', ctxPct: 0 }} session={session}
+        workspaceRoot="/test/workspace" onExpand={noop} onPrompt={noop} onPickFolder={noop} />
+    )
+  }
+  const { container } = render(<Harness />)
   return container
 }
 
-describe('FB2 P08⑥ — 멀티패널 loop 배너 위치: .ma-p-body 하단(.ma-p-foot 밖)', () => {
+describe('FB2 P08⑥ — 패널 loop 배너 위치: .ma-p-body 하단(.ma-p-foot 밖)', () => {
   it('activeLoops 수신 시 배너가 .ma-p-body 안(.ma-p-thread 다음)에 렌더되고 .ma-p-foot 안에는 없다', async () => {
-    const container = await renderMultiWorkspace()
+    const container = await renderPanel()
 
     const textarea = container.querySelector('textarea')
     expect(textarea).toBeTruthy()

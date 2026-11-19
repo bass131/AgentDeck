@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, memo, useCallback, type JSX } from 'react'
 import { FileExplorer } from '@renderer/07_Workspace/file'
 import { Conversation, type InjectedInput } from '@renderer/05_Conversation'
 import { SubAgentSplitView } from '@renderer/03_Agent'
-import { TitleBar, ResizeHandles, Sidebar, SettingsModal, Profile, MultiWorkspace, ZoomControl } from '.'
+import { TitleBar, ResizeHandles, Sidebar, SettingsModal, Profile, ZoomControl } from '.'
 import { GitModal } from '@renderer/08_Git'
 import { LoopScreen } from '@renderer/13_Loop'
 import { AskModal } from '@renderer/03_Agent/prompt'
@@ -33,7 +33,6 @@ import {
   selectOpenedFile,
   selectRecentFiles,
   selectWorkspaceMode,
-  selectActiveMultiSessionId,
 } from '@renderer/00_App/appStore'
 import { isAnyModalOpen } from './useGlobalShortcuts'
 import './shell.css'
@@ -50,7 +49,6 @@ export function Shell(): JSX.Element {
   const openedFile = useAppStore(selectOpenedFile)
   const recentFiles = useAppStore(selectRecentFiles)
   const workspaceMode = useAppStore(selectWorkspaceMode)
-  const activeMultiSessionId = useAppStore(selectActiveMultiSessionId)
 
   useEffect(() => {
     const saved = loadPaneWidth('agentW', 0)
@@ -80,10 +78,8 @@ export function Shell(): JSX.Element {
   const [engineUpdate, setEngineUpdate] = useState<EngineUpdateInfo | null>(null)
   const [appUpdateOpen, setAppUpdateOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
-  // M09 G4 루프 화면 — 화면을 닫아도 고른 저장소는 기억한다(루프는 main에서 계속 돈다)
-  const [loopOpen, setLoopOpen] = useState(false)
+  // 루프 화면(M09 G4)은 「작업」 모드의 몸체다(M10 G1). 모드를 오가도 고른 저장소는 기억한다(루프는 main에서 계속 돈다).
   const [loopCwd, setLoopCwd] = useState<string | null>(null)
-  const closeLoop = useCallback(() => setLoopOpen(false), [])
 
   const handleOpenImage = useCallback((images: string[], index: number) => {
     setImageViewer({ images, index })
@@ -184,7 +180,6 @@ export function Shell(): JSX.Element {
           <Sidebar
             onCollapse={() => setSidebarOpen(false)}
             onOpenSettings={() => setSettingsOpen(true)}
-            onOpenLoop={() => setLoopOpen(true)}
           />
         ) : (
           <div className="col-rail">
@@ -235,35 +230,30 @@ export function Shell(): JSX.Element {
           </div>
         ) : null}
 
-        {workspaceMode === 'multi' ? null : (
-        <main className="pane chat">
-          <RecentFiles
-            files={recentFiles}
-            activePath={openedFile}
-            onOpen={(path) => useAppStore.getState().openFile(path)}
-            onRemove={(paths) => useAppStore.getState().removeRecentFiles(paths)}
-            onReorder={(files) => useAppStore.getState().reorderRecentFiles(files)}
-          />
-          <Conversation
-            onSlashAsk={() => {
-              setAskOpen(true)
-              setAskMinimized(false)
-            }}
-            onOpenImage={handleOpenImage}
-            injectedInput={inject}
-          />
-        </main>
-        )}
-
-        {workspaceMode === 'multi' && (
-          <MultiWorkspace
-            key={activeMultiSessionId}
-            onSlashAsk={() => {
-              setAskOpen(true)
-              setAskMinimized(false)
-            }}
-            onOpenImage={handleOpenImage}
-          />
+        {/* 가운데 영역 — 「작업」은 루프 화면을 모달 없이 그리고, 「채팅」은 대화를 그린다(M10 G1).
+            작업 모드에서는 탐색기와 오른쪽 서브에이전트 보기를 그리지 않는다(진짜 배치는 G2·G3 몫). */}
+        {workspaceMode === 'work' ? (
+          <main className="pane work">
+            <LoopScreen initialCwd={loopCwd} onCwdChange={setLoopCwd} />
+          </main>
+        ) : (
+          <main className="pane chat">
+            <RecentFiles
+              files={recentFiles}
+              activePath={openedFile}
+              onOpen={(path) => useAppStore.getState().openFile(path)}
+              onRemove={(paths) => useAppStore.getState().removeRecentFiles(paths)}
+              onReorder={(files) => useAppStore.getState().reorderRecentFiles(files)}
+            />
+            <Conversation
+              onSlashAsk={() => {
+                setAskOpen(true)
+                setAskMinimized(false)
+              }}
+              onOpenImage={handleOpenImage}
+              injectedInput={inject}
+            />
+          </main>
         )}
 
         {workspaceMode === 'single' && <SubAgentSplitView />}
@@ -305,8 +295,6 @@ export function Shell(): JSX.Element {
           }}
         />
       )}
-
-      {loopOpen && <LoopScreen initialCwd={loopCwd} onCwdChange={setLoopCwd} onClose={closeLoop} />}
 
       {askOpen && (
         <AskModal

@@ -266,24 +266,6 @@ describe('패널 입력창 — 공용 본체(compact)', () => {
     expect(api.agentRun).not.toHaveBeenCalled()
   })
 
-  it('L2: MultiWorkspace가 Shell의 onSlashAsk를 패널까지 잇는다(펼친 패널 포함)', async () => {
-    const { api } = liveApi()
-    Object.assign(api, {
-      multiSessionLoad: vi.fn().mockResolvedValue({ state: null }),
-      pickFolder: vi.fn().mockResolvedValue({ path: null }),
-      getUsage: vi.fn().mockResolvedValue({ fiveHour: null, weekly: null }),
-    })
-    const { useAppStore } = await import('@renderer/00_App/appStore')
-    useAppStore.setState({ workspaceRoot: 'C:/w' })
-    const onSlashAsk = vi.fn()
-    const { MultiWorkspace } = await import('@renderer/12_Window/MultiWorkspace')
-    const { container } = render(<MultiWorkspace onSlashAsk={onSlashAsk} />)
-    const panel = container.querySelector('.ma-panel:not(.ma-placeholder)') as HTMLElement
-    await typeAndEnter(panel, '/ask 질문')
-    expect(onSlashAsk).toHaveBeenCalledTimes(1)
-    expect(api.agentRun).not.toHaveBeenCalled()
-  })
-
   it('C4: 첨부 썸네일을 누르면 onOpenImage로 이미지 뷰어를 연다', async () => {
     liveApi()
     const onOpenImage = vi.fn()
@@ -381,9 +363,9 @@ describe('패널 질문 창(사용자 결정) — 단일과 같은 QuestionModal
   })
 })
 
-// G9b 독립 검수 차단 1 — 질문 창은 창 전역 keydown으로 답을 받는다. 멀티 작업 공간 전체에서
-// 키를 받는 질문 창은 한 번에 하나여야 하고, 그 창은 보여야 한다(가려진 패널의 질문은 미룬다).
-describe('멀티 질문 창 — 한 번에 하나, 보이는 창만 키를 받는다', () => {
+// G9b 독립 검수 차단 1 — 질문 창은 창 전역 keydown으로 답을 받는다.
+// M10 G1 — 멀티 화면과 그 질문 창 고르기(작업 공간 전체에서 한 패널만)를 지웠다. 패널·질문 창 자체의 동작만 남긴다.
+describe('패널 질문 창 — 출처 표시와 반복 입력', () => {
   const Q = (question: string) => [
     {
       header: '범위',
@@ -395,160 +377,6 @@ describe('멀티 질문 창 — 한 번에 하나, 보이는 창만 키를 받�
       multiSelect: false,
     },
   ]
-
-  async function renderLiveMulti() {
-    const { api, emit } = liveApi()
-    let n = 0
-    api.agentRun.mockImplementation(async () => ({ runId: `run-${n++}` }))
-    const questionRespond = vi.fn(async () => undefined)
-    Object.assign(api, {
-      questionRespond,
-      multiSessionLoad: vi.fn().mockResolvedValue({ state: null }),
-      multiCmdUpsert: vi.fn(async () => ({ ok: true })),
-      pickFolder: vi.fn().mockResolvedValue({ path: null }),
-      getUsage: vi.fn().mockResolvedValue({ fiveHour: null, weekly: null }),
-    })
-    const { __resetPanelSessionManagerForTests } = await import('@renderer/03_Agent/state/panelSession')
-    __resetPanelSessionManagerForTests()
-    const { useAppStore } = await import('@renderer/00_App/appStore')
-    useAppStore.setState({ workspaceRoot: 'C:/w' })
-    const { MultiWorkspace } = await import('@renderer/12_Window/MultiWorkspace')
-    const { container } = render(<MultiWorkspace />)
-    const panel = (slot: number) =>
-      container.ownerDocument.querySelector(`.ma-panel[data-slot="${slot}"]:not(.ma-placeholder)`) as HTMLElement
-    const ask = async (runId: string, requestId: string, question: string): Promise<void> => {
-      await act(async () => {
-        emit(runId, { type: 'question_request', requestId, questions: Q(question) } as never)
-      })
-    }
-    return { questionRespond, panel, ask }
-  }
-
-  it('두 패널이 동시에 질문하면 패널 순서로 첫 질문 하나만 뜨고, 키 하나는 그 질문에만 답한다', async () => {
-    const { questionRespond, panel, ask } = await renderLiveMulti()
-    await typeAndEnter(panel(0), '첫 패널 작업')
-    await typeAndEnter(panel(2), '셋째 패널 작업')
-    await ask('run-0', 'qr-0', '첫 패널 질문')
-    await ask('run-1', 'qr-2', '셋째 패널 질문')
-
-    expect(document.querySelectorAll('.q-overlay').length).toBe(1)
-    const overlay = document.querySelector('.q-overlay') as HTMLElement
-    expect(overlay.textContent).toContain('첫 패널 질문')
-    expect(overlay.querySelector('.qm-source')?.textContent).toBe('패널 1 · 새 작업')
-    expect(panel(2).querySelector('.ma-p-qwait')?.textContent).toBe('질문 대기')
-    expect(panel(0).querySelector('.ma-p-qwait')).toBeNull()
-
-    await act(async () => {
-      fireEvent.keyDown(window, { key: '1' })
-    })
-    expect(questionRespond).toHaveBeenCalledTimes(1)
-    expect(questionRespond).toHaveBeenCalledWith({ runId: 'run-0', requestId: 'qr-0', answers: [['a.ts']] })
-
-    // 첫 질문이 끝나면 대기하던 셋째 패널 질문이 뜬다.
-    expect(document.querySelectorAll('.q-overlay').length).toBe(1)
-    expect(document.querySelector('.q-overlay')?.textContent).toContain('셋째 패널 질문')
-    expect(document.querySelector('.q-overlay .qm-source')?.textContent).toBe('패널 3 · 새 작업')
-    expect(panel(2).querySelector('.ma-p-qwait')).toBeNull()
-    await act(async () => {
-      fireEvent.keyDown(window, { key: '2' })
-    })
-    expect(questionRespond).toHaveBeenCalledTimes(2)
-    expect(questionRespond).toHaveBeenLastCalledWith({ runId: 'run-1', requestId: 'qr-2', answers: [['b.ts']] })
-    expect(document.querySelector('.q-overlay')).toBeNull()
-  })
-
-  // 재검수 중요 1 — 열린 창은 그 질문이 끝날 때까지 유지한다(낮은 번호 패널의 새 질문이 가로채지 않는다).
-  it('높은 번호 패널의 창이 열린 채 낮은 번호 패널의 질문이 와도 창·단계·직접 입력이 그대로이고 키도 그 창으로 간다', async () => {
-    const { questionRespond, panel, ask } = await renderLiveMulti()
-    await typeAndEnter(panel(0), '첫 패널 작업')
-    await typeAndEnter(panel(2), '셋째 패널 작업')
-    await ask('run-1', 'qr-2', '셋째 패널 질문')
-    expect(document.querySelector('.q-overlay .qm-source')?.textContent).toBe('패널 3 · 새 작업')
-    // 셋째 패널 창에서 「직접 입력」(3번)을 고르고 글을 쓰는 중이다.
-    await act(async () => {
-      fireEvent.keyDown(window, { key: '3' })
-    })
-    const input = document.querySelector('.q-overlay input.q-custom') as HTMLInputElement
-    expect(input).toBeTruthy()
-    await act(async () => {
-      fireEvent.change(input, { target: { value: '직접 쓴 답' } })
-    })
-
-    await ask('run-0', 'qr-0', '첫 패널 질문')
-    expect(document.querySelectorAll('.q-overlay').length).toBe(1)
-    expect(document.querySelector('.q-overlay .qm-source')?.textContent).toBe('패널 3 · 새 작업')
-    expect((document.querySelector('.q-overlay input.q-custom') as HTMLInputElement)?.value).toBe('직접 쓴 답')
-    expect(panel(0).querySelector('.ma-p-qwait')?.textContent).toBe('질문 대기')
-    expect(panel(2).querySelector('.ma-p-qwait')).toBeNull()
-
-    await act(async () => {
-      fireEvent.click(document.querySelector('.q-overlay .q-submit') as HTMLElement)
-    })
-    expect(questionRespond).toHaveBeenCalledTimes(1)
-    expect(questionRespond).toHaveBeenCalledWith({ runId: 'run-1', requestId: 'qr-2', answers: [['직접 쓴 답']] })
-    // 셋째 패널 질문이 끝나면 그때 대기하던 첫 패널 질문으로 넘어간다.
-    expect(document.querySelector('.q-overlay .qm-source')?.textContent).toBe('패널 1 · 새 작업')
-    expect(document.querySelector('.q-overlay')?.textContent).toContain('첫 패널 질문')
-  })
-
-  it('첫 질문을 내려두면 pill은 하나뿐이고, 대기 질문은 겹쳐 뜨지 않는다(pill 겹침 정리)', async () => {
-    const { questionRespond, panel, ask } = await renderLiveMulti()
-    await typeAndEnter(panel(0), '첫 패널 작업')
-    await typeAndEnter(panel(1), '둘째 패널 작업')
-    await ask('run-0', 'qr-0', '첫 패널 질문')
-    await ask('run-1', 'qr-1', '둘째 패널 질문')
-    await act(async () => {
-      fireEvent.keyDown(window, { key: 'Escape' })
-    })
-    expect(document.querySelectorAll('.q-mini-pill').length).toBe(1)
-    expect(document.querySelector('.q-overlay')).toBeNull()
-    expect(document.querySelector('.q-mini-pill .mini-sub')?.textContent).toContain('패널 1')
-    expect(panel(1).querySelector('.ma-p-qwait')).toBeTruthy()
-    // 내려둔 상태의 숫자 키는 어느 질문에도 답하지 않는다.
-    await act(async () => {
-      fireEvent.keyDown(window, { key: '1' })
-    })
-    expect(questionRespond).not.toHaveBeenCalled()
-  })
-
-  it('펼친 상태에서 가려진 격자 패널의 질문은 뜨지 않고 키를 못 받으며, 펼침을 닫으면 뜬다', async () => {
-    const { questionRespond, panel, ask } = await renderLiveMulti()
-    await typeAndEnter(panel(0), '펼칠 패널 작업')
-    await typeAndEnter(panel(1), '격자 패널 작업')
-    await act(async () => {
-      fireEvent.click(panel(0).querySelector('.ma-p-zoom') as HTMLElement)
-    })
-    expect(document.querySelector('.ma-expand-overlay .ma-panel[data-slot="0"]')).toBeTruthy()
-
-    await ask('run-1', 'qr-1', '가려진 패널 질문')
-    expect(document.querySelector('.q-overlay')).toBeNull()
-    expect(document.querySelector('.q-mini-pill')).toBeNull()
-    expect(panel(1).querySelector('.ma-p-qwait')?.textContent).toBe('질문 대기')
-    await act(async () => {
-      fireEvent.keyDown(window, { key: '1' })
-    })
-    expect(questionRespond).not.toHaveBeenCalled()
-
-    // 펼친 패널 자신의 질문은 펼침 위에 뜨고 키를 받는다.
-    await ask('run-0', 'qr-0', '펼친 패널 질문')
-    const overlay = document.querySelector('.ma-expand-overlay .q-overlay') as HTMLElement
-    expect(overlay?.textContent).toContain('펼친 패널 질문')
-    expect(document.querySelectorAll('.q-overlay').length).toBe(1)
-    await act(async () => {
-      fireEvent.keyDown(window, { key: '1' })
-    })
-    expect(questionRespond).toHaveBeenCalledTimes(1)
-    expect(questionRespond).toHaveBeenCalledWith({ runId: 'run-0', requestId: 'qr-0', answers: [['a.ts']] })
-
-    // 펼침을 닫으면 미뤘던 질문이 뜬다.
-    await act(async () => {
-      fireEvent.click(document.querySelector('.ma-expand-overlay [aria-label="닫기"]') as HTMLElement)
-    })
-    expect(document.querySelector('.ma-expand-overlay')).toBeNull()
-    expect(document.querySelectorAll('.q-overlay').length).toBe(1)
-    expect(document.querySelector('.q-overlay')?.textContent).toContain('가려진 패널 질문')
-    expect(document.querySelector('.q-overlay .qm-source')?.textContent).toBe('패널 2 · 새 작업')
-  })
 
   it('PanelView: questionActive=false면 질문 창 대신 머리에 「질문 대기」, 기본(true)이면 출처를 단 질문 창', async () => {
     const { makePanelInitialState } = await import('@renderer/03_Agent/state/panelSession')
@@ -578,54 +406,6 @@ describe('멀티 질문 창 — 한 번에 하나, 보이는 창만 키를 받�
     const b = render(<PanelView {...props} />)
     expect(b.container.querySelector('.ma-p-qwait')).toBeNull()
     expect(document.querySelector('.q-overlay .qm-source')?.textContent).toBe('패널 4 · 리팩터')
-  })
-
-  // 재검수 중요 2 — 질문 창·pill이 떠 있으면 펼침 닫기 Esc는 손을 뗀다(Esc는 질문 창 쪽 동작만).
-  it('펼친 패널의 질문 창에서 Esc는 내려두기만, pill에서 Esc는 건너뛰기만 하고 펼침은 닫히지 않는다', async () => {
-    const { questionRespond, panel, ask } = await renderLiveMulti()
-    await typeAndEnter(panel(0), '펼칠 패널 작업')
-    await act(async () => {
-      fireEvent.click(panel(0).querySelector('.ma-p-zoom') as HTMLElement)
-    })
-    await ask('run-0', 'qr-0', '펼친 패널 질문')
-    expect(document.querySelector('.ma-expand-overlay .q-overlay')).toBeTruthy()
-
-    // 창 → Esc → 내려두기(pill). 펼침은 그대로.
-    await act(async () => {
-      fireEvent.keyDown(window, { key: 'Escape' })
-    })
-    expect(document.querySelector('.ma-expand-overlay')).toBeTruthy()
-    expect(document.querySelector('.q-overlay')).toBeNull()
-    expect(document.querySelectorAll('.q-mini-pill').length).toBe(1)
-    expect(questionRespond).not.toHaveBeenCalled()
-
-    // pill → Esc → 건너뛰기(respondQuestion(null)). 펼침은 그대로.
-    await act(async () => {
-      fireEvent.keyDown(window, { key: 'Escape' })
-    })
-    expect(questionRespond).toHaveBeenCalledWith({ runId: 'run-0', requestId: 'qr-0', answers: null })
-    expect(document.querySelector('.q-mini-pill')).toBeNull()
-    expect(document.querySelector('.ma-expand-overlay')).toBeTruthy()
-
-    // 질문이 없으면 Esc는 원래대로 펼침을 닫는다.
-    await act(async () => {
-      fireEvent.keyDown(window, { key: 'Escape' })
-    })
-    expect(document.querySelector('.ma-expand-overlay')).toBeNull()
-  })
-
-  it('pickQuestionSlot: 펼침이 없으면 패널 순서로 첫 질문, 펼침이 있으면 펼친 패널의 질문만', async () => {
-    const { pickQuestionSlot } = await import('@renderer/12_Window/MultiWorkspace')
-    expect(pickQuestionSlot([], null, null)).toBeNull()
-    expect(pickQuestionSlot([2, 0], null, null)).toBe(0)
-    expect(pickQuestionSlot([1, 3], 3, null)).toBe(3)
-    expect(pickQuestionSlot([1, 3], 0, null)).toBeNull()
-    // 지금 키를 받는 슬롯은 그 질문이 남아 있는 동안 유지하고, 사라지면 슬롯 순서로 다음.
-    expect(pickQuestionSlot([0, 2], null, 2)).toBe(2)
-    expect(pickQuestionSlot([0, 3], null, 2)).toBe(0)
-    // 펼침 규칙이 우선한다 — 펼친 동안에는 펼친 패널의 질문만.
-    expect(pickQuestionSlot([0, 2], 0, 2)).toBe(0)
-    expect(pickQuestionSlot([2], 1, 2)).toBeNull()
   })
 
   it('단일 질문 창은 출처 표시가 없다(source 미지정 → .qm-source 없음, 동작 그대로)', async () => {
@@ -668,24 +448,6 @@ describe('멀티 질문 창 — 한 번에 하나, 보이는 창만 키를 받�
       fireEvent.keyDown(window, { key: 'Enter' })
     })
     expect(onAnswer2).toHaveBeenCalledWith([['b.ts']])
-  })
-
-  it('멀티: 첫 패널에 답한 키를 길게 눌러도 반복 입력이 다음 패널 질문에 들어가지 않는다', async () => {
-    const { questionRespond, panel, ask } = await renderLiveMulti()
-    await typeAndEnter(panel(0), '첫 패널 작업')
-    await typeAndEnter(panel(1), '둘째 패널 작업')
-    await ask('run-0', 'qr-0', '첫 패널 질문')
-    await ask('run-1', 'qr-1', '둘째 패널 질문')
-    await act(async () => {
-      fireEvent.keyDown(window, { key: '1' })
-    })
-    expect(questionRespond).toHaveBeenCalledTimes(1)
-    expect(document.querySelector('.q-overlay')?.textContent).toContain('둘째 패널 질문')
-    await act(async () => {
-      fireEvent.keyDown(window, { key: '1', repeat: true })
-    })
-    expect(questionRespond).toHaveBeenCalledTimes(1)
-    expect(document.querySelector('.q-overlay')?.textContent).toContain('둘째 패널 질문')
   })
 
   it('출처를 넘기면 머리와 내려둔 pill 모두에 어느 패널의 질문인지 보인다', async () => {
@@ -757,41 +519,6 @@ describe('패널 /clear(C6, 사용자 결정) — 대화를 비우고 다음 전
     expect(container.querySelector('.ma-p-empty')).toBeTruthy()
   })
 
-  it('지운 패널은 멀티 세션 저장에서 스냅숏이 빠진다(재시작 뒤 복원되지 않음)', async () => {
-    const { api, emit } = liveApi()
-    const upsert = vi.fn(async (s: { panels: { snapshot?: unknown }[] }) => ({
-      ok: true,
-      state: { version: 2, activeSessionId: 'sess-persist', sessions: [{ ...s, title: 't' }] },
-    }))
-    Object.assign(api, {
-      multiSessionLoad: vi.fn().mockResolvedValue({ state: null }),
-      multiCmdUpsert: upsert,
-      pickFolder: vi.fn().mockResolvedValue({ path: null }),
-      getUsage: vi.fn().mockResolvedValue({ fiveHour: null, weekly: null }),
-    })
-    const { __resetPanelSessionManagerForTests } = await import('@renderer/03_Agent/state/panelSession')
-    __resetPanelSessionManagerForTests()
-    const { useAppStore } = await import('@renderer/00_App/appStore')
-    useAppStore.setState({ workspaceRoot: 'C:/w', activeMultiSessionId: 'sess-persist' } as never)
-    const { MultiWorkspace } = await import('@renderer/12_Window/MultiWorkspace')
-    const { container } = render(<MultiWorkspace />)
-    const panel = container.querySelector('.ma-panel[data-slot="0"]') as HTMLElement
-    await typeAndEnter(panel, '저장될 대화')
-    await act(async () => {
-      emit('run-live', { type: 'done' })
-      await new Promise((r) => setTimeout(r, 650))
-    })
-    const withSnap = upsert.mock.calls.at(-1)?.[0]
-    expect(withSnap?.panels[0].snapshot).toBeTruthy()
-
-    await typeAndEnter(panel, '/clear ')
-    await act(async () => {
-      await new Promise((r) => setTimeout(r, 650))
-    })
-    const cleared = upsert.mock.calls.at(-1)?.[0]
-    expect(cleared?.panels[0].snapshot).toBeUndefined()
-    useAppStore.setState({ activeMultiSessionId: '' } as never)
-  }, 20000)
 })
 
 describe('CSS — 밀도 규칙과 죽은 패널 규칙', () => {
@@ -814,8 +541,8 @@ describe('CSS — 밀도 규칙과 죽은 패널 규칙', () => {
     }
   })
 
-  it('MultiWorkspace.css에 통합으로 죽은 패널 입력창·선택기 규칙이 없다', async () => {
-    const text = await css('12_Window/MultiWorkspace.css')
+  it('panelCard.css에 통합으로 죽은 패널 입력창·선택기 규칙이 없다', async () => {
+    const text = await css('03_Agent/panelCard.css')
     for (const dead of ['.ma-p-pickers', '.ma-p-composer', '.ma-composer-ta', '.ma-attach', '.ma-send']) {
       expect(text.includes(dead), dead).toBe(false)
     }

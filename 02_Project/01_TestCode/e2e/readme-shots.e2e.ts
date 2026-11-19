@@ -120,44 +120,5 @@ test.describe('README 실사용 스크린샷 촬영 (opt-in: LIVE_SDK=1)', () =>
     await expect(page.locator('.gitm-overlay')).toHaveCount(0)
   })
 
-  test('컷④: 멀티 에이전트 — 3패널 동시 실작동', async () => {
-    test.setTimeout(480_000)
-
-    await pinWindow()
-    await page.locator('.sb-mode .sb-mode-btn').nth(1).click()
-    await expect(page.locator('.multi .ma-grid')).toBeVisible()
-    await page.locator('.ma-count .ma-count-btn', { hasText: '3' }).click()
-    await expect(page.locator('.ma-grid .ma-panel')).toHaveCount(3)
-
-    const PROMPTS = [
-      '02_Project/00_Source/renderer에서 Zustand 스토어 파일들을 찾아 각자 무슨 상태를 관리하는지 한 줄씩 정리해줘.',
-      'package.json의 scripts를 읽고 빌드·테스트 파이프라인이 어떻게 구성돼 있는지 4문장으로 요약해줘.',
-      '02_Project/00_Source/main에서 IPC 채널 등록부를 찾아 대표 채널 10개를 목록으로 뽑아줘.'
-    ]
-    for (let i = 0; i < 3; i++) {
-      const panel = page.locator('.ma-grid .ma-panel').nth(i)
-      await panel.locator('.ma-p-folder').click()
-      await expect(panel.locator('.ma-p-folder-name')).toContainText('AgentDeck', { timeout: 8000 })
-      const ta = panel.locator('.composer-ta')
-      await ta.click()
-      await ta.fill(PROMPTS[i])
-      await ta.press('Enter')
-    }
-
-    await page.waitForTimeout(20_000)
-    await pinWindow()
-    await page.screenshot({ path: join(SHOT_DIR, 'readme-multiagent.png') })
-    await page.waitForTimeout(30_000)
-    await pinWindow()
-    await page.screenshot({ path: join(SHOT_DIR, 'readme-multiagent-b.png') })
-    await page.locator('.multi').screenshot({ path: join(SHOT_DIR, 'readme-multiagent-panels.png') })
-
-    const deadline = Date.now() + 300_000
-    while (Date.now() < deadline) {
-      const running = await page.getByLabel('실행 중단').count()
-      if (running === 0) break
-      await page.waitForTimeout(2000)
-    }
-    console.log('[readme-shots] 멀티 3패널 정착 완료')
-  })
+  // M10 G1 — 멀티 에이전트 모드를 지워 컷④(3패널 동시 실작동)를 뺐다.
 })

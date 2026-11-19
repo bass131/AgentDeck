@@ -59,7 +59,19 @@ function docPathOf(kind: DocKind, req: WorkRequest): string | null {
   return kind === 'milestoneSpec' ? DOCS.milestoneSpec : kind === 'decisions' ? DOCS.decisions : DOCS.verification
 }
 
+// M09 G5 실주행 — 메인 노드 세션은 한 턴이다. 일반 글로 묻고 턴을 끝내면 사람이 답할 길 없이 세션이 끝난다
+// (사용자 설정의 「결정 요청은 글로」 규칙을 따른 실제 모델이 그렇게 끝냈다). 묻는 길을 질문 도구 하나로 못 박는다.
+// 템플릿 지시가 아니라 여기에 두는 것은 템플릿 해시를 바꾸지 않기 위해서다(진행 중 실행 상태가 다시 열린다).
+export const MAIN_NODE_RULE = [
+  '## 이 세션에서 사람과 이야기하는 법',
+  '',
+  '- 이 세션은 한 턴이다. 턴을 끝내면 세션이 끝나고, 사람은 일반 글에 답할 수 없다.',
+  '- 사람에게 묻는 것은 모두 AskUserQuestion 도구로 한다. 사용자 설정이 글로 묻는 형식을 정해 두었어도 이 세션에서는 도구로만 묻는다.',
+  '- 모호한 곳이 없어질 때까지 도구로 묻고 답을 받은 뒤, 마일스톤 스펙 파일과 결정 대장을 쓰고 나서야 턴을 끝낸다.',
+].join('\n')
+
 // 노드가 고른 문서 종(node.docs)의 순서로만 싣는다 — req.docs에 다른 종이 있어도 넣지 않는다.
+// 메인 노드(role main)에는 끝에 MAIN_NODE_RULE을 붙인다.
 export function buildWorkPrompt(req: WorkRequest): string {
   const parts = [req.node.instruction.trim()]
   for (const kind of req.node.docs) {
@@ -67,6 +79,7 @@ export function buildWorkPrompt(req: WorkRequest): string {
     const body = req.docs[kind]
     parts.push(`## ${DOC_LABEL[kind]}${p ? ` (${p})` : ''}\n\n${body ?? '(아직 없음)'}`)
   }
+  if (req.node.role === 'main') parts.push(MAIN_NODE_RULE)
   return parts.join('\n\n')
 }
 

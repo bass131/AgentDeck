@@ -30,7 +30,8 @@
 //   - 일시 정지 깃발(메인의 「멈춤」)은 메인 대화 장(main.json)에 산다. runSteps가 단계마다 앞에서 보고, 올라 있으면 다음 단계를 돌지 않는다.
 //     실행 상태·검증 기록과 무관하다. 「이어 가기」는 깃발만 내리고 kick한다 — 사람 판정(decide)을 대신하지 않는다.
 //   - 쓰기 창(canWrite): 실행기 커서가 그 방문의 메인 노드이고 실행이 running일 때만 참.
-//   - 사건 줄: 노드 시작(같은 노드는 한 번)·판정·FAIL·멈춤·goal 병합·마일스톤 PR·스펙 승인/반려·래치·끝을 모델 없이 대화 기록에 남긴다.
+//   - 사건 줄: 노드 시작(같은 노드는 한 번)·판정·FAIL·멈춤·예외(구동 오류)·goal 병합·마일스톤 PR·스펙 승인/반려·래치·끝,
+//     메인의 깃발(flag-raised·flag-lowered — 사람의 이어 가기 resumed와 다른 이름)을 모델 없이 대화 기록에 남긴다.
 //     경계(goal 병합·멈춤·마일스톤 PR)에서만 메인이 짧은 턴으로 말한다(사건 턴은 줄 서 있는 동안 하나로 합쳐진다).
 //   - 세션 사건: 작업·검수·메인 대화 세션의 사건을 꼬리표와 함께 onSessionEvent로 흘린다(G4 노드 세션 탭이 같은 길을 쓴다).
 // 이 모듈은 electron을 import하지 않는다 — 앱 영역(join(getUserDataDir(), 'loop'))과 push는 조립 지점(bootstrap)이 준다.
@@ -316,7 +317,8 @@ export function createLoopDriver(opts: LoopDriverOptions): LoopDriver {
         if (!chat) return '메인 대화가 닫혔다'
         if (chat.paused()) return '일시 정지 깃발이 이미 올라 있다'
         chat.setPaused(true)
-        record(e, { kind: 'paused', node: null, goal: null, text: '일시 정지 깃발을 올렸다 — 지금 노드가 끝나면 다음 노드로 가지 않는다' })
+        // 깃발 사건은 사람의 이어 가기(resumed)와 다른 이름이다(G2 독립 검수)
+        record(e, { kind: 'flag-raised', node: null, goal: null, text: '일시 정지 깃발을 올렸다 — 지금 노드가 끝나면 다음 노드로 가지 않는다' })
         void publish(e)
         return '일시 정지 깃발을 올렸다 — 실행 상태와 검증 기록은 그대로다'
       },
@@ -325,7 +327,7 @@ export function createLoopDriver(opts: LoopDriverOptions): LoopDriver {
         if (!chat) return '메인 대화가 닫혔다'
         if (!chat.paused()) return '일시 정지 깃발이 올라 있지 않다'
         chat.setPaused(false)
-        record(e, { kind: 'resumed', node: null, goal: null, text: '일시 정지 깃발을 내렸다' })
+        record(e, { kind: 'flag-lowered', node: null, goal: null, text: '일시 정지 깃발을 내렸다' })
         if (e.loop) void kick(e)
         return '일시 정지 깃발을 내렸다 — 사람 판정을 기다리는 실행은 그대로 기다린다'
       },
@@ -545,6 +547,8 @@ export function createLoopDriver(opts: LoopDriverOptions): LoopDriver {
       } while (e.again && !e.closed)
     } catch (err) {
       setNote(e, `구동 오류 — ${errText(err)}`)
+      // M10 G2 검수 — 예외도 사건 줄로 남긴다(모델 턴 없이)
+      record(e, { kind: 'error', node: null, goal: null, text: `구동 오류 — ${oneLine(errText(err))}` })
     } finally {
       e.running = false
       e.sessionActive = false

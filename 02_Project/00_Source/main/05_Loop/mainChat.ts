@@ -9,8 +9,15 @@
 //   - 쓰기 창(canWrite): 방문이 열려 있고(끝나지 않았고) 구동자의 판정(deps.canWrite — 실행기 커서가 그 메인 노드인가)이 참일 때만 참.
 //     잠금(loopLock.mainChatToolReason)이 도구 호출마다 묻는다.
 //   - 재개: 저장된 세션 id로 이어 간다. 여는 턴은 세션이 받은 뒤(session 사건)에 sent가 되고, 그 전이면 다음 부름에 다시 넣는다.
-//     resume한 턴이 session 사건 없이 오류로 끝나면 세션 id가 무효다 — id를 지우고 생존 문서를 실어 새 세션으로 한 번 다시 보낸다.
+//     resume한 턴이 session 사건 없이 오류로 끝나면 세션 id가 무효일 수 있다 — 생존 문서를 실어 새 세션으로 한 번 다시 보낸다.
+//     새 세션도 session 사건 없이 끝나면(일시적 spawn 실패 꼴) 옛 id를 되돌린다(G2 독립 검수).
 //     세션 id를 잃은 장(everSession)의 새 세션에도 생존 문서를 싣는다. 꺼질 때 남은 질문 카드는 다시 묻는다(restored).
+//   - 받기 전의 턴(G2 독립 검수): 사용자 글·사건·다시 물은 카드의 답은 세션이 받기(session 사건) 전까지 저장본 대기열 맨 앞에 남고
+//     sent가 되지 않는다 — 프로세스가 죽어도 다시 열면 한 번 간다. 받기 전에 닫히면 대기열 맨 앞으로 되돌린다. 오류·멈춤·새 대화로
+//     끝난 턴은 다시 줄 세우지 않는다(받지 못하는 백엔드에서 턴이 끝없이 돌지 않게).
+//   - 닫기·멈춤(G2 독립 검수): 턴을 꺼낼 때 멈춤 신호를 만들어 세션에 넘긴다 — 생존 문서·도구 서버를 기다리는 틈에도 닫기와 멈춤이
+//     듣고, 그 틈에서는 세션을 열지 않는다. 새 메인 대화를 여는 동안에는 대기열을 돌리지 않고, 턴은 시작한 장에만 쓴다.
+//   - 저장 실패는 대화에 알림으로 한 번 남긴다(실패가 이어지는 동안 되풀이하지 않는다).
 //   - 사람 판정은 사람 몫이다. 메인의 도구(앱 안 도구)는 일시 정지 깃발과 Backlog 한 줄만 바꾼다(mainChatTools).
 //     이 모듈은 실행 상태·검증 기록을 쓰지 않는다 — 사건 줄도 이 장에만 남는다.
 import fs from 'node:fs'
@@ -101,7 +108,7 @@ export interface MainChat {
   waitingUser(): boolean
   brainstorming(): boolean
   view(cwd: string): MainChatView
-  // 돌고 있는 턴을 멈춘다(줄 선 턴은 남는다)
+  // 돌고 있는 턴을 멈춘다(줄 선 턴은 남는다). 돌던 턴이 없으면 거짓
   cancel(): boolean
   idle(): Promise<void>
   close(): Promise<void>
@@ -122,6 +129,7 @@ const TAIL_ITEMS = 12
 const TAIL_CHARS = 400
 let itemSeq = 0
 const newId = (): string => `${Date.now().toString(36)}-${(++itemSeq).toString(36)}`
+const errText = (e: unknown): string => (e instanceof Error ? e.message : String(e))
 
 function tailLine(i: MainChatItem): string | null {
   const cut = (s: string): string => (s.length > TAIL_CHARS ? `${s.slice(0, TAIL_CHARS - 1)}…` : s)
@@ -152,6 +160,8 @@ export function readMainChatView(appDataDir: string, cwd: string): MainChatView 
   return viewOf({ ...rec, cards: rec.cards.map((c) => ({ ...c, restored: true })) }, cwd, null, {})
 }
 
+const storable = (t: Turn): t is Turn & { kind: StoredTurn['kind'] } => t.kind === 'user' || t.kind === 'event' || t.kind === 'card-answer'
+
 export function openMainChat(deps: MainChatDeps): MainChat {
   const repoKey = repoKeyOf(deps.root)
   const file = mainChatPath(deps.appDataDir, repoKey)
@@ -160,27 +170,55 @@ export function openMainChat(deps: MainChatDeps): MainChat {
   const queue: Turn[] = rec.queue.map((t) => ({ ...t }))
   const live = new Map<string, LiveCard>()
   let running: Promise<void> | null = null
-  let cancelCurrent: (() => boolean) | null = null
+  // 돌고 있는 턴의 멈춤 신호 — 턴을 꺼낼 때 만든다(생존 문서·도구 서버를 기다리는 틈에도 닫기·멈춤이 듣는다)
+  let turnAbort: AbortController | null = null
+  // 꺼냈지만 세션이 아직 받지 못한 턴 — 저장본의 대기열 맨 앞에 남는다
+  let inflight: Turn | null = null
   let closing = false
+  // 새 메인 대화를 여는 중 — 대기열을 돌리지 않는다. 그동안 들어온 글·사건(arrived)은 새 장으로 옮긴다
+  let resetting = false
+  const arrived: string[] = []
+  // 저장 실패를 이미 알렸다(실패가 이어지는 동안 다시 알리지 않는다)
+  let saveFailed = false
   let writes: Promise<void> = Promise.resolve()
   // 이 프로세스에서 그 방문의 여는 턴을 이미 보냈다(세션이 받지 못하고 끝났어도 다시 넣지 않는다 — 실패하는 백엔드에서 턴이 계속 돌지 않게)
   let openTried: string | null = null
   let lastVisitReq: WorkRequest | null = null
 
-  const stored = (): StoredTurn[] => queue
-    .filter((t): t is Turn & { kind: StoredTurn['kind'] } => t.kind === 'user' || t.kind === 'event' || t.kind === 'card-answer')
+  // 저장본의 대기열 — 받기 전의 턴(inflight)이 맨 앞이다. 여는 턴(start·rejected)은 저장하지 않는다(visit.open으로 다시 넣는다)
+  const stored = (): StoredTurn[] => [...(inflight ? [inflight] : []), ...queue]
+    .filter(storable)
     .map((t) => ({ kind: t.kind, text: t.text, itemId: t.itemId, ...(t.events ? { events: t.events } : {}) }))
 
+  // 저장 실패는 처음 한 번만 알린다 — 여기서 persist를 부르지 않는다(실패가 되풀이돼도 저장이 저장을 부르지 않게)
+  function save(snap: MainChatRecord): void {
+    writes = writes.then(() => saveRecord(file, snap)).then(
+      () => { saveFailed = false },
+      (e: unknown) => {
+        if (saveFailed) return
+        saveFailed = true
+        notice(`대화 기록을 저장하지 못했다 — ${oneLine(errText(e))}. 이대로 앱을 끄면 이 뒤의 기록을 잃을 수 있다.`)
+        deps.onChange?.()
+      },
+    )
+  }
   function persist(): void {
     rec.queue = stored()
     if (rec.items.length > MAX_ITEMS) rec.items = rec.items.slice(-MAX_ITEMS)
-    const snap = JSON.parse(JSON.stringify(rec)) as MainChatRecord
-    writes = writes.then(() => saveRecord(file, snap)).catch(() => undefined)
+    save(JSON.parse(JSON.stringify(rec)) as MainChatRecord)
     deps.onChange?.()
   }
-  const push = (item: MainChatItem): void => { rec.items.push(item) }
+  const push = (item: MainChatItem): void => {
+    rec.items.push(item)
+    if (resetting) arrived.push(item.id)
+  }
   const notice = (text: string): void => push({ id: newId(), at: new Date().toISOString(), kind: 'notice', text })
   const brainstorming = (): boolean => rec.visit !== null && !rec.visit.done
+  const markSent = (t: Turn): void => {
+    if (t.itemId === null) return
+    const item = rec.items.find((i) => i.id === t.itemId)
+    if (item?.kind === 'user') item.state = 'sent'
+  }
 
   async function canWriteNow(): Promise<boolean> {
     const v = rec.visit
@@ -189,12 +227,14 @@ export function openMainChat(deps: MainChatDeps): MainChat {
   }
 
   // 방문의 여는 턴 — 세션이 있고 반려 사유가 있으면 반려 턴, 아니면 시작 턴(반려 사유는 시작 턴 끝에 붙는다)
-  function enqueueOpening(req: WorkRequest): void {
+  function enqueueOpening(req: WorkRequest, front = false): void {
     const v = rec.visit
     if (v === null || queue.some((t) => t.kind === 'start' || t.kind === 'rejected')) return
     openTried = v.key
     const kind: MainTurnKind = rec.sessionId !== null && v.rejected !== null ? 'rejected' : 'start'
-    queue.push({ kind, text: '', itemId: null, node: req.node, goal: req.goal, milestoneId: req.milestoneId })
+    const turn: Turn = { kind, text: '', itemId: null, node: req.node, goal: req.goal, milestoneId: req.milestoneId }
+    if (front) queue.unshift(turn)
+    else queue.push(turn)
   }
 
   async function promptOf(t: Turn): Promise<string> {
@@ -255,17 +295,21 @@ export function openMainChat(deps: MainChatDeps): MainChat {
     rec.cards = rec.cards.filter((c) => c.requestId !== requestId)
   }
 
-  async function runTurn(t: Turn): Promise<void> {
-    if (t.itemId !== null) {
-      const item = rec.items.find((i) => i.id === t.itemId)
-      if (item?.kind === 'user') item.state = 'sent'
-    }
+  async function runTurn(t: Turn, signal: AbortSignal): Promise<void> {
+    // 턴은 시작한 장에 묶인다 — 새 메인 대화가 장을 갈았으면 옛 세션 id·글을 새 장에 쓰지 않는다
+    const own = rec
+    const gone = (): boolean => closing || signal.aborted || rec !== own
+    // 세션을 열기 전에 멈췄다 — 사람의 멈춤이면 알린다(닫기·새 대화는 알리지 않는다)
+    const stopped = (): void => { if (signal.aborted && !closing && !resetting && rec === own) notice('턴을 멈췄다.') }
     const base = await promptOf(t)
     // 새 세션에는 생존 문서를 싣는다 — 시작 턴은 노드 지시와 문서를 이미 싣으므로, 세션 id를 잃은 장(everSession)일 때만
     let seed = rec.sessionId === null && (t.kind !== 'start' || rec.everSession)
+    // resume이 세션 사건 없이 오류로 끝나면 새 세션으로 한 번 다시 보낸다(fresh). 저장된 id는 그 새 세션이 받을 때(session 사건)만
+    // 바뀐다 — 새 세션도 받지 못하거나 그 전에 꺼지면 옛 id가 그대로다(일시적 spawn 실패로 id를 잃지 않게, G2 독립 검수)
+    let fresh = false
     for (let attempt = 0; attempt < 2; attempt++) {
-      if (closing) return
-      const resume = rec.sessionId
+      if (gone()) { stopped(); return }
+      const resume = fresh ? null : rec.sessionId
       const prompt = seed ? await seeded(base) : base
       const turnId = deps.nextTurnId()
       let sawSession = false
@@ -276,8 +320,10 @@ export function openMainChat(deps: MainChatDeps): MainChat {
       const flush = (): void => { if (cur.trim() !== '') paras.push(cur.trim()); cur = '' }
       // 도구 서버를 만들지 못하면 알린다(규칙 글은 도구를 말하므로 사람이 알아야 한다) — 턴은 도구 없이 돈다
       const tools = deps.buildTools
-        ? await deps.buildTools().catch((e: unknown) => { notice(`앱 안 도구를 싣지 못했다 — ${oneLine(e instanceof Error ? e.message : String(e))}`); return null })
+        ? await deps.buildTools().catch((e: unknown) => { notice(`앱 안 도구를 싣지 못했다 — ${oneLine(errText(e))}`); return null })
         : null
+      // 생존 문서·도구 서버를 기다리는 동안 닫혔거나 멈췄으면 세션을 열지 않는다
+      if (gone()) { stopped(); return }
       const node = brainstorming() ? (rec.visit?.node ?? 'main') : 'main'
       const input: AgentRunInput = {
         messages: [{ role: 'user', content: prompt }],
@@ -295,13 +341,20 @@ export function openMainChat(deps: MainChatDeps): MainChat {
         backend: deps.backend,
         input,
         timeoutMs: null,
+        signal,
         onCard: cardFor(turnId),
         cardContext: { node, goal: null },
         onEvent: (ev) => {
           if (ev.type === 'session') {
             sawSession = true
-            if (rec.sessionId !== ev.sessionId) { rec.sessionId = ev.sessionId; rec.everSession = true; persist() }
-            if ((t.kind === 'start' || t.kind === 'rejected') && rec.visit && rec.visit.open !== 'sent') { rec.visit.open = 'sent'; persist() }
+            if (rec === own) {
+              let changed = false
+              // 세션이 받았다 — 이제 보낸 글이다(저장본 대기열에서 빠진다)
+              if (inflight === t) { inflight = null; markSent(t); changed = true }
+              if (rec.sessionId !== ev.sessionId) { rec.sessionId = ev.sessionId; rec.everSession = true; changed = true }
+              if ((t.kind === 'start' || t.kind === 'rejected') && rec.visit && rec.visit.open !== 'sent') { rec.visit.open = 'sent'; changed = true }
+              if (changed) persist()
+            }
           } else if (ev.type === 'text' && ev.parentToolId === undefined) {
             if (afterTool || (ev.messageId !== undefined && ev.messageId !== msgId)) { flush(); msgId = ev.messageId }
             afterTool = false
@@ -312,9 +365,7 @@ export function openMainChat(deps: MainChatDeps): MainChat {
           deps.onEvent?.({ key: 'main', kind: 'main', node: node === 'main' ? null : node, goal: null, sessionId: rec.sessionId }, ev)
         },
       })
-      cancelCurrent = session.cancel
       const end = await session.done
-      cancelCurrent = null
       flush()
       // 세션이 끝난 카드는 거둔다. 닫을 때는 질문 카드를 남긴다(다시 묻는다)
       for (const [id, c] of [...live]) {
@@ -322,32 +373,44 @@ export function openMainChat(deps: MainChatDeps): MainChat {
         if (closing) live.delete(id)
         else dropCard(id)
       }
-      if (resume !== null && !sawSession && end.kind === 'error' && attempt === 0 && !closing) {
-        rec.sessionId = null
+      if (resume !== null && !sawSession && end.kind === 'error' && attempt === 0 && !gone()) {
+        fresh = true
         notice(`저장된 세션을 이어 가지 못해(${oneLine(end.error)}) 생존 문서로 새 세션을 연다.`)
         persist()
         seed = true
         continue
       }
+      if (rec !== own) return
       const text = paras.join('\n\n')
       if (text !== '') push({ id: newId(), at: new Date().toISOString(), kind: 'assistant', text, turn: t.kind })
       if (end.kind === 'error') notice(`턴이 오류로 끝났다 — ${oneLine(end.error)}`)
       else if (end.kind === 'start-failed') notice(`턴을 열지 못했다 — ${oneLine(end.error)}`)
-      else if (end.kind === 'cancelled' && !closing) notice('턴을 멈췄다.')
+      else if (end.kind === 'cancelled' && !closing && !resetting) notice('턴을 멈췄다.')
+      if (fresh && !sawSession) notice('새 세션도 열지 못해 저장된 세션 id를 그대로 둔다 — 다음 턴에 다시 이어 간다.')
       return
     }
   }
 
   function pump(): void {
-    if (running !== null || closing || queue.length === 0) return
+    if (running !== null || closing || resetting || queue.length === 0) return
     const t = queue.shift() as Turn
+    const ac = new AbortController()
+    inflight = t
+    turnAbort = ac
     persist()
     running = (async () => {
       try {
-        await runTurn(t)
+        await runTurn(t, ac.signal)
       } catch (e) {
-        notice(`턴을 돌리지 못했다 — ${oneLine(e instanceof Error ? e.message : String(e))}`)
+        notice(`턴을 돌리지 못했다 — ${oneLine(errText(e))}`)
       } finally {
+        const unseen = inflight === t
+        inflight = null
+        turnAbort = null
+        // 세션이 받기 전에 닫혔으면 대기열 맨 앞으로 되돌린다(다음 열기에서 한 번 보낸다). 그 밖의 끝(오류·멈춤·새 대화)은
+        // 다시 줄 세우지 않는다 — 받지 못하는 백엔드에서 턴이 끝없이 돌지 않게
+        if (unseen && closing && storable(t)) queue.unshift(t)
+        else markSent(t)
         running = null
         persist()
         if (!closing) {
@@ -444,25 +507,39 @@ export function openMainChat(deps: MainChatDeps): MainChat {
 
     async newChat() {
       if (closing) return { ok: false, reason: '메인 대화가 닫혔다' }
-      queue.splice(0)
-      cancelCurrent?.()
-      await api.idle()
-      if (closing) return { ok: false, reason: '메인 대화가 닫혔다' }
+      if (resetting) return { ok: false, reason: '새 메인 대화를 여는 중이다' }
+      // 여는 동안 대기열을 돌리지 않는다 — 그 사이 들어온 글이 옛 세션을 잇거나 옛 id를 새 장에 쓰지 않게(G2 독립 검수)
+      resetting = true
+      arrived.splice(0)
       try {
-        await writes
-        await archiveRecord(deps.appDataDir, repoKey, rec)
-      } catch (e) {
-        return { ok: false, reason: `지난 기록을 보관하지 못했다 — ${e instanceof Error ? e.message : String(e)}` }
+        queue.splice(0)
+        turnAbort?.abort()
+        await api.idle()
+        if (closing) return { ok: false, reason: '메인 대화가 닫혔다' }
+        try {
+          await writes
+          await archiveRecord(deps.appDataDir, repoKey, rec)
+        } catch (e) {
+          return { ok: false, reason: `지난 기록을 보관하지 못했다 — ${errText(e)}` }
+        }
+        for (const id of [...live.keys()]) live.delete(id)
+        const old = rec
+        // 여는 동안 들어온 글·사건은 새 장으로 옮긴다 — 줄 선 턴의 itemId가 새 장의 항목을 가리킨다
+        const carried = old.items.filter((i) => arrived.includes(i.id) && (i.kind === 'user' || i.kind === 'event'))
+        rec = { ...blankRecord(deps.root), paused: old.paused, visit: old.visit ? { ...old.visit, open: 'queued' } : null }
+        notice('새 메인 대화를 열었다 — 지난 기록은 보관했다.')
+        rec.items.push(...carried)
+        openTried = null
+        if (rec.visit && !rec.visit.done && lastVisitReq && lastVisitReq.visit?.key === rec.visit.key) enqueueOpening(lastVisitReq, true)
+        return { ok: true }
+      } finally {
+        resetting = false
+        arrived.splice(0)
+        if (!closing) {
+          persist()
+          pump()
+        }
       }
-      for (const id of [...live.keys()]) live.delete(id)
-      const old = rec
-      rec = { ...blankRecord(deps.root), paused: old.paused, visit: old.visit ? { ...old.visit, open: 'queued' } : null }
-      notice('새 메인 대화를 열었다 — 지난 기록은 보관했다.')
-      openTried = null
-      if (rec.visit && !rec.visit.done && lastVisitReq && lastVisitReq.visit?.key === rec.visit.key) enqueueOpening(lastVisitReq)
-      persist()
-      pump()
-      return { ok: true }
     },
 
     // 새 실행이 시작됐다 — 장의 방문은 앞 실행의 것이다(방문 키가 같아도 새 방문이다). 줄 선 여는 턴도 거둔다
@@ -485,7 +562,12 @@ export function openMainChat(deps: MainChatDeps): MainChat {
     view: (cwd) => viewOf(rec, cwd, deps.root, {
       cards: api.cards(), busy: running !== null, waitingUser: api.waitingUser(), queued: queue.length,
     }),
-    cancel: () => (cancelCurrent ? cancelCurrent() : false),
+    // 세션을 열기 전의 틈에서도 듣는다(신호가 세션을 열지 않게 한다)
+    cancel: () => {
+      if (turnAbort === null || turnAbort.signal.aborted) return false
+      turnAbort.abort()
+      return true
+    },
 
     async idle() {
       while (running !== null) await running
@@ -495,11 +577,10 @@ export function openMainChat(deps: MainChatDeps): MainChat {
     async close() {
       if (closing) { await writes; return }
       closing = true
-      cancelCurrent?.()
+      turnAbort?.abort()
       while (running !== null) await running
       rec.queue = stored()
-      const snap = JSON.parse(JSON.stringify(rec)) as MainChatRecord
-      writes = writes.then(() => saveRecord(file, snap)).catch(() => undefined)
+      save(JSON.parse(JSON.stringify(rec)) as MainChatRecord)
       await writes
     },
   }

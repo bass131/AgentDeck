@@ -1158,10 +1158,12 @@ export async function mainChatToolReason(toolName: string | undefined, toolInput
     if (toolName === 'NotebookEdit') return MAIN_PATH
     const raw = ti['file_path']
     if (typeof raw !== 'string' || raw.trim() === '') return MAIN_PATH
+    // G2 독립 검수 — 편집 도구는 경로를 글자 그대로 쓴다(셸이 아니다). 변수·물결표·명령 치환을 펼쳐 두 경로로 보면 실제로는
+    // 다른 파일(`$PWD/…` 글자 그대로의 폴더 등)을 쓰는 호출을 지나보낸다 — 펼치지 않고 거부한다
+    const p = raw.trim()
+    if (/[$%`]/.test(p) || p.startsWith('~')) return MAIN_PATH
     const r = resolveScope(scope)
-    const ex = expandVars(raw.trim(), varsAt(r, r.rootRaw))
-    if (ex === null) return MAIN_PATH
-    const target = normalize(ex, r.rootRaw)
+    const target = normalize(p, r.rootRaw)
     const name = MAIN_WRITABLE.find((n) => target === `${r.root}/.agentdeck/${n}`)
     if (name === undefined) return MAIN_PATH
     if (linkedAway(r.rootRaw, name)) return MAIN_LINK

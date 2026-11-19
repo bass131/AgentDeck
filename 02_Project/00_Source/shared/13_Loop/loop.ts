@@ -85,9 +85,10 @@ export interface LoopStatus {
 
 // ── M10 G2 메인 대화 ──
 // 실행기 사건 — 실행기가 모델 없이 만든 한 줄. 메인은 경계(goal-merged, halt, milestone-pr)에서만 짧은 턴으로 말한다.
+// error는 구동자의 예외, flag-raised·flag-lowered는 메인 도구의 일시 정지 깃발, resumed는 사람이 멈춘 실행을 이어 간 판정이다(G2 독립 검수).
 export type LoopEventKind =
   | 'node-start' | 'node-end' | 'fail' | 'halt' | 'error' | 'goal-merged' | 'milestone-pr'
-  | 'spec-approved' | 'spec-rejected' | 'paused' | 'resumed' | 'backlog' | 'latched' | 'done'
+  | 'spec-approved' | 'spec-rejected' | 'flag-raised' | 'flag-lowered' | 'resumed' | 'backlog' | 'latched' | 'done'
 export interface LoopEventItem {
   kind: LoopEventKind
   node: string | null

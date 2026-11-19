@@ -6,6 +6,7 @@ import {
   IPC_CHANNELS,
   LOOP_CHANNELS,
   type LoopCard,
+  type LoopEventKind,
   type LoopStatus,
   type MainChatView,
   type PayloadOf,
@@ -73,6 +74,20 @@ describe('loop IPC 묶음 (M09 G4)', () => {
     // @ts-expect-error 메인 대화 보내기는 실행 상태·판정을 싣지 못한다
     const forged: ReqOf<'loop.mainSend'> = { cwd: view.cwd, text: 'x', verdict: 'pass' }
     void forged
+  })
+
+  // G2 독립 검수 — 메인의 일시 정지 깃발 사건(flag-raised·flag-lowered)은 사람이 멈춘 실행을 이어 간 사건(resumed)과 이름이 다르다.
+  // 표가 종류 전부를 키로 가져야 컴파일된다 — 종류가 늘거나 줄면 이 표도 바뀐다
+  it('실행기 사건의 종류 (M10 G2)', () => {
+    const KINDS: Record<LoopEventKind, true> = {
+      'node-start': true, 'node-end': true, fail: true, halt: true, error: true, 'goal-merged': true, 'milestone-pr': true,
+      'spec-approved': true, 'spec-rejected': true, 'flag-raised': true, 'flag-lowered': true, resumed: true, backlog: true,
+      latched: true, done: true,
+    }
+    expect(Object.keys(KINDS)).not.toContain('paused')
+    // @ts-expect-error 「paused」는 사건 종류가 아니다(깃발은 flag-raised)
+    const old: LoopEventKind = 'paused'
+    void old
   })
 
   it('요청·응답·push 모양이 계약 표에 있다', () => {

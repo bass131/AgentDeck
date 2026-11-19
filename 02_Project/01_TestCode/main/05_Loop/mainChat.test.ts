@@ -8,11 +8,15 @@
 //     꺼질 때 기다리던 질문 카드는 다시 묻고(restored), 답은 사용자 턴으로 간다. 줄 서 있던 사용자 글은 다시 줄을 선다.
 //   - 세션 id가 무효면 생존 문서로 새 세션을 연다. 새 메인 대화는 지난 기록을 보관하고 새 세션으로 연다(열린 방문이면 시작 턴).
 //   - 쓰기 창: 잠금에 넘기는 canWrite는 방문이 열려 있고 실행기 판정(deps.canWrite)이 참일 때만 참이다.
+//   - G2 독립 검수: 세션을 열기 전의 틈(도구 서버를 기다리는 동안)에도 닫기·멈춤이 듣고 세션을 열지 않는다. 세션이 받기 전의 글·사건은
+//     저장본 대기열에 남아 다시 열면 한 번 간다(받은 뒤면 다시 보내지 않는다). 새 메인 대화를 여는 동안 들어온 글은 옛 세션을 잇지 않는다.
+//     일시적 실패는 세션 id를 지우지 않는다. 칸이 빠진 저장 항목은 버리고 열며, 저장 실패는 알림으로 한 번 남긴다.
 import { createHash } from 'node:crypto'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import type { AgentBackend, AgentRun, AgentRunInput } from '@main/03_Agent/AgentBackend'
 import { repoKeyOf } from '@main/05_Loop/digestStore'
 import { MAIN_CHAT_RULE, openMainChat, readMainChatView, type MainChat, type MainChatDeps } from '@main/05_Loop/mainChat'
 import { mainChatPath } from '@main/05_Loop/mainChatStore'
@@ -70,6 +74,30 @@ const req = (key: string, rejected: string | null = null, spec: string | null = 
 })
 async function closeAll(): Promise<void> { for (const c of chats.splice(0)) await c.close() }
 const fileOf = (): Record<string, unknown> => JSON.parse(fs.readFileSync(mainChatPath(app, repoKeyOf(root)), 'utf8')) as Record<string, unknown>
+const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms))
+// 저장본 대기열의 글 — 저장은 비동기로 이어지므로 기대한 수가 될 때까지 다시 읽는다(읽는 도중의 빈 파일·없는 파일은 빈 대기열로 본다)
+async function storedQueue(n: number): Promise<string[]> {
+  let texts: string[] = []
+  for (let i = 0; i < 200; i++) {
+    try { texts = (fileOf()['queue'] as { text: string }[]).map((q) => q.text) } catch { texts = [] }
+    if (texts.length === n) return texts
+    await sleep(10)
+  }
+  return texts
+}
+function deferred<T>(): { promise: Promise<T>; resolve: (v: T) => void } {
+  let resolve: (v: T) => void = () => {}
+  const promise = new Promise<T>((r) => { resolve = r })
+  return { promise, resolve }
+}
+// 세션 사건 없이 오류로 끝나는 세션(일시적 spawn 실패 꼴)
+const failingRun = (): AgentRun => ({
+  events: (async function* () {
+    yield { type: 'error', message: 'spawn EAGAIN' } as const
+    yield { type: 'done' } as const
+  })(),
+  abort() {}, interrupt() {}, push() {}, respond() {},
+})
 
 describe('메인 대화 저장 (M10 G2)', () => {
   it('앱 영역의 <repoKey>.main.json에 세션 id·기록이 남고, 다시 읽은 보기에 실린다', async () => {
@@ -414,5 +442,177 @@ describe('새 메인 대화와 일시 정지 깃발 (M10 G2)', () => {
     await chat.idle()
     expect(seen.map((s) => s.type)).toEqual(['session', 'text', 'done'])
     expect(seen.every((s) => s.key === 'main' && s.sessionId === 'S1')).toBe(true)
+  })
+})
+
+// G2 독립 검수 — 세션을 열기 전의 틈(생존 문서·도구 서버를 기다리는 동안)과 세션이 받기 전의 글
+describe('세션을 열기 전의 틈 (M10 G2 검수)', () => {
+  it('도구 서버를 기다리는 동안 닫으면 세션을 열지 않고 닫기가 끝난다(저장소 잠금을 쥔 채 남지 않는다)', async () => {
+    const tools = deferred<Record<string, unknown> | null>()
+    const fake = scriptedBackend(async function* (t) {
+      yield t.question('ask-1')
+      await t.answer('ask-1')
+    })
+    const chat = open(fake, { buildTools: () => tools.promise })
+    chat.send('닫힐 글')
+    await sleep(20)
+    const closing = chat.close()
+    tools.resolve(null)
+    expect(await Promise.race([closing.then(() => 'closed'), sleep(3000).then(() => 'hung')])).toBe('closed')
+    expect(fake.starts).toHaveLength(0)
+  })
+
+  // 받기 전의 턴(맨 앞)이 사용자 글인 꼴과 사건 턴인 꼴 — 둘 다 같은 길(storable)이다
+  for (const first of ['user', 'event'] as const) {
+    it(`세션이 받기 전의 턴(${first === 'user' ? '사용자 글' : '사건 턴'})은 저장본 대기열 맨 앞에 남고, 닫힌 뒤 다시 열면 한 번 간다`, async () => {
+      const tools = deferred<Record<string, unknown> | null>()
+      const fake = scriptedBackend(textOnly('x'))
+      const chat = open(fake, { buildTools: () => tools.promise })
+      const say = (): void => { chat.send('틈의 글') }
+      const tell = (): void => { chat.recordEvent({ kind: 'halt', node: 'implement', goal: 'G1', text: '실행이 멈췄다' }, true) }
+      if (first === 'user') { say(); tell() } else { tell(); say() }
+      // 프로세스가 여기서 죽어도 — 세션이 받기 전의 턴은 저장본 대기열에 있다(돌고 있는 턴이 맨 앞)
+      const expected = first === 'user' ? ['틈의 글', '실행이 멈췄다'] : ['실행이 멈췄다', '틈의 글']
+      expect(await storedQueue(2)).toEqual(expected)
+      expect(chat.busy()).toBe(true)
+      const closing = chat.close()
+      tools.resolve(null)
+      expect(await Promise.race([closing.then(() => 'closed'), sleep(3000).then(() => 'hung')])).toBe('closed')
+      expect(fake.starts).toHaveLength(0)
+      expect(await storedQueue(2)).toEqual(expected)
+      chats.splice(0)
+      const fake2 = scriptedBackend(textOnly('받았다'))
+      const again = open(fake2)
+      await again.idle()
+      // 새 세션의 첫 턴은 생존 문서(최근 대화 포함)를 싣는다 — 턴의 글은 프롬프트의 끝이다
+      expect(fake2.prompts.filter((p) => p.endsWith('틈의 글'))).toHaveLength(1)
+      expect(fake2.prompts.filter((p) => p.includes('[실행기 사건]'))).toHaveLength(1)
+      expect(fake2.prompts.map((p) => p.endsWith('틈의 글'))).toEqual(first === 'user' ? [true, false] : [false, true])
+      expect(again.view(root).items.filter((i) => i.kind === 'user')).toMatchObject([{ text: '틈의 글', state: 'sent' }])
+      expect(await storedQueue(0)).toEqual([])
+    })
+  }
+
+  it('도구 서버를 기다리는 동안의 멈춤(cancel)도 듣는다 — 세션을 열지 않고, 돌던 턴이 없으면 거짓이다', async () => {
+    const tools = deferred<Record<string, unknown> | null>()
+    const fake = scriptedBackend(textOnly('x'))
+    const chat = open(fake, { buildTools: () => tools.promise })
+    expect(chat.cancel()).toBe(false)
+    chat.send('멈출 글')
+    await sleep(20)
+    expect(chat.cancel()).toBe(true)
+    tools.resolve(null)
+    await chat.idle()
+    expect(fake.starts).toHaveLength(0)
+    expect(chat.cancel()).toBe(false)
+    expect(chat.view(root).items.some((i) => i.kind === 'notice' && i.text.includes('멈췄다'))).toBe(true)
+  })
+
+  it('세션이 받은 뒤에 닫힌 글은 다시 열어도 다시 보내지 않는다', async () => {
+    const fake = scriptedBackend(async function* (t) {
+      if (t.n === 1) { await t.answer('never'); return }
+      yield { type: 'done' }
+    })
+    const chat = open(fake)
+    chat.send('받은 글')
+    for (let i = 0; i < 50 && fake.starts.length === 0; i++) await sleep(5)
+    await sleep(20)
+    await closeAll()
+    expect(fileOf()['queue']).toEqual([])
+    const again = open(fake)
+    await again.idle()
+    expect(fake.prompts.filter((p) => p.includes('받은 글'))).toHaveLength(1)
+  })
+
+  it('새 메인 대화를 여는 동안 들어온 글은 옛 세션을 잇지 않고 새 장에서 한 번 간다', async () => {
+    const fake = scriptedBackend(textOnly('예'))
+    const chat = open(fake)
+    chat.send('옛 글')
+    await chat.idle()
+    expect(chat.view(root).sessionId).toBe('S1')
+    const renewing = chat.newChat()
+    chat.send('중간 글')
+    expect((await renewing).ok).toBe(true)
+    await chat.idle()
+    expect(fake.starts.slice(1).map((s) => s.resumeSessionId ?? null)).toEqual([null])
+    expect(fake.prompts.filter((p) => p.includes('중간 글'))).toHaveLength(1)
+    const v = chat.view(root)
+    expect(v.sessionId).toBe('S2')
+    expect(v.items.filter((i) => i.kind === 'user').map((i) => (i.kind === 'user' ? [i.text, i.state] : null))).toEqual([['중간 글', 'sent']])
+  })
+
+  it('세션 사건 없이 끝난 일시적 실패는 저장된 세션 id를 지우지 않는다 — 새 세션 한 번만 더 해 보고 멈춘다', async () => {
+    const fake = scriptedBackend(textOnly('예'))
+    let failing = false
+    const failed: AgentRunInput[] = []
+    // 새 세션으로 다시 보내는 동안의 세션 id — 그 사이 꺼져도(저장본) 옛 id가 남아야 한다
+    const idDuringRetry: (string | null)[] = []
+    const flaky: AgentBackend = {
+      ...fake.backend,
+      start(req) {
+        if (!failing) return fake.backend.start(req)
+        failed.push(req)
+        if (req.resumeSessionId === undefined) idDuringRetry.push(chat.view(root).sessionId)
+        return failingRun()
+      },
+    }
+    const chat = open(fake, { backend: flaky })
+    chat.send('하나')
+    await chat.idle()
+    failing = true
+    chat.send('둘')
+    await chat.idle()
+    expect(failed.map((s) => s.resumeSessionId ?? null)).toEqual(['S1', null])
+    expect(idDuringRetry).toEqual(['S1'])
+    expect(fileOf()['sessionId']).toBe('S1')
+    expect(chat.view(root).items.some((i) => i.kind === 'notice' && i.text.includes('그대로 둔다'))).toBe(true)
+    failing = false
+    chat.send('셋')
+    await chat.idle()
+    expect(fake.starts.at(-1)?.resumeSessionId).toBe('S1')
+    expect(fake.prompts.at(-1)).toBe('셋')
+  })
+})
+
+describe('저장본 검사와 저장 실패 (M10 G2 검수)', () => {
+  it('항목의 칸이 종류에 맞지 않으면 버리고 연다 — 생존 문서를 싣는 턴이 깨지지 않는다', async () => {
+    fs.mkdirSync(app, { recursive: true })
+    const at = new Date().toISOString()
+    fs.writeFileSync(mainChatPath(app, repoKeyOf(root)), JSON.stringify({
+      version: 1, root, sessionId: null, everSession: true, cards: [], queue: [], visit: null, paused: false,
+      items: [
+        { id: 'a', at, kind: 'user' },
+        { id: 'b', at, kind: 'event' },
+        { id: 'c', at, kind: 'assistant', text: 42, turn: 'user' },
+        { id: 'd', at, kind: 'notice' },
+        { id: 'e', at, kind: 'event', event: { kind: 'paused', node: null, goal: null, text: '옛 사건' } },
+        { id: 'f', at, kind: 'user', text: '남은 글', state: 'sent' },
+        { id: 'g', at, kind: 'user', text: '상태가 이상한 글', state: 'lost' },
+      ],
+    }))
+    const fake = scriptedBackend(textOnly('예'))
+    const chat = open(fake)
+    expect(chat.view(root).items.map((i) => i.id)).toEqual(['e', 'f'])
+    expect(readMainChatView(app, root).items.map((i) => i.id)).toEqual(['e', 'f'])
+    chat.send('이어서')
+    await chat.idle()
+    expect(fake.starts).toHaveLength(1)
+    expect(fake.prompts[0]).toContain('남은 글')
+    expect(fake.prompts[0]).toContain('옛 사건')
+  })
+
+  it('저장하지 못하면 대화에 알림을 한 번 남긴다 — 실패가 이어져도 알림을 되풀이하지 않는다', async () => {
+    // 앱 영역 자리에 파일이 있어 폴더를 만들지 못한다
+    fs.mkdirSync(path.dirname(app), { recursive: true })
+    fs.writeFileSync(app, '폴더가 아니다')
+    const fake = scriptedBackend(textOnly('예'))
+    const chat = open(fake)
+    chat.send('하나')
+    await chat.idle()
+    chat.send('둘')
+    await chat.idle()
+    expect(fake.starts).toHaveLength(2)
+    const notes = chat.view(root).items.filter((i) => i.kind === 'notice' && i.text.includes('저장하지 못했다'))
+    expect(notes).toHaveLength(1)
   })
 })

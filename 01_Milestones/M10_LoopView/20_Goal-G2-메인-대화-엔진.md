@@ -54,6 +54,7 @@ DoD
 검증 기록
 
 - PASS 2026-11-19T19:03:05+09:00 — 구현분(작업 하위 에이전트, 메인이 다시 돌림): 새 모듈 `mainChat.ts`·`mainChatStore.ts`·`mainChatTools.ts`(턴 대기열, `<repoKey>.main.json`, 방문 키와 처음 스펙 해시, 일시 정지 깃발, 도구 셋 pause·resume·append_backlog), 잠금 층 `mainChatToolReason`(셸 거부, 두 경로만, 링크 거부, `canWrite` 실패는 닫힘), 실행기의 `waiting`(메인 노드만, 줄·FAIL 없음), 사건 기록과 세션 꼬리표, IPC `loop.mainRead`·`mainSend`·`mainNew`·`mainState`·`sessionEvent`와 `LoopStatus.paused`·`mainBusy`·`mainWaiting`. 실측(haiku, 원격 없는 임시 git 저장소, 프로덕션 `openMainChat`): 두 턴의 세션 id가 같고 둘째 턴이 첫 턴의 낱말을 회상, `mcp__agentdeck-main__append_backlog`가 권한 카드 없이 불려 backlog 한 줄, 창이 닫힌 스펙 Write와 Bash가 잠금에 막혀 스펙 파일이 생기지 않음, 엉터리 id 재개는 session 사건 없이 오류(무효 판정 근거). 하드 게이트 다섯 종 exit 0, `npm test` 470 파일 중 464 통과·6 건너뜀, 시험 8902 통과 실패 0, 수집 기준선 465→470. 기준 HEAD `c8eda793`. 독립 검수는 push 뒤, PR 전.
+- PASS 2026-11-19T19:58:08+09:00 — 독립 검수(`30ce8f13`, 차단 0·중요 3·사소 6) 반영분: 턴마다 AbortController와 세션 직전 재확인(준비 틈의 닫기·멈춤), 세션이 받기 전의 글·사건 턴은 저장본 대기열 맨 앞에 남김, 자동 모드 꺼짐의 멈춘 실행 이어 가기 거부 시험 복원(검사를 지우면 실패 확인), 메인 잠금은 경로 변수·물결표·백틱을 펼치지 않고 거부, 새 메인 대화 도중의 턴은 옛 세션을 잇지 않음, 일시적 실패는 세션 id를 지우지 않음, 저장 항목의 종류별 칸 검사와 저장 실패 알림, 구동자 예외의 error 사건, 메인 깃발 사건을 `flag-raised`·`flag-lowered`로 분리. 새 시험은 고치기 전 소스에서 실패를 확인했다. 취소 대상 고르기는 G3. 하드 게이트 다섯 종 exit 0, `npm test` 470 파일 중 464 통과·6 건너뜀, 시험 8914 통과 실패 0.
 
 ## 결정 대장
 

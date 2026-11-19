@@ -57,12 +57,27 @@ function validVisit(v: unknown): v is StoredVisit {
     && (v['open'] === 'queued' || v['open'] === 'sent') && strOrNull(v['rejected']) && typeof v['done'] === 'boolean'
 }
 
-// 모양이 맞는 것만 받는다. 항목 하나하나는 화면에 그대로 가므로 종류와 id만 본다(내용은 문자열이 아니어도 화면이 거른다).
+const TURN_KINDS: readonly unknown[] = ['user', 'start', 'rejected', 'event', 'card-answer'] satisfies MainTurnKind[]
+
+// 항목 하나 — 종류마다 그 종류가 쓰는 칸을 본다(G2 독립 검수). 칸이 빠진 항목은 생존 문서의 최근 대화(tailLine)를 깨뜨리고,
+// 그 뒤 새 세션의 턴이 모두 실패한다. 사건의 종류는 이름표로만 본다(문자열) — 이름이 바뀐 옛 사건(paused 꼴)도 기록으로 남는다.
+function validItem(i: unknown): boolean {
+  if (!isObj(i) || !str(i['id']) || !str(i['at'])) return false
+  switch (i['kind']) {
+    case 'user': return str(i['text']) && (i['state'] === 'queued' || i['state'] === 'sent')
+    case 'assistant': return str(i['text']) && TURN_KINDS.includes(i['turn'])
+    case 'event': { const e = i['event']; return isObj(e) && str(e['kind']) && str(e['text']) }
+    case 'notice': return str(i['text'])
+    default: return false
+  }
+}
+
+// 모양이 맞는 것만 받는다. 항목은 종류에 맞는 칸이 있는 것만 받고 나머지는 버린다.
 function parseRecord(text: string, root: string): MainChatRecord | null {
   let raw: unknown
   try { raw = JSON.parse(text) } catch { return null }
   if (!isObj(raw) || raw['version'] !== 1) return null
-  const items = Array.isArray(raw['items']) ? raw['items'].filter((i) => isObj(i) && str(i['id']) && str(i['kind'])) as MainChatItem[] : []
+  const items = Array.isArray(raw['items']) ? (raw['items'] as unknown[]).filter(validItem) as MainChatItem[] : []
   const cards = Array.isArray(raw['cards'])
     ? (raw['cards'] as unknown[]).filter((c) => isObj(c) && c['kind'] === 'question' && str(c['requestId']) && Array.isArray(c['questions'])) as LoopCard[]
     : []

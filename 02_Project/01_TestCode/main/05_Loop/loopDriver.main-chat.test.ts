@@ -4,7 +4,9 @@
 //     사람의 말이 같은 세션으로 가고(resume), 스펙이 바뀌면 승인 카드가 뜬다. 쓰기 창은 브레인스토밍 동안만 열린다.
 //   - 메인의 「멈춤」은 구동자의 일시 정지 깃발이다 — 실행 상태·검증 기록을 바꾸지 않고, 지금 노드가 끝나면 다음 노드로 가지 않는다.
 //     「이어 가기」는 깃발만 내린다. 스펙 승인 게이트는 여전히 사람의 판정(decide)으로만 지난다. 메인 동작은 USER-INPUT 줄을 쓰지 않는다.
-//   - 사건 줄(스펙 승인·멈춤·이어 감·Backlog)은 모델 없이 대화 기록에 남는다. 세션 사건은 꼬리표(key main·kind main·SDK 세션 id)와 함께 나간다.
+//   - 사건 줄(스펙 승인·깃발 올림 flag-raised·깃발 내림 flag-lowered·Backlog)은 모델 없이 대화 기록에 남는다 — 깃발 사건은 사람이 멈춘
+//     실행을 이어 간 사건(resumed)과 이름이 다르다(G2 독립 검수). 세션 사건은 꼬리표(key main·kind main·SDK 세션 id)와 함께 나간다.
+//   - 멈춘 실행(needs-user)의 사람 이어 가기도 앱 「자동」 모드 허용 노드가 꺼져 있으면 받지 않는다(G2 독립 검수).
 //   - 새 메인 대화는 지난 장을 보관한다. 닫힌 저장소의 대화는 앱 영역 파일에서 읽힌다(root null). 열리지 않은 저장소에는 보내지 못한다.
 import fs from 'node:fs'
 import path from 'node:path'
@@ -86,11 +88,12 @@ let views: MainChatView[] = []
 let tagged: LoopSessionEventPayload[] = []
 
 interface Rig { d: LoopDriver; starts: AgentRunInput[]; actions: () => MainActions }
-function driver(over: { hangDecompose?: boolean } = {}): Rig {
+function driver(over: { hangDecompose?: boolean; autoModeCheck?: () => string | null } = {}): Rig {
   const { backend, starts } = chatBackend(over)
   let actions: MainActions | null = null
   const d = createLoopDriver({
     appDataDir: appData, backend, ciRetryMs: 20, humanPollMs: 20,
+    ...(over.autoModeCheck ? { autoModeCheck: over.autoModeCheck } : {}),
     openExtras: { gh, template: TEMPLATE, executorEnv: repos.env, commandTimeoutMs: 60_000 },
     onState: (s) => { pushed.push(s) },
     onMainState: (v) => { views.push(v) },
@@ -120,6 +123,19 @@ async function toApproval(rig: Rig): Promise<LoopStatus> {
   await until((s) => s.mainWaiting, '브레인스토밍 사람 기다림')
   expect(rig.d.mainSend(CWD, '덧셈으로 하자').ok).toBe(true)
   return until((s) => s.phase === 'waiting-human' && s.approval !== null, '스펙 승인')
+}
+
+// 스펙을 승인하고 goal 나누기 세션(멈춰 있는 작업자 노드)을 화면에서 취소한다 — 취소는 FAIL이 아니라 멈춤(needs-user)이다
+async function toHalted(rig: Rig): Promise<LoopStatus> {
+  const CWD = repos.work
+  const approval = await toApproval(rig)
+  expect((await rig.d.decide({ cwd: CWD, verdict: 'pass', evidence: '봤다', specSha256: approval.approval?.sha256 as string })).ok).toBe(true)
+  await until((s) => s.node === 'decompose' && s.sessionActive, 'goal 나누기 세션')
+  // 상태는 세션을 열기 직전에 push된다 — 세션이 열릴 때까지 다시 누른다
+  let cancelled = false
+  for (let i = 0; i < 200 && !cancelled; i++) { cancelled = rig.d.cancelSession(CWD); if (!cancelled) await sleep(20) }
+  expect(cancelled).toBe(true)
+  return until((s) => s.phase === 'halted', '멈춤')
 }
 
 beforeEach(() => {
@@ -205,7 +221,9 @@ describe('멈춤은 일시 정지 깃발이다 (M10 G2)', () => {
     expect(lines.filter((l) => l.marker === 'USER-INPUT')).toHaveLength(0)
     expect(runState().lines.filter((l) => l.marker === 'USER-INPUT')).toHaveLength(0)
     const kinds = rig.d.mainRead(CWD).items.flatMap((i) => (i.kind === 'event' ? [i.event.kind] : []))
-    expect(kinds).toEqual(expect.arrayContaining(['paused', 'resumed', 'spec-approved']))
+    // G2 독립 검수 — 메인의 깃발 사건은 사람이 멈춘 실행을 이어 간 사건(resumed)과 이름이 다르다
+    expect(kinds).toEqual(expect.arrayContaining(['flag-raised', 'flag-lowered', 'spec-approved']))
+    expect(kinds).not.toContain('resumed')
   })
 
   it('Backlog 한 줄은 실행기 코드가 .agentdeck/backlog.md에 붙이고 사건으로 남는다', SLOW, async () => {
@@ -252,15 +270,8 @@ describe('멈춤·래치 동안 메인은 아무것도 풀지 못한다 (M10 G2)
   it('멈춘 실행(needs-user)에서 이어 가기 도구는 깃발만 내린다 — 실행은 사람의 이어 가기를 기다리고, 멈춤은 경계 턴으로 알린다', SLOW, async () => {
     const rig = driver({ hangDecompose: true })
     const CWD = repos.work
-    const approval = await toApproval(rig)
-    expect((await rig.d.decide({ cwd: CWD, verdict: 'pass', evidence: '봤다', specSha256: approval.approval?.sha256 as string })).ok).toBe(true)
-    await until((s) => s.node === 'decompose' && s.sessionActive, 'goal 나누기 세션')
     // 화면의 취소 — 메인 대화가 쉬고 있으면 작업 세션을 멈춘다(취소는 FAIL이 아니라 멈춤)
-    // 상태는 세션을 열기 직전에 push된다 — 세션이 열릴 때까지 다시 누른다
-    let cancelled = false
-    for (let i = 0; i < 200 && !cancelled; i++) { cancelled = rig.d.cancelSession(CWD); if (!cancelled) await sleep(20) }
-    expect(cancelled).toBe(true)
-    const halted = await until((s) => s.phase === 'halted', '멈춤')
+    const halted = await toHalted(rig)
     expect(halted.failCount).toBe(0)
     const file = path.join(repos.work, DOCS.runState)
     const before = fs.readFileSync(file, 'utf8')
@@ -274,6 +285,22 @@ describe('멈춤·래치 동안 메인은 아무것도 풀지 못한다 (M10 G2)
     const told = rig.starts.map((s) => String(s.messages.at(-1)?.content)).filter((p) => p.startsWith('[실행기 사건]'))
     expect(told).toHaveLength(1)
     expect(told[0]).toContain('멈췄다')
+  })
+
+  // G2 독립 검수 — 사람의 이어 가기(decide의 멈춘 실행 갈래)도 앱 「자동」 모드 허용 노드를 본다. 꺼진 채 받으면 작업자 노드가 거부돼 FAIL이 쌓인다
+  it('멈춘 실행의 이어 가기는 자동 모드 허용 노드가 꺼져 있으면 받지 않는다 — 실행 상태는 그대로다', SLOW, async () => {
+    let off = false
+    const rig = driver({ hangDecompose: true, autoModeCheck: () => (off ? '컨트롤 노드 mode-auto-bypass-allow가 꺼져 있다' : null) })
+    const CWD = repos.work
+    await toHalted(rig)
+    const file = path.join(repos.work, DOCS.runState)
+    const before = fs.readFileSync(file, 'utf8')
+    off = true
+    const resume = await rig.d.decide({ cwd: CWD, verdict: 'pass', evidence: '다시 돌린다' })
+    expect(resume.ok).toBe(false)
+    expect(resume.reason).toContain('mode-auto-bypass-allow')
+    expect(fs.readFileSync(file, 'utf8')).toBe(before)
+    expect((JSON.parse(before) as { status: string }).status).toBe('needs-user')
   })
 })
 

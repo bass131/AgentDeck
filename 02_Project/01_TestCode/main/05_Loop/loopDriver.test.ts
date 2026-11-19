@@ -4,7 +4,7 @@
 // goal 둘(G1 강 — 검수 세션, G2 약)을 지나 마일스톤 PR에서 사람의 병합을 기다린다, 새 구동자로 다시 열면 이어 가고 병합을 보면 끝낸다,
 // 자동 모드 허용 노드가 꺼져 있으면 시작 전에 멈춘다, 위조 래치는 사람이 본 token으로만 풀리고 설정 차이는 그 목록만 받는다.
 // G4 확인 검수: 카드 차례는 구동자 전역에서 단조 증가한다(닫았다 열어도, 새 구동자여도 겹치지 않는다), 풀기 중 상태 파일이 바뀌어
-// 거부되면 새 token의 래치가 다시 뜬다.
+// 거부되면 새 token의 래치가 다시 뜬다. M10 G2 검수: 구동 오류는 메인 대화 기록에 예외 사건(error)으로도 남는다(모델 턴 없이).
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -321,8 +321,11 @@ describe('구동자 — 멈추는 곳 (M09 G4)', () => {
     const reopened = await until((x) => x.phase === 'blocked', '다시 연 뒤 자동 모드 사유')
     expect(reopened.failCount).toBe(0)
     expect(reopened.reason).toContain('mode-auto-bypass-allow')
+    // 실행은 멈추지 않았다(브레인스토밍 running) — 이어 가기는 사람 판정 노드가 아니라서 거부된다. 멈춘 실행(needs-user)의
+    // 이어 가기가 자동 모드 사유로 거부되는 것은 loopDriver.main-chat.test.ts 「멈춘 실행의 이어 가기는 자동 모드 …」가 고정한다
     const resume = await again.d.decide({ cwd: repos.work, verdict: 'pass', evidence: '다시 돌린다' })
     expect(resume.ok).toBe(false)
+    expect(resume.reason).toContain('사람 판정을 받지 않는다')
     expect(again.rec.starts).toEqual([])
   })
 
@@ -608,7 +611,7 @@ describe('알림은 단계가 바뀌면 지운다 (M09 G4 검수 사소 6)', () 
   it('알림은 그 단계 동안만 보이고, 단계가 바뀐 상태에는 남지 않는다', SLOW, async () => {
     // 첫 step 한 번만 깨지게 한다 — 구동 오류 알림이 running 단계에 뜬다
     let broke = false
-    const { backend } = fakeBackend()
+    const { backend, rec } = fakeBackend()
     const d = createLoopDriver({
       appDataDir: appData, backend, ciRetryMs: 20, humanPollMs: 20,
       openExtras: { gh, template: TEMPLATE, executorEnv: repos.env, commandTimeoutMs: 60_000 },
@@ -631,6 +634,11 @@ describe('알림은 단계가 바뀌면 지운다 (M09 G4 검수 사소 6)', () 
     await d.start(CWD, 'M1')
     const noted = await until((s) => s.reason?.includes('한 번 깨진 단계') === true, '구동 오류 알림')
     expect(noted.phase).toBe('running')
+    // M10 G2 검수 — 구동 오류는 메인 대화 기록에 예외 사건(error)으로도 남는다. 모델 턴은 열지 않는다
+    const errors = d.mainRead(CWD).items.flatMap((i) => (i.kind === 'event' && i.event.kind === 'error' ? [i.event.text] : []))
+    expect(errors).toHaveLength(1)
+    expect(errors[0]).toContain('한 번 깨진 단계')
+    expect(rec.starts.some((s) => String(s.messages.at(-1)?.content).includes('한 번 깨진 단계'))).toBe(false)
     // 같은 단계에서는 알림이 남는다 — 다시 열면 구동을 다시 걸어 질문 카드가 뜬다(단계는 그대로 running)
     await d.open({ cwd: CWD })
     const carded = await until((s) => s.cards.length === 1, '질문 카드')

@@ -1,0 +1,144 @@
+{
+  "id": "program-dev",
+  "version": 1,
+  "title": "프로그램 개발",
+  "grading": {
+    "strongLineThreshold": 50,
+    "uncountedPaths": ["*.md"],
+    "protectedPaths": [
+      ".github/",
+      "package*.json",
+      "tsconfig*",
+      "vitest.config.*",
+      "vite.config.*",
+      "jest.config.*",
+      "test/",
+      "tests/",
+      "__tests__/",
+      "spec/",
+      "**/*.test.*",
+      "**/*.spec.*"
+    ]
+  },
+  "branches": {
+    "milestone": "milestone/{milestone}",
+    "goal": "goal/{milestone}-{goal}"
+  },
+  "nodes": [
+    {
+      "id": "brainstorm",
+      "kind": "work",
+      "title": "브레인스토밍",
+      "role": "main",
+      "instruction": "사람과 다음 마일스톤의 방향을 이야기하고 모호한 곳이 없어질 때까지 묻는다. 합의를 마일스톤 스펙 한 장(만들 것, 하지 않을 것, 관찰 가능한 완료조건)으로 쓰고 결정 대장에 남긴다.",
+      "docs": ["milestoneSpec", "decisions"]
+    },
+    {
+      "id": "spec-approval",
+      "kind": "gate",
+      "title": "스펙 승인",
+      "judge": "human",
+      "onFail": { "goto": "brainstorm" }
+    },
+    {
+      "id": "milestone-branch",
+      "kind": "action",
+      "title": "마일스톤 브랜치 가르기",
+      "action": "createMilestoneBranch"
+    },
+    {
+      "id": "decompose",
+      "kind": "work",
+      "title": "goal 분해",
+      "role": "worker",
+      "produces": "goals",
+      "instruction": "승인된 마일스톤 스펙을 goal로 나눈다. goal마다 .agentdeck/goals/<id>.md 한 장을 쓰고 첫 제목 줄은 「# 제목」이다. 범위는 만들 것, 건드릴 곳, 하지 않을 것, 관찰 가능한 완료조건으로 쓴다.",
+      "docs": ["milestoneSpec", "decisions"]
+    },
+    {
+      "id": "goals",
+      "kind": "goalLoop",
+      "title": "goal마다",
+      "steps": [
+        {
+          "id": "goal-branch",
+          "kind": "action",
+          "title": "goal 브랜치 가르기",
+          "action": "createGoalBranch"
+        },
+        {
+          "id": "implement",
+          "kind": "work",
+          "title": "구현",
+          "role": "worker",
+          "instruction": "goal 문서의 범위 안에서 구현하고 시험을 쓴다. 커밋·push·PR은 실행기가 하므로 하지 않는다. 검증 기록은 실행기가 쓰므로 고치지 않는다.",
+          "docs": ["milestoneSpec", "goal", "decisions", "verification"]
+        },
+        {
+          "id": "checks",
+          "kind": "gate",
+          "title": "검사",
+          "judge": "rule",
+          "rule": { "type": "commands", "commands": ["npm run build", "npm test"] },
+          "onFail": { "goto": "implement" }
+        },
+        {
+          "id": "grade",
+          "kind": "gate",
+          "title": "등급",
+          "judge": "rule",
+          "rule": { "type": "grade" }
+        },
+        {
+          "id": "review",
+          "kind": "gate",
+          "title": "독립 검수",
+          "judge": "model",
+          "when": { "grade": "strong" },
+          "onFail": { "goto": "implement" }
+        },
+        {
+          "id": "goal-pr",
+          "kind": "action",
+          "title": "커밋·push·PR",
+          "action": "openGoalPr"
+        },
+        {
+          "id": "ci",
+          "kind": "gate",
+          "title": "CI",
+          "judge": "rule",
+          "rule": { "type": "ci" },
+          "onFail": { "goto": "implement" }
+        },
+        {
+          "id": "merge",
+          "kind": "action",
+          "title": "마일스톤 브랜치로 병합",
+          "action": "mergeGoal",
+          "onFail": { "goto": "ci" }
+        }
+      ]
+    },
+    {
+      "id": "regression",
+      "kind": "gate",
+      "title": "마일스톤 회귀",
+      "judge": "rule",
+      "rule": { "type": "commands", "commands": ["npm run build", "npm test"] }
+    },
+    {
+      "id": "milestone-pr",
+      "kind": "action",
+      "title": "마일스톤 PR",
+      "action": "openMilestonePr"
+    },
+    {
+      "id": "milestone-merge",
+      "kind": "gate",
+      "title": "마일스톤 병합",
+      "judge": "human",
+      "watch": "milestonePrMerged"
+    }
+  ]
+}

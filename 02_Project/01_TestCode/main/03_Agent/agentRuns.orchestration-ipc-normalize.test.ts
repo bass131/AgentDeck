@@ -58,6 +58,19 @@ async function captureRunInput(extra: Record<string, unknown>): Promise<AgentRun
   return captured
 }
 
+// M09 G2: 루프 작업 노드 세션 전용 칸(env·loopLock)은 화면 요청에서 main 실행 입력으로 넘어가지 않는다.
+// 화면이 잠금을 붙이거나 환경을 바꿀 수 없다 — 루프 잠금 노드는 실행기가 연 세션에만 붙는다.
+describe('루프 세션 전용 칸은 IPC로 넘어가지 않는다 (M09 G2)', () => {
+  it('요청에 env·loopLock이 있어도 실행 입력에는 없다', async () => {
+    const input = await captureRunInput({
+      env: { GH_TOKEN: 'x' },
+      loopLock: { repoRoot: 'C:/r', appLoopDir: 'C:/a' },
+    })
+    expect(input).not.toHaveProperty('env')
+    expect(input).not.toHaveProperty('loopLock')
+  })
+})
+
 // M06 G4: 마지막으로 잰 컨텍스트 창은 양의 유한수만 main 실행 입력으로 넘어간다.
 describe('contextWindow 정규화 (M06 G4)', () => {
   it('양의 정수는 그대로 넘긴다', async () => {

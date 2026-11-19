@@ -32,9 +32,16 @@ export interface QuestionModalProps {
   onDismiss: () => void
   // 어느 패널의 질문인지(멀티) — 단일은 넘기지 않는다.
   source?: string
+  // 이 창이 실제로 그려지는 화면 층(그 창을 감싼 겹침 맥락의 z-index). 기본은 대화·패널 질문 창의 층이다.
+  layer?: number
 }
 
-export function QuestionModal({ open, questions, onAnswer, onDismiss, source }: QuestionModalProps): JSX.Element | null {
+// 질문 창의 화면 층 — CSS z-index와 같은 값이다(시험이 두 CSS 파일과 대조한다).
+//   app: 대화(Conversation)와 패널(PanelView)의 질문 창 — QuestionModal.css의 .q-overlay(80)
+//   loop: 루프 화면(LoopScreen)의 질문 창 — LoopScreen.css의 .loop-overlay(60) 겹침 맥락 안에 그려진다
+export const DIALOG_LAYER = { app: 80, loop: 60 } as const
+
+export function QuestionModal({ open, questions, onAnswer, onDismiss, source, layer = DIALOG_LAYER.app }: QuestionModalProps): JSX.Element | null {
   if (!open) return null
   return (
     <QuestionDialog
@@ -43,22 +50,46 @@ export function QuestionModal({ open, questions, onAnswer, onDismiss, source }: 
       onAnswer={onAnswer}
       onDismiss={onDismiss}
       source={source}
+      layer={layer}
     />
   )
 }
 
 export default QuestionModal
 
+// G4 검수 차단 B2 — 열린 질문 창의 쌓임 순서. 창마다 window keydown을 듣지만 키(숫자·Enter·Esc·화살표)는 맨 위 창 하나만 받는다.
+// G4 확인 검수 — 맨 위는 화면 겹침으로 정한다. 순서는 ① 펼친 창이 내려둔 창(알약)보다 위 ② 층(layer)이 높은 창이 위
+// ③ 같은 층에서는 나중에 열거나 펼친 창이 위다. 내려둔 창끼리는 나중에 내려둔 창이 아래다. 그래서 맨 위가 내려둔 창이면 모두 내려둔 것이다.
+// ①이 ②보다 먼저인 까닭: 높은 층의 창을 내려두면 화면에 펼쳐진 것은 낮은 층의 창이다 — 키와 Esc가 보이는 창에 가야 한다.
+interface StackEntry { layer: number; order: number; minimized: boolean }
+const dialogStack = new Map<symbol, StackEntry>()
+let raiseSeq = 0
+let lowerSeq = 0
+const stackPlace = (t: symbol, layer: number, minimized: boolean): void => {
+  dialogStack.set(t, { layer, minimized, order: minimized ? --lowerSeq : ++raiseSeq })
+}
+const stackRemove = (t: symbol): void => { dialogStack.delete(t) }
+const above = (a: StackEntry, b: StackEntry): boolean =>
+  a.minimized !== b.minimized ? !a.minimized : a.layer !== b.layer ? a.layer > b.layer : a.order > b.order
+const isTopDialog = (t: symbol): boolean => {
+  const me = dialogStack.get(t)
+  if (!me) return false
+  for (const [other, e] of dialogStack) if (other !== t && above(e, me)) return false
+  return true
+}
+
 function QuestionDialog({
   questions,
   onAnswer,
   onDismiss,
   source,
+  layer,
 }: {
   questions: AgentQuestion[]
   onAnswer: (answers: string[][]) => void
   onDismiss: () => void
   source?: string
+  layer: number
 }): JSX.Element {
   const [sel, setSel] = useState<string[][]>(() => questions.map(() => []))
   const [custom, setCustom] = useState<string[]>(() => questions.map(() => ''))
@@ -130,6 +161,25 @@ function QuestionDialog({
     } else setStep(step + 1)
   }
 
+  const [token] = useState(() => Symbol('question-dialog'))
+  // 마운트 때 그 층의 맨 위에 올리고 내릴 때 뺀다. 펼침·내려두기는 아래 효과가 순서를 옮긴다.
+  const layerRef = useRef(layer)
+  layerRef.current = layer
+  useEffect(() => {
+    stackPlace(token, layerRef.current, false)
+    return () => stackRemove(token)
+  }, [token])
+  const firstLayout = useRef(true)
+  useEffect(() => {
+    if (firstLayout.current) { firstLayout.current = false; return }
+    stackPlace(token, layerRef.current, minimized)
+  }, [minimized, token])
+  // 층이 바뀌면(같은 창이 다른 겹침으로 옮겨지면) 순서는 그대로 두고 층만 고친다
+  useEffect(() => {
+    const e = dialogStack.get(token)
+    if (e && e.layer !== layer) dialogStack.set(token, { ...e, layer })
+  }, [layer, token])
+
   useEffect(() => {
     if (!minimized) modalRef.current?.focus()
   }, [minimized])
@@ -140,6 +190,7 @@ function QuestionDialog({
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent): void => {
+      if (!isTopDialog(token)) return
       if (minimized) {
         if (e.key === 'Escape') {
           onDismiss()

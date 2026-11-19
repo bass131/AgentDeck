@@ -69,7 +69,22 @@ const SKIP_DIRS = new Set(['node_modules', 'dist', 'out', 'coverage', '.git'])
 // main/01_Ipc/agent.controls-gate-handler.test.ts를 더했다.
 // M07 G8: 451 → 455. 병합 거부 노드 main/04_Claude/mergeDeny.test.ts, PR 서비스 main/08_Git/prMerge.test.ts,
 // PR 카드 도우미 renderer/08_Git/prCardModel.test.ts, PR 카드 화면 renderer/08_Git/PrCard.test.tsx를 더했다.
-const BASELINE_TEST_FILES = 455
+// M09 G1: 455 → 459. 루프 실행기 — 템플릿 스키마 main/05_Loop/template.test.ts, 상태 기계 main/05_Loop/executor.test.ts,
+// 등급 규칙 main/05_Loop/grade.test.ts, 포트로 도는 실행기 껍질 main/05_Loop/loopRunner.test.ts를 더했다.
+// M09 G2: 459 → 468. 실행기 포트의 실물 — 자격 없는 자식 환경 main/05_Loop/childEnv.test.ts, 명령 포트 commandPort.test.ts,
+// git 포트 gitPort.test.ts, gh 포트(녹취 JSON 해석) ghPort.test.ts, fs 포트 fsPort.test.ts, 앱 쪽 다이제스트 digestStore.test.ts,
+// 저장소당 실행기 하나 repoLock.test.ts, 번들 템플릿 bundledTemplate.test.ts, 실 git 통합 openLoop.test.ts를 더했다(모두 main/05_Loop/).
+// M09 G2: 468 → 471. 2차분 — 루프 잠금 노드 main/04_Claude/loopLock.test.ts, 그 배선 main/04_Claude/sdkOptions.loop-lock.test.ts,
+// 작업 노드 세션 포트 main/05_Loop/workSession.test.ts를 더했다.
+// M09 G2: 471 → 473. 독립 검수 반영 — 실행기 git 설정 대조 main/05_Loop/configGuard.test.ts, 원격·로컬 대조와 래치·CI 시간 상한
+// main/05_Loop/loopRunner.guards.test.ts를 더했다.
+// M09 G4: 473 → 479. 사람·모델 게이트 — 실행기의 스펙 해시·검수 트리 묶기 main/05_Loop/loopRunner.gates.test.ts, 검수 세션 포트
+// main/05_Loop/reviewSession.test.ts, 저장소마다 실행기 하나를 돌리는 구동자 main/05_Loop/loopDriver.test.ts, 읽기 전용 루프 잠금
+// main/04_Claude/loopLock.read-only.test.ts, loop IPC 핸들러 main/01_Ipc/loop.handler.test.ts, loop 계약 shared/13_Loop/loop.contract.test.ts를 더했다.
+// M09 G4: 479 → 482. 2차분(renderer 루프 화면) — 폴더·열기·시작·닫기·push·goal 목록 renderer/13_Loop/LoopScreen.test.tsx,
+// 예외 한 줄·질문·권한·스펙 승인·래치 풀기·마일스톤 PR 카드 renderer/13_Loop/LoopScreen.cards.test.tsx,
+// 사이드바 진입점과 Shell 배선 renderer/12_Window/Shell.loop-entry.test.tsx를 더했다.
+const BASELINE_TEST_FILES = 482
 
 function collectTestFiles(dir: string, acc: string[] = []): string[] {
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {

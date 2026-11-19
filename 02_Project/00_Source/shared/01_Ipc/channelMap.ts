@@ -117,6 +117,18 @@ import type {
   ControlConfirmReq,
 } from '../11_Settings/settings'
 import type { Profile, UiPrefs, UiPrefsSetReq } from '../11_Settings/personalization'
+import type {
+  LoopAnswerCardRequest,
+  LoopCwdRequest,
+  LoopDecideRequest,
+  LoopDecideResponse,
+  LoopOkResponse,
+  LoopOpenRequest,
+  LoopReleaseLatchRequest,
+  LoopReleaseLatchResponse,
+  LoopStartRequest,
+  LoopStatus,
+} from '../13_Loop/loop'
 import type { Ack } from '../02_Common/common'
 import type {
   WindowMaximizedResponse,
@@ -211,6 +223,16 @@ export interface IpcInvokeMap {
   'multi.cmdDelete': { req: MultiCmdDeleteRequest; res: MultiCmdDeleteResponse }
   'multi.cmdRename': { req: MultiCmdRenameRequest; res: MultiCmdRenameResponse }
   'multi.cmdSelect': { req: MultiCmdSelectRequest; res: MultiCmdSelectResponse }
+
+  // M09 G4 — 앱 안 루프(main/05_Loop/loopDriver.ts)
+  'loop.open': { req: LoopOpenRequest; res: LoopStatus }
+  'loop.start': { req: LoopStartRequest; res: LoopStatus }
+  'loop.status': { req: LoopCwdRequest; res: LoopStatus }
+  'loop.decide': { req: LoopDecideRequest; res: LoopDecideResponse }
+  'loop.answerCard': { req: LoopAnswerCardRequest; res: LoopOkResponse }
+  'loop.cancelSession': { req: LoopCwdRequest; res: LoopOkResponse }
+  'loop.releaseLatch': { req: LoopReleaseLatchRequest; res: LoopReleaseLatchResponse }
+  'loop.close': { req: LoopCwdRequest; res: LoopOkResponse }
 }
 
 // main → renderer push 채널. 값은 payload 타입이다.
@@ -218,6 +240,7 @@ export interface IpcPushMap {
   'agent.event': AgentEventPayload
   'engine.installProgress': EngineInstallProgress
   'window.state': WindowStatePayload
+  'loop.state': LoopStatus
 }
 
 export type InvokeChannel = keyof IpcInvokeMap

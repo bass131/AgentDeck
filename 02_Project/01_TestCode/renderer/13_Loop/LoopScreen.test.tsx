@@ -1,0 +1,201 @@
+// @vitest-environment jsdom
+// M09 G4 루프 화면 — 폴더 고르기·열기·시작·닫기가 맞는 loop IPC로 가고, 상태는 loop.status와 loop.state push로 받는다.
+// 다른 저장소의 push는 버리고, 호출 중에 push가 오면 늦게 온 응답의 상태로 덮지 않는다. goal 목록과 지금 노드를 보인다.
+import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
+import { render, screen, fireEvent, cleanup, act } from '@testing-library/react'
+import fs from 'node:fs'
+import path from 'node:path'
+import type { LoopStatus } from '../../../../02_Project/00_Source/shared/ipcContract'
+import { adaptFlatApi } from '../00_Helpers/windowApiMock'
+
+const CWD = 'C:\\work\\practice'
+
+const st = (over: Partial<LoopStatus> = {}): LoopStatus => ({
+  cwd: CWD, root: CWD, phase: 'not-started', milestoneId: null, node: null, nodeTitle: null, reason: null,
+  base: 'main', ghRepo: 'me/practice', failCount: 0, goals: [], approval: null, milestonePr: null, cards: [],
+  sessionActive: false, lastVerdict: null, latch: null, ...over,
+})
+
+type Fn = ReturnType<typeof vi.fn>
+let api: Record<string, Fn>
+let handlers: Set<(s: LoopStatus) => void>
+
+function install(initial: LoopStatus = st({ phase: 'closed', root: null })): void {
+  handlers = new Set()
+  api = {
+    loopOpen: vi.fn().mockResolvedValue(st()),
+    loopStart: vi.fn().mockResolvedValue(st({ phase: 'running', milestoneId: 'M01' })),
+    loopStatus: vi.fn().mockResolvedValue(initial),
+    loopDecide: vi.fn(),
+    loopAnswerCard: vi.fn().mockResolvedValue({ ok: true }),
+    loopCancelSession: vi.fn().mockResolvedValue({ ok: true }),
+    loopReleaseLatch: vi.fn(),
+    loopClose: vi.fn().mockResolvedValue({ ok: true }),
+    onLoopState: vi.fn((cb: (s: LoopStatus) => void) => {
+      handlers.add(cb)
+      return () => handlers.delete(cb)
+    }),
+    pickFolder: vi.fn().mockResolvedValue({ path: CWD }),
+  }
+  Object.defineProperty(window, 'api', {
+    value: adaptFlatApi({ ...api, git: { prRead: vi.fn().mockResolvedValue({ ok: false, error: 'x' }), prMerge: vi.fn() } }),
+    writable: true, configurable: true,
+  })
+}
+
+const flush = async (): Promise<void> => { await act(async () => { await new Promise((r) => setTimeout(r, 0)) }) }
+const emit = async (s: LoopStatus): Promise<void> => { await act(async () => { for (const h of [...handlers]) h(s) }) }
+const btn = (name: string): HTMLButtonElement => screen.getByRole('button', { name }) as HTMLButtonElement
+
+async function renderScreen(props: { initialCwd?: string | null; onClose?: () => void; onCwdChange?: (c: string) => void } = {}) {
+  const { LoopScreen } = await import('@renderer/13_Loop')
+  const r = render(
+    <LoopScreen
+      initialCwd={props.initialCwd === undefined ? CWD : props.initialCwd}
+      onCwdChange={props.onCwdChange ?? (() => {})}
+      onClose={props.onClose ?? (() => {})}
+    />,
+  )
+  await flush()
+  return r
+}
+
+beforeEach(() => install())
+afterEach(() => cleanup())
+
+describe('루프 화면 — 폴더와 열기·시작·닫기 (M09 G4)', () => {
+  it('폴더가 없으면 고르기만 할 수 있고, 고르면 기존 폴더 선택 길(workspace.pickFolder)로 받아 그 저장소의 상태를 읽는다', async () => {
+    const onCwdChange = vi.fn()
+    await renderScreen({ initialCwd: null, onCwdChange })
+    expect(api.loopStatus).not.toHaveBeenCalled()
+    expect(btn('열기').disabled).toBe(true)
+    await act(async () => { fireEvent.click(btn('폴더 고르기')) })
+    await flush()
+    expect(api.pickFolder).toHaveBeenCalledTimes(1)
+    expect(onCwdChange).toHaveBeenCalledWith(CWD)
+    expect(api.loopStatus).toHaveBeenCalledWith({ cwd: CWD })
+    expect(screen.getByText(CWD)).toBeTruthy()
+    expect(btn('열기').disabled).toBe(false)
+  })
+
+  it('열기는 loop.open({cwd})를 부르고 응답 상태를 보인다', async () => {
+    await renderScreen()
+    expect(api.onLoopState).toHaveBeenCalledTimes(1)
+    await act(async () => { fireEvent.click(btn('열기')) })
+    await flush()
+    expect(api.loopOpen).toHaveBeenCalledWith({ cwd: CWD })
+    expect(screen.getByText('시작 전')).toBeTruthy()
+  })
+
+  it('시작은 입력한 마일스톤 id로 loop.start({cwd, milestoneId})를 부른다. id가 비면 버튼이 꺼진다', async () => {
+    install(st())
+    await renderScreen()
+    expect(btn('시작').disabled).toBe(true)
+    fireEvent.change(screen.getByLabelText('마일스톤 id'), { target: { value: ' M01 ' } })
+    expect(btn('시작').disabled).toBe(false)
+    await act(async () => { fireEvent.click(btn('시작')) })
+    await flush()
+    expect(api.loopStart).toHaveBeenCalledWith({ cwd: CWD, milestoneId: 'M01' })
+    expect(screen.getByText('도는 중')).toBeTruthy()
+  })
+
+  it('닫기는 loop.close({cwd})를 부르고 상태를 다시 읽는다. 화면을 닫는 것은 루프를 닫지 않는다', async () => {
+    install(st())
+    const onClose = vi.fn()
+    await renderScreen({ onClose })
+    api.loopStatus.mockResolvedValue(st({ phase: 'closed', root: null }))
+    await act(async () => { fireEvent.click(btn('루프 닫기')) })
+    await flush()
+    expect(api.loopClose).toHaveBeenCalledWith({ cwd: CWD })
+    expect(api.loopStatus).toHaveBeenLastCalledWith({ cwd: CWD })
+    expect(screen.getByText('닫힘')).toBeTruthy()
+    fireEvent.click(btn('화면 닫기'))
+    expect(onClose).toHaveBeenCalledTimes(1)
+    expect(api.loopClose).toHaveBeenCalledTimes(1)
+  })
+
+  it('호출이 거부(throw)되면 사유를 보이고 버튼을 다시 켠다', async () => {
+    api.loopOpen.mockRejectedValue(new Error('loop.open: cwd는 절대 경로여야 한다'))
+    await renderScreen()
+    await act(async () => { fireEvent.click(btn('열기')) })
+    await flush()
+    expect(screen.getByText(/cwd는 절대 경로여야 한다/)).toBeTruthy()
+    expect(btn('열기').disabled).toBe(false)
+  })
+})
+
+describe('루프 화면 — 상태 push (M09 G4)', () => {
+  it('같은 저장소의 push는 표기 차이(구분자·대소문자·끝 구분자)가 있어도 받고, 다른 저장소의 push는 버린다', async () => {
+    install(st())
+    await renderScreen()
+    await emit(st({ cwd: 'C:\\work\\other', phase: 'done' }))
+    expect(screen.queryByText('끝남')).toBeNull()
+    expect(screen.getByText('시작 전')).toBeTruthy()
+    await emit(st({ cwd: 'c:/work/practice/', phase: 'running' }))
+    expect(screen.getByText('도는 중')).toBeTruthy()
+  })
+
+  it('호출 중에 이 저장소의 push가 오면, 늦게 온 응답의 상태로 덮지 않는다', async () => {
+    let resolveOpen!: (s: LoopStatus) => void
+    api.loopOpen.mockReturnValue(new Promise<LoopStatus>((r) => { resolveOpen = r }))
+    await renderScreen()
+    await act(async () => { fireEvent.click(btn('열기')) })
+    await emit(st({ phase: 'running', node: 'brainstorm' }))
+    await act(async () => { resolveOpen(st({ phase: 'not-started' })) })
+    await flush()
+    expect(screen.getByText('도는 중')).toBeTruthy()
+    expect(screen.queryByText('시작 전')).toBeNull()
+  })
+
+  it('화면이 사라지면 push 구독을 푼다', async () => {
+    const r = await renderScreen()
+    expect(handlers.size).toBe(1)
+    r.unmount()
+    expect(handlers.size).toBe(0)
+  })
+})
+
+describe('루프 화면 — goal 목록과 지금 노드 (M09 G4)', () => {
+  it('마일스톤 id, 지금 노드와 제목, 기준 브랜치, FAIL 수, goal의 상태·등급·PR을 보인다', async () => {
+    install(st({
+      phase: 'running', milestoneId: 'M01', node: 'G1/implement', nodeTitle: '구현', failCount: 1,
+      goals: [
+        { id: 'G1', title: '첫 goal', status: 'active', grade: 'strong', pr: 12 },
+        { id: 'G2', title: '둘째 goal', status: 'pending', grade: null, pr: null },
+      ],
+    }))
+    await renderScreen()
+    expect(screen.getByText('M01')).toBeTruthy()
+    expect(screen.getByText('G1/implement')).toBeTruthy()
+    expect(screen.getByText('구현')).toBeTruthy()
+    expect(screen.getByText('main')).toBeTruthy()
+    expect(screen.getByText('FAIL 1')).toBeTruthy()
+    const items = screen.getAllByRole('listitem').filter((li) => li.classList.contains('loop-goal'))
+    expect(items).toHaveLength(2)
+    expect(items[0].textContent).toContain('G1')
+    expect(items[0].textContent).toContain('첫 goal')
+    expect(items[0].textContent).toContain('진행')
+    expect(items[0].textContent).toContain('강')
+    expect(items[0].textContent).toContain('#12')
+    expect(items[1].textContent).toContain('대기')
+  })
+})
+
+describe('루프 화면 — 껍데기 (M09 G4)', () => {
+  it('화면이 떠 있으면 전역 단축키가 모달로 본다(Esc가 뒤 대화의 실행을 멈추지 않는다)', async () => {
+    const { isAnyModalOpen } = await import('@renderer/12_Window/useGlobalShortcuts')
+    await renderScreen()
+    expect(isAnyModalOpen()).toBe(true)
+  })
+
+  it('13_Loop 소스에는 병합을 부르는 길이 없다 — 병합은 PR 카드의 「병합」 버튼뿐이다', () => {
+    // jsdom 환경의 import.meta.url은 file: 꼴이 아니다 — 시험 파일 자리(__dirname)에서 소스 자리를 잡는다
+    const dir = path.resolve(__dirname, '../../../00_Source/renderer/src/13_Loop')
+    const files = fs.readdirSync(dir).filter((f) => /\.(ts|tsx)$/.test(f))
+    expect(files.length).toBeGreaterThan(0)
+    for (const f of files) {
+      const src = fs.readFileSync(path.join(dir, f), 'utf8')
+      expect(src, f).not.toMatch(/prMerge|gh pr merge|\/merges?\b/)
+    }
+  })
+})

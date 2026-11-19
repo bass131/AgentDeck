@@ -99,6 +99,17 @@ export const FLAT_ROUTES = {
   onWindowState: { group: 'window', action: 'onState' },
   getZoomFactor: { group: 'window', action: 'getZoomFactor' },
   setZoomFactor: { group: 'window', action: 'setZoomFactor' },
+
+  // M09 G4 — 앱 안 루프 묶음(화면은 2차분)
+  loopOpen: { group: 'loop', action: 'open' },
+  loopStart: { group: 'loop', action: 'start' },
+  loopStatus: { group: 'loop', action: 'status' },
+  loopDecide: { group: 'loop', action: 'decide' },
+  loopAnswerCard: { group: 'loop', action: 'answerCard' },
+  loopCancelSession: { group: 'loop', action: 'cancelSession' },
+  loopReleaseLatch: { group: 'loop', action: 'releaseLatch' },
+  loopClose: { group: 'loop', action: 'close' },
+  onLoopState: { group: 'loop', action: 'onState' },
 } as const satisfies Record<string, FlatRoute>
 
 export type FlatKey = keyof typeof FLAT_ROUTES

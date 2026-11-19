@@ -7,5 +7,5 @@ export { AskModal } from './AskModal'
 
 export { PromptModal } from './PromptModal'
 
-export { QuestionModal } from './QuestionModal'
+export { DIALOG_LAYER, QuestionModal } from './QuestionModal'
 export type { QuestionModalProps } from './QuestionModal'

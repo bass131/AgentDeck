@@ -65,6 +65,35 @@ describe('읽기 전용 루프 잠금 (M09 G4)', () => {
     expect(bash('gh pr checkout 1', BASE)).toBeNull()
   })
 
+  // G4 검수 사소 1 — 붙여 쓴 -u값, 파일을 여는 git grep, 명령을 돌리는 환경 대입, 설치 꼴의 다른 이름들
+  it('붙여 쓴 branch -u, git grep -O, 명령을 돌리는 GIT_* 대입, pip3.x·python -m pip·uvx·corepack 설치를 거부한다', () => {
+    for (const cmd of [
+      'git branch -uorigin/x', 'git branch -u=origin/x', 'git branch --set-upstream-to origin/x', 'git branch --unset-upstream',
+      'git grep -Ovim foo', 'git grep -O foo', 'git grep --open-files-in-pager=vim foo', 'git grep --open-files-in-pager foo',
+      'GIT_EXTERNAL_DIFF=./x.sh git diff', 'GIT_PAGER="sh -c x" git log', 'env GIT_EXTERNAL_DIFF=./x.sh git diff',
+      'env -i GIT_PAGER=./p git log', 'PAGER=./p git log', 'GIT_EDITOR=./e git log', 'export GIT_PAGER=./p; git log',
+      'git -c core.pager=./p log', 'git branch -vu origin/x',
+      'pip3.12 install x', 'pip3 install x', 'python -m pip install x', 'python3 -m pip install x', 'py -m pip install x',
+      'uvx some-tool', 'uv pip install x', 'corepack pnpm install', 'corepack yarn add x', 'corepack npm install',
+    ]) expect(bash(cmd), cmd).not.toBeNull()
+    // 읽기 꼴은 그대로 지나간다
+    for (const cmd of ['git grep -n foo', 'git grep -o foo', 'git branch -a', 'GIT_DIR=.git git log -1', 'python -m pip list', 'pip3.12 list', 'git branch -vv']) {
+      expect(bash(cmd), cmd).toBeNull()
+    }
+    // 작업 노드 잠금에서는 같은 설치가 지나간다(비교군)
+    expect(bash('python -m pip install x', BASE)).toBeNull()
+  })
+
+  // G4 검수 사소 2 — 편집 도구 거부는 입력의 command 칸 판독보다 먼저다
+  it('편집 도구는 입력에 command 칸이 있어도 읽기 전용 사유로 거부한다', () => {
+    expect(loopLockReason('Write', { file_path: `${TEMP}\\a.md`, command: 'ls' }, RO)).toContain('읽기 전용')
+    expect(loopLockReason('Edit', { command: 'ls' }, RO)).toContain('읽기 전용')
+    expect(loopLockReason('NotebookEdit', { notebook_path: 'C:\\work\\repo\\a.ipynb', command: 'cat a' }, RO)).toContain('읽기 전용')
+    // Bash의 command는 그대로 명령으로 판독한다. 작업 노드 잠금의 편집 도구는 command 칸이 있어도 경로로 본다
+    expect(loopLockReason('Bash', { command: 'ls' }, RO)).toBeNull()
+    expect(loopLockReason('Write', { file_path: 'C:\\work\\repo\\.git\\config', command: 'ls' }, BASE)).not.toBeNull()
+  })
+
   it('읽기 전용 꼴이어도 cd로 보호 폴더·저장소 밖으로 옮기는 꼴은 원래대로 거부한다', () => {
     expect(bash('cd .git && ls')).not.toBeNull()
     expect(bash('cd C:/Users/u && ls')).not.toBeNull()

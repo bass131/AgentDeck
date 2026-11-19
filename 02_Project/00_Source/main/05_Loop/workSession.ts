@@ -127,14 +127,20 @@ export function runNodeSession(s: NodeSessionInput): { done: Promise<SessionEnd>
   void (async () => {
     let messageId: string | undefined
     let error: string | null = null
+    // G4 검수 사소 5 — 최상위 도구 호출 뒤에는 새 메시지다. 그 뒤 글이 오면 새로 쌓고, 글 없이 끝나면 끝의 글은 빈 글이다.
+    // 카드의 「최근 글」(ctx.text)은 지우지 않는다 — 질문 도구 호출 앞의 글이 카드에 보여야 한다.
+    let afterTool = false
     try {
       for await (const ev of run.events) {
         if (settled) return
         s.onEvent?.(ev)
         if (ev.type === 'text') {
           if (ev.parentToolId !== undefined) continue
-          if (ev.messageId !== undefined && ev.messageId !== messageId) { messageId = ev.messageId; text = '' }
+          if (afterTool || (ev.messageId !== undefined && ev.messageId !== messageId)) { messageId = ev.messageId; text = '' }
+          afterTool = false
           text += ev.delta
+        } else if (ev.type === 'tool_call') {
+          if (ev.parentToolId === undefined) afterTool = true
         } else if (ev.type === 'error') {
           error ??= ev.message
         } else if (ev.type === 'permission_request' || ev.type === 'question_request') {
@@ -144,7 +150,8 @@ export function runNodeSession(s: NodeSessionInput): { done: Promise<SessionEnd>
           try { answer = Promise.resolve(s.onCard(ev, ctx)) } catch (e) { answer = Promise.reject(e) }
           void answer.then((r) => { if (!settled) run.respond(id, r) }, () => { if (!settled) run.respond(id, denyCards(ev)) })
         } else if (ev.type === 'done') {
-          finish(error !== null ? { kind: 'error', text, error } : { kind: 'done', text })
+          const last = afterTool ? '' : text
+          finish(error !== null ? { kind: 'error', text: last, error } : { kind: 'done', text: last })
           return
         }
       }

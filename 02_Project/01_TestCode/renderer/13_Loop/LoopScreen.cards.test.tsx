@@ -77,7 +77,7 @@ describe('예외 한 줄 (M09 G4)', () => {
   it('래치가 있으면 래치 파일 경로도 그 줄에 보인다', async () => {
     await renderScreen(st({
       phase: 'latched', reason: '상태 파일 위조',
-      latch: { reason: '상태 파일 위조', file: 'C:\\app\\digests\\x.latch', changed: [], state: null, token: TOKEN },
+      latch: { reason: '상태 파일 위조', file: 'C:\\app\\digests\\x.latch', changed: [], state: null, restore: null, token: TOKEN },
     }))
     expect(screen.getByRole('status').textContent).toContain('C:\\app\\digests\\x.latch')
   })
@@ -105,6 +105,22 @@ describe('예외 한 줄 (M09 G4)', () => {
     expect(req.evidence.trim().length).toBeGreaterThan(0)
     expect(req.specSha256).toBeUndefined()
     expect(screen.getByText('화면이 본 노드와 지금 노드가 다르다')).toBeTruthy()
+  })
+
+  // G4 검수 사소 7 — 진행 불가(설정을 고친 뒤 다시 열어야 하는 꼴)에서 빠져나갈 버튼. 닫고 다시 연다
+  it('blocked면 「다시 열기」가 close 뒤 open을 보낸다', async () => {
+    await renderScreen(st({ phase: 'blocked', reason: '자동 모드 허용 노드가 꺼져 있다 — 켠 뒤 루프 화면의 「다시 열기」' }))
+    api.loopStatus.mockResolvedValue(st({ phase: 'closed' }))
+    api.loopOpen.mockResolvedValue(st({ phase: 'not-started' }))
+    await click(btn('다시 열기'))
+    expect(api.loopClose).toHaveBeenCalledWith({ cwd: CWD })
+    expect(api.loopOpen).toHaveBeenCalledWith({ cwd: CWD })
+    expect(api.loopClose.mock.invocationCallOrder[0]).toBeLessThan(api.loopOpen.mock.invocationCallOrder[0])
+  })
+
+  it('blocked가 아니면 「다시 열기」가 없다', async () => {
+    await renderScreen(st({ phase: 'halted', reason: 'x' }))
+    expect(screen.queryByRole('button', { name: '다시 열기' })).toBeNull()
   })
 })
 
@@ -152,6 +168,31 @@ describe('질문 카드와 권한 카드 (M09 G4)', () => {
     expect(screen.getByText(/카드 답이 받아지지 않았어요/)).toBeTruthy()
   })
 
+  // G4 검수 사소 8 — 다른 호출이 도는 동안 낸 질문 답을 버리지 않는다. 앞 호출이 끝난 뒤 보낸다
+  it('다른 호출이 도는 동안 낸 질문 답은 버리지 않고 그 호출이 끝난 뒤 보낸다', async () => {
+    const second: LoopCard = { ...question, requestId: 'q-2', text: '두 번째' }
+    await renderScreen(st({ cards: [question, second], sessionActive: true }))
+    let releaseFirst: (v: { ok: boolean }) => void = () => {}
+    api.loopAnswerCard.mockImplementationOnce(() => new Promise((r) => { releaseFirst = r }))
+    await click(within(screen.getByTestId('loop-card-q-1')).getByRole('button', { name: '답하기' }))
+    fireEvent.click(screen.getByText('크게'))
+    await flush()
+    expect(api.loopAnswerCard).toHaveBeenCalledTimes(1)
+    // 첫 답이 도는 동안(busy) 두 번째 카드의 답하기는 창을 연다 — 고른 답은 대기열에 들어간다
+    const card2 = screen.getByTestId('loop-card-q-2')
+    await click(within(card2).getByRole('button', { name: '답하기' }))
+    fireEvent.click(screen.getByText('작게'))
+    await flush()
+    expect(api.loopAnswerCard).toHaveBeenCalledTimes(1)
+    // 대기열에 든 카드는 다시 답하지 못한다(같은 답을 두 번 보내지 않게)
+    expect((within(card2).getByRole('button', { name: '답하기' }) as HTMLButtonElement).disabled).toBe(true)
+    await act(async () => { releaseFirst({ ok: true }) })
+    await flush()
+    await flush()
+    expect(api.loopAnswerCard).toHaveBeenCalledTimes(2)
+    expect(api.loopAnswerCard).toHaveBeenLastCalledWith({ cwd: CWD, requestId: 'q-2', response: { kind: 'question', answers: [['작게']] } })
+  })
+
   it('세션 취소는 cancelSession({cwd})다', async () => {
     await renderScreen(st({ cards: [permission], sessionActive: true }))
     await click(btn('세션 취소'))
@@ -194,6 +235,15 @@ describe('스펙 승인 카드 (M09 G4)', () => {
     expect(btn('승인').disabled).toBe(true)
   })
 
+  // G4 검수 중요 I3 — 스펙 파일이 없을 때 빠져나갈 길. 반려는 해시 없이 보낸다(main이 해시 없는 반려만 받는다)
+  it('스펙 파일이 없으면 반려는 켜지고 해시 없이 verdict:fail을 보낸다', async () => {
+    await renderScreen(st({ phase: 'waiting-human', node: 'spec-approve', approval: { ...approval, spec: null, sha256: null } }))
+    fireEvent.change(screen.getByLabelText('반려 사유'), { target: { value: '스펙이 써지지 않았다' } })
+    expect(btn('반려').disabled).toBe(false)
+    await click(btn('반려'))
+    expect(api.loopDecide).toHaveBeenCalledWith({ cwd: CWD, verdict: 'fail', evidence: '스펙이 써지지 않았다', expectNode: 'spec-approve' })
+  })
+
   it('지금 노드가 없으면 expectNode를 싣지 않는다', async () => {
     await renderScreen(st({ phase: 'waiting-human', node: null, approval }))
     await click(btn('승인'))
@@ -202,12 +252,22 @@ describe('스펙 승인 카드 (M09 G4)', () => {
 })
 
 describe('래치 풀기 카드 (M09 G4)', () => {
-  const latch = { reason: '실행기 git 설정이 바뀌었다', file: 'C:\\app\\x.latch', changed: ['core.hooksPath', '.git/config'], state: 'cursor G1/implement', token: TOKEN }
+  const latch = { reason: '실행기 git 설정이 바뀌었다', file: 'C:\\app\\x.latch', changed: ['core.hooksPath', '.git/config'], state: 'cursor G1/implement', restore: null, token: TOKEN }
+
+  // G4 검수 중요 I1 — 상태 위조 래치는 풀면 실행기가 마지막으로 쓴 사본으로 되돌린다. 그 사본을 보인다
+  it('되돌릴 사본이 있으면 「풀면 되돌릴 상태」로 보인다', async () => {
+    await renderScreen(st({ phase: 'latched', reason: '상태 파일 위조', latch: { ...latch, changed: [], restore: 'cursor brainstorm (사본)' } }))
+    const card = screen.getByTestId('loop-latch')
+    expect(within(card).getByText('풀면 되돌릴 상태')).toBeTruthy()
+    expect(within(card).getByText('cursor brainstorm (사본)')).toBeTruthy()
+  })
 
   it('사유·파일·바뀐 목록·상태 요약을 보이고 「확인하고 풀기」가 releaseLatch {cwd, token}을 보낸다', async () => {
     await renderScreen(st({ phase: 'latched', reason: latch.reason, latch }))
     const card = screen.getByTestId('loop-latch')
     expect(within(card).getByText('core.hooksPath')).toBeTruthy()
+    // 바뀐 목록은 main이 준 글(키·값·출처 파일) 그대로다(G4 검수 B1)
+    expect(within(card).getByText('바뀐 설정·파일(값과 출처 포함)')).toBeTruthy()
     expect(within(card).getByText('.git/config')).toBeTruthy()
     expect(within(card).getByText('cursor G1/implement')).toBeTruthy()
     expect(within(card).getByText('C:\\app\\x.latch')).toBeTruthy()

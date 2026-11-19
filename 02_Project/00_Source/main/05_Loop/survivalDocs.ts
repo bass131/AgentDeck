@@ -37,9 +37,14 @@ export async function readRunState(fs: FsPort): Promise<RunStateRead> {
   return checked.ok ? { kind: 'ok', state: checked.state } : { kind: 'invalid', errors: checked.errors }
 }
 
+// 상태 파일 본문 — 실행기는 이 글을 앱 영역의 사본(DigestStore.writeCopy, G4 검수 I1)과 상태 파일에 똑같이 쓴다.
+export const runStateText = (state: RunState): string => `${JSON.stringify(state, null, 2)}\n`
+
 export async function writeRunState(fs: FsPort, state: RunState): Promise<void> {
-  await fs.write(DOCS.runState, `${JSON.stringify(state, null, 2)}\n`)
+  await fs.write(DOCS.runState, runStateText(state))
 }
+
+export const sha256Text = (text: string): string => createHash('sha256').update(text, 'utf8').digest('hex')
 
 const SCOPE_TITLE = (state: RunState, scope: string | null): string => {
   if (scope === null) return '마일스톤'
@@ -69,6 +74,7 @@ export async function writeVerification(fs: FsPort, state: RunState): Promise<vo
 }
 
 // 분해 노드가 쓴 goal 문서에서 id(파일 이름)와 제목만 읽는다. 문서에 적힌 등급 같은 표시는 읽지 않는다.
+// G4 검수 I7 — 읽은 본문의 sha256을 함께 낸다. 실행기가 상태에 적고 검수 직전·goal PR 직전에 지금 문서와 대조한다.
 export async function readGoalSeeds(fs: FsPort): Promise<{ ok: true; goals: GoalSeed[] } | { ok: false; reason: string }> {
   const names = (await fs.list(DOCS.goalsDir))
     .filter((n) => n.endsWith('.md'))
@@ -78,10 +84,10 @@ export async function readGoalSeeds(fs: FsPort): Promise<{ ok: true; goals: Goal
   for (const name of names) {
     const id = name.slice(0, -'.md'.length)
     if (!GOAL_ID.test(id)) return { ok: false, reason: `goal 문서 이름 ${name}이 id 꼴이 아니다` }
-    const text = (await fs.read(goalDocPath(id))) ?? ''
-    const title = /^#\s+(.+?)\s*$/m.exec(text)?.[1]
-    if (!title) return { ok: false, reason: `${name}에 「# 제목」 줄이 없다` }
-    goals.push({ id, title })
+    const text = await fs.read(goalDocPath(id))
+    const title = /^#\s+(.+?)\s*$/m.exec(text ?? '')?.[1]
+    if (text === null || !title) return { ok: false, reason: `${name}에 「# 제목」 줄이 없다` }
+    goals.push({ id, title, docSha256: sha256Text(text) })
   }
   return { ok: true, goals }
 }

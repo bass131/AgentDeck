@@ -4,9 +4,22 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { REVIEW_DIFF_LIMIT, createGitPort, ensureAgentdeckExcluded, readOriginDefaultBranch } from '@main/05_Loop/realPorts/gitPort'
+import { REVIEW_DIFF_LIMIT, createGitPort, ensureAgentdeckExcluded, qualifyRef, readOriginDefaultBranch } from '@main/05_Loop/realPorts/gitPort'
 import type { GitPort } from '@main/05_Loop/ports'
 import { makeTempRepos, type TempRepos } from '../00_Helpers/tempGit'
+
+// G4 검수 I6 — 브랜치 이름은 전체 이름으로 읽는다. 전체 SHA·refs/ 경로·HEAD는 그대로다
+describe('참조 이름 한정', () => {
+  it('짧은 브랜치 이름은 refs/heads/로, SHA·refs/·HEAD는 그대로, -로 시작하면 거부한다', () => {
+    expect(qualifyRef('milestone/M1')).toBe('refs/heads/milestone/M1')
+    expect(qualifyRef('a'.repeat(40))).toBe('a'.repeat(40))
+    expect(qualifyRef('b'.repeat(64))).toBe('b'.repeat(64))
+    expect(qualifyRef('abc1234')).toBe('refs/heads/abc1234')
+    expect(qualifyRef('refs/remotes/origin/x')).toBe('refs/remotes/origin/x')
+    expect(qualifyRef('HEAD')).toBe('HEAD')
+    expect(() => qualifyRef('--upload-pack=x')).toThrow()
+  })
+})
 
 let repos: TempRepos
 let git: GitPort
@@ -64,6 +77,37 @@ describe('브랜치·머리·커밋·push', () => {
     expect(repos.git(['show', '--name-only', '--format=', 'HEAD'])).toBe('src/new.ts')
     await git.push('master')
     expect(remoteHead('master')).toBe(sha)
+  })
+
+  // G4 검수 중요 I6 — 브랜치 이름은 refs/heads/ 전체 이름으로 읽는다. 같은 이름의 태그(작업 노드가 만들 수 있다)가 가리지 못한다
+  it('같은 이름의 태그가 있어도 머리·트리·계보·가르기는 브랜치를 읽는다', async () => {
+    await git.createBranch('milestone/M1', 'master')
+    const branchSha = repos.git(['rev-parse', 'refs/heads/milestone/M1'])
+    write('evil.txt', 'evil\n')
+    repos.git(['add', '-A'])
+    repos.git(['commit', '--quiet', '-m', 'evil'])
+    const evil = repos.git(['rev-parse', 'HEAD'])
+    repos.git(['tag', 'milestone/M1', evil])
+    repos.git(['tag', 'master', evil])
+    expect(await git.headSha('milestone/M1')).toBe(branchSha)
+    expect(await git.treeOf('milestone/M1')).toBe(repos.git(['rev-parse', 'refs/heads/milestone/M1^{tree}']))
+    expect(await git.isAncestor(evil, 'milestone/M1')).toBe(false)
+    // SHA를 주면 그 커밋을 읽는다
+    expect(await git.treeOf(evil)).toBe(repos.git(['rev-parse', `${evil}^{tree}`]))
+    repos.git(['reset', '--quiet', '--hard', 'refs/heads/milestone/M1'])
+    await git.createBranch('goal/M1-G1', 'milestone/M1')
+    expect(repos.git(['rev-parse', 'refs/heads/goal/M1-G1'])).toBe(branchSha)
+  })
+
+  // G4 검수 중요 I8 — push는 대조한 SHA 하나를 `<sha>:refs/heads/<b>`로 올린다. 그 뒤 로컬 브랜치가 앞서도 원격은 그 SHA다
+  it('SHA를 주면 그 커밋만 push한다 — 로컬 브랜치가 그 뒤로 움직였어도', async () => {
+    write('a.ts', 'a\n')
+    const checked = await git.commitAll('checked')
+    write('b.ts', 'b\n')
+    await git.commitAll('after')
+    await git.push('master', checked)
+    expect(remoteHead('master')).toBe(checked)
+    await expect(git.push('master', 'not-a-sha')).rejects.toThrow()
   })
 
   it('실행기 git은 작업 저장소의 훅을 돌리지 않는다(hooksPath를 빈 폴더로)', async () => {
@@ -186,12 +230,20 @@ describe('검수 스냅숏과 트리 해시 (M09 G4)', () => {
     expect(await git.treeOf('no-such-branch')).toBeNull()
   })
 
-  it('diff가 길면 상한에서 자르고 잘렸다고 적는다', async () => {
-    await git.createBranch('milestone/M1', 'master')
+  // G4 검수 중요 I9 — 잘린 diff로 검수하지 않는다. 상한을 넘으면 diff를 싣지 않고 넘었다는 표시와 전체 길이를 준다(실행기가 멈춘다)
+  it('diff가 상한을 넘으면 잘린 diff를 주지 않고 tooLarge와 전체 길이를 준다 — 상한 안이면 전문과 길이', async () => {
+    const base = await git.headSha('master') as string
     write('big.txt', `${'x'.repeat(100)}\n`.repeat(6000))
-    const snap = await git.reviewSnapshot('milestone/M1')
-    expect(snap?.diff.length).toBeLessThan(REVIEW_DIFF_LIMIT + 200)
-    expect(snap?.diff).toContain('잘렸다')
+    const snap = await git.reviewSnapshot(base)
+    expect(snap?.tooLarge).toBe(true)
+    expect(snap?.chars).toBeGreaterThan(REVIEW_DIFF_LIMIT)
+    expect(snap?.diff).toBe('')
+    fs.rmSync(path.join(repos.work, 'big.txt'))
+    write('small.txt', 'small\n')
+    const ok = await git.reviewSnapshot(base)
+    expect(ok?.tooLarge ?? false).toBe(false)
+    expect(ok?.diff).toContain('small.txt')
+    expect(ok?.chars).toBe(ok?.diff.length)
   })
 })
 

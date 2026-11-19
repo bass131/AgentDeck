@@ -41,6 +41,16 @@
 //   - 기준 브랜치: 템플릿이 아니라 부르는 쪽(openLoop — origin 기본 브랜치)이 준다. 시작할 때 상태에 적고, 다시 열 때 다르면 멈춘다.
 //   - goal PR 본문에 그 goal의 검증 줄을 싣는다(renderGoalLines). 본문은 PR을 만들 때만 정하므로 CI·병합 줄은 실리지 않는다.
 //   - 세션 취소(실행기 닫기·화면의 취소)는 FAIL로 세지 않고 멈춘다(stop) — 사람의 이어 가기로 같은 노드를 다시 돈다.
+// M09 G4 독립 검수 반영
+//   - I1 상태 사본: 쓰기 순서는 사본(DigestStore.writeCopy) → run-state.json → 다이제스트 → verification.md다. 사본은 상태 파일과
+//     같은 글이다. 상태 위조 래치를 풀 때 구동자가 이 사본으로 상태 파일을 되돌린다(위조본을 받지 않는다).
+//   - I3 스펙 파일이 없으면 해시 없는 반려만 받는다(브레인스토밍으로 돌아가는 길). 승인은 계속 해시가 있어야 한다.
+//   - I6 등급과 검수 diff의 기준은 실행기가 상태에 쥔 goal 시작 SHA(goal.baseSha)다 — 작업 노드가 옮길 수 있는 로컬 ref 이름이 아니다.
+//   - I7 분해 pass가 적은 goal 문서 해시와 스펙 승인 pass가 적은 스펙 해시를 대조한다. goal 문서는 검수 직전과 goal PR 직전,
+//     스펙은 승인 뒤 매 노드 앞에서 본다. 다르면 멈춘다(stop — FAIL로 세지 않는다).
+//   - I8 goal PR은 SHA를 한 번 읽어 그 커밋의 트리를 대조하고 그 SHA를 push한다(`<sha>:refs/heads/<b>`).
+//   - I9 검수 diff가 상한을 넘으면 검수를 열지 않고 멈춘다(잘린 diff로 낸 pass가 전체 트리에 묶이지 않게).
+//   - 밖에서 넣는 사람 판정의 facts는 버린다 — 상태 사실은 실행기가 대조한 값만 싣는다.
 import {
   applyVerdict, checkResumable, expectedJudge, judgeCi, judgeCommands, nextStep, oneSentence,
   type CommandRun, type NextStep, type Verdict,
@@ -50,7 +60,7 @@ import { computeGrade, type FileChange } from './grade'
 import type { LoopPorts } from './ports'
 import { createRunState, validateRunState, type GoalState, type RunState } from './runState'
 import {
-  DOCS, goalDocPath, readGoalSeeds, readNodeDocs, readSpecView, renderGoalLines, writeRunState, writeVerification,
+  DOCS, goalDocPath, readGoalSeeds, readNodeDocs, readSpecView, renderGoalLines, runStateText, sha256Text, writeVerification,
 } from './survivalDocs'
 import type { ActionNode, GateNode, SchemaError, StepNode, Template, WorkNode } from './template'
 
@@ -201,8 +211,11 @@ export function createLoopRunner(deps: LoopRunnerDeps): LoopRunner {
       const now = await ports.fs.read(DOCS.runState)
       const nowDigest = now === null ? null : (() => { try { return stateDigest(JSON.parse(now)) } catch { return 'unreadable' } })()
       if (nowDigest !== expected) throw new Tampered(`${TAMPERED_REASON} — 이번 단계가 읽은 뒤 상태 파일이 바뀌어 덮어쓰지 않았다`)
-      await writeRunState(ports.fs, state)
-      await ports.digest.write(repoKey, stateDigest(JSON.parse(JSON.stringify(state))))
+      // G4 검수 I1 — 사본 → 상태 파일 → 다이제스트. 어디서 꺼져도 사본은 상태 파일보다 낡지 않다.
+      const text = runStateText(state)
+      await ports.digest.writeCopy(repoKey, text)
+      await ports.fs.write(DOCS.runState, text)
+      await ports.digest.write(repoKey, stateDigest(JSON.parse(text)))
       await writeVerification(ports.fs, state)
     })()
     persisting = run
@@ -276,7 +289,7 @@ export function createLoopRunner(deps: LoopRunnerDeps): LoopRunner {
     }
   }
 
-  async function runRule(node: GateNode, goal: GoalState | null, names: BranchNames): Promise<Produced> {
+  async function runRule(node: GateNode, goal: GoalState | null): Promise<Produced> {
     const rule = node.rule
     try {
       switch (rule?.type) {
@@ -290,8 +303,9 @@ export function createLoopRunner(deps: LoopRunnerDeps): LoopRunner {
           return { kind: 'verdict', verdict: judgeCommands(node, runs) }
         }
         case 'grade': {
+          // G4 검수 I6 — 기준은 실행기가 쥔 goal 시작 SHA. 없으면 통계 없음(강)이다
           let stat: FileChange[] | null = null
-          try { stat = await git.diffStat(names.milestone) } catch { stat = null }
+          try { stat = goal?.baseSha ? await git.diffStat(goal.baseSha) : null } catch { stat = null }
           const g = computeGrade(template.grading, stat === null ? null : stat.filter((f) => !EXECUTOR_OWNED.test(f.path)))
           return { kind: 'verdict', verdict: v(node, 'pass', `등급 ${g.grade === 'strong' ? '강' : '약'} — ${g.reason}`, { grade: g.grade }) }
         }
@@ -319,10 +333,20 @@ export function createLoopRunner(deps: LoopRunnerDeps): LoopRunner {
   // 모델 게이트 — 실행기가 검수 입력(goal 문서, 작업 트리 대 마일스톤 브랜치 diff)과 트리 해시를 만들고, pass를 그 트리에 묶는다(G4).
   async function runReview(node: GateNode, state: RunState, goal: GoalState | null, names: BranchNames): Promise<Verdict> {
     try {
-      const snap = await git.reviewSnapshot(names.milestone)
-      if (!snap) return v(node, 'fail', `${names.milestone} 대비 diff를 만들지 못해 검수를 열지 않았다`)
+      // G4 검수 I6 — diff의 기준은 goal을 가를 때 실행기가 적은 시작 SHA다(작업 노드가 옮길 수 있는 로컬 ref 이름이 아니다)
+      const baseSha = goal?.baseSha ?? null
+      if (!baseSha) return v(node, 'stop', 'goal 시작 SHA가 상태에 없어 검수 diff의 기준을 정할 수 없다 — 사람 판단이 필요하다')
+      // G4 검수 I7 — 검수 기준 문서가 분해 때 읽은 것과 같은가. 검수에 주는 본문과 대조하는 본문이 같은 읽기다
       const goalDoc = goal ? await ports.fs.read(goalDocPath(goal.id)) : null
-      const r = await ports.review.review({ milestoneId: state.milestoneId, node, goal, goalDoc, diff: snap.diff, base: names.milestone })
+      const drift = goalDocDrift(goal, goalDoc)
+      if (drift) return v(node, 'stop', `${drift} 검수를 열지 않았다`)
+      const snap = await git.reviewSnapshot(baseSha)
+      if (!snap) return v(node, 'fail', `${names.milestone}의 goal 시작 ${short(baseSha)} 대비 diff를 만들지 못해 검수를 열지 않았다`)
+      // G4 검수 I9 — 잘린 diff로 검수하지 않는다(pass가 전체 트리에 묶이므로). FAIL로 세지 않고 멈춘다
+      if (snap.tooLarge) {
+        return v(node, 'stop', `검수 diff가 ${snap.chars ?? '?'}자로 상한을 넘어 검수를 열지 않았다 — goal을 나누거나 사람이 판단한다`)
+      }
+      const r = await ports.review.review({ milestoneId: state.milestoneId, node, goal, goalDoc, diff: snap.diff, base: names.milestone, baseSha })
       if (r.verdict !== 'pass') return { node: node.id, judge: 'model', verdict: r.verdict, evidence: r.evidence }
       const after = await git.worktreeTree()
       if (after !== snap.tree) {
@@ -335,7 +359,7 @@ export function createLoopRunner(deps: LoopRunnerDeps): LoopRunner {
   }
 
   async function runGate(node: GateNode, state: RunState, goal: GoalState | null, names: BranchNames): Promise<Produced> {
-    if (node.judge === 'rule') return runRule(node, goal, names)
+    if (node.judge === 'rule') return runRule(node, goal)
     if (node.judge === 'model') return { kind: 'verdict', verdict: await runReview(node, state, goal, names) }
     // 사람 게이트 — 마일스톤 병합은 사람이 PR을 병합한 사실이 판정이다. 그 밖은 submit을 기다린다.
     if (node.watch === 'milestonePrMerged' && state.milestonePr !== null) {
@@ -398,9 +422,11 @@ export function createLoopRunner(deps: LoopRunnerDeps): LoopRunner {
   ): Promise<Verdict> {
     // 커밋은 지금 체크아웃된 브랜치에 얹힌다. 재개 사이에 브랜치가 바뀌었어도 PR 머리 브랜치에 커밋하도록 먼저 옮긴다.
     await git.checkout(head)
+    let pushed: string | null
     if (inSync) {
       const drift = await driftOf(head)
       if (drift) return v(node, 'stop', `PR을 열지 않았다 — ${drift}`)
+      pushed = await git.headSha(head)
     } else {
       if (reviewedTree !== null) {
         const now = await git.worktreeTree()
@@ -409,16 +435,19 @@ export function createLoopRunner(deps: LoopRunnerDeps): LoopRunner {
         }
       }
       if (commitFirst && (await git.hasChanges())) await git.commitAll(title)
+      // G4 검수 I8 — 머리 SHA를 한 번 읽어, 그 커밋의 트리를 대조하고 그 SHA를 push한다(사이에 로컬 브랜치가 옮겨져도 따라가지 않는다).
       // 작업 노드가 로컬에 커밋해 hasChanges가 거짓이어도 push 전에 커밋한 트리를 본다
+      const sha = await git.headSha(head)
+      if (!sha) return v(node, 'fail', `${head}의 머리를 읽지 못했다`)
       if (reviewedTree !== null) {
-        const committed = await git.treeOf(head)
+        const committed = await git.treeOf(sha)
         if (committed !== reviewedTree) {
-          return v(node, 'stop', `${head}의 커밋 트리 ${short(committed)}가 검수한 트리 ${short(reviewedTree)}가 아니라 push하지 않았다 — 사람 판단이 필요하다`)
+          return v(node, 'stop', `${head}의 커밋 ${short(sha)} 트리 ${short(committed)}가 검수한 트리 ${short(reviewedTree)}가 아니라 push하지 않았다 — 사람 판단이 필요하다`)
         }
       }
-      await git.push(head)
+      await git.push(head, sha)
+      pushed = sha
     }
-    const pushed = await git.headSha(head)
     if (!pushed) return v(node, 'fail', `${head}의 머리를 읽지 못했다`)
     const found = await gh.findPr(head, base)
     if (found) {
@@ -487,6 +516,17 @@ export function createLoopRunner(deps: LoopRunnerDeps): LoopRunner {
     return [`# ${state.milestoneId} 마일스톤 결과 보고`, '', ...rows, '', '검증 기록은 `.agentdeck/verification.md`에 있다.'].join('\n')
   }
 
+  // G4 검수 I7 — goal 문서가 분해 때 실행기가 읽은 본문과 같은가. 다르면 사유(멈춤), 같거나 옛 상태(해시 없음)면 null.
+  function goalDocDrift(goal: GoalState | null, text: string | null): string | null {
+    const recorded = goal?.docSha256 ?? null
+    if (!goal || recorded === null) return null
+    const path = goalDocPath(goal.id)
+    if (text === null) return `분해 때 읽은 goal 문서 ${path}가 없어졌다 — 사람 판단이 필요하다.`
+    const now = sha256Text(text)
+    if (now === recorded) return null
+    return `goal 문서 ${path}가 분해 때 적은 해시 ${short(recorded)}와 다르다(지금 ${short(now)}) — 검수 기준 문서가 바뀌었다. 사람이 되돌리거나 판단한다.`
+  }
+
   async function runAction(node: ActionNode, state: RunState, goal: GoalState | null, names: BranchNames): Promise<Verdict> {
     try {
       switch (node.action) {
@@ -497,6 +537,9 @@ export function createLoopRunner(deps: LoopRunnerDeps): LoopRunner {
           return await ensureBranch(node, names.goal, names.milestone, goal.baseSha, false)
         case 'openGoalPr': {
           if (!goal || names.goal === null) return v(node, 'fail', 'goal 밖에서 goal PR을 열 수 없다')
+          // G4 검수 I7 — 검수 없는(약 등급) goal도 PR 전에 goal 문서를 대조한다
+          const drift = goalDocDrift(goal, await ports.fs.read(goalDocPath(goal.id)))
+          if (drift) return v(node, 'stop', `${drift} goal PR을 열지 않았다`)
           const body = `goal ${goal.id} — ${goal.title}\n\n${renderGoalLines(state, goal.id)}\n`
           return await ensurePr(node, names.goal, names.milestone, `${goal.id}: ${goal.title}`, body, true, false, goal.reviewedTree ?? null)
         }
@@ -582,6 +625,15 @@ export function createLoopRunner(deps: LoopRunnerDeps): LoopRunner {
       const next = nextStep(template, state)
       if (next.kind === 'done') return { kind: 'done', state, verdict: null }
       if (next.kind === 'needs-user') return { kind: 'halted', state, verdict: null }
+      // G4 검수 I7 — 승인한 스펙이 그 뒤 바뀌었으면 어느 노드도 돌리지 않고 멈춘다. 스펙을 쓰는 노드(메인 노드)와 스펙 승인 게이트 자신은 뺀다
+      const writesSpec = (next.kind === 'work' && next.node.role === 'main') || (next.kind === 'gate' && specBound(next.node))
+      if (state.specSha256 && !writesSpec) {
+        const view = await readSpecView(ports.fs)
+        if (view.sha256 !== state.specSha256) {
+          const stop = v(next.node, 'stop', `승인한 스펙(sha256 ${short(state.specSha256)})과 지금 스펙 파일(${view.sha256 ? `sha256 ${short(view.sha256)}` : '없음'})이 다르다 — 승인 뒤 스펙이 바뀌었다. 사람이 되돌리거나 판단한다`)
+          return commit(state, cur.digest, stop, 'executor')
+        }
+      }
       const produced = await produce(next, state)
       // 노드 동안(작업 세션 포함) 실행기 git 설정이 바뀌었으면 그 판정을 남기지 않는다.
       const after = await configTripped()
@@ -611,11 +663,16 @@ export function createLoopRunner(deps: LoopRunnerDeps): LoopRunner {
         return { kind: 'blocked', reason: `${next.node.id}는 PR 병합 사실로만 통과한다 — 병합 버튼으로 병합한다`, state }
       }
       // 스펙 승인 판정은 사람이 본 스펙 해시에 묶인다(G4) — 병합 버튼의 「보인 SHA로만」과 같은 규칙이다.
-      let bound = verdict
+      // 밖에서 넣는 판정의 facts는 버린다 — 상태 사실(스펙 해시 같은 것)은 실행기가 대조한 값만 싣는다(G4 검수 I7)
+      let bound: Verdict = { node: verdict.node, judge: verdict.judge, verdict: verdict.verdict, evidence: verdict.evidence }
       // 노드 이름과 관계없이 본다 — 다른 이름의 판정은 상태 기계가 거부하지만, 해시 검사가 그 거부에 기대지 않게 한다
       if (state.status === 'running' && next.kind === 'gate' && specBound(next.node)) {
         const view = await readSpecView(ports.fs)
-        if (view.sha256 === null) return { kind: 'blocked', reason: `${DOCS.milestoneSpec}가 없어 스펙 승인 판정을 받지 않는다`, state }
+        if (view.sha256 === null) {
+          // G4 검수 I3 — 스펙 파일이 없으면 해시 없는 반려만 받는다(브레인스토밍으로 돌아가는 길). 승인은 받지 않는다
+          if (verdict.verdict !== 'fail') return { kind: 'blocked', reason: `${DOCS.milestoneSpec}가 없어 스펙 승인 판정을 받지 않는다 — 반려로 브레인스토밍에 돌아간다`, state }
+          return commit(state, cur.digest, { ...bound, evidence: `${verdict.evidence} (스펙 파일 없음)` }, 'outside')
+        }
         if (!seen.specSha256) return { kind: 'blocked', reason: '스펙 승인 판정에는 사람이 본 스펙의 sha256이 있어야 한다', state }
         if (seen.specSha256 !== view.sha256) {
           return {
@@ -624,7 +681,11 @@ export function createLoopRunner(deps: LoopRunnerDeps): LoopRunner {
             state,
           }
         }
-        bound = { ...verdict, evidence: `${verdict.evidence} (스펙 sha256 ${view.sha256.slice(0, 12)})` }
+        bound = {
+          ...bound,
+          evidence: `${verdict.evidence} (스펙 sha256 ${view.sha256.slice(0, 12)})`,
+          ...(verdict.verdict === 'pass' ? { facts: { specSha256: view.sha256 } } : {}),
+        }
       }
       return commit(state, cur.digest, bound, 'outside')
     }),

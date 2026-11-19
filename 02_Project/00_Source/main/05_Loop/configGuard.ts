@@ -21,6 +21,7 @@
 import { createHash } from 'node:crypto'
 import { promises as fsp } from 'node:fs'
 import path from 'node:path'
+import { maskCredentials } from '../08_Git/git'
 import type { ConfigCheck } from './ports'
 import { writeFileAtomic } from './realPorts/atomicWrite'
 import { runProcess, type ProcessResult } from './realPorts/exec'
@@ -283,16 +284,21 @@ async function ghSockets(env: NodeJS.ProcessEnv): Promise<string[]> {
   return found
 }
 
-async function take(opts: ConfigGuardOptions, run: Run): Promise<Snapshot> {
-  const all = await run(['config', '--list', '--show-origin', '--includes', '-z'])
-  if (all.code !== 0) throw new Error(`git 설정을 읽지 못했다 — ${all.stderr.trim() || `exit ${all.code}`}`)
-  const entries = parseList(all.stdout)
+// git 전역 설정 파일(후보와 전역 목록에 나온 출처) — 해시로 대조하는 파일 가운데 풀기로 받을 수 있는 것은 이것뿐이다(G4 검수 B1)
+async function gitConfigFiles(opts: ConfigGuardOptions, run: Run): Promise<string[]> {
   const globalList = await run(['config', '--global', '--list', '--show-origin', '-z'])
   const origins = globalList.code === 0
     ? globalList.stdout.split('\0').filter((_, i) => i % 2 === 0).filter((o) => o.startsWith('file:')).map((o) => o.slice(5))
     : []
+  return [...new Set([...globalCandidates(opts.env), ...origins].map((p) => path.resolve(opts.cwd, p)))]
+}
+
+async function take(opts: ConfigGuardOptions, run: Run): Promise<Snapshot> {
+  const all = await run(['config', '--list', '--show-origin', '--includes', '-z'])
+  if (all.code !== 0) throw new Error(`git 설정을 읽지 못했다 — ${all.stderr.trim() || `exit ${all.code}`}`)
+  const entries = parseList(all.stdout)
   const files: Record<string, string> = {}
-  for (const f of new Set([...globalCandidates(opts.env), ...origins].map((p) => path.resolve(opts.cwd, p)))) files[f] = await hashFile(f)
+  for (const f of await gitConfigFiles(opts, run)) files[f] = await hashFile(f)
   Object.assign(files, await sshFiles(opts.env), await ghFiles(opts.env))
   return { entries, files }
 }
@@ -357,18 +363,74 @@ async function dangerousLocal(run: Run): Promise<string[]> {
 
 function keyOf(entry: string): string { return entry.split('\t')[1] ?? '' }
 
-function diff(a: Snapshot, b: Snapshot): string[] {
-  const changed = new Set<string>()
-  const group = (s: Snapshot): Map<string, string> => {
+interface Entry { origin: string; key: string; value: string }
+const entryOf = (e: string): Entry => {
+  const [origin = '', key = '', ...rest] = e.split('\t')
+  return { origin, key, value: rest.join('\t') }
+}
+
+// G4 검수 차단 B1 — 바뀐 것의 사람용 한 줄. 설정 키는 `키: 옛 값 [출처] → 새 값 [출처]`, 파일은 `경로: 옛 해시 → 새 해시`다.
+// 값은 자격을 가리고(maskCredentials), 길거나 가린 값은 앞부분과 전체 값의 sha256을 붙인다 — 받기가 본 값 전체에 묶이게.
+function shownValue(value: string): string {
+  const masked = maskCredentials(value)
+  const head = masked.length > SHOWN_MAX ? `${masked.slice(0, SHOWN_MAX)}…` : masked
+  return masked === value && masked.length <= SHOWN_MAX ? JSON.stringify(head) : `${JSON.stringify(head)}(sha256 ${sha256(value).slice(0, 12)})`
+}
+const SHOWN_MAX = 120
+const shownEntries = (list: Entry[]): string => (list.length === 0 ? '(없음)' : list.map((e) => `${shownValue(e.value)} [${e.origin}]`).join(', '))
+const shownHash = (h: string | undefined): string => (h === undefined ? '(대조 밖)' : h === 'absent' ? '(없음)' : h.length === 64 ? h.slice(0, 12) : h)
+
+interface Diff { keys: string[]; files: string[]; details: string[] }
+
+function diff(a: Snapshot, b: Snapshot): Diff {
+  const group = (s: Snapshot): Map<string, string[]> => {
     const m = new Map<string, string[]>()
     for (const e of s.entries) m.set(keyOf(e), [...(m.get(keyOf(e)) ?? []), e])
-    return new Map([...m].map(([k, v]) => [k, v.join('\n')]))
+    return m
   }
   const ga = group(a)
   const gb = group(b)
-  for (const k of new Set([...ga.keys(), ...gb.keys()])) if (ga.get(k) !== gb.get(k)) changed.add(k)
-  for (const f of new Set([...Object.keys(a.files), ...Object.keys(b.files)])) if (a.files[f] !== b.files[f]) changed.add(f)
-  return [...changed].sort()
+  const keys: string[] = []
+  const details: string[] = []
+  for (const k of [...new Set([...ga.keys(), ...gb.keys()])].sort()) {
+    const before = ga.get(k) ?? []
+    const after = gb.get(k) ?? []
+    if (before.join('\n') === after.join('\n')) continue
+    keys.push(k)
+    details.push(`${k}: ${shownEntries(before.map(entryOf))} → ${shownEntries(after.map(entryOf))}`)
+  }
+  const files: string[] = []
+  for (const f of [...new Set([...Object.keys(a.files), ...Object.keys(b.files)])].sort()) {
+    if (a.files[f] === b.files[f]) continue
+    files.push(f)
+    details.push(`${f}: ${shownHash(a.files[f])} → ${shownHash(b.files[f])}`)
+  }
+  return { keys, files, details: details.sort() }
+}
+
+const REMOTE_URL = /^remote\..+\.(?:url|pushurl)$/
+
+// G4 검수 차단 B1 — 화면의 풀기(받기)로 받지 않는 차이. 사람이 직접 되돌린 뒤 다시 연다.
+//   - 바뀐 키 가운데 지금 값이 위험 키인 것 — 범위(로컬·전역·시스템·include)와 관계없이. 그대로 있는 전역·시스템의 위험 키
+//     (이 기계의 credential.helper 같은 것)는 바뀐 것이 아니라 보지 않는다.
+//   - remote.<이름>.url·pushurl의 변경 — 실행기 push(자격 있음)가 가는 곳이다.
+//   - git 전역 설정 파일 밖의 파일(ssh 설정과 Include, gh config.yml·hosts.yml)의 변경.
+function unacceptable(d: Diff, now: Snapshot, gitFiles: ReadonlySet<string>): string | null {
+  const danger: string[] = []
+  const remotes: string[] = []
+  for (const k of d.keys) {
+    for (const e of now.entries.map(entryOf).filter((x) => x.key === k)) {
+      if (isDangerous(k, e.value)) danger.push(`${k}(${e.origin.replace(/^file:/, '')})`)
+    }
+    if (REMOTE_URL.test(k)) remotes.push(k)
+  }
+  const files = d.files.filter((f) => !gitFiles.has(f))
+  const parts = [
+    ...(danger.length > 0 ? [`실행기 git이 명령으로 돌릴 수 있는 키가 바뀌었다(범위와 관계없이) — ${list([...new Set(danger)])}`] : []),
+    ...(remotes.length > 0 ? [`원격 주소가 바뀌었다 — ${list(remotes)}`] : []),
+    ...(files.length > 0 ? [`ssh·gh 설정 파일이 바뀌었다 — ${list(files)}`] : []),
+  ]
+  return parts.length === 0 ? null : `${parts.join('. ')}. 이 차이는 화면의 풀기로 받지 않는다 — 사람이 직접 되돌린 뒤 다시 연다`
 }
 
 const list = (keys: string[]): string => (keys.length > 6 ? `${keys.slice(0, 6).join(', ')} 외 ${keys.length - 6}개` : keys.join(', '))
@@ -426,13 +488,19 @@ export async function createConfigGuard(opts: ConfigGuardOptions): Promise<Confi
   const base = await takeSteady(opts, run)
   const stored = await readStored(opts.snapshotFile)
   if (stored !== null) {
-    const keys = diff(stored, base)
-    const accepted = opts.acceptChanged !== undefined && [...opts.acceptChanged].sort().join('\n') === keys.join('\n')
-    if (keys.length > 0 && !accepted) {
-      return {
-        ok: false,
-        reason: `실행기 git 설정이 지난 실행이 적은 스냅숏(${opts.snapshotFile})과 다르다 — 바뀐 키: ${list(keys)}. 사람이 확인하고 그 키를 지운(되돌린) 뒤 다시 열거나, 화면에서 확인하고 푼다`,
-        changed: keys,
+    const d = diff(stored, base)
+    if (d.details.length > 0) {
+      // 받을 수 없는 차이면 받기 목록(changed)을 주지 않는다 — 화면이 풀기 카드를 보이지 않고, 사람이 직접 되돌린다
+      const refused = unacceptable(d, base, new Set(await gitConfigFiles(opts, run)))
+      if (refused) return { ok: false, reason: `실행기 git 설정이 지난 실행이 적은 스냅숏(${opts.snapshotFile})과 다르다 — ${refused}` }
+      // 받기는 사람이 본 줄(키·값·출처, 파일 해시)과 정확히 같을 때만이다 — 본 뒤 값이 또 바뀌면 받지 않는다
+      const accepted = opts.acceptChanged !== undefined && [...opts.acceptChanged].sort().join('\n') === d.details.join('\n')
+      if (!accepted) {
+        return {
+          ok: false,
+          reason: `실행기 git 설정이 지난 실행이 적은 스냅숏(${opts.snapshotFile})과 다르다 — 바뀐 키: ${list([...d.keys, ...d.files])}. 사람이 확인하고 그 키를 지운(되돌린) 뒤 다시 열거나, 화면에서 확인하고 푼다`,
+          changed: d.details,
+        }
       }
     }
   }
@@ -451,9 +519,11 @@ export async function createConfigGuard(opts: ConfigGuardOptions): Promise<Confi
     if (graftsNow.length > 0) return (tripped = `${CONFIG_CHANGED} — grafts 파일이 생겼다: ${list(graftsNow)}`)
     let now: Snapshot
     try { now = await takeSteady(opts, run) } catch (e) { return (tripped = `${CONFIG_CHANGED} — 설정을 다시 읽지 못했다(${(e as Error).message})`) }
-    const keys = diff(base, now)
-    changedNow = keys
-    if (keys.length > 0) tripped = `${CONFIG_CHANGED} — 바뀐 키: ${list(keys)}`
+    const d = diff(base, now)
+    // 화면의 래치 카드는 키·값·출처를 본다(G4 검수 B1) — 풀기는 이 줄들에 묶인다
+    changedNow = d.details
+    const names = [...d.keys, ...d.files]
+    if (names.length > 0) tripped = `${CONFIG_CHANGED} — 바뀐 키: ${list(names)}`
     return tripped
   }
   return {

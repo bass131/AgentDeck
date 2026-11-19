@@ -126,6 +126,17 @@ describe('작업 노드 세션 결과 (M09 G2)', () => {
     expect(rec.aborts).toBe(1)
   })
 
+  // G4 검수 사소 5 — 요약(검수에서는 판정)은 마지막 최상위 메시지의 글이다. 최상위 도구 호출 뒤 글 없이 끝나면 앞 메시지의 글을 쓰지 않는다
+  it('최상위 도구 호출 뒤 글 없이 끝나면 요약에 앞 메시지의 글을 쓰지 않는다', async () => {
+    const { backend } = fakeBackend([
+      { type: 'text', delta: '다 했다고 말하고', messageId: 'm1' },
+      { type: 'tool_call', id: 't1', name: 'Bash', input: { command: 'ls' } },
+      { type: 'tool_result', id: 't1', ok: true, output: '' },
+      { type: 'done' },
+    ])
+    expect(await createWorkSessionPort(opts(backend)).runWork(request())).toEqual({ ok: true, summary: '요약 없음' })
+  })
+
   it('요약은 길이 상한이 있다', async () => {
     const { backend } = fakeBackend([{ type: 'text', delta: 'x'.repeat(5000) }, { type: 'done' }])
     const r = await createWorkSessionPort(opts(backend)).runWork(request())

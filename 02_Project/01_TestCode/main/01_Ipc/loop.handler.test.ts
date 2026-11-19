@@ -58,7 +58,7 @@ describe('loop IPC 핸들러 (M09 G4)', () => {
     expect([...h.handlers.keys()].sort()).toEqual([
       'loop.answerCard', 'loop.cancelSession', 'loop.close', 'loop.decide', 'loop.open', 'loop.releaseLatch', 'loop.start', 'loop.status',
     ])
-    expect(await call(IPC_CHANNELS.LOOP_OPEN, { cwd: CWD, requiredChecks: ['hard-gates'] })).toMatchObject({ phase: 'not-started' })
+    expect(await call(IPC_CHANNELS.LOOP_OPEN, { cwd: CWD })).toMatchObject({ phase: 'not-started' })
     await call(IPC_CHANNELS.LOOP_START, { cwd: CWD, milestoneId: 'M1' })
     await call(IPC_CHANNELS.LOOP_STATUS, { cwd: CWD })
     await call(IPC_CHANNELS.LOOP_DECIDE, { cwd: CWD, verdict: 'pass', evidence: '봤다', specSha256: 'a'.repeat(64) })
@@ -67,7 +67,7 @@ describe('loop IPC 핸들러 (M09 G4)', () => {
     await call(IPC_CHANNELS.LOOP_RELEASE_LATCH, { cwd: CWD, token: 'b'.repeat(64) })
     expect(await call(IPC_CHANNELS.LOOP_CLOSE, { cwd: CWD })).toEqual({ ok: true })
     expect(calls.map((c) => c[0])).toEqual(['open', 'start', 'status', 'decide', 'answerCard', 'cancelSession', 'releaseLatch', 'close'])
-    expect(calls[0]).toEqual(['open', { cwd: CWD, requiredChecks: ['hard-gates'] }])
+    expect(calls[0]).toEqual(['open', { cwd: CWD }])
     expect(calls[3]).toEqual(['decide', { cwd: CWD, verdict: 'pass', evidence: '봤다', specSha256: 'a'.repeat(64) }])
     expect(calls[4]).toEqual(['answerCard', CWD, 'q1', { kind: 'question', answers: [['예']] }])
   })
@@ -77,7 +77,9 @@ describe('loop IPC 핸들러 (M09 G4)', () => {
     const call = register(driver)
     await expect(call(IPC_CHANNELS.LOOP_OPEN, { cwd: '' })).rejects.toThrow()
     await expect(call(IPC_CHANNELS.LOOP_OPEN, { cwd: 'relative/path' })).rejects.toThrow()
-    await expect(call(IPC_CHANNELS.LOOP_OPEN, { cwd: CWD, requiredChecks: [1] })).rejects.toThrow()
+    // G4 검수 중요 I5 — CI 정책(필수 검사 이름)은 화면 입력으로 바꾸지 못한다. 그 칸이 오면 거부한다(빈 목록으로 아무 검사 통과를 여는 길)
+    await expect(call(IPC_CHANNELS.LOOP_OPEN, { cwd: CWD, requiredChecks: [] })).rejects.toThrow(/requiredChecks/)
+    await expect(call(IPC_CHANNELS.LOOP_OPEN, { cwd: CWD, requiredChecks: ['hard-gates'] })).rejects.toThrow(/requiredChecks/)
     await expect(call(IPC_CHANNELS.LOOP_START, { cwd: CWD })).rejects.toThrow()
     await expect(call(IPC_CHANNELS.LOOP_DECIDE, { cwd: CWD, verdict: 'stop', evidence: 'x' })).rejects.toThrow()
     await expect(call(IPC_CHANNELS.LOOP_DECIDE, { cwd: CWD, verdict: 'pass', evidence: '  ' })).rejects.toThrow()

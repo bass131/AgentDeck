@@ -49,6 +49,12 @@ export function QuestionModal({ open, questions, onAnswer, onDismiss, source }: 
 
 export default QuestionModal
 
+// G4 검수 차단 B2 — 열린 질문 창의 쌓임 순서. 창마다 window keydown을 듣지만 키(숫자·Enter·Esc·화살표)는 맨 위 창 하나만 받는다.
+// 새로 열린 창과 다시 펼친 창이 맨 위로 오고, 내려둔 창은 맨 아래로 간다 — 그래서 맨 위가 내려둔 창이면 모두 내려둔 것이다.
+const dialogStack: symbol[] = []
+const stackRemove = (t: symbol): void => { const i = dialogStack.indexOf(t); if (i >= 0) dialogStack.splice(i, 1) }
+const isTopDialog = (t: symbol): boolean => dialogStack[dialogStack.length - 1] === t
+
 function QuestionDialog({
   questions,
   onAnswer,
@@ -130,6 +136,20 @@ function QuestionDialog({
     } else setStep(step + 1)
   }
 
+  const [token] = useState(() => Symbol('question-dialog'))
+  // 마운트 때 맨 위에 올리고 내릴 때 뺀다. 펼침·내려두기는 아래 효과가 순서를 옮긴다.
+  useEffect(() => {
+    dialogStack.push(token)
+    return () => stackRemove(token)
+  }, [token])
+  const firstLayout = useRef(true)
+  useEffect(() => {
+    if (firstLayout.current) { firstLayout.current = false; return }
+    stackRemove(token)
+    if (minimized) dialogStack.unshift(token)
+    else dialogStack.push(token)
+  }, [minimized, token])
+
   useEffect(() => {
     if (!minimized) modalRef.current?.focus()
   }, [minimized])
@@ -140,6 +160,7 @@ function QuestionDialog({
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent): void => {
+      if (!isTopDialog(token)) return
       if (minimized) {
         if (e.key === 'Escape') {
           onDismiss()

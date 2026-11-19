@@ -42,6 +42,9 @@ export interface GoalState {
   // M09 G4 — 모델 게이트(검수)가 pass를 낸 작업 트리 해시. goal PR 동작이 커밋·push 직전에 지금 트리와 대조한다.
   // 옛 상태에는 없을 수 있다(없으면 null로 읽는다).
   reviewedTree?: string | null
+  // M09 G4 검수 I7 — 분해 노드가 pass할 때 실행기가 읽은 goal 문서의 sha256. 검수 직전과 goal PR 직전에 지금 문서와 대조한다.
+  // 옛 상태에는 없을 수 있다(없으면 대조하지 않는다).
+  docSha256?: string | null
 }
 // goal은 goal 고리 안이면 goal 목록의 위치, 마일스톤 구획이면 null.
 export interface Cursor { node: string; goal: number | null }
@@ -52,6 +55,8 @@ export interface RunState {
   template: { id: string; hash: string }
   // M09 G4 — 시작할 때 읽은 기준 브랜치(origin 기본 브랜치). 다시 열 때 읽은 값과 다르면 실행기가 멈춘다. 옛 상태에는 없을 수 있다.
   base?: string | null
+  // M09 G4 검수 I7 — 사람이 스펙 승인에서 본 스펙의 sha256(실행기가 대조한 값). 그 뒤 노드에서 스펙 파일이 다르면 실행기가 멈춘다.
+  specSha256?: string | null
   status: RunStatus
   haltReason: string | null
   cursor: Cursor
@@ -121,8 +126,9 @@ const oneOf = <T>(list: readonly T[], v: unknown): v is T => (list as readonly u
 
 function checkGoal(g: unknown, p: string, err: ErrSink): void {
   if (!isObject(g)) { err(p, 'goal은 객체여야 한다'); return }
-  rejectUnknownKeys(g, p, ['id', 'title', 'grade', 'status', 'baseSha', 'pr', 'pushedSha', 'ciSha', 'mergedSha', 'reviewedTree'], err)
+  rejectUnknownKeys(g, p, ['id', 'title', 'grade', 'status', 'baseSha', 'pr', 'pushedSha', 'ciSha', 'mergedSha', 'reviewedTree', 'docSha256'], err)
   if (g.reviewedTree !== undefined && !nullOr(g.reviewedTree, isNonEmptyString)) err(`${p}.reviewedTree`, '문자열이나 null')
+  if (g.docSha256 !== undefined && !nullOr(g.docSha256, (x: unknown): x is string => typeof x === 'string' && HASH.test(x))) err(`${p}.docSha256`, 'sha256 16진수나 null')
   if (!isNonEmptyString(g.id) || !GOAL_ID.test(g.id)) err(`${p}.id`, 'goal id 꼴이 아니다')
   if (!isNonEmptyString(g.title)) err(`${p}.title`, '제목이 있어야 한다')
   if (!(g.grade === null || g.grade === 'strong' || g.grade === 'weak')) err(`${p}.grade`, 'strong·weak·null 중 하나')
@@ -150,10 +156,13 @@ export function validateRunState(raw: unknown): RunStateCheck {
   const err: ErrSink = (path, reason) => { errors.push({ path, reason }) }
   if (!isObject(raw)) return { ok: false, errors: [{ path: '$', reason: '실행 상태는 객체여야 한다' }] }
   rejectUnknownKeys(raw, '$', [
-    'schema', 'milestoneId', 'template', 'base', 'status', 'haltReason', 'cursor', 'milestoneBase', 'goals', 'milestonePr', 'failCount', 'lines',
+    'schema', 'milestoneId', 'template', 'base', 'specSha256', 'status', 'haltReason', 'cursor', 'milestoneBase', 'goals', 'milestonePr', 'failCount', 'lines',
   ], err)
   if (raw.schema !== 1) err('$.schema', '지원하는 상태 판은 1뿐이다')
   if (raw.base !== undefined && !nullOr(raw.base, isNonEmptyString)) err('$.base', '기준 브랜치 이름이나 null')
+  if (raw.specSha256 !== undefined && !nullOr(raw.specSha256, (x: unknown): x is string => typeof x === 'string' && HASH.test(x))) {
+    err('$.specSha256', 'sha256 16진수나 null')
+  }
   if (!isNonEmptyString(raw.milestoneId) || !MILESTONE_ID.test(raw.milestoneId)) err('$.milestoneId', '마일스톤 id 꼴이 아니다')
   const t = raw.template
   if (!isObject(t)) err('$.template', '{ id, hash } 객체여야 한다')

@@ -402,9 +402,14 @@ describe('openLoop — 기준 브랜치·설정 받기·검수 포트 (M09 G4)',
     await close(await open())
     repos.git(['config', 'user.name', 'Someone Else'])
     const refused = await openLoop({ cwd: repos.work, appDataDir: appData, session, review, gh, template: TEMPLATE, executorEnv: repos.env })
-    expect(!refused.ok && refused.changed).toEqual(['user.name'])
+    // G4 검수 B1 — 바뀐 것은 키만이 아니라 값과 출처를 담은 줄로 돌려주고, 받기도 그 줄(값)에 묶인다
+    const changed = !refused.ok ? refused.changed ?? [] : []
+    expect(changed).toHaveLength(1)
+    expect(changed[0]).toMatch(/^user\.name: .*→ "Someone Else"/)
     expect(!refused.ok && refused.root).toBe(fs.realpathSync.native(repos.work))
-    const r = await openLoop({ cwd: repos.work, appDataDir: appData, session, review, gh, template: TEMPLATE, executorEnv: repos.env, acceptConfigChanged: ['user.name'] })
+    const keyOnly = await openLoop({ cwd: repos.work, appDataDir: appData, session, review, gh, template: TEMPLATE, executorEnv: repos.env, acceptConfigChanged: ['user.name'] })
+    expect(keyOnly.ok).toBe(false)
+    const r = await openLoop({ cwd: repos.work, appDataDir: appData, session, review, gh, template: TEMPLATE, executorEnv: repos.env, acceptConfigChanged: changed })
     if (!r.ok) throw new Error(r.reason)
     opened.push(r.loop)
     expect(r.loop.configChanges()).toEqual([])

@@ -3,17 +3,24 @@
 //     PR 병합 사실을 다시 본다. 스펙 승인은 사람의 판정(decide)을 기다린다.
 //   - 메인 노드(브레인스토밍) 세션의 카드는 상태의 cards로 화면에 가고, 화면의 답(answerCard)이 세션으로 간다. 세션이 끝나면 카드는 빠진다.
 //     작업자 노드와 검수 세션의 카드는 거부·무응답이다(workSession·reviewSession).
+//     화면의 카드 id는 구동자가 세션 차례를 붙인 `s<차례>-<원래 id>`다(G4 검수 I2) — 세션마다 권한 조정자가 같은 id를 다시 써도
+//     새 세션의 카드가 화면에서 답할 수 있게 보이고, 옛 세션의 카드 id로 온 늦은 답은 새 세션에 붙지 않는다.
 //   - 사람 판정(decide)의 노드는 구동자가 저장본에서 고른다 — 멈춘 실행이면 커서 노드의 이어 가기, 스펙 승인이면 화면이 보낸 스펙 해시를
 //     함께 넣는다(해시는 요청에서만 온다. 구동자가 채우지 않는다). 마일스톤 병합은 사람 판정으로 넘기지 않는다(병합 버튼 — 헌법 10조).
 //   - 앱 「자동」 모드 허용 노드(mode-auto-bypass-allow)가 꺼져 있으면(autoModeCheck) 시작·이어 가기·구동 전에 사유와 함께 멈춘다 —
-//     꺼진 채 돌면 작업자 노드의 편집이 카드가 되고 거부돼 FAIL이 쌓인다.
-//   - 위조 래치 풀기(releaseLatch): 화면이 본 래치(사유·바뀐 키·상태 요약)의 token이 지금 다시 계산한 token과 같을 때만 푼다.
-//     순서: 실행기를 닫는다 → 상태 파일이 JSON으로 읽히는지 본다 → 바뀐 설정 키만 받아(acceptConfigChanged) 다시 연다 →
-//     연 뒤에만 지금 상태 파일을 다이제스트로 다시 받고(없으면 다이제스트를 지운다) 래치를 지운다 → 이어 간다.
-//     다시 열기가 거부되면(위험 키·grafts·http_unix_socket·hooksPath) 래치는 그대로 남는다. 다이제스트 다시 받기는 사람이 본 상태 파일을
-//     실행기의 것으로 받는다는 명시적 선택이다(워커 구현의 선택 — 결정 대장 기록은 메인 세션 몫).
+//     꺼진 채 돌면 작업자 노드의 편집이 카드가 되고 거부돼 FAIL이 쌓인다. 켠 뒤 화면의 「다시 열기」(닫고 다시 열기)로 이어 간다.
+//   - CI 판정의 필수 검사 이름은 main이 고정한다(DEFAULT_REQUIRED_CHECKS — G4 검수 I5). 화면 입력으로 바꾸지 못한다.
+//   - 위조 래치 풀기(releaseLatch, G4 검수 I1 반영): 화면이 본 래치(사유·바뀐 키와 값·상태 요약·되돌릴 사본)의 token이 지금 다시 계산한
+//     token과 같을 때만 푼다. 순서: 실행기를 닫는다 → 상태 파일을 다시 읽어 화면이 본 본문(token에 묶인 해시)과 같은지 본다 →
+//     바뀐 설정 줄만 받아(acceptConfigChanged) 다시 연다 → 연 뒤에만 상태를 맞추고 래치를 지운다 → 이어 간다.
+//     상태를 맞추는 법: 상태 파일이 앱의 다이제스트와 맞으면(설정 사유 래치) 그대로 둔다. 맞지 않으면(상태 위조 사유이거나, 설정 래치
+//     동안 상태 파일도 바뀜) 위조본을 받지 않고 실행기가 마지막으로 쓴 사본(DigestStore.readCopy)으로 상태 파일을 되돌리고 다이제스트를
+//     그 사본에 맞춘다. 사본이 없으면 풀지 않는다. 다시 열기가 거부되면(위험 키·grafts·http_unix_socket·hooksPath) 래치는 그대로 남는다.
+//   - 열기·풀기가 기다리는 동안 닫히면(G4 검수 I4) 새로 연 실행기를 닫고 잠금을 푼다 — 고아 실행기가 저장소 잠금을 쥐지 않는다.
+//   - 알림(note — 시작 거부·구동 오류)은 처음 보인 단계 동안만 싣고, 단계가 바뀌면 지운다(G4 검수 사소 6).
 //   - 다시 열기: 앱을 다시 켜고 open하면 실행기가 저장본에서 같은 노드를 고르고 이어 간다(load). 앱 종료(stopApp)는 closeAll을 기다리지 않는다 —
-//     저장소 잠금은 죽은 프로세스의 것을 넘겨받는다(repoLock). 상태 파일 쓰기와 다이제스트 쓰기 사이에 꺼지면 다음 열기에서 래치가 걸린다.
+//     저장소 잠금은 죽은 프로세스의 것을 넘겨받는다(repoLock). 상태 파일 쓰기와 다이제스트 쓰기 사이에 꺼지면 다음 열기에서 래치가 걸리고,
+//     풀면 사본(상태 파일보다 먼저 쓰므로 같은 내용)으로 맞춰 이어 간다.
 // 이 모듈은 electron을 import하지 않는다 — 앱 영역(join(getUserDataDir(), 'loop'))과 push는 조립 지점(bootstrap)이 준다.
 import { createHash } from 'node:crypto'
 import { promises as fsp } from 'node:fs'
@@ -32,18 +39,22 @@ import type {
 } from '@shared/ipcContract'
 import type { NextStep } from './executor'
 import { createFileDigestStore, repoKeyOf, stateDigest } from './digestStore'
+import { TAMPERED_REASON } from './loopRunner'
 import { openLoop, type OpenedLoop, type OpenLoopOptions, type OpenLoopResult } from './openLoop'
+import type { DigestStore } from './ports'
+import { createFsPort } from './realPorts/fsPort'
 import { validateRunState, type RunState } from './runState'
 import { DOCS } from './survivalDocs'
 import { denyCards, type CardEvent, type CardResponder } from './workSession'
 
 export const AUTO_MODE_NODE = 'mode-auto-bypass-allow'
+const REOPEN_HINT = '켠 뒤 루프 화면의 「다시 열기」로 이어 간다'
 
 // 조립 지점이 controlsForRun(getUserDataDir())의 결과를 넘긴다. 노드 실행은 claudeAgentRun이 같은 컨트롤을 다시 읽는다.
 export function autoModeReasonOf(c: ControlsForRun): string | null {
-  if (!c.ok) return `컨트롤 설정을 확인하지 못해 루프를 돌리지 않는다 — ${c.message}`
+  if (!c.ok) return `컨트롤 설정을 확인하지 못해 루프를 돌리지 않는다 — ${c.message}. 설정을 확인한 뒤 루프 화면의 「다시 열기」로 이어 간다`
   if (!c.nodes.some((n) => n.id === AUTO_MODE_NODE)) {
-    return `컨트롤 노드 ${AUTO_MODE_NODE}(앱 「자동」 모드 허용)가 꺼져 있다 — 켜지 않으면 작업자 노드의 편집이 거부돼 FAIL이 쌓인다. 설정 › 컨트롤에서 켠 뒤 이어 간다`
+    return `컨트롤 노드 ${AUTO_MODE_NODE}(앱 「자동」 모드 허용)가 꺼져 있다 — 켜지 않으면 작업자 노드의 편집이 거부돼 FAIL이 쌓인다. 설정 › 컨트롤에서 ${REOPEN_HINT}`
   }
   return null
 }
@@ -65,6 +76,8 @@ export interface LoopDriverOptions {
   onState?: (s: LoopStatus) => void
   ciRetryMs?: number
   humanPollMs?: number
+  // 시험 이음매 — 실행기를 여는 함수(기본 openLoop). 열기·풀기 도중 닫기의 시점을 시험이 잡는다
+  openLoopImpl?: (o: OpenLoopOptions) => Promise<OpenLoopResult>
 }
 
 export interface LoopDriver {
@@ -81,6 +94,10 @@ export interface LoopDriver {
 
 interface OpenFailure { reason: string; changed?: string[]; root?: string }
 
+// 화면이 본 래치의 사실(token에 묶인 것) — 풀 때 다시 읽은 상태 본문을 이것과 대조한다
+interface LatchSeen { token: string; textSha: string | null; tampered: boolean; copy: string | null }
+const LATCH_SEEN_MAX = 8
+
 interface Entry {
   key: string
   cwd: string
@@ -88,10 +105,12 @@ interface Entry {
   closed: boolean
   loop: OpenedLoop | null
   openFailure: OpenFailure | null
-  requiredChecks: string[]
   status: LoopStatus
   seq: number
   cards: Map<string, { card: LoopCard; settle: (r: RunResponse) => void }>
+  // 세션 차례(G4 검수 I2) — 카드 맥락의 신호(세션마다 하나)에 차례 번호를 붙인다
+  turns: WeakMap<AbortSignal, number>
+  turnSeq: number
   running: boolean
   again: boolean
   timer: ReturnType<typeof setTimeout> | null
@@ -99,7 +118,10 @@ interface Entry {
   waitingCi: boolean
   blocked: string | null
   note: string | null
+  // 알림을 처음 보인 단계(null이면 아직 보이지 않았다)
+  notePhase: LoopStatus['phase'] | null
   lastVerdict: LoopStatus['lastVerdict']
+  latchSeen: Map<string, LatchSeen>
 }
 
 const sha256 = (s: string): string => createHash('sha256').update(s, 'utf8').digest('hex')
@@ -137,30 +159,54 @@ function summarize(text: string | null): string | null {
   return `${s.milestoneId} · ${cursorLabel(s)} · ${s.status} · FAIL ${s.failCount} · 검증 줄 ${s.lines.length}`
 }
 
+// 상태 파일이 앱의 다이제스트와 맞는가(둘 다 없음도 맞음). 맞지 않으면 풀 때 사본으로 되돌린다.
+async function stateMatchesDigest(digest: DigestStore, key: string, text: string | null): Promise<boolean> {
+  const stored = await digest.read(key).catch(() => null)
+  if (text === null) return stored === null
+  if (stored === null) return false
+  try { return stateDigest(JSON.parse(text)) === stored } catch { return false }
+}
+
 export function createLoopDriver(opts: LoopDriverOptions): LoopDriver {
   const entries = new Map<string, Entry>()
   const ciRetryMs = opts.ciRetryMs ?? DEFAULT_CI_RETRY_MS
   const humanPollMs = opts.humanPollMs ?? DEFAULT_HUMAN_POLL_MS
+  const openImpl = opts.openLoopImpl ?? openLoop
+  const appDigest = (): DigestStore => createFileDigestStore(path.join(opts.appDataDir, 'digests'))
   const autoCheck = (): string | null => {
-    try { return opts.autoModeCheck?.() ?? null } catch (e) { return `자동 모드 허용 노드를 확인하지 못했다 — ${errText(e)}` }
+    try { return opts.autoModeCheck?.() ?? null } catch (e) { return `자동 모드 허용 노드를 확인하지 못했다 — ${errText(e)}. ${REOPEN_HINT}` }
   }
 
   function entryOf(cwd: string): Entry | undefined { return entries.get(repoKeyOf(cwd)) }
 
   function newEntry(cwd: string): Entry {
     const e: Entry = {
-      key: repoKeyOf(cwd), cwd, gen: 0, closed: false, loop: null, openFailure: null, requiredChecks: DEFAULT_REQUIRED_CHECKS,
-      status: blankStatus(cwd), seq: 0, cards: new Map(), running: false, again: false, timer: null, sessionActive: false,
-      waitingCi: false, blocked: null, note: null, lastVerdict: null,
+      key: repoKeyOf(cwd), cwd, gen: 0, closed: false, loop: null, openFailure: null,
+      status: blankStatus(cwd), seq: 0, cards: new Map(), turns: new WeakMap(), turnSeq: 0, running: false, again: false, timer: null,
+      sessionActive: false, waitingCi: false, blocked: null, note: null, notePhase: null, lastVerdict: null, latchSeen: new Map(),
     }
     entries.set(e.key, e)
     return e
   }
 
+  function setNote(e: Entry, text: string | null): void {
+    e.note = text
+    e.notePhase = null
+  }
+
+  // 열기·풀기의 await 뒤 — 그 사이 닫혔거나(close) 다른 열기가 실행기를 갈았으면 이 결과를 쓰지 않는다
+  const superseded = (e: Entry, gen: number): boolean => e.closed || e.gen !== gen || entries.get(e.key) !== e
+
   // 메인 노드 세션의 카드 → 상태. 화면의 답이나 세션의 끝(ctx.signal)이 카드를 거둔다.
   function cardResponder(e: Entry): CardResponder {
     return (ev: CardEvent, ctx) => new Promise<RunResponse>((resolve) => {
-      const id = ev.requestId
+      let turn = e.turns.get(ctx.signal)
+      if (turn === undefined) {
+        turn = ++e.turnSeq
+        e.turns.set(ctx.signal, turn)
+      }
+      // 세션의 원래 id는 세션에 답할 때(runNodeSession)만 쓴다. 화면과 answerCard는 차례가 붙은 id로 부른다.
+      const id = `s${turn}-${ev.requestId}`
       const base = { requestId: id, node: ctx.node, goal: ctx.goal, text: ctx.text }
       const card: LoopCard = ev.type === 'question_request'
         ? { ...base, kind: 'question', questions: ev.questions }
@@ -180,11 +226,11 @@ export function createLoopDriver(opts: LoopDriverOptions): LoopDriver {
   }
 
   function openFor(e: Entry, accept?: readonly string[]): Promise<OpenLoopResult> {
-    return openLoop({
+    return openImpl({
       cwd: e.cwd,
       appDataDir: opts.appDataDir,
       ...(opts.backend ? { backend: opts.backend } : {}),
-      requiredChecks: e.requiredChecks,
+      requiredChecks: DEFAULT_REQUIRED_CHECKS,
       mainCard: cardResponder(e),
       ...opts.openExtras,
       ...(accept && accept.length > 0 ? { acceptConfigChanged: accept } : {}),
@@ -194,26 +240,34 @@ export function createLoopDriver(opts: LoopDriverOptions): LoopDriver {
   // ── 래치 ──
   function tokenOf(parts: unknown): string { return sha256(JSON.stringify(parts)) }
 
-  async function liveLatch(loop: OpenedLoop, loadReason: string): Promise<LoopLatch> {
-    const stored = await loop.digest.readLatch(loop.repoKey).catch(() => null)
-    const reason = stored ?? loadReason
-    const changed = loop.configChanges()
-    const text = await readText(path.join(loop.root, DOCS.runState)).catch(() => null)
-    const file = (() => { try { return loop.digest.latchPath?.(loop.repoKey) ?? null } catch { return null } })()
-    return { reason, file, changed, state: summarize(text), token: tokenOf(['live', loop.root, reason, changed, text === null ? null : sha256(text)]) }
+  // 상태 파일 본문·위조 여부·되돌릴 사본을 읽어 래치 카드를 만든다. 화면이 본 사실(token에 묶인 것)을 e.latchSeen에 남긴다.
+  async function latchView(e: Entry, kind: 'live' | 'open', root: string, digest: DigestStore, key: string, reason: string, changed: string[], file: string | null): Promise<LoopLatch> {
+    const text = await readText(path.join(root, DOCS.runState)).catch(() => null)
+    const tampered = reason.includes(TAMPERED_REASON) || !(await stateMatchesDigest(digest, key, text))
+    const copy = tampered ? await digest.readCopy(key).catch(() => null) : null
+    const textSha = text === null ? null : sha256(text)
+    const token = tokenOf([kind, root, reason, changed, textSha, tampered, copy === null ? null : sha256(copy)])
+    // 동시에 돈 계산이 서로의 것을 덮지 않게 token으로 찾는다(최근 몇 장만 둔다)
+    e.latchSeen.delete(token)
+    e.latchSeen.set(token, { token, textSha, tampered, copy })
+    while (e.latchSeen.size > LATCH_SEEN_MAX) e.latchSeen.delete(e.latchSeen.keys().next().value as string)
+    return { reason, file, changed, state: summarize(text), restore: summarize(copy), token }
   }
 
-  async function openLatch(f: OpenFailure): Promise<LoopLatch | null> {
+  // 사유는 실행기가 돌려준 것(load)만 쓴다 — 실행기는 래치를 메모리에 먼저 걸고 앱 영역 파일을 뒤에 쓰므로, 파일을 읽으면
+  // 동시에 돈 계산끼리 사유가 달라져 token이 흔들린다(화면이 본 token이 바로 다음 계산과 어긋난다)
+  async function liveLatch(e: Entry, loop: OpenedLoop, loadReason: string): Promise<LoopLatch> {
+    const file = (() => { try { return loop.digest.latchPath?.(loop.repoKey) ?? null } catch { return null } })()
+    return latchView(e, 'live', loop.root, loop.digest, loop.repoKey, loadReason, loop.configChanges(), file)
+  }
+
+  async function openLatch(e: Entry, f: OpenFailure): Promise<LoopLatch | null> {
     if (!f.changed || !f.root) return null
-    const digest = createFileDigestStore(path.join(opts.appDataDir, 'digests'))
+    const digest = appDigest()
     const key = repoKeyOf(f.root)
     const stored = await digest.readLatch(key).catch(() => null)
-    const text = await readText(path.join(f.root, DOCS.runState)).catch(() => null)
     const reason = stored ? `${f.reason} / 앞서 걸린 래치: ${stored}` : f.reason
-    return {
-      reason, file: digest.latchPath?.(key) ?? null, changed: f.changed, state: summarize(text),
-      token: tokenOf(['open', f.root, reason, f.changed, text === null ? null : sha256(text)]),
-    }
+    return latchView(e, 'open', f.root, digest, key, reason, f.changed, digest.latchPath?.(key) ?? null)
   }
 
   // ── 상태 한 장 ──
@@ -221,7 +275,7 @@ export function createLoopDriver(opts: LoopDriverOptions): LoopDriver {
     const s = blankStatus(e.cwd)
     if (!e.loop) {
       if (!e.openFailure) return s
-      return { ...s, phase: 'open-failed', root: e.openFailure.root ?? null, reason: e.openFailure.reason, latch: await openLatch(e.openFailure) }
+      return { ...s, phase: 'open-failed', root: e.openFailure.root ?? null, reason: e.openFailure.reason, latch: await openLatch(e, e.openFailure) }
     }
     const loop = e.loop
     const v: LoopStatus = {
@@ -231,7 +285,7 @@ export function createLoopDriver(opts: LoopDriverOptions): LoopDriver {
     const r = await loop.runner.load()
     if (r.kind === 'missing') return e.blocked ? { ...v, phase: 'blocked', reason: e.blocked } : { ...v, phase: 'not-started' }
     if (r.kind === 'blocked') return { ...v, phase: 'blocked', reason: r.reason }
-    if (r.kind === 'needs-user') return { ...v, phase: 'latched', reason: r.reason, latch: await liveLatch(loop, r.reason) }
+    if (r.kind === 'needs-user') return { ...v, phase: 'latched', reason: r.reason, latch: await liveLatch(e, loop, r.reason) }
     const { state, next } = r
     const filled: LoopStatus = {
       ...v,
@@ -259,6 +313,15 @@ export function createLoopDriver(opts: LoopDriverOptions): LoopDriver {
     let s: LoopStatus
     try { s = await compute(e) } catch (err) { s = { ...e.status, reason: `상태를 읽지 못했다 — ${errText(err)}` } }
     if (seq !== e.seq || e.closed) return s
+    // 알림은 처음 보인 단계 동안만 — 단계가 바뀌면 지운다(G4 검수 사소 6)
+    if (e.note !== null) {
+      if (e.notePhase === null) e.notePhase = s.phase
+      else if (e.notePhase !== s.phase) {
+        const stale = e.note
+        setNote(e, null)
+        if (s.reason === stale) s = { ...s, reason: null }
+      }
+    }
     e.status = s
     opts.onState?.(s)
     return s
@@ -304,7 +367,7 @@ export function createLoopDriver(opts: LoopDriverOptions): LoopDriver {
       }
       return
     }
-    e.note = `한 번의 구동에서 ${STEP_BUDGET}단계를 넘었다 — 멈추고 사람을 부른다`
+    setNote(e, `한 번의 구동에서 ${STEP_BUDGET}단계를 넘었다 — 멈추고 사람을 부른다`)
   }
 
   async function kick(e: Entry): Promise<void> {
@@ -317,7 +380,7 @@ export function createLoopDriver(opts: LoopDriverOptions): LoopDriver {
         await runSteps(e, e.gen)
       } while (e.again && !e.closed)
     } catch (err) {
-      e.note = `구동 오류 — ${errText(err)}`
+      setNote(e, `구동 오류 — ${errText(err)}`)
     } finally {
       e.running = false
       e.sessionActive = false
@@ -337,14 +400,21 @@ export function createLoopDriver(opts: LoopDriverOptions): LoopDriver {
   }
 
   const rejectWith = async (e: Entry, reason: string): Promise<LoopDecideResponse> => ({ ok: false, reason, status: await publish(e) })
+  const releaseRefused = async (e: Entry, reason: string): Promise<LoopReleaseLatchResponse> => ({ ok: false, reason, status: await publish(e) })
+  const CLOSED_MEANWHILE = '기다리는 동안 루프가 닫혔다 — 새로 연 실행기를 닫았다'
 
   return {
     async open(req) {
       const e = entryOf(req.cwd) ?? newEntry(req.cwd)
       e.closed = false
-      if (req.requiredChecks) e.requiredChecks = req.requiredChecks
       if (!e.loop) {
+        const gen = e.gen
         const r = await openFor(e)
+        // G4 검수 I4 — 여는 동안 닫혔으면 새 실행기를 닫고(잠금을 푼다) 그 결과를 쓰지 않는다
+        if (superseded(e, gen)) {
+          if (r.ok) await r.loop.close()
+          return entryOf(req.cwd)?.status ?? { ...blankStatus(req.cwd), reason: CLOSED_MEANWHILE }
+        }
         if (r.ok) { e.loop = r.loop; e.openFailure = null } else e.openFailure = { reason: r.reason, changed: r.changed, root: r.root }
       }
       if (e.loop) void kick(e)
@@ -358,7 +428,7 @@ export function createLoopDriver(opts: LoopDriverOptions): LoopDriver {
       if (why) { e.blocked = why; return publish(e) }
       e.blocked = null
       const r = await e.loop.runner.start(milestoneId)
-      e.note = r.kind === 'ok' ? null : r.kind === 'missing' ? '실행 상태를 만들지 못했다' : r.reason
+      setNote(e, r.kind === 'ok' ? null : r.kind === 'missing' ? '실행 상태를 만들지 못했다' : r.reason)
       void kick(e)
       return publish(e)
     },
@@ -412,35 +482,76 @@ export function createLoopDriver(opts: LoopDriverOptions): LoopDriver {
       const e = entryOf(cwd)
       if (!e) return { ok: false, reason: '열린 실행기가 없다', status: blankStatus(cwd) }
       const now = await compute(e)
-      if (!now.latch || now.latch.token !== token) {
-        return { ok: false, reason: '화면이 본 래치와 지금 래치가 다르다 — 다시 보고 푼다', status: await publish(e) }
+      const seen = e.latchSeen.get(token)
+      if (!now.latch || now.latch.token !== token || seen === undefined) {
+        return releaseRefused(e, '화면이 본 래치와 지금 래치가 다르다 — 다시 보고 푼다')
       }
       const root = e.loop?.root ?? e.openFailure?.root
-      if (!root) return { ok: false, reason: '작업 저장소 뿌리를 모른다', status: await publish(e) }
+      if (!root) return releaseRefused(e, '작업 저장소 뿌리를 모른다')
+      // G4 검수 I1 — 상태가 다이제스트와 맞지 않으면 위조본을 받지 않고 사본으로 되돌린다. 사본이 없거나 스키마에 맞지 않으면
+      // 풀지 않는다(닫기 전에 본다 — 다시 연 실행기가 되돌리기 도중에 깨져 고아가 되지 않게)
+      let restoreDigest: string | null = null
+      if (seen.tampered) {
+        const NO_COPY = '실행기가 마지막으로 쓴 상태 사본이 앱 영역에 없거나 스키마에 맞지 않아 래치를 풀지 않았다 — 사람이 상태 파일을 확인한 뒤 실행 상태를 지우고 새로 시작한다'
+        if (seen.copy === null) return releaseRefused(e, NO_COPY)
+        let raw: unknown
+        try { raw = JSON.parse(seen.copy) } catch { return releaseRefused(e, NO_COPY) }
+        if (!validateRunState(raw).ok) return releaseRefused(e, NO_COPY)
+        restoreDigest = stateDigest(raw)
+      }
       const accept = now.latch.changed
       await closeEntry(e)
-      e.closed = false
+      const gen = e.gen
+      // 세션을 멈춘 뒤 다시 읽은 본문이 화면이 본 본문(token에 묶인 해시)과 같아야 한다
       const text = await readText(path.join(root, DOCS.runState))
-      if (text !== null) {
+      if ((text === null ? null : sha256(text)) !== seen.textSha) {
+        e.openFailure = { reason: '화면이 본 뒤 상태 파일이 바뀌어 래치를 풀지 않았다 — 다시 열어 새 래치를 보고 푼다', root }
+        return releaseRefused(e, e.openFailure.reason)
+      }
+      if (!seen.tampered && text !== null) {
         try { JSON.parse(text) } catch {
           e.openFailure = { reason: '상태 파일이 JSON으로 읽히지 않아 래치를 풀지 않았다 — 사람이 파일을 고친 뒤 다시 연다', root }
-          return { ok: false, reason: e.openFailure.reason, status: await publish(e) }
+          return releaseRefused(e, e.openFailure.reason)
         }
       }
       const r = await openFor(e, accept)
+      // G4 검수 I4 — 풀기가 기다리는 동안 닫혔으면 새 실행기를 닫는다
+      if (superseded(e, gen)) {
+        if (r.ok) await r.loop.close()
+        return { ok: false, reason: CLOSED_MEANWHILE, status: entryOf(cwd)?.status ?? blankStatus(cwd) }
+      }
       if (!r.ok) {
         e.openFailure = { reason: r.reason, changed: r.changed, root: r.root ?? root }
-        return { ok: false, reason: r.reason, status: await publish(e) }
+        return releaseRefused(e, r.reason)
       }
-      // 연 뒤에만 받는다 — 다시 열기가 거부되면 래치가 남는다
+      // 연 뒤에만 상태를 맞춘다 — 다시 열기가 거부되면 래치가 남는다. 맞추는 도중 깨지거나 닫히면 새 실행기를 닫는다(I4)
       const { digest, repoKey } = r.loop
-      if (text !== null) await digest.write(repoKey, stateDigest(JSON.parse(text)))
-      else await digest.remove(repoKey)
-      await digest.clearLatch(repoKey)
+      // 한 걸음마다 닫혔는지 본다 — 닫혔으면 남은 쓰기를 하지 않는다(사람이 닫은 뒤에 상태를 바꾸지 않는다)
+      const closedMeanwhile = new Error(CLOSED_MEANWHILE)
+      const stillOpen = (): void => { if (superseded(e, gen)) throw closedMeanwhile }
+      try {
+        if (seen.tampered) {
+          const copy = seen.copy as string
+          await digest.writeCopy(repoKey, copy)
+          stillOpen()
+          await createFsPort(r.loop.root).write(DOCS.runState, copy)
+          stillOpen()
+          await digest.write(repoKey, restoreDigest as string)
+          stillOpen()
+        }
+        await digest.clearLatch(repoKey)
+        stillOpen()
+      } catch (err) {
+        await r.loop.close()
+        if (err === closedMeanwhile || superseded(e, gen)) return { ok: false, reason: CLOSED_MEANWHILE, status: entryOf(cwd)?.status ?? blankStatus(cwd) }
+        e.openFailure = { reason: `래치를 풀며 상태를 되돌리지 못했다 — ${errText(err)}`, root }
+        return releaseRefused(e, e.openFailure.reason)
+      }
       e.loop = r.loop
       e.openFailure = null
       e.blocked = null
-      e.note = null
+      e.latchSeen.clear()
+      setNote(e, null)
       void kick(e)
       return { ok: true, status: await publish(e) }
     },

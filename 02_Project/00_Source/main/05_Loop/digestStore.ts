@@ -48,6 +48,19 @@ export function createFileDigestStore(dir: string): DigestStore {
     await writeFileAtomic(file, `${text}\n`)
   }
   return {
+    // G4 검수 I1 — 상태 본문의 사본(`<key>.state.json`). 바이트 그대로 쓰고 읽는다(다듬지 않는다).
+    writeCopy: async (repoKey, text) => {
+      await fsp.mkdir(dir, { recursive: true })
+      await writeFileAtomic(fileOf(dir, repoKey, 'state.json'), text)
+    },
+    readCopy: async (repoKey) => {
+      try {
+        return await fsp.readFile(fileOf(dir, repoKey, 'state.json'), 'utf8')
+      } catch (e) {
+        if ((e as NodeJS.ErrnoException).code === 'ENOENT') return null
+        throw e
+      }
+    },
     read: async (repoKey) => readText(fileOf(dir, repoKey)),
     write: async (repoKey, hash) => put(fileOf(dir, repoKey), hash),
     readLatch: async (repoKey) => (await readText(fileOf(dir, repoKey, 'latch'))) || null,

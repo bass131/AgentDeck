@@ -39,6 +39,9 @@ export function LoopScreen({ initialCwd, onCwdChange, onClose }: LoopScreenProps
   const busyRef = useRef(false)
   const pushSeq = useRef(0)
   const alive = useRef(true)
+  // 다른 호출이 도는 동안 고른 질문 답의 대기열(G4 검수 사소 8) — 버리지 않고 앞 호출이 끝난 뒤 하나씩 보낸다
+  const queued = useRef<{ card: LoopCard; response: LoopCardResponse }[]>([])
+  const drain = useRef<() => void>(() => {})
 
   const setError = useCallback((where: Where, text: string | null): void => {
     setErrors((prev) => {
@@ -88,6 +91,7 @@ export function LoopScreen({ initialCwd, onCwdChange, onClose }: LoopScreenProps
   }, [asking, onClose])
 
   // 호출 하나 — 요청 중에는 버튼을 끄고, throw는 그 자리의 사유로 보인다. fresh는 호출 중 push가 없었다는 뜻이다.
+  // 끝나면 대기열의 질문 답을 하나 보낸다.
   const run = async <R,>(where: Where, call: (c: string) => Promise<R>, done: (r: R, fresh: boolean) => void): Promise<void> => {
     const c = cwdRef.current
     if (c === null || busyRef.current) return
@@ -103,7 +107,10 @@ export function LoopScreen({ initialCwd, onCwdChange, onClose }: LoopScreenProps
       if (alive.current) setError(where, errText(e))
     } finally {
       busyRef.current = false
-      if (alive.current) setBusy(false)
+      if (alive.current) {
+        setBusy(false)
+        drain.current()
+      }
     }
   }
   const apply = (s: LoopStatus, fresh: boolean): void => {
@@ -126,6 +133,7 @@ export function LoopScreen({ initialCwd, onCwdChange, onClose }: LoopScreenProps
       setErrors({})
       setAnswered(new Set())
       setAsking(null)
+      queued.current = []
       onCwdChange(res.path)
     } catch (e) {
       if (alive.current) setError('top', errText(e))
@@ -139,19 +147,40 @@ export function LoopScreen({ initialCwd, onCwdChange, onClose }: LoopScreenProps
       await ipc.loop.close({ cwd: c })
       return ipc.loop.status({ cwd: c })
     }, apply)
+  // 진행 불가에서 빠져나가는 길(G4 검수 사소 7) — 루프를 닫고 다시 연다(컨트롤 설정 같은 원인을 고친 뒤)
+  const reopen = (): void =>
+    void run('top', async (c) => {
+      await ipc.loop.close({ cwd: c })
+      return ipc.loop.open({ cwd: c })
+    }, apply)
   const resume = (): void =>
     void run('resume', (c) => ipc.loop.decide({ cwd: c, verdict: 'pass', evidence: RESUME_EVIDENCE, ...expectNode() }), decided('resume'))
   const approve = (sha: string): void =>
     void run('approval', (c) => ipc.loop.decide({ cwd: c, verdict: 'pass', evidence: APPROVE_EVIDENCE, specSha256: sha, ...expectNode() }), decided('approval'))
-  const reject = (sha: string, reason: string): void =>
-    void run('approval', (c) => ipc.loop.decide({ cwd: c, verdict: 'fail', evidence: reason, specSha256: sha, ...expectNode() }), decided('approval'))
+  // 스펙 파일이 없으면 해시 없이 반려한다(G4 검수 I3 — main은 해시 없는 반려만 받는다)
+  const reject = (sha: string | null, reason: string): void =>
+    void run('approval', (c) => ipc.loop.decide({
+      cwd: c, verdict: 'fail', evidence: reason, ...(sha !== null ? { specSha256: sha } : {}), ...expectNode(),
+    }), decided('approval'))
   const release = (token: string): void =>
     void run('latch', (c) => ipc.loop.releaseLatch({ cwd: c, token }), decided('latch'))
-  const answer = (card: LoopCard, response: LoopCardResponse): void =>
+  const send = (card: LoopCard, response: LoopCardResponse): void =>
     void run('cards', (c) => ipc.loop.answerCard({ cwd: c, requestId: card.requestId, response }), (r) => {
       if (r.ok) setAnswered((prev) => new Set(prev).add(card.requestId))
       else setError('cards', CARD_REFUSED)
     })
+  const answer = (card: LoopCard, response: LoopCardResponse): void => {
+    if (!busyRef.current) {
+      send(card, response)
+      return
+    }
+    queued.current.push({ card, response })
+    setAnswered((prev) => new Set(prev).add(card.requestId))
+  }
+  drain.current = () => {
+    const next = queued.current.shift()
+    if (next) send(next.card, next.response)
+  }
   const cancelSession = (): void =>
     void run('top', (c) => ipc.loop.cancelSession({ cwd: c }), (r) => {
       if (!r.ok) setError('top', '취소할 세션이 없어요')
@@ -203,7 +232,7 @@ export function LoopScreen({ initialCwd, onCwdChange, onClose }: LoopScreenProps
 
           {status !== null && (
             <>
-              <ExceptionBar status={status} busy={busy} onResume={resume} error={errors.resume ?? null} />
+              <ExceptionBar status={status} busy={busy} onResume={resume} onReopen={reopen} error={errors.resume ?? null} />
 
               {(status.milestoneId !== null || status.node !== null) && (
                 <section className="loop-sec" aria-label="지금 노드">
@@ -250,7 +279,7 @@ export function LoopScreen({ initialCwd, onCwdChange, onClose }: LoopScreenProps
                   approval={status.approval}
                   busy={busy}
                   onApprove={() => { if (status.approval?.sha256) approve(status.approval.sha256) }}
-                  onReject={(reason) => { if (status.approval?.sha256) reject(status.approval.sha256, reason) }}
+                  onReject={(reason) => { if (status.approval) reject(status.approval.sha256, reason) }}
                   error={errors.approval ?? null}
                 />
               )}

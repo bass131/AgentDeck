@@ -60,6 +60,35 @@ describe('파일 다이제스트 저장소와 키', () => {
     await expect(store.clearLatch('../escape')).rejects.toThrow()
   })
 
+  // G4 검수 중요 I1 — 실행기가 쓴 상태 본문의 사본. 위조 래치를 풀 때 이 사본으로 상태 파일을 되돌린다(위조본을 받지 않는다).
+  it('상태 사본 — 없으면 null, 쓴 글을 바이트 그대로 돌려주고(앞뒤 공백 포함) 다이제스트·래치와 따로 산다', async () => {
+    const store = createFileDigestStore(path.join(dir, 'copy'))
+    const key = repoKeyOf('C:/work/copy')
+    expect(await store.readCopy(key)).toBeNull()
+    const text = '{\n  "schema": 1\n}\n'
+    await store.writeCopy(key, text)
+    expect(await store.readCopy(key)).toBe(text)
+    expect(await store.read(key)).toBeNull()
+    expect(fs.readdirSync(path.join(dir, 'copy'))).toEqual([`${key}.state.json`])
+    await expect(store.writeCopy('../escape', 'x')).rejects.toThrow()
+  })
+
+  it('실행기는 쓸 때마다 사본을 상태 파일보다 먼저 쓰고, 사본은 상태 파일과 같은 글이다', async () => {
+    const { template, hash } = loaded()
+    const rig = makeRig()
+    const order: string[] = []
+    const fsWrite = rig.fs.write.bind(rig.fs)
+    rig.fs.write = async (rel, text) => { order.push(`fs ${rel}`); await fsWrite(rel, text) }
+    const copyWrite = rig.digest.writeCopy.bind(rig.digest)
+    rig.digest.writeCopy = async (k, text) => { order.push('copy'); await copyWrite(k, text) }
+    const digestWrite = rig.digest.write.bind(rig.digest)
+    rig.digest.write = async (k, h) => { order.push('digest'); await digestWrite(k, h) }
+    const runner = createLoopRunner({ template, hash, ports: rig.ports, cwd: CWD, base: 'master' })
+    expect((await runner.start('M1')).kind).toBe('ok')
+    expect(order.slice(0, 3)).toEqual(['copy', `fs ${DOCS.runState}`, 'digest'])
+    expect(rig.digest.copies.get(repoKeyOf(CWD))).toBe(rig.fs.files.get(DOCS.runState))
+  })
+
   it('래치 사유 문구에 래치 파일 경로가 실린다', async () => {
     const { template, hash } = loaded()
     const rig = makeRig()

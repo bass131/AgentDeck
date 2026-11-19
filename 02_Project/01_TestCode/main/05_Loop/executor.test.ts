@@ -242,6 +242,19 @@ describe('분해와 등급', () => {
     expect(labelOf(nextStep(template, s))).toBe('spec-approval')
   })
 
+  // G4 검수 중요 I7 — 실행기가 읽은 goal 문서 해시와 승인한 스펙 해시를 상태 사실로 싣는다. 꼴이 틀린 해시는 null(대조하지 않음)이다
+  it('분해 pass의 goal 문서 해시와 스펙 승인 pass의 스펙 해시를 상태에 싣는다 — 스키마가 받는다', () => {
+    let s = drive(template, fresh(template, hash), { until: 'spec-approval' }).state
+    s = apply(template, s, { ...verdict('spec-approval', 'human', 'pass'), facts: { specSha256: 'a'.repeat(64) } })
+    expect(s.specSha256).toBe('a'.repeat(64))
+    s = drive(template, s, { until: 'decompose' }).state
+    const seeds = [{ id: 'G1', title: '하나', docSha256: 'b'.repeat(64) }, { id: 'G2', title: '둘', docSha256: 'not-a-hash' }]
+    s = apply(template, s, { ...verdict('decompose', 'executor', 'pass'), facts: { goals: seeds } })
+    expect(s.goals.map((g) => g.docSha256)).toEqual(['b'.repeat(64), null])
+    expect(validateRunState(JSON.parse(JSON.stringify(s))).ok).toBe(true)
+    expect(validateRunState({ ...JSON.parse(JSON.stringify(s)), specSha256: 'x' }).ok).toBe(false)
+  })
+
   it('goal 없는 분해 통과는 받지 않는다', () => {
     const s = drive(template, fresh(template, hash), { until: 'decompose' }).state
     expect(applyVerdict(template, s, verdict('decompose', 'executor', 'pass'), AT).ok).toBe(false)

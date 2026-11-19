@@ -44,7 +44,11 @@ describe('loop IPC 묶음 (M09 G4)', () => {
   })
 
   it('요청·응답·push 모양이 계약 표에 있다', () => {
-    const open: ReqOf<'loop.open'> = { cwd: 'C:/work/practice', requiredChecks: ['hard-gates'] }
+    const open: ReqOf<'loop.open'> = { cwd: 'C:/work/practice' }
+    // G4 검수 중요 I5 — 화면은 CI 정책(필수 검사 이름)을 보내지 못한다
+    // @ts-expect-error requiredChecks는 계약에 없다
+    const withChecks: ReqOf<'loop.open'> = { cwd: 'C:/work/practice', requiredChecks: ['hard-gates'] }
+    void withChecks
     const start: ReqOf<'loop.start'> = { cwd: open.cwd, milestoneId: 'M1' }
     const decide: ReqOf<'loop.decide'> = { cwd: open.cwd, verdict: 'pass', evidence: '봤다', specSha256: 'a'.repeat(64), expectNode: 'spec-approval' }
     const answer: ReqOf<'loop.answerCard'> = { cwd: open.cwd, requestId: 'q1', response: { kind: 'question', answers: [['예']] } }

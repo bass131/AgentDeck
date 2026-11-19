@@ -29,13 +29,21 @@ export interface ReviewSessionOptions {
   onEvent?: (e: AgentEvent) => void
 }
 
-const VERDICT_LINE = /^VERDICT:\s*(pass|fail)\s*$/i
+// G4 검수 사소 3 — 정확히 일치만 받는다(대소문자·띄어쓰기 구분). 줄 앞뒤 공백만 무시한다.
+const PASS_LINE = 'VERDICT: pass'
+const FAIL_LINE = 'VERDICT: fail'
+const lastLineOf = (text: string): string => text.split(/\r?\n/).map((l) => l.trim()).filter((l) => l !== '').at(-1) ?? ''
 
 // 마지막 비지 않은 줄만 본다. 꼴이 정확하지 않으면 fail이다(모호한 통과를 통과로 읽지 않는다).
 export function parseVerdict(text: string): 'pass' | 'fail' {
-  const last = text.split(/\r?\n/).map((l) => l.trim()).filter((l) => l !== '').at(-1) ?? ''
-  const m = VERDICT_LINE.exec(last)
-  return m && m[1].toLowerCase() === 'pass' ? 'pass' : 'fail'
+  return lastLineOf(text) === PASS_LINE ? 'pass' : 'fail'
+}
+
+// G4 검수 사소 4 — 울타리는 안에 싣는 글의 가장 긴 backtick 줄보다 길게 한다(안의 ``` 줄이 울타리를 닫지 못하게)
+function fence(...bodies: string[]): string {
+  let longest = 0
+  for (const b of bodies) for (const m of b.matchAll(/`+/g)) longest = Math.max(longest, m[0].length)
+  return '`'.repeat(Math.max(3, longest + 1))
 }
 
 const INSTRUCTION = [
@@ -58,10 +66,15 @@ const FORMAT = [
 
 export function buildReviewPrompt(req: ReviewRequest): string {
   const goalPath = req.goal ? goalDocPath(req.goal.id) : `${DOCS.goalsDir}/(없음)`
+  const goalDoc = req.goalDoc ?? '(goal 문서 없음)'
+  // 두 울타리를 같은 길이로 — 어느 쪽 안의 backtick 줄도 닫지 못한다
+  const f = fence(goalDoc, req.diff)
+  const diff = req.diff.endsWith('\n') ? req.diff : `${req.diff}\n`
+  const doc = goalDoc.endsWith('\n') ? goalDoc : `${goalDoc}\n`
   return [
     INSTRUCTION,
-    `## goal 문서 (${goalPath})\n\n${req.goalDoc ?? '(goal 문서 없음)'}`,
-    `## diff (작업 트리 대 ${req.base}, 실행기가 만들었다)\n\n\`\`\`diff\n${req.diff}\n\`\`\``,
+    `## goal 문서 (${goalPath})\n\n${f}markdown\n${doc}${f}`,
+    `## diff (작업 트리 대 ${req.base}의 goal 시작점 ${req.baseSha.slice(0, 12)}, 실행기가 만들었다)\n\n${f}diff\n${diff}${f}`,
     FORMAT,
   ].join('\n\n')
 }
@@ -97,9 +110,11 @@ export function createReviewSessionPort(opts: ReviewSessionOptions): ReviewPort 
         const end = await session.done
         switch (end.kind) {
           case 'done': {
+            // end.text는 마지막 최상위 메시지의 글이다(runNodeSession — 최상위 도구 호출 뒤 글이 없으면 빈 글, G4 검수 사소 5)
             const verdict = parseVerdict(end.text)
-            const body = oneLine(end.text.replace(/\n?\s*VERDICT:\s*(pass|fail)\s*$/i, '')) || '근거 없음'
-            const lastOk = VERDICT_LINE.test(end.text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean).at(-1) ?? '')
+            const last = lastLineOf(end.text)
+            const lastOk = last === PASS_LINE || last === FAIL_LINE
+            const body = oneLine(lastOk ? end.text.slice(0, end.text.lastIndexOf(last)) : end.text) || '근거 없음'
             return { verdict, evidence: lastOk ? `검수 세션 — ${body}` : `검수 세션의 마지막 줄이 VERDICT 꼴이 아니라 불통과로 셌다 — ${body}` }
           }
           case 'error': return { verdict: 'fail', evidence: oneLine(`검수 세션 오류 — ${end.error}`) }

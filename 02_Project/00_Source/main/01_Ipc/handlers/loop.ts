@@ -68,11 +68,9 @@ export function registerLoopHandlers(deps: LoopHandlerDeps): void {
   handle(IPC_CHANNELS.LOOP_OPEN, async (_e, req) => {
     const r = obj(req, 'loop.open')
     const cwd = cwdOf(r, 'loop.open')
-    const checks = r['requiredChecks']
-    if (checks !== undefined && !(Array.isArray(checks) && checks.every((c) => typeof c === 'string' && c.trim() !== ''))) {
-      throw new Error('loop.open: requiredChecks는 비지 않은 이름의 목록이어야 한다')
-    }
-    return driver.open({ cwd, ...(checks !== undefined ? { requiredChecks: checks as string[] } : {}) })
+    // G4 검수 중요 I5 — CI 정책(필수 검사 이름)은 main이 고정한다(['hard-gates']). 화면 입력으로 바꾸지 못하게 그 칸이 오면 거부한다.
+    if (r['requiredChecks'] !== undefined) throw new Error('loop.open: requiredChecks는 받지 않는다 — 필수 검사 이름은 main이 고정한다')
+    return driver.open({ cwd })
   })
 
   handle(IPC_CHANNELS.LOOP_START, async (_e, req) => {

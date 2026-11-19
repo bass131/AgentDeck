@@ -273,6 +273,11 @@ const DOTNET_ENV = new RegExp(`SetEnvironmentVariable\\s*\\(\\s*['"](?:${ENV_NAM
 
 const assignName = (t: string): string | null => /^([A-Za-z_][A-Za-z0-9_]*)=/.exec(t)?.[1] ?? null
 const protectedAssign = (t: string): boolean => { const n = assignName(t); return n !== null && PROTECTED_ENV.test(n) }
+// G4 검수 사소 1 — git(과 그 페이저·편집기)이 명령으로 돌리는 환경 변수. 읽기 전용 꼴에서 정하는 꼴을 거부한다(`X=… git diff`, env·export 류).
+// 설정 주입(GIT_CONFIG_*)도 같은 부류다 — -c처럼 명령 키를 넣을 수 있다.
+const EXEC_ENV = /^(?:GIT_EXTERNAL_DIFF|GIT_PAGER|PAGER|GIT_EDITOR|EDITOR|VISUAL|GIT_SEQUENCE_EDITOR|GIT_SSH|GIT_SSH_COMMAND|GIT_PROXY_COMMAND|GIT_ASKPASS|SSH_ASKPASS|LESSOPEN|LESSCLOSE|GIT_CONFIG|GIT_CONFIG_PARAMETERS|GIT_CONFIG_COUNT|GIT_CONFIG_KEY_\d+|GIT_CONFIG_VALUE_\d+|GIT_CONFIG_GLOBAL|GIT_CONFIG_SYSTEM)$/i
+const execEnvAssign = (t: string): boolean => { const n = assignName(t); return n !== null && EXEC_ENV.test(n) }
+const ENV_SETTERS = new Set(['env', 'export', 'declare', 'typeset', 'local', 'readonly', 'set'])
 
 function envCmdReason(b: string, a: string[]): string | null {
   switch (b) {
@@ -342,11 +347,14 @@ const GIT_READONLY = new Set([
   'check-ignore', 'check-attr', 'count-objects', 'diff-tree', 'diff-index', 'diff-files', 'range-diff', 'whatchanged',
 ])
 // branch는 목록 꼴만 — 이름 인자가 없거나 --list·-l이 있고, 만들기·지우기·옮기기·추적 바꾸기 옵션이 없다.
-const BRANCH_WRITE = /^(?:-[dDmMcCfu]|--delete|--move|--copy|--force|--set-upstream-to(?:=.*)?|--unset-upstream|--edit-description|--track|--no-track|--create-reflog)$/
+// G4 검수 사소 1 — 짧은 옵션 묶음(-vu)과 붙여 쓴 값(-uorigin/x, -u=origin/x)도 쓰기 옵션으로 본다.
+const BRANCH_WRITE = /^(?:-[a-zA-Z]*[dDmMcCfu][a-zA-Z]*|-u.+|--delete|--move|--copy|--force|--set-upstream-to(?:=.*)?|--unset-upstream|--edit-description|--track|--no-track|--create-reflog)$/
 function branchIsRead(rest: string[]): boolean {
   if (rest.some((t) => BRANCH_WRITE.test(t))) return false
   return rest.includes('--list') || rest.includes('-l') || operandsOf(rest).length === 0
 }
+// git grep -O·--open-files-in-pager는 맞은 파일을 그 프로그램으로 연다(명령 실행) — 짧은 옵션 묶음(-nO) 포함
+const GREP_OPENS = (t: string): boolean => /^-[a-zA-Z]*O/.test(t) || t.startsWith('--open-files-in-pager')
 
 function gitReason(args: string[], ctx: Ctx, check: Check): string | null {
   const recurse = (s: string): string | null => scriptReason(s, ctx.r, ctx.depth + 1, ctx.cwd).reason
@@ -368,6 +376,7 @@ function gitReason(args: string[], ctx: Ctx, check: Check): string | null {
     if (sub === 'remote') { if (!['', 'show', 'get-url'].includes(firstWord(rest) ?? '')) return READONLY }
     else if (!GIT_READONLY.has(sub)) return READONLY
     if (sub === 'branch' && !branchIsRead(rest)) return READONLY
+    if (sub === 'grep' && rest.some(GREP_OPENS)) return READONLY
     // diff·log 류의 --output은 파일에 쓴다
     if (rest.some((t) => t === '--output' || t.startsWith('--output='))) return READONLY
   }
@@ -485,11 +494,33 @@ function globalPkgReason(b: string, a: string[]): string | null {
 // 읽기 전용 꼴(G4)의 패키지 설치·내려받아 돌리기. 맨 yarn(=install)도 설치다. npm run·test 같은 스크립트는 막지 않는다(겹, 머리 주석).
 const PKG_INSTALL = new Set(['install', 'i', 'in', 'ins', 'add', 'ci', 'update', 'up', 'upgrade', 'remove', 'rm', 'uninstall', 'un', 'r',
   'link', 'ln', 'unlink', 'prune', 'dedupe', 'ddp', 'rebuild', 'dlx', 'exec', 'x', 'create', 'init'])
+const OTHER_INSTALL = ['install', 'add', 'sync', 'get', 'uninstall', 'remove']
+// G4 검수 사소 1 — 판 붙은 pip(pip3.12), python -m pip, uvx·uv pip·uv tool, corepack을 거친 패키지 관리자도 설치로 본다.
+const PIP = /^pip(?:\d+(?:\.\d+)*)?$/
+const PYTHON = /^(?:python(?:\d+(?:\.\d+)*)?|py)$/
 function pkgInstallReason(b: string, a: string[]): boolean {
-  const name = b.replace(/\.(?:exe|cmd|bat|ps1)$/, '')
-  if (name === 'npx' || name === 'pnpx' || name === 'bunx') return true
-  if (name === 'pip' || name === 'pip3' || name === 'pipx' || name === 'uv' || name === 'cargo' || name === 'go' || name === 'gem') {
-    return ['install', 'add', 'sync', 'get', 'uninstall', 'remove'].includes(firstWord(a) ?? '')
+  const name = b.replace(/\.(?:exe|cmd|bat|ps1)$/, '').toLowerCase()
+  if (name === 'npx' || name === 'pnpx' || name === 'bunx' || name === 'uvx') return true
+  if (PIP.test(name) || name === 'pipx' || name === 'cargo' || name === 'go' || name === 'gem') {
+    return OTHER_INSTALL.includes(firstWord(a) ?? '')
+  }
+  if (name === 'uv') {
+    const ops = operandsOf(a).map((t) => t.toLowerCase())
+    if (ops[0] === 'pip') return OTHER_INSTALL.includes(ops[1] ?? '')
+    if (ops[0] === 'tool') return ['install', 'run', 'upgrade'].includes(ops[1] ?? '')
+    return OTHER_INSTALL.includes(ops[0] ?? '')
+  }
+  if (PYTHON.test(name)) {
+    const i = a.findIndex((t) => t === '-m' || /^-m\S/.test(t))
+    if (i < 0) return false
+    const mod = (a[i] === '-m' ? a[i + 1] ?? '' : a[i].slice(2)).toLowerCase()
+    if (mod === 'ensurepip') return true
+    return PIP.test(mod) && OTHER_INSTALL.includes(firstWord(a.slice(a[i] === '-m' ? i + 2 : i + 1)) ?? '')
+  }
+  if (name === 'corepack') {
+    const ops = operandsOf(a).map((t) => t.toLowerCase())
+    if (['npm', 'pnpm', 'yarn'].includes(ops[0] ?? '')) return pkgInstallReason(ops[0], a.slice(a.findIndex((t) => t.toLowerCase() === ops[0]) + 1))
+    return ['install', 'enable', 'prepare', 'up', 'use'].includes(ops[0] ?? '')
   }
   if (name !== 'npm' && name !== 'pnpm' && name !== 'yarn' && name !== 'bun') return false
   const op = firstWord(a)
@@ -855,6 +886,8 @@ function cmdReason(c: Cmd, ctx: Ctx): string | null {
   if (CD.has(b) || POP.has(b)) return null
   const env = envCmdReason(b, c.args)
   if (env) return env
+  // G4 검수 사소 1 — 읽기 전용 꼴에서 git이 명령으로 돌리는 환경 변수를 env·export 류로 정하는 꼴(GIT_EXTERNAL_DIFF·GIT_PAGER 등)
+  if (ctx.r.readOnly && ENV_SETTERS.has(b) && c.args.some(execEnvAssign)) return READONLY
   const pkg = globalPkgReason(b, c.args)
   if (pkg) return pkg
   if (ctx.r.readOnly && pkgInstallReason(b, c.args)) return READONLY
@@ -924,6 +957,7 @@ function scriptReason(script: string, r: Resolved, depth: number, start: Cwd, mu
     for (const t of tokens) {
       if (assignName(t) === null) break
       if (protectedAssign(t)) return deny(CREDENTIAL)
+      if (r.readOnly && execEnvAssign(t)) return deny(READONLY)
     }
     const cmds = withBuiltins(commandsOf(tokens))
     const varSet = pathVarReason(tokens, cmds)
@@ -1032,14 +1066,15 @@ const EDIT_TOOLS = new Set(['Write', 'Edit', 'MultiEdit', 'NotebookEdit'])
 function toolCheck(toolName: string | undefined, toolInput: unknown, r: Resolved, cwd: Cwd): Walk {
   if (toolName !== undefined && toolName.toLowerCase().startsWith('mcp__')) return { reason: MCP, end: cwd, mutated: false }
   const ti = toolInput && typeof toolInput === 'object' ? (toolInput as Record<string, unknown>) : {}
-  const command = ti['command']
-  if (typeof command === 'string') return scriptReason(command, r, 0, cwd)
+  // G4 검수 사소 2 — 편집 도구는 command 칸 판독보다 먼저 본다(입력에 command를 끼워 편집 도구 판정을 건너뛰지 못한다)
   if (toolName !== undefined && EDIT_TOOLS.has(toolName)) {
     // 읽기 전용 꼴(G4)은 편집 도구를 경로와 관계없이 거부한다
     if (r.readOnly) return { reason: READONLY, end: cwd, mutated: false }
     const p = typeof ti['file_path'] === 'string' ? ti['file_path'] : ti['notebook_path']
     if (typeof p === 'string') return { reason: reasonOfKind(pathKind(p, r, false, [r.rootRaw])), end: cwd, mutated: false }
   }
+  const command = ti['command']
+  if (typeof command === 'string') return scriptReason(command, r, 0, cwd)
   return { reason: null, end: cwd, mutated: false }
 }
 

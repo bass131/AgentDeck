@@ -142,9 +142,14 @@ export class FakeGit implements GitPort {
     this.dirty = false
     return sha
   }
-  async push(branch: string): Promise<void> {
+  // sha를 주면 그 커밋까지만 올린다(G4 검수 I8 — `<sha>:refs/heads/<b>`). 로컬 역사에 없는 sha면 던진다.
+  async push(branch: string, sha?: string): Promise<void> {
     this.calls.push(`push ${branch}`)
-    this.remote.set(branch, [...(this.local.get(branch) ?? [])])
+    const hist = this.local.get(branch) ?? []
+    if (sha === undefined) { this.remote.set(branch, [...hist]); return }
+    const i = hist.indexOf(sha)
+    if (i < 0) throw new Error(`${branch}의 역사에 ${sha}가 없다`)
+    this.remote.set(branch, hist.slice(0, i + 1))
   }
   async syncToRemote(branch: string): Promise<string | null> {
     this.calls.push(`sync ${branch}`)
@@ -205,9 +210,12 @@ export class FakeGit implements GitPort {
     this.calls.push('worktreeTree')
     return this.tree
   }
-  async reviewSnapshot(base: string): Promise<{ tree: string; diff: string } | null> {
+  // 시험이 diff 길이를 정하면 상한을 넘은 스냅숏을 흉내 낸다(G4 검수 I9)
+  reviewTooLarge: number | null = null
+  async reviewSnapshot(base: string): Promise<{ tree: string; diff: string; tooLarge?: boolean; chars?: number } | null> {
     this.calls.push(`reviewSnapshot ${base}`)
-    return { tree: this.tree, diff: this.reviewDiff }
+    if (this.reviewTooLarge !== null) return { tree: this.tree, diff: '', tooLarge: true, chars: this.reviewTooLarge }
+    return { tree: this.tree, diff: this.reviewDiff, chars: this.reviewDiff.length }
   }
   async treeOf(ref: string): Promise<string | null> {
     const sha = last(this.local.get(ref)) ?? ref
@@ -328,6 +336,10 @@ export class FakeReview implements ReviewPort {
 export class FakeDigestStore implements DigestStore {
   readonly digests = new Map<string, string>()
   readonly latches = new Map<string, string>()
+  // G4 검수 I1 — 실행기가 쓴 상태 본문의 사본
+  readonly copies = new Map<string, string>()
+  async writeCopy(repoKey: string, text: string): Promise<void> { this.copies.set(repoKey, text) }
+  async readCopy(repoKey: string): Promise<string | null> { return this.copies.get(repoKey) ?? null }
   async read(repoKey: string): Promise<string | null> { return this.digests.get(repoKey) ?? null }
   async write(repoKey: string, hash: string): Promise<void> { this.digests.set(repoKey, hash) }
   async readLatch(repoKey: string): Promise<string | null> { return this.latches.get(repoKey) ?? null }
@@ -337,8 +349,10 @@ export class FakeDigestStore implements DigestStore {
   // 시험이 상태 파일을 「실행기가 쓴 것」으로 놓을 때 쓴다(예: 옛 앱이 쓴 스키마 밖 상태).
   adopt(cwd: string, files: FakeFs): void {
     const text = files.files.get(DOCS.runState)
-    if (text === undefined) this.digests.delete(repoKeyOf(cwd))
-    else this.digests.set(repoKeyOf(cwd), stateDigest(JSON.parse(text)))
+    if (text === undefined) { this.digests.delete(repoKeyOf(cwd)); this.copies.delete(repoKeyOf(cwd)) } else {
+      this.digests.set(repoKeyOf(cwd), stateDigest(JSON.parse(text)))
+      this.copies.set(repoKeyOf(cwd), text)
+    }
   }
 }
 

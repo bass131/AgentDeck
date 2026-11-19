@@ -39,7 +39,9 @@ export interface LoopApproval { node: string; title: string; spec: string | null
 
 // 위조 래치 — reason(사유), file(래치 파일), changed(바뀐 설정 키·파일), state(지금 상태 파일 요약), token(풀기 요청에 싣는다).
 // 풀기는 사람이 본 이 내용에 묶인다 — 그 사이 무엇이 바뀌면 token이 달라져 거부된다.
-export interface LoopLatch { reason: string; file: string | null; changed: string[]; state: string | null; token: string }
+// changed: 바뀐 설정 키(값·출처 파일 포함 — G4 검수 B1)와 바뀐 파일 경로. restore: 상태 위조 래치를 풀면 되돌릴 사본(실행기가
+// 마지막으로 쓴 상태 본문 — G4 검수 I1). 사본이 없으면 null이고 그 래치는 풀지 않는다.
+export interface LoopLatch { reason: string; file: string | null; changed: string[]; state: string | null; restore: string | null; token: string }
 
 export interface LoopGoalView { id: string; title: string; status: 'pending' | 'active' | 'done'; grade: 'strong' | 'weak' | null; pr: number | null }
 
@@ -66,8 +68,8 @@ export interface LoopStatus {
   latch: LoopLatch | null
 }
 
-// requiredChecks: CI 판정에 쓸 검사 이름. 기본은 ['hard-gates']
-export interface LoopOpenRequest { cwd: string; requiredChecks?: string[] }
+// CI 판정에 쓸 필수 검사 이름은 main이 고정한다(['hard-gates'] — G4 검수 I5). 화면은 보내지 못한다.
+export interface LoopOpenRequest { cwd: string }
 export interface LoopStartRequest { cwd: string; milestoneId: string }
 export interface LoopCwdRequest { cwd: string }
 // 사람 판정 — 스펙 승인(specSha256 필수)·반려, 또는 멈춘 실행의 이어 가기(pass). 노드는 구동자가 저장본에서 고른다.

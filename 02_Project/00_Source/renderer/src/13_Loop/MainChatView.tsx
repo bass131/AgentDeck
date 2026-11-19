@@ -66,7 +66,7 @@ function ChatItemView({ item }: { item: MainChatItem }): JSX.Element {
 }
 
 // push는 매번 새 객체를 준다 — id와 그리는 칸이 같으면 그 줄을 다시 그리지 않는다
-const ChatItem = memo(ChatItemView, (a, b) => sameItem(a.item, b.item))
+export const ChatItem = memo(ChatItemView, (a, b) => sameItem(a.item, b.item))
 
 function ChatCard({ card, done, blocked, onAsk, onPermission }: {
   card: LoopCard

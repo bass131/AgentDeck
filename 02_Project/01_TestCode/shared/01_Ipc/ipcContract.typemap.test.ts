@@ -153,9 +153,10 @@ describe('M05 G10 — IPC 채널 타입 맵', () => {
   // M10 G1: 85 → 79. 멀티 에이전트 모드를 지우며 multi 묶음 invoke 여섯(load·cmdUpsert·cmdCreate·cmdDelete·cmdRename·cmdSelect)을 뺐다.
   // M10 G2: 79 → 84. 메인 대화 invoke 셋(loop.mainRead·mainSend·mainNew)과 push 둘(loop.mainState·loop.sessionEvent)을 더했다.
   // M10 G3: 84 → 85. 사람이 일시 정지 깃발을 내리는 invoke 하나(loop.lowerFlag)를 더했다.
-  it('채널 수는 재실측 기준에서 미사용 3개를 빼고 M06 G4의 agent.listModels, M07 G5의 컨트롤 셋, M07 G8의 PR 카드 둘, M09 G4의 loop 아홉, M10 G2의 메인 대화 다섯, M10 G3의 깃발 내리기 하나를 더하고 M10 G1의 multi 여섯을 뺀 수다 (invoke 67+1+3+2+8-6+3+1=79 + push 3+1+2)', () => {
-    expect(Object.values(IPC_CHANNELS)).toHaveLength(85)
-    expect(new Set(Object.values(IPC_CHANNELS)).size).toBe(85)
+  // M10 G4: 85 → 87. 노드 세션 기록 읽기(loop.sessionLog)와 지난 메인 대화 읽기(loop.mainArchives) invoke 둘을 더했다.
+  it('채널 수는 재실측 기준에서 미사용 3개를 빼고 M06 G4의 agent.listModels, M07 G5의 컨트롤 셋, M07 G8의 PR 카드 둘, M09 G4의 loop 아홉, M10 G2의 메인 대화 다섯, M10 G3의 깃발 내리기 하나, M10 G4의 기록 읽기 둘을 더하고 M10 G1의 multi 여섯을 뺀 수다 (invoke 67+1+3+2+8-6+3+1+2=81 + push 3+1+2)', () => {
+    expect(Object.values(IPC_CHANNELS)).toHaveLength(87)
+    expect(new Set(Object.values(IPC_CHANNELS)).size).toBe(87)
     const values = Object.values(IPC_CHANNELS) as string[]
     for (const gone of ['window.getBounds', 'window.setBounds', 'engine.versionState']) expect(values).not.toContain(gone)
   })

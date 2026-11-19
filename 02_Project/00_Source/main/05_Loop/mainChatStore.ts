@@ -7,7 +7,7 @@
 import fs from 'node:fs'
 import { promises as fsp } from 'node:fs'
 import path from 'node:path'
-import type { LoopCard, LoopEventItem, LoopEventKind, MainChatItem, MainTurnKind } from '@shared/13_Loop/loop'
+import type { LoopCard, LoopEventItem, LoopEventKind, MainChatArchive, MainChatItem, MainTurnKind } from '@shared/13_Loop/loop'
 import { writeFileAtomic } from './realPorts/atomicWrite'
 
 export const MAX_ITEMS = 500
@@ -124,6 +124,31 @@ export function peekRecordSync(file: string, root: string): MainChatRecord | nul
 export async function saveRecord(file: string, rec: MainChatRecord): Promise<void> {
   await fsp.mkdir(path.dirname(file), { recursive: true })
   await writeFileAtomic(file, `${JSON.stringify(rec, null, 2)}\n`)
+}
+
+export const ARCHIVE_LIST_MAX = 20
+export async function listArchives(appDataDir: string, repoKey: string, limit = ARCHIVE_LIST_MAX): Promise<MainChatArchive[]> {
+  const dir = path.join(appDataDir, ARCHIVE_DIR)
+  let names: string[]
+  try { names = await fsp.readdir(dir) } catch { return [] }
+  const mine = names.filter((n) => n.startsWith(`${repoKey}-`) && n.endsWith('.json')).sort().reverse()
+  const out: MainChatArchive[] = []
+  for (const name of mine) {
+    if (out.length >= limit) break
+    const file = path.join(dir, name)
+    let text: string
+    try { text = await fsp.readFile(file, 'utf8') } catch { continue }
+    const rec = parseRecord(text, '')
+    if (rec === null) continue
+    const stamp = name.slice(repoKey.length + 1, -'.json'.length)
+    const m = /^(\d{4}-\d{2}-\d{2}T\d{2})-(\d{2})-(\d{2})-(\d{3})Z$/.exec(stamp)
+    let at = m ? `${m[1]}:${m[2]}:${m[3]}.${m[4]}Z` : ''
+    if (at === '' || Number.isNaN(new Date(at).getTime())) {
+      try { at = (await fsp.stat(file)).mtime.toISOString() } catch { at = new Date(0).toISOString() }
+    }
+    out.push({ id: name.slice(0, -'.json'.length), at, items: rec.items })
+  }
+  return out
 }
 
 export async function archiveRecord(appDataDir: string, repoKey: string, rec: MainChatRecord): Promise<string> {

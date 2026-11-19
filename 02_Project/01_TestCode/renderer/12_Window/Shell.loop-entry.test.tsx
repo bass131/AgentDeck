@@ -13,16 +13,18 @@ const CWD = 'C:\\work\\practice'
 const closed: LoopStatus = {
   cwd: CWD, root: null, phase: 'closed', milestoneId: null, node: null, nodeTitle: null, reason: null, base: null, ghRepo: null,
   failCount: 0, goals: [], approval: null, milestonePr: null, cards: [], sessionActive: false, lastVerdict: null, latch: null,
-  paused: false, mainBusy: false, mainWaiting: false,
+  paused: false, mainBusy: false, mainWaiting: false, mainNode: false, recentLines: [], sessions: [],
 }
 const blankView: MainChatView = {
-  cwd: CWD, root: CWD, sessionId: null, items: [], cards: [], busy: false, waitingUser: false, brainstorming: false, paused: false, queued: 0,
+  cwd: CWD, root: CWD, chapter: 'c1', sessionId: null, items: [], cards: [], busy: false, waitingUser: false, brainstorming: false, paused: false, queued: 0,
 }
 
 afterEach(async () => {
   cleanup()
   const { useAppStore } = await import('@renderer/00_App/appStore')
   useAppStore.getState().setWorkspaceMode('single')
+  const { useWorkStore } = await import('@renderer/13_Loop')
+  useWorkStore.setState({ hydrated: false, cwd: null, projects: [], center: 'main', extraTabs: [], right: 'board', archives: [] })
 })
 
 const flush = async (): Promise<void> => { await act(async () => { await new Promise((r) => setTimeout(r, 0)) }) }
@@ -85,12 +87,14 @@ describe('루프 화면 진입점 — 작업 모드 (M10 G1)', () => {
       await flush()
       expect(onLoopState).not.toHaveBeenCalled()
       expect(loopStatus).not.toHaveBeenCalled()
-      expect(container.querySelector('.loop-screen')).toBeNull()
+      expect(container.querySelector('.status-board')).toBeNull()
       expect(container.querySelector('.pane.chat')).not.toBeNull()
+      // 채팅 배치 — 탐색기 열과 대화
+      expect(container.querySelector('.pane.explorer')).not.toBeNull()
 
       await act(async () => { fireEvent.click(screen.getByRole('tab', { name: '작업' })) })
       await flush()
-      const loop = container.querySelector('.pane.work .loop-screen')
+      const loop = container.querySelector('.pane.work .status-board')
       expect(loop).not.toBeNull()
       // 모달이 아니다 — 겹침 창·닫기 버튼·전역 모달 감지 클래스가 없다
       expect(document.querySelector('.loop-overlay')).toBeNull()
@@ -100,23 +104,32 @@ describe('루프 화면 진입점 — 작업 모드 (M10 G1)', () => {
       // 대화 자리를 작업 모드가 차지한다 — 대화·탐색기는 작업 모드에서 그리지 않는다
       expect(container.querySelector('.pane.chat')).toBeNull()
       expect(container.querySelector('.pane.explorer')).toBeNull()
-      // M10 G3 — 가운데는 메인 대화, 루프 화면은 옆의 좁은 열이다. 폴더를 고르기 전에는 메인 대화가 IPC를 부르지 않는다
+      expect(screen.getByRole('list', { name: '프로젝트' })).toBeTruthy()
+      expect(container.querySelector('.pane.work .work-center [role="tablist"][aria-label="가운데 탭"]')).not.toBeNull()
       expect(container.querySelector('.pane.work .work-center .main-chat')).not.toBeNull()
-      expect(container.querySelector('.pane.work .work-side .loop-screen')).not.toBeNull()
-      expect(onLoopState).toHaveBeenCalledTimes(1)
+      expect(container.querySelector('.pane.work .work-side [role="tablist"][aria-label="오른쪽 탭"]')).not.toBeNull()
+      expect(container.querySelector('.pane.work .work-side .status-board')).not.toBeNull()
+      // 작업 모드에 들면 루프 상태 push를 구독한다(현황판·가운데 탭·프로젝트 사이드바)
+      expect(onLoopState).toHaveBeenCalled()
 
       await act(async () => { fireEvent.click(screen.getByRole('button', { name: '폴더 고르기' })) })
       await flush()
       expect(loopStatus).toHaveBeenCalledWith({ cwd: CWD })
+      // 고른 폴더는 사이드바의 프로젝트가 된다
+      expect(screen.getByRole('list', { name: '프로젝트' }).textContent).toContain('practice')
 
       // Esc는 작업 화면을 닫지 않는다
       await act(async () => { fireEvent.keyDown(document, { key: 'Escape' }) })
-      expect(container.querySelector('.loop-screen')).not.toBeNull()
+      expect(container.querySelector('.status-board')).not.toBeNull()
 
       await act(async () => { fireEvent.click(screen.getByRole('tab', { name: '채팅' })) })
       await flush()
-      expect(container.querySelector('.loop-screen')).toBeNull()
+      expect(container.querySelector('.status-board')).toBeNull()
       expect(container.querySelector('.pane.chat')).not.toBeNull()
+      // 채팅 모드로 돌아가면 지금의 채팅 배치 그대로다 — 탐색기 열, 최근 채팅, 프로젝트 목록 없음
+      expect(container.querySelector('.pane.explorer')).not.toBeNull()
+      expect(screen.queryByRole('list', { name: '프로젝트' })).toBeNull()
+      expect(screen.getByLabelText('대화 검색')).toBeTruthy()
 
       loopStatus.mockClear()
       await act(async () => { fireEvent.click(screen.getByRole('tab', { name: '작업' })) })
@@ -164,9 +177,11 @@ describe('루프 화면 진입점 — 작업 모드 (M10 G1)', () => {
       installed.uninstall()
     }
 
-    // 다시 켬 — 저장된 작업 폴더로 뜬다
+    // 다시 켬 — 저장된 작업 폴더로 뜬다(작업 모드 화면 상태는 앱을 다시 켠 것처럼 비운다 — 설정에서 다시 읽는다)
     loopStatus.mockClear()
     loopMainRead.mockClear()
+    const { useWorkStore } = await import('@renderer/13_Loop')
+    useWorkStore.setState({ hydrated: false, cwd: null, projects: [], center: 'main', extraTabs: [], right: 'board', archives: [] })
     installed = installWindowApi({ ...base, getUiPrefs: vi.fn().mockResolvedValue({ 'whatsnew.seenVersion': '0.0.0-test', 'workspace.mode': 'work', 'work.cwd': CWD }) })
     try {
       await loadPrefs()
@@ -177,6 +192,8 @@ describe('루프 화면 진입점 — 작업 모드 (M10 G1)', () => {
       expect(loopMainRead).toHaveBeenCalledWith({ cwd: CWD })
       expect(loopOpen).not.toHaveBeenCalled()
       expect(container.querySelector('.loop-cwd')?.textContent).toBe(CWD)
+      // 저장된 작업 폴더는 목록(work.projects)에 없어도 사이드바의 프로젝트로 보인다(G3 때 고른 폴더)
+      expect(screen.getByRole('list', { name: '프로젝트' }).textContent).toContain('practice')
     } finally {
       installed.uninstall()
     }
@@ -207,5 +224,18 @@ describe('작업 모드 배치 CSS', () => {
     expect(center![1]).toMatch(/min-width:\s*0\s*;/)
     expect(side![1]).toMatch(/width:\s*\d+px\s*;/)
     expect(side![1]).toMatch(/flex:\s*none\s*;/)
+  })
+
+  it('옛 루프 화면 뿌리 스타일은 없고, 현황판·탭·프로젝트 사이드바 스타일이 있다', () => {
+    expect(css('12_Window/shell.css')).not.toMatch(/\.loop-screen\b/)
+    // 옛 모달 판(패널·머리·제목·몸)도 현황판 칸(.board-box)으로 바뀌어 남지 않는다
+    expect(css('13_Loop/LoopScreen.css')).not.toMatch(/\.loop-(screen|panel|head|title|body)\b/)
+    const work = css('13_Loop/Work.css')
+    expect(work).toMatch(/\.status-board\s*\{/)
+    expect(work).toMatch(/\.work-panel\[hidden\]\s*\{[^}]*display:\s*none/)
+    const side = css('12_Window/Sidebar.css')
+    for (const cls of ['sb-projects', 'sb-proj-head', 'sb-proj-tag', 'sb-proj-item', 'sb-proj-open', 'sb-mode-wait']) {
+      expect(side, cls).toMatch(new RegExp(`\\.${cls}\\b`))
+    }
   })
 })

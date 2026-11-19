@@ -2,7 +2,8 @@
 // M09 G4 루프 화면 — 폴더 고르기·열기·시작·닫기가 맞는 loop IPC로 가고, 상태는 loop.status와 loop.state push로 받는다.
 // 다른 저장소의 push는 버리고, 호출 중에 push가 오면 늦게 온 응답의 상태로 덮지 않는다. goal 목록과 지금 노드를 보인다.
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
-import { render, screen, fireEvent, cleanup, act } from '@testing-library/react'
+import { render, screen, fireEvent, cleanup, act, within } from '@testing-library/react'
+import { useState, type JSX } from 'react'
 import fs from 'node:fs'
 import path from 'node:path'
 import type { LoopStatus } from '../../../../02_Project/00_Source/shared/ipcContract'
@@ -13,7 +14,8 @@ const CWD = 'C:\\work\\practice'
 const st = (over: Partial<LoopStatus> = {}): LoopStatus => ({
   cwd: CWD, root: CWD, phase: 'not-started', milestoneId: null, node: null, nodeTitle: null, reason: null,
   base: 'main', ghRepo: 'me/practice', failCount: 0, goals: [], approval: null, milestonePr: null, cards: [],
-  sessionActive: false, lastVerdict: null, latch: null, paused: false, mainBusy: false, mainWaiting: false, ...over,
+  sessionActive: false, lastVerdict: null, latch: null, paused: false, mainBusy: false, mainWaiting: false,
+  mainNode: false, recentLines: [], sessions: [], ...over,
 })
 
 type Fn = ReturnType<typeof vi.fn>
@@ -47,14 +49,26 @@ const flush = async (): Promise<void> => { await act(async () => { await new Pro
 const emit = async (s: LoopStatus): Promise<void> => { await act(async () => { for (const h of [...handlers]) h(s) }) }
 const btn = (name: string): HTMLButtonElement => screen.getByRole('button', { name }) as HTMLButtonElement
 
-async function renderScreen(props: { initialCwd?: string | null; onCwdChange?: (c: string) => void } = {}) {
-  const { LoopScreen } = await import('@renderer/13_Loop')
-  const r = render(
-    <LoopScreen
-      initialCwd={props.initialCwd === undefined ? CWD : props.initialCwd}
-      onCwdChange={props.onCwdChange ?? (() => {})}
-    />,
-  )
+interface BoardProps {
+  initialCwd?: string | null
+  onCwdChange?: (c: string) => void
+  onOpenSession?: (key: string) => void
+  onOpenMain?: () => void
+}
+async function renderScreen(props: BoardProps = {}) {
+  const { StatusBoard } = await import('@renderer/13_Loop')
+  function Harness(): JSX.Element {
+    const [cwd, setCwd] = useState<string | null>(props.initialCwd === undefined ? CWD : props.initialCwd)
+    return (
+      <StatusBoard
+        cwd={cwd}
+        onCwdChange={(c) => { setCwd(c); props.onCwdChange?.(c) }}
+        onOpenSession={props.onOpenSession}
+        onOpenMain={props.onOpenMain}
+      />
+    )
+  }
+  const r = render(<Harness />)
   await flush()
   return r
 }
@@ -114,12 +128,12 @@ describe('루프 화면 — 폴더와 열기·시작·닫기 (M09 G4)', () => {
   it('모달이 아니다 — 겹침 창·화면 닫기 버튼이 없고, 화면이 내려가도 loop.close를 부르지 않는다', async () => {
     install(st())
     const r = await renderScreen()
-    expect(r.container.querySelector('.loop-screen')).not.toBeNull()
+    expect(r.container.querySelector('.status-board')).not.toBeNull()
     expect(document.querySelector('.modal-overlay, .loop-overlay')).toBeNull()
     expect(screen.queryByRole('dialog')).toBeNull()
     expect(screen.queryByRole('button', { name: '화면 닫기' })).toBeNull()
     await act(async () => { fireEvent.keyDown(document, { key: 'Escape' }) })
-    expect(r.container.querySelector('.loop-screen')).not.toBeNull()
+    expect(r.container.querySelector('.status-board')).not.toBeNull()
     r.unmount()
     expect(api.loopClose).not.toHaveBeenCalled()
   })
@@ -131,6 +145,37 @@ describe('루프 화면 — 폴더와 열기·시작·닫기 (M09 G4)', () => {
     await flush()
     expect(screen.getByText(/cwd는 절대 경로여야 한다/)).toBeTruthy()
     expect(btn('열기').disabled).toBe(false)
+  })
+
+  // G4 검수 5 — 옛 폴더의 호출이 도는 동안 폴더를 바꾸면, 그 호출의 바쁨·오류·끝이 새 폴더 현황판에 번지지 않는다
+  it('호출 중에 폴더가 바뀌면 옛 호출의 바쁨·오류가 새 폴더로 넘어가지 않고, 옛 호출의 끝이 새 호출의 바쁨을 풀지 않는다', async () => {
+    const OTHER = 'C:\\work\\other'
+    let rejectOld!: (e: Error) => void
+    let resolveNew!: (s: LoopStatus) => void
+    api.loopStatus.mockImplementation(async ({ cwd }: { cwd: string }) => st({ cwd, phase: 'closed', root: null }))
+    api.loopOpen
+      .mockImplementationOnce(() => new Promise((_r, rej) => { rejectOld = rej }))
+      .mockImplementationOnce(() => new Promise((res) => { resolveNew = res }))
+    const { StatusBoard } = await import('@renderer/13_Loop')
+    const noop = (): void => {}
+    const r = render(<StatusBoard cwd={CWD} onCwdChange={noop} />)
+    await flush()
+    await act(async () => { fireEvent.click(btn('열기')) })
+    expect(btn('폴더 고르기').disabled).toBe(true)
+    r.rerender(<StatusBoard cwd={OTHER} onCwdChange={noop} />)
+    await flush()
+    expect(btn('폴더 고르기').disabled).toBe(false)
+    await act(async () => { fireEvent.click(btn('열기')) })
+    expect(api.loopOpen).toHaveBeenLastCalledWith({ cwd: OTHER })
+    expect(btn('폴더 고르기').disabled).toBe(true)
+    await act(async () => { rejectOld(new Error('옛 폴더의 오류')) })
+    await flush()
+    expect(screen.queryByText('옛 폴더의 오류')).toBeNull()
+    expect(btn('폴더 고르기').disabled).toBe(true)
+    await act(async () => { resolveNew(st({ cwd: OTHER })) })
+    await flush()
+    expect(btn('폴더 고르기').disabled).toBe(false)
+    expect(screen.getByText(OTHER)).toBeTruthy()
   })
 })
 
@@ -209,5 +254,88 @@ describe('루프 화면 — 껍데기 (M09 G4)', () => {
       const src = fs.readFileSync(path.join(dir, f), 'utf8')
       expect(src, f).not.toMatch(/prMerge|gh pr merge|\/merges?\b/)
     }
+  })
+
+  it('현황판이 부르는 loop 호출은 루프 화면의 것 그대로다 — 판정은 decide·releaseLatch·answerCard·cancelSession뿐이다', () => {
+    const src = fs.readFileSync(path.resolve(__dirname, '../../../00_Source/renderer/src/13_Loop/LoopScreen.tsx'), 'utf8')
+    const calls = new Set([...src.matchAll(/ipc\.loop\.(\w+)/g)].map((m) => m[1]))
+    expect([...calls].sort()).toEqual(['answerCard', 'cancelSession', 'close', 'decide', 'onState', 'open', 'releaseLatch', 'start', 'status'])
+  })
+})
+
+describe('현황판 여섯 칸 (M10 G4)', () => {
+  const full = st({
+    phase: 'running', milestoneId: 'M02', node: 'G2/implement', nodeTitle: '구현', failCount: 1,
+    lastVerdict: { node: 'G1/review', verdict: 'pass', evidence: '검수 통과' },
+    goals: [
+      { id: 'G1', title: '요청기와 타임아웃', status: 'done', grade: 'strong', pr: 4 },
+      { id: 'G2', title: '결과 표', status: 'active', grade: 'weak', pr: null },
+    ],
+    sessions: [
+      { key: 'w.1', kind: 'review', node: 'review', goal: 'G1', live: false },
+      { key: 'w.2', kind: 'work', node: 'implement', goal: 'G2', live: true },
+    ],
+    recentLines: [
+      { marker: 'PASS', at: '2026-11-19T05:24:00Z', node: 'review', goal: 'G1', sentence: '독립 검수 통과' },
+      { marker: 'FAIL', at: '2026-11-19T05:40:00Z', node: 'checks', goal: 'G2', sentence: 'npm test 실패' },
+    ],
+    sessionActive: true,
+  })
+  const box = (name: string): HTMLElement => screen.getByRole('region', { name })
+
+  it('여섯 칸이 순서대로 있고, 칸마다 상태의 값이 보인다', async () => {
+    install(full)
+    await renderScreen()
+    const names = [...document.querySelectorAll('.status-board > .board-body > .board-box')].map((el) => el.getAttribute('aria-label'))
+    expect(names).toEqual(['마일스톤', '기다리는 결정', 'goal', '노드 세션', 'PR', '검증 기록'])
+    const ms = box('마일스톤')
+    expect(within(ms).getByText('M02')).toBeTruthy()
+    expect(within(ms).getByText('G2/implement')).toBeTruthy()
+    expect(within(ms).getByText('FAIL 1')).toBeTruthy()
+    expect(within(ms).getByText('goal 1/2 끝')).toBeTruthy()
+    expect(within(box('goal')).getAllByRole('listitem').map((li) => li.textContent)).toEqual([
+      expect.stringContaining('요청기와 타임아웃'), expect.stringContaining('결과 표'),
+    ])
+    const rows = within(box('노드 세션')).getAllByRole('listitem')
+    expect(rows.map((r) => r.textContent)).toEqual([expect.stringContaining('G1 review · 검수'), expect.stringContaining('G2 implement · 작업')])
+    expect(rows[1].getAttribute('data-live')).toBe('true')
+    expect(within(box('기다리는 결정')).getByText('지금 네 손이 필요한 일은 없어')).toBeTruthy()
+    expect(within(box('PR')).getByText('G1 #4')).toBeTruthy()
+    const lines = within(box('검증 기록')).getAllByRole('listitem')
+    expect(lines.map((l) => l.getAttribute('data-marker'))).toEqual(['PASS', 'FAIL'])
+    expect(lines[1].textContent).toContain('G2 checks')
+    expect(lines[1].textContent).toContain('npm test 실패')
+  })
+
+  it('노드 세션 줄의 「열기」는 그 세션 key로 탭을 연다', async () => {
+    install(full)
+    const onOpenSession = vi.fn()
+    await renderScreen({ onOpenSession })
+    const rows = within(box('노드 세션')).getAllByRole('listitem')
+    await act(async () => { fireEvent.click(within(rows[0]).getByRole('button', { name: '열기' })) })
+    expect(onOpenSession).toHaveBeenCalledWith('w.1')
+  })
+
+  it('브레인스토밍(메인 노드) 중에는 작업 세션 취소가 없고, 노드 세션 칸은 메인 대화 줄을 보인다 (Backlog 14)', async () => {
+    install(st({ phase: 'running', milestoneId: 'M02', node: 'brainstorm', mainNode: true, sessionActive: true, mainBusy: true }))
+    const onOpenMain = vi.fn()
+    await renderScreen({ onOpenMain })
+    expect(screen.queryByRole('button', { name: '작업 세션 취소' })).toBeNull()
+    const nodes = box('노드 세션')
+    expect(within(nodes).getByText('메인 · 브레인스토밍')).toBeTruthy()
+    await act(async () => { fireEvent.click(within(nodes).getByRole('button', { name: '열기' })) })
+    expect(onOpenMain).toHaveBeenCalledTimes(1)
+    // 같은 상태에서 메인 노드가 아니면 작업 세션 취소가 보인다
+    await emit(st({ phase: 'running', milestoneId: 'M02', node: 'G2/implement', mainNode: false, sessionActive: true }))
+    expect(screen.getByRole('button', { name: '작업 세션 취소' })).toBeTruthy()
+  })
+
+  it('비어 있는 칸은 빈 글을 보인다 — goal 없음, 노드 세션 없음, 열린 PR 없음, 검증 기록 없음', async () => {
+    install(st({ phase: 'not-started' }))
+    await renderScreen()
+    expect(within(box('goal')).getByText('아직 goal이 없어')).toBeTruthy()
+    expect(within(box('노드 세션')).getByText('돌고 있는 노드 없음')).toBeTruthy()
+    expect(within(box('PR')).getByText('열린 PR이 없어')).toBeTruthy()
+    expect(within(box('검증 기록')).getByText('(아직 없음)')).toBeTruthy()
   })
 })

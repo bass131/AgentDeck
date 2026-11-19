@@ -7,7 +7,10 @@ import {
   selectConversations,
   selectIsRunning,
   selectProfile,
+  selectPendingPermission,
+  selectPendingQuestion,
 } from '@renderer/00_App/appStore'
+import { ProjectSidebar } from '@renderer/13_Loop'
 import {
   IconSearch,
   IconPlus,
@@ -355,6 +358,7 @@ function SidebarInner({ onCollapse, onOpenSettings }: SidebarProps): JSX.Element
   const mark = 'A'
 
   const mode = useAppStore(selectWorkspaceMode)
+  const chatWaiting = useAppStore((s) => selectPendingQuestion(s) !== null || selectPendingPermission(s) !== null)
   const setMode = (m: WorkspaceMode): void => {
     useAppStore.getState().setWorkspaceMode(m)
   }
@@ -425,21 +429,29 @@ function SidebarInner({ onCollapse, onOpenSettings }: SidebarProps): JSX.Element
       </div>
 
       <div className="sb-mode" role="tablist" aria-label="작업 모드">
-        {MODES.map(({ mode: m, label, Icon }) => (
-          <button
-            key={m}
-            type="button"
-            role="tab"
-            aria-selected={mode === m}
-            className={'sb-mode-btn' + (mode === m ? ' on' : '')}
-            onClick={() => setMode(m)}
-          >
-            <Icon size={14} />
-            <span>{label}</span>
-          </button>
-        ))}
+        {MODES.map(({ mode: m, label, Icon }) => {
+          // 탭의 접근 이름을 바꾸지 않도록 점은 aria-hidden, 설명은 title에만 둔다
+          const waiting = m === 'single' && chatWaiting
+          return (
+            <button
+              key={m}
+              type="button"
+              role="tab"
+              aria-selected={mode === m}
+              className={'sb-mode-btn' + (mode === m ? ' on' : '')}
+              data-waiting={waiting ? 'true' : undefined}
+              title={waiting ? '채팅이 네 답을 기다려요' : undefined}
+              onClick={() => setMode(m)}
+            >
+              <Icon size={14} />
+              <span>{label}</span>
+              {waiting && <span className="sb-mode-wait" aria-hidden="true" />}
+            </button>
+          )
+        })}
       </div>
 
+      {mode === 'work' ? <ProjectSidebar /> : (<>
       <button
         type="button"
         className="sb-new"
@@ -474,6 +486,7 @@ function SidebarInner({ onCollapse, onOpenSettings }: SidebarProps): JSX.Element
           onDelete={handleDelete}
         />
       </div>
+      </>)}
 
       <button
         type="button"

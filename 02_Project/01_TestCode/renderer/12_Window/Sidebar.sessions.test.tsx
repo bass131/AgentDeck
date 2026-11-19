@@ -63,6 +63,7 @@ const mockApi = {
   onWindowState: vi.fn().mockReturnValue(() => {}),
   conversationLoad: vi.fn().mockResolvedValue({ conversations: [] }),
   getAppVersion: vi.fn().mockResolvedValue('0.1.0'),
+  onLoopState: vi.fn(() => () => {}),
 }
 
 Object.defineProperty(window, 'api', { value: adaptFlatApi(mockApi), writable: true, configurable: true })
@@ -264,7 +265,7 @@ describe('F8-02: ctx-menu', () => {
     expect(texts.some((t) => t.includes('삭제'))).toBe(true)
   })
 
-  it('채팅 목록의 ctx-menu에 프롬프트 설정 항목이 있다 — 작업 모드에서도 목록은 채팅이다(M10 G1)', async () => {
+  it('채팅 목록의 ctx-menu에 프롬프트 설정 항목이 있다 — 작업 모드에는 채팅 행이 없고, 돌아오면 그대로다(M10 G4)', async () => {
     const container = await renderSidebar()
     const firstMore = container.querySelector('.sb-item .more') as HTMLElement
     fireEvent.click(firstMore)
@@ -275,9 +276,11 @@ describe('F8-02: ctx-menu', () => {
     fireEvent.keyDown(document, { key: 'Escape' })
 
     fireEvent.click(screen.getByRole('tab', { name: '작업' }))
+    expect(container.querySelector('.sb-item')).toBeNull()
+    fireEvent.click(screen.getByRole('tab', { name: '채팅' }))
     fireEvent.click(container.querySelector('.sb-item .more') as HTMLElement)
-    const workTexts = Array.from(container.querySelectorAll('.ctx-menu .ctx-item')).map((i) => i.textContent ?? '')
-    expect(workTexts.some((t) => t.includes('프롬프트 설정'))).toBe(true)
+    const backTexts = Array.from(container.querySelectorAll('.ctx-menu .ctx-item')).map((i) => i.textContent ?? '')
+    expect(backTexts.some((t) => t.includes('프롬프트 설정'))).toBe(true)
   })
 
   it('sb-item 우클릭으로도 ctx-menu가 표시된다', async () => {

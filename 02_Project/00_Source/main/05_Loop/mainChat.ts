@@ -87,6 +87,8 @@ export interface MainChatDeps {
   // 보기가 바뀌었다(화면 밀어 주기)
   onChange?(): void
   onEvent?(tag: LoopSessionTag, e: AgentEvent): void
+  // 새 메인 대화가 장을 바꿨다 — 새 장의 사건보다 먼저 온다
+  onNewChat?(): void
   // 턴마다 새 앱 안 도구 서버(SDK mcpServers 값). null이면 싣지 않는다
   buildTools?(): Promise<Record<string, unknown> | null>
   model?: string
@@ -141,10 +143,10 @@ function tailLine(i: MainChatItem): string | null {
   }
 }
 
-function viewOf(rec: MainChatRecord, cwd: string, root: string | null, extra: Partial<MainChatView>): MainChatView {
+function viewOf(rec: MainChatRecord, cwd: string, root: string | null, chapter: string, extra: Partial<MainChatView>): MainChatView {
   const brainstorming = rec.visit !== null && !rec.visit.done
   return {
-    cwd, root, sessionId: rec.sessionId, items: rec.items, cards: rec.cards,
+    cwd, root, chapter, sessionId: rec.sessionId, items: rec.items, cards: rec.cards,
     busy: false, waitingUser: false, brainstorming, paused: rec.paused, queued: rec.queue.length, ...extra,
   }
 }
@@ -157,7 +159,7 @@ export function readMainChatView(appDataDir: string, cwd: string): MainChatView 
   const rec = peekRecordSync(mainChatPath(appDataDir, repoKeyOf(real)), cwd)
     ?? peekRecordSync(mainChatPath(appDataDir, repoKeyOf(cwd)), cwd)
     ?? blankRecord(cwd)
-  return viewOf({ ...rec, cards: rec.cards.map((c) => ({ ...c, restored: true })) }, cwd, null, {})
+  return viewOf({ ...rec, cards: rec.cards.map((c) => ({ ...c, restored: true })) }, cwd, null, '', {})
 }
 
 const storable = (t: Turn): t is Turn & { kind: StoredTurn['kind'] } => t.kind === 'user' || t.kind === 'event' || t.kind === 'card-answer'
@@ -166,6 +168,7 @@ export function openMainChat(deps: MainChatDeps): MainChat {
   const repoKey = repoKeyOf(deps.root)
   const file = mainChatPath(deps.appDataDir, repoKey)
   let rec: MainChatRecord = loadRecordSync(file, deps.root) ?? blankRecord(deps.root)
+  let chapter = newId()
   rec.cards = rec.cards.map((c) => ({ ...c, restored: true }))
   const queue: Turn[] = rec.queue.map((t) => ({ ...t }))
   const live = new Map<string, LiveCard>()
@@ -527,6 +530,8 @@ export function openMainChat(deps: MainChatDeps): MainChat {
         // 여는 동안 들어온 글·사건은 새 장으로 옮긴다 — 줄 선 턴의 itemId가 새 장의 항목을 가리킨다
         const carried = old.items.filter((i) => arrived.includes(i.id) && (i.kind === 'user' || i.kind === 'event'))
         rec = { ...blankRecord(deps.root), paused: old.paused, visit: old.visit ? { ...old.visit, open: 'queued' } : null }
+        chapter = newId()
+        deps.onNewChat?.()
         notice('새 메인 대화를 열었다 — 지난 기록은 보관했다.')
         rec.items.push(...carried)
         openTried = null
@@ -559,7 +564,7 @@ export function openMainChat(deps: MainChatDeps): MainChat {
     busy: () => running !== null,
     waitingUser: () => brainstorming() && running === null && queue.length === 0,
     brainstorming,
-    view: (cwd) => viewOf(rec, cwd, deps.root, {
+    view: (cwd) => viewOf(rec, cwd, deps.root, chapter, {
       cards: api.cards(), busy: running !== null, waitingUser: api.waitingUser(), queued: queue.length,
     }),
     // 세션을 열기 전의 틈에서도 듣는다(신호가 세션을 열지 않게 한다)

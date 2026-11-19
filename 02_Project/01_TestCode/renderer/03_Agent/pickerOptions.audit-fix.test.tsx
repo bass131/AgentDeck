@@ -81,6 +81,14 @@ describe('pickerOptions — 공유 옵션 모듈 (N1~N5)', () => {
     expect('MODEL_OPTIONS' in mod).toBe(false)
   })
 
+  it('멀티 모드 잔여물(COLS·COUNT_OPTIONS·SAMPLE_*·선택지 재수출)이 없고, 패널 보기가 쓰는 것만 남는다 (M10 G4)', async () => {
+    const mod = await import('@renderer/03_Agent/multiAgentDefaults')
+    for (const gone of ['COLS', 'COUNT_OPTIONS', 'SAMPLE_PANELS', 'SAMPLE_BATCH_TO', 'EFFORT_OPTIONS', 'MODE_OPTIONS']) {
+      expect(gone in mod, gone).toBe(false)
+    }
+    expect(Object.keys(mod).sort()).toEqual(['DEFAULT_PICKER', 'STATUS_META'])
+  })
+
   it('EFFORTS max.label="최대", xhigh.label="매우 높음" (N3 수정)', async () => {
     const { EFFORTS } = await import('@renderer/03_Agent/pickerOptions')
     const max = EFFORTS.find((e) => e.id === 'max')!

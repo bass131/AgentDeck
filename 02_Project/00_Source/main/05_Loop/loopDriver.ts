@@ -50,11 +50,16 @@ import type {
   LoopReleaseLatchResponse,
   LoopStatus,
 } from '@shared/ipcContract'
-import type { LoopCancelTarget, LoopEventItem, LoopMainResponse, LoopSessionEventPayload, MainChatView } from '@shared/13_Loop/loop'
+import type { AgentEvent } from '@shared/agentEvents'
+import type {
+  LoopCancelTarget, LoopEventItem, LoopMainResponse, LoopSessionEventPayload, LoopSessionLog, LoopSessionTag, LoopVerificationLine, MainChatArchives, MainChatView,
+} from '@shared/13_Loop/loop'
 import type { NextStep } from './executor'
 import { createFileDigestStore, repoKeyOf, stateDigest } from './digestStore'
 import { TAMPERED_REASON, visitKeyOf } from './loopRunner'
 import { openMainChat, readMainChatView, type MainActions, type MainChat } from './mainChat'
+import { listArchives } from './mainChatStore'
+import { createSessionLog } from './sessionLog'
 import { appendBacklogLine, buildMainTools } from './mainChatTools'
 import { openLoop, type OpenedLoop, type OpenLoopOptions, type OpenLoopResult } from './openLoop'
 import type { DigestStore, WorkRequest, WorkResult } from './ports'
@@ -118,6 +123,8 @@ export interface LoopDriver {
   mainNew(cwd: string): Promise<LoopMainResponse>
   // M10 G3 — 사람이 일시 정지 깃발을 내린다(판정 칸 없음 — 실행 상태·검증 기록을 쓰지 않는다)
   lowerFlag(cwd: string): LoopMainResponse
+  sessionLog(cwd: string): LoopSessionLog
+  mainArchives(cwd: string): Promise<MainChatArchives>
 }
 
 interface OpenFailure { reason: string; changed?: string[]; root?: string }
@@ -163,8 +170,17 @@ export function blankStatus(cwd: string): LoopStatus {
   return {
     cwd, root: null, phase: 'closed', milestoneId: null, node: null, nodeTitle: null, reason: null, base: null, ghRepo: null,
     failCount: 0, goals: [], approval: null, milestonePr: null, cards: [], sessionActive: false, lastVerdict: null, latch: null,
-    paused: false, mainBusy: false, mainWaiting: false,
+    paused: false, mainBusy: false, mainWaiting: false, mainNode: false, recentLines: [], sessions: [],
   }
+}
+
+export const RECENT_LINES = 6
+const LINE_SENTENCE_MAX = 200
+export function recentLinesOf(lines: RunState['lines']): LoopVerificationLine[] {
+  return lines.slice(-RECENT_LINES).map((l) => {
+    const one = oneLine(l.sentence)
+    return { marker: l.marker, at: l.at, node: l.node, goal: l.goal, sentence: one.length > LINE_SENTENCE_MAX ? `${one.slice(0, LINE_SENTENCE_MAX)}…` : one }
+  })
 }
 
 const labelOf = (next: NextStep): string | null =>
@@ -202,6 +218,18 @@ async function stateMatchesDigest(digest: DigestStore, key: string, text: string
 
 export function createLoopDriver(opts: LoopDriverOptions): LoopDriver {
   const entries = new Map<string, Entry>()
+  // 항목과 따로 둬서, 닫기가 항목을 지워도 지난 노드 세션을 열어 볼 수 있다
+  const log = createSessionLog()
+  function sessionEvent(cwd: string, session: LoopSessionTag, event: AgentEvent): void {
+    const { seq, isNew } = log.record(cwd, session, event)
+    try { opts.onSessionEvent?.({ cwd, session, event, seq }) } catch { /* 화면 쪽 오류는 세션을 막지 않는다 */ }
+    const newNodeRow = isNew && session.kind !== 'main'
+    if (newNodeRow) {
+      const e = entryOf(cwd)
+      if (e && !e.closed) void publish(e)
+    }
+  }
+  const blank = (cwd: string): LoopStatus => ({ ...blankStatus(cwd), sessions: log.rows(cwd) })
   // 카드 차례(G4 확인 검수) — 저장소 항목마다가 아니라 구동자 전역에서 단조 증가한다(닫기가 항목을 지워도 0부터 다시 세지 않는다).
   // 앱을 다시 켜면 새 구동자의 차례가 앞 구동자의 것과 겹치지 않게 구동자마다 무작위 접두를 붙인다.
   const turnPrefix = randomBytes(4).toString('hex')
@@ -280,7 +308,7 @@ export function createLoopDriver(opts: LoopDriverOptions): LoopDriver {
       requiredChecks: DEFAULT_REQUIRED_CHECKS,
       mainCard: cardResponder(e),
       mainWork: (req) => mainWorkOf(e, req),
-      onSessionEvent: (event, session) => { opts.onSessionEvent?.({ cwd: e.cwd, session, event }) },
+      onSessionEvent: (event, session) => sessionEvent(e.cwd, session, event),
       ...opts.openExtras,
       ...(accept && accept.length > 0 ? { acceptConfigChanged: accept } : {}),
     })
@@ -365,7 +393,8 @@ export function createLoopDriver(opts: LoopDriverOptions): LoopDriver {
       nextTurnId: nextTurn,
       onTurnEnd: () => { if (e.loop === loop) void kick(e) },
       onChange: () => chatChanged(e),
-      onEvent: (session, event) => { opts.onSessionEvent?.({ cwd: e.cwd, session, event }) },
+      onEvent: (session, event) => sessionEvent(e.cwd, session, event),
+      onNewChat: () => log.clear(e.cwd, 'main'),
       buildTools: () => mainTools(actions),
     })
   }
@@ -405,7 +434,7 @@ export function createLoopDriver(opts: LoopDriverOptions): LoopDriver {
 
   // ── 상태 한 장 ──
   async function compute(e: Entry): Promise<LoopStatus> {
-    const s = blankStatus(e.cwd)
+    const s = blank(e.cwd)
     if (!e.loop) {
       if (!e.openFailure) return s
       return { ...s, phase: 'open-failed', root: e.openFailure.root ?? null, reason: e.openFailure.reason, latch: await openLatch(e, e.openFailure) }
@@ -418,6 +447,7 @@ export function createLoopDriver(opts: LoopDriverOptions): LoopDriver {
       cards: [...[...e.cards.values()].map((c) => c.card), ...(chat?.cards() ?? []).map((c) => ({ ...c, inChat: true }))],
       sessionActive: e.sessionActive || (chat?.busy() ?? false), lastVerdict: e.lastVerdict, reason: e.note,
       paused: chat?.paused() ?? false, mainBusy: chat?.busy() ?? false, mainWaiting: chat?.waitingUser() ?? false,
+      sessions: log.rows(e.cwd),
     }
     const r = await loop.runner.load()
     if (r.kind === 'missing') return e.blocked ? { ...v, phase: 'blocked', reason: e.blocked } : { ...v, phase: 'not-started' }
@@ -431,6 +461,9 @@ export function createLoopDriver(opts: LoopDriverOptions): LoopDriver {
       goals: state.goals.map((g) => ({ id: g.id, title: g.title, status: g.status, grade: g.grade, pr: g.pr })),
       node: labelOf(next) ?? (state.status === 'done' ? null : cursorLabel(state)),
       nodeTitle: next.kind === 'work' || next.kind === 'gate' || next.kind === 'action' ? next.node.title : null,
+      // 쓰기 창(mainChat)과 같은 판단이어야 두 화면이 같은 세션을 메인 대화로 본다
+      mainNode: next.kind === 'work' && next.node.role === 'main',
+      recentLines: recentLinesOf(state.lines),
     }
     if (state.status === 'done' || next.kind === 'done') return { ...filled, phase: 'done' }
     if (state.status === 'needs-user' || next.kind === 'needs-user') return { ...filled, phase: 'halted', reason: state.haltReason }
@@ -530,8 +563,14 @@ export function createLoopDriver(opts: LoopDriverOptions): LoopDriver {
       const sessionNode = next.kind === 'work' || (next.kind === 'gate' && next.node.judge === 'model')
       e.sessionActive = sessionNode
       if (sessionNode) void publish(e)
-      const out = await loop.runner.step()
-      e.sessionActive = false
+      let out: Awaited<ReturnType<typeof loop.runner.step>>
+      try {
+        out = await loop.runner.step()
+      } finally {
+        e.sessionActive = false
+        // 꼬리표에는 끝 신호가 없어서, 단계가 돌아오거나 깨진 때를 그 단계 노드 세션의 끝으로 본다
+        log.endAll(e.cwd)
+      }
       if (!alive(e, gen)) return
       if ('verdict' in out && out.verdict) e.lastVerdict = { node: out.verdict.node, verdict: out.verdict.verdict, evidence: out.verdict.evidence }
       recordVerdict(e, next, out)
@@ -580,6 +619,7 @@ export function createLoopDriver(opts: LoopDriverOptions): LoopDriver {
     if (loop) await loop.close()
     for (const c of [...e.cards.values()]) c.settle({ kind: 'question', answers: null })
     e.cards.clear()
+    log.endAll(e.cwd)
   }
 
   const rejectWith = async (e: Entry, reason: string): Promise<LoopDecideResponse> => ({ ok: false, reason, status: await publish(e) })
@@ -625,7 +665,7 @@ export function createLoopDriver(opts: LoopDriverOptions): LoopDriver {
       return publish(e)
     },
 
-    status: (cwd) => entryOf(cwd)?.status ?? blankStatus(cwd),
+    status: (cwd) => entryOf(cwd)?.status ?? blank(cwd),
 
     async decide(req) {
       const e = entryOf(req.cwd)
@@ -780,7 +820,16 @@ export function createLoopDriver(opts: LoopDriverOptions): LoopDriver {
       e.closed = true
       await closeEntry(e)
       entries.delete(e.key)
-      opts.onState?.(blankStatus(e.cwd))
+      opts.onState?.(blank(e.cwd))
+    },
+
+    sessionLog: (cwd) => log.read(cwd),
+
+    // 보관 키는 mainRead와 같은 뿌리에서 만들어야 그 폴더의 보관 장을 찾는다
+    async mainArchives(cwd) {
+      const e = entryOf(cwd)
+      const root = e?.loop?.root ?? e?.openFailure?.root ?? cwd
+      return { cwd, archives: await listArchives(opts.appDataDir, repoKeyOf(root)) }
     },
 
     async closeAll() {

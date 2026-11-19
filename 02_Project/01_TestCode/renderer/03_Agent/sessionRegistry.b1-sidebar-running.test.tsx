@@ -25,6 +25,7 @@ Object.defineProperty(window, 'api', {
     getAppVersion: vi.fn().mockResolvedValue('0.1.0'),
     onAgentEvent: vi.fn(() => () => {}),
     agentAbort: vi.fn().mockResolvedValue({ accepted: true }),
+    onLoopState: vi.fn(() => () => {}),
   }),
   writable: true,
   configurable: true,
@@ -113,10 +114,17 @@ describe('B1 — 대화 행은 레지스트리 기준으로 실행 중을 보인
   })
 })
 
-// M10 G1 — 멀티 세션 목록을 지워 사이드바는 어느 모드에서나 대화 목록이다. 패널 키가 실행 중이어도 대화 행은 바뀌지 않는다.
-describe('B1 — 작업 모드에서도 사이드바는 대화 목록이고 패널 실행은 대화 행에 새지 않는다', () => {
-  it('작업 모드에서 패널 하나가 실행 중이어도 대화 행은 idle이다', async () => {
+// M10 G1 — 멀티 세션 목록을 지웠다. 패널 키가 실행 중이어도 대화 행은 바뀌지 않는다.
+describe('B1 — 패널 실행은 대화 행에 새지 않는다(채팅 칸), 작업 모드에는 대화 행이 없다', () => {
+  it('작업 모드에는 대화 행이 없다', async () => {
     useAppStore.setState({ workspaceMode: 'work' })
+    const container = await renderSidebar()
+    expect(container.querySelectorAll('.sb-item')).toHaveLength(0)
+    useAppStore.setState({ workspaceMode: 'single' })
+  })
+
+  it('채팅 칸에서 패널 하나가 실행 중이어도 대화 행은 idle이다', async () => {
+    useAppStore.setState({ workspaceMode: 'single' })
     const container = await renderSidebar()
     expect(rowRunning(container, 0)).toBe(false)
     expect(rowRunning(container, 1)).toBe(false)

@@ -12,7 +12,7 @@ import type {
   LoopReleaseLatchResponse,
   LoopStatus,
 } from '@shared/ipcContract'
-import type { LoopCancelTarget, LoopMainResponse, LoopSessionEventPayload, MainChatView } from '@shared/13_Loop/loop'
+import type { LoopCancelTarget, LoopMainResponse, LoopSessionEventPayload, LoopSessionLog, MainChatArchives, MainChatView } from '@shared/13_Loop/loop'
 import { handle } from '../handle'
 
 const MAIN_TEXT_MAX = 20_000
@@ -24,6 +24,8 @@ export interface LoopDriverApi {
   mainNew(cwd: string): Promise<LoopMainResponse>
   // M10 G3 — 사람이 깃발을 내린다(cwd만), 취소는 대상을 고른다
   lowerFlag(cwd: string): LoopMainResponse
+  sessionLog(cwd: string): LoopSessionLog
+  mainArchives(cwd: string): Promise<MainChatArchives>
   open(req: LoopOpenRequest): Promise<LoopStatus>
   start(cwd: string, milestoneId: string): Promise<LoopStatus>
   status(cwd: string): LoopStatus
@@ -151,6 +153,9 @@ export function registerLoopHandlers(deps: LoopHandlerDeps): void {
   // M10 G3 — 사람이 일시 정지 깃발을 내린다. cwd만 읽는다 — 판정 칸(verdict·evidence·specSha256·expectNode)이 와도 구동자에 닿지 않는다.
   // 깃발 내리기는 사람 판정(decide)을 대신하지 않는다 — 실행 상태·검증 기록을 쓰지 않는다(USER-INPUT 줄 없음)
   handle(IPC_CHANNELS.LOOP_LOWER_FLAG, async (_e, req) => driver.lowerFlag(cwdOf(obj(req, 'loop.lowerFlag'), 'loop.lowerFlag')))
+
+  handle(IPC_CHANNELS.LOOP_SESSION_LOG, async (_e, req) => driver.sessionLog(cwdOf(obj(req, 'loop.sessionLog'), 'loop.sessionLog')))
+  handle(IPC_CHANNELS.LOOP_MAIN_ARCHIVES, async (_e, req) => driver.mainArchives(cwdOf(obj(req, 'loop.mainArchives'), 'loop.mainArchives')))
 }
 
 function pushTo<C extends Parameters<typeof sendPush>[1]>(state: { win: BrowserWindow | null }, ch: C, payload: Parameters<typeof sendPush<C>>[2]): void {

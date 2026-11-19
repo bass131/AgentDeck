@@ -95,6 +95,9 @@ describe('작업 노드 프롬프트 (M09 G2)', () => {
     const main = buildWorkPrompt(request({ node: { ...NODE, id: 'brainstorm', role: 'main', docs: ['milestoneSpec'] }, goal: null }))
     expect(main.endsWith(MAIN_NODE_RULE)).toBe(true)
     expect(main).toContain('AskUserQuestion')
+    // G5 독립 검수 사소 2·4 — 받은 답은 바로 결정 대장에 적고, 끝내기 전에 스펙이나 결정 대장을 갱신한다
+    expect(MAIN_NODE_RULE).toContain('결정 대장에 바로')
+    expect(MAIN_NODE_RULE).toContain('갱신')
     expect(main).toContain('노드가 고르지 않은 스펙 본문')
     expect(buildWorkPrompt(request())).not.toContain('AskUserQuestion')
   })

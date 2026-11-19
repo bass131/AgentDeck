@@ -6,7 +6,7 @@
 import { test, _electron as electron } from '@playwright/test'
 import type { ElectronApplication, Page } from '@playwright/test'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { join, resolve, sep } from 'node:path'
 
 const RUN = process.env.M09_G5_RUN === '1'
 const CTL = process.env.G5_CTL ?? ''
@@ -127,7 +127,8 @@ async function runAction(page: Page, a: Action): Promise<void> {
       await page.waitForTimeout(a.ms)
       return
     default:
-      return
+      // 모르는 동작은 「ok」로 적히지 않게 던진다(독립 검수 사소 6)
+      throw new Error(`모르는 동작 ${JSON.stringify(a)}`)
   }
 }
 
@@ -136,12 +137,24 @@ test.describe('M09 G5 연습 저장소 실주행 구동기 (opt-in: M09_G5_RUN=1
 
   test('실주행', async () => {
     test.setTimeout(8 * 60 * 60_000)
+    // 위임 범위는 연습 저장소뿐이다 — 이 저장소(또는 그 안쪽)를 작업 저장소로 주면 시작하지 않는다(독립 검수 사소 5)
+    const repoAbs = resolve(REPO).toLowerCase()
+    const here = resolve(process.cwd()).toLowerCase()
+    if (repoAbs === here || repoAbs.startsWith(here + sep)) throw new Error(`G5_REPO가 이 저장소 안이다 — ${REPO}`)
     mkdirSync(CTL, { recursive: true })
     const userDataDir = join(CTL, 'udd')
+    // 마지막으로 돌린 명령 번호 — 파일이 있는데 읽지 못하면 옛 명령을 다시 돌리지 않게 시작하지 않는다(독립 검수 사소 6)
+    const seqFile = join(CTL, 'last-seq')
+    let lastSeq = 0
+    if (existsSync(seqFile)) {
+      const raw = readFileSync(seqFile, 'utf8').trim()
+      lastSeq = Number(raw)
+      // 빈 파일(쓰다 죽은 경우)은 Number('')가 0이라 따로 막는다(확인 검수 사소)
+      if (raw === '' || !Number.isInteger(lastSeq) || lastSeq < 0) throw new Error(`last-seq를 읽지 못했다 — ${seqFile}`)
+    }
     let { app, page } = await launch(userDataDir)
     await openLoop(page).catch(() => {})
     const cmdFile = join(CTL, 'cmd.json')
-    let lastSeq = existsSync(join(CTL, 'last-seq')) ? Number(readFileSync(join(CTL, 'last-seq'), 'utf8')) || 0 : 0
     let lastState = ''
     let restarts = 0
     for (;;) {

@@ -307,7 +307,12 @@ export class FakeSession implements SessionPort {
   async runWork(req: WorkRequest): Promise<{ ok: boolean; summary: string; cancelled?: boolean }> {
     this.calls.push(req.goal ? `${req.goal.id}/${req.node.id}` : req.node.id)
     if (this.nextResult) { const r = this.nextResult; this.nextResult = null; return r }
-    if (req.node.id === 'brainstorm') await this.files.write(DOCS.milestoneSpec, SPEC_TEXT)
+    // 브레인스토밍은 스펙을 쓰고 받은 답을 결정 대장에 한 줄 남긴다(G5 — 실행기는 이번 세션에서 둘 중 하나라도 바뀌어야 끝난 것으로 본다)
+    if (req.node.id === 'brainstorm') {
+      await this.files.write(DOCS.milestoneSpec, SPEC_TEXT)
+      const n = this.calls.filter((c) => c === 'brainstorm').length
+      await this.files.write(DOCS.decisions, `${(await this.files.read(DOCS.decisions)) ?? ''}- [USER] 브레인스토밍 ${n}회차 합의\n`)
+    }
     if (req.node.produces === 'goals') {
       for (const g of this.goals) await this.files.write(`.agentdeck/goals/${g.id}.md`, `# ${g.title}\n\n등급: 약\n${g.extra ?? ''}`)
     }

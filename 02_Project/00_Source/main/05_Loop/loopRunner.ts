@@ -280,11 +280,17 @@ export function createLoopRunner(deps: LoopRunnerDeps): LoopRunner {
       // 취소(실행기 닫기·화면의 취소)는 검증 실패가 아니다 — FAIL로 세지 않고 멈춘다(G4, Backlog 3)
       if (res.cancelled) return v(node, 'stop', `작업 세션이 취소됐다 — ${res.summary}. 사람이 이어 가기로 같은 노드를 다시 돌린다`)
       if (!res.ok) return v(node, 'fail', `작업 세션이 일을 마치지 못했다 — ${res.summary}`)
-      // G5 실주행 — 스펙을 다루는 메인 노드(브레인스토밍)는 스펙 파일을 남겨야 끝난 것이다. 없거나 비었으면 다시 돈다
+      // G5 실주행 — 스펙을 다루는 메인 노드(브레인스토밍)는 스펙 파일을 남겨야 끝난 것이다. 없거나 비었으면 다시 돈다.
+      // 독립 검수 중요 1: 반려 뒤나 다음 마일스톤에서는 옛 스펙이 남아 있으므로, 이번 세션에서 스펙이나 결정 대장이 바뀌었는지도 본다
+      // (세션 전 본문은 위 readNodeDocs가 읽어 둔 값이다).
       if (node.role === 'main' && node.docs.includes('milestoneSpec')) {
         const spec = await ports.fs.read(DOCS.milestoneSpec)
         if (spec === null || spec.trim() === '') {
           return v(node, 'fail', `작업 세션이 ${DOCS.milestoneSpec}를 쓰지 않고 끝났다 — ${res.summary}`)
+        }
+        const decisionsSame = !node.docs.includes('decisions') || (await ports.fs.read(DOCS.decisions)) === (docs.decisions ?? null)
+        if (spec === (docs.milestoneSpec ?? null) && decisionsSame) {
+          return v(node, 'fail', `이번 세션에서 ${DOCS.milestoneSpec}도 ${DOCS.decisions}도 바뀌지 않았다 — ${res.summary}`)
         }
       }
       if (node.produces !== 'goals') return v(node, 'pass', `작업 세션이 끝났다 — ${res.summary}`)

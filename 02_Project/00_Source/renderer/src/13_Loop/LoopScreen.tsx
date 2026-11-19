@@ -9,7 +9,7 @@ import { useCallback, useEffect, useRef, useState, type JSX } from 'react'
 import type { LoopCard, LoopCardResponse, LoopStatus } from '@shared/ipcContract'
 import { ipc } from '@renderer/01_Ipc'
 import { PrCard } from '@renderer/08_Git'
-import { QuestionModal } from '@renderer/03_Agent/prompt'
+import { DIALOG_LAYER, QuestionModal } from '@renderer/03_Agent/prompt'
 import { IconX } from '@renderer/02_Common/icons'
 import { ApprovalCard, CardList, ExceptionBar, GoalList, LatchCard } from './LoopCards'
 import { APPROVE_EVIDENCE, PHASE_LABEL, RESUME_EVIDENCE, errText, sameCwd } from './loopModel'
@@ -140,16 +140,21 @@ export function LoopScreen({ initialCwd, onCwdChange, onClose }: LoopScreenProps
     }
   }
 
-  const open = (): void => void run('top', (c) => ipc.loop.open({ cwd: c }), apply)
+  // 루프를 열기·닫기·다시 열기 할 때 답한 표시를 비운다(G4 확인 검수) — 닫으면 그 세션의 카드는 거둬지고, 다시 연 뒤의
+  // 새 세션 카드가 옛 표시에 가려지지 않게 한다. 호출을 보내기 전에 비운다(열기 도중 뜬 새 카드에 낸 답의 표시를 지우지 않게).
+  const clearAnswered = (): void => setAnswered(new Set())
+  const open = (): void => void run('top', (c) => { clearAnswered(); return ipc.loop.open({ cwd: c }) }, apply)
   const start = (): void => void run('top', (c) => ipc.loop.start({ cwd: c, milestoneId: milestoneId.trim() }), apply)
   const closeLoop = (): void =>
     void run('top', async (c) => {
+      clearAnswered()
       await ipc.loop.close({ cwd: c })
       return ipc.loop.status({ cwd: c })
     }, apply)
   // 진행 불가에서 빠져나가는 길(G4 검수 사소 7) — 루프를 닫고 다시 연다(컨트롤 설정 같은 원인을 고친 뒤)
   const reopen = (): void =>
     void run('top', async (c) => {
+      clearAnswered()
       await ipc.loop.close({ cwd: c })
       return ipc.loop.open({ cwd: c })
     }, apply)
@@ -164,10 +169,29 @@ export function LoopScreen({ initialCwd, onCwdChange, onClose }: LoopScreenProps
     }), decided('approval'))
   const release = (token: string): void =>
     void run('latch', (c) => ipc.loop.releaseLatch({ cwd: c, token }), decided('latch'))
+  // 대기열에 넣을 때 미리 답한 표시를 하므로, 보내기가 throw하거나 받아지지 않으면 표시를 되돌린다(G4 확인 검수) —
+  // 카드가 남아 있으면 사람이 다시 답할 수 있다. throw의 사유는 run이 그 자리(cards)에 보인다.
+  const unmark = (id: string): void =>
+    setAnswered((prev) => {
+      if (!prev.has(id)) return prev
+      const next = new Set(prev)
+      next.delete(id)
+      return next
+    })
   const send = (card: LoopCard, response: LoopCardResponse): void =>
-    void run('cards', (c) => ipc.loop.answerCard({ cwd: c, requestId: card.requestId, response }), (r) => {
+    void run('cards', async (c) => {
+      try {
+        return await ipc.loop.answerCard({ cwd: c, requestId: card.requestId, response })
+      } catch (e) {
+        unmark(card.requestId)
+        throw e
+      }
+    }, (r) => {
       if (r.ok) setAnswered((prev) => new Set(prev).add(card.requestId))
-      else setError('cards', CARD_REFUSED)
+      else {
+        unmark(card.requestId)
+        setError('cards', CARD_REFUSED)
+      }
     })
   const answer = (card: LoopCard, response: LoopCardResponse): void => {
     if (!busyRef.current) {
@@ -307,7 +331,9 @@ export function LoopScreen({ initialCwd, onCwdChange, onClose }: LoopScreenProps
         </div>
       </div>
 
+      {/* 루프 오버레이(z 60) 안에 그려진다 — 대화·패널 질문 창(z 80)보다 아래 층이다 */}
       <QuestionModal
+        layer={DIALOG_LAYER.loop}
         open={askingCard !== null}
         questions={askingCard?.questions ?? []}
         source={askingCard?.node}

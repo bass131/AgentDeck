@@ -409,25 +409,35 @@ function diff(a: Snapshot, b: Snapshot): Diff {
 }
 
 const REMOTE_URL = /^remote\..+\.(?:url|pushurl)$/
+// G4 확인 검수 — 실행기 git의 작업 위치나 원격 요청을 바꾸는 키(값과 관계없이 그 변경). 키는 소문자로 읽힌다(parseList).
+//   core.worktree·core.bare   실행기 git이 커밋·diff·병합하는 작업 트리를 다른 곳으로 옮기거나 작업 트리를 없앤다.
+//   http.extraHeader·http.<주소>.extraHeader   push·fetch 요청에 머리(인증 머리 포함)를 더한다.
+//   http.cookieFile·http.<주소>.cookieFile   요청에 쿠키 파일을 싣는다(그 파일이 쓰기 가능하면 받은 쿠키도 적는다).
+//   http.proxy·http.<주소>.proxy   요청이 지나는 프록시다. 빈 값 아닌 값은 위험 키이기도 하다(isDangerous) — 여기서는 빈 값으로 바꾼 것까지 본다.
+const REMOTE_REQUEST = /^(?:core\.(?:worktree|bare)|http\.(?:.+\.)?(?:extraheader|cookiefile|proxy))$/
 
 // G4 검수 차단 B1 — 화면의 풀기(받기)로 받지 않는 차이. 사람이 직접 되돌린 뒤 다시 연다.
 //   - 바뀐 키 가운데 지금 값이 위험 키인 것 — 범위(로컬·전역·시스템·include)와 관계없이. 그대로 있는 전역·시스템의 위험 키
 //     (이 기계의 credential.helper 같은 것)는 바뀐 것이 아니라 보지 않는다.
 //   - remote.<이름>.url·pushurl의 변경 — 실행기 push(자격 있음)가 가는 곳이다.
+//   - 작업 위치나 원격 요청을 바꾸는 키(REMOTE_REQUEST)의 변경 — G4 확인 검수.
 //   - git 전역 설정 파일 밖의 파일(ssh 설정과 Include, gh config.yml·hosts.yml)의 변경.
 function unacceptable(d: Diff, now: Snapshot, gitFiles: ReadonlySet<string>): string | null {
   const danger: string[] = []
   const remotes: string[] = []
+  const requests: string[] = []
   for (const k of d.keys) {
     for (const e of now.entries.map(entryOf).filter((x) => x.key === k)) {
       if (isDangerous(k, e.value)) danger.push(`${k}(${e.origin.replace(/^file:/, '')})`)
     }
     if (REMOTE_URL.test(k)) remotes.push(k)
+    if (REMOTE_REQUEST.test(k)) requests.push(k)
   }
   const files = d.files.filter((f) => !gitFiles.has(f))
   const parts = [
     ...(danger.length > 0 ? [`실행기 git이 명령으로 돌릴 수 있는 키가 바뀌었다(범위와 관계없이) — ${list([...new Set(danger)])}`] : []),
     ...(remotes.length > 0 ? [`원격 주소가 바뀌었다 — ${list(remotes)}`] : []),
+    ...(requests.length > 0 ? [`실행기 git의 작업 위치나 원격 요청을 바꾸는 키가 바뀌었다 — ${list(requests)}`] : []),
     ...(files.length > 0 ? [`ssh·gh 설정 파일이 바뀌었다 — ${list(files)}`] : []),
   ]
   return parts.length === 0 ? null : `${parts.join('. ')}. 이 차이는 화면의 풀기로 받지 않는다 — 사람이 직접 되돌린 뒤 다시 연다`

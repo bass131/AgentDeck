@@ -495,7 +495,8 @@ export function createLoopRunner(deps: LoopRunnerDeps): LoopRunner {
         // 부모만 맞춘 위조(commit-tree)를 받지 않는다 — 트리가 두 부모의 깨끗한 병합이어야 한다(G2 재검수 차단 A)
         const forged = await git.verifyMerge(local, remote, pr.headSha)
         if (forged) return v(node, 'stop', `${ms}의 로컬 머리를 push하지 않았다 — ${forged}. ${NOT_PUSHED}`)
-        await git.push(ms)
+        // G4 확인 검수 — 확인한 그 병합 SHA를 push한다(goal PR의 I8과 같은 꼴). 확인 뒤 로컬 브랜치가 옮겨져도 따라가지 않는다
+        await git.push(ms, local)
         return v(node, 'pass', `${ms}의 로컬 머리 ${short(local)}가 원격 머리와 PR 머리 ${short(pr.headSha)}의 병합 커밋이다 — 다시 병합하지 않고 push만 했다`, { mergedSha: local ?? pr.headSha })
       }
       return v(node, 'stop', `로컬 ${ms}(${short(local)})가 원격(${short(remote)})과 다르고, 원격 머리와 PR 머리를 부모로 한 병합 커밋 하나가 아니다 — ${NOT_PUSHED}`)
@@ -507,7 +508,7 @@ export function createLoopRunner(deps: LoopRunnerDeps): LoopRunner {
     // 실행기 git은 교체 객체를 따르지 않는다(gitPort). 그래도 push 전에 병합 커밋의 부모와 트리를 구조로 한 번 더 본다.
     const bad = await git.verifyMerge(merged, remote, pr.headSha)
     if (bad) return v(node, 'stop', `${ms}에 병합했지만 push하지 않았다 — ${bad}. 사람 판단이 필요하다`)
-    await git.push(ms)
+    await git.push(ms, merged)
     return v(node, 'pass', `머리 ${short(pr.headSha)}를 ${ms}에 --no-ff로 병합하고 push했다(병합 커밋 ${short(merged)})`, { mergedSha: merged })
   }
 

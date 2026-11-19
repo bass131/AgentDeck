@@ -207,6 +207,43 @@ describe('실행기 git 설정 대조', () => {
     expect(!p.ok && p.changed).toBeUndefined()
   })
 
+  // G4 확인 검수 — 프로브 guard2.ts의 꼴. 실행기 git의 작업 위치(core.worktree·bare)나 원격 요청(http.extraHeader·cookieFile·proxy)을
+  // 바꾸는 키는 remote url처럼 풀기로 받지 않는다 — 받기 목록을 주지 않고, 열린 실행기가 본 목록으로 받으려 해도 거부한다
+  describe('작업 위치·원격 요청을 바꾸는 키는 풀기로 받지 않는다', () => {
+    const toSlash = (p: string): string => p.replace(/\\/g, '/')
+    const cases: [string, string, () => void][] = [
+      ['로컬 core.worktree', 'core.worktree', () => { repos.git(['config', 'core.worktree', toSlash(repos.work)]) }],
+      ['전역 core.bare', 'core.bare', () => { fs.appendFileSync(repos.env.GIT_CONFIG_GLOBAL as string, '[core]\n\tbare = false\n') }],
+      ['전역 http.extraHeader', 'http.extraheader', () => { fs.appendFileSync(repos.env.GIT_CONFIG_GLOBAL as string, '[http]\n\textraHeader = X-Probe: y\n') }],
+      ['전역 http.<주소>.extraHeader', 'http.https://github.com/.extraheader', () => {
+        fs.appendFileSync(repos.env.GIT_CONFIG_GLOBAL as string, '[http "https://github.com/"]\n\textraHeader = Authorization: Bearer x\n')
+      }],
+      ['전역 http.cookieFile', 'http.cookiefile', () => { fs.appendFileSync(repos.env.GIT_CONFIG_GLOBAL as string, '[http]\n\tcookieFile = C:/probe-cookies\n') }],
+      ['로컬 http.<주소>.cookieFile', 'http.https://github.com/.cookiefile', () => { repos.git(['config', 'http.https://github.com/.cookieFile', 'C:/probe-cookies']) }],
+      ['전역 http.proxy', 'http.proxy', () => { fs.appendFileSync(repos.env.GIT_CONFIG_GLOBAL as string, '[http]\n\tproxy = http://127.0.0.1:9\n') }],
+      ['전역 http.<주소>.proxy', 'http.https://github.com/.proxy', () => {
+        fs.appendFileSync(repos.env.GIT_CONFIG_GLOBAL as string, '[http "https://github.com/"]\n\tproxy = http://127.0.0.1:9\n')
+      }],
+    ]
+    for (const [name, key, plantKey] of cases) {
+      it(`${name} — 받기 목록을 주지 않고, 열린 뒤 본 목록으로 받으려 해도 거부한다`, async () => {
+        const guard = await open()
+        plantKey()
+        expect(await guard.check()).toContain(key)
+        const seen = guard.changes()
+        expect(seen.some((c) => c.startsWith(`${key}:`))).toBe(true)
+        const offered = await createConfigGuard({ cwd: repos.work, env: repos.env, snapshotFile, hooksPath })
+        expect(offered.ok).toBe(false)
+        expect(!offered.ok && offered.reason).toContain(key)
+        expect(!offered.ok && offered.reason).toContain('작업 위치나 원격 요청')
+        expect(!offered.ok && offered.reason).toContain('사람이 직접 되돌린 뒤 다시 연다')
+        expect(!offered.ok && offered.changed).toBeUndefined()
+        const accepted = await createConfigGuard({ cwd: repos.work, env: repos.env, snapshotFile, hooksPath, acceptChanged: seen })
+        expect(accepted.ok).toBe(false)
+      })
+    }
+  })
+
   it('받기 목록이 있어도 위험 키는 여전히 거부한다', async () => {
     await open()
     repos.git(['config', 'core.pager', 'less'])

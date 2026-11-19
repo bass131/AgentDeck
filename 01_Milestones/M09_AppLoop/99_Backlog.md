@@ -2,6 +2,7 @@
 
 - 범위 밖 발견을 한 줄로 남긴다(헌법 11조). 최신 번호가 위다.
 
+9. (범위 밖, 확인 안 함 — G4 확인 검수 반영 보고) `ensureBranch`의 goal 브랜치 push는 아직 이름으로 간다(머리 확인 뒤 SHA 없이). 래치 풀기의 받지 않을 키 후보로 `remote.<이름>.proxy`(빈 값으로 바꾼 것)와 `http.curloptResolve`(호스트를 다른 IP로 돌림)가 남았다. 대기열 답을 쓰는 화면은 닫기 실패 시 이미 답한 카드를 잠깐 다시 답할 수 있게 보인다(보내면 거부 사유가 뜸).
 8. (범위 밖, 확인 안 함 — G4 검수 반영 보고) 읽기 전용 잠금은 PowerShell 꼴 `$env:GIT_PAGER=…; git log`를 지나보낸다(`PS_ENV_SET`이 자격 이름만 봄 — 트리 대조가 겹으로 덮음). `ensureBranch`는 시작 SHA가 없을 때 아직 로컬 ref를 읽는다(`recordedStart ?? headSha(from)`). 래치 풀기가 거부하는 위험 값·remote url·ssh·gh 파일 변경은 앱 안에 빠져나갈 길이 없고 사람이 직접 되돌린다.
 7. (범위 밖, 확인 안 함 — 소스 판독) 병합 거부의 래퍼 판독 차이와 남은 꼴: 앱 `commandsOf`는 래퍼 값 옵션을 정확 일치로만 봐 묶음·줄임(`timeout -vs KILL 30 gh pr merge`, `sudo -iu root …`, `env --chd …`)을 가드와 달리 놓칠 수 있다. env 표에 `--argv0`이 없고, `-S` 고유 이스케이프(`\_`·`\c`·`${VAR}`)는 모델링하지 않았으며, heredoc 소비자 판독이 `-S`를 모르고, 다시 판독 깊이 한도가 가드 3·앱 4라 그 너머는 통과한다. `setsid`·`flock`·`chroot`·`su -c`·`runuser`·`script -c`·`ssh host cmd`·`parallel` 래퍼는 두 표 모두 모른다. `master`는 서버 보호가 따로 지킨다 (G3 작업자 보고).
 6. (G3 인계, 확인 안 함) 앱의 병합 거부 노드(`mergeDeny.ts`)는 `env -S "gh pr merge …"`처럼 따옴표 문자열을 명령으로 다시 읽는 꼴을 놓칠 가능성이 높다(루프 잠금은 G2에서 `env -S`를 다시 판독함). 앱 노드는 실측해 고치고, 저장소 하네스의 위험 명령 가드(판정 장치)에도 같은 구멍이 있는지는 사용자에게 알린다. 잠금 쪽 남은 오탐 — `source .venv/bin/activate` 뒤 위치 모름이 호출을 넘어 남음, CDPATH 글자가 커밋 메시지에서도 걸림, 앞 명령이 있으면 뒤 `cd`를 실패 가능으로 봄 — 도 G4 실측과 함께 정한다 (G2 4차 반영 보고).

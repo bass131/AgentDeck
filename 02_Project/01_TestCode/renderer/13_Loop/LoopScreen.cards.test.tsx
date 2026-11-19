@@ -193,6 +193,98 @@ describe('질문 카드와 권한 카드 (M09 G4)', () => {
     expect(api.loopAnswerCard).toHaveBeenLastCalledWith({ cwd: CWD, requestId: 'q-2', response: { kind: 'question', answers: [['작게']] } })
   })
 
+  // G4 확인 검수 — 대기열에 든 답의 보내기가 실패하면(throw) 답한 표시를 되돌리고 사유를 보인다(카드가 남아 있으면 다시 답할 수 있다)
+  it('대기열 답의 보내기가 throw하면 답하기를 다시 켜고 사유를 보인다', async () => {
+    const second: LoopCard = { ...question, requestId: 'q-2', text: '두 번째' }
+    await renderScreen(st({ cards: [question, second], sessionActive: true }))
+    let releaseFirst: (v: { ok: boolean }) => void = () => {}
+    api.loopAnswerCard
+      .mockImplementationOnce(() => new Promise((r) => { releaseFirst = r }))
+      .mockRejectedValueOnce(new Error('보내기 시험 실패'))
+    await click(within(screen.getByTestId('loop-card-q-1')).getByRole('button', { name: '답하기' }))
+    fireEvent.click(screen.getByText('크게'))
+    await flush()
+    const card2 = screen.getByTestId('loop-card-q-2')
+    await click(within(card2).getByRole('button', { name: '답하기' }))
+    fireEvent.click(screen.getByText('작게'))
+    await flush()
+    expect((within(card2).getByRole('button', { name: '답하기' }) as HTMLButtonElement).disabled).toBe(true)
+    await act(async () => { releaseFirst({ ok: true }) })
+    await flush()
+    await flush()
+    expect(api.loopAnswerCard).toHaveBeenCalledTimes(2)
+    expect((within(screen.getByTestId('loop-card-q-2')).getByRole('button', { name: '답하기' }) as HTMLButtonElement).disabled).toBe(false)
+    expect(screen.getByText(/보내기 시험 실패/)).toBeTruthy()
+  })
+
+  it('대기열 답이 받아지지 않으면(ok:false) 답하기를 다시 켜고 사유를 보인다', async () => {
+    const second: LoopCard = { ...question, requestId: 'q-2', text: '두 번째' }
+    await renderScreen(st({ cards: [question, second], sessionActive: true }))
+    let releaseFirst: (v: { ok: boolean }) => void = () => {}
+    api.loopAnswerCard
+      .mockImplementationOnce(() => new Promise((r) => { releaseFirst = r }))
+      .mockResolvedValueOnce({ ok: false })
+    await click(within(screen.getByTestId('loop-card-q-1')).getByRole('button', { name: '답하기' }))
+    fireEvent.click(screen.getByText('크게'))
+    await flush()
+    await click(within(screen.getByTestId('loop-card-q-2')).getByRole('button', { name: '답하기' }))
+    fireEvent.click(screen.getByText('작게'))
+    await flush()
+    await act(async () => { releaseFirst({ ok: true }) })
+    await flush()
+    await flush()
+    expect((within(screen.getByTestId('loop-card-q-2')).getByRole('button', { name: '답하기' }) as HTMLButtonElement).disabled).toBe(false)
+    expect(screen.getByText(/카드 답이 받아지지 않았어요/)).toBeTruthy()
+  })
+
+  // G4 확인 검수 — 루프를 닫았다 다시 열면 답한 표시를 비운다. 새 세션의 첫 질문 카드가 옛 카드와 같은 id여도 답할 수 있게 보인다
+  it('루프를 닫았다 열고 이어 가면 새 세션의 첫 질문 카드가 답할 수 있는 상태로 보인다', async () => {
+    await renderScreen(st({ cards: [question], sessionActive: true }))
+    await click(btn('답하기'))
+    fireEvent.click(screen.getByText('크게'))
+    await flush()
+    expect(btn('답하기').disabled).toBe(true)
+    api.loopStatus.mockResolvedValue(st({ phase: 'closed' }))
+    await click(btn('루프 닫기'))
+    api.loopOpen.mockResolvedValue(st({ cards: [question], sessionActive: true }))
+    await click(btn('열기'))
+    expect(api.loopOpen).toHaveBeenCalledWith({ cwd: CWD })
+    expect(btn('답하기').disabled).toBe(false)
+  })
+
+  it('「다시 열기」(닫고 다시 열기)도 답한 표시를 비운다', async () => {
+    await renderScreen(st({ phase: 'blocked', reason: '진행 불가', cards: [question], sessionActive: true }))
+    await click(btn('답하기'))
+    fireEvent.click(screen.getByText('크게'))
+    await flush()
+    expect(btn('답하기').disabled).toBe(true)
+    api.loopOpen.mockResolvedValue(st({ cards: [question], sessionActive: true }))
+    await click(btn('다시 열기'))
+    expect(btn('답하기').disabled).toBe(false)
+  })
+
+  // G4 확인 검수 — 루프 질문 창은 루프 오버레이(z 60) 층으로 쌓인다. 대화 질문 창(z 80)이 떠 있으면 나중에 연 루프 창은 키를 받지 않는다
+  it('대화 질문 창이 떠 있으면 나중에 연 루프 질문 창은 숫자 키를 받지 않는다', async () => {
+    install(st({ cards: [question], sessionActive: true }))
+    const { LoopScreen } = await import('@renderer/13_Loop')
+    const { QuestionModal } = await import('@renderer/03_Agent/prompt')
+    const conv = vi.fn()
+    const CONV = [{ header: 'C', question: '대화 창 질문', options: [{ label: 'c1', description: '' }], multiSelect: false }]
+    render(
+      <>
+        <QuestionModal open={true} questions={CONV} onAnswer={conv} onDismiss={vi.fn()} />
+        <LoopScreen initialCwd={CWD} onCwdChange={() => {}} onClose={() => {}} />
+      </>,
+    )
+    await flush()
+    await click(btn('답하기'))
+    expect(screen.getByText('어느 쪽으로 갈까요?')).toBeTruthy()
+    await act(async () => { fireEvent.keyDown(window, { key: '1' }) })
+    await flush()
+    expect(conv).toHaveBeenCalledWith([['c1']])
+    expect(api.loopAnswerCard).not.toHaveBeenCalled()
+  })
+
   it('세션 취소는 cancelSession({cwd})다', async () => {
     await renderScreen(st({ cards: [permission], sessionActive: true }))
     await click(btn('세션 취소'))
@@ -280,6 +372,19 @@ describe('래치 풀기 카드 (M09 G4)', () => {
     api.loopReleaseLatch.mockResolvedValue({ ok: false, reason: '화면이 본 래치와 지금 래치가 다르다', status: st({ phase: 'open-failed', latch }) })
     await click(btn('확인하고 풀기'))
     expect(screen.getByText('화면이 본 래치와 지금 래치가 다르다')).toBeTruthy()
+  })
+
+  // G4 확인 검수 — 풀기 중 상태 파일이 바뀌어 거부되면 main이 새 token의 래치를 싣는다. 화면은 그 카드를 다시 보이고, 다시 누르면 새 token을 보낸다
+  it('풀기가 거부되며 새 token의 래치가 오면 카드를 다시 보이고, 다시 누르면 새 token으로 보낸다', async () => {
+    const NEXT = 'ef'.repeat(32)
+    await renderScreen(st({ phase: 'latched', reason: latch.reason, latch }))
+    const reason = '화면이 본 뒤 상태 파일이 바뀌어 래치를 풀지 않았다 — 새로 뜬 래치를 다시 보고 푼다'
+    api.loopReleaseLatch.mockResolvedValueOnce({ ok: false, reason, status: st({ phase: 'open-failed', reason, latch: { ...latch, token: NEXT } }) })
+    await click(btn('확인하고 풀기'))
+    expect(screen.getByTestId('loop-latch')).toBeTruthy()
+    expect(screen.getAllByText(reason).length).toBeGreaterThan(0)
+    await click(btn('확인하고 풀기'))
+    expect(api.loopReleaseLatch).toHaveBeenLastCalledWith({ cwd: CWD, token: NEXT })
   })
 
   it('래치가 없으면 카드가 없다', async () => {

@@ -5,6 +5,8 @@
 //     작업자 노드와 검수 세션의 카드는 거부·무응답이다(workSession·reviewSession).
 //     화면의 카드 id는 구동자가 세션 차례를 붙인 `s<차례>-<원래 id>`다(G4 검수 I2) — 세션마다 권한 조정자가 같은 id를 다시 써도
 //     새 세션의 카드가 화면에서 답할 수 있게 보이고, 옛 세션의 카드 id로 온 늦은 답은 새 세션에 붙지 않는다.
+//     차례는 `<구동자 접두>.<번호>`다(G4 확인 검수) — 번호는 구동자 전역에서 단조 증가하고(루프를 닫았다 열어도 0부터 다시 세지 않는다),
+//     접두는 구동자마다 무작위라 앱을 다시 켜도 앞 구동자의 id와 겹치지 않는다.
 //   - 사람 판정(decide)의 노드는 구동자가 저장본에서 고른다 — 멈춘 실행이면 커서 노드의 이어 가기, 스펙 승인이면 화면이 보낸 스펙 해시를
 //     함께 넣는다(해시는 요청에서만 온다. 구동자가 채우지 않는다). 마일스톤 병합은 사람 판정으로 넘기지 않는다(병합 버튼 — 헌법 10조).
 //   - 앱 「자동」 모드 허용 노드(mode-auto-bypass-allow)가 꺼져 있으면(autoModeCheck) 시작·이어 가기·구동 전에 사유와 함께 멈춘다 —
@@ -16,13 +18,14 @@
 //     상태를 맞추는 법: 상태 파일이 앱의 다이제스트와 맞으면(설정 사유 래치) 그대로 둔다. 맞지 않으면(상태 위조 사유이거나, 설정 래치
 //     동안 상태 파일도 바뀜) 위조본을 받지 않고 실행기가 마지막으로 쓴 사본(DigestStore.readCopy)으로 상태 파일을 되돌리고 다이제스트를
 //     그 사본에 맞춘다. 사본이 없으면 풀지 않는다. 다시 열기가 거부되면(위험 키·grafts·http_unix_socket·hooksPath) 래치는 그대로 남는다.
+//     닫은 뒤 다시 읽은 본문이 화면이 본 것과 다르면 풀지 않고, 그 상태 그대로 새 token의 래치를 다시 보인다(G4 확인 검수).
 //   - 열기·풀기가 기다리는 동안 닫히면(G4 검수 I4) 새로 연 실행기를 닫고 잠금을 푼다 — 고아 실행기가 저장소 잠금을 쥐지 않는다.
 //   - 알림(note — 시작 거부·구동 오류)은 처음 보인 단계 동안만 싣고, 단계가 바뀌면 지운다(G4 검수 사소 6).
 //   - 다시 열기: 앱을 다시 켜고 open하면 실행기가 저장본에서 같은 노드를 고르고 이어 간다(load). 앱 종료(stopApp)는 closeAll을 기다리지 않는다 —
 //     저장소 잠금은 죽은 프로세스의 것을 넘겨받는다(repoLock). 상태 파일 쓰기와 다이제스트 쓰기 사이에 꺼지면 다음 열기에서 래치가 걸리고,
 //     풀면 사본(상태 파일보다 먼저 쓰므로 같은 내용)으로 맞춰 이어 간다.
 // 이 모듈은 electron을 import하지 않는다 — 앱 영역(join(getUserDataDir(), 'loop'))과 push는 조립 지점(bootstrap)이 준다.
-import { createHash } from 'node:crypto'
+import { createHash, randomBytes } from 'node:crypto'
 import { promises as fsp } from 'node:fs'
 import path from 'node:path'
 import type { AgentBackend, RunResponse } from '@main/03_Agent/AgentBackend'
@@ -108,9 +111,8 @@ interface Entry {
   status: LoopStatus
   seq: number
   cards: Map<string, { card: LoopCard; settle: (r: RunResponse) => void }>
-  // 세션 차례(G4 검수 I2) — 카드 맥락의 신호(세션마다 하나)에 차례 번호를 붙인다
-  turns: WeakMap<AbortSignal, number>
-  turnSeq: number
+  // 세션 차례(G4 검수 I2) — 카드 맥락의 신호(세션마다 하나)에 차례를 붙인다. 차례 번호는 구동자 전역의 것이다(G4 확인 검수)
+  turns: WeakMap<AbortSignal, string>
   running: boolean
   again: boolean
   timer: ReturnType<typeof setTimeout> | null
@@ -169,6 +171,10 @@ async function stateMatchesDigest(digest: DigestStore, key: string, text: string
 
 export function createLoopDriver(opts: LoopDriverOptions): LoopDriver {
   const entries = new Map<string, Entry>()
+  // 카드 차례(G4 확인 검수) — 저장소 항목마다가 아니라 구동자 전역에서 단조 증가한다(닫기가 항목을 지워도 0부터 다시 세지 않는다).
+  // 앱을 다시 켜면 새 구동자의 차례가 앞 구동자의 것과 겹치지 않게 구동자마다 무작위 접두를 붙인다.
+  const turnPrefix = randomBytes(4).toString('hex')
+  let turnSeq = 0
   const ciRetryMs = opts.ciRetryMs ?? DEFAULT_CI_RETRY_MS
   const humanPollMs = opts.humanPollMs ?? DEFAULT_HUMAN_POLL_MS
   const openImpl = opts.openLoopImpl ?? openLoop
@@ -182,7 +188,7 @@ export function createLoopDriver(opts: LoopDriverOptions): LoopDriver {
   function newEntry(cwd: string): Entry {
     const e: Entry = {
       key: repoKeyOf(cwd), cwd, gen: 0, closed: false, loop: null, openFailure: null,
-      status: blankStatus(cwd), seq: 0, cards: new Map(), turns: new WeakMap(), turnSeq: 0, running: false, again: false, timer: null,
+      status: blankStatus(cwd), seq: 0, cards: new Map(), turns: new WeakMap(), running: false, again: false, timer: null,
       sessionActive: false, waitingCi: false, blocked: null, note: null, notePhase: null, lastVerdict: null, latchSeen: new Map(),
     }
     entries.set(e.key, e)
@@ -202,7 +208,7 @@ export function createLoopDriver(opts: LoopDriverOptions): LoopDriver {
     return (ev: CardEvent, ctx) => new Promise<RunResponse>((resolve) => {
       let turn = e.turns.get(ctx.signal)
       if (turn === undefined) {
-        turn = ++e.turnSeq
+        turn = `${turnPrefix}.${++turnSeq}`
         e.turns.set(ctx.signal, turn)
       }
       // 세션의 원래 id는 세션에 답할 때(runNodeSession)만 쓴다. 화면과 answerCard는 차례가 붙은 id로 부른다.
@@ -505,7 +511,8 @@ export function createLoopDriver(opts: LoopDriverOptions): LoopDriver {
       // 세션을 멈춘 뒤 다시 읽은 본문이 화면이 본 본문(token에 묶인 해시)과 같아야 한다
       const text = await readText(path.join(root, DOCS.runState))
       if ((text === null ? null : sha256(text)) !== seen.textSha) {
-        e.openFailure = { reason: '화면이 본 뒤 상태 파일이 바뀌어 래치를 풀지 않았다 — 다시 열어 새 래치를 보고 푼다', root }
+        // G4 확인 검수 — 바뀐 그 상태 그대로 새 token의 래치를 다시 보인다(받을 설정 줄은 화면이 본 그 목록). 사람이 다시 보고 누른다
+        e.openFailure = { reason: '화면이 본 뒤 상태 파일이 바뀌어 래치를 풀지 않았다 — 새로 뜬 래치를 다시 보고 푼다', changed: accept, root }
         return releaseRefused(e, e.openFailure.reason)
       }
       if (!seen.tampered && text !== null) {

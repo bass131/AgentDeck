@@ -3,6 +3,8 @@
 // 고정하는 것: 브레인스토밍(메인 노드)의 질문 카드가 상태에 실리고 화면의 답이 세션으로 간다, 스펙 승인은 사람이 본 해시로만 받는다,
 // goal 둘(G1 강 — 검수 세션, G2 약)을 지나 마일스톤 PR에서 사람의 병합을 기다린다, 새 구동자로 다시 열면 이어 가고 병합을 보면 끝낸다,
 // 자동 모드 허용 노드가 꺼져 있으면 시작 전에 멈춘다, 위조 래치는 사람이 본 token으로만 풀리고 설정 차이는 그 목록만 받는다.
+// G4 확인 검수: 카드 차례는 구동자 전역에서 단조 증가한다(닫았다 열어도, 새 구동자여도 겹치지 않는다), 풀기 중 상태 파일이 바뀌어
+// 거부되면 새 token의 래치가 다시 뜬다.
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -204,6 +206,38 @@ describe('카드 id는 세션 차례에 묶인다 (M09 G4 검수 I2)', () => {
     expect(d.answerCard(CWD, second, { kind: 'question', answers: [['곱셈']] })).toBe(true)
     const next = await until((s) => s.phase === 'waiting-human' && s.approval !== null, '두 번째 스펙 승인')
     expect(next.approval?.spec).toContain('곱셈')
+  })
+})
+
+// G4 확인 검수 — 차례는 저장소 항목마다가 아니라 구동자 전역에서 단조 증가하고, 시작값에 구동자마다 무작위 접두를 섞는다.
+// 루프를 닫으면 항목이 지워지므로, 항목마다 0부터 세면 다시 연 뒤 새 세션의 첫 카드가 옛 카드와 같은 id(s1-…)가 된다.
+describe('카드 차례는 구동자 전역에서 단조 증가한다 (M09 G4 확인 검수)', () => {
+  it('루프를 닫았다 열고 이어 가면 새 세션의 첫 질문 카드 id가 옛 id와 다르다 — 새 구동자(앱 재시작)에서도 겹치지 않는다', SLOW, async () => {
+    const { d } = driver()
+    const CWD = repos.work
+    await d.open({ cwd: CWD })
+    await d.start(CWD, 'M1')
+    const first = (await until((s) => s.cards.length === 1, '첫 질문')).cards[0].requestId
+    await d.close(CWD)
+    pushed = []
+    expect((await d.open({ cwd: CWD })).phase).toBe('halted')
+    expect((await d.decide({ cwd: CWD, verdict: 'pass', evidence: '다시 연 뒤 이어 간다' })).ok).toBe(true)
+    const second = (await until((s) => s.cards.length === 1, '다시 연 뒤 질문')).cards[0].requestId
+    expect(second).not.toBe(first)
+    // 카드 id 꼴은 `s<구동자 접두>.<차례>-<원래 id>`다 — 같은 구동자 안에서 차례가 이어진다
+    expect(first).toMatch(/^s[0-9a-f]{8}\.\d+-q-brainstorm$/)
+    expect(second.split('-')[0].split('.')[0]).toBe(first.split('-')[0].split('.')[0])
+    expect(Number(second.split('-')[0].split('.')[1])).toBeGreaterThan(Number(first.split('-')[0].split('.')[1]))
+    expect(d.answerCard(CWD, first, { kind: 'question', answers: [['덧셈']] })).toBe(false)
+    // 앱을 다시 켠 것 — 새 구동자의 차례도 앞 구동자의 id와 겹치지 않는다
+    await d.closeAll()
+    pushed = []
+    const again = driver().d
+    expect((await again.open({ cwd: CWD })).phase).toBe('halted')
+    expect((await again.decide({ cwd: CWD, verdict: 'pass', evidence: '앱을 다시 켜고 이어 간다' })).ok).toBe(true)
+    const third = (await until((s) => s.cards.length === 1, '새 구동자의 질문')).cards[0].requestId
+    expect(new Set([first, second, third]).size).toBe(3)
+    expect(again.answerCard(CWD, third, { kind: 'question', answers: [['덧셈']] })).toBe(true)
   })
 })
 
@@ -429,6 +463,56 @@ describe('구동자 — 멈추는 곳 (M09 G4)', () => {
     gate = null
     const reopened = await d.open({ cwd: CWD })
     expect(reopened.phase).not.toBe('open-failed')
+  })
+
+  // G4 확인 검수 — 풀기가 실행기를 닫은 뒤 다시 읽은 상태 파일이 화면이 본 것과 달라 거부되면, 그 상태 그대로 새 token의 래치를 보인다
+  // (래치 카드 없이 open-failed만 남지 않는다). 사람이 다시 보고 그 token으로 풀면 사본으로 되돌리고 이어 간다.
+  it('풀기 중 상태 파일이 바뀌어 거부되면 새 token의 래치 카드가 다시 뜨고, 그 token으로 풀린다', SLOW, async () => {
+    let tamper: (() => void) | null = null
+    const { backend } = fakeBackend()
+    const d = createLoopDriver({
+      appDataDir: appData, backend, ciRetryMs: 20, humanPollMs: 20,
+      openExtras: { gh, template: TEMPLATE, executorEnv: repos.env, commandTimeoutMs: 60_000 },
+      onState: (s) => { pushed.push(s) },
+      openLoopImpl: async (o) => {
+        const r = await openLoop(o)
+        if (r.ok) {
+          const close = r.loop.close.bind(r.loop)
+          r.loop.close = async () => {
+            await close()
+            const t = tamper
+            tamper = null
+            t?.()
+          }
+        }
+        return r
+      },
+    })
+    drivers.push(d)
+    const CWD = repos.work
+    await d.open({ cwd: CWD })
+    repos.git(['config', 'user.name', 'Someone Else'])
+    await d.start(CWD, 'M1')
+    const tripped = await until((s) => s.phase === 'latched', '설정 래치')
+    const file = path.join(repos.work, DOCS.runState)
+    const legit = fs.readFileSync(file, 'utf8')
+    tamper = () => {
+      const raw = JSON.parse(legit) as { milestoneBase: string | null }
+      raw.milestoneBase = 'e'.repeat(40)
+      fs.writeFileSync(file, JSON.stringify(raw, null, 2))
+    }
+    const refused = await d.releaseLatch(CWD, tripped.latch?.token as string)
+    expect(refused.ok).toBe(false)
+    expect(refused.reason).toContain('상태 파일이 바뀌어')
+    // 실행기는 닫힌 채(열기 실패 단계)지만 래치 카드가 함께 실린다 — 화면이 그 카드를 보인다
+    expect(refused.status.phase).toBe('open-failed')
+    expect(refused.status.latch).not.toBeNull()
+    expect(refused.status.latch?.token).not.toBe(tripped.latch?.token)
+    expect(refused.status.latch?.changed).toEqual(tripped.latch?.changed)
+    const ok = await d.releaseLatch(CWD, refused.status.latch?.token as string)
+    expect(ok.ok).toBe(true)
+    expect(ok.status.latch).toBeNull()
+    expect(fs.readFileSync(file, 'utf8')).toBe(legit)
   })
 
   // 다시 연 뒤 상태를 사본으로 되돌리는 동안 닫아도 새 실행기를 닫는다(잠금이 남지 않는다)

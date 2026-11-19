@@ -62,10 +62,11 @@ describe('스펙 승인은 사람이 본 스펙 해시에 묶인다', () => {
     expect(labelOf(nextStep(ctx.template, (await ctx.runner.load() as { state: RunState }).state))).toBe('spec-approval')
   })
 
+  // G5 실주행 — 브레인스토밍은 스펙 파일 없이 pass하지 않는다(아래). 승인 대기 중에 파일이 사라진 경우를 본다
   it('스펙 파일이 없으면 승인할 수 없다', async () => {
     const ctx = setup()
-    ctx.rig.session.onWork = async (req) => { if (req.node.id === 'brainstorm') ctx.rig.fs.files.delete(DOCS.milestoneSpec) }
     await until(ctx, 'spec-approval')
+    ctx.rig.fs.files.delete(DOCS.milestoneSpec)
     expect(await ctx.runner.specView()).toEqual({ text: null, sha256: null })
     const r = await ctx.runner.submit(human('pass'), { specSha256: 'a'.repeat(64) })
     expect(r.kind === 'blocked' && r.reason).toContain('스펙')
@@ -75,8 +76,8 @@ describe('스펙 승인은 사람이 본 스펙 해시에 묶인다', () => {
   // G4 검수 중요 I3 — 스펙 파일이 없을 때 빠져나갈 길: 해시 없는 반려는 받아 브레인스토밍으로 돌아간다(승인은 계속 해시가 필요하다)
   it('스펙 파일이 없으면 해시 없는 반려를 받아 브레인스토밍으로 돌아간다 — FAIL이 아니라 USER-INPUT이다', async () => {
     const ctx = setup()
-    ctx.rig.session.onWork = async (req) => { if (req.node.id === 'brainstorm') ctx.rig.fs.files.delete(DOCS.milestoneSpec) }
     await until(ctx, 'spec-approval')
+    ctx.rig.fs.files.delete(DOCS.milestoneSpec)
     const r = await ctx.runner.submit(human('fail', '스펙이 써지지 않았다 — 다시 이야기한다'))
     expect(r.kind).toBe('failed')
     expect(labelOf(nextStep(ctx.template, (await ctx.runner.load() as { state: RunState }).state))).toBe('brainstorm')
@@ -84,6 +85,40 @@ describe('스펙 승인은 사람이 본 스펙 해시에 묶인다', () => {
     expect(r.state?.lines.at(-1)?.marker).toBe('USER-INPUT')
     expect(r.state?.lines.at(-1)?.sentence).toContain('스펙 파일 없음')
     expect(r.state?.specSha256 ?? null).toBeNull()
+  })
+
+  // G5 실주행 — 실제 모델이 일반 글로 묻고 턴을 끝내 스펙 없이 브레인스토밍이 pass했다. 스펙 파일이 없거나 비면 FAIL로 다시 돈다
+  it.each([['없음', null], ['빈 파일', '  \n']])('브레인스토밍이 스펙 파일(%s) 없이 끝나면 FAIL이고 브레인스토밍을 다시 돈다', async (_label, body) => {
+    const ctx = setup()
+    ctx.rig.session.onWork = async (req) => {
+      if (req.node.id !== 'brainstorm') return
+      if (body === null) ctx.rig.fs.files.delete(DOCS.milestoneSpec)
+      else await ctx.rig.fs.write(DOCS.milestoneSpec, body)
+    }
+    expect((await ctx.runner.start('M1')).kind).toBe('ok')
+    const r = await ctx.runner.step()
+    expect(r.kind).toBe('failed')
+    const st = (await ctx.runner.load() as { state: RunState }).state
+    expect(labelOf(nextStep(ctx.template, st))).toBe('brainstorm')
+    expect(st.failCount).toBe(1)
+    expect(st.lines.at(-1)?.marker).toBe('FAIL')
+    expect(st.lines.at(-1)?.sentence).toContain(DOCS.milestoneSpec)
+  })
+
+  // G5 독립 검수 중요 1 — 반려 뒤(또는 다음 마일스톤에서) 옛 스펙이 남아 있으면, 아무것도 쓰지 않고 끝난 세션도 통과하던 길
+  it('반려 뒤 다시 돈 브레인스토밍이 스펙도 결정 대장도 바꾸지 않고 끝나면 FAIL이다', async () => {
+    const ctx = setup()
+    await until(ctx, 'spec-approval')
+    const view = await ctx.runner.specView()
+    expect((await ctx.runner.submit(human('fail', '범위가 넓다'), { specSha256: view.sha256 as string })).kind).toBe('failed')
+    ctx.rig.session.nextResult = { ok: true, summary: '글로 묻고 턴을 끝냈다' }
+    const r = await ctx.runner.step()
+    expect(r.kind).toBe('failed')
+    expect(r.state?.lines.at(-1)?.marker).toBe('FAIL')
+    expect(r.state?.lines.at(-1)?.sentence).toContain('바뀌지 않았다')
+    expect(labelOf(nextStep(ctx.template, (await ctx.runner.load() as { state: RunState }).state))).toBe('brainstorm')
+    // 다음 세션이 받은 답을 결정 대장에 남기면(가짜 세션의 기본) 통과한다
+    expect((await ctx.runner.step()).kind).toBe('advanced')
   })
 
   it('멈춘 실행의 이어 가기(사람 pass)는 스펙 해시 없이 받는다 — 스펙 승인 판정이 아니다', async () => {

@@ -6,7 +6,7 @@ import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 import type { AgentBackend, AgentRun, AgentRunInput, RunResponse } from '@main/03_Agent/AgentBackend'
 import { ClaudeCodeBackend } from '@main/04_Claude/ClaudeCodeBackend'
-import { buildWorkPrompt, createWorkSessionPort, type WorkSessionOptions } from '@main/05_Loop/workSession'
+import { MAIN_NODE_RULE, buildWorkPrompt, createWorkSessionPort, type WorkSessionOptions } from '@main/05_Loop/workSession'
 import type { WorkRequest } from '@main/05_Loop/ports'
 import type { GoalState } from '@main/05_Loop/runState'
 import type { WorkNode } from '@main/05_Loop/template'
@@ -88,6 +88,18 @@ describe('작업 노드 프롬프트 (M09 G2)', () => {
     expect(p).not.toContain('노드가 고르지 않은 스펙 본문')
     expect(p).not.toContain('M-ID-NOT-IN-PROMPT')
     expect(p).not.toContain('첫 goal 제목')
+  })
+
+  // G5 실주행 — 메인 노드 세션은 한 턴이라 일반 글로 물으면 사람이 답할 길이 없다. 묻는 길을 질문 도구로 못 박는다
+  it('메인 노드(role main)에만 끝에 「질문 도구로만 묻고 스펙을 쓴 뒤 끝낸다」 규칙을 붙인다', () => {
+    const main = buildWorkPrompt(request({ node: { ...NODE, id: 'brainstorm', role: 'main', docs: ['milestoneSpec'] }, goal: null }))
+    expect(main.endsWith(MAIN_NODE_RULE)).toBe(true)
+    expect(main).toContain('AskUserQuestion')
+    // G5 독립 검수 사소 2·4 — 받은 답은 바로 결정 대장에 적고, 끝내기 전에 스펙이나 결정 대장을 갱신한다
+    expect(MAIN_NODE_RULE).toContain('결정 대장에 바로')
+    expect(MAIN_NODE_RULE).toContain('갱신')
+    expect(main).toContain('노드가 고르지 않은 스펙 본문')
+    expect(buildWorkPrompt(request())).not.toContain('AskUserQuestion')
   })
 
   it('세션 실행 입력: 사용자 메시지 하나(그 프롬프트), 자동 모드, 작업 저장소 cwd, 자격 없는 환경, 루프 잠금', async () => {

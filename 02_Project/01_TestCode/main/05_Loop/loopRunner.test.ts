@@ -530,8 +530,8 @@ describe('템플릿 해시와 상태 스키마', () => {
     const ctx = setup()
     await until(ctx, 'G1/checks')
     const written = [...ctx.rig.fs.files.keys()]
-    // 마일스톤 스펙은 브레인스토밍 세션(가짜)이 쓴다 — 실행기가 쓰는 것은 상태와 검증 기록뿐이다
-    expect(written.filter((k) => !k.startsWith('.agentdeck/goals/')).sort()).toEqual([DOCS.milestoneSpec, DOCS.runState, DOCS.verification].sort())
+    // 마일스톤 스펙과 결정 대장은 브레인스토밍 세션(가짜)이 쓴다 — 실행기가 쓰는 것은 상태와 검증 기록뿐이다
+    expect(written.filter((k) => !k.startsWith('.agentdeck/goals/')).sort()).toEqual([DOCS.decisions, DOCS.milestoneSpec, DOCS.runState, DOCS.verification].sort())
     expect(ctx.rig.fs.files.get(DOCS.runState)).not.toContain('instruction')
   })
 })

@@ -51,6 +51,18 @@ test('ledger tally follows plan-gate: tag order, user side, three gate states', 
   assert.throws(() => parseLedger(planLines([{ file: 'a.md', text: '## 개요\n- [AI] x\n' }])), /결정 대장/);
 });
 
+test('ledger adds the same-folder milestone spec ledger like plan-gate judgment 3', () => {
+  const goal = planLines([{ file: 'g.md', text: '## 결정 대장\n- [USER] a\n- [AI] b\n- [AI] c\n' }]);
+  const spec = planLines([{ file: 's.md', text: '## 개요\n- [AI] 절 밖\n## 결정 대장\n- [USER] x\n- [USER·위임] y\n- [AI] z\n' }]);
+  const l = parseLedger(goal, spec);
+  assert.deepEqual(l.tally, { USER: 2, 'USER·위임': 1, AI: 3, 'AI·비가역': 0 });
+  assert.deepEqual(l.goalTally, { USER: 1, 'USER·위임': 0, AI: 2, 'AI·비가역': 0 });
+  assert.deepEqual([l.userSide, l.gate, l.spec.file, l.spec.line], [3, 'clear', 's.md', 3]);
+  assert.deepEqual(l.aiLines.map(a => [a.file, a.text]), [['g.md', 'b'], ['g.md', 'c'], ['s.md', 'z']]);
+  assert.equal(parseLedger(goal, planLines([{ file: 's.md', text: '## 개요\n- [USER] x\n' }])).gate, 'ask');
+  assert.equal(parseLedger(goal, planLines([{ file: 's.md', text: '## 결정 대장\n- [USER] x\n- [USER] y\n- [AI·비가역] z\n' }])).gate, 'immediate');
+});
+
 test('pin: coord bullets with continuation and sub-headings, summary fields and missing labels', () => {
   const p = parsePin('# pin\n\n## 좌표\n\n- 마일스톤: **M** — `x`\n- 다음 액션: 묻기\n  이어짐\n- 콜론 없는 줄\n\n### 소절\n- 소절: 같은 절\n\n## 마감 요약 (최신 1건)\n\n- 스탬프: 2026-11-11T06:07:05+09:00\n- 바뀐 것: A\n- 봐야 할 것: C\n');
   assert.deepEqual(p.coord.items.map(i => [i.label, i.text]), [['마일스톤', '**M** — `x`'], ['다음 액션', '묻기 이어짐'], [null, '콜론 없는 줄'], ['소절', '같은 절']]);

@@ -192,20 +192,31 @@ export function judgeGoal(steps, record, { status = null, failLimit = RULES.fail
     waitingUser: !closed && !stopped && record?.last?.marker === 'USER-INPUT' };
 }
 
-// 결정 대장: plan-gate 판정 ③과 같은 출처 태그 집계와 주도권 게이트 판정
-export function parseLedger(entries) {
-  const sec = sections(entries).find(s => LEDGER_HEADER.test(s.header));
-  if (!sec) throw new Error('계획 문서에서 「결정 대장」 절을 찾지 못했어요. plan-gate는 이 계획을 반려해요.');
-  const tally = { USER: 0, 'USER·위임': 0, AI: 0, 'AI·비가역': 0 }, aiLines = [];
+const emptyTally = () => ({ USER: 0, 'USER·위임': 0, AI: 0, 'AI·비가역': 0 });
+function tallyLedger(sec, tally, aiLines) {
   for (const l of sec.body) {
     const m = LEDGER_LINE.exec(l.text);
     if (!m) continue;
     tally[m[1]]++;
     if (m[1] === 'AI' || m[1] === 'AI·비가역') aiLines.push({ tag: m[1], text: l.text.replace(/^-\s*\[[^\]]+\]\s*/, ''), file: l.file, line: l.line });
   }
+}
+
+// 결정 대장: plan-gate 판정 ③과 같은 출처 태그 집계와 주도권 게이트 판정.
+// specEntries는 같은 폴더 마일스톤 스펙의 줄이다. 판정 ③처럼 그 대장을 goal 대장에 더하고, 대장 절이 없으면 더하지 않는다.
+export function parseLedger(entries, specEntries = null) {
+  const sec = sections(entries).find(s => LEDGER_HEADER.test(s.header));
+  if (!sec) throw new Error('계획 문서에서 「결정 대장」 절을 찾지 못했어요. plan-gate는 이 계획을 반려해요.');
+  const own = emptyTally(), aiLines = [];
+  tallyLedger(sec, own, aiLines);
+  const specSec = specEntries && sections(specEntries).find(s => LEDGER_HEADER.test(s.header));
+  const specTally = specSec ? emptyTally() : null;
+  if (specSec) tallyLedger(specSec, specTally, aiLines);
+  const tally = Object.fromEntries(Object.keys(own).map(k => [k, own[k] + (specTally ? specTally[k] : 0)]));
   const userSide = tally.USER + tally['USER·위임'];
   const gate = tally['AI·비가역'] >= 1 ? 'immediate' : tally.AI > userSide ? 'ask' : 'clear';
-  return { file: sec.file, line: sec.line, tally, userSide, gate, aiLines };
+  const spec = specSec ? { file: specSec.file, line: specSec.line, tally: specTally } : null;
+  return { file: sec.file, line: sec.line, tally, goalTally: own, spec, userSide, gate, aiLines };
 }
 
 const SUMMARY_KEYS = { '스탬프': 'stamp', '바뀐 것': 'changed', '내린 결정': 'decided', '봐야 할 것': 'watch' };

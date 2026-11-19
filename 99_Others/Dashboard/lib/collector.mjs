@@ -9,6 +9,7 @@ import { BOARD, decisionSig, parseBoard } from './decisions.mjs';
 export const GATE_CONFIG = '98_Management/01_GateState/gate-config.json';
 export const HOOK_LOG = '98_Management/01_GateState/hook-log.jsonl';
 export const MILESTONES = '01_Milestones';
+const SPEC_NAME = '00_마일스톤-스펙.md';
 export const BACKLOG = '99_Backlog.md';
 
 export async function readTail(file, bytes) {
@@ -158,9 +159,15 @@ export async function collect(repoPath, { revision = 1, now = new Date(), io = d
     nextPhase: phases.format === 'goal' ? phases.next ?? null : phases.current == null ? null : phases.items.find(p => p.num > phases.current)?.num ?? null,
     pinNext: nextRaw && { text: nextRaw.text, parts: nextRaw.parts, line: nextRaw.line }, pinState: pinState && { text: pinState.text, parts: pinState.parts, line: pinState.line } };
 
-  // 3. 결정 대장: plan-gate 판정 ③과 같은 집계
+  // 3. 결정 대장: plan-gate 판정 ③과 같은 집계 — 같은 폴더의 마일스톤 스펙 대장을 더하고, 그 파일을 못 읽으면 더하지 않는다
   const ledger = await block('ledger', '결정 대장', planPath || '(포인터 미확인)', { tally: null, userSide: null, gate: null, aiLines: [] }, async () => {
-    const { entries } = await loadPlan(); const l = parseLedger(entries);
+    const { entries } = await loadPlan();
+    const specPath = planDir && planDir.startsWith(MILESTONES + '/') ? `${planDir}/${SPEC_NAME}` : null;
+    let specEntries = null;
+    if (specPath && specPath.toLowerCase() !== planPath.toLowerCase()) {
+      try { specEntries = planLines([{ file: specPath, text: await read(specPath) }]); } catch { specEntries = null; }
+    }
+    const l = parseLedger(entries, specEntries);
     return { ...l, ref: { path: l.file, line: l.line } };
   });
 

@@ -1202,14 +1202,19 @@ function evaluatedScriptOf(c) {
     const [rawName, ...attached] = t.slice(1).split(':')
     const name = low(rawName)
     const value = () => (attached.length ? attached.join(':') : c.args[++i])
-    if (name === 'args' || (name.length > 0 && 'argumentlist'.startsWith(name))) list.push(value())
+    if (name === 'args' || (name.length > 0 && 'argumentlist'.startsWith(name))) {
+      // 배열 꼴 — `"pr", "merge"`는 쉼표로 끝난 낱말이 이어지고, `@(…)`는 괄호로 감싼다
+      let v = value()
+      while (typeof v === 'string' && v.endsWith(',') && i + 1 < c.args.length) v += c.args[++i]
+      list.push(v)
+    }
     else if (name === 'path' || name === 'pspath' || (name.length > 0 && 'filepath'.startsWith(name))) file = value()
     else if (!PS_START_SWITCH.has(name)) value()
   }
   file ??= positional.shift()
   if (!list.length && positional.length) list.push(positional.shift())
   if (!file) return null
-  return [file, ...list.filter((v) => typeof v === 'string').flatMap((v) => v.split(','))].join(' ')
+  return [file, ...list.filter((v) => typeof v === 'string').flatMap((v) => v.replace(/^@\(/, '').replace(/\)$/, '').split(','))].join(' ')
 }
 
 // 앱 데이터 폴더(Electron userData `agentdeck` — 엔진 코드 `engines/`·`engine-config.json`) (M11 goal 8 · M07-1).

@@ -1443,6 +1443,9 @@ try {
     'Start-Process -FilePath gh -ArgumentList "pr","merge","1"',
     "saps gh 'pr merge 1'",
     'eval "gh pr merge 1"',
+    'Start-Process gh -ArgumentList "pr", "merge", "1"',
+    'Start-Process gh -ArgumentList @("pr","merge","1")',
+    'Start-Process gh -ArgumentList @("pr", "merge", "1")',
   ]) expectDenyRule(cmd, 'gh-pr-merge')
   for (const cmd of ['iex "npm test"', 'Start-Process notepad', 'git commit -m "iex gh pr merge 1 은 막힌다"', 'echo Start-Process gh']) expectSilent(cmd)
 
@@ -1492,6 +1495,13 @@ try {
   {
     h.initRepo(h.mirror, { head: MILESTONE, branches: ['chore/x'] })
     for (const cmd of CANONICAL_COMMANDS) expectSilent(cmd)
+    // heredoc 본문 — 새 규칙이 본문 글자(앱 데이터 경로, eval·iex 병합, push, 아포스트로피)에 걸리지 않는다
+    const body = "엔진은 ~/AppData/Roaming/agentdeck/engines에 산다\neval \"gh pr merge 1\"\niex \"gh pr merge 1\"\ngit push origin x\ndon't merge yet"
+    for (const cmd of [
+      `gh pr create --base ${MILESTONE} --head chore/x --title "t" --body "$(cat <<'EOF'\n${body}\nEOF\n)"`,
+      `git commit -F - <<'EOF'\nfix(m11-g8): x\n\n${body}\nEOF`,
+      `git commit -m "$(cat <<'EOF'\nfix(m11-g8): x\n\n${body}\nEOF\n)"`,
+    ]) expectSilent(cmd)
   }
 
   console.log('병합만 승인 — 불변식: 이 러너의 어떤 판정에서도 명시적 통과가 나오지 않았다')

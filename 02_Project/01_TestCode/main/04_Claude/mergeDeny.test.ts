@@ -298,6 +298,9 @@ describe('merge-deny — 가드와 같은 판독 (M11 G8)', () => {
     "Start-Process gh -ArgumentList 'pr merge 1'",
     'Start-Process -FilePath gh -ArgumentList "pr","merge","1"',
     "saps gh 'pr merge 1'",
+    'Start-Process gh -ArgumentList "pr", "merge", "1"',
+    'Start-Process gh -ArgumentList @("pr","merge","1")',
+    'Start-Process gh -ArgumentList @("pr", "merge", "1")',
     "powershell -Command \"iex 'gh pr merge 1'\"",
     // M03-28 — +c, 여러 o, 대시 하나 긴 옵션, .exe 셸
     'bash +c "gh pr merge 1"',

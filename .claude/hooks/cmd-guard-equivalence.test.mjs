@@ -223,6 +223,8 @@ const THREE_WAY_ROWS = [
   merged('TW-13', 'zsh.exe -c "gh pr merge 1"'),
   merged('TW-14', 'env -S "gh pr merge 1"'),
   merged('TW-15', 'gh api -X PUT repos/o/r/pulls/1/merge'),
+  merged('TW-16', 'Start-Process gh -ArgumentList "pr", "merge", "1"'),
+  merged('TW-17', 'Start-Process gh -ArgumentList @("pr","merge","1")'),
   clean('TW-20', 'npm test'),
   clean('TW-21', 'git status'),
   clean('TW-22', 'iex "npm test"'),
@@ -235,6 +237,12 @@ const THREE_WAY_ROWS = [
   { id: 'TW-32', cmd: 'bash -ce "git push origin x"', guard: 'allow', merge: 'allow', loop: 'deny', note: '셸 -c push — 루프 잠금만 막는다' },
   { id: 'TW-33', cmd: 'iex "git push origin x"', guard: 'allow', merge: 'allow', loop: 'deny', note: 'iex push — 루프 잠금만 막는다' },
   { id: 'TW-34', cmd: "Start-Process git -ArgumentList 'push origin x'", guard: 'allow', merge: 'allow', loop: 'deny', note: 'Start-Process push — 루프 잠금만 막는다' },
+  // 가드가 자기 판정을 내는 감싼 push — 가드 열은 병합 축이 아니라 날 판정(guardRaw)으로 본다. 가드가 감싼 꼴을 읽는지가 여기서 갈린다
+  { id: 'TW-40', cmd: 'timeout 5 git push --force origin x', guard: 'allow', guardRaw: 'deny', merge: 'allow', loop: 'deny' },
+  { id: 'TW-41', cmd: 'bash -ce "git push origin master"', guard: 'allow', guardRaw: 'ask', merge: 'allow', loop: 'deny' },
+  { id: 'TW-42', cmd: 'iex "git push --force origin x"', guard: 'allow', guardRaw: 'deny', merge: 'allow', loop: 'deny' },
+  { id: 'TW-43', cmd: "Start-Process git -ArgumentList 'push --force origin x'", guard: 'allow', guardRaw: 'deny', merge: 'allow', loop: 'deny' },
+  { id: 'TW-44', cmd: 'bash -login -ce "git push origin master"', guard: 'allow', guardRaw: 'ask', merge: 'allow', loop: 'deny' },
   { id: 'TW-35', cmd: 'gh api repos/o/r/pulls/1/merge', guard: 'allow', merge: 'deny', loop: 'allow', note: '병합 끝점 읽기 — 가드·루프 잠금은 쓰기만 막고, 병합 잠금은 끝점이 보이면 막는다' },
   { id: 'TW-36', cmd: 'powershell -Command "gh pr merge 1"', guard: 'allow', merge: 'deny', loop: 'deny', note: 'powershell -Command — 가드는 읽지 않는다(M03-24 v2, 설정이 PowerShell 도구를 막는다)' },
 ]
@@ -294,6 +302,10 @@ try {
       const loop = loopCommandReason(row.cmd, LOOP_SCOPE) === null ? 'allow' : 'deny'
       if (report) console.log(`${row.id}\t가드 ${guard}\t병합잠금 ${merge}\t루프잠금 ${loop}`)
       r.judge(`${label(row)} 가드(병합 축)`, guard, row.guard, { note: row.note })
+      if (row.guardRaw) {
+        const raw = res.code === 2 ? 'deny' : /"permissionDecision"\s*:\s*"ask"/.test(res.stdout) ? 'ask' : 'allow'
+        r.judge(`${label(row)} 가드(날 판정)`, raw, row.guardRaw)
+      }
       r.judge(`${label(row)} 병합 잠금`, merge, row.merge, { note: row.note })
       r.judge(`${label(row)} 루프 잠금`, loop, row.loop, { note: row.note })
     }

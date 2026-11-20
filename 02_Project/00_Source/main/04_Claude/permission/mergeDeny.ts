@@ -316,14 +316,19 @@ function startProcessScript(args: string[]): string | null {
     const [rawName, ...attached] = t.slice(1).split(':')
     const name = rawName.toLowerCase()
     const value = (): string | undefined => (attached.length ? attached.join(':') : args[++i])
-    if (name === 'args' || (name.length > 0 && 'argumentlist'.startsWith(name))) { const v = value(); if (v !== undefined) list.push(v) }
+    if (name === 'args' || (name.length > 0 && 'argumentlist'.startsWith(name))) {
+      // 배열 꼴 — `"pr", "merge"`는 쉼표로 끝난 낱말이 이어지고, `@(…)`는 괄호로 감싼다
+      let v = value()
+      while (v !== undefined && v.endsWith(',') && i + 1 < args.length) v += args[++i]
+      if (v !== undefined) list.push(v)
+    }
     else if (name === 'path' || name === 'pspath' || (name.length > 0 && 'filepath'.startsWith(name))) file = value()
     else if (!PS_START_SWITCH.has(name)) value()
   }
   file ??= positional.shift()
   if (!list.length && positional.length) list.push(positional.shift() as string)
   if (!file) return null
-  return [file, ...list.flatMap((v) => v.split(','))].join(' ')
+  return [file, ...list.flatMap((v) => v.replace(/^@\(/, '').replace(/\)$/, '').split(','))].join(' ')
 }
 
 // Windows 셸이면 안쪽에서 실행될 스크립트 후보를, 아니면 null을 돌려준다.
@@ -406,7 +411,9 @@ function splitScriptOf(c: Cmd): string | null {
 
 function scriptReason(script: string, rawText: string, depth: number): string | null {
   if (depth > 4) return null
-  const text = stripHeredocBodies(script.replace(/\\\r?\n/g, ' '))
+  let text = stripHeredocBodies(script.replace(/\\\r?\n/g, ' '))
+  // `Start-Process … -ArgumentList @(…)` — 세그먼트 분할이 괄호를 하위 셸로 끊어 인자가 떨어지지 않게 배열 괄호를 벗긴다
+  if (/\b(?:start-process|saps)\b/i.test(text)) text = text.replace(/@\(([^()]*)\)/g, ' $1 ')
   for (const sub of substitutions(text)) {
     const r = scriptReason(sub, rawText, depth + 1)
     if (r) return r

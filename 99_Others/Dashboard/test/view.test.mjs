@@ -89,61 +89,7 @@ test('enter keys: the memory it returns is a fresh map and the input is untouche
 
 const read = async p => (await readFile(new URL(p, import.meta.url), 'utf8')).replace(/\r\n/g, '\n');
 
-test('app.js: entrances go through play() with remembered keys, never through a class in the painted html', async () => {
-  const app = await read('../public/app.js');
-  const body = name => app.slice(app.indexOf(`function ${name}(`), app.indexOf('\n}\n', app.indexOf(`function ${name}(`)));
-  assert.match(app, /const VIEW = globalThis\.AgentDeckView \|\| null;/);
-  assert.match(body('renderNow'), /enter\(/, '「지금」을 그린 뒤 등장 대상을 고른다');
-  assert.match(body('enter'), /VIEW\.enterKeys\(/);
-  assert.match(body('enter'), /'#now \[data-enter\], #brief \[data-enter\]'/, '큰 카드(#now)와 진척 띠(#brief)를 한 기억으로 고른다(H8)');
-  assert.match(body('enter'), /play\(/, '동작은 play()라 동작 줄이기와 숨은 탭에서 꺼진다');
-  assert.doesNotMatch(app, /is-enter/, '등장 동작을 그리는 HTML의 class로 걸지 않는다(다시 그릴 때마다 돈다)');
-});
-
-// H8 체크리스트 14: 띠의 「HH:MM:SS에 읽음」은 스냅샷마다(훅 기록이 쌓이면 초마다) 바뀐다. 바뀔 때마다 투명에서 다시 나타나면
-// 시각이 꽤 오래 비어 보인다(4320 실측: 스냅샷 8번 동안 표본 401개 중 104개가 불투명도 0.3 미만). 그래서 흐려지기만 하고 사라지지 않는다.
-test('app.js: the strip read-time never fades out completely when a new snapshot arrives', async () => {
-  const app = await read('../public/app.js');
-  const body = name => app.slice(app.indexOf(`function ${name}(`), app.indexOf('\n}\n', app.indexOf(`function ${name}(`)));
-  const call = body('renderStrip').match(/play\(collected\.querySelector\('time'\), \[\{ opacity: ([\d.]+)/);
-  assert.ok(call, '읽은 시각이 바뀌면 play()로 한 번 움직인다');
-  assert.ok(Number(call[1]) >= 0.5, `첫 프레임 불투명도 ${call[1]} — 시각이 비어 보이지 않는다`);
-});
-
-test('app.js: the ring is hatched, not zero, when the steps cannot be read', async () => {
-  const app = await read('../public/app.js');
-  const body = name => app.slice(app.indexOf(`function ${name}(`), app.indexOf('\n}\n', app.indexOf(`function ${name}(`)));
-  assert.match(body('ringBlock'), /VIEW\.stepRing\(P\)/);
-  assert.match(body('ringBlock'), /if \(!r\) return [^\n]*ring is-unknown/, '단계를 못 읽으면 빗금 링과 「단계 미확인」');
-  assert.match(body('doingBlock'), /VIEW\.doingTone\(\{ hand: handLevel\(now\), phases: P \}\)/, '카드 상태는 화면이 쓰는 손 수준(fresh 필터 뒤)으로 정한다');
-});
-
-// H8 체크리스트 1·6: goal 칩 줄과 숫자 카드(완료·지금·남음)를 진척 띠 한 줄로 바꿨다. 숫자는 문장 한 곳에만 있다.
-test('app.js: the where block keeps its sentence and draws one progress band from the same goal list — no number cards', async () => {
-  const app = await read('../public/app.js');
-  const body = name => app.slice(app.indexOf(`function ${name}(`), app.indexOf('\n}\n', app.indexOf(`function ${name}(`)));
-  const where = body('whereBlock');
-  assert.match(where, /goal \$\{Gs\.total\}개 중 \$\{Gs\.done\}개 완료/, '「goal N개 중 k개 완료 …」 문장은 그대로 있다');
-  assert.doesNotMatch(where, /class="stats|class="stat /, '「어디쯤」에는 숫자 카드가 없다(숫자는 문장 한 곳)');
-  assert.match(where, /class="band"[^\n]*--n:\$\{/, '띠는 goal 수만큼 칸을 나눈다');
-  assert.match(where, /data-enter="\$\{esc\(g\.id\)\}"/, '띠 칸은 goal id를 등장 키로 쓴다');
-  assert.match(where, /title="\$\{esc\(/, '칸 이름과 PR은 title에 남는다');
-  assert.match(where, /bc-say[^\n]*지금/, '지금 칸 아래에 「… 지금」 글을 둬서 색만으로 말하지 않는다');
-  assert.match(where, /class="sr"/, '칸마다 화면 읽기용 상태 글이 있다');
-});
-
-test('app.js: the verification record becomes pass / fail / user-input number cards, still only in the steps area', async () => {
-  const app = await read('../public/app.js');
-  const body = name => app.slice(app.indexOf(`function ${name}(`), app.indexOf('\n}\n', app.indexOf(`function ${name}(`)));
-  const rec = body('recordLine');
-  for (const [key, word] of [['g-pass', '통과'], ['g-fail', '실패'], ['g-ui', '사용자 입력']]) assert.match(rec, new RegExp(`'${word}', num\\('${key}'`), word);
-  assert.match(rec, /검증 기록은 아직 없어요\./, '기록이 없으면 0 카드가 아니라 그 문장');
-  assert.match(rec, /tag\('검증 기록 절이 없어요', 'tag-broken'\)/);
-  assert.equal((app.match(/num\('g-pass'/g) || []).length, 1, '기록 수는 단계 영역 한 곳에만 있다');
-  // <dl>은 <p> 안에 들 수 없다(파서가 <p>를 먼저 닫는다). 기록 줄을 감싸는 요소는 div다
-  assert.match(body('renderPhases'), /<div class="goal-rec"\$\{fxAttr\('phases-rec'\)\}>\$\{recordLine\(r, now\)\}/);
-});
-
+// app.js 배선(등장 동작·띠 읽은 시각·빗금 링·어디쯤 띠·검증 기록 숫자 카드)은 test/m11-g5-dom.test.mjs가 jsdom에서 동작으로 본다(M11 G6, Backlog 41).
 const ruleOf = css => sel => (css.match(new RegExp(`(?:^|\\n)${sel.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\{[^}]*\\}`)) || [''])[0];
 
 test('styles: the doing card and the progress band use only the existing colour meanings and no CSS animation', async () => {

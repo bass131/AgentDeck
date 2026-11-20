@@ -3,6 +3,7 @@
 - 범위 밖 발견을 한 줄로 남긴다(헌법 11조). 최신 번호가 위다.
 - M01~M10 Backlog의 닫힘은 각 파일의 「## 닫힘 (M11)」 표가 갖는다. 여기에는 M11 진행 중 새로 생긴 것과 해결됨 항목의 남은 갈래만 둔다.
 
+25. 모델 목록 다시 묻기는 5·15·60초 세 번이다. 셋 다 SDK 목록을 못 받으면 재시작 전까지 다시 묻지 않는다(`renderer/src/05_Conversation/state/composer.ts:11`) — 다시 묻기 버튼이나 화면 복귀 때 묻기 후보 (M06-13, M11 G2 검수 사소 11).
 24. 시험 사본 `stopAction.esc-interrupt-wiring.test.ts:11-25`의 `makeOnEscape`가 `Shell.tsx:160-169`를 재구현하면서 `isAnyModalOpen()`·`workspaceMode` 가드가 빠져, Shell에서 그 가드를 지워도 시험이 통과한다(M10 Backlog 8과 같은 꼴) (M11 설계 감사).
 23. `Shell.tsx:81,353` — `appUpdateOpen`이 true로 바뀌는 곳이 없어 `AppUpdateGate`가 열리지 않는다(코드 판독) (M11 설계 감사).
 22. 모달 판정이 CSS 클래스 목록(`useGlobalShortcuts.ts:4-11`)에 묶여 `.fs-overlay`가 빠져 있다 — 실행 중 서브에이전트 전체 화면을 Esc로 닫으면 Shell이 모달 없음으로 보고 실행을 중단할 수 있고, Git 창 위 파일 창에서 Esc 한 번에 둘 다 닫힐 수 있다(코드 추론) (M11 설계 감사).

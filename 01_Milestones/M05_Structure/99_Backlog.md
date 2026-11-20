@@ -11,7 +11,7 @@ M11 Backlog 정리(`01_Milestones/M11_BacklogSweep/`)가 닫은 항목이다. �
 |---|---|---|
 | 1 | 고침(M11 goal 2) | 앱 종료가 LSP 서버를 끈다(`main/00_App/bootstrap.ts:117`, `main/09_Lsp/manager.ts:536`, `63911dda`). |
 | 2 | 해결됨 | `@keyframes rise`가 `renderer/src/11_Settings/SettingsModal.css:171` 한 벌만 남았다. |
-| 3 | 고침(M11 goal 2) | G1 결정 대장 [USER·위임]대로 앱 「자동」의 시작도 공식 `auto`다(`main/04_Claude/permissionModes.ts:19`, `d95d7051`). 분류기 비교·규칙 GUI는 v2다. |
+| 3 | 고침(M11 goal 2) | G1 결정 대장 [USER·위임]대로 앱 「자동」의 시작도 공식 `auto`다(`main/04_Claude/permissionModes.ts:19`, `d95d7051`). 실앱 e2e `m11-g2-app-session-live.e2e.ts` D에서 「자동」 대화가 카드 없이 도구를 쓰고 모드가 자동으로 남았다. 분류기 비교·규칙 GUI는 v2다. |
 | 4 | 해결됨 | 폴백 상수가 `main/10_Engine/sdkVersion.ts:8` 한 곳이고 `sdkVersion.read.test.ts`가 package.json 명세와의 드리프트를 고정한다. |
 | 5 | 고침(M11 goal 2) | `selectTaskScope`가 입력이 같으면 같은 객체를 돌려준다(`renderer/src/00_App/state/selector.ts:28`, `63911dda`). |
 | 6 | v2로 | Codex 실행기는 v1 범위 밖으로 미뤘다(`00_Vision/50_v1-범위.md:34`). |
@@ -35,8 +35,8 @@ M11 Backlog 정리(`01_Milestones/M11_BacklogSweep/`)가 닫은 항목이다. �
 | 48 | 닫음(판단) | G1 결정 대장 [USER·위임] — interrupt 때 대기열은 지금 동작을 둔다. |
 | 49 | 고침(M11 goal 2) | 질문 창 층이 320이고 다른 모달이 열려 있으면 Esc를 양보한다(`03_Agent/prompt/QuestionModal.css:4`, `QuestionModal.tsx:43,200`, `63911dda`). |
 | 50 | 낡음 | 멀티 질문 창과 패널 배지가 M10 G1 `95125a05`에서 화면째 지워졌다. |
-| 51 | 고침(M11 goal 2) | 전환 때 대기열을 비우고(`06_Sessions/state/sessions.ts:128,167`) `/clear`가 REPL 세션을 끝내며(`conversation.ts:101`) 후보 0개 팔레트의 Enter가 전송된다(`useComposerKeyHandler.ts:44`, `63911dda`). 패널 갈래는 M11 Backlog 10. |
-| 52 | 고침(M11 goal 2) | 실행 중인 대화를 지우면 그 run을 끊고(`sessions.ts:208-211`) 배경 복귀는 스냅숏의 `selectedModel`을 되살린다(`63911dda`, `d95d7051`). `preservePanelLocalFields`는 M11 Backlog 11. |
+| 51 | 고침(M11 goal 2) | 전환 때 대기열을 비우고(`06_Sessions/state/sessions.ts:129,168`) `/clear`가 REPL 세션을 끝내며(`conversation.ts:100`) 후보 0개 팔레트의 Enter가 전송된다(`useComposerKeyHandler.ts:44`, `63911dda`). 패널 갈래는 M11 Backlog 10. |
+| 52 | 고침(M11 goal 2) | 실행 중인 대화를 지우면 그 run을 끊고(`sessions.ts:211-214`) 배경 복귀는 스냅숏의 `selectedModel`을 되살린다(`63911dda`, `d95d7051`). `preservePanelLocalFields`는 M11 Backlog 11. |
 | 53 | 일부 고침(M11 goal 2) | 죽은 `isRunning`·`active` 포트를 지웠다(`63911dda`). 응답 전 전환의 뒤늦은 `SET_RUN_ID` 등 남은 갈래는 M11 Backlog 12. |
 | 54 | 고침(M11 goal 2) | 채널 이름이 `sessions.*`·`workspace.*`다(`shared/06_Sessions/conversation.ts:6-8`, `63911dda`). |
 | 57 | 해결됨 | `testTimeout`이 30000이다(`vitest.config.ts:20`). |

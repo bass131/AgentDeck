@@ -28,12 +28,12 @@
 진척 단계
 
 - [x] 1. goal 준비 — 이 문서, `gate-config.json` `planPath` 전환(판정 장치)
-- [>] 2. 정형 절차 명령의 통과 시험 먼저
-- [ ] 3. 가드 규칙과 같음 시험(앱 잠금 패리티)
-- [ ] 4. 설정 — 질의 겹침, 병합 꼴, deny의 넓은 꼴
-- [ ] 5. 훅 배선, 하위 에이전트 질의 근거, CI 고정, 헌법 3조
-- [ ] 6. 닫힘 표, 하드 게이트 다섯 종, `npm test` 차분
-- [ ] 7. 독립 검수와 반영, goal PR, `hard-gates`, 로컬 goal 병합
+- [x] 2. 정형 절차 명령의 통과 시험 먼저
+- [x] 3. 가드 규칙과 같음 시험(앱 잠금 패리티)
+- [x] 4. 설정 — 질의 겹침, 병합 꼴, deny의 넓은 꼴
+- [x] 5. 훅 배선, 하위 에이전트 질의 근거, CI 고정, 헌법 3조
+- [x] 6. 닫힘 표, 하드 게이트 다섯 종, `npm test` 차분
+- [>] 7. 독립 검수와 반영, goal PR, `hard-gates`, 로컬 goal 병합
 
 실행 단계 일괄 승인 대상 (스펙에서 옮김)
 
@@ -48,7 +48,9 @@ DoD
 
 검증 기록
 
-- (기록 없음)
+- PASS 2026-11-21T08:14:09+09:00 — 구현: 작업 하위 에이전트가 커밋 여덟(`08d2c6c1` 정형 절차 시험, `375c1e37` 가드 규칙·`mergeDeny` 패리티·세 판정기 비교 표, `48a9baef` 오탐 넷 좁히기, `ac73f0ac` 설정·`onFailure`, `f49098a1` CI SHA 고정·dependabot·헌법 3조, `8f1a490f` `Start-Process` 배열 꼴, `533df846`·`1556f3d8` 닫힘 표)으로 처리했다. 마지막 머리에서 하드 게이트 다섯 종 통과, `npm test` 9147 passed·실패 0, 훅 시험 dangerous-cmd-guard 1160·cmd-guard-equivalence 259·settings-matcher 74, 앱 잠금 vitest 690 통과. diff가 「건드릴 곳」 밖을 바꾸지 않음(앱 소스는 `mergeDeny.ts`와 두 시험뿐)과 두 헌법 파일의 3조 한 줄이 같은 글임을 메인이 확인했다.
+- PASS 2026-11-21T08:14:09+09:00 — 정형 절차 통과: `dangerous-cmd-guard.test.mjs` 「정형 절차 명령 — 마일스톤 브랜치 머리의 저장소에서 가드 무출력」과 `settings-matcher.test.mjs` 「정형 절차 명령 — 설정 allow」가 `_lib/canonical-commands.mjs`의 명령(goal 병합, 두 push, `gh pr create`, fetch·switch)을 첫 커밋부터 묶는다. 설정 판정은 문서 규칙의 근사라 실제 세션 확인은 이 goal의 병합 절차가 한다(Backlog 79).
+- PASS 2026-11-21T08:14:09+09:00 — 닫힘 표: 「정함 → goal 8」 grep 0. 고침 M03-28·32, M04-8·10, M05-8·9, M07-1·3·20·21, M08-2·3·5·6, Backlog 5·17·28. 근거로 닫음 M05-10(실제 질의 없이 문서와 `agent_id`가 있는 기존 hook-log 두 줄), 판단으로 닫음 M06-28(설정 ask는 모든 모드에서 창을 보장하는 층 — permission-modes 문서). M08-3 우선순위는 permissions 문서 원문 「deny, then ask, then allow」로 확인했다. 남은 갈래 Backlog 74~79.
 
 ## 결정 대장
 
@@ -56,5 +58,7 @@ DoD
 - [USER·위임] Backlog 28의 PowerShell 꼴은 규칙이 없는 꼴(`iex`·`Invoke-Expression`·`Start-Process`가 감싼 `gh pr merge`)만 가드와 앱 잠금에 같이 더하고, 백틱 이스케이프(`` g`h ``)처럼 판독이 낱말을 못 읽는 꼴은 M05-9 처분과 같이 v2로 보낸다. 근거: G1 결정 M05-9, 스펙 「하지 않을 것」(판독 재설계는 v2). (2026-11-21)
 - [USER·위임] M05-10(하위 에이전트의 가드 질의가 창이 되는지)은 사람이 없는 지금 실제 질의를 띄워 재지 않는다 — 사슬이 창에서 멈춘다. 공식 문서와 훅 로그의 기존 줄로 근거를 적고, 실측이 필요하면 Backlog로 남긴다. 근거: 성향 28·31, 사슬 규칙(사람에게 묻지 않는다). (2026-11-21)
 - [USER·위임] M08-3의 ask/allow 우선순위는 Claude Code 공식 권한 문서로 확인한 뒤 규칙을 정한다. 문서가 「deny → ask → allow」 순서를 보장하지 않으면 allow 꼴을 좁히는 쪽을 고른다. 근거: G1 결정 M08-3, 사용자 지시(번들 열람 금지). (2026-11-21)
+- [USER·위임] M08-2는 가드가 처음으로 저장소 상태(작업 폴더 `.git`·worktree `gitdir:`의 HEAD)를 읽는다. 읽기에 실패하면 지금 판정 그대로 두어 질의를 더할 뿐 빼지 않는다 — 통과 판정을 명령 글자로만 내리는 ADR-003의 설계와 방향이 같다(더 막는 쪽만 상태를 본다). 근거: 스펙 「만들 것」(비공개 전환 전 필수), 성향 29. (2026-11-21)
+- [AI] 공개 — 워커가 CI SHA 고정 시험(`settings-matcher` ⑨)을 변경 뒤에 썼고(옛 `@v4` 파일이면 빨갛다), 문서만 바꾼 `1556f3d8`은 게이트를 커밋 뒤에 돌렸다(전부 통과). 범위 안 추가로 `_lib/guard-spawn.mjs`에 시험 헬퍼 `runAt`을 넣었다. hooks·sub-agents·permission-modes 문서 인용은 WebFetch 요약을 거친 글이라 원문 대조는 permissions 문서의 우선순위 두 문장만 했다. (2026-11-21)
 
 출처 태그는 네 가지다 — `[USER]`·`[USER·위임]`·`[AI]`·`[AI·비가역]`.

@@ -4,7 +4,7 @@
 - M01~M10 Backlog의 닫힘은 각 파일의 「## 닫힘 (M11)」 표가 갖는다. 여기에는 M11 진행 중 새로 생긴 것과 해결됨 항목의 남은 갈래만 둔다.
 
 15. e2e `engine-update.e2e.ts:12`가 `cmpVer`를 따로 복사해 쓴다. 앱의 비교는 pre-release를 읽는 한 벌(`engineCheckUpdate.ts:4`)이 됐는데 e2e 사본은 옛 `Number` 쪼개기다 (M05-65, M11 G2).
-14. 패널(`05_Conversation/PanelView.tsx`)은 실행 중 effort 전환, 모델을 바꿀 때 직전 창 버리기, 자동 압축 표시를 아직 잇지 않았다. 단일 대화 입력창만 고쳤다 (M06-18·24·27, M11 G2).
+14. 패널(`05_Conversation/PanelView.tsx`)은 실행 중 effort 전환, 모델을 바꿀 때 직전 창 버리기, 자동 압축 표시를 아직 잇지 않았다. 단일 대화 입력창만 고쳤다. M10 G1 뒤로 `PanelView`를 그리는 곳(`<PanelView`)이 없어 지금은 화면에 닿지 않는다 — 패널 코드를 지울지와 함께 본다 (M06-18·24·27, M11 G2).
 13. Bash가 아닌 올라온 승인 카드에는 판단 재료(입력 전문)가 아직 없다. 긴 명령 스크롤과 요청 줄만 고쳤다 (M06-12, M11 G2).
 12. 세션 레지스트리 남은 갈래 — 대화 쪽 실행 포트에 `life`가 없어(`03_Agent/state/runtime.ts:94`) `agent.run` 응답 전에 다른 대화로 넘어가면 뒤늦은 `SET_RUN_ID`가 새 전경 대화에 붙을 수 있다(`runCore.ts:138,202`, 코드 읽기). `forget`의 키 구독자 제거, 시험의 `defineKind` 덮기 미복원, `00_App`·`main.tsx`의 CSS 직접 import도 남았다 (M05-53, M11 G2).
 11. `preservePanelLocalFields`(`03_Agent/state/panelSession.ts:103-111`)는 여전히 사실상 아무 일도 안 한다. 지운 대화의 run 끊기만 고쳤다 (M05-52, M11 G2).

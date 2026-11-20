@@ -23,7 +23,7 @@ M11 Backlog 정리(`01_Milestones/M11_BacklogSweep/`)가 닫은 항목이다. �
 | 15 | 고침(M11 goal 2) | `ContextStrip`이 쓰지 않던 `selectedModel`을 받지 않는다(`05_Conversation/ComposerContext.tsx`, `57c20790`). |
 | 16 | 고침(M11 goal 2) | 최소 목록이 SDK 별칭 행 꼴이고 목록에 없는 모델은 effort 메뉴를 끈다(`shared/03_Agent/models/knownModels.ts:8`, `renderer/src/03_Agent/pickerOptions.ts:111`, `57c20790`). |
 | 17 | 고침(M11 goal 2) | 새 대화 기본 모델이 SDK 목록 `default` 행의 정식 ID다(`knownModels.ts:17` `defaultModelOf`, `57c20790`). |
-| 18 | 고침(M11 goal 2) | 모델을 바꾸면 직전 창을 버려 보수 예산으로 돌아가고 행 값에 꼴·길이 제한을 둔다(`composer.ts:99`, `shared/03_Agent/models/modelList.ts:37`, `57c20790`). 패널 쪽은 M11 Backlog 14. |
+| 18 | 고침(M11 goal 2) | 모델을 바꾸면 다음 턴이 창을 새로 잴 때까지 재적재 예산에서 옛 창을 빼고 계기 창은 둔다(`composer.ts:99`, `03_Agent/state/runtime.ts:102`, `0de67e27`). 행 값에 꼴·길이 제한을 둔다(`shared/03_Agent/models/modelList.ts:37`, `57c20790`). 패널 쪽은 M11 Backlog 14. |
 | 19 | 고침(M11 goal 2) | 폴백 버전을 `package.json` 의존 명세에서 파생하고 접미 벗기기는 한 벌이다(`main/10_Engine/sdkVersion.ts:9`, `main/04_Claude/stream/claudeStream.ts:4`, `57c20790`). PR 검사는 `hard-gates`가 한다. |
 | 20 | v2로 | M11 스펙 결정 대장 [USER] 2회차 — 가드 재설계 「이번엔 안 한다」. |
 | 21 | v2로 | M11 스펙 결정 대장 [USER] 2회차 — 셸 파서 도입도 가드 재설계와 함께 「이번엔 안 한다」. |
@@ -31,7 +31,7 @@ M11 Backlog 정리(`01_Milestones/M11_BacklogSweep/`)가 닫은 항목이다. �
 | 24 | 고침(M11 goal 2) | 지속 세션의 effort를 공개 `Query.applyFlagSettings({ effortLevel })`로 바꾼다 — 재사용 턴과 실행 중 `agent.setEffort`(`main/04_Claude/run/claudeAgentRun.ts:223`, `main/03_Agent/agentRuns.ts:77`, `57c20790`). 실측으로 deny 규칙 유지를 봤다. 패널 쪽은 M11 Backlog 14. |
 | 25 | 해결됨 | 메인 대화 안에 질문·승인 카드가 뜬다(`renderer/src/13_Loop/MainChatView.tsx:6,81`, M10 G3 `547ab01b`). |
 | 26 | 고침(M11 goal 2) | M06-2와 같은 고침이다(`eventNormalizer.ts:163`, `57c20790`). |
-| 27 | 고침(M11 goal 2) | SDK 자동 압축은 이미 켜져 있었다(실측 `getContextUsage` `isAutoCompactEnabled` true). 첫 턴 뒤 한 번 물어 컨텍스트 칩에 보인다(`claudeAgentRun.ts:622`, `05_Conversation/ComposerContext.tsx:50`, `57c20790`). |
+| 27 | 고침(M11 goal 2) | SDK 자동 압축은 이미 켜져 있었다(실측 `getContextUsage` `isAutoCompactEnabled` true, 문턱은 사용자 설정 `autoCompactWindow`를 따른다 — 실앱에서 「자동 압축 217K」). 첫 턴 뒤 한 번 물어 컨텍스트 칩에 보인다(`claudeAgentRun.ts:622`, `05_Conversation/ComposerContext.tsx:50`, `57c20790`). |
 | 30 | 해결됨 | 가드 훅에 `timeout: 30`과 `onFailure: "block"`이 있다(`.claude/settings.json:70`). |
 | 31 | 해결됨 | M07 G1 결정 대장 [USER] 「그대로 두고 닫기」가 닫았다(`M07_Controls/10_Goal-G1-판정-장치-정비.md:72`). |
 

@@ -1446,6 +1446,12 @@ try {
   ]) expectDenyRule(cmd, 'gh-pr-merge')
   for (const cmd of ['iex "npm test"', 'Start-Process notepad', 'git commit -m "iex gh pr merge 1 은 막힌다"', 'echo Start-Process gh']) expectSilent(cmd)
 
+  console.log('설정 deny를 좁힌 뒤 설정이 놓치는 병합 끝점 호출은 가드가 막는다 (M11 Backlog 5)')
+  for (const cmd of ['gh api -X PUT "repos/o/r/pulls/1/merge"', "gh api -X PUT 'repos/o/r/pulls/1/merge'", 'gh api -X PUT repos/o/r/pulls/1/merge?x=1',
+    'gh api -X PUT repos/o/r/pulls/1/merge>out.json', 'gh api -X PUT repos/o/r/pulls/1/merge;', 'gh api --method PUT repos/o/r/pulls/1/merge|cat',
+  ]) expectDenyRule(cmd, 'gh-api-병합')
+  expectAsk('gh api repos/o/r/issues/12/comments -f body="see pulls/12/merge"') // 댓글 쓰기는 일반 gh api 쓰기 질의다
+
   console.log('병합 차단 안내가 새 뜻을 말한다 — master는 사람, goal은 로컬 git merge --no-ff (M08-5)')
   {
     const res = h.run('gh pr merge 12 --merge')

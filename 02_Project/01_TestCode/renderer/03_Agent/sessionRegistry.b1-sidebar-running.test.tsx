@@ -50,6 +50,8 @@ function bgRun(isRunning: boolean, runId: string): ConversationRunState {
     attachedImages: [],
     restoredSession: false,
     replMode: false,
+    pickerMode: 'auto',
+    selectedModel: 'default',
   }
 }
 

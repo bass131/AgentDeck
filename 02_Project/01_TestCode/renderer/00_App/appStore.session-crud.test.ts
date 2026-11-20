@@ -359,6 +359,80 @@ describe('session-crud — selectConversations 셀렉터', () => {
   })
 })
 
+// M11 G2 — M06 Backlog 1. 권한 모드 선택은 대화마다다 — 새 대화에서 Bypass를 골라도 옛 대화는 자기 모드로 열린다.
+describe('session-crud — 대화마다 권한 모드 (M06-1)', () => {
+  const saved: Array<{ id?: string; mode?: string; model?: string }> = []
+  const originalLoad = mockApi.conversationLoad
+  const originalSave = mockApi.conversationSave
+  const withMode = (id: string, mode?: string): ConversationRecord => ({
+    ...SAMPLE_RECORDS[0], id, ...(mode !== undefined ? { mode } : {}),
+  })
+  beforeEach(() => {
+    resetStore()
+    __resetBackgroundRunsForTests()
+    saved.length = 0
+    useAppStore.setState({ pickerMode: 'auto', currentRunId: null } as Parameters<typeof useAppStore.setState>[0])
+    mockApi.conversationLoad = async (req: { id?: string; limit?: number }) => {
+      const records = [withMode('m-plan', 'plan'), withMode('m-none'), withMode('m-bad', 'dontAsk')]
+      const found = records.find((r) => r.id === req.id)
+      return { conversations: found ? [found] : records }
+    }
+    mockApi.conversationSave = async (req?: unknown) => {
+      const c = (req as { conversation: { id?: string; mode?: string; model?: string } }).conversation
+      saved.push({ id: c.id, mode: c.mode, model: c.model })
+      return { id: c.id ?? 'cv-new' }
+    }
+  })
+  afterEach(() => {
+    mockApi.conversationLoad = originalLoad
+    mockApi.conversationSave = originalSave
+    __resetBackgroundRunsForTests()
+  })
+
+  it('저장된 모드로 열고, 모드가 없는 옛 대화는 기본(자동)으로 연다', async () => {
+    await useAppStore.getState().selectConversation('m-plan')
+    expect(useAppStore.getState().pickerMode).toBe('plan')
+    useAppStore.getState().setPickerMode('bypass')
+    await useAppStore.getState().selectConversation('m-none')
+    expect(useAppStore.getState().pickerMode).toBe('auto')
+    await useAppStore.getState().selectConversation('m-plan')
+    await useAppStore.getState().selectConversation('m-bad')
+    expect(useAppStore.getState().pickerMode).toBe('auto')
+  })
+
+  it('conversationModeOf는 선택기에 있는 id만 받는다', async () => {
+    const { conversationModeOf } = await import('@renderer/03_Agent/pickerOptions')
+    expect(conversationModeOf('bypass')).toBe('bypass')
+    expect(conversationModeOf(undefined)).toBe('auto')
+    expect(conversationModeOf('constructor')).toBe('auto')
+  })
+
+  it('새 대화는 기본 모드로 시작한다', async () => {
+    await useAppStore.getState().selectConversation('m-plan')
+    useAppStore.getState().newConversation()
+    expect(useAppStore.getState().pickerMode).toBe('auto')
+    await useAppStore.getState().selectConversation('m-plan')
+    useAppStore.getState().clearConversation()
+    expect(useAppStore.getState().pickerMode).toBe('auto')
+  })
+
+  it('실행 중이 아닌 대화에서 모드를 바꾸면 그 대화에 바로 저장한다', async () => {
+    await useAppStore.getState().selectConversation('m-plan')
+    useAppStore.getState().setPickerMode('normal')
+    await Promise.resolve()
+    expect(saved.at(-1)).toMatchObject({ id: 'm-plan', mode: 'normal' })
+  })
+
+  it('실행 중에 떠난 대화는 배경 스냅샷에 모드를 들고 가고, 돌아오면 그 모드다', async () => {
+    await useAppStore.getState().selectConversation('m-plan')
+    useAppStore.setState({ currentRunId: 'r-run', isRunning: true, pickerMode: 'bypass' } as Parameters<typeof useAppStore.setState>[0])
+    await useAppStore.getState().selectConversation('m-none')
+    expect(useAppStore.getState().pickerMode).toBe('auto')
+    await useAppStore.getState().selectConversation('m-plan')
+    expect(useAppStore.getState().pickerMode).toBe('bypass')
+  })
+})
+
 // M11 G2 — M05 Backlog 51·52. 대화를 바꾸거나 지우거나 /clear로 비울 때 남는 것이 없어야 한다.
 describe('session-crud — 전환·삭제·/clear 정리 (M05-51·52)', () => {
   const aborts: string[] = []

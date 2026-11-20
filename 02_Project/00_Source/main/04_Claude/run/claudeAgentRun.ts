@@ -98,15 +98,18 @@ export class ClaudeAgentRun implements AgentRun {
   private readonly _skillOverridesProvider: () => Record<string, 'off'> | null
   private readonly _mcpDeniedProvider: () => { serverName: string }[] | null
   private readonly _onCommandsCaptured: ((cmds: SlashCommandInfo[]) => void) | null
+  private readonly _controlsAtRunStart: () => ControlsForRun
 
   constructor(
     req: AgentRunInput,
     queryFn: QueryFn | null,
     skillOverridesProvider: () => Record<string, 'off'> | null,
     mcpDeniedProvider: () => { serverName: string }[] | null,
-    onCommandsCaptured: ((cmds: SlashCommandInfo[]) => void) | null = null
+    onCommandsCaptured: ((cmds: SlashCommandInfo[]) => void) | null = null,
+    controlsProvider: () => ControlsForRun = controlsAtRunStart,
   ) {
     this._req = req
+    this._controlsAtRunStart = controlsProvider
     this._queryFn = queryFn
     this._skillOverridesProvider = skillOverridesProvider
     this._mcpDeniedProvider = mcpDeniedProvider
@@ -303,7 +306,7 @@ export class ClaudeAgentRun implements AgentRun {
   }
 
   private async _prepareQuery(): Promise<{ resolvedQueryFn: QueryFn; sdkOptions: Record<string, unknown> } | null> {
-    const controls = controlsAtRunStart()
+    const controls = this._controlsAtRunStart()
     if (!controls.ok) {
       console.error(`[controls] controls.json 봉인 ${controls.status} — 실행을 열지 않는다`)
       this._push({ type: 'error', message: controls.message })

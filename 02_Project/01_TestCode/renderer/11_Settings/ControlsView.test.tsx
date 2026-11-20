@@ -21,7 +21,7 @@ const node = (over: Partial<ControlNodeView>): ControlNodeView => ({
 
 const NODES: ControlNodeView[] = [
   node({ id: 'no-suggestion-card', name: '규칙 제안 없는 호출은 카드', results: ['ask'] }),
-  node({ id: 'mode-auto-bypass-allow', name: '자동·Bypass 모드는 허용', locked: false }),
+  node({ id: 'mode-auto-bypass-allow', name: '자동 모드는 허용', locked: false }),
   node({ id: 'readonly-allow', name: '읽기 도구는 허용', locked: false, enabled: false }),
   node({ id: 'engine-path-file-deny', name: '엔진 파일 거부', point: 'permissionRules', results: ['deny'] }),
   node({ id: 'engine-path-bash-lock', name: '엔진 경로 셸 거부', point: 'preToolUse', results: ['deny'], protection: 'L3', timeoutMs: 10000 }),
@@ -58,7 +58,7 @@ afterEach(() => {
 async function renderView(): Promise<void> {
   const { ControlsView } = await import('../../../../02_Project/00_Source/renderer/src/11_Settings/ControlsView')
   render(<ControlsView />)
-  await screen.findByText('자동·Bypass 모드는 허용')
+  await screen.findByText('자동 모드는 허용')
 }
 
 describe('컨트롤 패널 (M07 G5)', () => {
@@ -74,13 +74,13 @@ describe('컨트롤 패널 (M07 G5)', () => {
     await renderView()
     const locked = screen.getByRole('switch', { name: /규칙 제안 없는 호출은 카드/ })
     expect((locked as HTMLButtonElement).disabled).toBe(true)
-    expect(screen.getByRole('switch', { name: /자동·Bypass 모드는 허용/ }).getAttribute('aria-checked')).toBe('true')
+    expect(screen.getByRole('switch', { name: /자동 모드는 허용/ }).getAttribute('aria-checked')).toBe('true')
     expect(screen.getByRole('switch', { name: /읽기 도구는 허용/ }).getAttribute('aria-checked')).toBe('false')
   })
 
   it('풀린 노드를 누르면 끄기 요청을 보내고 상태를 다시 읽는다', async () => {
     await renderView()
-    fireEvent.click(screen.getByRole('switch', { name: /자동·Bypass 모드는 허용/ }))
+    fireEvent.click(screen.getByRole('switch', { name: /자동 모드는 허용/ }))
     await waitFor(() => expect(api.setControlEnabled).toHaveBeenCalledWith({ id: 'mode-auto-bypass-allow', enabled: false }))
     await waitFor(() => expect(api.getControlsState).toHaveBeenCalledTimes(2))
   })
@@ -88,7 +88,7 @@ describe('컨트롤 패널 (M07 G5)', () => {
   it('토글이 거절되면 오류 문장을 보인다', async () => {
     api.setControlEnabled.mockResolvedValue({ ok: false, error: '거절됨' })
     await renderView()
-    fireEvent.click(screen.getByRole('switch', { name: /자동·Bypass 모드는 허용/ }))
+    fireEvent.click(screen.getByRole('switch', { name: /자동 모드는 허용/ }))
     expect(await screen.findByText(/거절됨/)).toBeTruthy()
   })
 
@@ -97,7 +97,7 @@ describe('컨트롤 패널 (M07 G5)', () => {
     await renderView()
     expect(screen.getByRole('alert').textContent).toMatch(/앱 밖에서 바뀌었/)
     expect(screen.getByRole('alert').textContent).toMatch(/지금 파일 내용/)
-    expect((screen.getByRole('switch', { name: /자동·Bypass 모드는 허용/ }) as HTMLButtonElement).disabled).toBe(true)
+    expect((screen.getByRole('switch', { name: /자동 모드는 허용/ }) as HTMLButtonElement).disabled).toBe(true)
     fireEvent.click(screen.getByRole('button', { name: /지금 내용으로 확인/ }))
     await waitFor(() => expect(api.confirmControls).toHaveBeenCalledWith({ disabled: ['readonly-allow'] }))
     await waitFor(() => expect(screen.queryByRole('alert')).toBeNull())
@@ -116,7 +116,7 @@ describe('컨트롤 패널 (M07 G5)', () => {
     await renderView()
     expect(screen.getByRole('alert').textContent).toMatch(/EISDIR/)
     expect(screen.queryByRole('button', { name: /지금 내용으로 확인/ })).toBeNull()
-    expect((screen.getByRole('switch', { name: /자동·Bypass 모드는 허용/ }) as HTMLButtonElement).disabled).toBe(true)
+    expect((screen.getByRole('switch', { name: /자동 모드는 허용/ }) as HTMLButtonElement).disabled).toBe(true)
   })
 
   it('엔진 상태가 없어도(null) 패널은 그려진다', async () => {
@@ -129,7 +129,7 @@ describe('컨트롤 패널 (M07 G5)', () => {
     let release: (v: { ok: boolean }) => void = () => {}
     api.setControlEnabled.mockReturnValue(new Promise((r) => (release = r)))
     await renderView()
-    const sw = screen.getByRole('switch', { name: /자동·Bypass 모드는 허용/ }) as HTMLButtonElement
+    const sw = screen.getByRole('switch', { name: /자동 모드는 허용/ }) as HTMLButtonElement
     fireEvent.click(sw)
     await waitFor(() => expect(sw.disabled).toBe(true))
     fireEvent.click(sw)
@@ -141,13 +141,16 @@ describe('컨트롤 패널 (M07 G5)', () => {
   it('거절 문장은 화면 낭독기에 알린다', async () => {
     api.setControlEnabled.mockResolvedValue({ ok: false, error: '거절됨' })
     await renderView()
-    fireEvent.click(screen.getByRole('switch', { name: /자동·Bypass 모드는 허용/ }))
+    fireEvent.click(screen.getByRole('switch', { name: /자동 모드는 허용/ }))
     expect((await screen.findByRole('status')).textContent).toMatch(/거절됨/)
   })
 
   it('머리말은 SDK가 먼저 승인하는 호출은 노드까지 오지 않는다고 밝힌다 (G5 검수 중요 3)', async () => {
     await renderView()
     expect(document.body.textContent).toMatch(/노드까지 오지 않/)
+    // M11 G2 — M07 Backlog 17 실측: Bypass는 모든 호출, 자동 모드는 SDK 분류기가 승인한 호출이 콜백을 거치지 않는다
+    expect(document.body.textContent).toMatch(/Bypass 모드의 모든 호출/)
+    expect(document.body.textContent).toMatch(/자동 모드에서 SDK 분류기가 승인한 호출/)
   })
 
   it('엔진 봉인이 깨지면 그 엔진을 다시 고르는 버튼을 보인다', async () => {
@@ -176,6 +179,6 @@ describe('설정 모달의 컨트롤 메뉴 (M07 G5)', () => {
     const { SettingsModal } = await import('../../../../02_Project/00_Source/renderer/src/11_Settings/SettingsModal')
     render(<SettingsModal onClose={() => {}} />)
     fireEvent.click(screen.getByRole('button', { name: '컨트롤' }))
-    expect(await screen.findByText('자동·Bypass 모드는 허용')).toBeTruthy()
+    expect(await screen.findByText('자동 모드는 허용')).toBeTruthy()
   })
 })

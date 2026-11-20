@@ -96,8 +96,10 @@ export const createComposerSlice: StateCreator<AppStore, [], [], ComposerState &
 
   setPickerMode: (mode) => {
     set({ pickerMode: mode })
-    const { replMode, currentRunId } = get()
+    const { replMode, currentRunId, conversationId } = get()
     requestLiveModeSwitch(currentRunId, replMode, mode)
+    // 대화마다 기억한다(M06 Backlog 1) — 실행 중이면 그 실행의 저장(시작·done)이 새 모드를 싣는다
+    if (conversationId !== null && currentRunId === null) void get().saveConversation().catch(() => {})
   },
   cyclePickerMode: () => {
     const current = get().pickerMode

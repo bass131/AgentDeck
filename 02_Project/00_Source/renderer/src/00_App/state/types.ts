@@ -39,6 +39,8 @@ export type ConversationRunState = AppState & {
   attachedImages: AttachedImage[]
   restoredSession: boolean
   replMode: boolean
+  pickerMode: string
+  selectedModel: string
 }
 
 export type StoreState = AppState &

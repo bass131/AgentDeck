@@ -2,6 +2,22 @@ import { describe, it, expect } from 'vitest'
 import { getBackend, listBackends } from '@main/00_App/registry'
 import type { AgentBackend } from '@main/03_Agent/AgentBackend'
 
+// M11 G2 — M07 Backlog 18. 앱이 쓰는 Claude 백엔드는 userData 경로를 못 얻으면 실행을 열지 않는다(닫힌 실패).
+// 이 시험은 Electron 밖이라 app이 없어 getUserDataDir()가 던진다 — 옛 길은 이때 기본 등록부(전부 켬)로 열었다.
+describe('registry — 컨트롤 검사는 닫힌 실패', () => {
+  it('userData 경로를 못 얻으면 claude-code 실행은 SDK를 부르지 않고 오류와 done으로 끝난다', async () => {
+    const run = getBackend('claude-code').start({ messages: [{ role: 'user', content: 'hi' }] })
+    const types: string[] = []
+    let message = ''
+    for await (const e of run.events) {
+      types.push(e.type)
+      if (e.type === 'error') message = e.message
+    }
+    expect(types).toEqual(['error', 'done'])
+    expect(message).toContain('앱 데이터 폴더를 얻지 못해 실행을 열지 않았습니다')
+  })
+})
+
 describe('registry', () => {
   describe('getBackend()', () => {
     it('인자 없이 호출 시 claude-code 백엔드 반환', () => {

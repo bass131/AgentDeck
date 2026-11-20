@@ -346,7 +346,7 @@ describe('실물 백엔드 배선 (M09 G2)', () => {
       const o = captured.options as Record<string, unknown>
       expect(o['cwd']).toBe(dir)
       expect(o['env']).toEqual({ ...ENV, CLAUDE_CODE_EMIT_SESSION_STATE_EVENTS: '1' })
-      expect(o['permissionMode']).toBe('acceptEdits')
+      expect(o['permissionMode']).toBe('auto')
       type M = { hooks: ((i: unknown, id: string, x: { signal: AbortSignal }) => Promise<{ hookSpecificOutput?: { permissionDecision: string } }>)[] }
       const first = (o['hooks'] as { PreToolUse: M[] }).PreToolUse[0]
       const out = await first.hooks[0](

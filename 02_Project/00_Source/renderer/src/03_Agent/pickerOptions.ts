@@ -87,6 +87,11 @@ export const DEFAULT_EFFORT: EffortLevel = DEFAULT_EFFORT_LEVEL
 export const DEFAULT_MODE_CONVERSATION = 'auto'
 export const DEFAULT_MODE_PANEL = 'bypass'
 
+// 저장된 대화의 모드 — 선택기에 없는 값이면 대화 기본값(M06 Backlog 1)
+export function conversationModeOf(saved: string | undefined): string {
+  return MODES.some((m) => m.id === saved) ? (saved as string) : DEFAULT_MODE_CONVERSATION
+}
+
 export interface EffortPickerState {
   options: EffortOption[]
   disabled: boolean

@@ -83,6 +83,18 @@ describe('GAP1 P07 — PermissionCard plan 액션 세트 (RED)', () => {
     fireEvent.click(denyBtn)
     expect(onRespond).toHaveBeenCalledWith('deny')
   })
+
+  // M11 G2 — M06 Backlog 11. 숫자 키 2는 어느 카드에서나 거부 쪽이다(계획 카드는 계속 계획), 3은 이 카드에 없다.
+  it('숫자 키 2 → 계속 계획(deny), 3 → 아무것도 하지 않는다', async () => {
+    const { PermissionCard } = await import(CARD_PATH)
+    const onRespond = vi.fn()
+    const { container } = render(<PermissionCard pending={PLAN_PENDING} onRespond={onRespond} />)
+    const card = container.querySelector('.perm-card') as HTMLElement
+    fireEvent.keyDown(card, { key: '3' })
+    expect(onRespond).not.toHaveBeenCalled()
+    fireEvent.keyDown(card, { key: '2' })
+    expect(onRespond).toHaveBeenCalledWith('deny')
+  })
 })
 
 describe('GAP1 P07 — PermissionCard plan 본문 미확보 fallback (RED)', () => {

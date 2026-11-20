@@ -246,7 +246,7 @@ describe('(B) 패널 하네스 — 패널 권한 카드 배선(usePanelSlot)', (
     expect(card1).toBeTruthy()
 
     await act(async () => {
-      fireEvent.keyDown(card0, { key: '3' })
+      fireEvent.keyDown(card0, { key: '2' })
     })
 
     expect(mockApi.permissionRespond).toHaveBeenCalledTimes(1)

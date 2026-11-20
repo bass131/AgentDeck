@@ -112,6 +112,13 @@ describe('GAP1 P02 시나리오 2: conversationSave payload에 model 포함', ()
     const payload = buildConversationSavePayload(sourceWith(undefined), 'conv-x')
     expect(payload).not.toBeNull()
     expect('model' in (payload as object)).toBe(false)
+    expect('mode' in (payload as object)).toBe(false)
+  })
+
+  // M11 G2 — M06 Backlog 1. 권한 모드도 같은 길로 저장 payload에 실린다.
+  it('source.mode → payload.mode', () => {
+    const payload = buildConversationSavePayload({ ...sourceWith('haiku'), mode: 'plan' }, 'conv-x')
+    expect(payload).toMatchObject({ mode: 'plan', model: 'haiku' })
   })
 })
 
@@ -125,6 +132,13 @@ describe('GAP1 P02 시나리오 3: loadConversation model 복원(폴백 포함)'
     resetStore(useAppStore, DEFAULT_MODEL)
     await useAppStore.getState().loadConversation()
     expect(useAppStore.getState().selectedModel).toBe('sonnet')
+  })
+
+  it('저장된 권한 모드가 있는 최근 대화 로드 → pickerMode도 그 값(M06 Backlog 1)', async () => {
+    mockApi.conversationLoad.mockImplementationOnce(async () => ({ conversations: [{ ...recordA, mode: 'plan' }] }))
+    resetStore(useAppStore, DEFAULT_MODEL)
+    await useAppStore.getState().loadConversation()
+    expect(useAppStore.getState().pickerMode).toBe('plan')
   })
 
   it('conv.model 없는 레코드 로드 → DEFAULT_MODEL 폴백(크래시 0)', async () => {

@@ -147,7 +147,9 @@ export const createRuntimeSlice: StateCreator<AppStore, [], [], RuntimeState & R
     const bgHit = findBackgroundRunByRunId(payload.runId)
     if (bgHit) {
       const [bgConvId, bgState] = bgHit
-      const nextBg = applyAgentEvent(bgState as AppState, payload, t, nowMs) as unknown as ConversationRunState
+      const applied = applyAgentEvent(bgState as AppState, payload, t, nowMs) as unknown as ConversationRunState
+      // 배경 대화의 모드 변화는 그 대화 몫이다(M06 Backlog 1) — 전경 선택기는 건드리지 않는다
+      const nextBg = payload.event.type === 'permission_mode' ? { ...applied, pickerMode: payload.event.mode } : applied
 
       putBackgroundRun(bgConvId, nextBg)
 
@@ -170,6 +172,8 @@ export const createRuntimeSlice: StateCreator<AppStore, [], [], RuntimeState & R
             lastUsage: nextBg.lastUsage,
             subagents: nextBg.subagents,
             replMode: nextBg.replMode,
+            model: nextBg.selectedModel,
+            mode: nextBg.pickerMode,
           },
           bgConvId
         )

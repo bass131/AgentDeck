@@ -153,7 +153,8 @@ export function ControlsView(): JSX.Element {
       <div className="set-h1">컨트롤</div>
       <div className="set-h1-sub">
         에이전트의 도구 호출을 판정하는 노드들입니다. 잠금이 풀린 노드는 끌 수 있고, 끄면 그 노드가 허용하던 호출이 카드로 옵니다.
-        다만 SDK가 먼저 승인하는 호출(Bypass 모드, 설정 파일의 허용 규칙, SDK가 스스로 안전하다고 보는 명령)은 노드까지 오지 않습니다.
+        다만 SDK가 먼저 승인하는 호출(Bypass 모드의 모든 호출, 자동 모드에서 SDK 분류기가 승인한 호출, 설정 파일의 허용 규칙,
+        SDK가 스스로 안전하다고 보는 명령)은 노드까지 오지 않습니다.
       </div>
 
       {state && warn && (

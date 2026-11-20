@@ -148,6 +148,34 @@ describe('PermissionCard — 접힌 긴 명령은 펼치기 전에 허용할 수
     fireEvent.click(allow)
     expect(onRespond).toHaveBeenCalledTimes(2)
   })
+
+  // M11 G2 — M06 Backlog 12. 펼친 전문도 높이 상한(320px) 아래에서 스크롤된다 — 꼬리를 보기 전에는 허용을 잠근다.
+  it('펼친 전문이 상자보다 길면 끝까지 스크롤한 뒤에야 허용이 풀린다', async () => {
+    const { PermissionCard } = await import('@renderer/10_Engine')
+    const onRespond = vi.fn()
+    const { container } = render(<PermissionCard pending={guardPending(VERY_LONG_CMD)} onRespond={onRespond} />)
+    const box = container.querySelector('[data-cmd-full]') as HTMLElement
+    Object.defineProperty(box, 'scrollHeight', { configurable: true, value: 1000 })
+    Object.defineProperty(box, 'clientHeight', { configurable: true, value: 320 })
+    fireEvent.click(container.querySelector('[data-cmd-toggle]') as HTMLElement)
+    const allow = container.querySelector('[data-perm-choice="allow"]') as HTMLButtonElement
+    expect(allow.disabled).toBe(true)
+    const card = container.querySelector('.perm-card') as HTMLElement
+    await act(async () => {
+      fireEvent.keyDown(card, { key: '1' })
+    })
+    expect(onRespond).not.toHaveBeenCalled()
+    box.scrollTop = 680
+    fireEvent.scroll(box)
+    expect(allow.disabled).toBe(false)
+  })
+
+  it('뒤에 줄 선 요청이 있으면 그 수를 보인다', async () => {
+    const { PermissionCard } = await import('@renderer/10_Engine')
+    const pending = { ...guardPending(LONG_CMD), behind: [{ ...guardPending('ls'), requestId: 'perm-2' }] }
+    const { container } = render(<PermissionCard pending={pending} onRespond={vi.fn()} />)
+    expect(container.querySelector('[data-perm-behind]')?.textContent).toContain('1')
+  })
 })
 
 describe('PermissionCard — 사유 없이 올라온 확인 요청 (fail-closed 경로)', () => {

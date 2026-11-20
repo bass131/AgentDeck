@@ -230,7 +230,7 @@ describe('등록부 목록과 SDK 옵션 배선 (M07 G3)', () => {
   it('userData 경로를 받으면 거부 규칙과 Bash 잠금 훅을 넣고, 모드 설정은 그대로 둔다', () => {
     const opts = buildClaudeSdkOptions({ ...base(), userDataDir: WIN_UD })
     const settings = opts['settings'] as { permissions: { defaultMode: string; deny: string[] } }
-    expect(settings.permissions.defaultMode).toBe('acceptEdits')
+    expect(settings.permissions.defaultMode).toBe('auto')
     expect(settings.permissions.deny).toEqual(enginePathDenyRules(WIN_UD))
     // 엔진 경로 잠금 훅 뒤에 병합 거부 훅(M07 G8)이 붙는다
     const hooks = opts['hooks'] as { PreToolUse: { onFailure: string }[] }
@@ -258,7 +258,7 @@ describe('등록부 목록과 SDK 옵션 배선 (M07 G3)', () => {
   it('userData 경로가 없으면 거부 규칙과 엔진 잠금 훅을 넣지 않는다 — 병합 거부 훅(G8)만 남는다', () => {
     const opts = buildClaudeSdkOptions(base())
     expect((opts['hooks'] as { PreToolUse: unknown[] }).PreToolUse).toHaveLength(1)
-    expect((opts['settings'] as { permissions: Record<string, unknown> }).permissions).toEqual({ defaultMode: 'acceptEdits' })
+    expect((opts['settings'] as { permissions: Record<string, unknown> }).permissions).toEqual({ defaultMode: 'auto' })
   })
 })
 

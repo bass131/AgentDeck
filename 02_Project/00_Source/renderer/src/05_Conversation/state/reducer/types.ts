@@ -16,6 +16,8 @@ export interface PendingPermission {
   // M06 G3 — 모드와 관계없이 사람에게 올린 호출의 표지와 사유 원문(없을 수 있다). 표지가 있으면 카드가 명령 전문을 보이고 「항상 허용」을 숨긴다.
   escalated?: true
   askReason?: string
+  // 보이는 카드 뒤에 줄 선 요청(M11 G2, M06 Backlog 12) — 응답해 지우면 맨 앞이 올라온다
+  behind?: PendingPermission[]
 }
 
 export interface PendingQuestion {

@@ -260,6 +260,35 @@ describe('merge-deny — env -S 문자열을 명령으로 다시 읽는다 (M09 
   }
 })
 
+describe('merge-deny — 가드와 같은 판독 (M11 G3)', () => {
+  const probes = [
+    'timeout -vs KILL 5 gh pr merge 1',
+    'timeout --sig KILL 5 gh pr merge 1',
+    'bash -ce "gh pr merge 1"',
+    'bash -c -x "gh pr merge 1"',
+    'eval gh pr merge 1',
+    'find . -maxdepth 0 -exec gh pr merge 1 \\;',
+  ]
+  for (const cmd of probes) {
+    it(`[M11-G3 M11-17] 거부: ${JSON.stringify(cmd)}`, () => {
+      expect(mergeDenyReason(cmd)).not.toBeNull()
+    })
+  }
+  const passed = [
+    'timeout -vs KILL 5 npm test',
+    'bash -ce "git status"',
+    'bash -c -x "npm test"',
+    'eval echo merge',
+    'find . -name "*.ts" -exec grep -l merge {} \\;',
+    'echo "find . -exec gh pr merge 1 \\;"',
+  ]
+  for (const cmd of passed) {
+    it(`통과: ${JSON.stringify(cmd)}`, () => {
+      expect(mergeDenyReason(cmd)).toBeNull()
+    })
+  }
+})
+
 describe('merge-deny 훅과 노드 정보 (M07 G8)', () => {
   it('훅은 command 입력의 병합 꼴을 거부 결정으로, 나머지는 빈 출력으로 돌려준다', async () => {
     const matcher = buildMergeDenyHook()

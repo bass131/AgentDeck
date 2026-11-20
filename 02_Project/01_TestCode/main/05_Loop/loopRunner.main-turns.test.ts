@@ -80,7 +80,7 @@ describe('메인 노드의 여러 턴 — 기다림은 판정이 아니다 (M10 
     await ctx.runner.step()
     await ctx.runner.step()
     const [a, b] = ctx.reqs
-    expect(a.visit).toEqual({ key: 'M1#0', rejected: null })
+    expect(a.visit).toEqual({ key: 'M1#0', rejected: null, failed: null })
     expect(b.visit).toEqual(a.visit)
     // 두 번째 step은 가짜 세션의 기본(스펙을 쓴다)으로 통과한다
     const view = await ctx.runner.specView()

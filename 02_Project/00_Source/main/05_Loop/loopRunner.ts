@@ -356,11 +356,17 @@ export function createLoopRunner(deps: LoopRunnerDeps): LoopRunner {
     return gate?.kind === 'gate' && gate.onFail?.goto === node.id ? last.sentence : null
   }
 
+  // M11 G3(M09-12) — 메인 노드가 직전에 FAIL했으면 그 줄의 문장(다시 도는 세션이 같은 실수를 되풀이하지 않게)
+  function failedInto(state: RunState, node: WorkNode): string | null {
+    const last = state.lines.at(-1)
+    return node.role === 'main' && last?.marker === 'FAIL' && last.node === node.id ? last.sentence : null
+  }
+
   // null: 메인 노드의 여러 턴 대화가 아직 끝나지 않았다(M10 G2 — 판정 없이 기다린다)
   async function runWork(node: WorkNode, state: RunState, goal: GoalState | null): Promise<Verdict | null> {
     try {
       const docs = await readNodeDocs(ports.fs, node.docs, goal?.id ?? null)
-      const visit = { key: visitKeyOf(state), rejected: rejectedInto(state, node) }
+      const visit = { key: visitKeyOf(state), rejected: rejectedInto(state, node), failed: failedInto(state, node) }
       const res = await ports.session.runWork({ milestoneId: state.milestoneId, node, goal, docs, visit })
       // M10 G2 — 대화 중(사람을 기다림)은 판정이 아니다. 메인 노드에만 받는다
       if (res.waiting) {
@@ -497,11 +503,12 @@ export function createLoopRunner(deps: LoopRunnerDeps): LoopRunner {
     return null
   }
 
-  // 브랜치는 시작 SHA의 계보일 때만 이번 실행의 것으로 받는다. 상태에 시작 SHA가 없으면(만든 뒤 저장 전에 꺼짐) from의 지금 머리로 본다.
-  // push하는 브랜치(마일스톤)는 머리가 시작 SHA와 같을 때만 받는다 — 그 위의 커밋은 이번 실행이 만든 것이 아니다.
+  // 브랜치는 시작 SHA의 계보일 때만 이번 실행의 것으로 받는다. 상태에 시작 SHA가 없으면(만든 뒤 저장 전에 꺼짐) from의 원격 머리로 본다
+  // (M11 G3, M09-8 — 로컬 ref는 작업 노드가 옮길 수 있다).
+  // push하는 브랜치(마일스톤)는 머리가 시작 SHA와 같을 때만 받고, 그 SHA를 push한다(M11 G3, M09-9 — 확인 뒤 로컬 브랜치가 옮겨져도 따라가지 않는다).
   async function ensureBranch(node: ActionNode, name: string, from: string, recordedStart: string | null, pushNew: boolean): Promise<Verdict> {
     if (await git.branchExists(name)) {
-      const start = recordedStart ?? (await git.headSha(from))
+      const start = recordedStart ?? (await git.remoteSha(from))
       if (!start || !(await git.isAncestor(start, name))) {
         return v(node, 'stop', `${name} 브랜치가 이미 있는데 이번 실행이 가른 계보(시작 ${short(start)})가 아니다 — 사람 판단이 필요하다`)
       }
@@ -510,7 +517,7 @@ export function createLoopRunner(deps: LoopRunnerDeps): LoopRunner {
         if (head !== start) return v(node, 'stop', `이미 있는 ${name}의 머리 ${short(head)}가 시작 ${short(start)}가 아니다 — ${NOT_PUSHED}`)
       }
       await git.checkout(name)
-      if (pushNew) await git.push(name)
+      if (pushNew) await git.push(name, start)
       return v(node, 'pass', `${name} 브랜치가 이미 있다(시작 ${short(start)}의 계보) — 만들지 않고 옮겨 갔다`, { baseSha: start })
     }
     await git.syncToRemote(from)
@@ -520,7 +527,11 @@ export function createLoopRunner(deps: LoopRunnerDeps): LoopRunner {
     if (!start) return v(node, 'fail', `${from}의 머리를 읽지 못해 ${name}을 가르지 않았다`)
     await git.createBranch(name, from)
     await git.checkout(name)
-    if (pushNew) await git.push(name)
+    if (pushNew) {
+      const head = await git.headSha(name)
+      if (head !== start) return v(node, 'stop', `가른 ${name}의 머리 ${short(head)}가 ${from}에서 읽은 ${short(start)}가 아니다 — ${NOT_PUSHED}`)
+      await git.push(name, start)
+    }
     return v(node, 'pass', `${name} 브랜치를 ${from}의 ${short(start)}에서 갈랐다`, { baseSha: start })
   }
 

@@ -634,6 +634,92 @@ describe('loop-lock 셸 위치 (M09 G2 재검수 중요 C)', () => {
     expect(await call('cd .git && ls')).not.toBeNull()
     expect(await call('echo x > config')).toBeNull()
   })
+
+  it('[M11-G3 M09-6] 커밋 메시지 안의 CDPATH 글자는 CDPATH 설정으로 보지 않는다', () => {
+    expect(loopCommandReason('git commit -m "fix: CDPATH=.git 꼴을 막는다"', SCOPE)).toBeNull()
+    expect(loopCommandReason("git commit -F - <<'EOF'\nexport CDPATH=.git 막기\nEOF", SCOPE)).toBeNull()
+    for (const cmd of [
+      'CDPATH+=:.git; cd hooks', 'declare -x "CDPATH=.git"', 'printf -v CDPATH .git', 'bash -c "export CDPATH=.git"', 'read -r CDPATH',
+      '{ CDPATH=.git; }', 'if true; then CDPATH=.git; fi', 'for i in 1; do CDPATH=.git; done', 'f() { CDPATH=.git; }', '! CDPATH=.git',
+    ]) {
+      expect(loopCommandReason(cmd, SCOPE)).toContain('CDPATH')
+    }
+  })
+
+  it('[M11-G3 M09-6 검수] 작은따옴표 밖의 매개변수 펼치기 ${CDPATH=…}·${CDPATH:=…}도 CDPATH 설정이다', () => {
+    for (const cmd of [
+      ': ${CDPATH=.git}; cd hooks && echo x > pre-commit',
+      ': ${CDPATH=/c/Users/u}; cd .ssh && echo x >> config',
+      ': ${CDPATH:=.git}; cd hooks',
+      'echo "${CDPATH=.git}"; cd hooks',
+    ]) {
+      expect(loopCommandReason(cmd, SCOPE)).toContain('CDPATH')
+    }
+    expect(loopCommandReason("git commit -m 'fix: ${CDPATH=.git} 꼴을 막는다'", SCOPE)).toBeNull()
+    expect(loopCommandReason('echo ${CDPATH:-none}', SCOPE)).toBeNull()
+  })
+
+  it('[M11-G3 M09-6] source 뒤의 「위치 모름」은 다음 호출로 넘어가지 않는다 — 훅이 준 cwd가 저장소 뿌리면 상대 쓰기가 지나간다', async () => {
+    const call = session()
+    expect(await call('source .venv/bin/activate', 'C:\\work\\repo')).toBeNull()
+    expect(await call('echo x > out.txt', 'C:\\work\\repo')).toBeNull()
+    expect(await call('. .venv/bin/activate; echo x > out.txt', 'C:\\work\\repo')).not.toBeNull()
+    expect(await call('source .venv/bin/activate && cd .git', 'C:\\work\\repo')).not.toBeNull()
+    const noHookCwd = session()
+    expect(await noHookCwd('source .venv/bin/activate')).toBeNull()
+    expect(await noHookCwd('echo x > out.txt')).not.toBeNull()
+    const moved = session()
+    expect(await moved('source .venv/bin/activate', 'C:\\work\\repo')).toBeNull()
+    expect(await moved('echo x > config', 'C:\\work\\repo\\.git')).not.toBeNull()
+    expect(await moved('cd src', 'C:\\work\\repo')).toBeNull()
+  })
+})
+
+describe('loop-lock 읽기 전용 꼴의 PowerShell 환경 대입 (M11 G3)', () => {
+  it('[M11-G3 M09-8] $env:GIT_PAGER처럼 git이 명령으로 돌리는 변수를 PowerShell 꼴로 정하는 것도 거부한다', () => {
+    expect(loopCommandReason('$env:GIT_PAGER = "sh -c x"; git log', { ...SCOPE, readOnly: true })).not.toBeNull()
+    expect(loopCommandReason('Set-Item env:GIT_EXTERNAL_DIFF "x"; git diff', { ...SCOPE, readOnly: true })).not.toBeNull()
+    expect(loopCommandReason('ni Env:\\PAGER -Value x; git log', { ...SCOPE, readOnly: true })).not.toBeNull()
+    expect(loopCommandReason('$env:GIT_PAGER = "cat"; git log', SCOPE)).toBeNull()
+  })
+})
+
+describe('loop-lock — 가드와 같은 판독 (M11 G3)', () => {
+  const wrapped = (cmd: string): string[] => [`timeout -vs KILL 5 ${cmd}`, `timeout --sig KILL 5 ${cmd}`, `find . -maxdepth 0 -exec ${cmd} \\;`]
+  const shelled = (cmd: string): string[] => [`bash -ce "${cmd}"`, `bash -c -x "${cmd}"`]
+  it('eval 꼴은 안쪽 글을 다시 판독해 거부한다', () => {
+    expect(loopCommandReason('eval gh pr merge 1', SCOPE)).not.toBeNull()
+    expect(loopCommandReason('eval git push origin x', SCOPE)).not.toBeNull()
+  })
+  const probes = [
+    ...wrapped('gh pr merge 1'),
+    ...wrapped('git push origin x'),
+    ...shelled('gh pr merge 1'),
+    ...shelled('git push origin x'),
+    'gh api -iX DELETE repos/o/r/git/refs/heads/x',
+    'gh api -X=PUT repos/o/r/topics',
+  ]
+  for (const cmd of probes) {
+    it(`[M11-G3 M11-17] 거부: ${JSON.stringify(cmd)}`, () => {
+      expect(loopCommandReason(cmd, SCOPE)).not.toBeNull()
+    })
+  }
+  const passed = [
+    'timeout -vs KILL 5 npm test',
+    'bash -ce "git status"',
+    'bash -c -x "npm test"',
+    'find . -name "*.ts" -exec grep -l push {} \\;',
+    'find . -name "*.tmp" -exec rm {} \\;',
+    'find src -name "*.sh" -exec chmod +x {} +',
+    'find . -name "*.log" -execdir rm -- {} \';\'',
+    'gh api -X=GET repos/o/r',
+    'gh api -iX GET repos/o/r/pulls',
+  ]
+  for (const cmd of passed) {
+    it(`통과: ${JSON.stringify(cmd)}`, () => {
+      expect(loopCommandReason(cmd, SCOPE)).toBeNull()
+    })
+  }
 })
 
 describe('loop-lock MCP 도구 (M09 G2 검수 중요 5)', () => {

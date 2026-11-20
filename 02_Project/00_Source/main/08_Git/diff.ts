@@ -34,11 +34,36 @@ function lcs(a: string[], b: string[]): string[] {
   return result
 }
 
+// LCS 표의 칸 수 상한(M11 G3, Backlog 21) — 넘으면 표를 만들지 않는다
+export const MAX_LCS_CELLS = 4_000_000
+
+function trimmedDiff(oldLines: string[], newLines: string[]): DiffLine[] {
+  let head = 0
+  while (head < oldLines.length && head < newLines.length && oldLines[head] === newLines[head]) head++
+  let tail = 0
+  while (
+    tail < oldLines.length - head &&
+    tail < newLines.length - head &&
+    oldLines[oldLines.length - 1 - tail] === newLines[newLines.length - 1 - tail]
+  ) tail++
+
+  const out: DiffLine[] = []
+  for (let i = 0; i < head; i++) out.push({ kind: 'context', content: oldLines[i], lineOld: i + 1, lineNew: i + 1 })
+  for (let i = head; i < oldLines.length - tail; i++) out.push({ kind: 'remove', content: oldLines[i], lineOld: i + 1 })
+  for (let i = head; i < newLines.length - tail; i++) out.push({ kind: 'add', content: newLines[i], lineNew: i + 1 })
+  for (let t = tail; t > 0; t--) {
+    const oi = oldLines.length - t
+    out.push({ kind: 'context', content: oldLines[oi], lineOld: oi + 1, lineNew: newLines.length - t + 1 })
+  }
+  return out
+}
+
 export function computeDiff(oldContent: string, newContent: string): DiffLine[] {
   const oldLines = oldContent === '' ? [] : oldContent.split('\n')
   const newLines = newContent === '' ? [] : newContent.split('\n')
 
   if (oldLines.length === 0 && newLines.length === 0) return []
+  if (oldLines.length * newLines.length > MAX_LCS_CELLS) return trimmedDiff(oldLines, newLines)
 
   const common = lcs(oldLines, newLines)
 

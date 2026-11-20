@@ -15,6 +15,8 @@ export interface ClaudeCodeBackendDeps {
   resolvePackageVersion?: () => string | null
   // 실행을 열 때의 컨트롤 검사. 앱 조립 지점(registry)이 닫힌 실패 검사를 넣는다
   controlsAtRunStart?: () => ControlsForRun
+  // 엔진 경로 잠금의 userData 경로. 앱 조립 지점이 넣는다 — 던지면 실행을 열지 않는다(M11 G3)
+  engineLockDir?: () => string
 }
 
 export class ClaudeCodeBackend implements AgentBackend {
@@ -26,6 +28,7 @@ export class ClaudeCodeBackend implements AgentBackend {
   private _fetchImpl: typeof fetch
   private _resolvePackageVersion: () => string | null
   private readonly _controlsAtRunStart: (() => ControlsForRun) | undefined
+  private readonly _engineLockDir: (() => string) | undefined
   private readonly _commandsCache = new Map<string, SlashCommandInfo[]>()
 
   // skills·MCP provider는 조립 지점(00_App/registry)이 자기 store를 읽는 지연 함수로 넘긴다 (M05 G11).
@@ -44,6 +47,7 @@ export class ClaudeCodeBackend implements AgentBackend {
 
     this._resolvePackageVersion = deps?.resolvePackageVersion ?? readInstalledSdkVersion
     this._controlsAtRunStart = deps?.controlsAtRunStart
+    this._engineLockDir = deps?.engineLockDir
   }
 
   async isAvailable(): Promise<boolean> {
@@ -57,10 +61,10 @@ export class ClaudeCodeBackend implements AgentBackend {
 
   async version(): Promise<string | null> {
     try {
-      const { getVersionState } = await import('@main/10_Engine/engineVersions')
-      const { active, seal } = getVersionState()
-      // M07 G4: 봉인이 맞지 않으면 번들 엔진이 돈다 — 보이는 버전도 번들 쪽이다
-      if (seal === 'ok' && typeof active === 'string' && active.length > 0) return active
+      const { getVersionState, activeInUse } = await import('@main/10_Engine/engineVersions')
+      // M07 G4·M11 G3: 봉인이 맞지 않거나, major가 다르거나, 불러오기에 실패하면 번들 엔진이 돈다 — 보이는 버전도 번들 쪽이다
+      const active = activeInUse(getVersionState())
+      if (active) return active
     } catch {
     }
     try {
@@ -123,6 +127,7 @@ export class ClaudeCodeBackend implements AgentBackend {
       this._mcpDeniedProvider,
       onCommandsCaptured,
       this._controlsAtRunStart,
+      this._engineLockDir,
     )
   }
 

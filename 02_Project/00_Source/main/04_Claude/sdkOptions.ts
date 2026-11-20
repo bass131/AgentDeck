@@ -4,7 +4,8 @@ import { buildQueryOptions } from './runArgs'
 import { fallbackNotice } from './stream/modelFallback'
 import type { CanUseToolFn } from './permission/permissionCoordinator'
 import { enginePathDenyRules, buildEnginePathLockHook } from './permission/enginePathLock'
-import { buildMergeDenyHook } from './permission/mergeDeny'
+import { buildMergeDenyHook, MERGE_DENY_NODE } from './permission/mergeDeny'
+import { withVerdictLog } from './permission/verdictLog'
 import { buildLoopLockHook } from './permission/loopLock'
 import type { AgentRunInput } from '@main/03_Agent/AgentBackend'
 import type { AgentEvent } from '../../shared/agentEvents'
@@ -84,8 +85,10 @@ export function buildClaudeSdkOptions(params: {
 }): Record<string, unknown> {
   const { req, abortController, canUseTool, skillOverrides, mcpDenied, onUserDialog, userDataDir } = params
   const lock = userDataDir
-    ? { deny: enginePathDenyRules(userDataDir), hook: buildEnginePathLockHook(userDataDir) }
+    ? { deny: enginePathDenyRules(userDataDir), hook: withVerdictLog('engine-path-bash-lock', buildEnginePathLockHook(userDataDir)) }
     : null
+  // 병합 거부 훅의 판정 기록은 여기서 감싼다 — mergeDeny.ts는 가드 같음 시험이 타입만 불러 쓰므로 런타임 import를 두지 않는다
+  const mergeDeny = withVerdictLog(MERGE_DENY_NODE.id, buildMergeDenyHook())
   // 루프 작업 노드 세션에만 붙는 잠금 (M09 G2). 일반 앱 세션의 입력에는 loopLock이 없다.
   const loopLock = req.loopLock ? buildLoopLockHook(req.loopLock) : null
 
@@ -131,7 +134,7 @@ export function buildClaudeSdkOptions(params: {
     ...(loopLock && req.loopMcpServers ? { mcpServers: req.loopMcpServers } : {}),
     // 병합 거부 훅(M07 G8)은 userData 경로가 필요 없어 언제나 넣는다. 엔진 경로 잠금 훅 뒤에 붙인다.
     // 루프 잠금 훅(M09 G2)은 루프 작업 노드 세션에만, 맨 앞에 붙인다.
-    hooks: { PreToolUse: [...(loopLock ? [loopLock] : []), ...(lock ? [lock.hook] : []), buildMergeDenyHook()] },
+    hooks: { PreToolUse: [...(loopLock ? [loopLock] : []), ...(lock ? [lock.hook] : []), mergeDeny] },
     canUseTool,
     supportedDialogKinds: ['refusal_fallback_prompt'],
     onUserDialog,

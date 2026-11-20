@@ -30,6 +30,8 @@ export interface ControlNodeView {
   onFailure: 'block'
   timeoutMs: number | null
   enabled: boolean
+  // 이 앱 실행 동안 메모리에 남은 그 노드의 최근 판정 수(상한 있는 고리, M11 G3). null은 앱이 판정을 보지 못하는 노드다
+  recentVerdicts?: number | null
 }
 
 export interface ControlsState {

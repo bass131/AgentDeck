@@ -182,6 +182,36 @@ const wrapperOf = (token: string): WrapperSpec | undefined => WRAPPERS.get(baseN
 const RE_ASSIGN = /^[A-Za-z_][A-Za-z0-9_]*=/
 const RE_SHELL_C = /^-[A-Za-z]*c$/
 
+// 옵션 낱말이 다음 낱말을 값으로 먹는가(가드 takesValue와 같다, M11 G3) — 붙여 쓴 값(`-oL`·`--signal=KILL`)은 먹지 않는다.
+// 짧은 묶음(`-vs`)은 끝 글자가 값 옵션이면 먹고, `=` 없는 긴 옵션은 값 옵션의 접두(`--sig`)면 먹는다(getopt_long 줄임).
+function takesValue(spec: WrapperSpec, t: string): boolean {
+  if (spec.valueOpts.includes(t)) return true
+  if (t.startsWith('--')) return !t.includes('=') && t.length > 3 && spec.valueOpts.some((o) => o.startsWith('--') && o.startsWith(t))
+  return /^-[A-Za-z]{2,}$/.test(t) && spec.valueOpts.includes('-' + t.slice(-1))
+}
+
+// `sh [옵션…] -c [옵션…] [--] 스크립트`의 스크립트(가드 shellScriptsOf와 같다, M11 G3). 짧은 묶음 어디의 `c`든 -c 모드이고
+// (`-ce`·`-lc`), 스크립트는 옵션 구간 뒤 첫 낱말이다(`bash -c -x "…"`). `-o`·`-O` 묶음과 `--rcfile`·`--init-file`은 값을 먹는다.
+// `-c` 꼴 낱말 바로 뒤의 낱말도 합집합으로 본다. -c 모드가 아니면(`bash -x run.sh`) 파일 이름이라 없다.
+const SHELL_VALUE_LONG = new Set(['--rcfile', '--init-file'])
+function shellScriptsOf(args: string[]): string[] {
+  const at = new Set<number>()
+  let cMode = false
+  let i = 0
+  while (i < args.length) {
+    const t = args[i]
+    if (t === '--' || t === '-') { i++; break }
+    if (t.startsWith('--')) { i += SHELL_VALUE_LONG.has(t) ? 2 : 1; continue }
+    if (!/^[-+][A-Za-z]+$/.test(t)) break
+    if (t[0] === '-' && t.includes('c')) cMode = true
+    i += /[oO]/.test(t) ? 2 : 1
+  }
+  if (cMode && i < args.length) at.add(i)
+  const k = args.findIndex((t) => RE_SHELL_C.test(t))
+  if (k >= 0 && k + 1 < args.length) at.add(k + 1)
+  return [...at].map((j) => args[j])
+}
+
 function baseName(token: string): string {
   const i = Math.max(token.lastIndexOf('/'), token.lastIndexOf('\\'))
   return (i < 0 ? token : token.slice(i + 1)).toLowerCase()
@@ -192,9 +222,11 @@ interface Cmd {
   args: string[]
 }
 
-// 명령 위치 — 머리의 `VAR=값` 할당과 셸 문법 낱말(`{`·`!`·`then`·`do` …)을 건너뛰고, 래퍼(`sudo`·`env`·`xargs` …) 뒤의 명령도 본다.
+// 명령 위치 — 머리의 `VAR=값` 할당과 셸 문법 낱말(`{`·`!`·`then`·`do` …)을 건너뛰고, 래퍼(`sudo`·`env`·`xargs` …) 뒤의 명령과
+// 머리가 find일 때 `-exec`류 뒤의 명령도 본다(가드와 같다).
 // 중괄호는 구분자로 두지 않는다 — `gh api repos/{owner}/{repo}/…` 자리표시가 쪼개진다.
 const SHELL_WORDS = new Set(['{', '}', '!', 'then', 'do', 'else', 'elif', 'if', 'while', 'until'])
+const FIND_EXEC = new Set(['-exec', '-execdir', '-ok', '-okdir'])
 function commandsOf(tokens: string[]): Cmd[] {
   let head = 0
   while (head < tokens.length - 1 && (RE_ASSIGN.test(tokens[head]) || SHELL_WORDS.has(tokens[head]))) head++
@@ -204,16 +236,25 @@ function commandsOf(tokens: string[]): Cmd[] {
   for (let spec = wrapperOf(tokens[i]); spec && i < tokens.length - 1; spec = wrapperOf(tokens[i])) {
     let j = i + 1
     // 옵션(값을 받는 옵션은 그 값까지)과 `VAR=값`을 건너뛰고, 위치 인자(`timeout`의 시간)를 건너뛴다
-    while (j < tokens.length && (tokens[j].startsWith('-') || RE_ASSIGN.test(tokens[j]))) {
-      j += spec.valueOpts.includes(tokens[j]) ? 2 : 1
-    }
+    while (j < tokens.length && (tokens[j].startsWith('-') || RE_ASSIGN.test(tokens[j]))) j += takesValue(spec, tokens[j]) ? 2 : 1
     j += spec.positional
     if (j >= tokens.length) break
     cmds.push({ base: baseName(tokens[j]), args: tokens.slice(j + 1) })
     i = j
   }
+  if (baseName(tokens[head]).replace(/\.exe$/, '') === 'find') {
+    for (let j = head + 1; j < tokens.length - 1; j++) {
+      if (!FIND_EXEC.has(tokens[j].toLowerCase())) continue
+      // 명령 인자는 끝맺음(`;`·`\;`, `{} +`) 앞까지다 — 따옴표 밖 `\;`는 구분자에서 잘려 `\`만 남는다
+      let end = j + 2
+      while (end < tokens.length && !findExecEnd(tokens, end)) end++
+      cmds.push({ base: baseName(tokens[j + 1]), args: tokens.slice(j + 2, end) })
+    }
+  }
   return cmds
 }
+const findExecEnd = (tokens: string[], k: number): boolean =>
+  tokens[k] === ';' || tokens[k] === '\\;' || tokens[k] === '\\' || (tokens[k] === '+' && tokens[k - 1] === '{}')
 
 // ── gh 판정 ──────────────────────────────────────────────────────────────
 const isGh = (c: Cmd): boolean => c.base === 'gh' || c.base === 'gh.exe'
@@ -344,11 +385,16 @@ function scriptReason(script: string, rawText: string, depth: number): string | 
         continue
       }
       if (SHELLS.has(c.base)) {
-        const k = c.args.findIndex((t) => RE_SHELL_C.test(t))
-        if (k >= 0 && k + 1 < c.args.length) {
-          const r = scriptReason(c.args[k + 1], rawText, depth + 1)
+        for (const s of shellScriptsOf(c.args)) {
+          const r = scriptReason(s, rawText, depth + 1)
           if (r) return r
         }
+        continue
+      }
+      // eval은 인자를 이어 스크립트로 돌린다(가드는 eval 뒤를 명령 위치로 본다)
+      if (c.base === 'eval') {
+        const r = scriptReason(c.args.join(' '), rawText, depth + 1)
+        if (r) return r
         continue
       }
       // Windows 셸 — `cmd /c …`, `powershell -Command …`, `pwsh -c …`. 뒤의 낱말을 이어 한 스크립트로 다시 읽는다(독립 검수 중요 3).
@@ -381,7 +427,7 @@ export function mergeDenyReason(command: string): string | null {
 }
 
 // 루프 잠금 노드(M09 G2, loopLock.ts)가 쓰는 판독 함수. 이 노드의 판정 경로와 같은 함수다.
-export { SHELLS, RE_SHELL_C, stripHeredocBodies, substitutions, splitSegments, tokenize, commandsOf, windowsShellScripts, ghWords, baseName }
+export { SHELLS, shellScriptsOf, stripHeredocBodies, substitutions, splitSegments, tokenize, commandsOf, windowsShellScripts, ghWords, baseName }
 export type { Cmd }
 
 // ── 훅과 노드 정보 ─────────────────────────────────────────────────────────

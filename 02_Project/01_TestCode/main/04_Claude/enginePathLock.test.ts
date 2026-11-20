@@ -322,3 +322,17 @@ describe('실행 배선 (M07 G3)', () => {
     expect(hooks.PreToolUse.map((m) => m.onFailure)).toEqual(['block', 'block'])
   })
 })
+
+describe('재지 않은 경로 꼴 (M11 G3)', () => {
+  it('[M11-G3 M07-7] 8.3 짧은 이름으로 쓴 앱 데이터 폴더의 엔진 경로도 막는다', () => {
+    expect(bashLockReason('rm -rf C:/Users/x/AppData/Roaming/AGENTD~1/engines', WIN_UD)).not.toBeNull()
+    expect(bashLockReason('del C:\\Users\\x\\AppData\\Roaming\\AGENTD~2\\ENGINE~1.JSO', WIN_UD)).not.toBeNull()
+    expect(bashLockReason('cp x C:/Users/x/AppData/Roaming/agentdeck/CONTRO~1.JSO', WIN_UD)).not.toBeNull()
+    expect(bashLockReason('rm -rf C:/Users/x/AppData/Roaming/AGENTD~2', WIN_UD)).not.toBeNull()
+  })
+
+  it('[M11-G3 M07-7] 앱 데이터 폴더와 상관없는 짧은 이름은 막지 않는다', () => {
+    expect(bashLockReason('dir C:\\PROGRA~1\\nodejs', WIN_UD)).toBeNull()
+    expect(bashLockReason('cd C:/Dev/AGENTD~1/02_Project && npm test', WIN_UD)).toBeNull()
+  })
+})

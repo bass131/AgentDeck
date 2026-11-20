@@ -15,6 +15,7 @@ M11 Backlog 정리(`01_Milestones/M11_BacklogSweep/`)가 닫은 항목이다. �
 | 4 | 닫음(실측) | 캐시가 따뜻할 때 다시 열기의 캐시 생성 추가는 작고 훅 재부착은 약 500토큰, 기동 지연은 약 0.4~0.5초(표본 1)라 닫기 유예 3000ms를 둔다(`57c20790` 메시지). |
 | 6 | M13으로 | M11 스펙 「하지 않을 것」 — 버전 표시는 설치본 패키징과 함께 M13이 맡는다. |
 | 8 | 해결됨 | 가드가 논리 줄 판독과 이음 지운 원문 읽기로 줄 이음 꼴을 읽고(`dangerous-cmd-guard.mjs:6-8,15`, G5 `a9408c52`) 남은 꼴은 M06-20·21이 맡는다. |
+| 9 | 고침(M11 goal 3) | SDK를 올릴 때 다시 돌릴 블랙박스 실측 절차를 문서로 뒀다 — 공개 `query()`와 돌려받은 값만 쓴다(`00_Documents/00_Architecture/01_SDK-재실측-절차.md` 「다시 잴 것」 첫 줄, 제안 없으면 카드). 판정 코드는 그대로다. |
 | 10 | 낡음 | M07 G4 봉인과 하한 뒤로 번들 이상 버전만 돈다(`main/10_Engine/engineSeal.ts:151`). |
 | 11 | 고침(M11 goal 2) | 숫자 키가 카드 종류와 상관없이 1 허용, 2 거부, 3 항상 허용이다(`renderer/src/03_Agent/PermissionCard.tsx:11`, `d95d7051`). |
 | 12 | 고침(M11 goal 2) | 펼친 긴 명령은 끝까지 스크롤해야 허용되고 두 번째 요청은 줄을 선다(`PermissionCard.tsx:63,262`, `05_Conversation/state/reducer/permission.ts:27`, `d95d7051`). 길게 누른 키와 다음 요청으로 바뀐 직후 300ms의 키는 받지 않는다(`PermissionCard.tsx:90,116`, `932c80e9`). 올라온 비Bash 카드의 입력 전문은 M11 Backlog 13. |

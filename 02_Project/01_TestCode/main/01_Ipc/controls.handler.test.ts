@@ -84,6 +84,20 @@ describe('컨트롤 IPC (M07 G5)', () => {
     expect(s.engine).toEqual({ seal: 'mismatch', active: '0.3.326' })
   })
 
+  it('[M11-G3 M07-13] 노드마다 메모리에 남은 최근 판정 수를 싣는다', async () => {
+    const { recordVerdict, clearVerdicts } = await import('@main/04_Claude/permission/verdictLog')
+    clearVerdicts()
+    recordVerdict('readonly-allow', 'Read', {}, 'allow')
+    recordVerdict('readonly-allow', 'Glob', {}, 'allow')
+    const s = call<ControlsState>(IPC_CHANNELS.CONTROLS_STATE)
+    expect(s.nodes.find((n) => n.id === 'readonly-allow')?.recentVerdicts).toBe(2)
+    expect(s.nodes.find((n) => n.id === 'merge-deny')?.recentVerdicts).toBe(0)
+    // SDK의 인라인 거부 규칙(permissionRules) 노드는 앱이 판정을 보지 못한다 — 수 대신 null(기록 없음)이다
+    expect(s.nodes.find((n) => n.id === 'engine-path-file-deny')?.recentVerdicts).toBeNull()
+    expect(s.nodes.filter((n) => n.point !== 'permissionRules').every((n) => typeof n.recentVerdicts === 'number')).toBe(true)
+    clearVerdicts()
+  })
+
   it('토글은 풀린 노드만 받고 잘못된 요청은 거절한다', () => {
     expect(call(IPC_CHANNELS.CONTROLS_SET_ENABLED, { id: 'readonly-allow', enabled: false })).toEqual({ ok: true })
     expect(call<ControlsState>(IPC_CHANNELS.CONTROLS_STATE).nodes.find((n) => n.id === 'readonly-allow')?.enabled).toBe(false)

@@ -587,3 +587,50 @@ describe('git 포트는 모든 호출 직전에 대조한다', () => {
     expect(repos.git(['branch', '--list', 'x'])).toBe('')
   })
 })
+
+describe('실행기 환경과 설정 대조의 남은 틈 (M11 G3)', () => {
+  it('[M11-G3 M09-4] 실행기 환경의 PATH에서 사용자가 쓸 수 있는 폴더(%APPDATA%\\npm 등)를 뺀다', () => {
+    const user = 'C:\\Users\\u'
+    const npm = `${user}\\AppData\\Roaming\\npm`
+    const env = executorGitEnv({ PATH: ['C:\\Windows\\system32', 'C:\\Program Files\\Git\\cmd', npm].join(';'), APPDATA: `${user}\\AppData\\Roaming`, USERPROFILE: user })
+    const parts = (env.PATH ?? '').split(';')
+    expect(parts).toContain('C:\\Windows\\system32')
+    expect(parts).not.toContain(npm)
+    // Windows 환경은 키가 Path일 수 있다 — 그 키를 고치고 PATH를 따로 만들지 않는다. 대소문자·끝 역슬래시·LOCALAPPDATA·HOME도 본다
+    const win = executorGitEnv({
+      Path: ['C:\\Program Files\\GitHub CLI', 'c:\\users\\U\\appdata\\local\\Microsoft\\WindowsApps\\', 'D:\\home\\bin', 'C:\\Users\\uu\\bin'].join(';'),
+      LOCALAPPDATA: `${user}\\AppData\\Local`, USERPROFILE: user, HOME: 'D:\\home',
+    })
+    expect(win.PATH).toBeUndefined()
+    expect(win.Path).toBe('C:\\Program Files\\GitHub CLI;C:\\Users\\uu\\bin')
+  })
+
+  it('[M11-G3 M09-5] 풀기로 받지 않는 차이의 거부 안내는 바뀐 파일의 옛 값 → 새 값과 복구 절차(자기 변경이면 스냅숏 파일을 지운 뒤 다시 연다)를 적는다', async () => {
+    const ghDir = path.join(repos.root, 'gh-config')
+    fs.mkdirSync(ghDir, { recursive: true })
+    const env = { ...repos.env, GH_CONFIG_DIR: ghDir }
+    const r = await createConfigGuard({ cwd: repos.work, env, snapshotFile, hooksPath })
+    if (!r.ok) throw new Error(r.reason)
+    const hosts = path.join(ghDir, 'hosts.yml')
+    fs.writeFileSync(hosts, 'github.com:\n  user: x\n')
+    const again = await createConfigGuard({ cwd: repos.work, env, snapshotFile, hooksPath })
+    if (again.ok) throw new Error('열렸다')
+    expect(again.reason).toContain(`${hosts}: `)
+    expect(again.reason).toContain(snapshotFile)
+    expect(again.reason).toMatch(/지우|지운|삭제/)
+  })
+
+  const requestKeys: [string, string, () => void][] = [
+    ['로컬 remote.origin.proxy 빈 값', 'remote.origin.proxy', () => { repos.git(['config', 'remote.origin.proxy', '']) }],
+    ['로컬 http.curloptResolve', 'http.curloptresolve', () => { repos.git(['config', 'http.curloptResolve', 'github.com:443:127.0.0.1']) }],
+  ]
+  for (const [name, key, plant] of requestKeys) {
+    it(`[M11-G3 M09-9] ${name} — 원격 요청을 바꾸는 키라 열린 뒤 본 목록으로도 풀기로 받지 않는다`, async () => {
+      const guard = await open()
+      plant()
+      expect(await guard.check()).toContain(key)
+      const accepted = await createConfigGuard({ cwd: repos.work, env: repos.env, snapshotFile, hooksPath, acceptChanged: guard.changes() })
+      expect(accepted.ok).toBe(false)
+    })
+  }
+})

@@ -52,6 +52,8 @@ function NodeRow({ node, frozen, onToggle }: NodeRowProps): JSX.Element {
         <div className="ext-desc">
           결과: {node.results.map((r) => RESULT[r] ?? r).join(' · ')}
           {node.timeoutMs !== null && ` · 시간 상한 ${node.timeoutMs / 1000}초`}
+          {node.recentVerdicts === null && ' · 최근 판정 기록 없음'}
+          {typeof node.recentVerdicts === 'number' && ` · 최근 판정 ${node.recentVerdicts}`}
           {' · '}
           <code>{node.id}</code>
         </div>

@@ -56,6 +56,15 @@ describe('해석 층 — 녹취 픽스처', () => {
     expect(() => parseCiStatus({ statusCheckRollup: [] })).toThrow()
   })
 
+  // M11 G3 — M09-11 뒷절 실측. 같은 머리에 같은 이름 검사가 둘(push·pull_request) 돌면 하나가 끝나도 다른 하나를 기다린다.
+  it('[M11-G3 M09-11] 같은 이름 검사가 둘이면 모두 성공해야 success다 — 하나가 도는 중이면 pending, 하나가 실패면 failure', () => {
+    const run = (status: string, conclusion: string | null) => ({ __typename: 'CheckRun', name: 'hard-gates', status, conclusion })
+    const two = (a: unknown, b: unknown) => ({ headRefOid: 'f'.repeat(40), statusCheckRollup: [a, b] })
+    expect(parseCiStatus(two(run('COMPLETED', 'SUCCESS'), run('IN_PROGRESS', null)), ['hard-gates']).state).toBe('pending')
+    expect(parseCiStatus(two(run('COMPLETED', 'SUCCESS'), run('COMPLETED', 'FAILURE')), ['hard-gates']).state).toBe('failure')
+    expect(parseCiStatus(two(run('COMPLETED', 'SUCCESS'), run('COMPLETED', 'SUCCESS')), ['hard-gates']).state).toBe('success')
+  })
+
   it('gh pr create 출력에서 PR 번호를 읽는다', () => {
     expect(prNumberFromUrl(fx.CREATE_STDOUT)).toBe(101)
     expect(prNumberFromUrl('Warning: 1 uncommitted change\nhttps://github.com/a/b/pull/7\n')).toBe(7)

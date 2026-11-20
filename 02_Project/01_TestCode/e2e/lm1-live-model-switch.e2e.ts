@@ -4,6 +4,7 @@ import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { passBootGates, openWorkspace } from './helpers/bootGates'
+import { moveToSecondDisplay } from './helpers/isolatedBoot'
 
 const RUN = process.env.LM1E2E === '1'
 
@@ -64,6 +65,7 @@ test.describe('LM1 라이브 모델 전환 통주 (opt-in: LM1E2E=1)', () => {
     })
     page = await app.firstWindow()
     await page.waitForLoadState('domcontentloaded')
+    await moveToSecondDisplay(app)
 
     await passBootGates(page, { nickname: 'lm1live' })
     await openWorkspace(page, { waitForTree: true })

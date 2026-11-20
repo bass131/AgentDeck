@@ -3,6 +3,7 @@ import type { ElectronApplication, Page } from '@playwright/test'
 import { existsSync, mkdtempSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
+import { moveToSecondDisplay } from './helpers/isolatedBoot'
 
 const LARGE_WORKSPACE = 'C:/Dev/AgentDeck'
 const NODE_MODULES_EXISTS = existsSync(join(LARGE_WORKSPACE, 'node_modules'))
@@ -74,6 +75,7 @@ test.describe('M7 탐색기 lazy 스케일링 — node_modules 포함 대형 rep
     })
     page = await app.firstWindow()
     await page.waitForLoadState('domcontentloaded')
+    await moveToSecondDisplay(app)
     await passStartupGates(page)
   })
 

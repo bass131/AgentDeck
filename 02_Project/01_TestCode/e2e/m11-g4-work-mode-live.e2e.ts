@@ -15,6 +15,7 @@ import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, 
 import { homedir, tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { dismissStartupModal } from './helpers/bootGates'
+import { moveToSecondDisplay } from './helpers/isolatedBoot'
 
 const RUN = process.env.M11G4LIVE === '1'
 const OUT = process.env.M11G4_OUT ?? join(tmpdir(), 'agentdeck-m11-g4-out')
@@ -53,6 +54,7 @@ async function launch(tag: string): Promise<void> {
   app = await electron.launch({ args: [`--user-data-dir=${UDD}`, join(process.cwd(), 'out', 'main', 'index.js')], env: appEnv() })
   page = await app.firstWindow()
   await page.waitForLoadState('domcontentloaded')
+  await moveToSecondDisplay(app)
   const placeWindow = (): Promise<unknown> => app.evaluate(({ BrowserWindow, screen }) => {
     const primary = screen.getPrimaryDisplay()
     const other = screen.getAllDisplays().find((d) => d.id !== primary.id)

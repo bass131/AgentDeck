@@ -5,6 +5,7 @@ import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { passBootGates, openWorkspace } from './helpers/bootGates'
 import { PERM_CARD } from './helpers/permSelectors'
+import { moveToSecondDisplay } from './helpers/isolatedBoot'
 
 const RUN = process.env.GAP1P13 === '1'
 
@@ -76,6 +77,7 @@ test.describe('GAP1 P13 라이브 모드 전환 통주 (opt-in: GAP1P13=1)', () 
     })
     page = await app.firstWindow()
     await page.waitForLoadState('domcontentloaded')
+    await moveToSecondDisplay(app)
 
     await passBootGates(page, { nickname: 'p13live' })
     await openWorkspace(page, { waitForTree: true })

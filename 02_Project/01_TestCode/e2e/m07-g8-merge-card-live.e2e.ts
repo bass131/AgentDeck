@@ -11,6 +11,7 @@ import { execFileSync } from 'node:child_process'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { passBootGates, openWorkspace } from './helpers/bootGates'
+import { moveToSecondDisplay } from './helpers/isolatedBoot'
 
 const RUN = process.env.G8MERGECARD === '1'
 const PR = process.env.G8_PR ?? '74'
@@ -39,6 +40,7 @@ test.describe('M07 G8 병합 카드 실제 경로 (opt-in: G8MERGECARD=1)', () =
     })
     page = await app.firstWindow()
     await page.waitForLoadState('domcontentloaded')
+    await moveToSecondDisplay(app)
     // 창은 2번 모니터로 옮긴다(사용자 작업 화면을 가리지 않게). 디스플레이가 하나면 그대로 둔다.
     await app.evaluate(({ BrowserWindow, screen }) => {
       const primary = screen.getPrimaryDisplay()

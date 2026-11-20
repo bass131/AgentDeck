@@ -15,6 +15,7 @@ import { execFileSync } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join, resolve, sep } from 'node:path'
+import { moveToSecondDisplay } from './helpers/isolatedBoot'
 
 const PRACTICE_UDD = join(homedir(), '.agentdeck-practice', 'udd')
 
@@ -89,6 +90,7 @@ async function launch(userDataDir: string): Promise<{ app: ElectronApplication; 
   })
   const page = await app.firstWindow()
   await page.waitForLoadState('domcontentloaded')
+  await moveToSecondDisplay(app)
   // 2번 모니터로 옮긴다
   await app.evaluate(({ BrowserWindow, screen }) => {
     const primary = screen.getPrimaryDisplay().id

@@ -9,6 +9,7 @@ import { execFileSync } from 'node:child_process'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { passBootGates, openWorkspace, settleTurn } from './helpers/bootGates'
+import { moveToSecondDisplay } from './helpers/isolatedBoot'
 
 const RUN = process.env.M11G2LIVE === '1'
 const OUT = process.env.M11G2_OUT ?? join(tmpdir(), 'agentdeck-m11-g2-out')
@@ -73,6 +74,7 @@ test.describe('M11 G2 실앱 확인 (opt-in: M11G2LIVE=1)', () => {
     })
     page = await app.firstWindow()
     await page.waitForLoadState('domcontentloaded')
+    await moveToSecondDisplay(app)
     // 창은 2번 모니터로 옮긴다(사용자 작업 화면을 가리지 않게). 디스플레이가 하나면 그대로 둔다.
     report.display = await app.evaluate(({ BrowserWindow, screen }) => {
       const primary = screen.getPrimaryDisplay()

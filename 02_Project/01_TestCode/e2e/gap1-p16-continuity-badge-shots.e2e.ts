@@ -5,6 +5,7 @@ import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync } from 'nod
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { MOVE_TO_SECOND_DISPLAY_JS, logHarnessDisplay, stableShot } from './helpers/stableShot'
+import { moveToSecondDisplay } from './helpers/isolatedBoot'
 
 const RUN = process.env.P16SHOTS === '1'
 
@@ -332,6 +333,7 @@ app.on('window-all-closed', () => app.quit())
     app = await electron.launch({ args: [`--user-data-dir=${uddDir}`, mainPath] })
     page = await app.firstWindow()
     await page.waitForLoadState('domcontentloaded')
+    await moveToSecondDisplay(app)
     await page.waitForFunction(() => (window as unknown as { __ready?: boolean }).__ready === true, null, {
       timeout: 20_000,
     })

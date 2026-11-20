@@ -4,6 +4,7 @@ import { mkdtempSync, cpSync, rmSync, mkdirSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { PERM_CARD, permChoiceSelector } from './helpers/permSelectors'
+import { moveToSecondDisplay } from './helpers/isolatedBoot'
 
 const LIVE = process.env.LIVE_SDK === '1'
 const TEST_PROJECT = 'C:/Dev/Test_Project'
@@ -47,6 +48,7 @@ test.describe('M5 토큰 스트리밍 라이브 검증 (opt-in: LIVE_SDK=1)', ()
     })
     page = await app.firstWindow()
     await page.waitForLoadState('domcontentloaded')
+    await moveToSecondDisplay(app)
 
     await dismissAllStartupOverlays()
     await page.waitForSelector('.titlebar', { timeout: 20_000 })

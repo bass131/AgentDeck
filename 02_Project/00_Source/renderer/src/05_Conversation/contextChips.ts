@@ -1,4 +1,4 @@
-import type { UsageInfo } from '../../../shared/ipcContract'
+import type { UsageInfo } from '@shared/ipcContract'
 import type { GaugeResult } from '@renderer/03_Agent/gaugeCalc'
 import { resetText } from './resetText'
 

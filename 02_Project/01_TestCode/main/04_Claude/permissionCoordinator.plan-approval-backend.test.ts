@@ -7,7 +7,7 @@ import {
   PermissionCoordinator,
   permissionSummary,
 } from '@main/04_Claude/permission/permissionCoordinator'
-import type { AgentEvent } from '../../../../02_Project/00_Source/shared/agentEvents'
+import type { AgentEvent } from '@shared/agentEvents'
 
 const FIXTURE_DIR = fileURLToPath(new URL('../../fixtures/gap1-p03/', import.meta.url))
 

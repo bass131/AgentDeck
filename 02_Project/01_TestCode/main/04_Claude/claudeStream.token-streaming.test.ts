@@ -3,7 +3,7 @@ import { describe, it, expect } from 'vitest'
 import { mapClaudeStreamLine } from '@main/04_Claude/stream/claudeStream'
 import { ClaudeCodeBackend } from '@main/04_Claude/ClaudeCodeBackend'
 import type { QueryFn } from '@main/04_Claude/ClaudeCodeBackend'
-import type { AgentEvent, AgentEventText } from '../../../../02_Project/00_Source/shared/agentEvents'
+import type { AgentEvent, AgentEventText } from '@shared/agentEvents'
 import { makeMockQueryFn } from '../00_Helpers/fakeQuery'
 
 function mkInit() {

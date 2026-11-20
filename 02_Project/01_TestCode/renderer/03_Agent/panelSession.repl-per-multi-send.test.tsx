@@ -19,7 +19,7 @@ const mockApi = {
     capturedAgentRun = req
     return { runId: (req.sessionKey as string) ?? 'run-1' }
   }),
-  agentAbort: vi.fn().mockResolvedValue({ accepted: true }),
+  agentAbort: vi.fn().mockResolvedValue({ ok: true }),
   permissionRespond: vi.fn().mockResolvedValue(undefined),
 }
 Object.defineProperty(window, 'api', { value: adaptFlatApi(mockApi), writable: true, configurable: true })

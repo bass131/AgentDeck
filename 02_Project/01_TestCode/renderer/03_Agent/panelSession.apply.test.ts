@@ -5,7 +5,7 @@ import {
 } from '@renderer/03_Agent/state/panelSession'
 import type { PanelSessionState } from '@renderer/03_Agent/state/panelSession'
 import type { ThreadItem } from '@renderer/05_Conversation/state/threadTypes'
-import type { AgentEventPayload } from '../../../../02_Project/00_Source/shared/ipcContract'
+import type { AgentEventPayload } from '@shared/ipcContract'
 
 function mkPayload(runId: string, event: AgentEventPayload['event']): AgentEventPayload {
   return { runId, event }

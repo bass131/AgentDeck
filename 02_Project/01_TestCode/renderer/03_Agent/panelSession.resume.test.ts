@@ -1,13 +1,13 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { applyAgentEvent, makeInitialState } from '@renderer/05_Conversation/state/reducer'
-import type { AgentEventPayload } from '../../../../02_Project/00_Source/shared/ipcContract'
+import type { AgentEventPayload } from '@shared/ipcContract'
 import { adaptFlatApi } from '../00_Helpers/windowApiMock'
 
 const mockApi = {
   conversationLoad: async () => ({ conversations: [] }),
   conversationSave: async () => ({ id: 'cv-1' }),
   agentRun: async () => ({ runId: 'r1' }),
-  agentAbort: async () => ({ accepted: true }),
+  agentAbort: async () => ({ ok: true }),
   onAgentEvent: () => () => {},
   listFiles: async () => ({ files: [] }),
   pathForFile: () => '',

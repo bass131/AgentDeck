@@ -1,7 +1,7 @@
 // 작업 ID: m7 · 옛 이름 m7-explorer-lazy.test.ts
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest'
-import type { FileTreeNode } from '../../../../02_Project/00_Source/shared/ipcContract'
+import type { FileTreeNode } from '@shared/ipcContract'
 import {
   computeHits,
   getAncestors,

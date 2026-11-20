@@ -10,8 +10,8 @@ import {
 import type { AppState } from '@renderer/05_Conversation/state/reducer'
 import { handleError, handleAutonomyStatus, handleDone } from '@renderer/05_Conversation/state/reducer/lifecycle'
 import { resolveLoopStatus } from '@renderer/03_Agent/loopStatus'
-import type { AgentEvent } from '../../../../02_Project/00_Source/shared/agentEvents'
-import type { AgentEventPayload } from '../../../../02_Project/00_Source/shared/ipcContract'
+import type { AgentEvent } from '@shared/agentEvents'
+import type { AgentEventPayload } from '@shared/ipcContract'
 import { adaptFlatApi } from '../00_Helpers/windowApiMock'
 
 function payload(event: AgentEvent, runId = 'run-followup'): AgentEventPayload {
@@ -224,7 +224,7 @@ const mockApi = {
     runIdCounter++
     return Promise.resolve({ runId })
   }),
-  agentAbort: vi.fn().mockResolvedValue({ accepted: true }),
+  agentAbort: vi.fn().mockResolvedValue({ ok: true }),
   agentInterrupt: vi.fn().mockResolvedValue({ ok: false }),
   onAgentEvent: (cb: (payload: AgentEventPayload) => void) => {
     capturedHandler = cb

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { IPC_CHANNELS } from '../../../../02_Project/00_Source/shared/ipcContract'
+import { IPC_CHANNELS } from '@shared/ipcContract'
 import type {
   GitFileStatus,
   GitChange,
@@ -30,8 +30,8 @@ import type {
   PrReadResponse,
   PrMergeRequest,
   PrMergeResponse,
-} from '../../../../02_Project/00_Source/shared/ipcContract'
-import { API_ROUTES } from '../../../../02_Project/00_Source/shared/01_Ipc/apiRoutes'
+} from '@shared/ipcContract'
+import { API_ROUTES } from '@shared/01_Ipc/apiRoutes'
 
 describe('git IPC_CHANNELS 9채널', () => {
   it('GIT_ROOT 채널이 정확한 문자열로 존재한다', () => {

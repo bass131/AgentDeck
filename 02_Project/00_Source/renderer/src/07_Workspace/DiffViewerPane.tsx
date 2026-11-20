@@ -2,7 +2,7 @@ import { useState, useEffect, type JSX } from 'react'
 import { useAppStore, selectDiffFilePath } from '@renderer/00_App/appStore'
 import { DiffViewer } from '.'
 import { ipc } from '@renderer/01_Ipc'
-import type { DiffLine } from '../../../shared/ipcContract'
+import type { DiffLine } from '@shared/ipcContract'
 
 export function DiffViewerPane(): JSX.Element {
   const filePath = useAppStore(selectDiffFilePath)

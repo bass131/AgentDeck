@@ -9,7 +9,7 @@
 //   - 취소는 대상을 골라 보낸다(메인 턴 main / 작업 세션 worker). 새 메인 대화는 확인을 한 번 받은 뒤 loop.mainNew다.
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
 import { render, screen, fireEvent, cleanup, act, within } from '@testing-library/react'
-import type { LoopEventKind, LoopStatus, MainChatItem, MainChatView } from '../../../../02_Project/00_Source/shared/ipcContract'
+import type { LoopEventKind, LoopStatus, MainChatItem, MainChatView } from '@shared/ipcContract'
 import { adaptFlatApi } from '../00_Helpers/windowApiMock'
 
 // 독립 검수 중요 2 — 기록의 글을 다시 그렸는지 센다. 진짜 마크다운 보기를 그대로 그리고, 그린 원문만 적는다
@@ -513,8 +513,8 @@ describe('G3 독립 검수 반영 (M10 G3)', () => {
 })
 
 describe('메인 세션 사건을 대화 기록에 얹기 (M11 G4)', () => {
-  type Ev = import('../../../../02_Project/00_Source/shared/agentEvents').AgentEvent
-  type Rec = import('../../../../02_Project/00_Source/shared/ipcContract').LoopSessionRecord
+  type Ev = import('@shared/agentEvents').AgentEvent
+  type Rec = import('@shared/ipcContract').LoopSessionRecord
   const turn = (id: string, answer: string, done = true): Ev[] => [
     { type: 'session', sessionId: 'S1' },
     { type: 'tool_call', id: `t-${id}`, name: 'Read', input: {} },

@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest'
 import { createRunManager } from '@main/03_Agent/agentRuns'
 import type { AgentBackend, AgentRun, AgentRunInput } from '@main/03_Agent/AgentBackend'
-import type { AgentEvent, AgentEventLoops } from '../../../../02_Project/00_Source/shared/agentEvents'
-import type { BackendId } from '../../../../02_Project/00_Source/shared/ipcContract'
+import type { AgentEvent, AgentEventLoops } from '@shared/agentEvents'
+import type { BackendId } from '@shared/ipcContract'
 
 function makeFakeRun(events: AgentEvent[], abortCallback?: () => void): AgentRun {
   let aborted = false

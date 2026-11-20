@@ -2,8 +2,8 @@
 // @vitest-environment node
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
-import type { FileTreeNode } from '../../../../02_Project/00_Source/shared/ipcContract'
-import type { AgentEventPayload } from '../../../../02_Project/00_Source/shared/ipcContract'
+import type { FileTreeNode } from '@shared/ipcContract'
+import type { AgentEventPayload } from '@shared/ipcContract'
 import type { ThreadItem } from '@renderer/05_Conversation/state/threadTypes'
 import { adaptFlatApi } from '../00_Helpers/windowApiMock'
 
@@ -49,7 +49,7 @@ describe('(a) refreshFileTree() 액션', () => {
           conversationLoad: vi.fn().mockResolvedValue({ conversations: [] }),
           conversationSave: vi.fn().mockResolvedValue({ id: 'cv-1' }),
           agentRun: vi.fn().mockResolvedValue({ runId: 'r1' }),
-          agentAbort: vi.fn().mockResolvedValue({ accepted: true }),
+          agentAbort: vi.fn().mockResolvedValue({ ok: true }),
           onAgentEvent: vi.fn().mockReturnValue(vi.fn()),
           listFiles: vi.fn().mockResolvedValue({ files: [] }),
         }),
@@ -127,7 +127,7 @@ describe('(b) done 이벤트 시 refreshFileTree 1회 호출', () => {
           conversationLoad: vi.fn().mockResolvedValue({ conversations: [] }),
           conversationSave: vi.fn().mockResolvedValue({ id: 'cv-1' }),
           agentRun: vi.fn().mockResolvedValue({ runId: 'r1' }),
-          agentAbort: vi.fn().mockResolvedValue({ accepted: true }),
+          agentAbort: vi.fn().mockResolvedValue({ ok: true }),
           onAgentEvent: vi.fn().mockReturnValue(vi.fn()),
           listFiles: vi.fn().mockResolvedValue({ files: [] }),
         }),
@@ -213,7 +213,7 @@ describe('(c) text 이벤트(스트리밍 중)에는 workspaceTree 미호출', (
           conversationLoad: vi.fn().mockResolvedValue({ conversations: [] }),
           conversationSave: vi.fn().mockResolvedValue({ id: 'cv-1' }),
           agentRun: vi.fn().mockResolvedValue({ runId: 'r1' }),
-          agentAbort: vi.fn().mockResolvedValue({ accepted: true }),
+          agentAbort: vi.fn().mockResolvedValue({ ok: true }),
           onAgentEvent: vi.fn().mockReturnValue(vi.fn()),
           listFiles: vi.fn().mockResolvedValue({ files: [] }),
         }),
@@ -271,7 +271,7 @@ describe('(d) error 이벤트 시에도 refreshFileTree 1회 호출', () => {
           conversationLoad: vi.fn().mockResolvedValue({ conversations: [] }),
           conversationSave: vi.fn().mockResolvedValue({ id: 'cv-1' }),
           agentRun: vi.fn().mockResolvedValue({ runId: 'r1' }),
-          agentAbort: vi.fn().mockResolvedValue({ accepted: true }),
+          agentAbort: vi.fn().mockResolvedValue({ ok: true }),
           onAgentEvent: vi.fn().mockReturnValue(vi.fn()),
           listFiles: vi.fn().mockResolvedValue({ files: [] }),
         }),
@@ -320,7 +320,7 @@ describe('(e) selectFileTree 셀렉터 회귀', () => {
           conversationLoad: vi.fn().mockResolvedValue({ conversations: [] }),
           conversationSave: vi.fn().mockResolvedValue({ id: 'cv-1' }),
           agentRun: vi.fn().mockResolvedValue({ runId: 'r1' }),
-          agentAbort: vi.fn().mockResolvedValue({ accepted: true }),
+          agentAbort: vi.fn().mockResolvedValue({ ok: true }),
           onAgentEvent: vi.fn().mockReturnValue(vi.fn()),
           listFiles: vi.fn().mockResolvedValue({ files: [] }),
         }),

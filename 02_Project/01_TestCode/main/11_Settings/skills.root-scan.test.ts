@@ -27,8 +27,8 @@ vi.mock('@main/00_App/registry', () => ({
 import { registerSettingsHandlers } from '@main/01_Ipc/handlers/settings'
 import { createSkillsStore } from '@main/11_Settings/skills'
 import { createCommandsStore } from '@main/11_Settings/commands'
-import { IPC_CHANNELS } from '../../../../02_Project/00_Source/shared/ipcContract'
-import type { SkillInfo, SlashCommandInfo } from '../../../../02_Project/00_Source/shared/ipcContract'
+import { IPC_CHANNELS } from '@shared/ipcContract'
+import type { SkillInfo, SlashCommandInfo } from '@shared/ipcContract'
 
 const ev = {} as never
 const call = async (ch: string, ...args: unknown[]): Promise<unknown> =>

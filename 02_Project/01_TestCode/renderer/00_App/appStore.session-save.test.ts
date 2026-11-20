@@ -1,7 +1,7 @@
 // 작업 ID: lr1-phase03 · 옛 이름 lr1-phase03-session-save.test.ts
 // @vitest-environment node
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import type { AgentEventPayload } from '../../../../02_Project/00_Source/shared/ipcContract'
+import type { AgentEventPayload } from '@shared/ipcContract'
 import { adaptFlatApi } from '../00_Helpers/windowApiMock'
 
 describe('LR1 Phase03 갈래A — session 이벤트 즉시 저장', () => {
@@ -19,7 +19,7 @@ describe('LR1 Phase03 갈래A — session 이벤트 즉시 저장', () => {
           conversationLoad: vi.fn().mockResolvedValue({ conversations: [] }),
           conversationSave: mockConversationSave,
           agentRun: vi.fn().mockResolvedValue({ runId: 'r1' }),
-          agentAbort: vi.fn().mockResolvedValue({ accepted: true }),
+          agentAbort: vi.fn().mockResolvedValue({ ok: true }),
           onAgentEvent: vi.fn().mockReturnValue(vi.fn()),
           listFiles: vi.fn().mockResolvedValue({ files: [] }),
         }),

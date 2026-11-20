@@ -1,5 +1,5 @@
 import type { StateCreator } from 'zustand'
-import type { FileTreeNode } from '../../../../shared/ipcContract'
+import type { FileTreeNode } from '@shared/ipcContract'
 import type { AppStore } from '@renderer/00_App/state/types'
 import { ipc } from '@renderer/01_Ipc'
 

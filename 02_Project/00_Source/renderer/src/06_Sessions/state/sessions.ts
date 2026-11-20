@@ -1,5 +1,5 @@
 import type { StateCreator } from 'zustand'
-import type { ConversationRecord } from '../../../../shared/ipcContract'
+import type { ConversationRecord } from '@shared/ipcContract'
 import type { ThreadItem } from '@renderer/05_Conversation/state/threadTypes'
 import { getPref, setPref } from '@renderer/11_Settings/prefs'
 import { nextMsgId } from '@renderer/00_App/state/ids'

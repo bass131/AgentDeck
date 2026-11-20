@@ -15,7 +15,7 @@ const mockApi = {
     if (agentRunShouldFail) throw new Error('IPC 채널 다운(테스트 시뮬레이션)')
     return { runId: 'r1' }
   }),
-  agentAbort: vi.fn(async () => ({ accepted: true })),
+  agentAbort: vi.fn(async () => ({ ok: true })),
   agentInterrupt: vi.fn(async () => ({ ok: true })),
   onAgentEvent: vi.fn(() => () => {}),
   listFiles: async () => ({ files: [] }),

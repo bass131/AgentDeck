@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import type { AgentEvent } from '../../../../02_Project/00_Source/shared/agentEvents'
-import type { LoopSessionEventPayload, LoopSessionLog, LoopSessionTag } from '../../../../02_Project/00_Source/shared/ipcContract'
-import { MAX_SESSION_EVENTS } from '../../../../02_Project/00_Source/shared/13_Loop/sessionMerge'
+import type { AgentEvent } from '@shared/agentEvents'
+import type { LoopSessionEventPayload, LoopSessionLog, LoopSessionTag } from '@shared/ipcContract'
+import { MAX_SESSION_EVENTS } from '@shared/13_Loop/sessionMerge'
 import { applyPush, foldSession, fromSnapshot, mainPanelOf, panelKeyOf, rowLabel } from '@renderer/13_Loop/sessionLogModel'
 
 const CWD = 'C:\\work\\practice'

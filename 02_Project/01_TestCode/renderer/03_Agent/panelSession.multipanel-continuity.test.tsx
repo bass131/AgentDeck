@@ -10,7 +10,7 @@ import {
   __getPanelManagerSizesForTests,
   makePanelSlotKey,
 } from '@renderer/03_Agent/state/panelSession'
-import type { AgentEventPayload } from '../../../../02_Project/00_Source/shared/ipcContract'
+import type { AgentEventPayload } from '@shared/ipcContract'
 import { adaptFlatApi } from '../00_Helpers/windowApiMock'
 import { PanelHarness } from '../00_Helpers/panelHarness'
 
@@ -38,8 +38,6 @@ const mockApi = {
   windowMaximizeToggle: vi.fn().mockResolvedValue({ maximized: false }),
   windowClose: vi.fn(),
   windowIsMaximized: vi.fn().mockResolvedValue({ maximized: false }),
-  windowGetBounds: vi.fn().mockResolvedValue({ x: 0, y: 0, width: 1200, height: 800 }),
-  windowSetBounds: vi.fn(),
   windowDragStart: vi.fn(),
   windowDragEnd: vi.fn(),
   windowResizeStart: vi.fn(),

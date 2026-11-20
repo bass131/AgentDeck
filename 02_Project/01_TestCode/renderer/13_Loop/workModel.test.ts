@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { LoopStatus } from '../../../../02_Project/00_Source/shared/ipcContract'
+import type { LoopStatus } from '@shared/ipcContract'
 import { addProject, decisionsOf, folderName, goalProgress, projectTag } from '@renderer/13_Loop/workModel'
 
 const CWD = 'C:\\work\\practice'

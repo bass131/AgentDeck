@@ -5,7 +5,7 @@ import {
   snapshotForPersist,
 } from '@renderer/03_Agent/state/panelSession'
 import type { PanelSessionState } from '@renderer/03_Agent/state/panelSession'
-import type { AgentEventPayload } from '../../../../02_Project/00_Source/shared/ipcContract'
+import type { AgentEventPayload } from '@shared/ipcContract'
 
 const runId = 'run-37-panel-parity'
 

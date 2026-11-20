@@ -9,7 +9,7 @@ const mockApi = {
   workspaceOpen: vi.fn().mockResolvedValue({ rootPath: null, tree: null }),
   workspaceTree: vi.fn().mockResolvedValue({ tree: null }),
   agentRun: vi.fn().mockResolvedValue({ runId: 'run-test' }),
-  agentAbort: vi.fn().mockResolvedValue({ accepted: true }),
+  agentAbort: vi.fn().mockResolvedValue({ ok: true }),
   onAgentEvent: vi.fn().mockReturnValue(vi.fn()),
   fsDiff: vi.fn().mockResolvedValue({ filePath: '', lines: [] }),
   fsRead: vi.fn().mockResolvedValue({ kind: 'text', content: 'x', language: 'text' }),

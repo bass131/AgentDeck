@@ -26,7 +26,7 @@ vi.mock('electron', () => ({
 import { registerWorkspaceHandlers } from '@main/01_Ipc/handlers/workspace'
 import { registerFsHandlers } from '@main/01_Ipc/handlers/fs'
 import { createRootRegistry } from '@main/07_Workspace/roots'
-import { IPC_CHANNELS } from '../../../../02_Project/00_Source/shared/ipcContract'
+import { IPC_CHANNELS } from '@shared/ipcContract'
 
 function call(channel: string, req?: unknown): Promise<unknown> {
   const fn = h.handlers.get(channel)

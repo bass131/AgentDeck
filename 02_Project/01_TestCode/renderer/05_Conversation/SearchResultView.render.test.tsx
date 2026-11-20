@@ -6,7 +6,7 @@ import { applyAgentEvent, makeInitialState } from '@renderer/05_Conversation/sta
 import type { AppState, ToolCard } from '@renderer/05_Conversation/state/reducer'
 import type { ThreadItem } from '@renderer/05_Conversation/state/threadTypes'
 import type { AgentEventPayload } from '@shared/03_Agent/agent'
-import type { AgentEventSearchResult } from '../../../../02_Project/00_Source/shared/agentEvents'
+import type { AgentEventSearchResult } from '@shared/agentEvents'
 import { ToolCallCard } from '@renderer/05_Conversation/ToolCallCard'
 
 afterEach(() => {

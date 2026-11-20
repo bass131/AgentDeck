@@ -13,7 +13,7 @@ let agentEventListener: ((payload: unknown) => void) | null = null
 Object.defineProperty(window, 'api', {
   value: adaptFlatApi({
     agentRun: mockAgentRun,
-    agentAbort: vi.fn().mockResolvedValue({ accepted: true }),
+    agentAbort: vi.fn().mockResolvedValue({ ok: true }),
     onAgentEvent: vi.fn().mockImplementation((cb: (payload: unknown) => void) => {
       agentEventListener = cb
       return mockUnsub

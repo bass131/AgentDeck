@@ -25,7 +25,7 @@ vi.mock('@main/02_Common/userData', () => ({ getUserDataDir: (): string => h.ud 
 
 import { registerAgentHandlers } from '@main/01_Ipc/handlers/agent'
 import { setControlEnabled } from '@main/04_Claude/permission/controlsStore'
-import { IPC_CHANNELS } from '../../../../02_Project/00_Source/shared/ipcContract'
+import { IPC_CHANNELS } from '@shared/ipcContract'
 
 const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agentdeck-run-gate-ipc-'))
 const start = vi.fn(async () => 'run-1')

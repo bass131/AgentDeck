@@ -68,3 +68,14 @@ describe('프로세스 경계 lint — 위반 꼴 고정물', () => {
     expect(await boundaryHits('shared/01_Ipc/probe.ts', `export type T = typeof import('@main/00_App/bootstrap')`)).not.toEqual([])
   })
 })
+
+describe('renderer 소스는 shared를 별칭으로 가져온다 (M05 Backlog 36)', () => {
+  it('상대 경로로 shared를 가리키는 import가 없다', async () => {
+    const { readdirSync, readFileSync } = await import('node:fs')
+    const dir = path.join(SRC, 'renderer', 'src')
+    const rel = /(?:from|import\()\s*'(?:\.\.\/)+shared\//
+    const hits = (readdirSync(dir, { recursive: true }) as string[])
+      .filter((f) => /\.tsx?$/.test(f) && rel.test(readFileSync(path.join(dir, f), 'utf8')))
+    expect(hits).toEqual([])
+  })
+})

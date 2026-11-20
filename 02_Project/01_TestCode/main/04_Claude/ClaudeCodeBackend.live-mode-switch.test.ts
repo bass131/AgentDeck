@@ -4,7 +4,7 @@ import { ClaudeCodeBackend } from '@main/04_Claude/ClaudeCodeBackend'
 import type { QueryFn } from '@main/04_Claude/ClaudeCodeBackend'
 import { PermissionCoordinator } from '@main/04_Claude/permission/permissionCoordinator'
 import type { AgentRun } from '@main/03_Agent/AgentBackend'
-import type { AgentEvent } from '../../../../02_Project/00_Source/shared/agentEvents'
+import type { AgentEvent } from '@shared/agentEvents'
 
 type RunWithSetPermissionMode = AgentRun & { setPermissionMode?: (modeId: string) => void }
 

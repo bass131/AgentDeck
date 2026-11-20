@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { ClaudeAgentRun } from '@main/04_Claude/run/claudeAgentRun'
 import type { QueryFn } from '@main/04_Claude/queryFn'
-import type { AgentEvent } from '../../../../02_Project/00_Source/shared/agentEvents'
+import type { AgentEvent } from '@shared/agentEvents'
 
 function mkAssistantText(text: string) {
   return { type: 'assistant', message: { role: 'assistant', content: [{ type: 'text', text }] }, parent_tool_use_id: null }

@@ -22,7 +22,7 @@ const mockApi = {
   workspaceOpen: vi.fn().mockResolvedValue({ rootPath: null, tree: null }),
   workspaceTree: vi.fn().mockResolvedValue({ tree: null }),
   agentRun: vi.fn().mockResolvedValue({ runId: 'run-test' }),
-  agentAbort: vi.fn().mockResolvedValue({ accepted: true }),
+  agentAbort: vi.fn().mockResolvedValue({ ok: true }),
   onAgentEvent: vi.fn().mockReturnValue(mockUnsubscribe),
   fsDiff: vi.fn().mockResolvedValue({ filePath: '', lines: [] }),
   fsRead: mockFsRead,
@@ -39,7 +39,7 @@ Object.defineProperty(window, 'api', { value: adaptFlatApi(mockApi), writable: t
 import { useAppStore } from '@renderer/00_App/appStore'
 import { SearchResultView } from '@renderer/05_Conversation/SearchResultView'
 import { FileModal } from '@renderer/07_Workspace/file'
-import type { AgentEventSearchResult } from '../../../../02_Project/00_Source/shared/agentEvents'
+import type { AgentEventSearchResult } from '@shared/agentEvents'
 
 type OpenFileWithLine = (path: string, rootId?: string, line?: number) => Promise<void>
 type LineStateBridge = { openedLine?: number | null }

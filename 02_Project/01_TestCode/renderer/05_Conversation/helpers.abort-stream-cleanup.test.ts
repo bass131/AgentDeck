@@ -18,7 +18,7 @@ const mockApi = {
   agentRun: async () => ({ runId: 'r1' }),
   agentAbort: async (_req: { runId: string }) => {
     agentAbortCallCount += 1
-    return { accepted: true }
+    return { ok: true }
   },
   agentInterrupt: async () => ({ ok: true }),
   onAgentEvent: () => () => {},

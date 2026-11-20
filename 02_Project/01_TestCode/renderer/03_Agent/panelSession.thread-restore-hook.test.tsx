@@ -23,7 +23,7 @@ import {
   makePanelInitialState,
   __resetPanelSessionManagerForTests,
 } from '@renderer/03_Agent/state/panelSession'
-import type { PanelThreadSnapshot } from '../../../../02_Project/00_Source/shared/ipcContract'
+import type { PanelThreadSnapshot } from '@shared/ipcContract'
 
 // 패널 매니저 상태는 모듈 수준이다 — 같은 슬롯 키를 쓰는 테스트끼리 오염되지 않게 매번 비운다
 beforeEach(() => {

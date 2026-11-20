@@ -1,7 +1,7 @@
 // M10 G5 — 그래프 탭의 표시 판정(순수 함수). 지금 위치·끝남·실패 수는 LoopStatus(node·goals·failCount·phase·recentLines)에서만 온다.
 // 같은 상태를 넣으면 같은 표시다. 노드 이름 `G2/implement`는 목표 G2의 반복 틀 안 implement, 슬래시 없는 이름은 마일스톤 수준 노드다.
 import { describe, expect, it } from 'vitest'
-import type { LoopGraph, LoopGraphNode, LoopStatus, LoopVerificationLine } from '../../../../02_Project/00_Source/shared/ipcContract'
+import type { LoopGraph, LoopGraphNode, LoopStatus, LoopVerificationLine } from '@shared/ipcContract'
 import {
   EDGE_LABEL, backLabel, backLanes, curveDrop, edgeKey, edgeLabelAt, edgePath, fitScale, graphBounds, loopBox, loopLabel, nodeMarks, placeOf,
 } from '@renderer/13_Loop/graphModel'

@@ -1,7 +1,7 @@
 // 작업 ID: lm1 · 옛 이름 lm1-set-model-contract.test.ts
 import { describe, it, expect, vi, beforeAll, beforeEach } from 'vitest'
 import { AGENT_CHANNELS } from '@shared/03_Agent/agent'
-import { IPC_CHANNELS } from '../../../../02_Project/00_Source/shared/ipcContract'
+import { IPC_CHANNELS } from '@shared/ipcContract'
 
 const PINNED_CHANNEL = 'agent.setModel'
 
@@ -35,7 +35,7 @@ vi.mock('electron', () => ({
 }))
 
 beforeAll(async () => {
-  await import('../../../../02_Project/00_Source/preload/index')
+  await import('@preload/index')
 })
 
 beforeEach(() => {

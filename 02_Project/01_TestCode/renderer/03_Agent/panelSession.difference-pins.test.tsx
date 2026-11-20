@@ -14,8 +14,6 @@ const mockApi = {
   windowMaximizeToggle: vi.fn().mockResolvedValue({ maximized: false }),
   windowClose: vi.fn().mockResolvedValue(undefined),
   windowIsMaximized: vi.fn().mockResolvedValue({ maximized: false }),
-  windowGetBounds: vi.fn().mockResolvedValue({ x: 0, y: 0, width: 1200, height: 800 }),
-  windowSetBounds: vi.fn().mockResolvedValue(undefined),
   windowDragStart: vi.fn().mockResolvedValue(undefined),
   windowDragEnd: vi.fn().mockResolvedValue(undefined),
   windowResizeStart: vi.fn().mockResolvedValue(undefined),

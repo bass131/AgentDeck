@@ -3,7 +3,7 @@
 // 이제 Shell이 부르는 그 함수(shellEscape)를 직접 부른다 — Shell에서 가드를 지우면 이 시험이 실패한다.
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { pushModalLayer, shellEscape, type EscapeContext } from '@renderer/12_Window/useGlobalShortcuts'
-import type { LoopInfo } from '../../../../02_Project/00_Source/shared/agentEvents'
+import type { LoopInfo } from '@shared/agentEvents'
 import type { GoalPendingLike } from '@renderer/03_Agent/loopStatus'
 
 function mkLoop(id = 'wakeup'): LoopInfo {

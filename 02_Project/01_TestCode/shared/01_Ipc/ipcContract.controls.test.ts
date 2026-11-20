@@ -1,14 +1,14 @@
 // M07 G5 — 컨트롤 패널 채널이 설정 묶음의 라우트로 이어진다. 상태는 인자 없는 채널, 토글과 확인은 요청 하나를 받는다.
 // 확인이 「사람이 본 꺼진 노드 목록」을 받게 된 것은 G5 검수 중요 2다.
 import { describe, it, expect } from 'vitest'
-import { API_ROUTES } from '../../../../02_Project/00_Source/shared/01_Ipc/apiRoutes'
+import { API_ROUTES } from '@shared/01_Ipc/apiRoutes'
 import type {
   ControlsState,
   ControlSetEnabledReq,
   ControlConfirmReq,
   ReqOf,
   ResOf,
-} from '../../../../02_Project/00_Source/shared/ipcContract'
+} from '@shared/ipcContract'
 
 describe('컨트롤 패널 라우트 (M07 G5)', () => {
   it('설정 묶음에 상태·토글·확인 셋이 있다', () => {

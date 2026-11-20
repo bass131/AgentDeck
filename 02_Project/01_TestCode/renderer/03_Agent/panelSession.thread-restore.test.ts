@@ -4,7 +4,7 @@ import {
   makePanelInitialState,
   panelApply,
 } from '@renderer/03_Agent/state/panelSession'
-import type { PanelThreadSnapshot } from '../../../../02_Project/00_Source/shared/ipcContract'
+import type { PanelThreadSnapshot } from '@shared/ipcContract'
 import type { ThreadItem } from '@renderer/05_Conversation/state/threadTypes'
 
 function msgItems(state: { thread: ThreadItem[] }) {

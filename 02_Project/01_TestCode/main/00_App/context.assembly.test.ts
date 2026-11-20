@@ -94,7 +94,7 @@ import {
 import { getBackend } from '@main/00_App/registry'
 import { getLspManager } from '@main/09_Lsp/manager'
 import { startApp, attachWindow, stopApp } from '@main/00_App/bootstrap'
-import { IPC_CHANNELS } from '../../../../02_Project/00_Source/shared/ipcContract'
+import { IPC_CHANNELS } from '@shared/ipcContract'
 
 const MAIN_DIR = path.resolve(__dirname, '../../../00_Source/main')
 const fwd = (p: string): string => p.replace(/\\/g, '/')

@@ -27,7 +27,7 @@ const agentAbort = vi.fn()
 
 beforeEach(() => {
   agentRun.mockReset()
-  agentAbort.mockReset().mockResolvedValue({ accepted: true })
+  agentAbort.mockReset().mockResolvedValue({ ok: true })
   Object.defineProperty(window, 'api', {
     value: adaptFlatApi({ onAgentEvent: vi.fn(() => () => {}), agentRun, agentAbort }),
     writable: true,

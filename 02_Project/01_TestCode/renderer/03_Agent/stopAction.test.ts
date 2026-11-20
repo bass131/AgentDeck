@@ -1,7 +1,7 @@
 // 작업 ID: fb2-p02 · 옛 이름 stop-action-fb2-p02.test.ts
 import { describe, it, expect } from 'vitest'
 import { decideStopAction } from '@renderer/03_Agent/stopAction'
-import type { LoopInfo } from '../../../../02_Project/00_Source/shared/agentEvents'
+import type { LoopInfo } from '@shared/agentEvents'
 
 function mkLoop(id = 'wakeup'): LoopInfo {
   return { id, summary: '주기 작업' }

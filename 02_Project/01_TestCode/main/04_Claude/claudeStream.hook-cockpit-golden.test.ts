@@ -3,7 +3,7 @@ import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { mapClaudeStreamLine } from '@main/04_Claude/stream/claudeStream'
-import type { AgentEvent } from '../../../../02_Project/00_Source/shared/agentEvents'
+import type { AgentEvent } from '@shared/agentEvents'
 
 const PROBE_1 = fileURLToPath(
   new URL('../../fixtures/gap1-p03/probe-1-hooks.jsonl', import.meta.url)

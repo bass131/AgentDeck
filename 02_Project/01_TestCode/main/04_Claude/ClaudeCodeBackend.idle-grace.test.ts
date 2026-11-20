@@ -7,7 +7,7 @@ import type {
   AgentEventDone,
   AgentEventAutonomyStatus,
   AutonomyEndedReason,
-} from '../../../../02_Project/00_Source/shared/agentEvents'
+} from '@shared/agentEvents'
 
 const MAX_CONSECUTIVE_AUTONOMOUS_TURNS = 100
 

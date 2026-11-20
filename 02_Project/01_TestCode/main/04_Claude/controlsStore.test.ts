@@ -16,7 +16,7 @@ import {
 } from '@main/04_Claude/permission/controlsStore'
 import { PERMISSION_NODES, runPermissionNodes, type PermissionContext } from '@main/04_Claude/permission/controlNodes'
 import { PermissionCoordinator } from '@main/04_Claude/permission/permissionCoordinator'
-import type { AgentEvent } from '../../../../02_Project/00_Source/shared/agentEvents'
+import type { AgentEvent } from '@shared/agentEvents'
 
 const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agentdeck-controls-'))
 let ud = ''

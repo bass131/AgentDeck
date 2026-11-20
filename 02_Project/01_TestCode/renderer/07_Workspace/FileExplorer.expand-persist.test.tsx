@@ -2,7 +2,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, fireEvent, cleanup, act, waitFor } from '@testing-library/react'
-import type { FileTreeNode } from '../../../../02_Project/00_Source/shared/ipcContract'
+import type { FileTreeNode } from '@shared/ipcContract'
 import { adaptFlatApi } from '../00_Helpers/windowApiMock'
 
 let _prefsStore: Record<string, unknown> = {}

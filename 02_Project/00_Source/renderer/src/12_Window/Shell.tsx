@@ -23,8 +23,8 @@ import { loadPaneWidth } from './paneResize'
 import { WhatsNew, SEEN_KEY, decideStartupModal } from '@renderer/10_Engine/whats-new'
 import { ENGINE_SEEN_KEY, decideEngineNotice } from '@renderer/10_Engine/engineUpdateTrigger'
 import { EngineUpdateNotice } from '@renderer/10_Engine'
-import type { EngineUpdateInfo } from '../../../shared/ipcContract'
-import { ZOOM_FACTOR_STEP } from '../../../shared/ipcContract'
+import type { EngineUpdateInfo } from '@shared/ipcContract'
+import { ZOOM_FACTOR_STEP } from '@shared/ipcContract'
 import {
   useAppStore,
   selectWorkspaceRoot,

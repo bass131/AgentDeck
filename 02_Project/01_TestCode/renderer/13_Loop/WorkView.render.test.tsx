@@ -2,8 +2,8 @@
 // G4 검수 1 — 세션 push 하나가 작업 화면 전체를 다시 그리지 않는다. 그리기 횟수를 세려고 무거운 칸을 대역으로 바꾼다
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
 import { render, screen, cleanup, act, within } from '@testing-library/react'
-import type { AgentEvent, LoopSessionEventPayload, LoopSessionLog, LoopSessionTag, LoopStatus, MainChatView } from '../../../../02_Project/00_Source/shared/ipcContract'
-import type { LoopSessionRecord } from '../../../../02_Project/00_Source/shared/ipcContract'
+import type { AgentEvent, LoopSessionEventPayload, LoopSessionLog, LoopSessionTag, LoopStatus, MainChatView } from '@shared/ipcContract'
+import type { LoopSessionRecord } from '@shared/ipcContract'
 import { installWindowApi, type InstalledWindowApi } from '../00_Helpers/windowApiMock'
 
 const counts = vi.hoisted(() => ({ main: 0, board: 0, thread: 0, panel: 0 }))

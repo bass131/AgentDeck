@@ -1,4 +1,4 @@
-import type { SubAgentInfo, SubAgentTranscriptItem } from '../../../shared/agentEvents'
+import type { SubAgentInfo, SubAgentTranscriptItem } from '@shared/agentEvents'
 
 export interface SubagentTaskItem {
   kind: 'task'

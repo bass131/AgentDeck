@@ -6,7 +6,7 @@ import type {
   AgentEventPayload,
   ConversationSaveRequest,
   ConversationSaveResponse,
-} from '../../../../02_Project/00_Source/shared/ipcContract'
+} from '@shared/ipcContract'
 import type { ThreadItem } from '@renderer/05_Conversation/state/threadTypes'
 import { installWindowApi } from '../00_Helpers/windowApiMock'
 

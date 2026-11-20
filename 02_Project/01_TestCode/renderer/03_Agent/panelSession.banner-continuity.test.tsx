@@ -9,7 +9,7 @@ import {
   disposePanelManagerSession,
   makePanelSlotKey,
 } from '@renderer/03_Agent/state/panelSession'
-import type { AgentEventPayload } from '../../../../02_Project/00_Source/shared/ipcContract'
+import type { AgentEventPayload } from '@shared/ipcContract'
 import { installWindowApi } from '../00_Helpers/windowApiMock'
 
 let runIdCounter = 0
@@ -21,7 +21,7 @@ const { api: mockApi } = installWindowApi({
     runIdCounter++
     return Promise.resolve({ runId })
   }),
-  agentAbort: vi.fn().mockResolvedValue({ accepted: true }),
+  agentAbort: vi.fn().mockResolvedValue({ ok: true }),
   onAgentEvent: vi.fn().mockImplementation((cb: (payload: AgentEventPayload) => void) => {
     capturedHandler = cb
     return () => {

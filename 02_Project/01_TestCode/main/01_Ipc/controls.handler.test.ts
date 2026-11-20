@@ -28,8 +28,8 @@ vi.mock('@main/10_Engine/engineVersions', () => ({
 }))
 
 import { registerControlsHandlers } from '@main/01_Ipc/handlers/controls'
-import { IPC_CHANNELS } from '../../../../02_Project/00_Source/shared/ipcContract'
-import type { ControlsState } from '../../../../02_Project/00_Source/shared/ipcContract'
+import { IPC_CHANNELS } from '@shared/ipcContract'
+import type { ControlsState } from '@shared/ipcContract'
 
 const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agentdeck-controls-ipc-'))
 

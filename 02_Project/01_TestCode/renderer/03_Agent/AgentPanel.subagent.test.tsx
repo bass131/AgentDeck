@@ -2,7 +2,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, afterEach, vi } from 'vitest'
 import { render, screen, cleanup, act, fireEvent } from '@testing-library/react'
-import type { SubAgentInfo } from '../../../../02_Project/00_Source/shared/agentEvents'
+import type { SubAgentInfo } from '@shared/agentEvents'
 
 afterEach(() => cleanup())
 

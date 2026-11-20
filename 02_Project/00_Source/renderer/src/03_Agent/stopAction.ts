@@ -1,4 +1,4 @@
-import type { LoopInfo } from '../../../shared/agentEvents'
+import type { LoopInfo } from '@shared/agentEvents'
 import type { GoalPendingLike } from './loopStatus'
 
 export type StopAction = 'interrupt' | 'abort'

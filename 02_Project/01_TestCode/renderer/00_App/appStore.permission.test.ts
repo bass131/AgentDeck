@@ -4,7 +4,7 @@ import {
   applyAgentEvent,
   makeInitialState,
 } from '@renderer/05_Conversation/state/reducer'
-import type { AgentEventPayload } from '../../../../02_Project/00_Source/shared/ipcContract'
+import type { AgentEventPayload } from '@shared/ipcContract'
 import { adaptFlatApi } from '../00_Helpers/windowApiMock'
 
 const runId = 'run-24c'
@@ -130,7 +130,7 @@ describe('Phase 24c — appStore: respondPermission 액션 + selectPendingPermis
           conversationLoad: vi.fn().mockResolvedValue({ conversations: [] }),
           conversationSave: vi.fn().mockResolvedValue({ id: 'cv' }),
           agentRun: vi.fn().mockResolvedValue({ runId: 'r1' }),
-          agentAbort: vi.fn().mockResolvedValue({ accepted: true }),
+          agentAbort: vi.fn().mockResolvedValue({ ok: true }),
           onAgentEvent: vi.fn().mockReturnValue(() => {}),
           listFiles: vi.fn().mockResolvedValue({ files: [] }),
         }),

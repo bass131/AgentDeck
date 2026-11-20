@@ -1,7 +1,7 @@
 // 작업 ID: gap1-p02 · 옛 이름 gap1-p02-permission-reclassify.test.ts
 import { describe, it, expect } from 'vitest'
 import { PermissionCoordinator } from '@main/04_Claude/permission/permissionCoordinator'
-import type { AgentEvent } from '../../../../02_Project/00_Source/shared/agentEvents'
+import type { AgentEvent } from '@shared/agentEvents'
 
 function mk(): { coord: PermissionCoordinator; pushed: AgentEvent[] } {
   const pushed: AgentEvent[] = []

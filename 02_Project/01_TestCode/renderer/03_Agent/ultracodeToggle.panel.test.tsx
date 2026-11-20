@@ -14,8 +14,6 @@ const mockApi = {
   windowMaximizeToggle: vi.fn().mockResolvedValue({ maximized: false }),
   windowClose: vi.fn(),
   windowIsMaximized: vi.fn().mockResolvedValue({ maximized: false }),
-  windowGetBounds: vi.fn().mockResolvedValue({ x: 0, y: 0, width: 1200, height: 800 }),
-  windowSetBounds: vi.fn(),
   windowDragStart: vi.fn(),
   windowDragEnd: vi.fn(),
   windowResizeStart: vi.fn(),
@@ -24,7 +22,7 @@ const mockApi = {
   conversationLoad: vi.fn().mockResolvedValue({ conversations: [] }),
   onAgentEvent: vi.fn().mockReturnValue(() => {}),
   agentRun: vi.fn().mockResolvedValue({ runId: 'run-1' }),
-  agentAbort: vi.fn().mockResolvedValue({ accepted: true }),
+  agentAbort: vi.fn().mockResolvedValue({ ok: true }),
   agentInterrupt: vi.fn().mockResolvedValue({}),
   pickFolder: vi.fn().mockResolvedValue({ path: null }),
 }

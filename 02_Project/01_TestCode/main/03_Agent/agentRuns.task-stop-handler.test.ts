@@ -12,8 +12,8 @@ import { IPC_CHANNELS } from '@shared/ipcContract'
 import { createRunManager } from '@main/03_Agent/agentRuns'
 import type { RunManager } from '@main/03_Agent/agentRuns'
 import type { AgentBackend, AgentRun } from '@main/03_Agent/AgentBackend'
-import type { AgentEvent } from '../../../../02_Project/00_Source/shared/agentEvents'
-import type { BackendId } from '../../../../02_Project/00_Source/shared/ipcContract'
+import type { AgentEvent } from '@shared/agentEvents'
+import type { BackendId } from '@shared/ipcContract'
 
 type RunWithStopTask = AgentRun & { stopTask?: (taskId: string) => void }
 type ManagerWithTaskStop = RunManager & { taskStop?: (runId: string, taskId: string) => boolean }

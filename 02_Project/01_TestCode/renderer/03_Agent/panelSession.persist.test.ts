@@ -7,7 +7,7 @@ import {
 } from '@renderer/03_Agent/state/panelSession'
 import type { PanelSessionState } from '@renderer/03_Agent/state/panelSession'
 import { nextMsgId } from '@renderer/00_App/state/ids'
-import type { PanelThreadSnapshot } from '../../../../02_Project/00_Source/shared/ipcContract'
+import type { PanelThreadSnapshot } from '@shared/ipcContract'
 import type { ThreadItem } from '@renderer/05_Conversation/state/threadTypes'
 
 function makeStateWithMessages(msgs: ThreadItem[]): PanelSessionState {

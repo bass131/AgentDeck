@@ -1,7 +1,7 @@
 // 작업 ID: fb2-p07 · 옛 이름 fb2-p07-subagent-model-order-replay.test.ts
 import { describe, it, expect } from 'vitest'
 import { makeInitialState, applyAgentEvent } from '@renderer/05_Conversation/state/reducer'
-import type { AgentEventPayload } from '../../../../02_Project/00_Source/shared/ipcContract'
+import type { AgentEventPayload } from '@shared/ipcContract'
 
 describe('FB2 P07 사후진단: 라이브 실측 순서 재생 — subagent 완료 후 도착하는 model update', () => {
   it('tool_result(완료)가 model-update보다 먼저 와도 최종 state는 model+status 둘 다 정확하다', () => {

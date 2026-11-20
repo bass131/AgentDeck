@@ -6,7 +6,7 @@ import type {
   AgentEvent,
   AgentEventSessionState,
   AgentEventAutonomyStatus,
-} from '../../../../02_Project/00_Source/shared/agentEvents'
+} from '@shared/agentEvents'
 
 const EXPIRE_MS = 10_000
 

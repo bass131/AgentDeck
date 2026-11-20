@@ -3,7 +3,7 @@
 // 사람의 답이 맞는 loop IPC 호출(인자 포함)로 간다. 스펙 승인은 받은 sha256과 expectNode를 그대로 싣는다.
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
 import { render, screen, fireEvent, cleanup, act, within } from '@testing-library/react'
-import type { LoopCard, LoopPhase, LoopStatus } from '../../../../02_Project/00_Source/shared/ipcContract'
+import type { LoopCard, LoopPhase, LoopStatus } from '@shared/ipcContract'
 import { adaptFlatApi } from '../00_Helpers/windowApiMock'
 
 const CWD = 'C:\\work\\practice'

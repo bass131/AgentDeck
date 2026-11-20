@@ -6,7 +6,7 @@ import {
   panelReducerFn,
 } from '@renderer/03_Agent/state/panelSession'
 import type { PanelSessionState } from '@renderer/03_Agent/state/panelSession'
-import type { PanelThreadSnapshot } from '../../../../02_Project/00_Source/shared/ipcContract'
+import type { PanelThreadSnapshot } from '@shared/ipcContract'
 
 type AnyAction = Parameters<typeof panelReducerFn>[1]
 function dispatch(state: PanelSessionState, action: unknown): PanelSessionState {

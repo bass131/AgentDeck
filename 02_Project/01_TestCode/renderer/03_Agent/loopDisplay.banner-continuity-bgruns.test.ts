@@ -9,7 +9,7 @@ import {
   applyLoopDisplayEventFallback,
 } from '@renderer/03_Agent/state/loopDisplay'
 import { __backgroundRunOf, __resetBackgroundRunsForTests } from '@renderer/03_Agent/state/backgroundRuns'
-import type { ConversationRecord, AgentEventPayload } from '../../../../02_Project/00_Source/shared/ipcContract'
+import type { ConversationRecord, AgentEventPayload } from '@shared/ipcContract'
 import { installWindowApi } from '../00_Helpers/windowApiMock'
 
 function makeRecord(id: string): ConversationRecord {

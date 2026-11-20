@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { ClaudeCodeBackend } from '@main/04_Claude/ClaudeCodeBackend'
 import type { QueryFn } from '@main/04_Claude/ClaudeCodeBackend'
-import type { AgentEvent, AgentEventDone } from '../../../../02_Project/00_Source/shared/agentEvents'
+import type { AgentEvent, AgentEventDone } from '@shared/agentEvents'
 import { makeCaptureQuery } from '../00_Helpers/fakeQuery'
 import {
   mkAssistantText,

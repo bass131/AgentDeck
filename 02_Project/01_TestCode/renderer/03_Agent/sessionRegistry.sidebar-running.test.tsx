@@ -24,7 +24,7 @@ Object.defineProperty(window, 'api', {
   value: adaptFlatApi({
     getAppVersion: vi.fn().mockResolvedValue('0.1.0'),
     onAgentEvent: vi.fn(() => () => {}),
-    agentAbort: vi.fn().mockResolvedValue({ accepted: true }),
+    agentAbort: vi.fn().mockResolvedValue({ ok: true }),
     onLoopState: vi.fn(() => () => {}),
   }),
   writable: true,

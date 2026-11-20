@@ -2,7 +2,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, cleanup, act } from '@testing-library/react'
-import type { FileTreeNode } from '../../../../02_Project/00_Source/shared/ipcContract'
+import type { FileTreeNode } from '@shared/ipcContract'
 import { adaptFlatApi } from '../00_Helpers/windowApiMock'
 
 const mockFsListDir = vi.fn().mockImplementation(({ relDir, rootId }: { relDir: string; rootId?: string }) => {
@@ -71,7 +71,7 @@ async function renderExplorerEmpty() {
   return result
 }
 
-async function renderExplorerWithTree(refs?: { id: string; name: string; tree: import('../../../../02_Project/00_Source/shared/ipcContract').FileTreeNode | null }[]) {
+async function renderExplorerWithTree(refs?: { id: string; name: string; tree: import('@shared/ipcContract').FileTreeNode | null }[]) {
   const { useAppStore } = await import('@renderer/00_App/appStore')
   useAppStore.setState({
     fileTree: mainTree,

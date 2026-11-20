@@ -6,7 +6,7 @@ import {
   fallbackNotice,
   RunEventNormalizer,
 } from '@main/04_Claude/stream/eventNormalizer'
-import type { AgentEvent } from '../../../../02_Project/00_Source/shared/agentEvents'
+import type { AgentEvent } from '@shared/agentEvents'
 
 describe('nextRunTag()', () => {
   it('호출마다 고유 태그를 반환한다', () => {

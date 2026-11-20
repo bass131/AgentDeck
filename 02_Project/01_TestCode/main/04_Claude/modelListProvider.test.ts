@@ -27,7 +27,7 @@ import {
 import { registerAgentHandlers } from '@main/01_Ipc/handlers/agent'
 import type { RunManager } from '@main/03_Agent/agentRuns'
 import { FALLBACK_MODELS } from '@shared/03_Agent/models/knownModels'
-import { IPC_CHANNELS } from '../../../../02_Project/00_Source/shared/ipcContract'
+import { IPC_CHANNELS } from '@shared/ipcContract'
 import type { ModelListResponse } from '@shared/03_Agent/models/modelList'
 import { SDK_MODEL_ROWS, SDK_MODEL_ROWS_RAW } from '../../shared/00_Helpers/sdkModelRows'
 

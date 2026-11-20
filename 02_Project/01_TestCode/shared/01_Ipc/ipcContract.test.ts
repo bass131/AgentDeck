@@ -1,13 +1,13 @@
 import { describe, it, expect } from 'vitest'
-import { IPC_CHANNELS, WORKSPACE_ROOT_ID } from '../../../../02_Project/00_Source/shared/ipcContract'
-import { API_ROUTES } from '../../../../02_Project/00_Source/shared/01_Ipc/apiRoutes'
-import type { ResizeEdge, PermissionResponse, QuestionResponse, UsageWindow, UsageInfo } from '../../../../02_Project/00_Source/shared/ipcContract'
-import type { LspStatus, LspPos, LspHoverResult, LspLocation, LspSemanticTokens, LspDocReq, LspPosReq } from '../../../../02_Project/00_Source/shared/ipcContract'
-import type { UiPrefs, UiPrefsSetReq } from '../../../../02_Project/00_Source/shared/ipcContract'
-import type { Profile } from '../../../../02_Project/00_Source/shared/ipcContract'
-import type { EngineState } from '../../../../02_Project/00_Source/shared/ipcContract'
-import type { SlashCommandInfo } from '../../../../02_Project/00_Source/shared/ipcContract'
-import type { AgentEvent, AgentEventPermissionRequest, AgentEventQuestionRequest } from '../../../../02_Project/00_Source/shared/agentEvents'
+import { IPC_CHANNELS, WORKSPACE_ROOT_ID } from '@shared/ipcContract'
+import { API_ROUTES } from '@shared/01_Ipc/apiRoutes'
+import type { ResizeEdge, PermissionResponse, QuestionResponse, UsageWindow, UsageInfo } from '@shared/ipcContract'
+import type { LspStatus, LspPos, LspHoverResult, LspLocation, LspSemanticTokens, LspDocReq, LspPosReq } from '@shared/ipcContract'
+import type { UiPrefs, UiPrefsSetReq } from '@shared/ipcContract'
+import type { Profile } from '@shared/ipcContract'
+import type { EngineState } from '@shared/ipcContract'
+import type { SlashCommandInfo } from '@shared/ipcContract'
+import type { AgentEvent, AgentEventPermissionRequest, AgentEventQuestionRequest } from '@shared/agentEvents'
 
 describe('ipc-contract', () => {
   it('채널명이 모두 유니크하다 (중복 라우팅 방지)', () => {
@@ -242,7 +242,7 @@ describe('AgentEvent 망라', () => {
 
 describe('orchestration_denied 이벤트 계약 (UC1 P08)', () => {
   it('AgentEventOrchestrationDenied 샘플이 type 가드를 통과한다', () => {
-    const e: import('../../../../02_Project/00_Source/shared/agentEvents').AgentEventOrchestrationDenied = {
+    const e: import('@shared/agentEvents').AgentEventOrchestrationDenied = {
       type: 'orchestration_denied',
       id: 'toolu_01',
       reason: 'orchestration-off',
@@ -253,7 +253,7 @@ describe('orchestration_denied 이벤트 계약 (UC1 P08)', () => {
   })
 
   it('id·reason·type 3개 필드만 포함한다 (최소 표면 계약)', () => {
-    const e: import('../../../../02_Project/00_Source/shared/agentEvents').AgentEventOrchestrationDenied = {
+    const e: import('@shared/agentEvents').AgentEventOrchestrationDenied = {
       type: 'orchestration_denied',
       id: 'toolu_02',
       reason: 'orchestration-off',
@@ -264,7 +264,7 @@ describe('orchestration_denied 이벤트 계약 (UC1 P08)', () => {
   })
 
   it('reason은 리터럴 유니온만 허용한다 — "orchestration-off" 외 자유 문자열 금지(타입 레벨 계약)', () => {
-    const reasons: Array<import('../../../../02_Project/00_Source/shared/agentEvents').OrchestrationDeniedReason> = [
+    const reasons: Array<import('@shared/agentEvents').OrchestrationDeniedReason> = [
       'orchestration-off',
     ]
     expect(reasons).toHaveLength(1)
@@ -272,7 +272,7 @@ describe('orchestration_denied 이벤트 계약 (UC1 P08)', () => {
   })
 
   it("'Workflow' 엔진 리터럴을 필드로 노출하지 않는다 (ADR-003 엔진중립 regression 가드)", () => {
-    const e: import('../../../../02_Project/00_Source/shared/agentEvents').AgentEventOrchestrationDenied = {
+    const e: import('@shared/agentEvents').AgentEventOrchestrationDenied = {
       type: 'orchestration_denied',
       id: 'toolu_03',
       reason: 'orchestration-off',
@@ -575,8 +575,8 @@ describe('B8 usage 채널 계약 (G10에서 usage.get → engine.usage)', () => 
   })
 
   it('USAGE_GET은 engine 도메인 계약이 소유한다 (personalization에서 옮겼다)', async () => {
-    const engine = await import('../../../../02_Project/00_Source/shared/10_Engine/engine')
-    const personalization = await import('../../../../02_Project/00_Source/shared/11_Settings/personalization')
+    const engine = await import('@shared/10_Engine/engine')
+    const personalization = await import('@shared/11_Settings/personalization')
     expect(engine.ENGINE_CHANNELS.USAGE_GET).toBe('engine.usage')
     expect(personalization.PERSONALIZATION_CHANNELS).not.toHaveProperty('USAGE_GET')
   })
@@ -761,7 +761,7 @@ describe('P5a skill.list / skill.setEnabled 채널 계약', () => {
   })
 
   it('SkillInfo 샘플이 타입 계약을 충족한다 (name/description/scope/enabled)', () => {
-    const skill: import('../../../../02_Project/00_Source/shared/ipcContract').SkillInfo = {
+    const skill: import('@shared/ipcContract').SkillInfo = {
       name: 'git-operations',
       description: 'Git 커밋/푸시/풀 자동화',
       scope: 'global',
@@ -774,10 +774,10 @@ describe('P5a skill.list / skill.setEnabled 채널 계약', () => {
   })
 
   it('SkillInfo scope 는 "global" | "local" 두 가지만 허용한다', () => {
-    const globalSkill: import('../../../../02_Project/00_Source/shared/ipcContract').SkillInfo = {
+    const globalSkill: import('@shared/ipcContract').SkillInfo = {
       name: 'lsp', description: 'LSP 지원', scope: 'global', enabled: true,
     }
-    const localSkill: import('../../../../02_Project/00_Source/shared/ipcContract').SkillInfo = {
+    const localSkill: import('@shared/ipcContract').SkillInfo = {
       name: 'project-specific', description: '프로젝트 전용', scope: 'local', enabled: false,
     }
     const scopes: Array<'global' | 'local'> = [globalSkill.scope, localSkill.scope]
@@ -787,7 +787,7 @@ describe('P5a skill.list / skill.setEnabled 채널 계약', () => {
   })
 
   it('SkillInfo 는 name/description/scope/enabled 4개 필드만 포함한다 (최소 표면 계약)', () => {
-    const skill: import('../../../../02_Project/00_Source/shared/ipcContract').SkillInfo = {
+    const skill: import('@shared/ipcContract').SkillInfo = {
       name: 'test-skill',
       description: '테스트용 스킬',
       scope: 'local',
@@ -803,10 +803,10 @@ describe('P5a skill.list / skill.setEnabled 채널 계약', () => {
   })
 
   it('SkillInfo enabled 는 boolean 타입이다 (토글 전송값)', () => {
-    const enabled: import('../../../../02_Project/00_Source/shared/ipcContract').SkillInfo = {
+    const enabled: import('@shared/ipcContract').SkillInfo = {
       name: 'test', description: '', scope: 'global', enabled: true,
     }
-    const disabled: import('../../../../02_Project/00_Source/shared/ipcContract').SkillInfo = {
+    const disabled: import('@shared/ipcContract').SkillInfo = {
       name: 'test', description: '', scope: 'global', enabled: false,
     }
     expect(typeof enabled.enabled).toBe('boolean')
@@ -814,7 +814,7 @@ describe('P5a skill.list / skill.setEnabled 채널 계약', () => {
   })
 
   it('SkillSetEnabledReq 샘플이 타입 계약을 충족한다 (name + enabled)', () => {
-    const req: import('../../../../02_Project/00_Source/shared/ipcContract').SkillSetEnabledReq = {
+    const req: import('@shared/ipcContract').SkillSetEnabledReq = {
       name: 'git-operations',
       enabled: false,
     }
@@ -823,7 +823,7 @@ describe('P5a skill.list / skill.setEnabled 채널 계약', () => {
   })
 
   it('SkillSetEnabledReq 는 name·enabled 두 필드만 포함한다', () => {
-    const req: import('../../../../02_Project/00_Source/shared/ipcContract').SkillSetEnabledReq = {
+    const req: import('@shared/ipcContract').SkillSetEnabledReq = {
       name: 'lsp',
       enabled: true,
     }
@@ -836,17 +836,17 @@ describe('P5a skill.list / skill.setEnabled 채널 계약', () => {
   })
 
   it('SkillSetEnabledReq enabled 는 boolean만 허용한다 (boolean-only 토글)', () => {
-    const reqOn: import('../../../../02_Project/00_Source/shared/ipcContract').SkillSetEnabledReq = { name: 'x', enabled: true }
-    const reqOff: import('../../../../02_Project/00_Source/shared/ipcContract').SkillSetEnabledReq = { name: 'x', enabled: false }
+    const reqOn: import('@shared/ipcContract').SkillSetEnabledReq = { name: 'x', enabled: true }
+    const reqOff: import('@shared/ipcContract').SkillSetEnabledReq = { name: 'x', enabled: false }
     expect(typeof reqOn.enabled).toBe('boolean')
     expect(typeof reqOff.enabled).toBe('boolean')
     expect(typeof reqOn.enabled).not.toBe('string')
   })
 
   it('skill.list 응답은 SkillInfo[] 형식이다 (빈 배열 포함)', () => {
-    const emptyList: import('../../../../02_Project/00_Source/shared/ipcContract').SkillInfo[] = []
+    const emptyList: import('@shared/ipcContract').SkillInfo[] = []
     expect(emptyList).toHaveLength(0)
-    const list: import('../../../../02_Project/00_Source/shared/ipcContract').SkillInfo[] = [
+    const list: import('@shared/ipcContract').SkillInfo[] = [
       { name: 'git', description: 'Git', scope: 'global', enabled: true },
       { name: 'lsp', description: 'LSP', scope: 'local', enabled: false },
     ]
@@ -870,7 +870,7 @@ describe('P5a skill.list / skill.setEnabled 채널 계약', () => {
       expect(ch).not.toMatch(/token=/)
       expect(ch).not.toMatch(/secret=/)
     }
-    const skill: import('../../../../02_Project/00_Source/shared/ipcContract').SkillInfo = {
+    const skill: import('@shared/ipcContract').SkillInfo = {
       name: 'test', description: '테스트', scope: 'global', enabled: true,
     }
     const keys = Object.keys(skill)
@@ -908,7 +908,7 @@ describe('P5b mcp.list / mcp.setEnabled 채널 계약', () => {
   })
 
   it('McpServerInfo 샘플이 타입 계약을 충족한다 (name/scope/origin/transport/detail/enabled)', () => {
-    const server: import('../../../../02_Project/00_Source/shared/ipcContract').McpServerInfo = {
+    const server: import('@shared/ipcContract').McpServerInfo = {
       name: 'filesystem',
       scope: 'global',
       origin: 'user',
@@ -925,7 +925,7 @@ describe('P5b mcp.list / mcp.setEnabled 채널 계약', () => {
   })
 
   it('McpServerInfo 는 name/scope/origin/transport/detail/enabled 6개 필드만 포함한다 (최소 표면 계약)', () => {
-    const server: import('../../../../02_Project/00_Source/shared/ipcContract').McpServerInfo = {
+    const server: import('@shared/ipcContract').McpServerInfo = {
       name: 'brave-search',
       scope: 'local',
       origin: 'project',
@@ -947,10 +947,10 @@ describe('P5b mcp.list / mcp.setEnabled 채널 계약', () => {
   })
 
   it('McpServerInfo scope 는 "global" | "local" 두 가지만 허용한다', () => {
-    const globalServer: import('../../../../02_Project/00_Source/shared/ipcContract').McpServerInfo = {
+    const globalServer: import('@shared/ipcContract').McpServerInfo = {
       name: 'a', scope: 'global', origin: 'user', transport: 'stdio', detail: 'node', enabled: true,
     }
-    const localServer: import('../../../../02_Project/00_Source/shared/ipcContract').McpServerInfo = {
+    const localServer: import('@shared/ipcContract').McpServerInfo = {
       name: 'b', scope: 'local', origin: 'local', transport: 'http', detail: 'localhost', enabled: false,
     }
     const scopes: Array<'global' | 'local'> = [globalServer.scope, localServer.scope]
@@ -961,7 +961,7 @@ describe('P5b mcp.list / mcp.setEnabled 채널 계약', () => {
   it('McpServerInfo origin 은 "user" | "project" | "local" 세 가지만 허용한다', () => {
     const origins: Array<'user' | 'project' | 'local'> = ['user', 'project', 'local']
     expect(origins).toHaveLength(3)
-    const samples: import('../../../../02_Project/00_Source/shared/ipcContract').McpServerInfo[] = origins.map(
+    const samples: import('@shared/ipcContract').McpServerInfo[] = origins.map(
       (origin) => ({ name: 'test', scope: 'global', origin, transport: 'stdio', detail: 'node', enabled: true })
     )
     expect(samples).toHaveLength(3)
@@ -973,10 +973,10 @@ describe('P5b mcp.list / mcp.setEnabled 채널 계약', () => {
   })
 
   it('McpServerInfo enabled 는 boolean 타입이다 (토글 상태)', () => {
-    const on: import('../../../../02_Project/00_Source/shared/ipcContract').McpServerInfo = {
+    const on: import('@shared/ipcContract').McpServerInfo = {
       name: 'x', scope: 'global', origin: 'user', transport: 'stdio', detail: 'node', enabled: true,
     }
-    const off: import('../../../../02_Project/00_Source/shared/ipcContract').McpServerInfo = {
+    const off: import('@shared/ipcContract').McpServerInfo = {
       name: 'y', scope: 'local', origin: 'project', transport: 'http', detail: 'localhost', enabled: false,
     }
     expect(typeof on.enabled).toBe('boolean')
@@ -997,7 +997,7 @@ describe('P5b mcp.list / mcp.setEnabled 채널 계약', () => {
   })
 
   it('McpSetEnabledReq 샘플이 타입 계약을 충족한다 (name + enabled)', () => {
-    const req: import('../../../../02_Project/00_Source/shared/ipcContract').McpSetEnabledReq = {
+    const req: import('@shared/ipcContract').McpSetEnabledReq = {
       name: 'filesystem',
       enabled: false,
     }
@@ -1006,7 +1006,7 @@ describe('P5b mcp.list / mcp.setEnabled 채널 계약', () => {
   })
 
   it('McpSetEnabledReq 는 name·enabled 두 필드만 포함한다', () => {
-    const req: import('../../../../02_Project/00_Source/shared/ipcContract').McpSetEnabledReq = {
+    const req: import('@shared/ipcContract').McpSetEnabledReq = {
       name: 'brave-search',
       enabled: true,
     }
@@ -1020,17 +1020,17 @@ describe('P5b mcp.list / mcp.setEnabled 채널 계약', () => {
   })
 
   it('McpSetEnabledReq enabled 는 boolean만 허용한다 (boolean-only 토글)', () => {
-    const reqOn: import('../../../../02_Project/00_Source/shared/ipcContract').McpSetEnabledReq = { name: 'x', enabled: true }
-    const reqOff: import('../../../../02_Project/00_Source/shared/ipcContract').McpSetEnabledReq = { name: 'x', enabled: false }
+    const reqOn: import('@shared/ipcContract').McpSetEnabledReq = { name: 'x', enabled: true }
+    const reqOff: import('@shared/ipcContract').McpSetEnabledReq = { name: 'x', enabled: false }
     expect(typeof reqOn.enabled).toBe('boolean')
     expect(typeof reqOff.enabled).toBe('boolean')
     expect(typeof reqOn.enabled).not.toBe('string')
   })
 
   it('mcp.list 응답은 McpServerInfo[] 형식이다 (빈 배열 포함)', () => {
-    const emptyList: import('../../../../02_Project/00_Source/shared/ipcContract').McpServerInfo[] = []
+    const emptyList: import('@shared/ipcContract').McpServerInfo[] = []
     expect(emptyList).toHaveLength(0)
-    const list: import('../../../../02_Project/00_Source/shared/ipcContract').McpServerInfo[] = [
+    const list: import('@shared/ipcContract').McpServerInfo[] = [
       { name: 'filesystem', scope: 'global', origin: 'user', transport: 'stdio', detail: 'npx', enabled: true },
       { name: 'brave-search', scope: 'local', origin: 'project', transport: 'http', detail: 'api.search.brave.com', enabled: false },
     ]
@@ -1047,7 +1047,7 @@ describe('P5b mcp.list / mcp.setEnabled 채널 계약', () => {
   })
 
   it('McpServerInfo 에 시크릿 운반 필드(env/args/url/command/headers)가 없다 (신뢰경계 regression 가드)', () => {
-    const server: import('../../../../02_Project/00_Source/shared/ipcContract').McpServerInfo = {
+    const server: import('@shared/ipcContract').McpServerInfo = {
       name: 'test', scope: 'global', origin: 'user', transport: 'stdio', detail: 'node', enabled: true,
     }
     const keys = Object.keys(server)
@@ -1159,7 +1159,7 @@ describe('P3 engine.state 채널 계약', () => {
 
 describe('ADR-020 ConversationRecord.cwd 옵셔널 필드 계약', () => {
   it('cwd 없는 ConversationRecord 샘플이 기존 계약을 그대로 충족한다 (하위 호환)', () => {
-    const rec: import('../../../../02_Project/00_Source/shared/ipcContract').ConversationRecord = {
+    const rec: import('@shared/ipcContract').ConversationRecord = {
       id: 'conv-1',
       title: '첫 대화',
       messages: [{ role: 'user', content: 'hello' }],
@@ -1172,7 +1172,7 @@ describe('ADR-020 ConversationRecord.cwd 옵셔널 필드 계약', () => {
   })
 
   it('cwd 있는 ConversationRecord 샘플이 타입 계약을 충족한다', () => {
-    const rec: import('../../../../02_Project/00_Source/shared/ipcContract').ConversationRecord = {
+    const rec: import('@shared/ipcContract').ConversationRecord = {
       id: 'conv-2',
       title: '프로젝트 A 대화',
       messages: [],
@@ -1186,7 +1186,7 @@ describe('ADR-020 ConversationRecord.cwd 옵셔널 필드 계약', () => {
   })
 
   it('ConversationRecord.cwd 는 경로 문자열이며 시크릿 패턴을 포함하지 않는다 (신뢰경계 regression 가드)', () => {
-    const rec: import('../../../../02_Project/00_Source/shared/ipcContract').ConversationRecord = {
+    const rec: import('@shared/ipcContract').ConversationRecord = {
       id: 'conv-3',
       title: '보안 테스트',
       messages: [],
@@ -1202,7 +1202,7 @@ describe('ADR-020 ConversationRecord.cwd 옵셔널 필드 계약', () => {
   })
 
   it('ConversationSaveRequest.conversation은 cwd를 그대로 운반한다 (Omit 파생 자동포함)', () => {
-    const saveReq: import('../../../../02_Project/00_Source/shared/ipcContract').ConversationSaveRequest = {
+    const saveReq: import('@shared/ipcContract').ConversationSaveRequest = {
       conversation: {
         id: 'conv-2',
         title: '프로젝트 A',
@@ -1215,7 +1215,7 @@ describe('ADR-020 ConversationRecord.cwd 옵셔널 필드 계약', () => {
   })
 
   it('ConversationSaveRequest.conversation은 cwd 없이도 유효하다 (기존 저장 경로 호환)', () => {
-    const saveReq: import('../../../../02_Project/00_Source/shared/ipcContract').ConversationSaveRequest = {
+    const saveReq: import('@shared/ipcContract').ConversationSaveRequest = {
       conversation: {
         id: 'conv-existing',
         title: '기존 대화',
@@ -1249,21 +1249,21 @@ describe('P15 dialog.pickFolder 채널 계약', () => {
   })
 
   it('PickFolderResponse 샘플(경로 선택)이 타입 계약을 충족한다', () => {
-    const res: import('../../../../02_Project/00_Source/shared/ipcContract').PickFolderResponse = {
+    const res: import('@shared/ipcContract').PickFolderResponse = {
       path: '/home/user/projects/my-app',
     }
     expect(res.path).toBe('/home/user/projects/my-app')
   })
 
   it('PickFolderResponse 는 취소/실패 시 path=null 을 허용한다', () => {
-    const res: import('../../../../02_Project/00_Source/shared/ipcContract').PickFolderResponse = {
+    const res: import('@shared/ipcContract').PickFolderResponse = {
       path: null,
     }
     expect(res.path).toBeNull()
   })
 
   it('PickFolderResponse 는 path 단일 필드만 포함한다 (최소 표면 계약 — 시크릿/추가 정보 0)', () => {
-    const res: import('../../../../02_Project/00_Source/shared/ipcContract').PickFolderResponse = {
+    const res: import('@shared/ipcContract').PickFolderResponse = {
       path: 'C:\\Dev\\my-project',
     }
     const keys = Object.keys(res)
@@ -1277,14 +1277,14 @@ describe('P15 dialog.pickFolder 채널 계약', () => {
   })
 
   it('PickFolderResponse path 는 string | null 타입이다', () => {
-    const withPath: import('../../../../02_Project/00_Source/shared/ipcContract').PickFolderResponse = { path: '/some/path' }
-    const withNull: import('../../../../02_Project/00_Source/shared/ipcContract').PickFolderResponse = { path: null }
+    const withPath: import('@shared/ipcContract').PickFolderResponse = { path: '/some/path' }
+    const withNull: import('@shared/ipcContract').PickFolderResponse = { path: null }
     expect(typeof withPath.path).toBe('string')
     expect(withNull.path).toBeNull()
   })
 
   it('PickFolderResponse 에 시크릿·토큰·전역 워크스페이스 필드가 없다 (신뢰경계 regression 가드)', () => {
-    const res: import('../../../../02_Project/00_Source/shared/ipcContract').PickFolderResponse = { path: '/some/path' }
+    const res: import('@shared/ipcContract').PickFolderResponse = { path: '/some/path' }
     const keys = Object.keys(res)
     const forbidden = [
       'token', 'secret', 'apiKey', 'password', 'credential',
@@ -1476,7 +1476,7 @@ describe('라우트 표는 채널마다 한 번만 쓴다 (M05 Backlog 56)', () 
 
 describe('SubAgentInfo.model 필드 계약 (FB2 P07)', () => {
   it('model 필드가 있는 SubAgentInfo 샘플이 타입 계약을 충족한다 (원시 모델 ID)', () => {
-    const sample: import('../../../../02_Project/00_Source/shared/agentEvents').SubAgentInfo = {
+    const sample: import('@shared/agentEvents').SubAgentInfo = {
       id: 'sa-1',
       name: '탐색 에이전트',
       role: 'explorer',
@@ -1488,7 +1488,7 @@ describe('SubAgentInfo.model 필드 계약 (FB2 P07)', () => {
   })
 
   it('model 필드가 없는 SubAgentInfo 샘플도 여전히 유효하다 (optional — 기존 소비자 비파괴)', () => {
-    const sample: import('../../../../02_Project/00_Source/shared/agentEvents').SubAgentInfo = {
+    const sample: import('@shared/agentEvents').SubAgentInfo = {
       id: 'sa-2',
       name: '빌더 에이전트',
       role: 'builder',
@@ -1521,7 +1521,7 @@ describe('SubAgentInfo.model 필드 계약 (FB2 P07)', () => {
   })
 
   it('model 필드는 원시 모델 ID 문자열만 담는다 — 표시 변환(예: "Opus 4.8") 문자열이 아니다 (계약 경계)', () => {
-    const sample: import('../../../../02_Project/00_Source/shared/agentEvents').SubAgentInfo = {
+    const sample: import('@shared/agentEvents').SubAgentInfo = {
       id: 'sa-5', name: 'C', role: 'explorer', status: 'running', tools: [],
       model: 'claude-fable-5',
     }

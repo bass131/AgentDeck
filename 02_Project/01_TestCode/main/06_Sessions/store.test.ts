@@ -4,7 +4,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { createConversationStore, type ConversationStore } from '@main/06_Sessions/store'
 import { writeFileAtomicSync } from '@main/05_Loop/realPorts/atomicWrite'
-import type { ConversationRecord } from '../../../../02_Project/00_Source/shared/ipcContract'
+import type { ConversationRecord } from '@shared/ipcContract'
 
 function makeRecord(overrides: Partial<ConversationRecord> = {}): Omit<ConversationRecord, 'createdAt' | 'updatedAt'> {
   return {

@@ -6,7 +6,7 @@ import { render, screen, fireEvent, cleanup, act, within } from '@testing-librar
 import { useState, type JSX } from 'react'
 import fs from 'node:fs'
 import path from 'node:path'
-import type { LoopStatus } from '../../../../02_Project/00_Source/shared/ipcContract'
+import type { LoopStatus } from '@shared/ipcContract'
 import { adaptFlatApi } from '../00_Helpers/windowApiMock'
 
 const CWD = 'C:\\work\\practice'

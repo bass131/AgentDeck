@@ -6,7 +6,7 @@ import {
 } from '@renderer/03_Agent/loopStatus'
 import { LoopStatusBanner } from '@renderer/10_Engine'
 import { CMD_CARDS } from '@renderer/03_Agent/cmdCards'
-import type { LoopInfo } from '../../../../02_Project/00_Source/shared/agentEvents'
+import type { LoopInfo } from '@shared/agentEvents'
 
 afterEach(() => cleanup())
 

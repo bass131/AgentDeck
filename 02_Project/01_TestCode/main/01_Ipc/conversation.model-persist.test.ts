@@ -17,7 +17,7 @@ vi.mock('electron', () => ({
 
 import { registerConversationHandlers } from '@main/01_Ipc/handlers/conversation'
 import { createConversationStore, type ConversationStore } from '@main/06_Sessions/store'
-import { IPC_CHANNELS } from '../../../../02_Project/00_Source/shared/ipcContract'
+import { IPC_CHANNELS } from '@shared/ipcContract'
 
 let dir: string
 let store: ConversationStore

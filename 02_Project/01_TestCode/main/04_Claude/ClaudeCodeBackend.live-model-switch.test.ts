@@ -3,7 +3,7 @@ import { describe, it, expect } from 'vitest'
 import { ClaudeCodeBackend } from '@main/04_Claude/ClaudeCodeBackend'
 import type { QueryFn } from '@main/04_Claude/ClaudeCodeBackend'
 import type { AgentRun } from '@main/03_Agent/AgentBackend'
-import type { AgentEvent } from '../../../../02_Project/00_Source/shared/agentEvents'
+import type { AgentEvent } from '@shared/agentEvents'
 
 type RunWithSetModel = AgentRun & { setModel?: (modelId: string) => void }
 

@@ -6,7 +6,7 @@ const mockApi = {
   conversationLoad: async () => ({ conversations: [] }),
   conversationSave: async () => ({ id: 'cv-1' }),
   agentRun: async () => ({ runId: 'r1' }),
-  agentAbort: async () => ({ accepted: true }),
+  agentAbort: async () => ({ ok: true }),
   onAgentEvent: () => () => {},
   listFiles: async () => ({ files: [] }),
   pathForFile: () => '',

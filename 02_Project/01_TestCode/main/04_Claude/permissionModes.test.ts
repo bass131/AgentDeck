@@ -22,7 +22,7 @@ import { mapClaudeStreamLine } from '@main/04_Claude/stream/claudeStream'
 import { ClaudeCodeBackend } from '@main/04_Claude/ClaudeCodeBackend'
 import type { QueryFn } from '@main/04_Claude/ClaudeCodeBackend'
 import { registerAgentHandlers } from '@main/01_Ipc/handlers/agent'
-import { IPC_CHANNELS } from '../../../../02_Project/00_Source/shared/ipcContract'
+import { IPC_CHANNELS } from '@shared/ipcContract'
 import {
   PERMISSION_MODE_TABLE,
   START_MODE_TO_SDK,

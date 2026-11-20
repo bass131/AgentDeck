@@ -4,7 +4,7 @@ import { describe, it, expect, afterEach } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { ipc, hasBridge } from '../../../00_Source/renderer/src/01_Ipc'
+import { ipc, hasBridge } from '@renderer/01_Ipc'
 import { installFlatWindowApi, installWindowApi } from '../00_Helpers/windowApiMock'
 
 const SRC_ROOT = fileURLToPath(new URL('../../../00_Source/renderer/src/', import.meta.url))

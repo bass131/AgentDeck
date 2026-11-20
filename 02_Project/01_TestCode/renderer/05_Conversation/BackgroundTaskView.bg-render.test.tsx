@@ -10,7 +10,7 @@ import { ToolCallCard } from '@renderer/05_Conversation/ToolCallCard'
 import { adaptFlatApi } from '../00_Helpers/windowApiMock'
 
 const mockApi = {
-  agentTaskStop: vi.fn().mockResolvedValue({ accepted: true }),
+  agentTaskStop: vi.fn().mockResolvedValue({ ok: true }),
 }
 Object.defineProperty(window, 'api', { value: adaptFlatApi(mockApi), writable: true, configurable: true })
 

@@ -12,7 +12,7 @@ const mockApi = {
     capturedRuns.push(req)
     return { runId: (req.sessionKey as string) ?? `r${capturedRuns.length}` }
   }),
-  agentAbort: async () => ({ accepted: true }),
+  agentAbort: async () => ({ ok: true }),
   onAgentEvent: () => () => {},
   listFiles: async () => ({ files: [] }),
   getUsage: async () => ({ fiveHour: null, weekly: null }),

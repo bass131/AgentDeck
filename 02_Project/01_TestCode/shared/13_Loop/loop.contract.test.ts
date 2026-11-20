@@ -1,7 +1,7 @@
 // M09 G4 — 앱 안 루프 IPC 묶음(loop)의 계약. invoke 여덟(열기·시작·상태·사람 판정·카드 답·세션 취소·래치 풀기·닫기)과
 // push 하나(상태). 상태 응답과 push는 같은 LoopStatus 한 장이다. 2차분 화면은 이 계약만 보고 만든다.
 import { describe, expect, it } from 'vitest'
-import { API_ROUTES } from '../../../../02_Project/00_Source/shared/01_Ipc/apiRoutes'
+import { API_ROUTES } from '@shared/01_Ipc/apiRoutes'
 import {
   IPC_CHANNELS,
   LOOP_CHANNELS,
@@ -12,7 +12,7 @@ import {
   type PayloadOf,
   type ReqOf,
   type ResOf,
-} from '../../../../02_Project/00_Source/shared/ipcContract'
+} from '@shared/ipcContract'
 
 const STATUS: LoopStatus = {
   cwd: 'C:/work/practice', root: 'C:/work/practice', phase: 'waiting-human', milestoneId: 'M1', node: 'spec-approval',

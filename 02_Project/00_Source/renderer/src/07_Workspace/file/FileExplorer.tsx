@@ -8,7 +8,7 @@ import {
   selectReferences,
 } from '@renderer/00_App/appStore'
 import type { ReferenceEntry } from '@renderer/00_App/appStore'
-import type { FileTreeNode } from '../../../../shared/ipcContract'
+import type { FileTreeNode } from '@shared/ipcContract'
 import { getPref, setPref } from '@renderer/11_Settings/prefs'
 import { ipc } from '@renderer/01_Ipc'
 import FileBadge from './FileBadge'

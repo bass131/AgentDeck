@@ -5,7 +5,7 @@ import { ClaudeCodeBackend } from '@main/04_Claude/ClaudeCodeBackend'
 import type { QueryFn } from '@main/04_Claude/ClaudeCodeBackend'
 import { IDLE_CLOSE_GRACE_MS } from '@main/04_Claude/run/claudeAgentRun'
 import type { AgentBackend, AgentRun, AgentRunInput, RunResponse } from '@main/03_Agent/AgentBackend'
-import type { AgentEvent, AgentEventDone, AgentEventSessionState } from '../../../../02_Project/00_Source/shared/agentEvents'
+import type { AgentEvent, AgentEventDone, AgentEventSessionState } from '@shared/agentEvents'
 
 function mkResult(turnLabel = 'turn') {
   return {

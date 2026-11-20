@@ -10,7 +10,7 @@ const mockUnsub = vi.fn()
 
 const mockApi = {
   agentRun: vi.fn().mockResolvedValue({ runId: 'run-panel-1' }),
-  agentAbort: vi.fn().mockResolvedValue({ accepted: true }),
+  agentAbort: vi.fn().mockResolvedValue({ ok: true }),
   onAgentEvent: vi.fn().mockImplementation((cb: (payload: unknown) => void) => {
     capturedEventCallback = cb
     return mockUnsub

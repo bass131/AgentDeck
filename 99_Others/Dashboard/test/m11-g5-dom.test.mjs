@@ -35,7 +35,7 @@ async function page(t, vm, routes = {}) {
     calls.push({ url, body, token: opts.headers?.['X-Dashboard-Token'] });
     const r = routes[url] ? await routes[url](body) : { ok: false, reason: '시험 경로 없음' };
     if (closed) return new Promise(() => {});
-    return { status: 200, json: async () => r };
+    return { status: 200, json: () => closed ? new Promise(() => {}) : Promise.resolve(r) };
   };
   w.eval(CHIME);
   w.eval(APP);
@@ -126,6 +126,50 @@ const mergeRoutes = ({ views = { 9: prView(9) }, list = [9], run } = {}) => ({
   '/api/merge/run': run || (() => ({ ok: false, status: 'cancelled', message: '확인 창에서 병합하지 않았어요. 다시 하려면 다시 읽기를 눌러 주세요' })),
 });
 const withHand = async (...hand) => { const vm = await baseVm(); vm.summary = { ...vm.summary, hand }; return vm; };
+
+// ── 71: 병합 카드 배선 (merge-view.test.mjs의 app.js 정규식 절을 옮김) ──
+const must = (path, patch) => ({ path, why: '판정 장치', patch, diffUrl: `https://github.com/o/r/pull/9/files#diff-${path.length}`, previousPath: null });
+test('[M11-G5 71] merge card: the run button opens only after every must-see file is expanded or its GitHub diff link is clicked; diff text is escaped', async t => {
+  const v = prView(9, { mustSee: [must('.claude/a.cjs', '@@ -1 +1 @@\n-<b>\n+<i>'), must('CLAUDE.md', null)] });
+  const p = await page(t, await withHand(mergeItem(9)), mergeRoutes({ views: { 9: v } }));
+  await until(() => p.$('#merge-card .mg'), '병합 카드');
+  assert.ok(p.$('[data-merge-run]').disabled, '아직 아무것도 펼치지 않았다');
+  assert.match(p.text('#merge-act'), /꼭 볼 것 2개 가운데 2개를 아직 펼치지 않았어요/);
+  assert.match(p.$('.mg-patch').innerHTML, /-&lt;b&gt;/);
+  const det = p.$('[data-merge-file=".claude/a.cjs"]');
+  det.open = true;
+  await until(() => p.text('#merge-act').includes('1개를 아직'), '하나 봄');
+  const noPatch = p.$('[data-merge-file="CLAUDE.md"]');
+  noPatch.open = true;
+  await wait(30);
+  assert.ok(p.$('[data-merge-run]').disabled, 'patch가 없는 파일은 펼쳐도 본 것이 아니다');
+  const link = p.$('[data-merge-link="CLAUDE.md"]');
+  assert.equal(link.getAttribute('rel'), 'noopener noreferrer');
+  link.addEventListener('click', e => e.preventDefault());
+  link.click();
+  await until(() => !p.$('[data-merge-run]').disabled, '병합 단추 켜짐');
+  assert.ok(p.$('[data-merge-file=".claude/a.cjs"]').open, '본 표시로 카드를 다시 칠해도 펼친 diff는 펼친 채다');
+  p.push({ ...(await withHand(mergeItem(9))), revision: 99 });
+  assert.ok(p.$('[data-merge-file=".claude/a.cjs"]').open && !p.$('[data-merge-run]').disabled, '스냅샷이 와도 카드는 그대로다');
+  p.click('[data-merge-run]');
+  await until(() => p.text('#merge-act').includes('확인 창에서 병합하지 않았어요'), '병합 결과 줄');
+  await wait(30);
+});
+
+test('[M11-G5 71] merge card: a failed read leaves no stale card but keeps 「다시 읽기」; only GitHub addresses become links; a missing pending PR re-reads the list once', async t => {
+  const p = await page(t, await withHand(mergeItem(7)), mergeRoutes({ list: [9] }));
+  await until(() => p.$('#merge-card .send-refusal'), '읽기 실패');
+  assert.equal(p.$('#merge-card .mg'), null);
+  assert.ok(p.$('[data-merge-reload]'), '번호가 있으면 다시 읽기가 남는다');
+  await wait(30);
+  assert.equal(p.calls.filter(c => c.url === '/api/merge/list').length, 2, '목록에 없는 병합 대기 PR은 목록을 한 번 더 읽는다(그 뒤는 그대로)');
+  const odd = await page(t, await withHand(mergeItem(9)), mergeRoutes({ views: { 9: prView(9, { url: 'https://evil.example/pull/9' }) } }));
+  await until(() => odd.$('#merge-card .mg'), '병합 카드');
+  assert.equal(odd.$('#merge-card .dec-head a'), null, 'GitHub 주소가 아니면 링크를 달지 않는다');
+  const gh = await page(t, await withHand(mergeItem(9)), mergeRoutes());
+  await until(() => gh.$('#merge-card .mg'), '병합 카드');
+  assert.equal(gh.$('#merge-card .dec-head a').getAttribute('rel'), 'noopener noreferrer');
+});
 
 // ── 72 ──
 test('[M11-G5 72] the waiting-merge fact folds into the merge card showing the same PR; it still counts, and a card that failed to load keeps the full line', async t => {

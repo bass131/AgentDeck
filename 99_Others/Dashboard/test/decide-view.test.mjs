@@ -92,16 +92,12 @@ test('cards key: a detail-only or warning-text-only change repaints the cards; t
   assert.equal(typeof D.cardsKey({}, new Map()), 'string', '빈 목록도 키를 준다');
 });
 
-test('app.js: the card repaint key, the changed-option notice and the correction note are wired', async () => {
+// M11 G5(Backlog 71): 다시 칠하기 키·바뀐 선택지 알림·고쳐 고름 note·미리보기 기다림·「지금」과 #brief 배치·토큰 요청·canType은
+// test/m11-g5-dom.test.mjs가 app.js를 jsdom에서 돌려 동작으로 본다. 여기에는 DOM으로 보기 어려운 「없는 길」 단정만 남긴다.
+test('app.js: the toast for two notices is one call', async () => {
   const app = await read('../public/app.js');
   const body = name => app.slice(app.indexOf(`function ${name}(`), app.indexOf('\n}\n', app.indexOf(`function ${name}(`)));
-  assert.match(body('renderDecide'), /DEC\.cardsKey\(D, dec\.picks\)/, '다시 칠하기 키는 순수 함수가 정한다');
-  assert.match(body('applySnapshot'), /const prevDecisions = st\.vm\.decisions\?\.items[^;]*;[\s\S]*st\.vm = next;[\s\S]*decReconcile\(prevDecisions\)/, '앞 목록은 st.vm을 바꾸기 전에 잡는다');
-  assert.match(body('decReconcile'), /DEC\.reconcilePicks\(items, dec\.picks, dec\.comments, prev\)/);
-  assert.match(body('decReconcile'), /r\.changed\.length \? `선택지 글이 바뀌어 고른 것을 지웠어요/, '글이 바뀐 고름은 이름을 알리고 지운다');
   assert.match(body('decReconcile'), /toast\(notes\.join\(/, '토스트는 앞 것을 덮으므로 두 알림을 한 번에 보인다');
-  assert.match(body('sendLine'), /note: r\.note/, '고쳐 고름 표지를 붙여 넣었으면 결과 줄에 알린다');
-  assert.match(body('sendBox'), /res\.phase === 'inserted' \? [^\n]*res\.note \? [^\n]*esc\(res\.note\)/, '넣은 결과 줄이 서버 note를 이스케이프해 보인다');
 });
 
 test('answer body: the drawn signature, picks and comments by id — the server composes; the shown sentence rides only as expect on send', () => {
@@ -111,17 +107,6 @@ test('answer body: the drawn signature, picks and comments by id — the server 
   // send는 「보낼 문장」 칸에 보인 문장을 expect로 붙인다. 서버는 그것을 넣지 않고 자기 문장과 같은지만 본다
   const sent = D.answerBody('sig1', new Map([['a', 'A']]), new Map(), '현황판 결정 응답: 1) 가 → A 나');
   assert.equal(sent.expect, '현황판 결정 응답: 1) 가 → A 나');
-});
-
-test('send waits for the preview: the button is off while a preview is pending and the page sends the shown sentence as expect', async () => {
-  const app = await read('../public/app.js');
-  const body = name => app.slice(app.indexOf(`function ${name}(`), app.indexOf('\n}\n', app.indexOf(`function ${name}(`)));
-  assert.match(body('sendLine'), /!dec\.preview \|\| dec\.preview\.pending/, '미리보기가 없거나 기다리는 중이면 넣지 않는다');
-  assert.match(body('sendLine'), /postAnswer\('send', shown\)/, '보인 문장을 expect로 보낸다');
-  assert.ok(body('sendLine').indexOf('dec.preview.pending') < body('sendLine').indexOf("postAnswer('send'"), '기다림 검사가 보내기보다 앞이다');
-  // 입력 이벤트가 클릭보다 먼저 와서 schedulePreview가 pending으로 그리므로, 버튼은 미리보기를 기다리는 동안 꺼져 있다
-  assert.match(body('schedulePreview'), /dec\.preview = dec\.picks\.size \? \{ pending: true \} : null;\n  renderDecide\(\);/);
-  assert.match(body('sendBox'), /const ready = !!\(p && !p\.pending/);
 });
 
 test('index.html: the decision section sits right under 「지금」 and outside it, so the per-second repaint of 「지금」 never touches a comment being typed', async () => {
@@ -153,53 +138,24 @@ test('hand display: decision items leave the hand list (the cards above show the
   assert.doesNotMatch(decs[0].source, /아래/, '결정 카드는 이제 손 목록 위에 있다');
 });
 
-test('app.js: 「지금」 paints only the doing card; hand and where go to #brief (made if an old page lacks it); the hand list shows facts only', async () => {
+test('app.js: an old index.html without #brief still gets the area; entrances and change lines know #brief and #decide', async () => {
   const app = await read('../public/app.js');
   const body = name => app.slice(app.indexOf(`function ${name}(`), app.indexOf('\n}\n', app.indexOf(`function ${name}(`)));
-  assert.match(body('renderNow'), /paint\(\$\('#now'\), doingBlock\(now\)\)/);
-  assert.match(body('renderNow'), /paint\(briefBox\(\), handBlock\(now\) \+ whereBlock\(\)\)/);
   assert.match(body('briefBox'), /createElement\('section'\)/, '옛 index.html(4319를 다시 켜기 전)에서도 영역을 만든다');
-  assert.match(body('handBlock'), /DEC\.handShown\(hand\)/, '표시는 순수 함수가 가른다');
-  assert.match(body('handBlock'), /handLevel\(now\)/, '머리 색은 결정까지 센 손 수준 그대로다');
-  assert.ok(body('handBlock').indexOf('is-defer') < body('handBlock').indexOf('is-none'), '결정만 기다리면 초록 「없음」보다 결정 요청을 가리키는 줄이 먼저다');
-  assert.match(body('handBlock'), /href="#decide"/, '그 줄은 결정 요청 영역으로 간다');
   assert.match(body('enter'), /#brief/, '띠 칸의 등장 동작도 고른다');
-  // 결정이 없으면 결정 요청 영역은 숨지 않고 한 줄로 조용히 남는다(자리가 늘 같아야 「지금 하는 일」 바로 밑이라는 배치가 읽힌다)
-  assert.match(body('renderDecide'), /box\.hidden = !DEC;/);
-  assert.match(body('renderDecide'), /classList\.toggle\('is-empty', empty\)/);
-  assert.match(body('renderDecide'), /기다리는 결정이 없어요/);
   assert.match(app, /k === 'hand' \|\| k === 'goals' \? 'brief'|\(hand\|goals\)\$\/\.test\(k\) \? 'brief'/, '바뀐 손·어디쯤은 #brief 머리 선으로 알린다');
+  assert.match(body('sigMap'), /m\.set\('decisions'/);
+  assert.match(app, /decisions\)\$\/\.test\(k\) \? 'decide'|k === 'decisions' \? 'decide'/);
 });
 
-test('app.js: posts ids and keys with the page token, shows the server sentence, never presses Enter, and keeps comment typing out of repaints', async () => {
+test('app.js: no path presses Enter, composes the sentence, or writes a comment through innerHTML; a failed insert falls back to copy', async () => {
   const app = await read('../public/app.js');
   const body = name => app.slice(app.indexOf(`function ${name}(`), app.indexOf('\n}\n', app.indexOf(`function ${name}(`)));
-  assert.match(app, /const DEC = globalThis\.AgentDeckDecide \|\| null;/);
-  assert.match(body('postAnswer'), /'X-Dashboard-Token': BOOT\.token/);
-  assert.match(body('postAnswer'), /DEC\.answerBody\(/);
-  assert.match(body('postAnswer'), /'\/api\/answer\/' \+/);
   assert.doesNotMatch(app, /--enter|\\r'|'\\n'\s*\+\s*line/, 'Enter를 붙이는 길이 없다');
   assert.match(body('sendLine'), /r\.copy/, '넣지 못하면 복사로 간다');
-  assert.match(body('handNow'), /DEC\.decisionHand\(/, '결정이 「내 손이 필요한 일」·알림음·배지에 들어간다');
-  assert.doesNotMatch(body('renderNow'), /renderDecide/, '「지금」을 다시 칠할 때 결정 카드는 다시 그리지 않는다');
-  assert.match(body('renderDecide'), /listKey/, '목록이 그대로면 카드를 다시 칠하지 않는다');
-  assert.match(body('renderDecide'), /restoreFocus|selectionStart/, '다시 칠하면 입력 중인 칸과 커서를 되돌린다');
-  assert.match(app, /addEventListener\('input'/);
-  assert.match(body('applySnapshot'), /decReconcile\(prevDecisions\)/, '목록이 바뀌면 고른 답을 새 목록에 맞춘다');
-  assert.match(body('render'), /renderDecide/, '스냅샷마다 결정 영역을 판단한다(같으면 칠하지 않는다)');
   assert.doesNotMatch(app, /\.innerHTML = [^;]*dec\.comments/, '코멘트는 innerHTML로 꽂지 않는다(이스케이프한 value 속성만)');
   // 문장은 서버의 응답에서만 온다(r.line). 페이지에 문장을 짓는 코드가 없다
   assert.doesNotMatch(app, /현황판 결정 응답:/);
-});
-
-test('app.js: the decision board joins the change keys and its own area; canType decides whether the insert button shows', async () => {
-  const app = await read('../public/app.js');
-  const body = name => app.slice(app.indexOf(`function ${name}(`), app.indexOf('\n}\n', app.indexOf(`function ${name}(`)));
-  assert.match(body('sigMap'), /m\.set\('decisions'/);
-  assert.match(app, /decisions\)\$\/\.test\(k\) \? 'decide'|k === 'decisions' \? 'decide'/);
-  assert.match(body('sendBox'), /answer\?\.canType/);
-  assert.match(body('sendBox'), /메인 입력창에 넣기/);
-  assert.match(body('sendBox'), /복사/);
 });
 
 test('styles.css: decision cards reuse the existing tokens — yellow for the user, no new colours, both themes', async () => {

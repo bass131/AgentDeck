@@ -60,40 +60,15 @@ test('patch rows: added, removed, hunk and context lines keep their text (escapi
   assert.deepEqual(M.patchRows(null), []);
 });
 
-test('app.js: the merge card posts with the page token, keeps its own area, and never stores opened files in the page storage', async () => {
+// M11 G5(Backlog 71): 토큰 요청·게이트·펼침과 링크의 본 표시·다시 칠하기에도 남는 펼침·SHA 소비·읽기 실패·GitHub 링크·병합 대기 줄의 카드 가리키기는
+// test/m11-g5-dom.test.mjs가 app.js를 jsdom에서 돌려 동작으로 본다. 여기에는 DOM으로 보기 어려운 「없는 길」과 옛 페이지 대비만 남긴다.
+test('app.js: opened files never reach page storage or the fold memory; an old index.html still gets the merge area; the write statement stays', async () => {
   const app = await read('../public/app.js'), body = bodyOf(app);
-  assert.match(app, /const MRG = globalThis\.AgentDeckMerge \|\| null;/);
-  assert.match(body('postMerge'), /'\/api\/merge\/' \+ kind/);
-  assert.match(body('postMerge'), /'X-Dashboard-Token': BOOT\.token/);
-  assert.match(body('render'), /renderMerge/, '스냅샷마다 판단한다(같으면 칠하지 않는다)');
-  assert.doesNotMatch(body('renderNow'), /renderMerge/, '「지금」의 초 단위 다시 칠하기가 카드를 건드리지 않는다');
-  assert.match(body('renderMerge'), /mg\.cardKey/, '카드 내용이 그대로면 다시 칠하지 않는다(펼친 diff가 접히지 않는다)');
-  assert.match(body('mergeFiles'), /data-merge-file=/);
   assert.doesNotMatch(body('mergeFiles'), /fold\(|data-id=/, '꼭 볼 것은 접기 상태 저장(localStorage)을 타지 않는다');
-  assert.match(body('mergeFiles'), /data-merge-link/, 'patch가 없으면 GitHub 파일 diff 링크');
-  assert.match(body('mergeFiles'), /rel="noopener noreferrer"/);
-  assert.match(body('mergeFiles'), /esc\(row\.text\)/, 'diff 글은 이스케이프한다');
-  assert.match(body('mergeAction'), /MRG\.mergeGate\(/);
-  assert.match(body('mergeAction'), /data-merge-run\$\{gate\.ready \? '' : ' disabled'\}/, '게이트가 열리지 않으면 버튼이 꺼진다');
-  assert.match(body('mergeAction'), /바탕화면의 확인 창에서 병합을 눌러 주세요/);
-  assert.match(body('runMerge'), /MRG\.mergeGate\(/, '누를 때 한 번 더 본다');
-  assert.match(body('markOpened'), /mg\.opened\.add\(MRG\.fileKey\(/);
   assert.doesNotMatch(app, /store\.set\([^)]*mg\./, '펼친 기록은 메모리에만 둔다');
-  assert.match(app, /closest\('\[data-merge-link\]'\)/);
-  assert.match(app, /dataset\?\.mergeFile/, '접힘 diff를 펼치면 본 것으로 친다');
-  assert.match(body('handBlock'), /href="#merge"/, '병합 대기 항목이 카드를 가리킨다');
-  // 단추 배선: 불러오기·번호 칸 Enter·다시 읽기·병합. 병합 대기 PR은 번호가 바뀔 때 한 번만 저절로 불러온다
-  for (const sel of ['data-merge-load', 'data-merge-reload', 'data-merge-run']) assert.match(app, new RegExp(`closest\\('\\[${sel}\\]'\\)`), sel);
-  assert.match(app, /e\.key === 'Enter' && e\.target\?\.matches\?\.\('\[data-merge-num\]'\)/);
-  assert.match(body('renderMerge'), /MRG\.pendingPr\(/);
-  assert.match(body('renderMerge'), /want !== mg\.autoFor/, '스냅샷마다가 아니라 번호가 바뀔 때만');
-  assert.match(body('loadMerge'), /seq !== mg\.seq/, '늦게 온 앞 읽기는 버린다');
-  assert.match(body('runMerge'), /mg\.spent = true/, '보낸 SHA는 다시 읽기 전까지 다시 못 누른다');
+  assert.doesNotMatch(body('renderNow'), /renderMerge/, '「지금」의 초 단위 다시 칠하기가 카드를 건드리지 않는다');
   assert.match(body('mergeBox'), /createElement\('section'\)/, '서버를 다시 켜기 전 옛 index.html에서도 영역을 만든다');
-  assert.match(body('mergeToggled'), /m\.patch != null/, 'patch 없는 파일은 접힘을 펼쳐도 본 것이 아니다 — 링크를 눌러야 한다');
-  assert.match(body('loadMerge'), /mg\.view = null; mg\.error =/, '읽기에 실패하면 옛 머리 SHA 카드를 남기지 않는다');
-  assert.match(body('mergeAction'), /if \(!mg\.pr\) return '';/, '읽기에 실패해도 번호가 있으면 「다시 읽기」가 남는다');
-  assert.match(body('mergeCard'), /https:\\\/\\\/github\\\.com\\\//, 'PR 주소는 GitHub 주소일 때만 링크로 단다');
+  assert.match(body('loadMerge'), /seq !== mg\.seq/, '늦게 온 앞 읽기는 버린다');
   assert.match(app, /쓰기는 결정 응답\(메인 입력창에 글 넣기\)과 병합 카드\(확인 창을 거친 PR 병합\)뿐입니다/);
 });
 
@@ -106,11 +81,9 @@ test("the page escaper (app.js esc) covers & < > \" ' — list titles land insid
   assert.equal(pageEsc(`&<>"'`), '&amp;&lt;&gt;&quot;&#39;');
 });
 
-test('review fixes (PR 79): a pending PR missing from the list re-reads it; a card SHA that differs from its row re-reads it; picking while the window is up says why', () => {
+// 병합 대기 PR이 목록에 없을 때 한 번 다시 읽기는 test/m11-g5-dom.test.mjs가 본다(M11 G5, Backlog 71)
+test('review fixes (PR 79): a card SHA that differs from its row re-reads it; picking while the window is up says why', () => {
   const b = bodyOf(APP_SRC);
-  assert.match(b('renderMerge'), /want && mg\.list\?\.ok && !mg\.list\.items\.some\(i => i\.number === want\)/, '병합 대기 PR이 목록에 없으면 목록을 다시 읽는다');
-  assert.match(b('renderMerge'), /void loadPrList\(\)/);
-  assert.match(b('renderMerge'), /mg\.listMissFor !== want/, '같은 번호로는 한 번만 다시 읽는다(스냅샷마다 gh를 부르지 않게)');
   assert.match(b('loadMerge'), /row && row\.sha !== r\.pr\.headSha/, '카드 SHA와 목록 행 SHA가 다르면 목록을 다시 읽는다');
   assert.match(b('pickFromList'), /if \(mg\.running\) \{ toast\('확인 창을 먼저 닫아 주세요\.'\); return; \}/);
   assert.match(b('renderPrList'), /먼저 연 PR부터/, '목록 머리에 순서(번호 오름차순)를 알린다');

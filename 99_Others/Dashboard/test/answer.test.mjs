@@ -95,11 +95,8 @@ test('403: no token, a wrong token of any length, a foreign or missing Origin, a
   assert.deepEqual(app.state.typed, []);
 });
 
-test('server.mjs: the insert button shows when a handle is configured or the main terminal finder is wired (M07 G13), in the snapshot and the preview alike', async () => {
-  const src = await fsp.readFile(new URL('../server.mjs', import.meta.url), 'utf8');
-  assert.match(src, /next\.answer = \{ canType: !!handle \|\| !!findMain \};/);
-  assert.match(src, /json\(response, 200, \{ ok: true, line, canType: !!handle \|\| !!findMain \}\)/);
-});
+// 넣기 단추가 설정 handle이나 찾기 배선을 따르는지(스냅샷과 미리보기)는 동작으로 본다 — 위 'canType follows the handle'과
+// find-main.test.mjs 'canType is true with no configured handle when finding is wired'. 소스 정규식 시험은 지웠다(M11 G5, M07 Backlog 35·71).
 
 test('400 and 413: not JSON, a broken JSON body, a body over 64 KB', async t => {
   const app = await appFor(t);

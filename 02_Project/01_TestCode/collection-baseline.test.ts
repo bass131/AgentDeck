@@ -105,7 +105,8 @@ const SKIP_DIRS = new Set(['node_modules', 'dist', 'out', 'coverage', '.git'])
 // 개발 빌드의 AppUserModelID main/00_App/appUserModel.test.ts, 그래프 탭의 표시 판정(노드 이름 대응·지금 위치·끝남·실패 수·선·맞춤)
 // renderer/13_Loop/graphModel.test.ts, 캔버스와 「노드 설정」 탭 renderer/13_Loop/WorkView.graph.test.tsx,
 // 앱 안 알림 표시(현황판 띠·프로젝트 점·「작업」 버튼 점·알림 열기) renderer/13_Loop/alerts.test.tsx를 더했다.
-const BASELINE_TEST_FILES = 486
+// M10 G6: 486 → 487. 끝난 실행의 판정과 새 마일스톤 시작의 보관(이름 충돌·실패 되돌리기·위조 거부) main/05_Loop/loopRunner.archive.test.ts를 더했다.
+const BASELINE_TEST_FILES = 487
 
 function collectTestFiles(dir: string, acc: string[] = []): string[] {
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {

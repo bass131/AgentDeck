@@ -82,6 +82,8 @@ export interface LoopStatus {
   node: string | null
   nodeTitle: string | null
   reason: string | null
+  // M10 G6 — 사람을 부르지 않는 안내 한 줄(끝난 실행이 있는 폴더를 열었을 때). 강조·알림 없이 보인다
+  notice?: string
   base: string | null
   ghRepo: string | null
   failCount: number

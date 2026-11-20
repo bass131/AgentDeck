@@ -14,26 +14,35 @@ export function ExceptionBar({ status, busy, onResume, onReopen, error }: {
   error: string | null
 }): JSX.Element | null {
   const line = exceptionLine(status)
-  if (!line) return null
-  return (
-    <div className="loop-exc" data-phase={status.phase}>
-      <div className="loop-exc-line" role="status">
-        <span className="loop-exc-label">{line.label}</span>
-        {line.reason !== null && <span className="loop-exc-reason">{line.reason}</span>}
-        {line.latchFile !== null && <span className="loop-exc-file">래치 파일 {line.latchFile}</span>}
-      </div>
-      {status.phase === 'halted' && (
-        <div className="loop-actions">
-          <button type="button" className="loop-btn pri" disabled={busy} onClick={onResume}>이어 가기</button>
-        </div>
-      )}
-      {status.phase === 'blocked' && (
-        <div className="loop-actions">
-          <button type="button" className="loop-btn" disabled={busy} onClick={onReopen}>다시 열기</button>
-        </div>
-      )}
-      {error !== null && <div className="loop-err">{error}</div>}
+  const notice = status.notice ? (
+    <div className="loop-notice" role="note">
+      <span className="loop-exc-label">알림</span>
+      <span className="loop-exc-reason">{status.notice}</span>
     </div>
+  ) : null
+  if (!line) return notice
+  return (
+    <>
+      {notice}
+      <div className="loop-exc" data-phase={status.phase}>
+        <div className="loop-exc-line" role="status">
+          <span className="loop-exc-label">{line.label}</span>
+          {line.reason !== null && <span className="loop-exc-reason">{line.reason}</span>}
+          {line.latchFile !== null && <span className="loop-exc-file">래치 파일 {line.latchFile}</span>}
+        </div>
+        {status.phase === 'halted' && (
+          <div className="loop-actions">
+            <button type="button" className="loop-btn pri" disabled={busy} onClick={onResume}>이어 가기</button>
+          </div>
+        )}
+        {status.phase === 'blocked' && (
+          <div className="loop-actions">
+            <button type="button" className="loop-btn" disabled={busy} onClick={onReopen}>다시 열기</button>
+          </div>
+        )}
+        {error !== null && <div className="loop-err">{error}</div>}
+      </div>
+    </>
   )
 }
 

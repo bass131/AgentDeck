@@ -90,6 +90,24 @@ describe('예외 한 줄 (M09 G4)', () => {
     expect(line.textContent).toContain('실행 상태를 만들지 못했다')
   })
 
+  it('끝난 실행 안내(notice)는 「기다리는 결정」 칸 안의 강조 없는 알림 줄이다 — 시작 실패 알림은 그대로 강조한다 (M10 G6)', async () => {
+    const notice = '끝난 실행(M01) — 새 마일스톤을 시작하면 보관해요'
+    await renderScreen(st({ phase: 'not-started', milestoneId: null, notice }))
+    const box = screen.getByRole('region', { name: '기다리는 결정' })
+    expect(box.getAttribute('data-hot')).toBeNull()
+    const line = within(box).getByRole('note')
+    expect(line.textContent).toContain('알림')
+    expect(line.textContent).toContain(notice)
+    expect(line.closest('.loop-exc')).toBeNull()
+    expect(screen.queryByRole('status')).toBeNull()
+    cleanup()
+    await renderScreen(st({ phase: 'not-started', milestoneId: null, notice, reason: '끝난 실행(M01)을 보관하지 못해 새로 시작하지 않았다' }))
+    const hot = screen.getByRole('region', { name: '기다리는 결정' })
+    expect(hot.getAttribute('data-hot')).toBe('true')
+    expect(within(hot).getByRole('status').textContent).toContain('보관하지 못해')
+    expect(within(hot).getByRole('note').textContent).toContain(notice)
+  })
+
   it('running·done에 사유가 없으면 예외 줄이 없다', async () => {
     await renderScreen(st({ phase: 'running' }))
     expect(screen.queryByRole('status')).toBeNull()

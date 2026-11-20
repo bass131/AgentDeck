@@ -3,7 +3,7 @@
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createFsPort } from '@main/05_Loop/realPorts/fsPort'
 
 let base: string
@@ -61,5 +61,66 @@ describe('실물 fs 포트', () => {
     await expect(port.read('.agentdeck/secret.txt')).rejects.toThrow(/뿌리/)
     await expect(port.list('.agentdeck')).rejects.toThrow(/뿌리/)
     expect(fs.readdirSync(outside)).toEqual(['secret.txt'])
+  })
+
+  // M10 G6 — 끝난 실행의 보관이 쓰는 이름 바꾸기와 있음 확인
+  it('옮기기는 대상 폴더를 만들고 이름을 바꾼다 — 대상이 있으면 덮어쓰지 않는다, 있음은 파일·폴더 모두 본다', async () => {
+    const port = createFsPort(root)
+    await port.write('.agentdeck/run-state.json', '옛 상태')
+    await port.write('.agentdeck/archive/M00/run-state.json', '앞 보관본')
+    expect(await port.exists('.agentdeck/archive/M00')).toBe(true)
+    expect(await port.exists('.agentdeck/archive/M01')).toBe(false)
+    expect(await port.exists('.agentdeck/run-state.json')).toBe(true)
+    await port.move('.agentdeck/run-state.json', '.agentdeck/archive/M01/run-state.json')
+    expect(await port.read('.agentdeck/run-state.json')).toBeNull()
+    expect(await port.read('.agentdeck/archive/M01/run-state.json')).toBe('옛 상태')
+    await port.write('.agentdeck/run-state.json', '새 상태')
+    await expect(port.move('.agentdeck/run-state.json', '.agentdeck/archive/M00/run-state.json')).rejects.toThrow(/이미 있/)
+    expect(await port.read('.agentdeck/archive/M00/run-state.json')).toBe('앞 보관본')
+    expect(await port.read('.agentdeck/run-state.json')).toBe('새 상태')
+    await expect(port.move('.agentdeck/없음.md', '.agentdeck/archive/M02/없음.md')).rejects.toThrow()
+    // 떼어 낸 함수로 불러도 같다(this에 기대지 않는다)
+    const { move, exists } = port
+    await move('.agentdeck/run-state.json', '.agentdeck/archive/M02/run-state.json')
+    expect(await exists('.agentdeck/archive/M02/run-state.json')).toBe(true)
+  })
+
+  it('옮기기는 Windows 일시 잠금(EPERM·EACCES·EBUSY)을 몇 번 다시 해 보고, 다른 오류는 바로 던진다', async () => {
+    const port = createFsPort(root)
+    await port.write('.agentdeck/run-state.json', '옛 상태')
+    const rename = fs.promises.rename
+    const locked = (code: string): Error => Object.assign(new Error(`시험: ${code}`), { code })
+    const codes = ['EPERM', 'EACCES', 'EBUSY']
+    const spy = vi.spyOn(fs.promises, 'rename').mockImplementation(async (from, to) => {
+      const code = codes.shift()
+      if (code) throw locked(code)
+      await rename(from, to)
+    })
+    try {
+      await port.move('.agentdeck/run-state.json', '.agentdeck/archive/M01/run-state.json')
+      expect(spy).toHaveBeenCalledTimes(4)
+      expect(await port.read('.agentdeck/archive/M01/run-state.json')).toBe('옛 상태')
+      spy.mockClear()
+      spy.mockImplementation(async () => { throw locked('ENOENT') })
+      await expect(port.move('.agentdeck/archive/M01/run-state.json', '.agentdeck/run-state.json')).rejects.toThrow(/ENOENT/)
+      expect(spy).toHaveBeenCalledTimes(1)
+      spy.mockClear()
+      spy.mockImplementation(async () => { throw locked('EBUSY') })
+      await expect(port.move('.agentdeck/archive/M01/run-state.json', '.agentdeck/run-state.json')).rejects.toThrow(/EBUSY/)
+      expect(spy.mock.calls.length).toBeGreaterThan(1)
+    } finally {
+      spy.mockRestore()
+    }
+    expect(await port.read('.agentdeck/archive/M01/run-state.json')).toBe('옛 상태')
+  })
+
+  it('옮기기와 있음도 뿌리 밖 경로를 거부한다', async () => {
+    const port = createFsPort(root)
+    await port.write('a.txt', 'x')
+    await expect(port.move('a.txt', '../outside/a.txt')).rejects.toThrow(/뿌리/)
+    await expect(port.move('../outside/a.txt', 'b.txt')).rejects.toThrow(/뿌리/)
+    await expect(port.exists('../outside')).rejects.toThrow(/뿌리/)
+    expect(fs.readdirSync(outside)).toEqual([])
+    expect(fs.existsSync(path.join(root, 'a.txt'))).toBe(true)
   })
 })

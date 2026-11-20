@@ -59,7 +59,7 @@ import { loadBundledTemplate } from './bundledTemplate'
 import type { NextStep } from './executor'
 import { templateGraph } from './templateGraph'
 import { createFileDigestStore, repoKeyOf, stateDigest } from './digestStore'
-import { TAMPERED_REASON, visitKeyOf } from './loopRunner'
+import { TAMPERED_REASON, finishedNotice, visitKeyOf } from './loopRunner'
 import { openMainChat, readMainChatView, type MainActions, type MainChat } from './mainChat'
 import { listArchives } from './mainChatStore'
 import { createSessionLog } from './sessionLog'
@@ -166,6 +166,8 @@ interface Entry {
   lastStarted: string | null
   lastLatch: string | null
   chatNotify: boolean
+  // M10 G6 — 이 항목에서 실행이 끝났다(그 동안은 「끝남」으로 보인다). 열 때 이미 끝나 있던 실행은 「시작 전」과 안내 한 줄이다
+  finishedHere?: boolean
 }
 
 const sha256 = (s: string): string => createHash('sha256').update(s, 'utf8').digest('hex')
@@ -467,6 +469,9 @@ export function createLoopDriver(opts: LoopDriverOptions): LoopDriver {
     if (r.kind === 'blocked') return { ...v, phase: 'blocked', reason: r.reason }
     if (r.kind === 'needs-user') return { ...v, phase: 'latched', reason: r.reason, latch: await liveLatch(e, loop, r.reason) }
     const { state, next } = r
+    if (state.status === 'done' && !e.finishedHere) {
+      return e.blocked ? { ...v, phase: 'blocked', reason: e.blocked } : { ...v, phase: 'not-started', notice: finishedNotice(state.milestoneId) }
+    }
     const filled: LoopStatus = {
       ...v,
       milestoneId: state.milestoneId,
@@ -589,6 +594,7 @@ export function createLoopDriver(opts: LoopDriverOptions): LoopDriver {
       if (!alive(e, gen)) return
       if ('verdict' in out && out.verdict) e.lastVerdict = { node: out.verdict.node, verdict: out.verdict.verdict, evidence: out.verdict.evidence }
       recordVerdict(e, next, out)
+      if (out.kind === 'done') e.finishedHere = true
       e.waitingCi = out.kind === 'waiting' && out.on === 'ci'
       void publish(e)
       if (out.kind === 'advanced' || out.kind === 'failed' || out.kind === 'resumed') continue
@@ -626,6 +632,7 @@ export function createLoopDriver(opts: LoopDriverOptions): LoopDriver {
     clearTimer(e)
     const loop = e.loop
     e.loop = null
+    e.finishedHere = false
     // M10 G2 — 메인 대화를 먼저 닫는다(돌던 턴을 멈추고 남은 질문 카드를 저장한다 — 다음 열기에서 다시 묻는다)
     const chat = e.chat
     e.chat = null
@@ -675,7 +682,7 @@ export function createLoopDriver(opts: LoopDriverOptions): LoopDriver {
       const r = await e.loop.runner.start(milestoneId)
       setNote(e, r.kind === 'ok' ? null : r.kind === 'missing' ? '실행 상태를 만들지 못했다' : r.reason)
       // M10 G2 — 새 실행이다. 메인 대화 장의 방문은 앞 실행의 것이라 잊는다(방문 키 M1#0이 겹쳐 여는 턴을 건너뛰지 않게)
-      if (r.kind === 'ok') { e.chat?.resetVisit(); e.lastStarted = null }
+      if (r.kind === 'ok') { e.chat?.resetVisit(); e.lastStarted = null; e.finishedHere = false }
       void kick(e)
       return publish(e)
     },

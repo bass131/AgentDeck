@@ -135,6 +135,12 @@ type Checked =
 
 class Tampered extends Error {}
 
+// M10 G6 — 끝난 실행의 보관 자리(backlog.md는 옮기지 않는다). 보관본은 실행기가 다시 읽지 않는다.
+export const ARCHIVE_DIR = `${DOCS.dir}/archive`
+export const finishedNotice = (milestoneId: string): string => `끝난 실행(${milestoneId}) — 새 마일스톤을 시작하면 보관해요`
+class ArchiveFailed extends Error {}
+const ARCHIVED_DOCS = [DOCS.milestoneSpec, DOCS.decisions, DOCS.verification] as const
+
 // 실행기가 매 단계 쓰는 생존 문서는 goal의 변경이 아니므로 등급 통계에서 뺀다(템플릿과 관계없이).
 const EXECUTOR_OWNED = /^(\.[\\/])*\.agentdeck[\\/]/
 const short = (sha: string | null | undefined): string => (sha ? sha.slice(0, 8) : '(없음)')
@@ -210,20 +216,85 @@ export function createLoopRunner(deps: LoopRunnerDeps): LoopRunner {
   }
 
   // expected: 이번 호출이 읽은 저장본의 다이제스트(새로 시작이면 null — 파일이 없어야 한다).
-  async function persist(state: RunState, expected: string | null): Promise<void> {
+  // prepare: 대조 뒤 쓰기 전에 돈다(M10 G6 보관). 같은 persisting 안이라 그 틈에 읽는 load가 래치를 걸지 않는다.
+  // 상태 파일을 쓰기 전에 실패하면 prepare가 돌려준 되돌리기를 부른다(되돌린 결과를 한 문장으로 돌려준다).
+  async function persist(state: RunState, expected: string | null, prepare?: () => Promise<() => Promise<string>>): Promise<void> {
     const run = (async () => {
       const now = await ports.fs.read(DOCS.runState)
       const nowDigest = now === null ? null : (() => { try { return stateDigest(JSON.parse(now)) } catch { return 'unreadable' } })()
       if (nowDigest !== expected) throw new Tampered(`${TAMPERED_REASON} — 이번 단계가 읽은 뒤 상태 파일이 바뀌어 덮어쓰지 않았다`)
+      const undo = prepare ? await prepare() : null
       // G4 검수 I1 — 사본 → 상태 파일 → 다이제스트. 어디서 꺼져도 사본은 상태 파일보다 낡지 않다.
       const text = runStateText(state)
-      await ports.digest.writeCopy(repoKey, text)
-      await ports.fs.write(DOCS.runState, text)
+      try {
+        await ports.digest.writeCopy(repoKey, text)
+        await ports.fs.write(DOCS.runState, text)
+      } catch (e) {
+        if (!undo) throw e
+        throw new ArchiveFailed(`새 실행 상태를 쓰지 못했다(${errorText(e)}) — ${await undo()}`)
+      }
       await ports.digest.write(repoKey, stateDigest(JSON.parse(text)))
       await writeVerification(ports.fs, state)
     })()
     persisting = run
     try { await run } finally { if (persisting === run) persisting = null }
+  }
+
+  // 파일이 든 자리는 쓰인 것으로 본다(보관이 옮겨 넣는 곳은 그 폴더와 goals/뿐이다) — 되돌린 뒤 남은 빈 폴더는 다시 쓴다.
+  // 같은 이름이 있으면 시각 꼬리(숫자만 — Windows 이름에 쓸 수 없는 글자를 뺀다), 그것도 있으면 번호를 더 붙인다.
+  async function archiveDirFor(milestoneId: string): Promise<string> {
+    const taken = async (dir: string): Promise<boolean> => {
+      if (!(await ports.fs.exists(dir))) return false
+      try { return (await ports.fs.list(dir)).length > 0 || (await ports.fs.list(`${dir}/goals`)).length > 0 } catch { return true }
+    }
+    const first = `${ARCHIVE_DIR}/${milestoneId}`
+    if (!(await taken(first))) return first
+    const stamped = `${first}-${ports.clock.now().replace(/[^0-9]/g, '').slice(0, 14)}`
+    for (let n = 1; n < 100; n++) {
+      const name = n === 1 ? stamped : `${stamped}-${n}`
+      if (!(await taken(name))) return name
+    }
+    throw new Error(`보관 자리 ${stamped}의 이름이 모두 쓰였다`)
+  }
+
+  // M10 G6 — persist의 prepare. 돌려주는 함수는 새 상태를 쓰지 못했을 때의 되돌리기다(앱 영역 사본도 옛것으로 둔다).
+  async function archive(state: RunState): Promise<() => Promise<string>> {
+    const moved: [string, string][] = []
+    const back = async (): Promise<string[]> => {
+      const left: string[] = []
+      for (const [from, to] of moved.splice(0).reverse()) {
+        try { await ports.fs.move(to, from) } catch (e) { left.push(`${to} → ${from}(${errorText(e)})`) }
+      }
+      return left
+    }
+    const backText = (left: string[]): string => (left.length === 0 ? '옮긴 파일은 되돌렸다' : `되돌리지 못한 파일: ${left.join(', ')}`)
+    let copy: string | null = null
+    let oldText: string | null = null
+    try {
+      copy = await ports.digest.readCopy(repoKey)
+      oldText = await ports.fs.read(DOCS.runState)
+      const dir = await archiveDirFor(state.milestoneId)
+      const plan: [string, string][] = (await ports.fs.list(DOCS.goalsDir)).map((n) => [`${DOCS.goalsDir}/${n}`, `${dir}/goals/${n}`])
+      for (const doc of ARCHIVED_DOCS) if (await ports.fs.exists(doc)) plan.push([doc, `${dir}/${doc.slice(DOCS.dir.length + 1)}`])
+      plan.push([DOCS.runState, `${dir}/run-state.json`])
+      for (const [from, to] of plan) {
+        await ports.fs.move(from, to)
+        moved.push([from, to])
+      }
+    } catch (e) {
+      throw new ArchiveFailed(`${errorText(e)} — ${backText(await back())}`)
+    }
+    // 사본이 없던 실행이면 옛 상태 본문을 사본으로 쓴다 — 디스크·다이제스트·사본이 옛 실행으로 맞는다
+    const restore = copy ?? oldText ?? runStateText(state)
+    return async () => {
+      const files = backText(await back())
+      try {
+        await ports.digest.writeCopy(repoKey, restore)
+        return files
+      } catch (e) {
+        return `${files} / 앱 영역 상태 사본을 맞추지 못했다(${errorText(e)})`
+      }
+    }
   }
 
   async function readCurrent(): Promise<{ ok: true; state: RunState; digest: string } | { ok: false; outcome: StepOutcome }> {
@@ -613,6 +684,8 @@ export function createLoopRunner(deps: LoopRunnerDeps): LoopRunner {
     if (read.kind === 'missing') return read
     if (read.kind === 'tampered') return { kind: 'needs-user', reason: read.reason }
     if (read.kind === 'invalid') return { kind: 'blocked', reason: '실행 상태가 스키마에 맞지 않는다', errors: read.errors }
+    // M10 G6 — 끝난 실행은 위조·스키마 검사를 지난 뒤에만 여기 닿는다. 템플릿이 바뀌었어도 막지 않는다(start가 보관한다)
+    if (read.state.status === 'done') return { kind: 'ok', state: read.state, next: nextStep(template, read.state) }
     const check = checkResumable(template, hash, read.state)
     if (!check.ok) return { kind: 'blocked', reason: check.reason }
     const moved = baseMoved(read.state)
@@ -634,13 +707,18 @@ export function createLoopRunner(deps: LoopRunnerDeps): LoopRunner {
       if (held) return { kind: 'needs-user', reason: held }
       const existing = await readChecked()
       if (existing.kind === 'tampered') return { kind: 'needs-user', reason: await latch(existing.reason) }
-      if (existing.kind !== 'missing') return { kind: 'blocked', reason: '실행 상태가 이미 있다 — 새로 시작하지 않는다(load로 이어 간다)' }
+      // M10 G6 — 끝난 실행만 보관하고 새로 연다. 끝나지 않은 실행은 지금처럼 거부한다
+      const done = existing.kind === 'ok' && existing.state.status === 'done' ? existing : null
+      if (existing.kind !== 'missing' && !done) return { kind: 'blocked', reason: '실행 상태가 이미 있다 — 새로 시작하지 않는다(load로 이어 간다)' }
       const created = createRunState(template, hash, milestoneId, base)
       if (!created.ok) return { kind: 'blocked', reason: created.reason }
       try {
-        await persist(created.state, null)
+        await persist(created.state, done?.digest ?? null, done ? () => archive(done.state) : undefined)
       } catch (e) {
         if (e instanceof Tampered) return { kind: 'needs-user', reason: await latch(e.message) }
+        if (e instanceof ArchiveFailed && done) {
+          return { kind: 'blocked', reason: `끝난 실행(${done.state.milestoneId})을 보관하지 못해 새로 시작하지 않았다 — ${e.message}` }
+        }
         throw e
       }
       return { kind: 'ok', state: created.state, next: nextStep(template, created.state) }

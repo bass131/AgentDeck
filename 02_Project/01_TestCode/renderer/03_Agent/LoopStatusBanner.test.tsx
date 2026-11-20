@@ -4,7 +4,7 @@ import { render, screen, cleanup, fireEvent } from '@testing-library/react'
 import {
   resolveLoopStatus,
 } from '@renderer/03_Agent/loopStatus'
-import { LoopStatusBanner } from '@renderer/10_Engine'
+import { LoopStatusBanner } from '@renderer/03_Agent'
 import { CMD_CARDS } from '@renderer/03_Agent/cmdCards'
 import type { LoopInfo } from '@shared/agentEvents'
 

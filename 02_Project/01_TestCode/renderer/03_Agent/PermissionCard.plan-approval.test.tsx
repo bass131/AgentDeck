@@ -28,7 +28,7 @@ const PLAN_PENDING_EMPTY: PendingPermission = {
   planReview: { plan: '', planFilePath: undefined },
 }
 
-const CARD_PATH = '@renderer/10_Engine'
+const CARD_PATH = '@renderer/03_Agent'
 
 describe('GAP1 P07 — PermissionCard plan 전용 모드 렌더 (RED)', () => {
   it('planReview != null → .perm-card 에 data-plan-mode 판별자 부여', async () => {

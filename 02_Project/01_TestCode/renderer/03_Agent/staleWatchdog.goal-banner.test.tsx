@@ -16,7 +16,7 @@ import {
 } from '@renderer/05_Conversation/state/reducer'
 import type { AppState } from '@renderer/05_Conversation/state/reducer'
 import { resolveLoopStatus } from '@renderer/03_Agent/loopStatus'
-import { LoopStatusBanner } from '@renderer/10_Engine'
+import { LoopStatusBanner } from '@renderer/03_Agent'
 import type { AgentEvent } from '@shared/agentEvents'
 import type { AgentEventPayload } from '@shared/ipcContract'
 import { adaptFlatApi } from '../00_Helpers/windowApiMock'

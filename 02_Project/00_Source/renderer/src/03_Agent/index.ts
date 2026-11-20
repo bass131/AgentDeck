@@ -7,7 +7,7 @@
 //   제어하는 파일이 다수라 배럴 경유로 바꾸면 mock 격리가 깨지고, e2e는
 //   SubAgentSplitView·SubAgentChatStream의 default export를 모듈 파일에서
 //   직접 소비한다.
-// 공개 표면은 앱 소비처가 실제 소비하는 6종(전부 값, Props 타입 실소비 0)으로
+// 공개 표면은 앱 소비처가 실제 소비하는 9종(전부 값, Props 타입 실소비 0)으로
 // 최소화한다. 각 파일의 default export는 e2e·테스트가 모듈 파일에서 직접
 // 소비하므로 파일에 보존하되, 배럴 소비처는 전부 named로 전환해 재수출하지
 // 않는다 — Shell.tsx의 SubAgentSplitView default import도 배럴 named로 전환했다.
@@ -20,3 +20,6 @@ export { SubAgentFullscreen } from './SubAgentFullscreen'
 export { TodosSection } from './AgentPanel'
 export { ProviderStatusPanel } from './ProviderStatusPanel'
 export { SubAgentSplitView } from './SubAgentSplitView'
+export { HookTimeline } from './HookTimeline'
+export { LoopStatusBanner } from './LoopStatusBanner'
+export { PermissionCard } from './PermissionCard'

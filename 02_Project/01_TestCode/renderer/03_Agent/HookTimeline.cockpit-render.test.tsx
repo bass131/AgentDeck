@@ -24,7 +24,7 @@ beforeEach(() => {
 })
 afterEach(() => cleanup())
 
-const HOOK_TIMELINE_PATH = '@renderer/10_Engine'
+const HOOK_TIMELINE_PATH = '@renderer/03_Agent'
 
 const sampleRuns = [
   { hookId: 'h1', hookName: 'PreToolUse:Bash', hookEvent: 'PreToolUse', status: 'success', exitCode: 0 },

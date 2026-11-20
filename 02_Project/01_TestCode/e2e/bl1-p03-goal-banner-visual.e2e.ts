@@ -25,7 +25,7 @@ let tmp: string
 const ENTRY_TSX = `
 import React from 'react'
 import { createRoot } from 'react-dom/client'
-import { LoopStatusBanner } from '@renderer/10_Engine'
+import { LoopStatusBanner } from '@renderer/03_Agent'
 import { resolveLoopStatus } from '@renderer/03_Agent/loopStatus'
 
 const root = createRoot(document.getElementById('root'))

@@ -41,37 +41,23 @@ import {
 } from '@renderer/00_App/appStore'
 import type { AttachedImage } from '@renderer/00_App/appStore'
 import type { PickerValues } from './Composer'
-import { LoopStatusBanner } from '@renderer/10_Engine'
 import { resolveLoopStatus } from '@renderer/03_Agent/loopStatus'
 import { decideStopAction } from '@renderer/03_Agent/stopAction'
 import { getProviderBrand } from '@renderer/02_Common/providerBrand'
 import { getTheme } from '@renderer/02_Common/theme'
 import { Composer } from './Composer'
-import { PermissionCard } from '@renderer/10_Engine'
 import { QuestionModal } from '@renderer/03_Agent/prompt'
 import { enginePromptFor } from '@renderer/03_Agent/state/runCore'
 import { IconEye, IconSearch, IconBolt, IconPencil, IconSpark, IconClock } from '@renderer/02_Common/icons'
 import type { IconProps } from '@renderer/02_Common/icons'
-import { HookTimeline } from '@renderer/10_Engine'
 import { useZoom, ZoomBadge } from './zoom'
 import { SelectionToolbar } from './SelectionToolbar'
-import { SubAgentFullscreen } from '@renderer/03_Agent'
+import { SubAgentFullscreen, HookTimeline, LoopStatusBanner, PermissionCard } from '@renderer/03_Agent'
 import { ScrollToBottomButton } from './ScrollToBottomButton'
 import { ThreadView } from './ThreadView'
 import { useQueuedSend } from './hooks/useQueuedSend'
 import { isScrolledUp } from '@renderer/02_Common/scrollHelpers'
 import './Conversation.css'
-
-// 항목 렌더 부품은 공용 스레드 렌더(ThreadView)로 옮겼다 — 기존 소비처를 위해 같은 것을 재수출한다.
-export {
-  ThinkingItem,
-  NoticeItem,
-  informationalTone,
-  informationalDisplayText,
-  decisionReasonTypeLabel,
-  permissionDeniedDisplayText,
-} from './ThreadView'
-export type { ThinkingItemProps, NoticeTone, NoticeItemProps } from './ThreadView'
 
 const SUGGESTIONS: { Icon: (p: IconProps) => JSX.Element; label: string }[] = [
   { Icon: IconEye, label: '이 프로젝트의 구조를 설명해줘' },

@@ -15,7 +15,7 @@ export const AGENT_CHANNELS = {
   QUESTION_RESPOND: 'agent.questionRespond',
 } as const
 
-export type MessageRole = 'user' | 'assistant'
+type MessageRole ='user' | 'assistant'
 
 export interface ConversationMessage {
   role: MessageRole

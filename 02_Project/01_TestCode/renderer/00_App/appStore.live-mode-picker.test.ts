@@ -2,7 +2,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { resetAppStore } from '../00_Helpers/storeReset'
 import { adaptFlatApi } from '../00_Helpers/windowApiMock'
-import type { AgentEventPayload } from '../../../../02_Project/00_Source/shared/ipcContract'
+import type { AgentEventPayload } from '@shared/ipcContract'
 
 let agentEventHandler: ((payload: AgentEventPayload) => void) | null = null
 
@@ -10,8 +10,8 @@ const mockApi = {
   conversationLoad: async () => ({ conversations: [] }),
   conversationSave: async () => ({ id: 'cv-1' }),
   agentRun: vi.fn(async () => ({ runId: 'r1' })),
-  agentAbort: async () => ({ accepted: true }),
-  agentSetMode: vi.fn(async () => ({ accepted: true })),
+  agentAbort: async () => ({ ok: true }),
+  agentSetMode: vi.fn(async () => ({ ok: true })),
   onAgentEvent: vi.fn((cb: (payload: AgentEventPayload) => void) => {
     agentEventHandler = cb
     return () => {

@@ -2,7 +2,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, cleanup, fireEvent } from '@testing-library/react'
-import { LoopStatusBanner } from '@renderer/10_Engine'
+import { LoopStatusBanner } from '@renderer/03_Agent'
 
 afterEach(() => cleanup())
 

@@ -6,8 +6,8 @@ import {
   freezePersistedSubagents,
 } from '@renderer/06_Sessions/state/conversationPayload'
 import type { ThreadItem } from '@renderer/05_Conversation/state/threadTypes'
-import type { PersistedSubAgent } from '../../../../02_Project/00_Source/shared/ipcContract'
-import type { SubAgentInfo } from '../../../../02_Project/00_Source/shared/agentEvents'
+import type { PersistedSubAgent } from '@shared/ipcContract'
+import type { SubAgentInfo } from '@shared/agentEvents'
 
 function msg(id: string, text: string, role: 'user' | 'assistant' = 'assistant'): ThreadItem {
   return { kind: 'msg', id, role, text }

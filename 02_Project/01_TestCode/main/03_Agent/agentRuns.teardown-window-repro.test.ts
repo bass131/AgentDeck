@@ -4,7 +4,7 @@ import { createRunManager } from '@main/03_Agent/agentRuns'
 import { ClaudeCodeBackend } from '@main/04_Claude/ClaudeCodeBackend'
 import type { QueryFn } from '@main/04_Claude/ClaudeCodeBackend'
 import type { AgentBackend, AgentRunInput } from '@main/03_Agent/AgentBackend'
-import type { AgentEvent } from '../../../../02_Project/00_Source/shared/agentEvents'
+import type { AgentEvent } from '@shared/agentEvents'
 
 function deferred(): { promise: Promise<void>; resolve: () => void } {
   let resolve!: () => void

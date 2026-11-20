@@ -6,7 +6,7 @@ import {
   closeAbortedOrchestrationCards,
 } from '@renderer/05_Conversation/state/reducer/helpers'
 import { makeInitialState } from '@renderer/05_Conversation/state/reducer'
-import { panelReducerFn } from '@renderer/03_Agent/state/panelSession'
+import { runReducer } from '@renderer/03_Agent/state/runReducer'
 import type { ThreadItem } from '@renderer/05_Conversation/state/threadTypes'
 import { adaptFlatApi } from '../00_Helpers/windowApiMock'
 
@@ -18,7 +18,7 @@ const mockApi = {
   agentRun: async () => ({ runId: 'r1' }),
   agentAbort: async (_req: { runId: string }) => {
     agentAbortCallCount += 1
-    return { accepted: true }
+    return { ok: true }
   },
   agentInterrupt: async () => ({ ok: true }),
   onAgentEvent: () => () => {},
@@ -153,7 +153,7 @@ describe('appStore abortRun — 스트리밍 중단 시 죽은 상태 청소 (FB
   })
 })
 
-describe('panelReducerFn CLEAR_LOOPS — 패널(멀티워크스페이스) abort도 동형 정리 (FB2 육안 게이트 P0)', () => {
+describe('runReducer CLEAR_LOOPS — 공용 실행 reducer의 abort 정리 (FB2 육안 게이트 P0)', () => {
   it('스트리밍 중 CLEAR_LOOPS → isRunning/currentRunId/thinkingText/pendingCommand 해제', () => {
     const base = {
       ...makeInitialState(),
@@ -163,9 +163,9 @@ describe('panelReducerFn CLEAR_LOOPS — 패널(멀티워크스페이스) abort�
       pendingCommand: { name: 'goal', cardId: 'pcmd-1', beforeMsgs: 0, turns: 1, detail: '패널 목표' },
       thread: [goalCard('pcmd-1')],
     }
-    const next = panelReducerFn(
-      base as Parameters<typeof panelReducerFn>[0],
-      { type: 'CLEAR_LOOPS' } as Parameters<typeof panelReducerFn>[1]
+    const next = runReducer(
+      base as Parameters<typeof runReducer>[0],
+      { type: 'CLEAR_LOOPS' } as Parameters<typeof runReducer>[1]
     )
     expect(next.isRunning).toBe(false)
     expect(next.currentRunId).toBeNull()
@@ -178,9 +178,9 @@ describe('panelReducerFn CLEAR_LOOPS — 패널(멀티워크스페이스) abort�
 
   it('pendingCommand/activeLoops 둘 다 없는 일반 스트리밍 CLEAR_LOOPS → loopsStoppedNotice는 그대로(오표시 금지)', () => {
     const base = { ...makeInitialState(), currentRunId: 'p-run-2', isRunning: true, thinkingText: '응답 중…' }
-    const next = panelReducerFn(
-      base as Parameters<typeof panelReducerFn>[0],
-      { type: 'CLEAR_LOOPS' } as Parameters<typeof panelReducerFn>[1]
+    const next = runReducer(
+      base as Parameters<typeof runReducer>[0],
+      { type: 'CLEAR_LOOPS' } as Parameters<typeof runReducer>[1]
     )
     expect(next.isRunning).toBe(false)
     expect(next.currentRunId).toBeNull()
@@ -196,9 +196,9 @@ describe('panelReducerFn CLEAR_LOOPS — 패널(멀티워크스페이스) abort�
       pendingCommand: { name: 'goal', cardId: 'pcmd-2', beforeMsgs: 0, turns: 1, detail: '패널 목표' },
       thread: [goalCard('pcmd-2'), orchCard('porch-1')],
     }
-    const next = panelReducerFn(
-      base as Parameters<typeof panelReducerFn>[0],
-      { type: 'CLEAR_LOOPS' } as Parameters<typeof panelReducerFn>[1]
+    const next = runReducer(
+      base as Parameters<typeof runReducer>[0],
+      { type: 'CLEAR_LOOPS' } as Parameters<typeof runReducer>[1]
     )
     const cmd = next.thread.find((i) => i.kind === 'cmdresult' && i.id === 'pcmd-2')
     const orch = next.thread.find((i) => i.kind === 'orchestration' && i.id === 'porch-1')

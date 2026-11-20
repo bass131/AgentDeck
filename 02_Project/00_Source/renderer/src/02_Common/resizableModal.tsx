@@ -18,7 +18,7 @@ function savePref<T>(key: string, value: T): void {
   } catch { }
 }
 
-export type ModalSize = { w: number; h: number }
+type ModalSize = { w: number; h: number }
 
 const RESIZE_CURSOR: Record<string, string> = {
   e: 'ew-resize', w: 'ew-resize', s: 'ns-resize', se: 'nwse-resize', sw: 'nesw-resize',

@@ -1,4 +1,4 @@
-import type { EngineUpdateInfo } from '../../../shared/ipcContract'
+import type { EngineUpdateInfo } from '@shared/ipcContract'
 
 export const ENGINE_SEEN_KEY = 'engine.seenLatest'
 

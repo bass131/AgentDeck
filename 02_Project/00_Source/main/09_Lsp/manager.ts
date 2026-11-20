@@ -130,7 +130,7 @@ interface ServerHandle {
 
 const RESPAWN_COOLDOWN = 30_000
 
-export type SpawnFn = (
+type SpawnFn = (
   cmd: string,
   args: string[],
   opts: { cwd?: string; env?: Record<string, string>; stdio: 'pipe' | 'ignore'; windowsHide?: boolean }

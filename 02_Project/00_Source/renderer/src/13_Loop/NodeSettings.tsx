@@ -6,7 +6,7 @@ import { KIND_LABEL, placeOf } from './graphModel'
 import { MARKER_LABEL } from './loopModel'
 import { clockOf } from './mainChatModel'
 
-export interface NodeSettingsProps {
+interface NodeSettingsProps {
   graph: LoopGraph | null
   status: LoopStatus | null
   nodeId: string | null

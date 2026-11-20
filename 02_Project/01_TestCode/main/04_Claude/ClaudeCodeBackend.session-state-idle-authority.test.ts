@@ -6,7 +6,7 @@ import type {
   AgentEvent,
   AgentEventDone,
   AgentEventAutonomyStatus,
-} from '../../../../02_Project/00_Source/shared/agentEvents'
+} from '@shared/agentEvents'
 
 const GRACE_PROBE_MS = 100
 const EXPIRE_MS = 10_000

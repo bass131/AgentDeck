@@ -3,17 +3,17 @@
 import { IPC_CHANNELS } from '../ipcContract'
 import type { ArgsOf, InvokeChannel, PayloadOf, PushChannel, ResOf, VoidReqChannel } from './channelMap'
 
-export type ReqChannel = Exclude<InvokeChannel, VoidReqChannel>
+type ReqChannel =Exclude<InvokeChannel, VoidReqChannel>
 
-export interface CallRoute<C extends ReqChannel = ReqChannel> {
+interface CallRoute<C extends ReqChannel = ReqChannel> {
   readonly kind: 'call'
   readonly channel: C
 }
-export interface Call0Route<C extends VoidReqChannel = VoidReqChannel> {
+interface Call0Route<C extends VoidReqChannel = VoidReqChannel> {
   readonly kind: 'call0'
   readonly channel: C
 }
-export interface PushRoute<C extends PushChannel = PushChannel> {
+interface PushRoute<C extends PushChannel = PushChannel> {
   readonly kind: 'push'
   readonly channel: C
 }
@@ -150,10 +150,10 @@ export const API_ROUTES = {
   },
 } as const
 
-export type ApiRoutes = typeof API_ROUTES
+type ApiRoutes = typeof API_ROUTES
 
 // 라우트 하나 → 노출 함수 타입.
-export type RouteFn<R> = R extends CallRoute<infer C>
+type RouteFn<R> =R extends CallRoute<infer C>
   ? (...args: ArgsOf<C>) => Promise<ResOf<C>>
   : R extends Call0Route<infer C>
     ? () => Promise<ResOf<C>>
@@ -166,7 +166,7 @@ export type RoutedApi<T extends Record<string, Record<string, ApiRoute>> = ApiRo
 }
 
 // IPC가 아닌 preload 노출 — 파일 경로(webUtils)와 화면 배율(webFrame). 손으로 붙인다.
-export interface BridgeExtras {
+interface BridgeExtras {
   workspace: { pathForFile: (file: File) => string }
   window: { getZoomFactor: () => number; setZoomFactor: (factor: number) => void }
 }

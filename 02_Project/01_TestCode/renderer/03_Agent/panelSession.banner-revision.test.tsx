@@ -1,13 +1,8 @@
 // 작업 ID: fb2-p08 · 옛 이름 fb2-p08-banner-revision.test.tsx
-// @vitest-environment jsdom
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+// M11 G6 — 패널 배너 위치 사례(FB2 P08⑥)는 그리는 곳이 없던 PanelView와 함께 지웠다(M10 Backlog 3).
+import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'fs'
 import { resolve } from 'path'
-import type { JSX } from 'react'
-import { render, fireEvent, act, cleanup } from '@testing-library/react'
-import { useAppStore } from '@renderer/00_App/appStore'
-import { __resetPanelSessionManagerForTests } from '@renderer/03_Agent/state/panelSession'
-import { adaptFlatApi } from '../00_Helpers/windowApiMock'
 
 function readSrc(relPath: string): string {
   return readFileSync(resolve(__dirname, '../../../../02_Project/00_Source/renderer/src', relPath), 'utf-8')
@@ -38,127 +33,5 @@ describe('FB2 P08② — LoopStatusBanner ↔ ContextStrip 폭 정합(토큰 공
     const css = readSrc('03_Agent/LoopStatusBanner.css')
     expect(css).not.toContain('.ma-p-body > .loop-indicator')
     expect(css).not.toContain('.ma-p-body .loop-indicator')
-  })
-})
-
-let runIdCounter = 0
-let capturedEventCallbacks: Array<(payload: unknown) => void> = []
-
-function emitAgentEvent(runId: string, event: Record<string, unknown>): void {
-  capturedEventCallbacks.forEach((cb) => cb({ runId, event }))
-}
-
-const mockApi = {
-  agentRun: vi.fn().mockImplementation(() => {
-    const runId = `run-${runIdCounter}`
-    runIdCounter++
-    return Promise.resolve({ runId })
-  }),
-  agentAbort: vi.fn().mockResolvedValue({ accepted: true }),
-  agentInterrupt: vi.fn().mockResolvedValue({}),
-  onAgentEvent: vi.fn().mockImplementation((cb: (payload: unknown) => void) => {
-    capturedEventCallbacks.push(cb)
-    return vi.fn()
-  }),
-  conversationLoad: vi.fn().mockResolvedValue({ conversations: [] }),
-  workspaceOpen: vi.fn().mockResolvedValue({ root: null, tree: null }),
-  pickFolder: vi.fn().mockResolvedValue({ path: null }),
-  getUsage: vi.fn().mockResolvedValue({ fiveHour: null, weekly: null }),
-  getProfile: vi.fn().mockResolvedValue({}),
-  listSlashCommands: vi.fn().mockResolvedValue([]),
-  listSkills: vi.fn().mockResolvedValue([]),
-  readDir: vi.fn().mockResolvedValue([]),
-  windowMinimize: vi.fn(),
-  windowMaximizeToggle: vi.fn().mockResolvedValue({ maximized: false }),
-  windowClose: vi.fn(),
-  windowIsMaximized: vi.fn().mockResolvedValue({ maximized: false }),
-  windowGetBounds: vi.fn().mockResolvedValue({ x: 0, y: 0, width: 1200, height: 800 }),
-  windowSetBounds: vi.fn(),
-  windowDragStart: vi.fn(),
-  windowDragEnd: vi.fn(),
-  windowResizeStart: vi.fn(),
-  windowResizeEnd: vi.fn(),
-  onWindowState: vi.fn().mockReturnValue(() => {}),
-}
-
-Object.defineProperty(window, 'api', { value: adaptFlatApi(mockApi), writable: true, configurable: true })
-
-beforeEach(() => {
-  vi.clearAllMocks()
-  runIdCounter = 0
-  capturedEventCallbacks = []
-  mockApi.agentRun.mockImplementation(() => {
-    const runId = `run-${runIdCounter}`
-    runIdCounter++
-    return Promise.resolve({ runId })
-  })
-  mockApi.onAgentEvent.mockImplementation((cb: (payload: unknown) => void) => {
-    capturedEventCallbacks.push(cb)
-    return vi.fn()
-  })
-  __resetPanelSessionManagerForTests()
-})
-
-afterEach(() => {
-  cleanup()
-  useAppStore.setState({ workspaceMode: 'single', workspaceRoot: null })
-})
-
-// M10 G1 — 멀티 에이전트 화면을 지웠다. 패널 한 장(PanelView + usePanelSlot)을 직접 그려 같은 배치를 본다.
-async function renderPanel() {
-  useAppStore.setState({ workspaceRoot: '/test/workspace' })
-  const { PanelView } = await import('@renderer/05_Conversation/PanelView')
-  const { usePanelSlot } = await import('@renderer/03_Agent/state/panelSession')
-  const noop = (): void => {}
-  function Harness(): JSX.Element {
-    const session = usePanelSlot('fb2-p08', 0)
-    return (
-      <PanelView slot={0} panel={{ title: 'p', status: 'idle', cwd: '/test/workspace', ctxPct: 0 }} session={session}
-        workspaceRoot="/test/workspace" onExpand={noop} onPrompt={noop} onPickFolder={noop} />
-    )
-  }
-  const { container } = render(<Harness />)
-  return container
-}
-
-describe('FB2 P08⑥ — 패널 loop 배너 위치: .ma-p-body 하단(.ma-p-foot 밖)', () => {
-  it('activeLoops 수신 시 배너가 .ma-p-body 안(.ma-p-thread 다음)에 렌더되고 .ma-p-foot 안에는 없다', async () => {
-    const container = await renderPanel()
-
-    const textarea = container.querySelector('textarea')
-    expect(textarea).toBeTruthy()
-    if (!textarea) return
-
-    await act(async () => {
-      fireEvent.change(textarea, { target: { value: '/loop 1m 상태 점검' } })
-      fireEvent.keyDown(textarea, { key: 'Enter', shiftKey: false })
-    })
-
-    expect(mockApi.agentRun).toHaveBeenCalledTimes(1)
-
-    act(() => {
-      emitAgentEvent('run-0', {
-        type: 'loops',
-        loops: [{ id: 'loop-1', summary: '상태 점검', interval: 'Every minute' }],
-      })
-    })
-
-    const panel = container.querySelector('.ma-panel')
-    expect(panel).toBeTruthy()
-
-    const banner = panel?.querySelector('.loop-indicator.loop-sdk')
-    expect(banner).toBeTruthy()
-
-    expect(panel?.querySelector('.ma-p-body .loop-indicator')).toBeTruthy()
-    expect(panel?.querySelector('.ma-p-foot .loop-indicator')).toBeNull()
-
-    const body = panel?.querySelector('.ma-p-body')
-    const thread = body?.querySelector('.ma-p-thread')
-    expect(thread).toBeTruthy()
-    if (thread && banner) {
-      const position = thread.compareDocumentPosition(banner)
-      // eslint-disable-next-line no-bitwise
-      expect(position & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-    }
   })
 })

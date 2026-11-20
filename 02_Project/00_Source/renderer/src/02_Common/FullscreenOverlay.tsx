@@ -4,7 +4,7 @@ import { IconClose } from './icons'
 import { useModalLayer } from './modalStack'
 import './FullscreenOverlay.css'
 
-export interface FullscreenOverlayProps {
+interface FullscreenOverlayProps {
   onClose: () => void
   title?: string
   children: ReactNode

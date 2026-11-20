@@ -22,7 +22,7 @@ export interface StoredTurn {
   events?: LoopEventItem[]
 }
 // open: 그 방문의 여는 턴 — queued(아직 세션이 받지 못함), sent(세션이 받았다)
-export interface StoredVisit {
+interface StoredVisit {
   key: string
   node: string
   baselineSpecSha: string | null
@@ -146,7 +146,7 @@ export async function saveRecord(file: string, rec: MainChatRecord): Promise<voi
   await writeFileAtomic(file, `${JSON.stringify(rec, null, 2)}\n`)
 }
 
-export const ARCHIVE_LIST_MAX = 20
+const ARCHIVE_LIST_MAX = 20
 export async function listArchives(appDataDir: string, repoKey: string, limit = ARCHIVE_LIST_MAX): Promise<MainChatArchive[]> {
   const dir = path.join(appDataDir, ARCHIVE_DIR)
   let names: string[]

@@ -17,9 +17,9 @@ const LANE_STEP = 24
 const BOX_BELOW_CURVE = 10
 export const EDGE_LABEL = { width: 140, height: 16 } as const
 
-export interface NodePlace { goal: string | null; node: string }
+interface NodePlace {goal: string | null; node: string }
 export interface NodeMark { now: boolean; done: boolean; skipped: boolean; fails: number }
-export interface Box { x: number; y: number; w: number; h: number }
+interface Box {x: number; y: number; w: number; h: number }
 
 export const edgeKey = (e: Pick<LoopGraphEdge, 'from' | 'to' | 'kind'>): string => `${e.kind}:${e.from}>${e.to}`
 const depthOf = (lane: number): number => LANE_BASE + lane * LANE_STEP

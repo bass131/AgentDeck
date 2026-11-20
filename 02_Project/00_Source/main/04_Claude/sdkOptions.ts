@@ -10,7 +10,7 @@ import { buildLoopLockHook } from './permission/loopLock'
 import type { AgentRunInput } from '@main/03_Agent/AgentBackend'
 import type { AgentEvent } from '../../shared/agentEvents'
 
-export function resolveSafeCwd(workspaceRoot?: string): string {
+function resolveSafeCwd(workspaceRoot?: string): string {
   if (!workspaceRoot || !isAbsolute(workspaceRoot)) return process.cwd()
   try {
     if (!existsSync(workspaceRoot)) return process.cwd()
@@ -41,7 +41,7 @@ type DialogResult =
   | { behavior: 'cancelled' }
   | { behavior: 'completed'; result: string }
 
-export type OnUserDialogFn = (
+type OnUserDialogFn = (
   dlg: { dialogKind: string; payload?: Record<string, unknown> }
 ) => Promise<DialogResult>
 

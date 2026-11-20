@@ -24,44 +24,12 @@ test('the module is pure: no DOM, no audio, no page storage of its own; it hangs
   assert.equal(RUNG_MAX, 200);
 });
 
-// 화면 코드(app.js)는 브라우저에서만 돈다. 여기서는 배선만 글자로 확인한다 — 실제 동작은 docs/알림.md의 관찰 표지로 본다.
-test('app.js wiring: reads the module from the global, notifies on every render and clock tick, never gates on reduced motion', async () => {
-  // 작업 사본의 줄 끝이 CRLF일 수 있다
+// app.js의 알림 배선·소리 상태·띠 손 줄은 test/m11-g5-dom.test.mjs가 jsdom에서 동작으로 본다(M11 G6, Backlog 41).
+// 동작으로 보이지 않는 소스 구조 두 가지만 글자로 남긴다.
+test('app.js source: only chime.js knows the storage key, and setSound is the one writer of the sound marker', async () => {
   const app = (await readFile(new URL('../public/app.js', import.meta.url), 'utf8')).replace(/\r\n/g, '\n');
-  assert.match(app, /const CH = globalThis\.AgentDeckChime \|\| null;/);
-  assert.match(app, /CH\.createChimeMemory\(pageStorage\(\)\)/);
-  const body = name => app.slice(app.indexOf(`function ${name}(`), app.indexOf('\n}\n', app.indexOf(`function ${name}(`)));
-  assert.match(body('render'), /notify\(now\)/, '스냅샷이 오면(탭이 숨어 있어도) 판정한다');
-  assert.match(body('beat'), /notify\(now\)/, '시계가 fresh 만료를 탭 제목에 반영한다');
-  for (const fn of ['notify', 'chime', 'playChime']) assert.doesNotMatch(body(fn), /reduceMotion|moving\(\)|document\.hidden/, fn);
   assert.ok(!app.includes("'ad-dash-chimed'"), '저장 키는 chime.js만 안다');
-});
-
-test('app.js sound state: setSound is the only writer of the marker after a chime, and every path goes through it', async () => {
-  const app = (await readFile(new URL('../public/app.js', import.meta.url), 'utf8')).replace(/\r\n/g, '\n');
-  const body = name => app.slice(app.indexOf(`function ${name}(`), app.indexOf('\n}\n', app.indexOf(`function ${name}(`)));
-  assert.match(body('setSound'), /CH\.soundMark\(state\)/);
-  assert.match(body('setSound'), /CH\.soundBadge\(state\)/);
   assert.equal((app.match(/d\.chimeBlocked = /g) || []).length, 1, '표지는 setSound 한 곳에서만 쓴다');
-  for (const [fn, state] of [['chime', 'pending'], ['playChime', 'blocked'], ['playChime', 'on'], ['playChime', 'unsupported'], ['soundOn', 'on'], ['primeSound', 'on'], ['probeSound', 'blocked']])
-    assert.match(body(fn), new RegExp(`setSound\\([^)]*'${state}'`), `${fn} → ${state}`);
-  assert.match(app, /\nprobeSound\(\);\n/, '페이지를 열 때 한 번 재 본다');
-});
-
-test('app.js placement: the strip carries the hand line, the hand head carries the sound badge, the quiet line has its own shape', async () => {
-  const app = (await readFile(new URL('../public/app.js', import.meta.url), 'utf8')).replace(/\r\n/g, '\n');
-  const body = name => app.slice(app.indexOf(`function ${name}(`), app.indexOf('\n}\n', app.indexOf(`function ${name}(`)));
-  assert.match(body('renderStrip'), /CH\?\.stripHand\(/);
-  assert.match(body('renderStrip'), /class="mini-hand is-\$\{/);
-  assert.match(body('renderStrip'), /<span>\$\{esc\(h\.say\)\}<\/span>/, '띠의 손 줄은 원문 문장을 이스케이프해 그대로 쓴다');
-  // 「지금 하는 일」 알약의 모양: 손 줄이 따로 있으면 회색 점(중립), 없으면 예전대로 손 수준의 모양(없음=초록 ✓)
-  assert.match(body('renderStrip'), /\$\{h \? G\.quiet : G\[HAND_G\[lv\]\]\}/, '종결·모두 마침 옆에 진행 중 고리를 달지 않는다');
-  assert.match(body('handBlock'), /soundState\(\)/);
-  assert.match(body('handBlock'), /soundChip\(\)/);
-  assert.match(body('notesNow'), /kind: 'quiet'/);
-  // 줄 종류마다의 모양(조용함 회색 시계 · 주의 노랑 세모 · 깨짐 빨강 네모)은 test/m11-g5-dom.test.mjs가 jsdom에서 본다(M11 G5, Backlog 71)
-  assert.match(app, /const CLOCK = svg\(/);
-  assert.doesNotMatch(body('notesNow'), /조용해요[^\n]*G\.note/, '조용함 줄은 노랑 세모(할 일·주의)를 쓰지 않는다');
 });
 
 test('styles: the sound chip, the strip hand line and the quiet line use only the existing colour meanings', async () => {

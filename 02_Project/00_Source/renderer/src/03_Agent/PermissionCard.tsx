@@ -6,7 +6,7 @@ import { mcpToolLabel } from './toolKind'
 import { MarkdownView } from '@renderer/05_Conversation'
 import './PermissionCard.css'
 
-export type PermissionChoice = 'allow' | 'allow_always' | 'deny'
+type PermissionChoice ='allow' | 'allow_always' | 'deny'
 
 // 숫자 키의 뜻은 카드 종류와 관계없이 같다(M11 G2, M06 Backlog 11) — 2는 언제나 거부(계획 카드는 계속 계획)다.
 const CHOICE_KEY: Record<PermissionChoice, number> = { allow: 1, deny: 2, allow_always: 3 }
@@ -65,7 +65,7 @@ function scrolledToEnd(el: HTMLElement): boolean {
   return el.scrollHeight - el.scrollTop - el.clientHeight <= 2
 }
 
-export interface PermissionCardProps {
+interface PermissionCardProps {
   pending: PendingPermission | null
   onRespond: (choice: PermissionChoice) => void
 }

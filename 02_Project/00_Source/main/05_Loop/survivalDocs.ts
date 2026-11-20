@@ -8,8 +8,8 @@
 import { createHash } from 'node:crypto'
 import type { GoalSeed } from './executor'
 import type { FsPort } from './ports'
-import { GOAL_ID, validateRunState, type RunState } from './runState'
-import type { DocKind, SchemaError } from './template'
+import { GOAL_ID, type RunState } from './runState'
+import type { DocKind } from './template'
 
 export const DOCS = {
   dir: '.agentdeck',
@@ -22,27 +22,8 @@ export const DOCS = {
 
 export const goalDocPath = (goalId: string): string => `${DOCS.goalsDir}/${goalId}.md`
 
-export type RunStateRead = { kind: 'missing' } | { kind: 'invalid'; errors: SchemaError[] } | { kind: 'ok'; state: RunState }
-
-export async function readRunState(fs: FsPort): Promise<RunStateRead> {
-  const text = await fs.read(DOCS.runState)
-  if (text === null) return { kind: 'missing' }
-  let raw: unknown
-  try {
-    raw = JSON.parse(text)
-  } catch (e) {
-    return { kind: 'invalid', errors: [{ path: '$', reason: `JSON으로 읽을 수 없다 — ${(e as Error).message}` }] }
-  }
-  const checked = validateRunState(raw)
-  return checked.ok ? { kind: 'ok', state: checked.state } : { kind: 'invalid', errors: checked.errors }
-}
-
 // 상태 파일 본문 — 실행기는 이 글을 앱 영역의 사본(DigestStore.writeCopy, G4 검수 I1)과 상태 파일에 똑같이 쓴다.
 export const runStateText = (state: RunState): string => `${JSON.stringify(state, null, 2)}\n`
-
-export async function writeRunState(fs: FsPort, state: RunState): Promise<void> {
-  await fs.write(DOCS.runState, runStateText(state))
-}
 
 export const sha256Text = (text: string): string => createHash('sha256').update(text, 'utf8').digest('hex')
 
@@ -52,7 +33,7 @@ const SCOPE_TITLE = (state: RunState, scope: string | null): string => {
   return g ? `${g.id} — ${g.title}` : scope
 }
 
-export function renderVerification(state: RunState): string {
+function renderVerification(state: RunState): string {
   const out = [
     `# 검증 기록 — ${state.milestoneId}`,
     '',
@@ -119,10 +100,4 @@ export function renderGoalLines(state: RunState, goalId: string): string {
   const lines = state.lines.filter((l) => l.goal === goalId)
   const body = lines.length === 0 ? '- (기록 없음)' : lines.map((l) => `- ${l.marker} ${l.at} — ${l.node}(${l.judge}): ${l.sentence.replace(/`/g, "'")}`).join('\n')
   return ['## 검증 기록', '', '```text', body, '```'].join('\n')
-}
-
-export async function appendDecision(fs: FsPort, entry: string): Promise<void> {
-  const prev = (await fs.read(DOCS.decisions)) ?? '# 결정 대장\n'
-  const sep = prev.endsWith('\n') ? '' : '\n'
-  await fs.write(DOCS.decisions, `${prev}${sep}- ${entry.replace(/\s+/g, ' ').trim()}\n`)
 }

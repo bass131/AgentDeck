@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { useAppStore } from '@renderer/00_App/appStore'
 import type { ConversationRunState } from '@renderer/00_App/state/types'
 import { __resetBackgroundRunsForTests, __seedBackgroundRunsForTests } from '@renderer/03_Agent/state/backgroundRuns'
-import type { ConversationRecord } from '../../../../02_Project/00_Source/shared/ipcContract'
+import type { ConversationRecord } from '@shared/ipcContract'
 import type { ThreadItem } from '@renderer/05_Conversation/state/threadTypes'
 import { adaptFlatApi } from '../00_Helpers/windowApiMock'
 
@@ -37,7 +37,7 @@ const mockApi = {
   conversationDelete: async (_req: { id: string }) => ({ ok: true }),
   conversationRename: async (_req: { id: string; title: string }) => ({ ok: true }),
   agentRun: async () => ({ runId: 'r1' }),
-  agentAbort: async () => ({ accepted: true }),
+  agentAbort: async () => ({ ok: true }),
   onAgentEvent: () => () => {},
   listFiles: async () => ({ files: [] }),
   pathForFile: () => '',
@@ -465,7 +465,7 @@ describe('session-crud — 전환·삭제·/clear 정리 (M05-51·52)', () => {
     aborts.length = 0
     mockApi.agentAbort = async (req?: unknown) => {
       aborts.push((req as { runId: string }).runId)
-      return { accepted: true }
+      return { ok: true }
     }
   })
   afterEach(() => {

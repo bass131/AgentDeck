@@ -18,7 +18,7 @@ vi.mock('@main/00_App/registry', () => ({
 }))
 
 import { registerAgentHandlers } from '@main/01_Ipc/handlers/agent'
-import { IPC_CHANNELS } from '../../../../02_Project/00_Source/shared/ipcContract'
+import { IPC_CHANNELS } from '@shared/ipcContract'
 
 interface PermissionResponseInput {
   runId?: unknown
@@ -116,6 +116,18 @@ describe('PERMISSION_RESPOND 핸들러 입력 검증', () => {
       expect(result).toEqual({ ok: false })
       expect(calls).toHaveLength(0)
     })
+
+    it('requestId가 공백만 있으면 ok:false를 반환한다', () => {
+      const { manager, calls } = makeFakeRunManager(true)
+      expect(handlePermissionRespond({ runId: 'run-1', requestId: '  \t', behavior: 'allow' }, manager)).toEqual({ ok: false })
+      expect(calls).toHaveLength(0)
+    })
+  })
+
+  it('요청 본문이 null이면 위임 없이 ok:false를 반환한다', () => {
+    const { manager, calls } = makeFakeRunManager(true)
+    expect(handlePermissionRespond(null as unknown as PermissionResponseInput, manager)).toEqual({ ok: false })
+    expect(calls).toHaveLength(0)
   })
 
   describe('behavior allowlist 검증', () => {

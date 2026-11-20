@@ -56,7 +56,7 @@ const mockApi = {
     capturedAgentRun = req
     return { runId: (req.sessionKey as string) ?? 'r1' }
   }),
-  agentAbort: async () => ({ accepted: true }),
+  agentAbort: async () => ({ ok: true }),
   onAgentEvent: () => () => {},
   listFiles: async () => ({ files: [] }),
   getUsage: async () => ({ fiveHour: null, weekly: null }),

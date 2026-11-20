@@ -8,7 +8,7 @@ import type {
   AgentEventDone,
   AgentEventSessionState,
   AgentEventAutonomyStatus,
-} from '../../../../02_Project/00_Source/shared/agentEvents'
+} from '@shared/agentEvents'
 
 function mkResult(turnLabel = 'turn') {
   return {

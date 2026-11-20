@@ -141,7 +141,7 @@ import type {
 // 이름 없던 확인 응답 `{ ok }` 자리는 G10 ack 통일로 공용 Ack { ok, error? }를 쓴다 (02_Common/common.ts).
 
 // renderer → main 요청-응답 채널. `req: void`는 인자 없이 부르는 채널, `| undefined`는 생략 가능한 요청이다.
-export interface IpcInvokeMap {
+interface IpcInvokeMap {
   'workspace.open': { req: WorkspaceOpenRequest; res: WorkspaceOpenResponse }
   'workspace.tree': { req: WorkspaceTreeRequest; res: WorkspaceTreeResponse }
 
@@ -245,7 +245,7 @@ export interface IpcInvokeMap {
 }
 
 // main → renderer push 채널. 값은 payload 타입이다.
-export interface IpcPushMap {
+interface IpcPushMap {
   'agent.event': AgentEventPayload
   'engine.installProgress': EngineInstallProgress
   'window.state': WindowStatePayload

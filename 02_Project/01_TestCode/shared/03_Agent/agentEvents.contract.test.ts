@@ -17,7 +17,7 @@ import type {
   AgentEventSearchResult,
   AgentEventPermissionRequest,
   PlanReviewPayload,
-} from '../../../../02_Project/00_Source/shared/agentEvents'
+} from '@shared/agentEvents'
 
 const FIXTURE_DIR = fileURLToPath(new URL('../../fixtures/gap1-p03/', import.meta.url))
 

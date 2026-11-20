@@ -76,6 +76,11 @@ const req = (key: string, rejected: string | null = null, spec: string | null = 
 async function closeAll(): Promise<void> { for (const c of chats.splice(0)) await c.close() }
 const fileOf = (): Record<string, unknown> => JSON.parse(fs.readFileSync(mainChatPath(app, repoKeyOf(root)), 'utf8')) as Record<string, unknown>
 const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms))
+// 고정 대기는 부하에서 첫 start 전에 끝날 수 있다 — 그러면 다시 연 뒤의 첫 start가 n=1 대본을 받아 멈춘다(M11 Backlog 9)
+async function untilStarted(fake: ScriptedBackend, n: number): Promise<void> {
+  for (let i = 0; i < 500 && fake.starts.length < n; i++) await sleep(10)
+  expect(fake.starts).toHaveLength(n)
+}
 // 저장본 대기열의 글 — 저장은 비동기로 이어지므로 기대한 수가 될 때까지 다시 읽는다(읽는 도중의 빈 파일·없는 파일은 빈 대기열로 본다)
 async function storedQueue(n: number): Promise<string[]> {
   let texts: string[] = []
@@ -285,7 +290,7 @@ describe('재개 (M10 G2)', () => {
     const fake = scriptedBackend(hang)
     const chat = open(fake)
     await chat.brainstorm(req('M1#0'))
-    await new Promise((r) => setTimeout(r, 30))
+    await untilStarted(fake, 1)
     await closeAll()
     const file = fileOf() as { visit: { open: string }; sessionId: string | null }
     file.visit.open = 'queued'
@@ -339,7 +344,7 @@ describe('재개 (M10 G2)', () => {
     const chat = open(fake)
     chat.send('하나')
     chat.send('둘')
-    await new Promise((r) => setTimeout(r, 30))
+    await untilStarted(fake, 1)
     await closeAll()
     const again = open(fake)
     await again.idle()
@@ -717,7 +722,7 @@ describe('대리 입력 (M11 G4)', () => {
     const chat = open(fake)
     chat.send('하나')
     chat.send('합의', { proxy: true })
-    await new Promise((r) => setTimeout(r, 30))
+    await untilStarted(fake, 1)
     await closeAll()
     const again = open(fake)
     await again.idle()

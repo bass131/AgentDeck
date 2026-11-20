@@ -17,7 +17,7 @@ import { useZoomFactorPct } from '@renderer/12_Window/useGlobalZoom'
 import {
   LSP_SERVERS,
   LSP_BADGE,
-} from './settingsSampleData'
+} from './lspServers'
 import type { SkillInfo, McpServerInfo, EngineState } from '@shared/ipcContract'
 import { ProviderStatusPanel } from '@renderer/03_Agent'
 import { ipc } from '@renderer/01_Ipc'

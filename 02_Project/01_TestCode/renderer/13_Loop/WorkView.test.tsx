@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
 import { render, screen, fireEvent, cleanup, act, within } from '@testing-library/react'
-import type { AgentEvent, LoopSessionEventPayload, LoopSessionLog, LoopSessionTag, LoopStatus, MainChatView } from '../../../../02_Project/00_Source/shared/ipcContract'
+import type { AgentEvent, LoopSessionEventPayload, LoopSessionLog, LoopSessionTag, LoopStatus, MainChatView } from '@shared/ipcContract'
 import { installWindowApi, type InstalledWindowApi } from '../00_Helpers/windowApiMock'
 
 const CWD = 'C:\\work\\practice'

@@ -5,6 +5,7 @@ import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { randomUUID } from 'node:crypto'
 import { focusRestoredWindow } from './helpers/relaunchFocus'
+import { moveToSecondDisplay } from './helpers/isolatedBoot'
 
 const ARTIFACTS = join(tmpdir(), 'lr4-p07-artifacts')
 
@@ -53,6 +54,7 @@ async function launchSingle(
   })
   const page = await app.firstWindow()
   await page.waitForLoadState('domcontentloaded')
+  await moveToSecondDisplay(app)
 
   await focusRestoredWindow(app, page)
 

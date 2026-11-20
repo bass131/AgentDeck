@@ -1,7 +1,7 @@
 // 작업 ID: cp1-p07 · 옛 이름 cp1-p07-subagent-backlog.test.ts
 import { describe, it, expect, beforeEach } from 'vitest'
 import { RunEventNormalizer } from '@main/04_Claude/stream/eventNormalizer'
-import type { AgentEvent } from '../../../../02_Project/00_Source/shared/agentEvents'
+import type { AgentEvent } from '@shared/agentEvents'
 
 function assistantMsg(contents: unknown[]) {
   return { type: 'assistant', message: { role: 'assistant', content: contents } }

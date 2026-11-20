@@ -27,7 +27,7 @@ import { registerReferenceHandlers } from '@main/01_Ipc/handlers/reference'
 import { registerFsHandlers } from '@main/01_Ipc/handlers/fs'
 import { createRootRegistry } from '@main/07_Workspace/roots'
 import { pickDirectory } from '@main/07_Workspace/pickFolder'
-import { IPC_CHANNELS, WORKSPACE_ROOT_ID } from '../../../../02_Project/00_Source/shared/ipcContract'
+import { IPC_CHANNELS, WORKSPACE_ROOT_ID } from '@shared/ipcContract'
 
 const ENV_KEYS = ['AGENTDECK_E2E_WORKSPACE', 'AGENTDECK_E2E_REFERENCE', 'AGENTDECK_E2E_PICK_FOLDER'] as const
 const FAKE_WIN = { id: 'win' } as never

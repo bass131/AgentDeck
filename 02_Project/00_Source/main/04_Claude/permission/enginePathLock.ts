@@ -146,7 +146,7 @@ interface HookOutput {
   hookSpecificOutput?: { hookEventName: 'PreToolUse'; permissionDecision: 'deny'; permissionDecisionReason: string }
 }
 
-export interface EnginePathLockMatcher {
+interface EnginePathLockMatcher {
   matcher?: string
   hooks: ((input: PreToolUseInput, toolUseID: string | undefined, opts: { signal: AbortSignal }) => Promise<HookOutput>)[]
   timeout: number

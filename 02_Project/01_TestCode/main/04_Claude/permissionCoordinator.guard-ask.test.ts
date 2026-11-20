@@ -7,7 +7,7 @@
 // 그래서 판별은 「규칙 제안이 비어 있지 않은 배열이 아니면 카드」다(fail-closed). 사유는 표시에만 쓴다.
 import { describe, it, expect } from 'vitest'
 import { PermissionCoordinator } from '@main/04_Claude/permission/permissionCoordinator'
-import type { AgentEvent } from '../../../../02_Project/00_Source/shared/agentEvents'
+import type { AgentEvent } from '@shared/agentEvents'
 
 const GUARD_REASON =
   '비가역 작업 — master가 보이는 git push (master 진입 시도). 승인하면 실행되고, 거부하면 실행되지 않습니다.'

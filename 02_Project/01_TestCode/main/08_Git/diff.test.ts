@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
 import { computeDiff } from '@main/08_Git/diff'
-import type { DiffLine } from '../../../../02_Project/00_Source/shared/ipcContract'
+import type { DiffLine } from '@shared/ipcContract'
 
 // M11 G2 — M05 Backlog 29. 08_Git 안 파일끼리 import가 돌지 않는다(옛 diff.ts ⇄ git.ts).
 describe('08_Git 파일 의존', () => {

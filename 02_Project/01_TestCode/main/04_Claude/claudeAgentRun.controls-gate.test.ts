@@ -13,7 +13,7 @@ import { ClaudeAgentRun } from '@main/04_Claude/run/claudeAgentRun'
 import { ClaudeCodeBackend } from '@main/04_Claude/ClaudeCodeBackend'
 import { setControlEnabled, type ControlsForRun } from '@main/04_Claude/permission/controlsStore'
 import type { QueryFn } from '@main/04_Claude/queryFn'
-import type { AgentEvent } from '../../../../02_Project/00_Source/shared/agentEvents'
+import type { AgentEvent } from '@shared/agentEvents'
 
 const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agentdeck-run-controls-'))
 

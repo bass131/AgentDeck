@@ -7,7 +7,7 @@
 //   - 카드는 대화 안 한 곳에서만 답한다 — 같은 카드와 승인 카드가 루프 화면(LoopScreen)에 다시 뜨지 않는다.
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
 import { render, screen, fireEvent, cleanup, act, within } from '@testing-library/react'
-import type { LoopCard, LoopStatus, MainChatItem, MainChatView } from '../../../../02_Project/00_Source/shared/ipcContract'
+import type { LoopCard, LoopStatus, MainChatItem, MainChatView } from '@shared/ipcContract'
 import { adaptFlatApi } from '../00_Helpers/windowApiMock'
 
 const CWD = 'C:\\work\\practice'

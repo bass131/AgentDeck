@@ -5,6 +5,7 @@ import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { passBootGates, openWorkspace } from './helpers/bootGates'
 import { PERM_CARD } from './helpers/permSelectors'
+import { moveToSecondDisplay } from './helpers/isolatedBoot'
 
 const RUN = process.env.GAP1DOGFOOD2 === '1'
 
@@ -86,6 +87,7 @@ test.describe('GAP1 dogfood 보완 통주 (opt-in: GAP1DOGFOOD2=1)', () => {
     })
     page = await app.firstWindow()
     await page.waitForLoadState('domcontentloaded')
+    await moveToSecondDisplay(app)
 
     await passBootGates(page, { nickname: 'dogfood2' })
     await openWorkspace(page, { waitForTree: true })

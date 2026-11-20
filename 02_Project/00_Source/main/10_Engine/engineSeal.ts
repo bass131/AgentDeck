@@ -22,9 +22,9 @@ const SEAL_FILE = 'engine-seal.json'
 const UPPER_MODULES = [['engines', 'node_modules'], ['node_modules']] as const
 
 // 칸의 뜻은 shared/10_Engine/engine.ts의 EngineSealStatus 주석에 둔다 (컨트롤 패널 goal이 화면에서 읽는다)
-export type SealStatus = EngineSealStatus
+type SealStatus = EngineSealStatus
 
-export interface Seal {
+interface Seal {
   version: string
   entryHash: string
   manifestHash: string
@@ -154,7 +154,7 @@ export function isBelowFloor(version: string, floor: string | null): boolean {
 }
 
 // 하한은 실제로 설치된 번들 SDK 버전이다. 못 읽으면 앱 package.json의 의존 명세, 그것도 없으면 폴백 상수.
-export function floorVersion(bundledSpec: string | null): string {
+function floorVersion(bundledSpec: string | null): string {
   return readInstalledSdkVersion() ?? bundledSpec ?? SDK_VERSION_FALLBACK
 }
 

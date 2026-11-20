@@ -3,7 +3,7 @@
 // 이 테스트는 옮기기 전 코드에서 먼저 통과했고(G2 검증 기록), 옮긴 뒤에도 고치지 않고 통과해야 한다.
 import { describe, it, expect } from 'vitest'
 import { PermissionCoordinator, type CanUseToolOptions } from '@main/04_Claude/permission/permissionCoordinator'
-import type { AgentEvent } from '../../../../02_Project/00_Source/shared/agentEvents'
+import type { AgentEvent } from '@shared/agentEvents'
 
 const MODES = ['normal', 'plan', 'acceptEdits', 'auto', 'bypass', undefined] as const
 const SUGGESTION = { type: 'addRules', rules: [{ toolName: 'Bash' }], behavior: 'allow', destination: 'session' }

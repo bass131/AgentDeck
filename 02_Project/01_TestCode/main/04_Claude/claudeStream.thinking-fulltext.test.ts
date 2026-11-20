@@ -2,7 +2,7 @@
 import { describe, it, expect } from 'vitest'
 import { mapClaudeStreamLine } from '@main/04_Claude/stream/claudeStream'
 import { RunEventNormalizer } from '@main/04_Claude/stream/eventNormalizer'
-import type { AgentEvent } from '../../../../02_Project/00_Source/shared/agentEvents'
+import type { AgentEvent } from '@shared/agentEvents'
 
 type ThinkingEvent = Extract<AgentEvent, { type: 'thinking' }>
 type ThinkingDeltaEvent = Extract<AgentEvent, { type: 'thinking_delta' }>

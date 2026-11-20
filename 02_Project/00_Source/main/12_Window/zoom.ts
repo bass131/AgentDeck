@@ -7,7 +7,7 @@ export function resolveBootZoomFactor(rawValue: unknown): number | null {
   return Math.min(ZOOM_FACTOR_RANGE.MAX, Math.max(ZOOM_FACTOR_RANGE.MIN, rawValue))
 }
 
-export interface ZoomRestoreDeps {
+interface ZoomRestoreDeps {
   getUiPrefs: () => Promise<{ zoomFactor?: unknown }>
   applyZoomFactor: (factor: number) => void
 }

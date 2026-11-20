@@ -2,7 +2,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { renderHook, act, waitFor } from '@testing-library/react'
 import { useSlashPalette } from '@renderer/05_Conversation/hooks/useSlashPalette'
-import type { SlashCommandInfo, SkillInfo } from '../../../../02_Project/00_Source/shared/ipcContract'
+import type { SlashCommandInfo, SkillInfo } from '@shared/ipcContract'
 import { adaptFlatApi } from '../00_Helpers/windowApiMock'
 
 const SAMPLE_COMMANDS: SlashCommandInfo[] = [

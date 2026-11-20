@@ -8,9 +8,12 @@ M11 Backlog 정리(`01_Milestones/M11_BacklogSweep/`)가 닫은 항목이다. �
 
 | 항목 | 닫힘 | 근거 |
 |---|---|---|
+| 2 | 고침(M11 goal 6) | 새 소식에서 「멀티 에이전트」 슬라이드를 지우고, 개요와 대화 슬라이드의 멀티 문구를 바꿨다(`renderer/src/10_Engine/whats-new/whatsNewSlides.ts`, 옛 이름 `whatsNewSampleData.ts`는 `234bad70`에서 바꿨다). `UpdateNotes.onboarding.test.tsx` 「[M10 Backlog 2]」가 멀티·패널 문구의 부재를 고정한다(`a55db0e9`). |
+| 3 | 고침(M11 goal 6) | 호출부가 없는 `FolderSwitchDialog`를 지웠고, 그것만 보던 시험 셋은 대신할 동작이 없다(`a55db0e9`). `multiAgentDefaults`의 COLS·COUNT_OPTIONS·SAMPLE_*는 이미 없다. `QuestionModal`의 `layer` prop은 G4 모달 층이 쓰므로 둔다(`QuestionModal.modals.test.tsx:209`). 앱에서 닿지 않던 `panelSession`·`PanelView`·`multiAgentDefaults` 본체(1048줄)와 그것만 보던 시험 21파일을 지웠다. 살아 있는 동작은 reducer·runCore·ThreadView 시험이 덮는다(`506681b8`, M11 Backlog 42). |
 | 4 | 해결됨 | 결정 기록이 같은 폴더 마일스톤 스펙 대장을 goal 대장에 더한다(`99_Others/Dashboard/lib/markdown.mjs:206-214`, `6b23c32c`). |
 | 5 | 해결됨 | G4 결정 대장 [USER·위임]대로 Windows 알림을 더하지 않고 앱 안 표시로 닫는다 — 작업 모드에서도 「채팅」 칸의 점이 채팅의 질문·권한 대기를 보인다(`renderer/src/12_Window/Sidebar.tsx:361,437`, `ProjectSidebar.test.tsx:176`, `e7b26d16`). |
 | 6 | 해결됨 | 작업 모드로 켜도 채팅의 마지막 대화를 복원한다(`renderer/src/12_Window/restoreWorkspace.ts:7`, `547ab01b`). |
+| 7 | 고침(M11 goal 6) | README의 멀티 에이전트 그림과 「6개 패널 동시 실행」 소개를 지우고, 기능 목록을 「대화」·「작업 모드」로 바꿨다(`cf6359ba`). 새 작업 모드 그림은 넣지 않았다. 남은 고아 그림 `readme-shot-multiagent.png`와 낡은 로드맵 절은 M11 Backlog 51이 갖는다. |
 | 8 | 고침(M11 goal 4) | 사본 대신 Shell의 실제 Esc 처리 `shellEscape()`(`useGlobalShortcuts.ts`)를 부르는 시험으로 바꿨다 — 모달·작업 모드 가드를 지우면 3건 실패(M11 Backlog 24, `a29fd8d5`). G1의 「goal 6에서 사본 시험 지우기」 결정을 대신한다. |
 | 9 | 해결됨 | 깃발 내리기 IPC `loop.lowerFlag`가 있다(`main/01_Ipc/handlers/loop.ts:161`, `547ab01b`). |
 | 10 | M13으로 | M11 스펙 「하지 않을 것」 — zod 의존성은 설치본 패키징과 함께 M13이 맡는다. |

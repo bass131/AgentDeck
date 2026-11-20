@@ -2,10 +2,10 @@ import { open, stat } from 'node:fs/promises'
 import type { AgentEventBgTask } from '@shared/agentEvents'
 
 export const DEFAULT_TAIL_INTERVAL_MS = 750
-export const DEFAULT_MAX_CHUNK_BYTES = 65536
-export const DEFAULT_MAX_TOTAL_BYTES = 1048576
+const DEFAULT_MAX_CHUNK_BYTES = 65536
+const DEFAULT_MAX_TOTAL_BYTES = 1048576
 
-export interface BgTaskTailOptions {
+interface BgTaskTailOptions {
   taskId: string
   outputFile: string
   emit: (ev: AgentEventBgTask) => void

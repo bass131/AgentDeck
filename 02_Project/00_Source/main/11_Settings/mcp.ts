@@ -15,7 +15,7 @@ const ORIGIN_RANK: Record<'user' | 'project' | 'local', number> = {
   local: 2,
 }
 
-export interface McpDeps {
+interface McpDeps {
   homedir?: () => string
   getUserData?: () => string
   readFile?: (filePath: string) => string

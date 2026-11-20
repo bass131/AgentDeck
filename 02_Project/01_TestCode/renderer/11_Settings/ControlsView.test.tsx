@@ -2,7 +2,7 @@
 // M07 G5 컨트롤 패널 — 노드를 지점별로 보이고, 풀린 노드만 토글한다. 봉인이 깨지면 맨 위에 경고와 확인 버튼을 둔다.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, cleanup, waitFor } from '@testing-library/react'
-import type { ControlsState, ControlNodeView } from '../../../../02_Project/00_Source/shared/ipcContract'
+import type { ControlsState, ControlNodeView } from '@shared/ipcContract'
 import { installWindowApi } from '../00_Helpers/windowApiMock'
 
 const node = (over: Partial<ControlNodeView>): ControlNodeView => ({
@@ -56,7 +56,7 @@ afterEach(() => {
 })
 
 async function renderView(): Promise<void> {
-  const { ControlsView } = await import('../../../../02_Project/00_Source/renderer/src/11_Settings/ControlsView')
+  const { ControlsView } = await import('@renderer/11_Settings/ControlsView')
   render(<ControlsView />)
   await screen.findByText('자동 모드는 허용')
 }
@@ -203,7 +203,7 @@ describe('컨트롤 패널 (M07 G5)', () => {
 
 describe('설정 모달의 컨트롤 메뉴 (M07 G5)', () => {
   it('설정 메뉴에 「컨트롤」이 있고 누르면 패널이 열린다', async () => {
-    const { SettingsModal } = await import('../../../../02_Project/00_Source/renderer/src/11_Settings/SettingsModal')
+    const { SettingsModal } = await import('@renderer/11_Settings/SettingsModal')
     render(<SettingsModal onClose={() => {}} />)
     fireEvent.click(screen.getByRole('button', { name: '컨트롤' }))
     expect(await screen.findByText('자동 모드는 허용')).toBeTruthy()

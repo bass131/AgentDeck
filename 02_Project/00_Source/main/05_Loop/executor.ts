@@ -15,8 +15,8 @@ import {
 // 헌법 7조의 수. 템플릿이 바꾸지 못하게 코드에 둔다(정본은 runState — 상태 검사도 같은 수를 본다).
 export { FAIL_LIMIT }
 
-export type VerdictJudge = Judge | 'executor'
-export type VerdictKind = 'pass' | 'fail' | 'stop'
+type VerdictJudge = Judge | 'executor'
+type VerdictKind ='pass' | 'fail' | 'stop'
 // docSha256: 실행기가 읽은 goal 문서 본문의 sha256(G4 검수 I7). 실행기가 readGoalSeeds로 만든다.
 export interface GoalSeed { id: string; title: string; docSha256?: string }
 // 판정이 실어 오는 사실. 노드 종이 읽는 칸만 쓰이고 나머지는 버린다(분해 노드가 적은 등급 같은 것).
@@ -50,7 +50,7 @@ export type NextStep =
   | { kind: 'needs-user'; reason: string }
   | { kind: 'done' }
 
-export type ApplyResult = { ok: true; state: RunState; next: NextStep } | { ok: false; reason: string }
+type ApplyResult ={ ok: true; state: RunState; next: NextStep } | { ok: false; reason: string }
 
 export interface CommandRun { cmd: string; code: number; stdout: string; stderr: string }
 export interface CiStatus { state: 'pending' | 'success' | 'failure'; headSha: string; summary: string }

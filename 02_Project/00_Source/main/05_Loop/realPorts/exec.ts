@@ -6,7 +6,7 @@
 import { spawn } from 'node:child_process'
 
 export interface ProcessResult { code: number; stdout: string; stderr: string; timedOut: boolean }
-export interface RunProcessOptions {
+interface RunProcessOptions {
   cwd: string
   env?: NodeJS.ProcessEnv
   timeoutMs?: number
@@ -14,7 +14,7 @@ export interface RunProcessOptions {
   shell?: boolean
 }
 
-export const TIMEOUT_EXIT = 124
+const TIMEOUT_EXIT = 124
 const MAX_OUTPUT = 16 * 1024 * 1024
 const IS_WINDOWS = process.platform === 'win32'
 

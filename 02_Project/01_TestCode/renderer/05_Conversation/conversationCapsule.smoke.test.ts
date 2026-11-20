@@ -2,7 +2,7 @@
 // 캡슐 경계 스모크 테스트 — conversation 기능 캡슐(02_Project/00_Source/renderer/src/05_Conversation)의
 // 공개 표면이 새 경로에서 정상 import되는지만 얕게 확인한다.
 // 재편 전에는 이 경로가 존재하지 않으므로 import 자체가 실패해 Red여야 한다.
-// 공개 표면 13종 = 앱 소비처(Shell·PanelView·SubAgentChatStream·CodeViewerPane·
+// 공개 표면 13종 = 앱 소비처(Shell·SubAgentChatStream·CodeViewerPane·
 // PermissionCard·FileModal)가 실제로 소비하는 심볼 전부. InjectedInput은 타입이라
 // 런타임 단언 대상이 아니며 import type 성립(typecheck)으로 확인한다.
 import { describe, it, expect } from 'vitest'

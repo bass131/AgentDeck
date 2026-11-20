@@ -25,7 +25,7 @@ import { getWorkspaceRootPath } from '@main/07_Workspace/roots'
 import type { RootRegistry } from '@main/07_Workspace/roots'
 import { handle } from '../handle'
 
-export interface FsHandlerDeps {
+interface FsHandlerDeps {
   state: {
     win: BrowserWindow | null
   }

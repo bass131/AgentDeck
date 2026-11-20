@@ -23,7 +23,7 @@ function guardPending(command: string) {
 
 describe('PermissionCard — 가드 질문', () => {
   it('명령 전문과 가드 사유가 카드 글자에 보인다', async () => {
-    const { PermissionCard } = await import('@renderer/10_Engine')
+    const { PermissionCard } = await import('@renderer/03_Agent')
     const { container } = render(<PermissionCard pending={guardPending(LONG_CMD)} onRespond={vi.fn()} />)
     const text = container.textContent ?? ''
     expect(text).toContain(LONG_CMD)
@@ -33,7 +33,7 @@ describe('PermissionCard — 가드 질문', () => {
   })
 
   it('「항상 허용」 버튼이 없고 허용·거부 둘만 있다', async () => {
-    const { PermissionCard } = await import('@renderer/10_Engine')
+    const { PermissionCard } = await import('@renderer/03_Agent')
     const { container } = render(<PermissionCard pending={guardPending(LONG_CMD)} onRespond={vi.fn()} />)
     expect(container.querySelector('[data-perm-choice="allow_always"]')).toBeNull()
     expect(container.textContent).not.toContain('항상 허용')
@@ -42,7 +42,7 @@ describe('PermissionCard — 가드 질문', () => {
   })
 
   it('숫자 키 2는 거부다(항상 허용이 빠진 자리)', async () => {
-    const { PermissionCard } = await import('@renderer/10_Engine')
+    const { PermissionCard } = await import('@renderer/03_Agent')
     const onRespond = vi.fn()
     const { container } = render(<PermissionCard pending={guardPending(LONG_CMD)} onRespond={onRespond} />)
     const card = container.querySelector('.perm-card') as HTMLElement
@@ -54,13 +54,13 @@ describe('PermissionCard — 가드 질문', () => {
   })
 
   it('보통 길이 명령에는 접기 토글이 없다', async () => {
-    const { PermissionCard } = await import('@renderer/10_Engine')
+    const { PermissionCard } = await import('@renderer/03_Agent')
     const { container } = render(<PermissionCard pending={guardPending(LONG_CMD)} onRespond={vi.fn()} />)
     expect(container.querySelector('[data-cmd-toggle]')).toBeNull()
   })
 
   it('아주 긴 명령은 접힌 채로 시작하고 펼칠 수 있다 — 접힘 클래스가 실제로 바뀌고, 접혀도 전문은 DOM에 남는다', async () => {
-    const { PermissionCard } = await import('@renderer/10_Engine')
+    const { PermissionCard } = await import('@renderer/03_Agent')
     const { container } = render(<PermissionCard pending={guardPending(VERY_LONG_CMD)} onRespond={vi.fn()} />)
     const toggle = container.querySelector('[data-cmd-toggle]') as HTMLElement
     expect(toggle).toBeTruthy()
@@ -78,7 +78,7 @@ describe('PermissionCard — 가드 질문', () => {
   })
 
   it('숫자 키 3은 아무것도 하지 않는다(선택지가 둘뿐)', async () => {
-    const { PermissionCard } = await import('@renderer/10_Engine')
+    const { PermissionCard } = await import('@renderer/03_Agent')
     const onRespond = vi.fn()
     const { container } = render(<PermissionCard pending={guardPending(LONG_CMD)} onRespond={onRespond} />)
     const card = container.querySelector('.perm-card') as HTMLElement
@@ -91,7 +91,7 @@ describe('PermissionCard — 가드 질문', () => {
 
 describe('PermissionCard — 접힌 긴 명령은 펼치기 전에 허용할 수 없다', () => {
   it('접힌 동안 허용 버튼이 비활성이고 펼치라는 안내가 보인다. 클릭해도 응답하지 않는다', async () => {
-    const { PermissionCard } = await import('@renderer/10_Engine')
+    const { PermissionCard } = await import('@renderer/03_Agent')
     const onRespond = vi.fn()
     const { container } = render(<PermissionCard pending={guardPending(VERY_LONG_CMD)} onRespond={onRespond} />)
     const allow = container.querySelector('[data-perm-choice="allow"]') as HTMLButtonElement
@@ -104,7 +104,7 @@ describe('PermissionCard — 접힌 긴 명령은 펼치기 전에 허용할 수
   })
 
   it('접힌 동안 숫자 키 1은 아무것도 하지 않고, 2(거부)와 Esc는 그대로다', async () => {
-    const { PermissionCard } = await import('@renderer/10_Engine')
+    const { PermissionCard } = await import('@renderer/03_Agent')
     const onRespond = vi.fn()
     const { container } = render(<PermissionCard pending={guardPending(VERY_LONG_CMD)} onRespond={onRespond} />)
     const card = container.querySelector('.perm-card') as HTMLElement
@@ -124,7 +124,7 @@ describe('PermissionCard — 접힌 긴 명령은 펼치기 전에 허용할 수
   })
 
   it('200자 이하라도 다섯 줄 명령은 줄 수로 접히고 허용이 잠긴다', async () => {
-    const { PermissionCard } = await import('@renderer/10_Engine')
+    const { PermissionCard } = await import('@renderer/03_Agent')
     const multi = ['git status --short', 'git log -1 --oneline', 'git branch --show-current', 'git fetch --dry-run', 'git push origin HEAD:master'].join('\n')
     expect(`명령 실행: ${multi}`.length).toBeLessThanOrEqual(200)
     const { container } = render(<PermissionCard pending={guardPending(multi)} onRespond={vi.fn()} />)
@@ -133,7 +133,7 @@ describe('PermissionCard — 접힌 긴 명령은 펼치기 전에 허용할 수
   })
 
   it('펼친 뒤에는 허용 버튼과 숫자 키 1이 다시 허용을 낸다', async () => {
-    const { PermissionCard } = await import('@renderer/10_Engine')
+    const { PermissionCard } = await import('@renderer/03_Agent')
     const onRespond = vi.fn()
     const { container } = render(<PermissionCard pending={guardPending(VERY_LONG_CMD)} onRespond={onRespond} />)
     fireEvent.click(container.querySelector('[data-cmd-toggle]') as HTMLElement)
@@ -151,7 +151,7 @@ describe('PermissionCard — 접힌 긴 명령은 펼치기 전에 허용할 수
 
   // M11 G2 — M06 Backlog 12. 펼친 전문도 높이 상한(320px) 아래에서 스크롤된다 — 꼬리를 보기 전에는 허용을 잠근다.
   it('펼친 전문이 상자보다 길면 끝까지 스크롤한 뒤에야 허용이 풀린다', async () => {
-    const { PermissionCard } = await import('@renderer/10_Engine')
+    const { PermissionCard } = await import('@renderer/03_Agent')
     const onRespond = vi.fn()
     const { container } = render(<PermissionCard pending={guardPending(VERY_LONG_CMD)} onRespond={onRespond} />)
     const box = container.querySelector('[data-cmd-full]') as HTMLElement
@@ -171,7 +171,7 @@ describe('PermissionCard — 접힌 긴 명령은 펼치기 전에 허용할 수
   })
 
   it('줄에 요청이 더 붙어도 펼친 전문은 접히지 않는다', async () => {
-    const { PermissionCard } = await import('@renderer/10_Engine')
+    const { PermissionCard } = await import('@renderer/03_Agent')
     const first = guardPending(VERY_LONG_CMD)
     const { container, rerender } = render(<PermissionCard pending={first} onRespond={vi.fn()} />)
     fireEvent.click(container.querySelector('[data-cmd-toggle]') as HTMLElement)
@@ -181,7 +181,7 @@ describe('PermissionCard — 접힌 긴 명령은 펼치기 전에 허용할 수
   })
 
   it('길게 누른 키(반복 입력)는 답으로 받지 않는다', async () => {
-    const { PermissionCard } = await import('@renderer/10_Engine')
+    const { PermissionCard } = await import('@renderer/03_Agent')
     const onRespond = vi.fn()
     const { container } = render(<PermissionCard pending={guardPending('ls')} onRespond={onRespond} />)
     const card = container.querySelector('.perm-card') as HTMLElement
@@ -190,7 +190,7 @@ describe('PermissionCard — 접힌 긴 명령은 펼치기 전에 허용할 수
   })
 
   it('줄 선 다음 요청으로 바뀐 직후의 키는 잠깐 받지 않는다', async () => {
-    const { PermissionCard } = await import('@renderer/10_Engine')
+    const { PermissionCard } = await import('@renderer/03_Agent')
     const onRespond = vi.fn()
     let now = 1_000_000
     const spy = vi.spyOn(Date, 'now').mockImplementation(() => now)
@@ -209,7 +209,7 @@ describe('PermissionCard — 접힌 긴 명령은 펼치기 전에 허용할 수
   })
 
   it('뒤에 줄 선 요청이 있으면 그 수를 보인다', async () => {
-    const { PermissionCard } = await import('@renderer/10_Engine')
+    const { PermissionCard } = await import('@renderer/03_Agent')
     const pending = { ...guardPending(LONG_CMD), behind: [{ ...guardPending('ls'), requestId: 'perm-2' }] }
     const { container } = render(<PermissionCard pending={pending} onRespond={vi.fn()} />)
     expect(container.querySelector('[data-perm-behind]')?.textContent).toContain('1')
@@ -222,7 +222,7 @@ describe('PermissionCard — 사유 없이 올라온 확인 요청 (fail-closed 
   }
 
   it('사유가 없어도 「항상 허용」이 없고, 중립 라벨과 대체 문구가 보인다', async () => {
-    const { PermissionCard } = await import('@renderer/10_Engine')
+    const { PermissionCard } = await import('@renderer/03_Agent')
     const { container } = render(<PermissionCard pending={escalatedNoReason('gh release --help')} onRespond={vi.fn()} />)
     expect(container.querySelector('[data-perm-choice="allow_always"]')).toBeNull()
     const reason = container.querySelector('[data-ask-reason]') as HTMLElement
@@ -233,7 +233,7 @@ describe('PermissionCard — 사유 없이 올라온 확인 요청 (fail-closed 
   })
 
   it('escalated 표지가 있고 사유가 있으면 둘 다 반영된다 — 「항상 허용」 없음, 사유 원문 표시', async () => {
-    const { PermissionCard } = await import('@renderer/10_Engine')
+    const { PermissionCard } = await import('@renderer/03_Agent')
     const pending = { ...guardPending(LONG_CMD), escalated: true as const }
     const { container } = render(<PermissionCard pending={pending} onRespond={vi.fn()} />)
     expect(container.querySelector('[data-perm-choice="allow_always"]')).toBeNull()
@@ -242,7 +242,7 @@ describe('PermissionCard — 사유 없이 올라온 확인 요청 (fail-closed 
   })
 
   it('사유가 있으면 같은 중립 라벨 아래 사유 원문을 보인다 — 「가드 사유」라고 부르지 않는다', async () => {
-    const { PermissionCard } = await import('@renderer/10_Engine')
+    const { PermissionCard } = await import('@renderer/03_Agent')
     const { container } = render(<PermissionCard pending={guardPending(LONG_CMD)} onRespond={vi.fn()} />)
     const reason = container.querySelector('[data-ask-reason]') as HTMLElement
     expect(reason.textContent).toContain('확인이 필요한 이유')
@@ -253,7 +253,7 @@ describe('PermissionCard — 사유 없이 올라온 확인 요청 (fail-closed 
 
 describe('PermissionCard — 일반 질의는 그대로', () => {
   it('askReason 없는 카드는 「항상 허용」을 포함한 세 선택지를 낸다', async () => {
-    const { PermissionCard } = await import('@renderer/10_Engine')
+    const { PermissionCard } = await import('@renderer/03_Agent')
     const pending = { runId: 'r', requestId: 'p', toolName: 'Bash', summary: '명령 실행: ls' }
     const { container } = render(<PermissionCard pending={pending} onRespond={vi.fn()} />)
     expect(container.querySelector('[data-perm-choice="allow_always"]')).toBeTruthy()

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import type { AgentEvent, AgentEventBgTask } from '../../../../02_Project/00_Source/shared/agentEvents'
+import type { AgentEvent, AgentEventBgTask } from '@shared/agentEvents'
 
 const tailSpy = vi.hoisted(() => ({
   started: [] as { taskId: string; outputFile: string }[],

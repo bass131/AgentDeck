@@ -1,14 +1,14 @@
 // 작업 ID: m7 · 옛 이름 m7-explorer-lazy.test.ts
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest'
-import type { FileTreeNode } from '../../../../02_Project/00_Source/shared/ipcContract'
+import type { FileTreeNode } from '@shared/ipcContract'
 import {
   computeHits,
   getAncestors,
   allDirsToLoad,
   normalizeToRel,
   buildChgMaps,
-} from '@renderer/07_Workspace/file/FileExplorer'
+} from '@renderer/07_Workspace/file/explorerTree'
 
 function makeDir(name: string, path: string, children?: FileTreeNode[]): FileTreeNode {
   return { name, path, kind: 'directory', children }
@@ -119,76 +119,29 @@ describe('(C) prefs 상대경로 저장/복원', () => {
   })
 })
 
+// 앱의 변경 표시는 모두 edit(M)이다 — 닿지 않던 'new' 우선 규칙은 지웠다(M05 Backlog 20).
 describe('(D) 조상 dir 롤업 (buildChgMaps)', () => {
-  type Tag = 'new' | 'edit'
-  function tagged(entries: Array<[string, Tag]>): { changed: Set<string>; tags: Map<string, Tag> } {
-    return { changed: new Set(entries.map(([p]) => p)), tags: new Map(entries) }
-  }
-
-  it('D-1: changed=[{path:"a/b/c.ts", tag:"new"}] → dirs에 "a"·"a/b"', () => {
-    const { changed, tags } = tagged([['a/b/c.ts', 'new']])
-    const { files, dirs } = buildChgMaps(changed, tags, false)
-    expect(files.get('a/b/c.ts')).toBe('new')
-    expect(dirs.get('a/b')).toBe('new')
-    expect(dirs.get('a')).toBe('new')
-  })
-
   it('D-2: edit 파일 — 조상 dirs edit', () => {
-    const { changed, tags } = tagged([['src/index.ts', 'edit']])
-    const { files, dirs } = buildChgMaps(changed, tags, false)
+    const { files, dirs } = buildChgMaps(new Set(['src/index.ts']), false)
     expect(files.get('src/index.ts')).toBe('edit')
     expect(dirs.get('src')).toBe('edit')
   })
 
-  it('D-3: new 우선 — edit 이후 new가 같은 조상이면 new로 덮어씀', () => {
-    const { changed, tags } = tagged([
-      ['src/a.ts', 'edit'],
-      ['src/b.ts', 'new'],
-    ])
-    const { files, dirs } = buildChgMaps(changed, tags, false)
-    expect(dirs.get('src')).toBe('new')
-    expect(files.get('src/a.ts')).toBe('edit')
-    expect(files.get('src/b.ts')).toBe('new')
-  })
-
-  it('D-4: new 이후 edit가 같은 조상이면 new 유지(edit로 덮어쓰기 안 됨)', () => {
-    const { changed, tags } = tagged([
-      ['src/b.ts', 'new'],
-      ['src/a.ts', 'edit'],
-    ])
-    const { dirs } = buildChgMaps(changed, tags, false)
-    expect(dirs.get('src')).toBe('new')
-  })
-
   it('D-5: viewing=true이면 changed 무시 (참고 폴더 보기 중)', () => {
-    const { changed, tags } = tagged([['src/index.ts', 'new']])
-    const { files, dirs } = buildChgMaps(changed, tags, true)
+    const { files, dirs } = buildChgMaps(new Set(['src/index.ts']), true)
     expect(files.size).toBe(0)
     expect(dirs.size).toBe(0)
   })
 
   it('D-6: 단일 레벨 파일(루트 직속) — 조상 없음', () => {
-    const { changed, tags } = tagged([['README.md', 'new']])
-    const { files, dirs } = buildChgMaps(changed, tags, false)
-    expect(files.get('README.md')).toBe('new')
+    const { files, dirs } = buildChgMaps(new Set(['README.md']), false)
+    expect(files.get('README.md')).toBe('edit')
     expect(dirs.size).toBe(0)
   })
 
-  it('D-7: 복수 파일 중첩 조상 집계', () => {
-    const { changed, tags } = tagged([
-      ['a/b/c.ts', 'new'],
-      ['a/d.ts', 'edit'],
-    ])
-    const { dirs } = buildChgMaps(changed, tags, false)
-    expect(dirs.get('a')).toBe('new')
-    expect(dirs.get('a/b')).toBe('new')
-  })
-
-  it('D-8: 태그 맵이 비면 changed 집합 전부를 edit로 롤업한다', () => {
-    const { files, dirs } = buildChgMaps(new Set(['a/b/c.ts', 'x.ts']), new Map(), false)
-    expect(files.get('a/b/c.ts')).toBe('edit')
-    expect(files.get('x.ts')).toBe('edit')
-    expect(dirs.get('a')).toBe('edit')
-    expect(dirs.get('a/b')).toBe('edit')
+  it('D-8: changed 집합 전부를 edit로 롤업한다(중첩 조상 포함)', () => {
+    const { files, dirs } = buildChgMaps(new Set(['a/b/c.ts', 'a/d.ts', 'x.ts']), false)
+    expect([...files.keys()].sort()).toEqual(['a/b/c.ts', 'a/d.ts', 'x.ts'])
+    expect([...dirs.entries()].sort()).toEqual([['a', 'edit'], ['a/b', 'edit']])
   })
 })

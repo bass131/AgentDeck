@@ -7,7 +7,7 @@ import {
 import type { AppState } from '@renderer/05_Conversation/state/reducer'
 import type { ThreadItem } from '@renderer/05_Conversation/state/threadTypes'
 import { commandOf, CMD_CARDS } from '@renderer/03_Agent/cmdCards'
-import type { AgentEventPayload } from '../../../../02_Project/00_Source/shared/ipcContract'
+import type { AgentEventPayload } from '@shared/ipcContract'
 
 type CmdCard = Extract<ThreadItem, { kind: 'cmdresult' }>
 

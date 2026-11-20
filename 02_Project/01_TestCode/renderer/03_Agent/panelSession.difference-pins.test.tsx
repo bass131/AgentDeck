@@ -1,7 +1,7 @@
 // 작업 ID: g9c · 옛 이름 g9c-difference-pins.test.tsx
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, renderHook, act, cleanup, fireEvent } from '@testing-library/react'
+import { render, act, cleanup, fireEvent } from '@testing-library/react'
 import type { JSX } from 'react'
 import { useAppStore } from '@renderer/00_App/appStore'
 import { adaptFlatApi } from '../00_Helpers/windowApiMock'
@@ -14,8 +14,6 @@ const mockApi = {
   windowMaximizeToggle: vi.fn().mockResolvedValue({ maximized: false }),
   windowClose: vi.fn().mockResolvedValue(undefined),
   windowIsMaximized: vi.fn().mockResolvedValue({ maximized: false }),
-  windowGetBounds: vi.fn().mockResolvedValue({ x: 0, y: 0, width: 1200, height: 800 }),
-  windowSetBounds: vi.fn().mockResolvedValue(undefined),
   windowDragStart: vi.fn().mockResolvedValue(undefined),
   windowDragEnd: vi.fn().mockResolvedValue(undefined),
   windowResizeStart: vi.fn().mockResolvedValue(undefined),
@@ -55,7 +53,7 @@ beforeEach(() => {
 
 afterEach(() => cleanup())
 
-describe('E6 현 동작 — systemPrompt는 패널만 보낸다(단일 대화에는 없음)', () => {
+describe('E6 현 동작 — 단일 대화는 systemPrompt를 싣지 않는다', () => {
   it('Sidebar 「프롬프트 설정」에 값을 넣어 저장해도 단일 agentRun에는 그 값도 systemPrompt도 실리지 않는다', async () => {
     const MARKER = 'E6-단일-프롬프트-마커'
     useAppStore.setState({
@@ -96,16 +94,6 @@ describe('E6 현 동작 — systemPrompt는 패널만 보낸다(단일 대화에
     view.unmount()
     useAppStore.setState({ conversationId: null, currentRunId: null, isRunning: false, thread: [] })
   }, 15000)
-
-  it('패널 send는 패널마다의 sysPrompt를 systemPrompt로 싣는다', async () => {
-    const { usePanelSlot, __resetPanelSessionManagerForTests } = await import('@renderer/03_Agent/state/panelSession')
-    __resetPanelSessionManagerForTests()
-    const { result } = renderHook(() => usePanelSlot('e6', 0))
-    await act(async () => { await result.current.send('hi', { sysPrompt: '패널 지시' }) })
-    const args = mockApi.agentRun.mock.calls[0][0] as Record<string, unknown>
-    expect(args.systemPrompt).toBe('패널 지시')
-    __resetPanelSessionManagerForTests()
-  })
 })
 
 describe('P3 현 동작 — 단일 effort는 입력창 지역 상태라 재마운트하면 기본값으로 돌아간다', () => {
@@ -137,9 +125,9 @@ describe('P3 현 동작 — 단일 effort는 입력창 지역 상태라 재마�
 describe('E10 — 중단 뒤 stale 재계산은 코어 한 곳에서 한다(구조만 통합)', () => {
   it('abort는 CLEAR_LOOPS 뒤 refreshStale을, 거절된 interrupt는 정리 뒤 refreshStale을 부른다', async () => {
     const { createRunCore } = await import('@renderer/03_Agent/state/runCore')
-    const { makePanelInitialState } = await import('@renderer/03_Agent/state/panelSession')
+    const { makeInitialState } = await import('@renderer/05_Conversation/state/reducer')
     const order: string[] = []
-    const state = { ...makePanelInitialState(), currentRunId: 'r-e10', isRunning: true }
+    const state = { ...makeInitialState(), replMode: false, queue: [], currentRunId: 'r-e10', isRunning: true }
     const core = createRunCore({
       readState: () => state,
       dispatch: (a) => { order.push(a.type) },
@@ -179,24 +167,6 @@ describe('L3 — @멘션 팔레트의 마우스 선택은 단일 입력창과 �
     expect(await typeAtAndPick(container)).toContain('@README.md')
     expect(container.querySelector('.slash-menu')).toBeNull()
   }, 15000)
-
-  it('패널(PanelView) — 같은 입력창 본체라 같은 결과다', async () => {
-    const noop = (): void => {}
-    const noopAsync = async (): Promise<void> => {}
-    const { makePanelInitialState } = await import('@renderer/03_Agent/state/panelSession')
-    const { PanelView } = await import('@renderer/05_Conversation/PanelView')
-    const session = {
-      state: makePanelInitialState(), send: noopAsync, abort: noopAsync, interrupt: noopAsync, restore: noop,
-      dismissLoopsStopped: noop, respondPermission: noopAsync, respondQuestion: noopAsync, setReplMode: noop,
-      dismissGoalStale: noop, clear: noop, enqueue: noop, dequeue: () => undefined, removeQueued: noop,
-    }
-    const { container } = render(
-      <PanelView slot={0} panel={{ title: 'p', status: 'idle', cwd: 'C:/w', ctxPct: 0 }} session={session as never}
-        workspaceRoot="C:/w" onExpand={noop} onPrompt={noop} onPickFolder={noop} mentionFiles={['README.md']} />
-    )
-    expect(await typeAtAndPick(container)).toContain('@README.md')
-    expect(container.querySelector('.slash-menu')).toBeNull()
-  }, 15000)
 })
 
 // M10 G1 — 멀티 배치를 지웠다. 대화가 화면에 없는 배치는 이제 「작업」 모드(루프 화면)다.
@@ -216,19 +186,7 @@ describe('B2 현 동작 — Esc 중단은 채팅 배치에서만 한다(작업 �
     expect(abortRun).toHaveBeenCalledTimes(1)
   })
 
-  it('작업 배치에서는 Esc가 실행 중인 패널(단발·REPL)도 단일 대화도 중단하지 않는다', async () => {
-    // 실행 중인 패널 둘을 심는다 — 단발(replMode false, 중단이면 agentAbort)과 REPL(replMode true, 중단이면
-    // agentInterrupt). Esc가 패널을 중단하는 구현이면 둘 중 하나가 반드시 불린다.
-    const { sessionRegistry } = await import('@renderer/03_Agent/state/sessionRegistry')
-    const { panelKey } = await import('@renderer/03_Agent/state/sessionKeys')
-    const { makePanelInitialState, usePanelSlot, __resetPanelSessionManagerForTests } = await import('@renderer/03_Agent/state/panelSession')
-    __resetPanelSessionManagerForTests()
-    const running = (runId: string, replMode: boolean) => ({
-      ...makePanelInitialState(), isRunning: true, currentRunId: runId, runGeneration: null, replMode,
-    })
-    sessionRegistry.set(panelKey('b2', 0), running('run-p0', false))
-    sessionRegistry.set(panelKey('b2', 1), running('run-p1', true))
-
+  it('작업 배치에서는 Esc가 실행 중인 단일 대화를 중단하지 않는다', async () => {
     const { abortRun, interruptRun } = await renderShell('work')
     expect(document.querySelector('.status-board')).toBeTruthy()
     fireEvent.keyDown(document, { key: 'Escape' })
@@ -238,13 +196,5 @@ describe('B2 현 동작 — Esc 중단은 채팅 배치에서만 한다(작업 �
     expect(interruptRun).not.toHaveBeenCalled()
     expect(mockApi.agentAbort).not.toHaveBeenCalled()
     expect(mockApi.agentInterrupt).not.toHaveBeenCalled()
-    expect(sessionRegistry.get(panelKey('b2', 0))?.isRunning).toBe(true)
-    expect(sessionRegistry.get(panelKey('b2', 1))?.isRunning).toBe(true)
-
-    // 대조 — 심은 패널은 실제로 중단할 수 있는 run이다(위 「안 불림」이 공허하지 않다).
-    const slot0 = renderHook(() => usePanelSlot('b2', 0))
-    await act(async () => { await slot0.result.current.abort() })
-    expect(mockApi.agentAbort).toHaveBeenCalledWith({ runId: 'run-p0' })
-    __resetPanelSessionManagerForTests()
   })
 })

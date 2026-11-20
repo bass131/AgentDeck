@@ -4,7 +4,7 @@ import { ThreadView } from '@renderer/05_Conversation/ThreadView'
 import { foldSession, rowLabel } from './sessionLogModel'
 import '@renderer/05_Conversation/Conversation.css'
 
-export interface NodeSessionViewProps {
+interface NodeSessionViewProps {
   cwd: string | null
   sessionKey: string
   record: LoopSessionRecord | undefined

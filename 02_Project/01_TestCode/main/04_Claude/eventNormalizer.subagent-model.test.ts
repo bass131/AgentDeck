@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { RunEventNormalizer } from '@main/04_Claude/stream/eventNormalizer'
-import type { AgentEvent, SubAgentInfo } from '../../../../02_Project/00_Source/shared/agentEvents'
+import type { AgentEvent, SubAgentInfo } from '@shared/agentEvents'
 
 function assistantMsg(contents: unknown[]) {
   return { type: 'assistant', message: { role: 'assistant', content: contents } }

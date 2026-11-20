@@ -2,9 +2,8 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react'
-import type { ReactNode } from 'react'
 import { useAppStore } from '@renderer/00_App/appStore'
-import type { ConversationRecord } from '../../../../02_Project/00_Source/shared/ipcContract'
+import type { ConversationRecord } from '@shared/ipcContract'
 import { adaptFlatApi } from '../00_Helpers/windowApiMock'
 
 afterEach(() => cleanup())
@@ -14,8 +13,6 @@ const mockApi = {
   windowMaximizeToggle: vi.fn(),
   windowClose: vi.fn(),
   windowIsMaximized: vi.fn().mockResolvedValue({ maximized: false }),
-  windowGetBounds: vi.fn().mockResolvedValue({ x: 0, y: 0, width: 1200, height: 800 }),
-  windowSetBounds: vi.fn(),
   windowDragStart: vi.fn(),
   windowDragEnd: vi.fn(),
   windowResizeStart: vi.fn(),
@@ -186,97 +183,6 @@ describe('F11-02: PromptModal', () => {
     await renderPromptModal()
     expect(apiSpy).not.toHaveBeenCalled()
     apiSpy.mockRestore()
-  })
-})
-
-describe('F11-02: FolderSwitchDialog', () => {
-  // G9c: 단일·멀티 multi prop을 지우고 본문을 호출부가 넘기는 message prop으로 바꿨다.
-  async function renderFolderSwitch(overrides: Partial<{
-    from: string
-    to: string
-    message: (names: { from: string; to: string }) => ReactNode
-    onCancel: () => void
-    onConfirm: () => void
-  }> = {}) {
-    const { FolderSwitchDialog } = await import('@renderer/07_Workspace/file')
-    const props = {
-      from: '/home/user/project-a',
-      to: '/home/user/project-b',
-      onCancel: vi.fn(),
-      onConfirm: vi.fn(),
-      ...overrides,
-    }
-    const { container } = render(<FolderSwitchDialog {...props} />)
-    return { container, onCancel: props.onCancel, onConfirm: props.onConfirm }
-  }
-
-  it('set-dialog-overlay + set-dialog가 렌더된다', async () => {
-    const { container } = await renderFolderSwitch()
-    expect(container.querySelector('.set-dialog-overlay')).toBeTruthy()
-    expect(container.querySelector('.set-dialog')).toBeTruthy()
-  })
-
-  it('"작업 폴더를 변경할까요?" 제목이 표시된다', async () => {
-    await renderFolderSwitch()
-    expect(screen.getByText('작업 폴더를 변경할까요?')).toBeTruthy()
-  })
-
-  it('sd-msg에 from/to 폴더 basename이 표시된다 (단일 모드)', async () => {
-    const { container } = await renderFolderSwitch({ from: '/a/project-a', to: '/b/project-b' })
-    const msg = container.querySelector('.sd-msg')!
-    expect(msg.textContent).toContain('project-a')
-    expect(msg.textContent).toContain('project-b')
-  })
-
-  it('message prop → 호출부 본문 표시 (from 미표시, 폴더 이름은 basename으로 받는다)', async () => {
-    const { container } = await renderFolderSwitch({
-      to: '/b/project-b',
-      message: ({ to }) => <>모든 패널의 작업 폴더가 <b>{to}</b>(으)로 바뀝니다.</>,
-    })
-    const msg = container.querySelector('.sd-msg')!
-    expect(msg.textContent).toContain('project-b')
-    expect(msg.textContent).toContain('모든 패널')
-    expect(msg.textContent).not.toContain('project-a')
-  })
-
-  it('취소 버튼 클릭 → onCancel 호출', async () => {
-    const { container, onCancel } = await renderFolderSwitch()
-    const cancelBtn = container.querySelector('.sd-cancel') as HTMLButtonElement
-    fireEvent.click(cancelBtn)
-    expect(onCancel).toHaveBeenCalledOnce()
-  })
-
-  it('변경(danger) 버튼 클릭 → onConfirm 호출', async () => {
-    const { container, onConfirm } = await renderFolderSwitch()
-    const confirmBtn = container.querySelector('.sd-go.danger') as HTMLButtonElement
-    fireEvent.click(confirmBtn)
-    expect(onConfirm).toHaveBeenCalledOnce()
-  })
-
-  it('backdrop 클릭 → onCancel 호출', async () => {
-    const { container, onCancel } = await renderFolderSwitch()
-    const overlay = container.querySelector('.set-dialog-overlay') as HTMLElement
-    fireEvent.mouseDown(overlay)
-    expect(onCancel).toHaveBeenCalledOnce()
-  })
-
-  it('Esc 키 → onCancel 호출', async () => {
-    const { onCancel } = await renderFolderSwitch()
-    fireEvent.keyDown(window, { key: 'Escape' })
-    await waitFor(() => {
-      expect(onCancel).toHaveBeenCalledOnce()
-    })
-  })
-
-  it('[M11-G4 22] 폴더 바꾸기 확인 창도 모달 층에 오른다', async () => {
-    const { isAnyModalOpen } = await import('@renderer/02_Common/modalStack')
-    await renderFolderSwitch()
-    expect(isAnyModalOpen()).toBe(true)
-  })
-
-  it('window.api 실 호출 0 (scope 검증)', async () => {
-    await renderFolderSwitch()
-    expect(true).toBe(true)
   })
 })
 

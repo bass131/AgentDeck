@@ -8,10 +8,10 @@ import { convKey } from '@renderer/03_Agent/state/sessionKeys'
 import { ComposerView, type ComposerInputProps } from './ComposerView'
 
 // 단일 대화의 입력창 — store 어댑터다. 선택기 값(모델·모드·REPL·UltraCode 범위)을 store에서 읽어
-// 공용 본체 ComposerView에 넘긴다. 멀티 패널은 PanelView가 패널 상태로 같은 본체를 쓴다.
+// 본체 ComposerView에 넘긴다.
 
 export type { QueuedMessageView, PickerValues } from './ComposerView'
-export type ComposerProps = ComposerInputProps
+type ComposerProps = ComposerInputProps
 
 function ComposerInner(props: ComposerProps): JSX.Element {
   const model = useAppStore(selectSelectedModel)

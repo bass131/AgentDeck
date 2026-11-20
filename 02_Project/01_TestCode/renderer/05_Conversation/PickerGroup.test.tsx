@@ -1,7 +1,7 @@
 // 작업 ID: g9b · 옛 이름 g9b-picker-group.test.tsx
 // @vitest-environment jsdom
-// M05 G9b — 선택기 하나(P1·P2). 단일 입력창 바(ComposerBar)와 멀티 패널이 같은 PickerGroup을 쓴다.
-// P1: 널 가드는 멀티 쪽(옵션에 현재 값이 없어도 깨지지 않는다), P2: 문구는 단일 쪽(aria 「모드 선택」).
+// M05 G9b — 선택기 하나(P1·P2). 단일 입력창 바(ComposerBar)가 PickerGroup을 쓴다.
+// P1: 옵션에 현재 값이 없어도 깨지지 않는다, P2: 문구는 aria 「모드 선택」.
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, cleanup, fireEvent } from '@testing-library/react'
 import { adaptFlatApi } from '../00_Helpers/windowApiMock'
@@ -25,133 +25,8 @@ function groupProps(over: Record<string, unknown> = {}) {
   }
 }
 
-const noop = (): void => {}
-const noopAsync = async (): Promise<void> => {}
-
-async function renderPanelWithPicker(setPicker: (p: unknown) => void, mode = 'auto') {
-  const { makePanelInitialState } = await import('@renderer/03_Agent/state/panelSession')
-  const { PanelView } = await import('@renderer/05_Conversation/PanelView')
-  const session = {
-    state: makePanelInitialState(),
-    send: noopAsync,
-    abort: noopAsync,
-    interrupt: noopAsync,
-    restore: noop,
-    dismissLoopsStopped: noop,
-    respondPermission: noopAsync,
-    respondQuestion: noopAsync,
-    setReplMode: noop,
-    dismissGoalStale: noop,
-    clear: noop,
-    enqueue: noop,
-    dequeue: () => undefined,
-    removeQueued: noop,
-  }
-  return render(
-    <PanelView
-      slot={0}
-      panel={{ title: 'p', status: 'working', cwd: 'C:/w', ctxPct: 0 }}
-      session={session as never}
-      workspaceRoot="C:/w"
-      onExpand={noop}
-      onPrompt={noop}
-      onPickFolder={noop}
-      picker={{ model: 'claude-opus-4-7', effort: 'high', mode }}
-      setPicker={setPicker as never}
-    />,
-  )
-}
-
-describe('패널 선택기 — 공용 PickerGroup', () => {
-  it('패널 풋터에 단일과 같은 선택기 묶음(구분선 셋, aria 「모드 선택」)이 있다', async () => {
-    const { container } = await renderPanelWithPicker(vi.fn())
-    const foot = container.querySelector('.ma-p-foot') as HTMLElement
-    expect(foot.querySelector('[aria-label="모드 선택"]')).toBeTruthy()
-    expect(foot.querySelectorAll('.pick-div').length).toBe(3)
-  })
-
-  it('패널 UltraCode 토글은 패널 키의 토글만 바꾼다(단일 범위 불변)', async () => {
-    const { renderHook } = await import('@testing-library/react')
-    const { useUltracodeToggle } = await import('@renderer/03_Agent/state/ultracodeToggle')
-    const { convKey } = await import('@renderer/03_Agent/state/sessionKeys')
-    // 새 대화(초안)의 UltraCode 범위 키는 convKey(null)이다(G9c, 옛 SINGLE_CHAT_DEFAULT_SCOPE).
-    const single = renderHook(() => useUltracodeToggle(convKey(null)))
-    const singleBefore = single.result.current[0]
-    const { container } = await renderPanelWithPicker(vi.fn())
-    const btn = container.querySelector('[aria-label="UltraCode 모드 토글"]') as HTMLElement
-    const pressedBefore = btn.getAttribute('aria-pressed')
-    fireEvent.click(btn)
-    expect(btn.getAttribute('aria-pressed')).not.toBe(pressedBefore)
-    single.rerender()
-    expect(single.result.current[0]).toBe(singleBefore)
-  })
-
-  it('패널 모델 선택은 setPicker로 패널 상태만 바꾼다', async () => {
-    const setPicker = vi.fn()
-    const { container } = await renderPanelWithPicker(setPicker)
-    fireEvent.click(container.querySelector('[aria-label="모델 선택"]') as HTMLElement)
-    const opts = container.querySelectorAll('.pick-menu .pick-opt')
-    fireEvent.click(opts[opts.length - 1] as HTMLElement)
-    expect(setPicker).toHaveBeenCalled()
-    expect((setPicker.mock.calls[0][0] as { effort: string }).effort).toBe('high')
-  })
-})
-
-describe('P5 — 멀티의 Shift+Tab은 입력창이 포커스된 패널의 모드만 돌린다(사용자 결정)', () => {
-  it('패널 입력창에서 Shift+Tab → 그 패널의 모드가 MODES 다음 값으로 바뀐다', async () => {
-    const { MODES } = await import('@renderer/03_Agent/pickerOptions')
-    const setPicker = vi.fn()
-    const { container } = await renderPanelWithPicker(setPicker, MODES[0].id)
-    const ta = container.querySelector('textarea') as HTMLTextAreaElement
-    fireEvent.keyDown(ta, { key: 'Tab', shiftKey: true })
-    expect(setPicker).toHaveBeenCalledTimes(1)
-    expect((setPicker.mock.calls[0][0] as { mode: string }).mode).toBe(MODES[1].id)
-  })
-
-  it('마지막 모드에서 Shift+Tab → 첫 모드로 돈다', async () => {
-    const { MODES } = await import('@renderer/03_Agent/pickerOptions')
-    const setPicker = vi.fn()
-    const { container } = await renderPanelWithPicker(setPicker, MODES[MODES.length - 1].id)
-    fireEvent.keyDown(container.querySelector('textarea') as HTMLTextAreaElement, { key: 'Tab', shiftKey: true })
-    expect((setPicker.mock.calls[0][0] as { mode: string }).mode).toBe(MODES[0].id)
-  })
-
-  it('패널이 처리한 Shift+Tab은 document 전역 단축키까지 올라가지 않는다(숨은 단일 선택기 불변)', async () => {
-    const { useAppStore, selectPickerMode } = await import('@renderer/00_App/appStore')
-    const before = selectPickerMode(useAppStore.getState())
-    const docSpy = vi.fn()
-    document.addEventListener('keydown', docSpy)
-    try {
-      const { container } = await renderPanelWithPicker(vi.fn())
-      fireEvent.keyDown(container.querySelector('textarea') as HTMLTextAreaElement, { key: 'Tab', shiftKey: true })
-      expect(docSpy).not.toHaveBeenCalled()
-      expect(selectPickerMode(useAppStore.getState())).toBe(before)
-    } finally {
-      document.removeEventListener('keydown', docSpy)
-    }
-  })
-
-  // G9b 검수 중요 2 — 단일 전역 처리기처럼 모달·권한 카드·질문 pill이 떠 있으면 손을 뗀다.
-  // M11 G4(설계 감사 22) — 떠 있음은 클래스가 아니라 모달 층으로 안다. 권한 카드·알약은 곁 층, 질문 창은 모달 층이다.
-  it.each([
-    ['권한 카드(곁 층)', 'aside'],
-    ['내려둔 질문 pill(곁 층)', 'aside'],
-    ['질문 창(모달 층)', 'modal'],
-  ] as const)('%s가 떠 있으면 패널 Shift+Tab은 모드를 돌리지 않고 기본 포커스 이동에 맡긴다', async (_name, kind) => {
-    const setPicker = vi.fn()
-    const { pushModalLayer } = await import('@renderer/02_Common/modalStack')
-    const blocker = { remove: pushModalLayer({ kind }) }
-    try {
-      const { container } = await renderPanelWithPicker(setPicker)
-      const ta = container.querySelector('textarea') as HTMLTextAreaElement
-      const notCanceled = fireEvent.keyDown(ta, { key: 'Tab', shiftKey: true })
-      expect(setPicker).not.toHaveBeenCalled()
-      expect(notCanceled).toBe(true)
-    } finally {
-      blocker.remove()
-    }
-  })
-
+// M11 G6 — 패널 선택기·패널 Shift+Tab 사례는 그리는 곳이 없던 PanelView와 함께 지웠다(M10 Backlog 3).
+describe('P5 — 전역 Shift+Tab은 채팅의 단일 선택기만 돌린다', () => {
   // M10 G1 — 멀티 모드를 지웠다. 작업 모드에도 화면에 단일 선택기가 없으니 전역 처리기가 없다.
   it('전역 Shift+Tab 처리기는 작업 모드에서 없다 — 채팅에서만 단일 선택기를 돌린다', async () => {
     const { globalModeSwitchFor } = await import('@renderer/12_Window/useGlobalShortcuts')
@@ -167,14 +42,12 @@ describe('P5 — 멀티의 Shift+Tab은 입력창이 포커스된 패널의 모�
       conversationLoad: vi.fn().mockResolvedValue({ conversations: [] }),
       conversationSave: vi.fn().mockResolvedValue({ id: 'cv-1' }),
       agentRun: vi.fn().mockResolvedValue({ runId: 'r1' }),
-      agentAbort: vi.fn().mockResolvedValue({ accepted: true }),
+      agentAbort: vi.fn().mockResolvedValue({ ok: true }),
       onAgentEvent: vi.fn().mockReturnValue(() => {}),
       windowMinimize: vi.fn(),
       windowMaximizeToggle: vi.fn().mockResolvedValue({ maximized: false }),
       windowClose: vi.fn(),
       windowIsMaximized: vi.fn().mockResolvedValue({ maximized: false }),
-      windowGetBounds: vi.fn().mockResolvedValue({ x: 0, y: 0, width: 1200, height: 800 }),
-      windowSetBounds: vi.fn(),
       windowDragStart: vi.fn(),
       windowDragEnd: vi.fn(),
       windowResizeStart: vi.fn(),

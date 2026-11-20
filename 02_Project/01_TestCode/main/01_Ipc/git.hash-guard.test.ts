@@ -16,7 +16,7 @@ vi.mock('@main/08_Git/git', async (orig) => ({
 }))
 
 import { registerGitHandlers } from '@main/01_Ipc/handlers/git'
-import { IPC_CHANNELS } from '../../../../02_Project/00_Source/shared/ipcContract'
+import { IPC_CHANNELS } from '@shared/ipcContract'
 
 beforeEach(() => {
   h.handlers.clear()

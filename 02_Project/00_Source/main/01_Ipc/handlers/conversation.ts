@@ -12,7 +12,7 @@ import type {
 } from '../../../shared/ipcContract'
 import type { ConversationStore } from '@main/06_Sessions/store'
 
-export interface ConversationHandlerDeps {
+interface ConversationHandlerDeps {
   getStore: () => ConversationStore | null
 }
 

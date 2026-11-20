@@ -74,7 +74,7 @@ export function closeDeadRunState<T extends AppState & { runGeneration?: string 
   }
 }
 
-export function isEventForCurrentRun(state: Pick<AppState, 'currentRunId'>, payload: AgentEventPayload): boolean {
+function isEventForCurrentRun(state: Pick<AppState, 'currentRunId'>, payload: AgentEventPayload): boolean {
   return state.currentRunId !== null && payload.runId === state.currentRunId
 }
 

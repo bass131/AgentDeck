@@ -125,14 +125,14 @@ export const denyCards = (ev: CardEvent): RunResponse =>
   ev.type === 'question_request' ? { kind: 'question', answers: null } : { kind: 'permission', behavior: 'deny' }
 
 // 세션 한 번의 끝. text는 마지막 최상위 메시지의 전문이다(검수 세션이 마지막 줄을 읽는다).
-export type SessionEnd =
+type SessionEnd =
   | { kind: 'done'; text: string }
   | { kind: 'error'; text: string; error: string }
   | { kind: 'cancelled'; text: string }
   | { kind: 'timeout'; text: string; timeoutMs: number }
   | { kind: 'start-failed'; error: string }
 
-export interface NodeSessionInput {
+interface NodeSessionInput {
   backend: AgentBackend
   input: AgentRunInput
   // null이면 시간 상한 없음

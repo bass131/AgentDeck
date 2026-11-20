@@ -9,7 +9,6 @@ import {
   panelKey,
   panelPrefix,
 } from '@renderer/03_Agent/state/sessionKeys'
-import { makePanelSlotKey, panelSlotKeyPrefix } from '@renderer/03_Agent/state/panelSession'
 
 // G9c — 세션 레지스트리 키 하나. 대화는 conv:<id|draft>, 패널은 multi:<id>:slot:<n>.
 // M10 G1 — 멀티 에이전트 모드를 지웠지만 패널 키 형식(REPL 세션키 값)은 G3 세션 탭을 위해 그대로 둔다.
@@ -28,8 +27,6 @@ describe('G9c sessionKeys — 키 형식', () => {
     expect(panelKey('s1', 3)).toBe('multi:s1:slot:3')
     expect(panelPrefix('s1')).toBe('multi:s1:slot:')
     expect(multiPrefix('s1')).toBe('multi:s1:')
-    expect(makePanelSlotKey('s1', 3)).toBe(panelKey('s1', 3))
-    expect(panelSlotKeyPrefix('s1')).toBe(panelPrefix('s1'))
   })
 
   it('키 종류를 가른다', () => {

@@ -7,7 +7,7 @@ import { useAppStore } from '@renderer/00_App/appStore'
 import { useUltracodeToggle, __resetUltracodeToggleForTests } from '@renderer/03_Agent/state/ultracodeToggle'
 // 대화의 UltraCode 범위 키는 세션 레지스트리 키 convKey(id)다(G9c, 옛 키는 대화 id 그대로).
 import { convKey } from '@renderer/03_Agent/state/sessionKeys'
-import type { ConversationRecord } from '../../../../02_Project/00_Source/shared/ipcContract'
+import type { ConversationRecord } from '@shared/ipcContract'
 import { adaptFlatApi } from '../00_Helpers/windowApiMock'
 
 const SAMPLE_CONVS: ConversationRecord[] = [
@@ -29,7 +29,7 @@ const mockApi = {
   conversationDelete: (req: { id: string }) => conversationDeleteImpl(req),
   conversationRename: vi.fn().mockResolvedValue({ ok: true }),
   agentRun: vi.fn().mockResolvedValue({ runId: 'r1' }),
-  agentAbort: vi.fn().mockResolvedValue({ accepted: true }),
+  agentAbort: vi.fn().mockResolvedValue({ ok: true }),
   onAgentEvent: vi.fn().mockReturnValue(() => {}),
   setUiPref: vi.fn().mockResolvedValue({ ok: true }),
 }

@@ -9,7 +9,7 @@ afterEach(() => cleanup())
 describe('orchestration_denied 시스템 라인 — NoticeItem 재사용 표시', () => {
   it('deny 카피가 .notice-row(.notice-ic + .notice-text)로 렌더되고 assistant 말풍선 클래스가 없다', async () => {
     const { NoticeItem } = await import(
-      '@renderer/05_Conversation/Conversation'
+      '@renderer/05_Conversation/ThreadView'
     )
     const text = copyForOrchestrationDenied('orchestration-off')
     const { container } = render(<NoticeItem text={text} />)
@@ -25,7 +25,7 @@ describe('orchestration_denied 시스템 라인 — NoticeItem 재사용 표시'
 
   it('알 수 없는 reason의 기본 카피도 동일한 시스템 라인 구조로 렌더된다', async () => {
     const { NoticeItem } = await import(
-      '@renderer/05_Conversation/Conversation'
+      '@renderer/05_Conversation/ThreadView'
     )
     const text = copyForOrchestrationDenied('unknown-reason-xyz')
     const { container } = render(<NoticeItem text={text} />)

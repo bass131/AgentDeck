@@ -3,7 +3,7 @@
 // 같은 상태면 같은 표시. 노드를 고르면 「노드 설정」이 입력칸 없이 그 노드의 설정을 보이고, 세션이 있으면 세션 탭을 연다.
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
 import { render, screen, fireEvent, cleanup, act, within } from '@testing-library/react'
-import type { LoopGraph, LoopGraphNode, LoopStatus, MainChatView } from '../../../../02_Project/00_Source/shared/ipcContract'
+import type { LoopGraph, LoopGraphNode, LoopStatus, MainChatView } from '@shared/ipcContract'
 import { installWindowApi, type InstalledWindowApi } from '../00_Helpers/windowApiMock'
 
 const CWD = 'C:\\work\\practice'

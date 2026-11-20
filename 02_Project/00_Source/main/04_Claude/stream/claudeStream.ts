@@ -384,7 +384,7 @@ export function contextWindowFromModelUsage(modelUsage: unknown, mainModel?: str
   return best[1]['contextWindow'] as number
 }
 
-export interface StreamLineContext {
+interface StreamLineContext {
   mainModel?: string
 }
 

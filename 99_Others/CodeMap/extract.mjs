@@ -883,7 +883,7 @@ topDecls.sort((a, b) => b.lines - a.lines)
 const warnings = []
 const readJson = (p) => (fs.existsSync(p) ? JSON.parse(fs.readFileSync(p, 'utf8')) : null)
 const nodeKeyOf = (n) => (n.kind === 'process' ? n.name : n.path)
-const descriptions = readJson(path.resolve(arg('--desc', 'descriptions.json'))) ?? {}
+const descriptions = readJson(path.resolve(HERE, arg('--desc', 'descriptions.json'))) ?? {}
 let descUsed = 0
 const treeKeys = new Set()
 forEachNode(root, (n) => {
@@ -930,7 +930,7 @@ function checkNode(key, where) {
   const f = fileNodeByPath.get(file)
   if (!f || (decl && !f.children.some((d) => d.name === decl))) warnings.push(`${where}: 노드 없음 ${key}`)
 }
-const guideRaw = readJson(path.resolve(arg('--guide', 'guide.json')))
+const guideRaw = readJson(path.resolve(HERE, arg('--guide', 'guide.json')))
 let guide = null
 if (guideRaw) {
   guide = {

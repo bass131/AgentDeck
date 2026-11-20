@@ -1,5 +1,5 @@
 // M11 G5: app.js를 jsdom에서 실제로 돌려 화면 배선을 본다(Backlog 71). 서버 요청은 가짜 fetch, 실시간 연결은 가짜 EventSource다.
-// 정규식으로 소스 글자를 읽던 시험 가운데 같은 동작을 여기서 덮는 것은 지웠다.
+// 정규식으로 소스 글자를 읽던 시험 가운데 같은 동작을 여기서 덮는 것은 지웠다. M11 G6에서 view·chime 시험의 app.js 절도 옮겼다(Backlog 41).
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
@@ -21,7 +21,7 @@ async function until(fn, what, ms = 3000) {
   for (;;) { const v = fn(); if (v) return v; if (Date.now() > end) assert.fail(`기다렸지만 오지 않았어요: ${what}`); await wait(10); }
 }
 
-async function page(t, vm, routes = {}) {
+async function page(t, vm, routes = {}, { setup } = {}) {
   const html = TEMPLATE.replace('__BOOTSTRAP_JSON__', () => scriptJSON({ vm, token: TOKEN })).replace(/<script src="[^"]+" defer><\/script>/g, '');
   const dom = new JSDOM(html, { url: 'http://127.0.0.1:4319/', runScripts: 'outside-only', pretendToBeVisual: true });
   const w = dom.window, calls = [], streams = [];
@@ -39,6 +39,7 @@ async function page(t, vm, routes = {}) {
     if (closed) return new Promise(() => {});
     return { status: 200, json: () => closed ? new Promise(() => {}) : Promise.resolve(r) };
   };
+  setup?.(w);
   w.eval(CHIME);
   w.eval(APP);
   t.after(() => { closed = true; w.close(); });
@@ -408,4 +409,216 @@ test('[M11-G5 44] the milestone panel shows a spec status line and a goal-docume
   assert.match(rows[0], /합의\(2026-11-20 15:06\)/);
   assert.match(rows[1], /goal 문서 5개 중 1개 종결/);
   assert.ok(!p.text('#milestones').includes('계획 문서 없음'));
+});
+
+// ── 41: 등장 동작·띠 읽은 시각·링·어디쯤·검증 기록 (view.test.mjs의 app.js 정규식 절을 옮김, M11 G6) ──
+const recorder = () => {
+  const log = [];
+  return { log, setup(w) { w.Element.prototype.animate = function (frames, opts) { log.push({ el: this, frames, opts }); return { cancel() {}, finished: Promise.resolve() }; }; } };
+};
+const reduced = w => { w.matchMedia = media => ({ matches: /reduce/.test(media), media, addEventListener() {}, removeEventListener() {} }); };
+const hidden = w => Object.defineProperty(w.document, 'hidden', { configurable: true, get: () => true });
+const enterOf = log => log.map(a => a.el.closest('[data-enter]')?.dataset.enter).filter(Boolean);
+const quietRoutes = () => mergeRoutes({ list: [] });
+
+test('[M11-G6 41] entrances: the first paint moves the doing card, both ring arcs and every band cell once; a repaint with the same states moves nothing; a changed goal moves only its cell', async t => {
+  const vm = await baseVm(), a = recorder();
+  const p = await page(t, vm, quietRoutes(), { setup: a.setup });
+  const first = enterOf(a.log);
+  assert.deepEqual([...new Set(first)].sort(), ['doing', 'ring', ...vm.goals.items.map(g => g.id)].sort());
+  assert.equal(first.filter(k => k === 'ring').length, 2, '완료 호와 지금 호');
+  assert.equal(first.length, vm.goals.items.length + 3, '하나씩 한 번');
+  const card = p.$('#now .q-doing');
+  a.log.length = 0;
+  p.push({ ...vm, revision: vm.revision + 1, summary: { ...vm.summary, doing: { ...vm.summary.doing, text: '다른 일' } } });
+  assert.notEqual(p.$('#now .q-doing'), card, '「지금」은 다시 칠했다');
+  assert.deepEqual(a.log, [], '키와 상태가 같으면 다시 칠해도 움직이지 않는다');
+  p.push({ ...vm, revision: vm.revision + 2, goals: { ...vm.goals, items: vm.goals.items.map(g => g.id === 'G2' ? { ...g, state: 'done' } : g) } });
+  assert.deepEqual(enterOf(a.log), ['G2']);
+  assert.equal(p.$$('.is-enter').length, 0, '등장 동작을 그리는 HTML의 class로 걸지 않는다');
+});
+
+test('[M11-G6 41] entrances: reduced motion or a hidden tab moves nothing on the first paint', async t => {
+  const vm = await baseVm();
+  for (const off of [reduced, hidden]) {
+    const a = recorder();
+    const p = await page(t, vm, quietRoutes(), { setup: w => { a.setup(w); off(w); } });
+    assert.equal(p.$$('#now [data-enter], #brief [data-enter]').length, vm.goals.items.length + 2, off.name);
+    assert.deepEqual(a.log, [], off.name);
+  }
+});
+
+test('[M11-G6 41] strip read-time: a new snapshot time dims and comes back, never from fully transparent; the first paint does not move it', async t => {
+  const vm = await baseVm(), a = recorder();
+  const p = await page(t, vm, quietRoutes(), { setup: a.setup });
+  const onTime = () => a.log.filter(x => x.el.matches('#strip-status time'));
+  assert.equal(onTime().length, 0);
+  const later = new Date(Date.parse(vm.collectedAt) + 5000).toISOString();
+  p.push({ ...vm, revision: vm.revision + 1, collectedAt: later });
+  const moves = onTime();
+  assert.equal(moves.length, 1, '읽은 시각이 바뀌면 한 번 움직인다');
+  assert.equal(moves[0].el.getAttribute('datetime'), later);
+  assert.ok(moves[0].frames[0].opacity >= 0.5, `첫 프레임 불투명도 ${moves[0].frames[0].opacity} — 시각이 비어 보이지 않는다`);
+  assert.equal(moves[0].frames.at(-1).opacity, 1);
+});
+
+const handItem = (key, over = {}) => ({ id: key, key, level: 'todo', say: `${key} 할 일`, source: '시험', ref: null, ...over });
+const handVm = (vm, hand, rev = 1) => ({ ...vm, revision: vm.revision + rev, summary: { ...vm.summary, hand } });
+
+test('[M11-G6 41] ring: unreadable steps give a hatched ring saying 「단계 미확인」, not zero; the card tone counts only hand items still fresh', async t => {
+  const vm = await baseVm();
+  const bad = await page(t, { ...vm, phases: { ...vm.phases, status: 'failed', items: [] } }, quietRoutes());
+  assert.ok(bad.$('#now .ring.is-unknown'));
+  assert.equal(bad.text('#now .ring-cap'), '단계 미확인');
+  assert.equal(bad.$('#now [data-num="rg-done"]'), null, '0이 아니라 빗금');
+  assert.ok(bad.$('#now .doing-card').classList.contains('tone-unknown'));
+  const good = await page(t, vm, quietRoutes());
+  assert.ok(!good.$('#now .ring').classList.contains('is-unknown'));
+  assert.equal(good.text('#now [data-num="rg-done"]'), '2');
+  const aged = ago => handItem('w', { fresh: 10, at: new Date(Date.now() - ago).toISOString() });
+  const stale = await page(t, handVm(vm, [aged(30 * 60e3)], 0), quietRoutes());
+  assert.ok(stale.$('#now .doing-card').classList.contains('tone-live'), '시효가 지난 손 항목은 카드 색을 바꾸지 않는다');
+  const fresh = await page(t, handVm(vm, [aged(60e3)], 0), quietRoutes());
+  assert.ok(fresh.$('#now .doing-card').classList.contains('tone-todo'));
+});
+
+test('[M11-G6 41] where: the sentence alone carries the numbers; one band cell per goal keyed by its id with a title and a screen-reader word; the current cell says 「지금」; no number cards', async t => {
+  const vm = await baseVm();
+  const p = await page(t, vm, quietRoutes());
+  const where = p.$('#brief .q-where');
+  assert.match(where.textContent, /goal 7개 중 1개 완료, 지금 G1, 남은 goal 2개/);
+  assert.equal(where.querySelectorAll('.stats, .stat').length, 0, '「어디쯤」에는 숫자 카드가 없다');
+  const band = where.querySelector('ol.band');
+  assert.match(band.getAttribute('style'), /--n:7\b/, '띠는 goal 수만큼 칸을 나눈다');
+  const cells = [...band.querySelectorAll('li.bc')];
+  assert.deepEqual(cells.map(c => c.dataset.enter), vm.goals.items.map(g => g.id));
+  assert.equal(cells[4].getAttribute('title'), 'G5 종결된 goal — 완료 (PR 9)', '칸 이름과 PR은 title에 남는다');
+  assert.deepEqual(cells.map(c => c.querySelector('.sr').textContent), ['G1 진행 중', 'G2 초안', 'G3 진행 중', 'G4 진행 중', 'G5 완료', 'G6 남음', 'G7 남음']);
+  assert.ok(cells[0].classList.contains('is-here'));
+  const say = band.querySelector('.bc-say');
+  assert.equal(say.textContent, 'G1 지금', '색만으로 말하지 않는다');
+  assert.match(say.getAttribute('style'), /grid-column:1\b/);
+});
+
+test('[M11-G6 41] verification record: pass / fail / user-input number cards in a div of the steps area, only there; no lines say a sentence, no section says a broken tag', async t => {
+  const vm = await baseVm(), rec = vm.phases.record;
+  const p = await page(t, vm, quietRoutes());
+  const dl = p.$('#phases div.goal-rec > dl.stats');
+  assert.ok(dl, '<p> 안이었다면 파서가 dl을 밖으로 밀어낸다');
+  assert.deepEqual([...dl.querySelectorAll('.stat')].map(s => [s.querySelector('dt').textContent, s.querySelector('dd [data-num]').dataset.num, s.querySelector('dd').textContent, s.className]),
+    [['통과', 'g-pass', '2', 'stat is-pass'], ['실패', 'g-fail', '1', 'stat is-fail'], ['사용자 입력', 'g-ui', '0', 'stat is-zero']]);
+  assert.equal(p.$$('[data-num="g-pass"]').length, 1, '기록 수는 단계 영역 한 곳에만 있다');
+  assert.equal(p.$$('dl.stats').length, 1);
+  const withRec = r => ({ ...vm, phases: { ...vm.phases, record: { ...rec, ...r } } });
+  const none = await page(t, withRec({ pass: 0, fail: 0, userInput: 0, failSinceUserInput: 0, last: null }), quietRoutes());
+  assert.equal(none.$('#phases .goal-rec').firstChild.textContent.trim(), '검증 기록은 아직 없어요.', '0 카드가 아니라 그 문장');
+  assert.equal(none.$('#phases dl.stats'), null);
+  const missing = await page(t, withRec({ section: false }), quietRoutes());
+  assert.equal(missing.text('#phases .goal-rec .tag-broken'), '검증 기록 절이 없어요');
+  assert.equal(missing.$('#phases dl.stats'), null);
+});
+
+// ── 41: 알림 배선·소리 상태·띠 손 줄 (chime.test.mjs의 app.js 정규식 절을 옮김, M11 G6) ──
+test('[M11-G6 41] notify on render: a snapshot with a new hand key rings once, badges the title and is remembered under the chime module key — also with reduced motion and a hidden tab', async t => {
+  const vm = await baseVm();
+  const p = await page(t, vm, quietRoutes(), { setup: w => { reduced(w); hidden(w); } });
+  const d = p.doc.documentElement.dataset;
+  assert.equal(d.chimeCount, undefined, '첫 스냅샷은 울리지 않는다');
+  p.push(handVm(vm, [handItem('k-render')]));
+  assert.deepEqual([d.chimeCount, d.chimeLast, p.doc.title], ['1', '["k-render"]', '(1) AgentDeck 현황판']);
+  assert.deepEqual(JSON.parse(p.w.localStorage.getItem(p.w.AgentDeckChime.RUNG_KEY)), ['k-render']);
+  p.push(handVm(vm, [handItem('k-render')], 2));
+  assert.equal(d.chimeCount, '1', '같은 키는 다시 울리지 않는다');
+});
+
+test('[M11-G6 41] notify on the clock: a hand item that expires drops out of the title badge without a snapshot', async t => {
+  const vm = await baseVm();
+  const at = new Date(Date.now() - 10 * 60e3 + 20e3).toISOString();
+  const p = await page(t, handVm(vm, [handItem('k-tick', { fresh: 10, at })], 0), quietRoutes());
+  assert.equal(p.doc.title, '(1) AgentDeck 현황판');
+  const real = p.w.Date.now.bind(p.w.Date);
+  p.w.Date.now = () => real() + 30e3;
+  await until(() => p.doc.title === 'AgentDeck 현황판', '시계 박자가 배지를 거둔다', 2500);
+  assert.equal(p.$$('#brief .hand-list li').length, 0);
+});
+
+function fakeAudio(w, { running = false } = {}) {
+  const ac = { allow: running, tones: 0, made: 0 };
+  w.AudioContext = class {
+    constructor() { ac.made++; this.state = ac.allow ? 'running' : 'suspended'; this.currentTime = 0; this.destination = {}; this.fns = []; }
+    addEventListener(type, fn) { this.fns.push(fn); }
+    removeEventListener(type, fn) { this.fns = this.fns.filter(f => f !== fn); }
+    resume() { if (!ac.allow) return new Promise(() => {}); this.state = 'running'; for (const fn of this.fns) fn(); return Promise.resolve(); }
+    createOscillator() { ac.tones++; return { frequency: { setValueAtTime() {} }, connect() {}, start() {}, stop() {} }; }
+    createGain() { return { gain: { setValueAtTime() {}, exponentialRampToValueAtTime() {} }, connect() {} }; }
+  };
+  return ac;
+}
+const badgeOf = p => p.$('#brief .q-hand .q-head .sound-state');
+
+test('[M11-G6 41] sound state: a blocked browser shows 「알림음 막힘」 at open with no marker; a chime marks 1 and offers 「소리 켜기」; pressing it plays and marks 0', async t => {
+  const vm = await baseVm();
+  let ac;
+  const p = await page(t, vm, quietRoutes(), { setup: w => { ac = fakeAudio(w); } });
+  const d = p.doc.documentElement.dataset;
+  await until(() => badgeOf(p)?.classList.contains('is-blocked'), '여는 때 잰 막힘');
+  assert.ok(badgeOf(p).matches('button[data-sound-on]'), '막힌 표시는 눌러서 켤 수 있다');
+  assert.equal(d.chimeBlocked, undefined, '울려야 했던 순간 전에는 표지를 쓰지 않는다');
+  assert.equal(p.$('.sound-chip'), null);
+  p.push(handVm(vm, [handItem('k-blocked')]));
+  assert.equal(d.chimeBlocked, 'pending');
+  await until(() => d.chimeBlocked === '1', '막힘 표지');
+  assert.ok(badgeOf(p).classList.contains('is-blocked'), '표지와 작은 표시가 같은 값이다');
+  assert.ok(p.$('#brief .q-hand .q-a .sound-chip'), '「소리 켜기」 칩');
+  assert.equal(ac.tones, 0);
+  ac.allow = true;
+  p.click('#brief .sound-chip');
+  await until(() => d.chimeBlocked === '0', '켜짐 표지');
+  assert.ok(badgeOf(p).classList.contains('is-on'));
+  assert.match(badgeOf(p).textContent, /알림음 켜짐/);
+  assert.equal(p.$('.sound-chip'), null, '켜지면 칩이 사라진다');
+  assert.deepEqual([ac.tones, ac.made], [2, 1], '두 음을 한 번 들려주고, 컨텍스트는 하나다');
+});
+
+test('[M11-G6 41] sound state: a running context plays a chime and marks 0; a first click primes a blocked one to 「켜짐」 silently; without Web Audio a chime marks unsupported', async t => {
+  const vm = await baseVm();
+  let ac;
+  const on = await page(t, vm, quietRoutes(), { setup: w => { ac = fakeAudio(w, { running: true }); reduced(w); hidden(w); } });
+  await until(() => badgeOf(on)?.classList.contains('is-on'), '여는 때 잰 켜짐');
+  on.push(handVm(vm, [handItem('k-on')]));
+  await until(() => on.doc.documentElement.dataset.chimeBlocked === '0', '재생 표지');
+  assert.equal(ac.tones, 2);
+  let ac2;
+  const prime = await page(t, vm, quietRoutes(), { setup: w => { ac2 = fakeAudio(w); } });
+  await until(() => badgeOf(prime)?.classList.contains('is-blocked'), '막힘');
+  ac2.allow = true;
+  prime.doc.body.click();
+  await until(() => badgeOf(prime).classList.contains('is-on'), '첫 클릭으로 켜짐');
+  assert.equal(prime.doc.documentElement.dataset.chimeBlocked, undefined);
+  assert.equal(ac2.tones, 0, '미리 받기는 소리를 내지 않는다');
+  const none = await page(t, vm, quietRoutes());
+  none.push(handVm(vm, [handItem('k-none')]));
+  await until(() => none.doc.documentElement.dataset.chimeBlocked === 'unsupported', '없음 표지');
+  assert.ok(badgeOf(none).classList.contains('is-unsupported'));
+});
+
+test('[M11-G6 41] strip hand line: with the head off screen the strip shows the first stop (else the first to-do) escaped, with the rest counted; the doing pill goes neutral beside it', async t => {
+  const vm = await baseVm(), todo = handItem('a', { say: '먼저 <b>할 일</b>' });
+  const p = await page(t, handVm(vm, [todo, handItem('b', { level: 'stop', say: '멈춘 일' })], 0), quietRoutes());
+  p.hideNow();
+  const stop = p.$('#strip-status .mini-hand');
+  assert.ok(stop.classList.contains('is-stop'));
+  assert.deepEqual([stop.querySelector('b').textContent, stop.querySelector('span').textContent, stop.querySelector('small').textContent], ['멈춤', '멈춘 일', '외 1건']);
+  assert.ok(p.$('#strip-status .mini svg.g-quiet') && !p.$('#strip-status .mini b'), '손 줄이 따로 있으면 「지금 하는 일」 알약은 회색 점이다');
+  p.push(handVm(vm, [todo]));
+  const one = p.$('#strip-status .mini-hand');
+  assert.ok(one.classList.contains('is-todo'));
+  assert.equal(one.querySelector('b').textContent, '내 손 필요');
+  assert.equal(one.querySelector('span').innerHTML, '먼저 &lt;b&gt;할 일&lt;/b&gt;', '원문 문장을 이스케이프해 그대로 쓴다');
+  assert.equal(one.getAttribute('title'), '먼저 <b>할 일</b>');
+  assert.equal(one.querySelector('small'), null);
+  p.push(handVm(vm, [], 2));
+  assert.equal(p.$('#strip-status .mini-hand'), null);
+  assert.ok(p.$('#strip-status .mini svg.g-ok') && !p.$('#strip-status .mini b'), '할 일이 없으면 초록 ✓ 하나');
+  assert.ok(badgeOf(p), '알림 상태 표시는 「내 손」 머리에 있다');
 });

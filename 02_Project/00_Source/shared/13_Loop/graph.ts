@@ -7,7 +7,7 @@ export const GRAPH_CARD = { width: 120, height: 52 } as const
 // work 작업 노드 · action 실행기 동작 · rule·model·human 판정 주체별 게이트
 export type GraphNodeKind = 'work' | 'action' | 'rule' | 'model' | 'human'
 
-export interface GraphPosition { x: number; y: number }
+interface GraphPosition {x: number; y: number }
 
 export interface LoopGraphNode {
   id: string

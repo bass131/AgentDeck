@@ -1,6 +1,6 @@
 import { isEmptyLoopDisplaySnapshot } from './loopDisplayRegistry'
 import type { LoopDisplayRegistry, LoopDisplaySnapshot } from './loopDisplayRegistry'
-import type { AgentEvent } from '../../../../shared/agentEvents'
+import type { AgentEvent } from '@shared/agentEvents'
 import { convKey, conversationIdOfKey, keyKind } from './sessionKeys'
 import { sessionRegistry } from './sessionRegistry'
 

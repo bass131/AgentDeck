@@ -7,7 +7,7 @@ import { errText } from './loopModel'
 import { mainPanelOf, panelKeyOf } from './sessionLogModel'
 import { folderName } from './workModel'
 
-export interface FilesPanelProps {
+interface FilesPanelProps {
   cwd: string | null
   main: LoopSessionRecord | undefined
 }

@@ -10,7 +10,7 @@ const mockApi = {
   conversationLoad: vi.fn().mockResolvedValue({ conversations: [] }),
   conversationSave: vi.fn().mockResolvedValue({ id: 'cv-1' }),
   agentRun: vi.fn().mockResolvedValue({ runId: 'r1' }),
-  agentAbort: vi.fn().mockResolvedValue({ accepted: true }),
+  agentAbort: vi.fn().mockResolvedValue({ ok: true }),
   onAgentEvent: vi.fn().mockReturnValue(mockUnsub),
   listFiles: vi.fn().mockResolvedValue({ files: [] }),
 }
@@ -24,7 +24,7 @@ beforeEach(() => {
 })
 afterEach(() => cleanup())
 
-const HOOK_TIMELINE_PATH = '@renderer/10_Engine'
+const HOOK_TIMELINE_PATH = '@renderer/03_Agent'
 
 const sampleRuns = [
   { hookId: 'h1', hookName: 'PreToolUse:Bash', hookEvent: 'PreToolUse', status: 'success', exitCode: 0 },

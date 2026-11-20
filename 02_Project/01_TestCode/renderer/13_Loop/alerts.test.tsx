@@ -4,7 +4,7 @@
 // 풀리면(빈 목록 push) 표시가 사라진다. Windows 알림을 누르면(loop.alertOpen push) 그 작업 폴더의 작업 모드를 연다.
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
 import { render, screen, cleanup, act, within } from '@testing-library/react'
-import type { LoopAlert, LoopAlertList, LoopAlertOpen, LoopStatus } from '../../../../02_Project/00_Source/shared/ipcContract'
+import type { LoopAlert, LoopAlertList, LoopAlertOpen, LoopStatus } from '@shared/ipcContract'
 import { installWindowApi, type InstalledWindowApi } from '../00_Helpers/windowApiMock'
 
 const A = 'C:\\work\\practice'

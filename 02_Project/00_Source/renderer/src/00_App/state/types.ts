@@ -1,4 +1,4 @@
-import type { FileTreeNode } from '../../../../shared/ipcContract'
+import type { FileTreeNode } from '@shared/ipcContract'
 import type { AppState } from '@renderer/05_Conversation/state/reducer'
 import type { OpenedViewer } from '@renderer/07_Workspace/viewer'
 
@@ -53,7 +53,7 @@ export type StoreState = AppState &
   ComposerState &
   RuntimeState
 
-export type StoreActions = SystemActions &
+type StoreActions = SystemActions &
   WindowModeActions &
   WorkspaceActions &
   ViewerActions &

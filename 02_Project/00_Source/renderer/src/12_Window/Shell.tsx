@@ -23,8 +23,8 @@ import { loadPaneWidth } from './paneResize'
 import { WhatsNew, SEEN_KEY, decideStartupModal } from '@renderer/10_Engine/whats-new'
 import { ENGINE_SEEN_KEY, decideEngineNotice } from '@renderer/10_Engine/engineUpdateTrigger'
 import { EngineUpdateNotice } from '@renderer/10_Engine'
-import type { EngineUpdateInfo } from '../../../shared/ipcContract'
-import { ZOOM_FACTOR_STEP } from '../../../shared/ipcContract'
+import type { EngineUpdateInfo } from '@shared/ipcContract'
+import { ZOOM_FACTOR_STEP } from '@shared/ipcContract'
 import {
   useAppStore,
   selectWorkspaceRoot,
@@ -34,12 +34,8 @@ import {
   selectRecentFiles,
   selectWorkspaceMode,
 } from '@renderer/00_App/appStore'
+import { nextInject } from './inject'
 import './shell.css'
-
-// 단일 inject 채널 — 주입 출처(FileModal 선택질문·GitModal)와 무관하게 nonce를 하나씩 올려 Conversation에 재주입을 알린다.
-export function nextInject(prev: InjectedInput, text: string): InjectedInput {
-  return { text, nonce: prev.nonce + 1 }
-}
 
 export function Shell(): JSX.Element {
   const workspaceRoot = useAppStore(selectWorkspaceRoot)

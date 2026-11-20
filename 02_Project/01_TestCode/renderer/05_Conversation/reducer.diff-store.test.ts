@@ -5,7 +5,7 @@ import {
   makeInitialState,
 } from '@renderer/05_Conversation/state/reducer'
 import type { AppState } from '@renderer/05_Conversation/state/reducer'
-import type { AgentEventPayload } from '../../../../02_Project/00_Source/shared/ipcContract'
+import type { AgentEventPayload } from '@shared/ipcContract'
 import type { DiffLine } from '@shared/02_Common/diffTypes'
 
 const runId = 'run-b'

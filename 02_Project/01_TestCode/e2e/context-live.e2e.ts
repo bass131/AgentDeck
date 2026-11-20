@@ -4,6 +4,7 @@ import { mkdtempSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { passBootGates, openWorkspace, settleTurn } from './helpers/bootGates'
+import { moveToSecondDisplay } from './helpers/isolatedBoot'
 
 const LIVE = process.env.LIVE_SDK === '1'
 
@@ -25,6 +26,7 @@ test.describe('Phase 1 맥락 복구 실 SDK (opt-in: LIVE_SDK=1)', () => {
     })
     page = await app.firstWindow()
     await page.waitForLoadState('domcontentloaded')
+    await moveToSecondDisplay(app)
 
     await passBootGates(page, { nickname: 'tester' })
     await openWorkspace(page, { waitForTree: false })

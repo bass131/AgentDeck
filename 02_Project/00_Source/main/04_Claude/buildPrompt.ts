@@ -1,9 +1,9 @@
-export interface PromptMessage {
+interface PromptMessage {
   role: string
   content: string
 }
 
-export interface BuildModelContextPromptOptions {
+interface BuildModelContextPromptOptions {
   resumeSessionId?: string
   contextBudgetTokens: number
 }

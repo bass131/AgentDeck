@@ -7,7 +7,7 @@ import { PERMISSION_MODE_TABLE } from '@main/04_Claude/permissionModes'
 import { writeFileAtomicSync } from '@main/05_Loop/realPorts/atomicWrite'
 import type { TokenUsage, SubAgentTool, SubAgentTranscriptItem } from '../../shared/agentEvents'
 
-export type ConversationSaveInput = Omit<ConversationRecord, 'createdAt' | 'updatedAt'> & {
+type ConversationSaveInput =Omit<ConversationRecord, 'createdAt' | 'updatedAt'> & {
   id?: string
 }
 

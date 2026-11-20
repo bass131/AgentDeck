@@ -6,9 +6,9 @@ import {
   makeInitialState,
 } from '@renderer/05_Conversation/state/reducer'
 import type { AppState } from '@renderer/05_Conversation/state/reducer'
-import { panelApply, panelReducerFn } from '@renderer/03_Agent/state/panelSession'
-import type { AgentEvent } from '../../../../02_Project/00_Source/shared/agentEvents'
-import type { AgentEventPayload } from '../../../../02_Project/00_Source/shared/ipcContract'
+import { runReducer } from '@renderer/03_Agent/state/runReducer'
+import type { AgentEvent } from '@shared/agentEvents'
+import type { AgentEventPayload } from '@shared/ipcContract'
 import { adaptFlatApi } from '../00_Helpers/windowApiMock'
 
 const mockApi = {
@@ -111,23 +111,7 @@ describe('LR4-P05 S5 — 방어: active 없는 ended 무시', () => {
   })
 })
 
-describe('LR4-P05 S6 — panel 정합 (shared applyAgentEvent 재사용)', () => {
-  it('panelApply(autonomy_status active) → 패널 state.autonomyActive === true', () => {
-    const base = { ...makeInitialState(), currentRunId: RUN, replMode: true, queue: [] }
-    const next = panelApply(base, payload(autonomyActiveEvt()))
-    expect(autonomyOf(next)).toBe(true)
-    expect(next.currentRunId).toBe(RUN)
-  })
-
-  it('panelApply(active → ended) → 패널 state.autonomyActive false로 해제', () => {
-    const base = { ...makeInitialState(), currentRunId: RUN, replMode: true, queue: [] }
-    const active = panelApply(base, payload(autonomyActiveEvt()))
-    const ended = panelApply(active, payload(autonomyEndedEvt('grace-expired')))
-    expect(autonomyOf(ended)).toBe(false)
-  })
-})
-
-describe('LR4-P05 S7 — 터미널 리셋 (abort / dead-run / panel CLEAR_LOOPS)', () => {
+describe('LR4-P05 S7 — 터미널 리셋 (abort / dead-run / CLEAR_LOOPS)', () => {
   beforeEach(() => {
     useAppStore.setState({
       queue: [],
@@ -164,17 +148,16 @@ describe('LR4-P05 S7 — 터미널 리셋 (abort / dead-run / panel CLEAR_LOOPS)
     expect(autonomyOf(s)).toBe(false)
   })
 
-  it('(7b) panel CLEAR_LOOPS: autonomyActive=true → autonomyActive false', () => {
+  it('(7b) runReducer CLEAR_LOOPS: autonomyActive=true → autonomyActive false', () => {
     const base = {
       ...makeInitialState(),
+      replMode: false,
+      queue: [],
       currentRunId: 'p-run',
       isRunning: true,
       autonomyActive: true,
     }
-    const next = panelReducerFn(
-      base as Parameters<typeof panelReducerFn>[0],
-      { type: 'CLEAR_LOOPS' } as Parameters<typeof panelReducerFn>[1]
-    )
+    const next = runReducer(base, { type: 'CLEAR_LOOPS' })
     expect(next.isRunning).toBe(false)
     expect(next.currentRunId).toBeNull()
     expect(autonomyOf(next)).toBe(false)

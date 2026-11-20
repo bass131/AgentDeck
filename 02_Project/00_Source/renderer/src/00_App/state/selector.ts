@@ -1,5 +1,5 @@
-import type { FileTreeNode, ConversationRecord, UsageInfo, Profile, BackendStatus } from '../../../../shared/ipcContract'
-import type { TokenUsage, TodoItem, SubAgentInfo, LoopInfo } from '../../../../shared/agentEvents'
+import type { FileTreeNode, ConversationRecord, UsageInfo, Profile, BackendStatus } from '@shared/ipcContract'
+import type { TokenUsage, TodoItem, SubAgentInfo, LoopInfo } from '@shared/agentEvents'
 import type { AppState, PendingPermission, PendingQuestion, FileDiffEntry } from '@renderer/05_Conversation/state/reducer'
 import type { ThreadItem } from '@renderer/05_Conversation/state/threadTypes'
 import type { OpenedViewer } from '@renderer/07_Workspace/viewer'
@@ -11,7 +11,7 @@ export const selectThread = (s: AppStore): ThreadItem[] => s.thread
 
 export const selectChangedFiles = (s: AppStore): Set<string> => s.changedFiles
 
-export interface TaskScope {
+interface TaskScope {
   fileCount: number
   toolCount: number
   changedFiles: string[]

@@ -1,9 +1,9 @@
 // @vitest-environment jsdom
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import type { AgentEventPayload } from '../../../02_Project/00_Source/shared/ipcContract'
-import type { AgentEvent } from '../../../02_Project/00_Source/shared/agentEvents'
-import type { FileTreeNode } from '../../../02_Project/00_Source/shared/ipcContract'
+import type { AgentEventPayload } from '@shared/ipcContract'
+import type { AgentEvent } from '@shared/agentEvents'
+import type { FileTreeNode } from '@shared/ipcContract'
 import type { AppState } from '@renderer/05_Conversation/state/reducer'
 import type { ThreadItem } from '@renderer/05_Conversation/state/threadTypes'
 import {
@@ -43,7 +43,7 @@ function buildMockApi() {
     workspaceOpen: vi.fn(),
     workspaceTree: vi.fn().mockResolvedValue({ tree: null }),
     agentRun: vi.fn(),
-    agentAbort: vi.fn().mockResolvedValue({ accepted: true }),
+    agentAbort: vi.fn().mockResolvedValue({ ok: true }),
     onAgentEvent: vi.fn((cb: OnAgentEventCallback) => {
       capturedCallback = cb
       return mockUnsubscribe
@@ -432,7 +432,7 @@ describe('abort 경로', () => {
     const { api } = buildMockApi()
     Object.defineProperty(window, 'api', { value: adaptFlatApi(api), writable: true, configurable: true })
 
-    api.agentAbort.mockResolvedValue({ accepted: true })
+    api.agentAbort.mockResolvedValue({ ok: true })
 
     const { useAppStore } = await import('@renderer/00_App/appStore')
     useAppStore.setState({ currentRunId: 'run-to-abort', isRunning: true })

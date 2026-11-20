@@ -22,7 +22,7 @@ const FILE = 'controls.json'
 const SEAL = 'controls-seal.json'
 const MARKER = 'first-setup.json'
 
-export interface ControlsRead {
+interface ControlsRead {
   status: ControlsSealStatus
   // 끈 노드 id. 풀린 노드만, 등록부 순서로 담는다. 봉인이 깨졌으면 파일 내용(확인하면 받아들일 내용)이다.
   disabled: string[]

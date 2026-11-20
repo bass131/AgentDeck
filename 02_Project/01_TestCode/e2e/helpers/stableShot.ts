@@ -35,6 +35,11 @@ export async function logHarnessDisplay(app: ElectronApplication, label: string)
   })
   // eslint-disable-next-line no-console
   console.log(`[e2e-display] ${label}`, JSON.stringify(info))
+  const chosen = info.chosen as { secondary?: boolean; scaleFactor?: number; primaryScaleFactor?: number } | null
+  if (chosen?.secondary && chosen.scaleFactor !== chosen.primaryScaleFactor) {
+    // eslint-disable-next-line no-console
+    console.warn(`[e2e-display] ${label} 2번 모니터 배율 ${chosen.scaleFactor}이 주 모니터 ${chosen.primaryScaleFactor}와 달라 캡처 해시가 기준선과 어긋날 수 있다 (M05 Backlog 40)`)
+  }
 }
 
 // 결정적 캡처 — 같은 코드에서 같은 PNG가 나오게 한다(M05 H2).

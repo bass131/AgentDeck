@@ -1,11 +1,10 @@
 // 작업 ID: g9c · 옛 이름 g9c-branch-cleanup.test.tsx
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { readFileSync, readdirSync, statSync } from 'fs'
+import { existsSync, readFileSync, readdirSync, statSync } from 'fs'
 import { join, relative, resolve } from 'path'
 import { render, renderHook, act, cleanup } from '@testing-library/react'
 import { convKey, panelKey } from '@renderer/03_Agent/state/sessionKeys'
-import type { FolderSwitchMessage } from '@renderer/07_Workspace/file'
 import { adaptFlatApi } from '../00_Helpers/windowApiMock'
 
 // G9c — 단일·멀티 분기를 화면 배치(12_Window) 밖에서 키·포트로 옮겼다. 값은 그대로다(P4 포함).
@@ -74,13 +73,11 @@ describe('G9c 분기 정리 — 12_Window 밖에 단일·멀티 분기가 남지
   })
 })
 
-describe('G9c P4 — 기본 모드 값은 그대로다(대화 auto, 패널 bypass)', () => {
-  it('기본 모드 상수는 대화·패널 이름으로 바뀌었고 값은 auto / bypass다', async () => {
+describe('G9c P4 — 대화 기본 모드 값은 그대로다(auto)', () => {
+  it('대화 기본 모드 상수는 auto이고, 패널 기본 모드는 패널 코드와 함께 없어졌다', async () => {
     const mod = await import('@renderer/03_Agent/pickerOptions')
     expect(mod.DEFAULT_MODE_CONVERSATION).toBe('auto')
-    expect(mod.DEFAULT_MODE_PANEL).toBe('bypass')
-    const { DEFAULT_PICKER } = await import('@renderer/03_Agent/multiAgentDefaults')
-    expect(DEFAULT_PICKER.mode).toBe('bypass')
+    expect('DEFAULT_MODE_PANEL' in mod).toBe(false)
     const { createComposerSlice } = await import('@renderer/05_Conversation/state/composer')
     const slice = createComposerSlice(() => {}, () => ({}) as never, {} as never)
     expect(slice.pickerMode).toBe('auto')
@@ -144,69 +141,29 @@ describe('G9c 단일 입력창 — UltraCode 범위 키는 convKey(conversationI
   })
 })
 
-describe('G9c 패널 키 — usePanelSlot이 자기 키를 돌려준다', () => {
-  it('key는 레지스트리 키이자 REPL 세션키인 multi:<id>:slot:<n>이다', async () => {
-    Object.defineProperty(window, 'api', { value: adaptFlatApi({ onAgentEvent: vi.fn(() => () => {}) }), writable: true, configurable: true })
-    const { usePanelSlot, __resetPanelSessionManagerForTests } = await import('@renderer/03_Agent/state/panelSession')
-    const { result, rerender } = renderHook(({ id }) => usePanelSlot(id, 2), { initialProps: { id: 'ms' } })
-    expect(result.current.key).toBe(panelKey('ms', 2))
-    rerender({ id: 'ms2' })
-    expect(result.current.key).toBe(panelKey('ms2', 2))
-    __resetPanelSessionManagerForTests()
+describe('[M10 Backlog 3] 그리는 곳이 없던 패널 코드가 없다', () => {
+  it('PanelView·panelSession·multiAgentDefaults 파일이 없고, renderer 소스가 그 이름을 import하지 않는다', () => {
+    const gone = ['05_Conversation/PanelView.tsx', '03_Agent/state/panelSession.ts', '03_Agent/multiAgentDefaults.ts']
+    expect(gone.filter((f) => existsSync(join(SRC_ROOT, f)))).toEqual([])
+    const importer = /(?:from|import\()\s*'[^']*\/(?:PanelView|panelSession|multiAgentDefaults)'/
+    const hits = sourceFiles(SRC_ROOT).filter((f) => importer.test(readFileSync(f, 'utf8')))
+    expect(hits.map((f) => relative(SRC_ROOT, f))).toEqual([])
   })
-})
 
-describe('G9c PanelView — UltraCode 범위는 세션이 돌려준 키를 쓴다', () => {
-  async function renderPanel(sessionKey?: string) {
-    const noop = (): void => {}
-    const noopAsync = async (): Promise<void> => {}
-    const { makePanelInitialState } = await import('@renderer/03_Agent/state/panelSession')
-    const { PanelView } = await import('@renderer/05_Conversation/PanelView')
-    const session = {
-      ...(sessionKey ? { key: sessionKey } : {}),
-      state: makePanelInitialState(),
-      send: noopAsync, abort: noopAsync, interrupt: noopAsync, restore: noop, dismissLoopsStopped: noop,
-      respondPermission: noopAsync, respondQuestion: noopAsync, setReplMode: noop, dismissGoalStale: noop,
-      clear: noop, enqueue: noop, dequeue: () => undefined, removeQueued: noop,
-    }
-    return render(
-      <PanelView slot={1} panel={{ title: 'p', status: 'idle', cwd: 'C:/w', ctxPct: 0 }} session={session as never}
-        workspaceRoot="C:/w" onExpand={noop} onPrompt={noop} onPickFolder={noop} />
-    )
-  }
-
-  // M10 G1 — 활성 멀티 세션 id가 없어져, 키 없는 가짜 세션은 빈 범위와 슬롯으로 만든 패널 키를 쓴다.
-  it('session.key가 있으면 그 키, 없으면(하네스 가짜 세션) 빈 범위와 슬롯으로 만든 패널 키다', async () => {
-    const { __resetUltracodeToggleForTests, useUltracodeToggle } = await import('@renderer/03_Agent/state/ultracodeToggle')
-    __resetUltracodeToggleForTests()
-    const btn = (c: HTMLElement): HTMLElement => c.querySelector('[aria-label="UltraCode 모드 토글"]') as HTMLElement
-    const withKey = await renderPanel(panelKey('own', 1))
-    act(() => { btn(withKey.container).click() })
-    expect(renderHook(() => useUltracodeToggle(panelKey('own', 1))).result.current[0]).toBe(false)
-    expect(renderHook(() => useUltracodeToggle(panelKey('', 1))).result.current[0]).toBe(true)
-    withKey.unmount()
-    const noKey = await renderPanel()
-    act(() => { btn(noKey.container).click() })
-    expect(renderHook(() => useUltracodeToggle(panelKey('', 1))).result.current[0]).toBe(false)
+  it('e2e 하네스도 지운 모듈을 import하지 않는다(e2e는 vitest가 돌리지 않아 import 실패가 늦게 드러난다)', () => {
+    const e2eRoot = resolve(__dirname, '../../e2e')
+    const importer = /(?:from|import\()\s*'[^']*\/(?:PanelView|panelSession|multiAgentDefaults)'/
+    const hits = sourceFiles(e2eRoot).filter((f) => importer.test(readFileSync(f, 'utf8')))
+    expect(hits.map((f) => relative(e2eRoot, f))).toEqual([])
   })
-})
 
-describe('G9c 폴더 변경 창 — 본문은 호출부가 넘긴다', () => {
-  it('message를 넘기면 그 본문을 그리고, 없으면 대화 문구를 그린다', async () => {
-    const { FolderSwitchDialog } = await import('@renderer/07_Workspace/file')
-    const custom = render(
-      <FolderSwitchDialog from="/a/x" to="/b/y" onCancel={() => {}} onConfirm={() => {}} message={({ to }) => <>패널 {to}</>} />
-    )
-    expect(custom.container.querySelector('.sd-msg')?.textContent).toBe('패널 y')
-    custom.unmount()
-    const names = vi.fn<FolderSwitchMessage>(() => null)
-    const probe = render(<FolderSwitchDialog from="C:\\a\\from-dir" to="/b/to-dir/" onCancel={() => {}} onConfirm={() => {}} message={names} />)
-    expect(names).toHaveBeenCalledWith({ from: 'from-dir', to: 'to-dir' })
-    probe.unmount()
-    const dflt = render(<FolderSwitchDialog from="/a/x" to="/b/y" onCancel={() => {}} onConfirm={() => {}} />)
-    expect(dflt.container.querySelector('.sd-msg')?.textContent).toBe(
-      '대화는 폴더 단위로 이어지기 때문에 x → y(으)로 바꾸면 현재 대화 내용이 지워지고 새 대화로 시작됩니다.'
-    )
+  it('renderer 소스와 CSS가 지운 이름(PanelView·panelSession·multiAgentDefaults·DEFAULT_MODE_PANEL)을 주석에서도 부르지 않는다', () => {
+    const name = /\b(?:PanelView|panelSession|multiAgentDefaults|DEFAULT_MODE_PANEL)\b/
+    const css = (dir: string): string[] =>
+      readdirSync(dir, { withFileTypes: true }).flatMap((e) =>
+        e.isDirectory() ? css(join(dir, e.name)) : e.name.endsWith('.css') ? [join(dir, e.name)] : [])
+    const hits = [...sourceFiles(SRC_ROOT), ...css(SRC_ROOT)].filter((f) => name.test(readFileSync(f, 'utf8')))
+    expect(hits.map((f) => relative(SRC_ROOT, f))).toEqual([])
   })
 })
 

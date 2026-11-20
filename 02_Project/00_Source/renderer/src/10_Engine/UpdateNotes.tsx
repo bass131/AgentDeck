@@ -1,5 +1,5 @@
 import { useEffect, useRef, type JSX, type ReactNode } from 'react'
-import { UN_ITEMS, UN_KEYWORDS } from './updateNotesSampleData'
+import { UN_ITEMS, UN_KEYWORDS } from './updateNotesContent'
 import { useModalLayer } from '@renderer/02_Common/modalStack'
 import './UpdateNotes.css'
 

@@ -11,8 +11,8 @@ import type {
   AgentRun,
   AgentRunInput,
 } from '@main/03_Agent/AgentBackend'
-import type { AgentEvent } from '../../../../02_Project/00_Source/shared/agentEvents'
-import type { BackendId } from '../../../../02_Project/00_Source/shared/ipcContract'
+import type { AgentEvent } from '@shared/agentEvents'
+import type { BackendId } from '@shared/ipcContract'
 
 interface SessionRun {
   orchestrationAtCreation: boolean

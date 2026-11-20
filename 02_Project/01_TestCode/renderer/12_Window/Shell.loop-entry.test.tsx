@@ -6,7 +6,7 @@ import { describe, it, expect, vi, afterEach } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { render, screen, fireEvent, act, cleanup } from '@testing-library/react'
-import type { LoopStatus, MainChatView } from '../../../../02_Project/00_Source/shared/ipcContract'
+import type { LoopStatus, MainChatView } from '@shared/ipcContract'
 import { installWindowApi } from '../00_Helpers/windowApiMock'
 
 const CWD = 'C:\\work\\practice'

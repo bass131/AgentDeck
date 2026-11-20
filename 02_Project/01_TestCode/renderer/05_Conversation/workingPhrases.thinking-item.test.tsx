@@ -9,7 +9,7 @@ const mockApi = {
   conversationLoad: vi.fn().mockResolvedValue({ conversations: [] }),
   conversationSave: vi.fn().mockResolvedValue({ id: 'cv-1' }),
   agentRun: vi.fn().mockResolvedValue({ runId: 'r1' }),
-  agentAbort: vi.fn().mockResolvedValue({ accepted: true }),
+  agentAbort: vi.fn().mockResolvedValue({ ok: true }),
   onAgentEvent: vi.fn().mockReturnValue(mockUnsub),
   listFiles: vi.fn().mockResolvedValue({ files: [] }),
 }
@@ -70,7 +70,7 @@ describe('P14a — nextPhraseIndex 순수 함수', () => {
 
 describe('P14a — ThinkingItem 접이식 (GAP1 P06)', () => {
   it('ThinkingItem: 접이식 thinking-block + 펼침 후 전문 text 노출', async () => {
-    const { ThinkingItem } = await import('@renderer/05_Conversation/Conversation')
+    const { ThinkingItem } = await import('@renderer/05_Conversation/ThreadView')
     const { container } = await act(async () => render(<ThinkingItem text="코드를 분석하는 중…" />))
     expect(container.querySelector('[data-testid="thinking-block"]')).toBeTruthy()
     expect(container.querySelector('[data-testid="thinking-toggle"]')).toBeTruthy()

@@ -1170,7 +1170,7 @@ interface HookOutput {
   hookSpecificOutput?: { hookEventName: 'PreToolUse'; permissionDecision: 'deny'; permissionDecisionReason: string }
 }
 
-export interface LoopLockMatcher {
+interface LoopLockMatcher {
   matcher?: string
   hooks: ((input: PreToolUseInput, toolUseID: string | undefined, opts: { signal: AbortSignal }) => Promise<HookOutput>)[]
   timeout: number

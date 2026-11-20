@@ -8,7 +8,7 @@ import {
   cleanup,
 } from '@testing-library/react'
 import { useAppStore } from '@renderer/00_App/appStore'
-import type { ConversationRecord } from '../../../../02_Project/00_Source/shared/ipcContract'
+import type { ConversationRecord } from '@shared/ipcContract'
 import { adaptFlatApi } from '../00_Helpers/windowApiMock'
 
 const SAMPLE_AS_RECORDS: ConversationRecord[] = [
@@ -54,8 +54,6 @@ const mockApi = {
   windowMaximizeToggle: vi.fn(),
   windowClose: vi.fn(),
   windowIsMaximized: vi.fn().mockResolvedValue({ maximized: false }),
-  windowGetBounds: vi.fn().mockResolvedValue({ x: 0, y: 0, width: 1200, height: 800 }),
-  windowSetBounds: vi.fn(),
   windowDragStart: vi.fn(),
   windowDragEnd: vi.fn(),
   windowResizeStart: vi.fn(),

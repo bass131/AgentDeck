@@ -15,7 +15,7 @@ import type { ReviewPort, ReviewRequest } from './ports'
 import { DOCS, goalDocPath } from './survivalDocs'
 import { DEFAULT_SESSION_TIMEOUT_MS, denyCards, nextSessionKey, oneLine, runNodeSession, taggedEvents } from './workSession'
 
-export const DEFAULT_REVIEW_TIMEOUT_MS = 30 * 60_000
+const DEFAULT_REVIEW_TIMEOUT_MS =30 * 60_000
 
 export interface ReviewSessionOptions {
   backend: AgentBackend

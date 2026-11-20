@@ -2,7 +2,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, cleanup, fireEvent } from '@testing-library/react'
-import { renderHook, act } from '@testing-library/react'
 import {
   GOAL_BANNER_STALE_THRESHOLD_MS,
   isStaleNow,
@@ -17,9 +16,9 @@ import {
 } from '@renderer/05_Conversation/state/reducer'
 import type { AppState } from '@renderer/05_Conversation/state/reducer'
 import { resolveLoopStatus } from '@renderer/03_Agent/loopStatus'
-import { LoopStatusBanner } from '@renderer/10_Engine'
-import type { AgentEvent } from '../../../../02_Project/00_Source/shared/agentEvents'
-import type { AgentEventPayload } from '../../../../02_Project/00_Source/shared/ipcContract'
+import { LoopStatusBanner } from '@renderer/03_Agent'
+import type { AgentEvent } from '@shared/agentEvents'
+import type { AgentEventPayload } from '@shared/ipcContract'
 import { adaptFlatApi } from '../00_Helpers/windowApiMock'
 
 afterEach(() => cleanup())
@@ -270,7 +269,7 @@ const mockApi = {
     runIdCounter++
     return Promise.resolve({ runId })
   }),
-  agentAbort: vi.fn().mockResolvedValue({ accepted: true }),
+  agentAbort: vi.fn().mockResolvedValue({ ok: true }),
   agentInterrupt: vi.fn().mockResolvedValue({ ok: false }),
   onAgentEvent: (cb: (payload: AgentEventPayload) => void) => {
     capturedHandler = cb
@@ -293,11 +292,6 @@ Object.defineProperty(globalThis, 'window', {
 })
 
 import { useAppStore } from '@renderer/00_App/appStore'
-import {
-  usePanelSlot,
-  __resetPanelSessionManagerForTests,
-  __getPanelManagerSizesForTests,
-} from '@renderer/03_Agent/state/panelSession'
 import { __backgroundRunOf, __resetBackgroundRunsForTests } from '@renderer/03_Agent/state/backgroundRuns'
 
 describe('appStore(단일챗) — foreground stale-watchdog 라이브 배선 (fake timer)', () => {
@@ -520,120 +514,53 @@ describe('대화 전환 연속성 — BG_RUNS_CAP(8) 초과 축출 후 복귀(�
   })
 })
 
-describe('패널 캐시 축출(PANEL_MANAGER_CAP=32) 후 stale 판정 연속성', () => {
-  beforeEach(() => {
-    vi.useFakeTimers()
-    runIdCounter = 0
-    capturedHandler = null
-    __resetPanelSessionManagerForTests()
-  })
-  afterEach(() => {
-    vi.useRealTimers()
-    __resetPanelSessionManagerForTests()
-  })
-
-  it('goal 진행 중(신선) 패널이 idle+unmount 상태로 CAP 초과 축출된 뒤, 임계 초과 시간이 지나 재마운트하면 즉시 stale로 표시된다', async () => {
-    const OWNER = 'sess-p03-owner'
-    const owner = renderHook(() => usePanelSlot(OWNER, 0))
-    await act(async () => {
-      await owner.result.current.send('/goal 시작해줘')
-    })
-    const runId = owner.result.current.state.currentRunId as string
-    expect(capturedHandler).toBeTruthy()
-    act(() => {
-      capturedHandler!({ runId, event: { type: 'autonomy_status', status: 'active' } })
-    })
-    act(() => {
-      capturedHandler!({ runId, event: { type: 'done' } })
-    })
-    expect(owner.result.current.state.autonomyActive).toBe(true)
-    expect(owner.result.current.state.isRunning).toBe(false)
-    act(() => {
-      owner.unmount()
-    })
-
-    for (let s = 0; s < 32; s++) {
-      const filler = renderHook(() => usePanelSlot(`sess-p03-filler-${s}`, 0))
-      act(() => { filler.unmount() })
+// M11 G6 — 패널 시험 panelSession.run-core-alignment(M10 Backlog 3로 지움)에서 옮겼다. 단일 bgRuns에 남은 규칙이다.
+describe('E17 — 보관 상한을 넘겨도 실행 중인 run은 버리지 않는다', () => {
+  async function seedBackground(runningIdx: number[]): Promise<typeof useAppStore> {
+    const { __seedBackgroundRunsForTests } = await import('@renderer/03_Agent/state/backgroundRuns')
+    const bgRuns: Parameters<typeof __seedBackgroundRunsForTests>[0] = {}
+    for (let i = 0; i < 8; i++) {
+      bgRuns[`c${i}`] = {
+        ...makeInitialState(),
+        currentRunId: `r${i}`,
+        isRunning: runningIdx.includes(i),
+        runGeneration: null,
+        workspaceRoot: null,
+        attachedImages: [],
+        restoredSession: false,
+        replMode: false,
+        pickerMode: 'auto',
+        selectedModel: 'default',
+      }
     }
-    expect(__getPanelManagerSizesForTests().states).toBeLessThanOrEqual(32)
+    __resetBackgroundRunsForTests()
+    __seedBackgroundRunsForTests(bgRuns)
+    useAppStore.setState({
+      conversationId: 'leaving',
+      currentRunId: 'r-leave',
+      isRunning: true,
+    } as unknown as Parameters<typeof useAppStore.setState>[0])
+    return useAppStore
+  }
 
-    vi.advanceTimersByTime(GOAL_BANNER_STALE_THRESHOLD_MS + 1000)
-
-    const returned = renderHook(() => usePanelSlot(OWNER, 0))
-    expect(returned.result.current.state.autonomyActive).toBe(true)
-    expect(returned.result.current.state.bannerStale).toBe(true)
-
-    act(() => { returned.unmount() })
+  it('단일 bgRuns: 상한(8)을 넘길 때 실행 중인 가장 오래된 대화는 남고, 그다음 끝난 대화가 빠진다', async () => {
+    const store = await seedBackground([0])
+    store.getState().newConversation()
+    const { __backgroundRunIdsForTests } = await import('@renderer/03_Agent/state/backgroundRuns')
+    const keys = __backgroundRunIdsForTests()
+    expect(keys).toContain('c0')
+    expect(keys).not.toContain('c1')
+    expect(keys).toContain('leaving')
+    expect(keys).toHaveLength(8)
   })
 
-  it('goal 진행 중(신선) 패널이 CAP 초과 축출된 뒤, 임계 미달 시간만 지나 재마운트하면 아직 stale 아니고 남은 시간만큼 지나면 라이브로 stale 전환된다', async () => {
-    const OWNER = 'sess-p03-owner2'
-    const owner = renderHook(() => usePanelSlot(OWNER, 0))
-    await act(async () => {
-      await owner.result.current.send('/goal 시작해줘')
-    })
-    const runId = owner.result.current.state.currentRunId as string
-    act(() => {
-      capturedHandler!({ runId, event: { type: 'autonomy_status', status: 'active' } })
-    })
-    act(() => {
-      capturedHandler!({ runId, event: { type: 'done' } })
-    })
-    act(() => { owner.unmount() })
-
-    for (let s = 0; s < 32; s++) {
-      const filler = renderHook(() => usePanelSlot(`sess-p03-filler2-${s}`, 0))
-      act(() => { filler.unmount() })
-    }
-    expect(__getPanelManagerSizesForTests().states).toBeLessThanOrEqual(32)
-
-    vi.advanceTimersByTime(GOAL_BANNER_STALE_THRESHOLD_MS - 60_000)
-
-    const returned = renderHook(() => usePanelSlot(OWNER, 0))
-    expect(returned.result.current.state.bannerStale).toBe(false)
-
-    act(() => {
-      vi.advanceTimersByTime(60_000)
-    })
-    expect(returned.result.current.state.bannerStale).toBe(true)
-
-    act(() => { returned.unmount() })
-  })
-
-  it('여러 패널은 각자 독립된 watchdog을 가진다 — 한 패널의 stale이 다른 패널을 오염시키지 않는다', async () => {
-    const p0 = renderHook(() => usePanelSlot('sess-p03-multi', 0))
-    const p1 = renderHook(() => usePanelSlot('sess-p03-multi', 1))
-
-    await act(async () => { await p0.result.current.send('/goal A') })
-    await act(async () => { await p1.result.current.send('/goal B') })
-    const runId0 = p0.result.current.state.currentRunId as string
-    const runId1 = p1.result.current.state.currentRunId as string
-
-    act(() => { capturedHandler!({ runId: runId0, event: { type: 'autonomy_status', status: 'active' } }) })
-    act(() => { vi.advanceTimersByTime(60_000) })
-    act(() => { capturedHandler!({ runId: runId1, event: { type: 'autonomy_status', status: 'active' } }) })
-
-    act(() => { vi.advanceTimersByTime(GOAL_BANNER_STALE_THRESHOLD_MS - 60_000 + 1000) })
-    expect(p0.result.current.state.bannerStale).toBe(true)
-    expect(p1.result.current.state.bannerStale).toBe(false)
-
-    act(() => { p0.unmount() })
-    act(() => { p1.unmount() })
-  })
-
-  it('수동 해제(dismissGoalStale) — 패널별로 독립 동작하며 autonomyActive는 그대로 유지된다', async () => {
-    const owner = renderHook(() => usePanelSlot('sess-p03-dismiss', 0))
-    await act(async () => { await owner.result.current.send('/goal 시작') })
-    const runId = owner.result.current.state.currentRunId as string
-    act(() => { capturedHandler!({ runId, event: { type: 'autonomy_status', status: 'active' } }) })
-    act(() => { vi.advanceTimersByTime(GOAL_BANNER_STALE_THRESHOLD_MS + 1000) })
-    expect(owner.result.current.state.bannerStale).toBe(true)
-
-    act(() => { owner.result.current.dismissGoalStale() })
-    expect(owner.result.current.state.staleDismissed).toBe(true)
-    expect(owner.result.current.state.autonomyActive).toBe(true)
-
-    act(() => { owner.unmount() })
+  it('실행 중인 것이 없으면 전처럼 가장 오래된 것부터 버린다', async () => {
+    const store = await seedBackground([])
+    store.getState().newConversation()
+    const { __backgroundRunIdsForTests } = await import('@renderer/03_Agent/state/backgroundRuns')
+    const keys = __backgroundRunIdsForTests()
+    expect(keys).not.toContain('c0')
+    expect(keys).toContain('c1')
+    expect(keys).toHaveLength(8)
   })
 })

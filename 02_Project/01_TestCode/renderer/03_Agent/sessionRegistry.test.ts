@@ -113,44 +113,6 @@ describe('G9c 레지스트리 — runId 라우팅 한 벌', () => {
   })
 })
 
-describe('G9c 레지스트리 — 패널 어댑터는 레지스트리의 얇은 보기다', () => {
-  it('패널 상태·라우팅·루프 표시가 레지스트리에 산다', async () => {
-    const api = installApi()
-    const runApi = window.api as unknown as Record<string, unknown>
-    runApi.agentRun = vi.fn().mockResolvedValue({ runId: 'run-p' })
-    const { renderHook, act } = await import('@testing-library/react')
-    const panel = await import('@renderer/03_Agent/state/panelSession')
-    panel.__resetPanelSessionManagerForTests()
-    const { result } = renderHook(() => panel.usePanelSlot('s', 0))
-    await act(async () => { await result.current.send('hi') })
-    const key = panelKey('s', 0)
-    expect(sessionRegistry.get(key)?.currentRunId).toBe('run-p')
-    expect(sessionRegistry.lookup('run-p')).toBe(key)
-    expect(panel.__getPanelManagerSizesForTests().runIds).toBe(1)
-    act(() => {
-      api.emit({ runId: 'run-p', event: { type: 'loops', loops: [{ id: 'l', kind: 'loop', prompt: 'p', intervalSec: 60 }] } } as unknown as AgentEventPayload)
-    })
-    expect(sessionRegistry.loopDisplay.read(key)?.activeLoops).toHaveLength(1)
-    panel.__resetPanelSessionManagerForTests()
-    expect(sessionRegistry.has(key)).toBe(false)
-    expect(sessionRegistry.__holdersForTests('panel')).toBe(0)
-  })
-
-  it('패널 몫이 이미 있어도 window.api가 바뀌면 새 api에 다시 붙는다(테스트 mock 교체 위험)', async () => {
-    const a = installApi()
-    const { renderHook } = await import('@testing-library/react')
-    const panel = await import('@renderer/03_Agent/state/panelSession')
-    panel.__resetPanelSessionManagerForTests()
-    renderHook(() => panel.usePanelSlot('s', 0))
-    expect(a.onAgentEvent).toHaveBeenCalledTimes(1)
-    const b = installApi()
-    renderHook(() => panel.usePanelSlot('s', 1))
-    expect(b.onAgentEvent).toHaveBeenCalledTimes(1)
-    expect(sessionRegistry.__holdersForTests('panel')).toBe(1)
-    panel.__resetPanelSessionManagerForTests()
-  })
-})
-
 describe('G9c 레지스트리 — 대화 어댑터(loopDisplay·runtime)도 같은 한 벌을 쓴다', () => {
   it('대화 라우팅과 루프 표시는 레지스트리 키 convKey(id)로 산다', async () => {
     const ld = await import('@renderer/03_Agent/state/loopDisplay')

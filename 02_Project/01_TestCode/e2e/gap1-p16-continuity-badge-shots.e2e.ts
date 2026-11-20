@@ -5,6 +5,7 @@ import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync } from 'nod
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { MOVE_TO_SECOND_DISPLAY_JS, logHarnessDisplay, stableShot } from './helpers/stableShot'
+import { moveToSecondDisplay } from './helpers/isolatedBoot'
 
 const RUN = process.env.P16SHOTS === '1'
 
@@ -39,14 +40,10 @@ const ENTRY_TSX = `
 import React from 'react'
 import { createRoot } from 'react-dom/client'
 import Conversation from '@renderer/05_Conversation/Conversation'
-import { PanelView } from '@renderer/05_Conversation/PanelView'
 import SubAgentChatStream from '@renderer/03_Agent/SubAgentChatStream'
 import { useAppStore } from '@renderer/00_App/appStore'
-import { makePanelInitialState } from '@renderer/03_Agent/state/panelSession'
 
 const root = createRoot(document.getElementById('root'))
-const noop = function () {}
-const noopAsync = function () { return Promise.resolve() }
 
 // ── 고정 fixtures ────────────────────────────────────────────────────────────
 
@@ -79,7 +76,7 @@ const HOOK_ANSWER = [
   '대신 삭제 대상을 먼저 확인하고, 안전하게 옮기는 방식을 제안할게요.',
 ].join('\\n')
 
-// 장면 ② thread(단일챗·패널 공용) — user → permission-denied(hook) → 같은 턴 assistant.
+// 장면 ② thread — user → permission-denied(hook) → 같은 턴 assistant.
 // deriveHookTurnBadges: pd1이 훅 차단(decisionReasonType==='hook') → 같은 턴 최근접 후속
 // assistant(a1)에 귀속 → assistant .meta에 빨간 .hook-badge.
 function hookThread() {
@@ -107,59 +104,12 @@ const SUBAGENT = {
   ],
 }
 
-// ── 세션 mock — PanelView는 store 비의존(session prop). makePanelInitialState()로 완전한
-//    PanelSessionState를 만들고 thread/currentRunId만 덮어쓴다(나머지 필드는 makeInitialState
-//    기본값 = 실 초기 상태 그대로). 훅 메서드는 표시 캡처에 안 쓰이므로 전부 no-op. ─────
-function mockSession(thread) {
-  const base = makePanelInitialState()
-  const state = Object.assign({}, base, { thread: thread, isRunning: false, currentRunId: 'run-p16-panel' })
-  return {
-    state: state,
-    send: noopAsync,
-    abort: noopAsync,
-    interrupt: noopAsync,
-    restore: noop,
-    dismissLoopsStopped: noop,
-    respondPermission: noopAsync,
-    respondQuestion: noopAsync,
-    setReplMode: noop,
-    dismissGoalStale: noop,
-    enqueue: noop,
-    dequeue: function () { return undefined },
-    removeQueued: noop,
-    clear: noop,
-  }
-}
-
-const PANEL_META = {
-  title: '훅 차단 예시',
-  status: 'working',
-  cwd: 'C:/Dev/AgentDeck',
-  ctxPct: 24,
-}
-
 // ── 스캐폴드 — 각 표면을 뷰포트 중앙 프레임 안에 실물 그대로 배치 ────────────────
 function ConvScaffold() {
   return React.createElement(
     'div',
     { className: 'harness-frame harness-frame--conv' },
     React.createElement(Conversation, null)
-  )
-}
-
-function PanelScaffold() {
-  return React.createElement(
-    'div',
-    { className: 'harness-frame harness-frame--panel' },
-    React.createElement(PanelView, {
-      slot: 0,
-      panel: PANEL_META,
-      session: mockSession(hookThread()),
-      workspaceRoot: 'C:/Dev/AgentDeck',
-      onExpand: noop,
-      onPrompt: noop,
-      onPickFolder: noop,
-    })
   )
 }
 
@@ -179,10 +129,6 @@ const SCENES = {
   'hookbadge-single': function () {
     useAppStore.setState({ thread: hookThread() })
     return React.createElement(ConvScaffold, { key: 'hookbadge-single' })
-  },
-  'hookbadge-panel': function () {
-    // PanelView는 세션 mock 시드 — store thread 미사용(이전 장면 잔상 무해). key로 리마운트.
-    return React.createElement(PanelScaffold, { key: 'hookbadge-panel' })
   },
   'subagent-continuity': function () {
     return React.createElement(SubScaffold, { key: 'subagent-continuity' })
@@ -217,10 +163,6 @@ body {
 }
 /* 단일챗 — Conversation은 height:100%라 프레임 고정 높이를 채운다. */
 .harness-frame--conv { width: 760px; height: 800px; }
-/* 멀티패널 — .ma-panel은 자체 height 규칙이 없어(그리드 셀 전제) 프레임이 높이를 주고
-   flex로 채운다. */
-.harness-frame--panel { width: 440px; height: 720px; }
-.harness-frame--panel > .ma-panel { flex: 1 1 auto; height: 100%; }
 /* 서브에이전트 셀 — .ma-p-body(flex:1)가 프레임을 채운다. */
 .harness-frame--sub { width: 560px; height: 440px; }
 .harness-frame--sub > .ma-p-body { flex: 1 1 auto; }
@@ -332,6 +274,7 @@ app.on('window-all-closed', () => app.quit())
     app = await electron.launch({ args: [`--user-data-dir=${uddDir}`, mainPath] })
     page = await app.firstWindow()
     await page.waitForLoadState('domcontentloaded')
+    await moveToSecondDisplay(app)
     await page.waitForFunction(() => (window as unknown as { __ready?: boolean }).__ready === true, null, {
       timeout: 20_000,
     })
@@ -367,16 +310,6 @@ app.on('window-all-closed', () => app.quit())
     await expect(badge).toContainText('훅 차단')
     await expect(page.locator('.msg.ai-msg .content')).toContainText('dangerous-cmd-guard')
     await shootBoth('p16-hookbadge-single')
-  })
-
-  test('p16-hookbadge-panel: 훅 차단 턴 빨간 배지(멀티패널 PanelView) — 자동 전파', async () => {
-    await paint('hookbadge-panel')
-    await expect(page.locator('.ma-panel')).toBeVisible()
-    const badge = page.locator('.ma-panel .msg.ai-msg .meta .hook-badge')
-    await expect(badge).toBeVisible()
-    await expect(badge).toContainText('훅 차단')
-    await expect(page.locator('.ma-panel .notice-row.tone-error')).toBeVisible()
-    await shootBoth('p16-hookbadge-panel')
   })
 
   test('p16-subagent-continuity: 서브에이전트 셀 사고→응답 연속 연출(SubAgentChatStream)', async () => {

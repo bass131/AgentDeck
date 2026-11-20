@@ -38,7 +38,7 @@ const mockApi = {
   }),
   conversationSave: vi.fn(async () => ({ id: 'conv-A' })),
   agentRun: vi.fn(async (req: { [k: string]: unknown }) => ({ runId: (req.sessionKey as string) ?? 'r1' })),
-  agentAbort: async () => ({ accepted: true }),
+  agentAbort: async () => ({ ok: true }),
   onAgentEvent: () => () => {},
   listFiles: async () => ({ files: [] }),
   getUsage: async () => ({ fiveHour: null, weekly: null }),

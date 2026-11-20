@@ -17,7 +17,7 @@ async function defaultGetVersion(): Promise<string | null> {
   return readInstalledSdkVersion() ?? SDK_VERSION_FALLBACK
 }
 
-export interface EngineStateDeps {
+interface EngineStateDeps {
   isAvailable?: () => Promise<boolean>
   getVersion?: () => Promise<string | null>
   readCredentials?: () => string | null

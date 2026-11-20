@@ -6,7 +6,7 @@ import { Picker } from './ComposerPicker'
 
 // 선택기 묶음 하나(M05 G9b P1·P2) — 단일 입력창 바와 멀티 패널이 같은 묶음을 쓴다.
 // 값의 거처(store·패널 상태)와 라이브 전환 요청은 호출부가 setter로 넘긴다.
-export interface PickerGroupProps {
+interface PickerGroupProps {
   model: string
   setModel: (id: string) => void
   effort: string

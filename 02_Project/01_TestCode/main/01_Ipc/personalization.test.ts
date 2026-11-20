@@ -14,7 +14,7 @@ vi.mock('electron', () => ({
 import { registerPersonalizationHandlers } from '@main/01_Ipc/handlers/personalization'
 import type { PrefsStore } from '@main/11_Settings/prefs'
 import type { ProfileStore } from '@main/11_Settings/profile'
-import { IPC_CHANNELS } from '../../../../02_Project/00_Source/shared/ipcContract'
+import { IPC_CHANNELS } from '@shared/ipcContract'
 
 interface FakeProfileStore {
   set(p: { nickname: string; color: string }): Promise<boolean>

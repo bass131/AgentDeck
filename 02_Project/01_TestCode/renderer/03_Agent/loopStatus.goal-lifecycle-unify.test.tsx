@@ -1,7 +1,6 @@
 // 작업 ID: bl1-followup · 옛 이름 bl1-followup-goal-lifecycle-unify.test.tsx
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { renderHook, act } from '@testing-library/react'
 import {
   applyAgentEvent,
   applyBeginCommand,
@@ -10,8 +9,8 @@ import {
 import type { AppState } from '@renderer/05_Conversation/state/reducer'
 import { handleError, handleAutonomyStatus, handleDone } from '@renderer/05_Conversation/state/reducer/lifecycle'
 import { resolveLoopStatus } from '@renderer/03_Agent/loopStatus'
-import type { AgentEvent } from '../../../../02_Project/00_Source/shared/agentEvents'
-import type { AgentEventPayload } from '../../../../02_Project/00_Source/shared/ipcContract'
+import type { AgentEvent } from '@shared/agentEvents'
+import type { AgentEventPayload } from '@shared/ipcContract'
 import { adaptFlatApi } from '../00_Helpers/windowApiMock'
 
 function payload(event: AgentEvent, runId = 'run-followup'): AgentEventPayload {
@@ -224,7 +223,7 @@ const mockApi = {
     runIdCounter++
     return Promise.resolve({ runId })
   }),
-  agentAbort: vi.fn().mockResolvedValue({ accepted: true }),
+  agentAbort: vi.fn().mockResolvedValue({ ok: true }),
   agentInterrupt: vi.fn().mockResolvedValue({ ok: false }),
   onAgentEvent: (cb: (payload: AgentEventPayload) => void) => {
     capturedHandler = cb
@@ -247,11 +246,7 @@ Object.defineProperty(globalThis, 'window', {
 })
 
 import { useAppStore } from '@renderer/00_App/appStore'
-import {
-  usePanelSlot,
-  __resetPanelSessionManagerForTests,
-  panelReducerFn,
-} from '@renderer/03_Agent/state/panelSession'
+import { runReducer } from '@renderer/03_Agent/state/runReducer'
 import { GOAL_BANNER_STALE_THRESHOLD_MS } from '@renderer/03_Agent/state/staleWatchdog'
 import { __backgroundRunOf, __resetBackgroundRunsForTests } from '@renderer/03_Agent/state/backgroundRuns'
 
@@ -377,13 +372,13 @@ describe('appStore — 경로2(bgHit) write-through goalRun 스레딩 회귀 (re
   })
 })
 
-describe('panelReducer — CLEAR_LOOPS/APPLY_EVENT 정합(단일챗과 동형)', () => {
+describe('runReducer — CLEAR_LOOPS/APPLY_EVENT 정합(단일챗과 동형)', () => {
   it("CLEAR_LOOPS → goalRun null(abort와 동형 터미널 리셋)", () => {
     const base = { ...makeInitialState(), currentRunId: 'p-run', isRunning: true, replMode: true,
       goalRun: { detail: '목표', turns: 3, startedAt: 1 } }
-    const next = panelReducerFn(
-      base as Parameters<typeof panelReducerFn>[0],
-      { type: 'CLEAR_LOOPS' } as Parameters<typeof panelReducerFn>[1]
+    const next = runReducer(
+      base as Parameters<typeof runReducer>[0],
+      { type: 'CLEAR_LOOPS' } as Parameters<typeof runReducer>[1]
     )
     expect(next.goalRun).toBeNull()
   })
@@ -391,32 +386,10 @@ describe('panelReducer — CLEAR_LOOPS/APPLY_EVENT 정합(단일챗과 동형)',
   it("APPLY_EVENT(done)은 goalRun을 건드리지 않는다(턴 경계 생존, 패널도 공유 reducer 경유)", () => {
     const base = { ...makeInitialState(), currentRunId: 'p-run', isRunning: true, replMode: true,
       goalRun: { detail: '목표', turns: 1, startedAt: 1 } }
-    const next = panelReducerFn(
-      base as Parameters<typeof panelReducerFn>[0],
-      { type: 'APPLY_EVENT', payload: payload({ type: 'done' }, 'p-run') } as Parameters<typeof panelReducerFn>[1]
+    const next = runReducer(
+      base as Parameters<typeof runReducer>[0],
+      { type: 'APPLY_EVENT', payload: payload({ type: 'done' }, 'p-run') } as Parameters<typeof runReducer>[1]
     )
     expect(next.goalRun).toEqual({ detail: '목표', turns: 1, startedAt: 1 })
-  })
-})
-
-describe('usePanelSlot — goal begin 시 goalRun이 autonomy_status 없이 즉시 켜진다(패널 라이브 배선)', () => {
-  beforeEach(() => {
-    runIdCounter = 0
-    __resetPanelSessionManagerForTests()
-  })
-  afterEach(() => {
-    __resetPanelSessionManagerForTests()
-  })
-
-  it('goal 커맨드 send 직후(autonomy_status 미도착) → session.state.goalRun 즉시 생성', async () => {
-    const owner = renderHook(() => usePanelSlot('sess-followup-owner', 0))
-    await act(async () => {
-      await owner.result.current.send('/goal 문서 정리해줘')
-    })
-    expect(owner.result.current.state.goalRun).toEqual(
-      expect.objectContaining({ detail: '문서 정리해줘', turns: 0 })
-    )
-    expect(owner.result.current.state.autonomyActive).toBe(false)
-    act(() => { owner.unmount() })
   })
 })

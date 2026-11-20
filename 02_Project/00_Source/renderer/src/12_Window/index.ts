@@ -7,8 +7,7 @@
 // 공개 표면은 앱 소비처가 실제 소비하는 8종(값 7 + 타입 1)으로 최소화한다.
 // 각 파일의 default export는 테스트가 모듈 파일에서 직접 소비하므로 파일에
 // 보존하되, 배럴 소비처는 전부 named로 전환해 재수출하지 않는다.
-// PanelView는 `05_Conversation/`에 있어 등재하지 않는다. M10 G1에서 멀티 에이전트 화면을 지웠다 —
-// 패널 카드 스타일(.ma-*)은 03_Agent/panelCard.css가 갖는다.
+// M10 G1에서 멀티 에이전트 화면을 지웠다 — 패널 카드 스타일(.ma-*)은 03_Agent/panelCard.css가 갖는다.
 export { Sidebar } from './Sidebar'
 export { SettingsModal } from '@renderer/11_Settings/SettingsModal'
 export { Profile } from '@renderer/11_Settings/Profile'

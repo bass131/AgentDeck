@@ -7,7 +7,7 @@ export interface Bounds {
   height: number
 }
 
-export interface Point {
+interface Point {
   x: number
   y: number
 }
@@ -59,7 +59,7 @@ export function computeResizeBounds(
   }
 }
 
-export type SnapZone = 'left' | 'right' | 'maximize' | 'tl' | 'tr' | 'bl' | 'br'
+type SnapZone ='left' | 'right' | 'maximize' | 'tl' | 'tr' | 'bl' | 'br'
 
 export function computeSnapZone(
   cursor: Point,

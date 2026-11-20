@@ -2,7 +2,7 @@
 // M05 G10 — IPC 채널 타입 맵 고정. 어긋난 타입은 `@ts-expect-error`로 고정한다:
 // 그 줄이 타입 오류를 내지 않게 되면(맵이 느슨해지면) typecheck:node가 「안 쓰인 @ts-expect-error」로 실패한다.
 import { describe, it, expect, vi } from 'vitest'
-import { IPC_CHANNELS, sendPush } from '../../../../02_Project/00_Source/shared/ipcContract'
+import { IPC_CHANNELS, sendPush } from '@shared/ipcContract'
 import type {
   ReqOf,
   ResOf,
@@ -12,7 +12,7 @@ import type {
   InvokeChannel,
   PushChannel,
   PushTarget,
-} from '../../../../02_Project/00_Source/shared/ipcContract'
+} from '@shared/ipcContract'
 
 // 실행하지 않는 타입 전용 사례 모음 — 함수 본문은 타입 검사만 받는다.
 function typeCases(target: PushTarget): void {
@@ -58,7 +58,7 @@ function typeCases(target: PushTarget): void {
 void typeCases
 
 // main 등록 사례 — `handle`은 타입만 가져온다(런타임 import 없음, electron 불필요).
-declare const handle: typeof import('../../../../02_Project/00_Source/main/01_Ipc/handle').handle
+declare const handle: typeof import('@main/01_Ipc/handle').handle
 function handleCases(): void {
   handle('agent.abort', (_e, req) => ({ ok: req.runId.length > 0 }))
   handle('engine.install', async () => ({ ok: false, error: 'bad version' }))
@@ -100,7 +100,7 @@ function handleCases(): void {
 void handleCases
 
 // preload 노출 사례 — 노출 함수의 타입이 맵에서 유도된다(타입 전용 import, preload 실행 없음).
-type PreloadApi = import('../../../../02_Project/00_Source/preload/index').Api
+type PreloadApi = import('@preload/index').Api
 function preloadCases(api: PreloadApi): void {
   const abort: PreloadApi['agent']['abort'] = async () => ({ ok: true })
   const skills: Promise<unknown> = api.settings.listSkills()
@@ -125,9 +125,9 @@ function preloadCases(api: PreloadApi): void {
 void preloadCases
 
 // 라우트 표 사례 — 표의 항목이 채널 맵과 어긋나면 실패한다(preload/route 불일치).
-declare const routes: typeof import('../../../../02_Project/00_Source/shared/01_Ipc/apiRoutes')
-type RoutedApiOf<T extends Record<string, Record<string, import('../../../../02_Project/00_Source/shared/01_Ipc/apiRoutes').ApiRoute>>> =
-  import('../../../../02_Project/00_Source/shared/01_Ipc/apiRoutes').RoutedApi<T>
+declare const routes: typeof import('@shared/01_Ipc/apiRoutes')
+type RoutedApiOf<T extends Record<string, Record<string, import('@shared/01_Ipc/apiRoutes').ApiRoute>>> =
+  import('@shared/01_Ipc/apiRoutes').RoutedApi<T>
 function routeCases(): void {
   const okRoutes = { x: { run: routes.call('agent.run'), min: routes.call0('window.minimize'), on: routes.push('window.state') } }
   const fns: RoutedApiOf<typeof okRoutes> = null as unknown as RoutedApiOf<typeof okRoutes>
@@ -142,6 +142,7 @@ function routeCases(): void {
   // @ts-expect-error 라우트 표가 유도한 함수도 응답 모양을 지킨다
   const badMin: RoutedApiOf<typeof okRoutes>['x']['min'] = async () => ({ maximized: true })
   void badMin
+  void okRoutes
 }
 void routeCases
 
@@ -207,7 +208,7 @@ describe('M05 G10 — IPC 채널 타입 맵', () => {
     vi.resetModules()
     const registered = new Map<string, unknown>()
     vi.doMock('electron', () => ({ ipcMain: { handle: (ch: string, fn: unknown) => registered.set(ch, fn) } }))
-    const mod = await import('../../../../02_Project/00_Source/main/01_Ipc/handle')
+    const mod = await import('@main/01_Ipc/handle')
     const fn = (): { ok: boolean } => ({ ok: true })
     mod.handle('agent.abort', fn)
     expect(registered.get('agent.abort')).toBe(fn)
@@ -229,7 +230,7 @@ describe('M05 G10 — IPC 채널 타입 맵', () => {
     vi.doMock(`${src}/10_Engine/engineCheckUpdate`, () => ({ checkEngineUpdate: vi.fn() }))
     vi.doMock(`${src}/00_App/registry`, () => ({ getBackend: vi.fn() }))
     vi.doMock(`${src}/10_Engine/usage`, () => ({ getUsage: vi.fn(async () => usage) }))
-    const mod = await import('../../../../02_Project/00_Source/main/01_Ipc/handlers/engine')
+    const mod = await import('@main/01_Ipc/handlers/engine')
     mod.registerEngineHandlers()
     const fn = registered.get(IPC_CHANNELS.USAGE_GET)
     expect(fn).toBeTypeOf('function')

@@ -1,11 +1,11 @@
-export interface SmoothRevealInput {
+interface SmoothRevealInput {
   cur: number
   vel: number
   textLen: number
   dt: number
 }
 
-export interface SmoothRevealOutput {
+interface SmoothRevealOutput {
   nextCur: number
   nextVel: number
 }

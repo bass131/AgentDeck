@@ -1,12 +1,12 @@
 import { describe, it, expect } from 'vitest'
-import { IPC_CHANNELS } from '../../../../02_Project/00_Source/shared/ipcContract'
+import { IPC_CHANNELS } from '@shared/ipcContract'
 import type {
   EngineInstallRequest,
   EngineInstallResult,
   EngineInstallProgress,
   EngineSetActiveRequest,
   EngineVersionState,
-} from '../../../../02_Project/00_Source/shared/ipcContract'
+} from '@shared/ipcContract'
 
 describe('ENGINE_INSTALL 채널 상수', () => {
   it('IPC_CHANNELS.ENGINE_INSTALL 가 정확한 문자열로 존재한다', () => {

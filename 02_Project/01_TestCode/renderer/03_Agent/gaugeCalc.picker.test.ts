@@ -2,7 +2,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
 import { applyAgentEvent, makeInitialState } from '@renderer/05_Conversation/state/reducer'
-import type { AgentEventPayload } from '../../../../02_Project/00_Source/shared/ipcContract'
+import type { AgentEventPayload } from '@shared/ipcContract'
 import { adaptFlatApi } from '../00_Helpers/windowApiMock'
 
 const runId = 'run-m4'
@@ -48,7 +48,7 @@ describe('(b) sendMessage — picker 값을 agentRun에 전달', () => {
   const mockAgentRun = vi.fn().mockResolvedValue({ runId: mockRunId })
   const mockApi = {
     agentRun: mockAgentRun,
-    agentAbort: vi.fn().mockResolvedValue({ accepted: true }),
+    agentAbort: vi.fn().mockResolvedValue({ ok: true }),
     conversationLoad: vi.fn().mockResolvedValue({ conversations: [] }),
     conversationSave: vi.fn().mockResolvedValue({ id: 'cv-1' }),
     onAgentEvent: vi.fn().mockReturnValue(vi.fn()),
@@ -114,7 +114,7 @@ describe('(b) sendMessage — picker 값을 agentRun에 전달', () => {
 })
 
 import { calcGauge } from '@renderer/03_Agent/gaugeCalc'
-import { DEFAULT_CONTEXT_WINDOW } from '../../../../02_Project/00_Source/shared/ipcContract'
+import { DEFAULT_CONTEXT_WINDOW } from '@shared/ipcContract'
 
 describe('(c) 게이지 계산 — used / window / pct', () => {
   // M06 G4: 모델별 창 표를 지웠다 — 첫 턴 전에는 기본값 하나, 턴 뒤에는 결과의 contextWindow다.

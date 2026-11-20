@@ -7,7 +7,7 @@ import { homedir as nodeHomedir } from 'node:os'
 import type { SlashCommandInfo } from '../../shared/ipcContract'
 import { parseFrontmatter } from './frontmatter'
 
-export const BUILTIN_SLASH_COMMANDS: SlashCommandInfo[] = [
+const BUILTIN_SLASH_COMMANDS:SlashCommandInfo[] = [
   {
     name: 'ask',
     description: '본 대화와 분리된 임시 질문 · 저장 안 됨',
@@ -55,7 +55,7 @@ export const BUILTIN_SLASH_COMMANDS: SlashCommandInfo[] = [
   },
 ]
 
-export interface CommandsDeps {
+interface CommandsDeps {
   homedir?: () => string
   readdir?: (dir: string) => Array<{ name: string; isDirectory: () => boolean }>
   readFile?: (filePath: string) => string

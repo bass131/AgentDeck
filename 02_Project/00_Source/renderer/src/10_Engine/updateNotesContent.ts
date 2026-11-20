@@ -1,4 +1,4 @@
-export interface UnItem {
+interface UnItem {
   n: string
   tag: string
   lead: string

@@ -64,16 +64,16 @@ import {
 } from './survivalDocs'
 import type { ActionNode, GateNode, SchemaError, StepNode, Template, WorkNode } from './template'
 
-export const DEFAULT_CI_WAIT_LIMIT = 120
+const DEFAULT_CI_WAIT_LIMIT = 120
 export const DEFAULT_CI_WAIT_MS = 60 * 60_000
 export const TAMPERED_REASON = '상태 파일이 실행기 밖에서 바뀌었다'
 
 // M10 G2 — 메인 노드 방문의 키. 기다리는 동안은 줄이 늘지 않아 같고, 판정(반려·FAIL)이 줄을 더하면 바뀐다.
 // 메인 대화 포트(WorkRequest.visit)와 구동자의 쓰기 창 판정이 같이 쓴다.
 export const visitKeyOf = (state: RunState): string => `${state.milestoneId}#${state.lines.length}`
-export const LATCH_TAIL = '— 위조 래치가 걸렸다. 사람이 화면에서 확인하고 풀기 전까지 짝이 맞아도 멈춘다.'
+const LATCH_TAIL ='— 위조 래치가 걸렸다. 사람이 화면에서 확인하고 풀기 전까지 짝이 맞아도 멈춘다.'
 
-export interface LoopRunnerDeps {
+interface LoopRunnerDeps {
   template: Template
   hash: string
   ports: LoopPorts
@@ -99,8 +99,8 @@ export type LoadResult =
   | { kind: 'ok'; state: RunState; next: NextStep }
 
 // 사람 판정과 함께 오는 것 — 사람이 화면에서 본 내용의 해시(G4)
-export interface SubmitSeen { specSha256?: string }
-export interface SpecView { text: string | null; sha256: string | null }
+interface SubmitSeen {specSha256?: string }
+interface SpecView {text: string | null; sha256: string | null }
 
 export interface LoopRunner {
   start(milestoneId: string): Promise<LoadResult>
@@ -113,9 +113,9 @@ export interface LoopRunner {
   idle(): Promise<void>
 }
 
-export interface BranchNames { base: string; milestone: string; goal: string | null }
+interface BranchNames { base: string; milestone: string; goal: string | null }
 
-export function branchNames(template: Template, milestoneId: string, goalId: string | null, base: string): BranchNames {
+function branchNames(template: Template, milestoneId: string, goalId: string | null, base: string): BranchNames {
   const fill = (pattern: string): string => pattern.split('{milestone}').join(milestoneId).split('{goal}').join(goalId ?? '')
   return {
     base,

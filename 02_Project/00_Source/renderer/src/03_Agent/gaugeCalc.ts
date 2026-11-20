@@ -1,5 +1,5 @@
-import { DEFAULT_CONTEXT_WINDOW } from '../../../shared/ipcContract'
-import type { TokenUsage } from '../../../shared/agentEvents'
+import { DEFAULT_CONTEXT_WINDOW } from '@shared/ipcContract'
+import type { TokenUsage } from '@shared/agentEvents'
 
 export interface GaugeResult {
   used: number

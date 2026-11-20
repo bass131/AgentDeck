@@ -9,6 +9,7 @@ import { execFileSync } from 'node:child_process'
 import { join } from 'node:path'
 import { tmpdir, homedir } from 'node:os'
 import { passBootGates, openWorkspace } from './helpers/bootGates'
+import { moveToSecondDisplay } from './helpers/isolatedBoot'
 
 const RUN = process.env.M11G3LIVE === '1'
 const OUT = process.env.M11G3_OUT ?? join(tmpdir(), 'agentdeck-m11-g3-out')
@@ -45,6 +46,7 @@ test.describe('M11 G3 룰셋 base의 PR 카드 (opt-in: M11G3LIVE=1)', () => {
     })
     page = await app.firstWindow()
     await page.waitForLoadState('domcontentloaded')
+    await moveToSecondDisplay(app)
     await app.evaluate(({ BrowserWindow, screen }) => {
       const primary = screen.getPrimaryDisplay()
       const other = screen.getAllDisplays().find((d) => d.id !== primary.id)

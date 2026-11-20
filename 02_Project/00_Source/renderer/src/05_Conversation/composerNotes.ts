@@ -1,4 +1,4 @@
-export interface BuildEnginePromptOpts {
+interface BuildEnginePromptOpts {
   mentions?: string[]
   images?: string[]
 }

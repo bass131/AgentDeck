@@ -1,11 +1,19 @@
 // 작업 ID: lm1 · 옛 이름 lm1-set-model-handler.test.ts
-import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+
+const h = vi.hoisted(() => ({ handlers: new Map<string, (...args: unknown[]) => unknown>() }))
+vi.mock('electron', () => ({
+  ipcMain: { handle: (ch: string, fn: (...a: unknown[]) => unknown): void => { h.handlers.set(ch, fn) } },
+}))
+vi.mock('@main/00_App/registry', () => ({ getBackend: (): unknown => ({}) }))
+
+import { registerAgentHandlers } from '@main/01_Ipc/handlers/agent'
+import { IPC_CHANNELS } from '@shared/ipcContract'
 import { createRunManager } from '@main/03_Agent/agentRuns'
 import type { RunManager } from '@main/03_Agent/agentRuns'
 import type { AgentBackend, AgentRun, AgentRunInput } from '@main/03_Agent/AgentBackend'
-import type { AgentEvent } from '../../../../02_Project/00_Source/shared/agentEvents'
-import type { BackendId } from '../../../../02_Project/00_Source/shared/ipcContract'
-import { resolveSetModelRequest } from '@main/04_Claude/runArgs'
+import type { AgentEvent } from '@shared/agentEvents'
+import type { BackendId } from '@shared/ipcContract'
 import { setCurrentModelRows } from '@main/04_Claude/modelListProvider'
 import { FALLBACK_MODELS } from '@shared/03_Agent/models/knownModels'
 import { SDK_MODEL_ROWS } from '../../shared/00_Helpers/sdkModelRows'
@@ -115,12 +123,11 @@ interface SetModelDelegate {
 }
 
 function handleSetModel(req: SetModelInput, manager: SetModelDelegate): { ok: boolean } {
-  const resolved = resolveSetModelRequest(req)
-  if (resolved === null) {
-    return { ok: false }
-  }
-  const accepted = manager.setModel?.(resolved.runId, resolved.model) === true
-  return { ok: accepted }
+  h.handlers.clear()
+  registerAgentHandlers({ state: { win: null }, runManager: manager as unknown as RunManager })
+  const handler = h.handlers.get(IPC_CHANNELS.AGENT_SET_MODEL)
+  if (!handler) throw new Error('AGENT_SET_MODEL 핸들러가 등록되지 않았다')
+  return handler({} as never, req) as { ok: boolean }
 }
 
 function makeRecordingDelegate(ret: boolean): {

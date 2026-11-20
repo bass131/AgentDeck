@@ -18,7 +18,7 @@ vi.mock('@main/00_App/registry', () => ({
 }))
 
 import { registerAgentHandlers } from '@main/01_Ipc/handlers/agent'
-import { IPC_CHANNELS } from '../../../../02_Project/00_Source/shared/ipcContract'
+import { IPC_CHANNELS } from '@shared/ipcContract'
 
 interface QuestionResponseInput {
   runId?: unknown
@@ -127,6 +127,12 @@ describe('QUESTION_RESPOND 핸들러 입력 검증', () => {
       expect(result).toEqual({ ok: false })
       expect(calls).toHaveLength(0)
     })
+  })
+
+  it('요청 본문이 null이면 위임 없이 ok:false를 반환한다', () => {
+    const { manager, calls } = makeFakeRunManager(true)
+    expect(handleQuestionRespond(null as unknown as QuestionResponseInput, manager)).toEqual({ ok: false })
+    expect(calls).toHaveLength(0)
   })
 
   describe('answers 검증', () => {

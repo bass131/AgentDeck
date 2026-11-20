@@ -3,7 +3,7 @@ import type { AgentEventSearchResult, SearchResultMatch } from '@shared/agentEve
 import { useAppStore } from '@renderer/00_App/appStore'
 import './SearchResultView.css'
 
-export interface SearchResultViewProps {
+interface SearchResultViewProps {
   result: AgentEventSearchResult
 }
 

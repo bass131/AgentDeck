@@ -7,14 +7,14 @@
 // 옛 mock에 남아 있어도 묶음에는 나타나지 않는다(표에 없는 키는 무시) — 남은 키 정리는 G12 어휘 정리 몫이다.
 import { vi } from 'vitest'
 import type { Api } from '../../../../02_Project/00_Source/preload'
-import { API_ROUTES } from '../../../../02_Project/00_Source/shared/01_Ipc/apiRoutes'
-import type { ApiRoute } from '../../../../02_Project/00_Source/shared/01_Ipc/apiRoutes'
+import { API_ROUTES } from '@shared/01_Ipc/apiRoutes'
+import type { ApiRoute } from '@shared/01_Ipc/apiRoutes'
 import type {
   AgentEventPayload,
   InvokeChannel,
   ReqOf,
   ResOf,
-} from '../../../../02_Project/00_Source/shared/ipcContract'
+} from '@shared/ipcContract'
 
 type Group = keyof Api
 type ActionOf<G extends Group> = Extract<keyof Api[G], string>

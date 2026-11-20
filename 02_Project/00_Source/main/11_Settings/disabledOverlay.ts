@@ -3,14 +3,14 @@ import { join } from 'node:path'
 // 비활성 목록 오버레이(userData의 `{ disabled: string[] }` 파일)의 한 곳 (M05 G11) — skills와 mcp가 함께 쓴다.
 // 파일 이름과 출력 투영(skills: {name: 'off'}, mcp: [{serverName}])은 소비처가 정한다.
 // 경로 해석(getUserData)은 try 밖이다 — 해석이 throw하면 읽기·쓰기 모두 throw가 그대로 나간다(옮기기 전과 같다).
-export interface DisabledOverlayDeps {
+interface DisabledOverlayDeps {
   getUserData: () => string
   readFile: (filePath: string) => string
   writeFile: (filePath: string, content: string) => void
   mkdirSync: (dir: string) => void
 }
 
-export interface DisabledOverlay {
+interface DisabledOverlay {
   readDisabled(): Set<string>
   setEnabled(name: string, enabled: boolean): boolean
 }

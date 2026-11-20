@@ -22,7 +22,7 @@ export function deleteBackgroundRun(conversationId: string): void {
 }
 
 // 삽입 순서(오래된 것부터)의 [대화 id, 상태] 목록.
-export function backgroundRunEntries(): Array<[string, ConversationRunState]> {
+function backgroundRunEntries(): Array<[string, ConversationRunState]> {
   const out: Array<[string, ConversationRunState]> = []
   for (const [key, state] of sessionRegistry.entries<ConversationRunState>('conv')) {
     const id = conversationIdOfKey(key)

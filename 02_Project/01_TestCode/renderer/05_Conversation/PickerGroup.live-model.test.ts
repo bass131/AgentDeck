@@ -9,16 +9,16 @@ import { ComposerBar } from '@renderer/05_Conversation/ComposerBar'
 import { PickerGroup } from '@renderer/05_Conversation/PickerGroup'
 import { MODES, DEFAULT_MODEL, DEFAULT_EFFORT } from '@renderer/03_Agent/pickerOptions'
 import * as composerMod from '@renderer/05_Conversation/state/composer'
-import type { AgentEventPayload } from '../../../../02_Project/00_Source/shared/ipcContract'
+import type { AgentEventPayload } from '@shared/ipcContract'
 import { SDK_MODEL_ROWS } from '../../shared/00_Helpers/sdkModelRows'
 
 const mockApi = {
   conversationLoad: async () => ({ conversations: [] }),
   conversationSave: async () => ({ id: 'cv-1' }),
   agentRun: vi.fn(async () => ({ runId: 'r1' })),
-  agentAbort: async () => ({ accepted: true }),
-  agentSetMode: vi.fn(async () => ({ accepted: true })),
-  agentSetModel: vi.fn(async () => ({ accepted: true })),
+  agentAbort: async () => ({ ok: true }),
+  agentSetMode: vi.fn(async () => ({ ok: true })),
+  agentSetModel: vi.fn(async () => ({ ok: true })),
   onAgentEvent: vi.fn((_cb: (payload: AgentEventPayload) => void) => () => {}),
   listFiles: async () => ({ files: [] }),
   getUsage: async () => ({ fiveHour: null, weekly: null }),

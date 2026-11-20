@@ -10,7 +10,7 @@ export interface BackendLike {
   latestVersion(): Promise<string | null>
 }
 
-export interface BackendStatusDeps {
+interface BackendStatusDeps {
   backends?: BackendLike[]
   getAuthed?: (id: BackendId) => Promise<boolean>
 }

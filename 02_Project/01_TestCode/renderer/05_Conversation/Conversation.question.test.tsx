@@ -2,7 +2,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, cleanup, act, fireEvent } from '@testing-library/react'
-import type { AgentQuestion } from '../../../../02_Project/00_Source/shared/agentEvents'
+import type { AgentQuestion } from '@shared/agentEvents'
 import { adaptFlatApi } from '../00_Helpers/windowApiMock'
 
 const SAMPLE_QUESTIONS: AgentQuestion[] = [
@@ -23,7 +23,7 @@ const mockApi = {
   conversationLoad: vi.fn().mockResolvedValue({ conversations: [] }),
   conversationSave: vi.fn().mockResolvedValue({ id: 'cv-1' }),
   agentRun: vi.fn().mockResolvedValue({ runId: 'r1' }),
-  agentAbort: vi.fn().mockResolvedValue({ accepted: true }),
+  agentAbort: vi.fn().mockResolvedValue({ ok: true }),
   onAgentEvent: vi.fn().mockReturnValue(mockUnsub),
   listFiles: vi.fn().mockResolvedValue({ files: [] }),
   permissionRespond: vi.fn().mockResolvedValue({ ok: true }),

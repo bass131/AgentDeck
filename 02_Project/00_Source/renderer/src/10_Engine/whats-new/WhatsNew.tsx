@@ -1,5 +1,5 @@
 import { useEffect, useState, type JSX } from 'react'
-import { WN_SLIDES } from './whatsNewSampleData'
+import { WN_SLIDES } from './whatsNewSlides'
 import { useModalLayer } from '@renderer/02_Common/modalStack'
 import './WhatsNew.css'
 

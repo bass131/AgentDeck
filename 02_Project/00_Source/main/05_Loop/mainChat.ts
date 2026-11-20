@@ -53,7 +53,7 @@ export const MAIN_CHAT_RULE = [
 ].join('\n')
 
 // 브레인스토밍 여는 턴에 붙는다
-export const BRAINSTORM_RULE = [
+const BRAINSTORM_RULE = [
   '## 브레인스토밍',
   '',
   '- 여러 턴에 걸쳐 사람과 이야기한다. 턴을 끝내면 사람의 답을 기다린다.',
@@ -62,7 +62,7 @@ export const BRAINSTORM_RULE = [
 ].join('\n')
 
 // 대리 입력 턴의 글 끝에 붙는다(M06-29)
-export const PROXY_NOTE = '[대리 입력] 이 글은 사람이 아니라 사람에게 위임받은 대리인이 보냈다. 이 글로 정한 것은 결정 대장에 [USER·위임]으로 적는다.'
+const PROXY_NOTE ='[대리 입력] 이 글은 사람이 아니라 사람에게 위임받은 대리인이 보냈다. 이 글로 정한 것은 결정 대장에 [USER·위임]으로 적는다.'
 
 export interface MainActions {
   pause(): Promise<string>

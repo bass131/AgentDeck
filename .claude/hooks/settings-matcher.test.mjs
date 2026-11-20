@@ -236,6 +236,14 @@ if (settings) {
     notContinue.join(', ') || `${otherHooks.length}건`)
   const stopWithField = entries.filter(({ event }) => event === 'Stop').flatMap(({ entry }) => entry.hooks ?? []).filter((x) => 'onFailure' in x)
   r.check('Stop 훅에는 onFailure를 두지 않는다 (효과 없음)', stopWithField.length === 0, `${stopWithField.length}건`)
+
+  // ---- ⑨ CI 액션 고정 (M11 goal 8 · M07-21) ----
+  const workflow = readFileSync(join(REPO_ROOT, '.github', 'workflows', 'hard-gates.yml'), 'utf8')
+  const uses = [...workflow.matchAll(/^\s*-?\s*uses:\s*(\S+)(.*)$/gm)].map((m) => ({ ref: m[1], rest: m[2] }))
+  const unpinned = uses.filter(({ ref, rest }) => !/@[0-9a-f]{40}$/.test(ref) || !/#\s*v\d+\.\d+\.\d+/.test(rest)).map(({ ref }) => ref)
+  r.check('hard-gates.yml의 액션이 전부 커밋 SHA와 태그 주석으로 고정돼 있다', uses.length >= 2 && unpinned.length === 0, unpinned.join(', ') || `${uses.length}건`)
+  const dependabot = readFileSync(join(REPO_ROOT, '.github', 'dependabot.yml'), 'utf8')
+  r.check('dependabot에 github-actions 생태계가 있다', /package-ecosystem:\s*github-actions/.test(dependabot), '')
 }
 
 process.exit(r.summary())

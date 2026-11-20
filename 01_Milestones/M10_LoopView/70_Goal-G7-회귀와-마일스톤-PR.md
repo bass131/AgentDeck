@@ -30,8 +30,8 @@ G1~G6을 모두 합친 마일스톤 브랜치에서 하드 게이트 다섯 종�
 - [x] 1. goal 준비 — 이 문서, G6 종결 기록, `gate-config.json` 전환(판정 장치)
 - [x] 2. 마일스톤 회귀 검증 — 하드 게이트 다섯 종과 `npm test` 차분, 마일스톤 스펙 검증 기록 줄
 - [x] 3. 장면 캡처 싣기 — G6 구동기 제어 폴더(세션 scratchpad `g6ctl`)의 PNG 9장(`scene1-chat-mode` … `scene8-merge-wait`, `scene-alert-blocked`)을 `01_Milestones/M10_LoopView/captures/`로 셸 `cp` 한 번에 내용 무변경 복사(헌법 8조 건별 예외, 아래 [USER])
-- [>] 4. 마일스톤 PR 만들기와 `hard-gates` 확인, 결과 보고 — G7 goal PR을 마일스톤 브랜치에 합친 뒤 연다
-- [ ] 5. pin 「(병합 대기, PR N)」과 병합 감시
+- [x] 4. 마일스톤 PR 만들기와 `hard-gates` 확인, 결과 보고 — G7 goal PR 106을 `0f1ae5fb`로 합친 뒤 마일스톤 PR 107을 열었다
+- [>] 5. pin 「(병합 대기, PR N)」과 병합 감시
 
 실행 단계 일괄 승인 대상
 

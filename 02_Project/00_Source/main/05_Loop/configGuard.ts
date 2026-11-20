@@ -26,7 +26,7 @@ import type { ConfigCheck } from './ports'
 import { writeFileAtomic } from './realPorts/atomicWrite'
 import { runProcess, type ProcessResult } from './realPorts/exec'
 
-export interface ConfigGuardOptions {
+interface ConfigGuardOptions {
   cwd: string
   // 실행기 환경(자격 있음)
   env: NodeJS.ProcessEnv
@@ -51,11 +51,11 @@ export interface ConfigGuard extends ConfigCheck {
 }
 
 // changed: 지난 스냅숏과의 차이로 거부했을 때만 싣는다(받기 목록으로 쓸 수 있는 차이). 다른 거부에는 없다.
-export type ConfigGuardResult = { ok: true; guard: ConfigGuard } | { ok: false; reason: string; changed?: string[] }
+type ConfigGuardResult ={ ok: true; guard: ConfigGuard } | { ok: false; reason: string; changed?: string[] }
 
 interface Snapshot { entries: string[]; files: Record<string, string> }
 
-export const CONFIG_CHANGED = '실행기 git 설정이 실행기 밖에서 바뀌었다'
+const CONFIG_CHANGED ='실행기 git 설정이 실행기 밖에서 바뀌었다'
 const IGNORED = /^branch\..+\.(?:remote|merge|rebase|description)$/i
 const READ_ATTEMPTS = 3
 const DEFAULT_RETRY_DELAY_MS = 200

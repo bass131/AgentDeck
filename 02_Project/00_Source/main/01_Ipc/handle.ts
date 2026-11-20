@@ -3,7 +3,7 @@ import type { IpcMainInvokeEvent } from 'electron'
 import type { InvokeChannel, ReqOf, ResOf } from '@shared/ipcContract'
 
 // 채널 맵에서 유도한 핸들러 모양 — 요청·응답이 맵과 어긋나면 typecheck:node가 실패한다 (M05 G10).
-export type InvokeHandler<C extends InvokeChannel> = (
+type InvokeHandler<C extends InvokeChannel> = (
   event: IpcMainInvokeEvent,
   req: ReqOf<C>,
 ) => ResOf<C> | Promise<ResOf<C>>

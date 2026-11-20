@@ -15,8 +15,8 @@ import {
 export const FAIL_LIMIT = 3
 
 export type Marker = 'PASS' | 'FAIL' | 'USER-INPUT'
-export type LineJudge = Judge | 'executor'
-export interface VerificationLine {
+type LineJudge =Judge | 'executor'
+interface VerificationLine {
   marker: Marker
   at: string
   sentence: string
@@ -26,7 +26,7 @@ export interface VerificationLine {
   goal: string | null
   judge: LineJudge
 }
-export type GoalStatus = 'pending' | 'active' | 'done'
+type GoalStatus ='pending' | 'active' | 'done'
 export interface GoalState {
   id: string
   title: string
@@ -48,7 +48,7 @@ export interface GoalState {
 }
 // goal은 goal 고리 안이면 goal 목록의 위치, 마일스톤 구획이면 null.
 export interface Cursor { node: string; goal: number | null }
-export type RunStatus = 'running' | 'needs-user' | 'done'
+type RunStatus ='running' | 'needs-user' | 'done'
 export interface RunState {
   schema: 1
   milestoneId: string
@@ -67,9 +67,9 @@ export interface RunState {
   failCount: number
   lines: VerificationLine[]
 }
-export type RunStateCheck = { ok: true; state: RunState } | { ok: false; errors: SchemaError[] }
+type RunStateCheck ={ ok: true; state: RunState } | { ok: false; errors: SchemaError[] }
 
-export const MILESTONE_ID = /^[A-Za-z0-9][A-Za-z0-9._-]*$/
+const MILESTONE_ID =/^[A-Za-z0-9][A-Za-z0-9._-]*$/
 export const GOAL_ID = /^[A-Za-z0-9][A-Za-z0-9._-]*$/
 const HASH = /^[0-9a-f]{64}$/
 const MARKERS: readonly Marker[] = ['PASS', 'FAIL', 'USER-INPUT']

@@ -13,12 +13,12 @@ import type { SessionKind } from './sessionKeys'
 // 이 파일 안에는 종류 분기가 없다. 전경 대화(활성 키)의 상태는 Map이 아니라 그 종류의 활성 저장 칸(zustand
 // 평탄화 필드)에 산다 — 안 A, G9c 결정 대장 [AI].
 
-export interface RegistryEntry {
+interface RegistryEntry {
   isRunning: boolean
   currentRunId: string | null
 }
 
-export interface KindPolicy {
+interface KindPolicy {
   // stale 타이머가 만료됐을 때(그 키의 배너를 stale로 표시한다)
   markStale: (key: string) => void
   // 활동이 이어져 stale이 아닐 때. 없으면 아무것도 안 한다.
@@ -245,5 +245,3 @@ export const sessionRegistry = {
     return holders[kind]
   },
 }
-
-export type SessionRegistry = typeof sessionRegistry

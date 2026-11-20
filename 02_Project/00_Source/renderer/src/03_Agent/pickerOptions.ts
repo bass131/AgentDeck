@@ -90,7 +90,7 @@ export function conversationModeOf(saved: string | undefined): string {
   return MODES.some((m) => m.id === saved) ? (saved as string) : DEFAULT_MODE_CONVERSATION
 }
 
-export interface EffortPickerState {
+interface EffortPickerState {
   options: EffortOption[]
   disabled: boolean
   displayValue: string

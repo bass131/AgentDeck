@@ -8,7 +8,7 @@ import { findModelRow, type ModelRow } from '@shared/03_Agent/models/modelList'
 import { START_MODE_TO_SDK } from './permissionModes'
 import { currentModelRows } from './modelListProvider'
 
-export interface QueryOptionsPatch {
+interface QueryOptionsPatch {
   model?: string
   permissionMode?: string
   effort?: EffortLevel

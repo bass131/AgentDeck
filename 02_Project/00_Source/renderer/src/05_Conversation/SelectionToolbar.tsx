@@ -4,7 +4,7 @@ import { IconCopy } from '@renderer/02_Common/icons'
 import { useModalLayer } from '@renderer/02_Common/modalStack'
 import './SelectionToolbar.css'
 
-export interface SelectionToolbarProps {
+interface SelectionToolbarProps {
   scrollRef: React.RefObject<HTMLElement | null>
   onElaborate: (text: string) => void
 }

@@ -11,7 +11,7 @@ import { ComposerView, type ComposerInputProps } from './ComposerView'
 // 본체 ComposerView에 넘긴다.
 
 export type { QueuedMessageView, PickerValues } from './ComposerView'
-export type ComposerProps = ComposerInputProps
+type ComposerProps = ComposerInputProps
 
 function ComposerInner(props: ComposerProps): JSX.Element {
   const model = useAppStore(selectSelectedModel)

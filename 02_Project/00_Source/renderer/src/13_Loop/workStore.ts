@@ -5,14 +5,14 @@ import { getPref, setPref } from '@renderer/11_Settings/prefs'
 import { cwdKey, sameCwd } from './loopModel'
 import { addProject } from './workModel'
 
-export const WORK_CWD_PREF = 'work.cwd'
-export const WORK_PROJECTS_PREF = 'work.projects'
+const WORK_CWD_PREF = 'work.cwd'
+const WORK_PROJECTS_PREF = 'work.projects'
 
 export type CenterTab = 'graph' | 'main' | `session:${string}` | `archive:${string}`
 // node(「노드 설정」)는 그래프 탭이 열려 있을 때만 있다 — 가운데가 그래프를 떠나면 현황판으로 돌아간다
-export type RightTab = 'node' | 'board' | 'files'
+type RightTab ='node' | 'board' | 'files'
 
-export interface WorkStore {
+interface WorkStore {
   hydrated: boolean
   cwd: string | null
   projects: string[]

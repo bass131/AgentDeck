@@ -19,7 +19,7 @@ export function setCurrentModelRows(rows: readonly ModelRow[]): void {
 
 type ListingQueryFn = (params: { prompt: AsyncIterable<unknown>; options?: unknown }) => unknown
 
-export interface NoTurnListingOptions {
+interface NoTurnListingOptions {
   cwd: string
   timeoutMs: number
   env?: Record<string, string | undefined>
@@ -94,7 +94,7 @@ interface CacheFile {
   models: ModelRow[]
 }
 
-export interface ModelListProviderOptions {
+interface ModelListProviderOptions {
   fetchRows: () => Promise<unknown>
   cacheFile: string | null
   now?: () => Date

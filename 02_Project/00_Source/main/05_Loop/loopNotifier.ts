@@ -21,7 +21,7 @@ const STORE = 'alerts.json'
 const REASON_MAX = 160
 const TITLE = 'AgentDeck — 사람이 필요해요'
 
-export interface LoopNotifierOptions {
+interface LoopNotifierOptions {
   // 앱 영역(실물은 join(getUserDataDir(), 'loop') — 다른 루프 저장본과 같은 곳)
   appDataDir: string
   notify: NotifyPort

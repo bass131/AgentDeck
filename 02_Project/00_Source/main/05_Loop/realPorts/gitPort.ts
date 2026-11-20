@@ -16,7 +16,7 @@ import type { FileChange } from '../grade'
 import type { GitPort } from '../ports'
 import { runProcess, type ProcessResult } from './exec'
 
-export interface GitPortOptions {
+interface GitPortOptions {
   cwd: string
   env?: NodeJS.ProcessEnv
   remote?: string
@@ -27,7 +27,7 @@ export interface GitPortOptions {
   guard?: { assert(): Promise<void> }
 }
 
-export const AGENTDECK_EXCLUDE = '.agentdeck/'
+const AGENTDECK_EXCLUDE ='.agentdeck/'
 
 type Git = (args: string[], extraEnv?: NodeJS.ProcessEnv) => Promise<ProcessResult>
 
@@ -72,7 +72,7 @@ export function qualifyRef(ref: string): string {
   return `refs/heads/${r}`
 }
 
-export function parseNumstatZ(out: string): FileChange[] {
+function parseNumstatZ(out: string): FileChange[] {
   const changes: FileChange[] = []
   for (const rec of out.split('\0')) {
     if (rec === '') continue

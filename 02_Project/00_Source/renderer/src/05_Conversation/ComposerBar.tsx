@@ -2,7 +2,7 @@ import { memo, type JSX } from 'react'
 import { IconImage, IconArrowUp, IconClock } from '@renderer/02_Common/icons'
 import { PickerGroup } from './PickerGroup'
 
-export interface ComposerBarProps {
+interface ComposerBarProps {
   disabled: boolean
   isRunning: boolean
   value: string

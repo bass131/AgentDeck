@@ -19,7 +19,7 @@ import path from 'node:path'
 export const NO_CREDENTIAL_TOKEN = 'agentdeck-no-credential'
 
 export interface GitIdentity { name: string; email: string }
-export interface CredentialFreePaths {
+interface CredentialFreePaths {
   root: string
   // 빈 gh 설정 폴더
   ghConfigDir: string

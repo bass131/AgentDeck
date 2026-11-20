@@ -11,11 +11,11 @@ import { randomBytes } from 'node:crypto'
 import { promises as fsp } from 'node:fs'
 import path from 'node:path'
 
-export interface RepoLock {
+interface RepoLock {
   readonly file: string
   release(): Promise<void>
 }
-export type LockResult = { ok: true; lock: RepoLock } | { ok: false; reason: string }
+type LockResult ={ ok: true; lock: RepoLock } | { ok: false; reason: string }
 
 const KEY = /^[0-9a-f]{64}$/
 const FRESH_MS = 5_000

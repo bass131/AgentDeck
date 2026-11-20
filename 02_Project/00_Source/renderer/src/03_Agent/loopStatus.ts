@@ -6,7 +6,7 @@ export interface GoalPendingLike {
   detail?: string | null
 }
 
-export interface GoalRunLike {
+interface GoalRunLike {
   turns: number
   detail: string | null
 }

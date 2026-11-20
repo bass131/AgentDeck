@@ -31,7 +31,7 @@ export function shellEscape(e: KeyboardEvent | undefined, c: EscapeContext): voi
   else void state.abortRun()
 }
 
-export interface GlobalShortcutOptions {
+interface GlobalShortcutOptions {
   toggleSidebar?: () => void
   onEscape?: (e: KeyboardEvent) => void
   onNewChat?: () => void

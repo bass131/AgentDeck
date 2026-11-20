@@ -10,7 +10,7 @@ export type { QueryFn } from './queryFn'
 
 const NPM_REGISTRY_URL = 'https://registry.npmjs.org/@anthropic-ai/claude-agent-sdk'
 
-export interface ClaudeCodeBackendDeps {
+interface ClaudeCodeBackendDeps {
   fetchImpl?: typeof fetch
   resolvePackageVersion?: () => string | null
   // 실행을 열 때의 컨트롤 검사. 앱 조립 지점(registry)이 닫힌 실패 검사를 넣는다

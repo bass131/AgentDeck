@@ -12,7 +12,7 @@ const MAX = 2
 const NO_MARK: NodeMark = { now: false, done: false, skipped: false, fails: 0 }
 const clamp = (v: number): number => Math.round(Math.min(MAX, Math.max(MIN, v)) * 100) / 100
 
-export interface GraphCanvasProps {
+interface GraphCanvasProps {
   graph: LoopGraph
   status: LoopStatus | null
   selected: string | null

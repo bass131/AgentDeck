@@ -32,7 +32,7 @@ function isBinaryBuffer(buf: Buffer): boolean {
   return false
 }
 
-export interface ReadOpts {
+interface ReadOpts {
   asBinary?: boolean
   maxBytes?: number
 }

@@ -8,7 +8,7 @@ export const VERDICT_INPUT_MAX = 200
 
 export type VerdictResult = 'allow' | 'ask' | 'deny'
 
-export interface NodeVerdict {
+interface NodeVerdict {
   at: number
   nodeId: string
   tool: string

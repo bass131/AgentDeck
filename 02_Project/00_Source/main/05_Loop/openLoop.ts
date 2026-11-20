@@ -38,7 +38,7 @@ import { createReviewSessionPort } from './reviewSession'
 import type { Template } from './template'
 import { createWorkSessionPort, type CardResponder } from './workSession'
 
-export const DEFAULT_COMMAND_TIMEOUT_MS = 30 * 60_000
+const DEFAULT_COMMAND_TIMEOUT_MS =30 * 60_000
 
 export interface OpenLoopOptions {
   cwd: string

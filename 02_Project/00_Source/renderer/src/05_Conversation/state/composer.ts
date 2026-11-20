@@ -10,14 +10,14 @@ import { runReducer } from '@renderer/03_Agent/state/runReducer'
 
 const MODEL_LIST_RETRY_MS: readonly number[] = [5_000, 15_000, 60_000]
 
-export const LIVE_SWITCHABLE_MODES: ReadonlySet<string> = new Set([
+const LIVE_SWITCHABLE_MODES:ReadonlySet<string> = new Set([
   'normal',
   'plan',
   'acceptEdits',
   'auto',
 ])
 
-export function requestLiveModeSwitch(
+function requestLiveModeSwitch(
   runId: string | null | undefined,
   replMode: boolean,
   mode: string,

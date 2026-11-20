@@ -144,7 +144,7 @@ const DECISION_REASON_TYPE_LABEL: Record<string, string> = {
   other: '기타',
 }
 
-export function decisionReasonTypeLabel(type?: string): string | undefined {
+function decisionReasonTypeLabel(type?: string): string | undefined {
   if (!type) return undefined
   return DECISION_REASON_TYPE_LABEL[type] ?? type
 }
@@ -175,7 +175,7 @@ export type ThreadViewState = Pick<
   | 'pendingPermission'
 >
 
-export interface ThreadViewProps {
+interface ThreadViewProps {
   state: ThreadViewState
   onOpenSubagent: (id: string) => void
   className: string

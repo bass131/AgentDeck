@@ -2,7 +2,7 @@ import type { UsageInfo } from '@shared/ipcContract'
 import type { GaugeResult } from '@renderer/03_Agent/gaugeCalc'
 import { resetText } from './resetText'
 
-export interface ChipData {
+interface ChipData {
   label: string
   pct: number | null
   detail: string

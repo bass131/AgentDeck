@@ -3,7 +3,7 @@ import type { BrowserWindow } from 'electron'
 
 // 폴더 선택 대화상자의 한 곳 (M05 G11) — workspace.open·reference.add·dialog.pickFolder 핸들러가 함께 쓴다.
 // 맡는 것은 E2E 환경변수 읽기와 대화상자뿐이다. 요청 folderPath 우선 처리, 사후 검증, 실패 응답 모양은 핸들러에 남는다.
-export type PickFolderE2eEnvKey =
+type PickFolderE2eEnvKey =
   | 'AGENTDECK_E2E_WORKSPACE'
   | 'AGENTDECK_E2E_REFERENCE'
   | 'AGENTDECK_E2E_PICK_FOLDER'

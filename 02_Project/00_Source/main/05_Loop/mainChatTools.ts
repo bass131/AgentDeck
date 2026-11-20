@@ -12,7 +12,7 @@ import type { FsPort } from './ports'
 export const BACKLOG_PATH = '.agentdeck/backlog.md'
 const BACKLOG_MAX = 300
 
-export interface MainToolSpec {
+interface MainToolSpec {
   name: 'pause' | 'resume' | 'append_backlog'
   description: string
   // 입력 꼴 — 'line' 하나만 받는 도구가 있다

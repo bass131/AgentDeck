@@ -18,9 +18,9 @@ export interface GhResult {
   stderr: string
 }
 
-export type GhRunner = (args: string[], cwd: string) => Promise<GhResult>
+type GhRunner =(args: string[], cwd: string) => Promise<GhResult>
 
-export interface PrServiceDeps {
+interface PrServiceDeps {
   gh: GhRunner
   // 작업 폴더의 `git remote get-url origin`. 없으면 null
   originUrl: (cwd: string) => Promise<string | null>
@@ -30,7 +30,7 @@ export interface PrServiceDeps {
   pollTimeoutMs?: number
 }
 
-export interface RepoRef {
+interface RepoRef {
   owner: string
   repo: string
 }
@@ -455,9 +455,9 @@ function run(cmd: string, args: string[], cwd: string, timeout: number): Promise
   })
 }
 
-export const ghRunner: GhRunner = (args, cwd) => run('gh', args, cwd, 60_000)
+const ghRunner: GhRunner =(args, cwd) => run('gh', args, cwd, 60_000)
 
-export async function gitOriginUrl(cwd: string): Promise<string | null> {
+async function gitOriginUrl(cwd: string): Promise<string | null> {
   const r = await run('git', ['remote', 'get-url', 'origin'], cwd, 10_000)
   return r.code === 0 ? r.stdout.trim() || null : null
 }

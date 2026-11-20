@@ -53,7 +53,7 @@ export type StoreState = AppState &
   ComposerState &
   RuntimeState
 
-export type StoreActions = SystemActions &
+type StoreActions = SystemActions &
   WindowModeActions &
   WorkspaceActions &
   ViewerActions &

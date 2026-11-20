@@ -1,6 +1,6 @@
 import type { SubAgentInfo, SubAgentTranscriptItem } from '@shared/agentEvents'
 
-export interface SubagentTaskItem {
+interface SubagentTaskItem {
   kind: 'task'
   id: string
   text: string
@@ -14,19 +14,19 @@ export interface SubagentToolItem {
   status: 'running' | 'done' | 'queued'
 }
 
-export interface SubagentTextItem {
+interface SubagentTextItem {
   kind: 'text'
   id: string
   text: string
 }
 
-export interface SubagentThinkingItem {
+interface SubagentThinkingItem {
   kind: 'thinking'
   id: string
   text: string
 }
 
-export type SubagentChatItem =
+type SubagentChatItem =
   | SubagentTaskItem
   | SubagentToolItem
   | SubagentTextItem
@@ -90,7 +90,7 @@ export function hasSubagentConversation(items: SubagentChatItem[]): boolean {
   return items.some((it) => it.kind !== 'task')
 }
 
-export type SubagentRenderGroup =
+type SubagentRenderGroup =
   | { kind: 'toolgroup'; id: string; tools: SubagentToolItem[] }
   | { kind: 'single'; item: Exclude<SubagentChatItem, SubagentToolItem> }
 

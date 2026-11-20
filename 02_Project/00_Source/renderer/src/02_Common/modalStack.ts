@@ -5,8 +5,8 @@
 //   - 판정은 키 한 번마다 window의 capture 단계에서 처음 본 층으로 한다 — 앞 처리기가 층을 내려도 같은 키의 뒤 처리기는 같은 답을 본다.
 import { useEffect, useRef } from 'react'
 
-export type ModalLayerKind = 'modal' | 'aside'
-export interface ModalLayerOptions {
+type ModalLayerKind = 'modal' | 'aside'
+interface ModalLayerOptions {
   kind?: ModalLayerKind
   onEscape?: () => void
 }

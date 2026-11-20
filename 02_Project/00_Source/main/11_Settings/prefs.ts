@@ -3,7 +3,7 @@ import { join } from 'node:path'
 import { getUserDataDir } from '@main/02_Common/userData'
 import type { UiPrefs } from '../../shared/ipcContract'
 
-export interface PrefsDeps {
+interface PrefsDeps {
   prefsPath?: string
   readFile?: () => Promise<string>
   writeFile?: (content: string) => Promise<void>

@@ -43,7 +43,7 @@ export interface LoopDriverApi {
 }
 
 // alerts — 알림 판정자(main/05_Loop/loopNotifier.ts)의 지금 목록. 없으면 빈 목록이다
-export interface LoopHandlerDeps { driver: LoopDriverApi; alerts?: { list(): LoopAlert[] } }
+interface LoopHandlerDeps { driver: LoopDriverApi; alerts?: { list(): LoopAlert[] } }
 
 const SHA256 = /^[0-9a-f]{64}$/
 const EVIDENCE_MAX = 2000
@@ -63,7 +63,7 @@ function text(r: Record<string, unknown>, key: string, ch: string, max = 200): s
   return v
 }
 
-export function cardResponseOf(v: unknown): LoopCardResponse | null {
+function cardResponseOf(v: unknown): LoopCardResponse | null {
   if (!v || typeof v !== 'object') return null
   const r = v as Record<string, unknown>
   if (r['kind'] === 'permission') {

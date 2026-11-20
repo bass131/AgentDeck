@@ -39,12 +39,12 @@ export function escalationOf(options?: CanUseToolOptions): Escalation | undefine
   return typeof reason === 'string' && reason.trim() !== '' ? { reason } : {}
 }
 
-export const READONLY_TOOLS: ReadonlySet<string> = new Set([
+const READONLY_TOOLS: ReadonlySet<string> = new Set([
   'Read', 'Grep', 'Glob', 'NotebookRead', 'WebFetch', 'WebSearch', 'TodoWrite', 'Task', 'Agent',
   'TaskCreate', 'TaskUpdate', 'TaskList', 'TaskGet', 'TaskOutput', 'BashOutput'
 ])
 
-export const MUTATING_TOOLS: ReadonlySet<string> = new Set([
+const MUTATING_TOOLS: ReadonlySet<string> = new Set([
   'Write', 'Edit', 'MultiEdit', 'NotebookEdit', 'Bash', 'TaskStop', 'KillShell', 'KillBash'
 ])
 
@@ -61,7 +61,7 @@ export interface PermissionContext {
 }
 
 // 노드 하나의 결정. pass는 「다음 노드로」다.
-export type NodeDecision =
+type NodeDecision =
   | { kind: 'pass' }
   | { kind: 'allow' }
   | { kind: 'question' }
@@ -69,7 +69,7 @@ export type NodeDecision =
   | { kind: 'card'; escalation?: Escalation }
 
 // 등록부 전체의 판정. nodeId는 정한 노드(카드 기본값이면 null)다. deny는 노드 실패 정책으로만 생긴다.
-export type PermissionVerdict =
+type PermissionVerdict =
   | { kind: 'allow'; nodeId: string }
   | { kind: 'question'; nodeId: string }
   | { kind: 'orchestration-denied'; nodeId: string }

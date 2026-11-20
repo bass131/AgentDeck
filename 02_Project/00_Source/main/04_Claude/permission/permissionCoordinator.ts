@@ -6,7 +6,7 @@ import { PERMISSION_NODES, runPermissionNodes, type CanUseToolOptions, type Cont
 export { ORCHESTRATION_TOOLS, escalationOf } from './controlNodes'
 export type { CanUseToolOptions, Escalation } from './controlNodes'
 
-export type PermissionResult =
+type PermissionResult =
   | { behavior: 'allow'; updatedInput: Record<string, unknown>; updatedPermissions?: unknown[] }
   | { behavior: 'deny'; message: string }
 

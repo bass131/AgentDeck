@@ -30,7 +30,7 @@ import { LIVE_MODE_WHITELIST } from '@main/04_Claude/permissionModes'
 import { controlsForRun } from '@main/04_Claude/permission/controlsStore'
 import { getUserDataDir } from '@main/02_Common/userData'
 
-export interface AgentHandlerDeps {
+interface AgentHandlerDeps {
   state: { win: BrowserWindow | null }
   runManager: RunManager
   // 모델 목록 공급자 (M06 G4) — 없으면 최소 목록을 builtin으로 준다.

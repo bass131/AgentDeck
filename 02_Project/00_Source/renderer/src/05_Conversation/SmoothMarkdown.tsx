@@ -3,7 +3,7 @@ import { MarkdownView } from './MarkdownView'
 import { smoothRevealStep } from './smoothReveal'
 import { foldSoftLinebreaks } from './softLinebreak'
 
-export interface SmoothMarkdownProps {
+interface SmoothMarkdownProps {
   text: string
   running: boolean
 }

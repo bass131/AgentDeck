@@ -4,7 +4,7 @@
 import type { CommandPort } from '../ports'
 import { runProcess } from './exec'
 
-export interface CommandPortOptions {
+interface CommandPortOptions {
   env: NodeJS.ProcessEnv
   timeoutMs: number
 }

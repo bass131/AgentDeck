@@ -19,7 +19,7 @@ import type { RunAction, RunCoreState } from './runReducer'
 // 실행 코어 — 전송·중단·interrupt·권한 응답·질문 응답·stale 감시를 한 구현으로 둔다.
 // 상태의 거처는 모른다. 어댑터(runtime.ts)가 readState·dispatch 포트와 부수효과 콜백을 넘긴다.
 
-export interface SendOptions {
+interface SendOptions {
   picker?: { model: string; effort: string; mode: string }
   workspaceRoot?: string
   sysPrompt?: string
@@ -70,7 +70,7 @@ export interface RunTarget {
   contextWindow?: number
 }
 
-export interface RunSendInput {
+interface RunSendInput {
   text: string
   // 엔진에 보낼 마지막 사용자 메시지. 비면 text를 그대로 보낸다.
   engineText?: string
@@ -101,7 +101,7 @@ export interface RunCorePorts<S extends RunCoreState> {
   life?: () => number
 }
 
-export interface RunCore {
+interface RunCore {
   send: (input: RunSendInput) => Promise<void>
   abort: () => Promise<void>
   interrupt: () => Promise<void>
@@ -286,7 +286,7 @@ export function createRunCore<S extends RunCoreState>(ports: RunCorePorts<S>): R
 }
 
 // stale 감시 — 판정과 타이머 보관을 한 곳에 둔다. 단일은 키 하나, 멀티는 패널 키마다 쓴다.
-export interface StaleWatchdogs {
+interface StaleWatchdogs {
   refresh: (key: string, state: RunCoreState | undefined) => void
   dispose: (key: string) => void
   disposeWhere: (pred: (key: string) => boolean) => void

@@ -1,4 +1,4 @@
-export interface LspServerEntry {
+interface LspServerEntry {
   id: 'ts' | 'py' | 'cs' | 'cpp'
   langs: string
   exts: string

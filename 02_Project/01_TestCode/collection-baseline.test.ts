@@ -114,7 +114,8 @@ const SKIP_DIRS = new Set(['node_modules', 'dist', 'out', 'coverage', '.git'])
 // M11 G4: 492 → 493. 메인 대화 답 글 모으기(메인 턴과 화면이 같은 규칙을 쓴다)를 보는 shared/13_Loop/mainTurn.test.ts를 더했다.
 // M11 G6: 493 → 494. 프로세스 경계 lint가 동적·타입 위치 import와 preload→main을 잡는지 위반 고정물로 보는 integration/eslintBoundary.test.ts를 더했다.
 // M11 G6: 494 → 473. 그리는 곳이 없던 패널 코드(PanelView·panelSession·multiAgentDefaults)를 지우며 그것만 보던 시험 21개를 지웠다(M10 Backlog 3).
-const BASELINE_TEST_FILES = 473
+// M11 G6: 473 → 474. 자기 파일 밖(소스·시험)에서 이름이 안 나오는 export를 허용 목록으로 묶는 integration/unusedExports.test.ts를 더했다(M05 Backlog 18).
+const BASELINE_TEST_FILES = 474
 
 function collectTestFiles(dir: string, acc: string[] = []): string[] {
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {

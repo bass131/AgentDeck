@@ -73,7 +73,7 @@ import { validateRunState, type RunState } from './runState'
 import { DOCS } from './survivalDocs'
 import { denyCards, oneLine, type CardEvent, type CardResponder } from './workSession'
 
-export const AUTO_MODE_NODE = 'mode-auto-bypass-allow'
+const AUTO_MODE_NODE ='mode-auto-bypass-allow'
 const REOPEN_HINT = '켠 뒤 루프 화면의 「다시 열기」로 이어 간다'
 const OPEN_STORE = 'open.json'
 
@@ -86,12 +86,12 @@ export function autoModeReasonOf(c: ControlsForRun): string | null {
   return null
 }
 
-export const DEFAULT_CI_RETRY_MS = 60_000
-export const DEFAULT_HUMAN_POLL_MS = 60_000
-export const DEFAULT_REQUIRED_CHECKS = ['hard-gates']
+const DEFAULT_CI_RETRY_MS = 60_000
+const DEFAULT_HUMAN_POLL_MS = 60_000
+const DEFAULT_REQUIRED_CHECKS =['hard-gates']
 const STEP_BUDGET = 1000
 
-export interface LoopDriverOptions {
+interface LoopDriverOptions {
   // 앱 영역(실물은 join(getUserDataDir(), 'loop'))
   appDataDir: string
   // 작업·검수 세션을 열 백엔드
@@ -188,9 +188,9 @@ export function blankStatus(cwd: string): LoopStatus {
   }
 }
 
-export const RECENT_LINES = 6
+const RECENT_LINES = 6
 const LINE_SENTENCE_MAX = 200
-export function recentLinesOf(lines: RunState['lines']): LoopVerificationLine[] {
+function recentLinesOf(lines: RunState['lines']): LoopVerificationLine[] {
   return lines.slice(-RECENT_LINES).map((l) => {
     const one = oneLine(l.sentence)
     return { marker: l.marker, at: l.at, node: l.node, goal: l.goal, sentence: one.length > LINE_SENTENCE_MAX ? `${one.slice(0, LINE_SENTENCE_MAX)}…` : one }

@@ -5,7 +5,7 @@ import type { LoopAlert } from '@shared/ipcContract'
 import { ipc } from '@renderer/01_Ipc'
 import { sameCwd } from './loopModel'
 
-export interface AlertStore { alerts: LoopAlert[] }
+interface AlertStore {alerts: LoopAlert[] }
 
 export const useAlertStore = create<AlertStore>(() => ({ alerts: [] }))
 

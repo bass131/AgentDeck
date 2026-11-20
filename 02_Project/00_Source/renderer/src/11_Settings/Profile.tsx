@@ -63,7 +63,7 @@ export interface UserProfile {
   color: string
 }
 
-export interface ProfileProps {
+interface ProfileProps {
   initial: UserProfile | null
   onEnter: (profile: UserProfile) => void
 }

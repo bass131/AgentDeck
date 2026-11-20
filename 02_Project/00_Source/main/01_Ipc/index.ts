@@ -24,7 +24,7 @@ import { registerLoopHandlers, type LoopDriverApi } from './handlers/loop'
 
 // IPC 등록부 — 조립 지점(00_App/bootstrap)이 만든 객체를 deps로 받아 핸들러를 등록만 한다 (M05 G11).
 // 한 번만 등록하는 가드와 store 초기화는 조립 지점이 쥔다.
-export interface IpcDeps {
+interface IpcDeps {
   state: { win: BrowserWindow | null }
   roots: RootRegistry
   runManager: RunManager

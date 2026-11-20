@@ -12,7 +12,7 @@ import type { Grade, GradingPolicy } from './template'
 
 // added·removed가 null이면 줄 수를 모르는 파일(바이너리 등)이다.
 export interface FileChange { path: string; added: number | null; removed: number | null }
-export interface GradeResult { grade: Grade; reason: string }
+interface GradeResult {grade: Grade; reason: string }
 
 export function normalizePath(p: string): string {
   return p.replace(/\\/g, '/').replace(/^(\.\/)+/, '')

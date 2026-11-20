@@ -12,7 +12,7 @@ import { parseCiStatus, parsePr, pickLatestPr, prNumberFromUrl, REPO_SLUG } from
 
 export type GhExec = (args: string[], input?: string) => Promise<CommandResult>
 
-export interface GhExecOptions {
+interface GhExecOptions {
   cwd: string
   // 모든 호출에 -R로 고정하는 저장소(HOST/OWNER/REPO, ghParse.repoSlugOf). 꼴이 아니면 만들지 않는다.
   repo: string
@@ -40,7 +40,7 @@ export function createGhExec(opts: GhExecOptions): GhExec {
   }
 }
 
-export interface GhPortOptions {
+interface GhPortOptions {
   // 이 이름의 검사만 CI 판정에 쓴다(예: hard-gates). 비우면 머리의 검사 전부.
   requiredChecks?: string[]
 }

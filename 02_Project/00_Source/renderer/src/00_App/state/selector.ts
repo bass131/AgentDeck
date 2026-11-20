@@ -11,7 +11,7 @@ export const selectThread = (s: AppStore): ThreadItem[] => s.thread
 
 export const selectChangedFiles = (s: AppStore): Set<string> => s.changedFiles
 
-export interface TaskScope {
+interface TaskScope {
   fileCount: number
   toolCount: number
   changedFiles: string[]

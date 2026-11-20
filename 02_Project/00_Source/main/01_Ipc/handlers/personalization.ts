@@ -8,7 +8,7 @@ import type {
 import type { PrefsStore } from '@main/11_Settings/prefs'
 import type { ProfileStore } from '@main/11_Settings/profile'
 
-export interface PersonalizationHandlerDeps {
+interface PersonalizationHandlerDeps {
   getPrefsStore: () => PrefsStore | null
   getProfileStore: () => ProfileStore | null
 }

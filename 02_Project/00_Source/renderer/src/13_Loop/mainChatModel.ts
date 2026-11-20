@@ -5,7 +5,7 @@ import { mainAnswerOf } from '@shared/13_Loop/mainTurn'
 
 // 사건 줄의 모양 — ok(통과·병합), run(노드 시작), fail(FAIL·멈춤·오류·래치), human(사람 판정), flag(메인의 일시 정지 깃발), muted(기록)
 // 깃발(flag)은 사람의 이어 가기(resumed, human)와 다른 모양이다 — 깃발은 「멈춤」 표시이고, 이어 가기는 사람의 판정이다(G2 독립 검수)
-export type EventTone = 'ok' | 'run' | 'fail' | 'human' | 'flag' | 'muted'
+type EventTone ='ok' | 'run' | 'fail' | 'human' | 'flag' | 'muted'
 
 export const EVENT_LOOK: Record<LoopEventKind, { label: string; tone: EventTone }> = {
   'node-start': { label: '시작', tone: 'run' },
@@ -54,7 +54,7 @@ export function sameItem(a: MainChatItem, b: MainChatItem): boolean {
 // 그 답 글은 다시 그리지 않는다. 짝은 최근 것부터 찾는다 — 세션 기록은 앱을 켠 뒤의 턴만 갖는다.
 // 짝이 없는 끝난 턴(글 없는 턴)은 다음 짝 앞에, 도는 턴은 맨 끝에 둔다. 앞부분이 잘린 기록의 첫 턴은 버린다(조각이다).
 export interface MainTurn { key: string; events: AgentEvent[] }
-export type MainChatRow =
+type MainChatRow =
   | { kind: 'item'; item: MainChatItem; turn: MainTurn | null }
   | { kind: 'turn'; turn: MainTurn; live: boolean }
 

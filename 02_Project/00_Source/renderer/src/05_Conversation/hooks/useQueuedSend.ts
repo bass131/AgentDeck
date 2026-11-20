@@ -4,7 +4,7 @@ import type { PickerValues } from '../ComposerView'
 
 // 예약 전송과 드레인 하나(C1, 단일 규칙) — 실행 중 Enter는 대기열에 넣고, 실행이 끝나는 하강 에지에
 // 맨 앞 하나를 보낸다. 대기열의 거처(단일 store, 패널 상태)는 호출부가 enqueue·dequeue로 넘긴다.
-export interface UseQueuedSendOptions {
+interface UseQueuedSendOptions {
   isRunning: boolean
   queueLength: number
   enqueue: (item: QueuedMessage) => void

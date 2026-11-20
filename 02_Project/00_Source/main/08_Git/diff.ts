@@ -35,7 +35,7 @@ function lcs(a: string[], b: string[]): string[] {
 }
 
 // LCS 표의 칸 수 상한(M11 G3, Backlog 21) — 넘으면 표를 만들지 않는다
-export const MAX_LCS_CELLS = 4_000_000
+const MAX_LCS_CELLS =4_000_000
 
 function trimmedDiff(oldLines: string[], newLines: string[]): DiffLine[] {
   let head = 0

@@ -31,7 +31,7 @@ export interface CommandPort {
 // 검수 입력 — 한 임시 인덱스에서 낸 작업 트리의 트리 해시와 base 대비 diff(전문)
 // G4 검수 I9 — diff가 상한(REVIEW_DIFF_LIMIT)을 넘으면 잘린 diff를 주지 않는다. tooLarge: true, diff는 빈 글, chars는 전체 길이다.
 // 실행기는 그때 검수를 열지 않고 멈춘다(fail-closed — 잘린 diff로 낸 pass가 전체 트리에 묶이지 않게).
-export interface ReviewSnapshot { tree: string; diff: string; tooLarge?: boolean; chars?: number }
+interface ReviewSnapshot {tree: string; diff: string; tooLarge?: boolean; chars?: number }
 
 // G4 검수 I6 — 브랜치 이름 인자(ref)는 실물에서 `refs/heads/<이름>`으로 읽는다(같은 이름의 태그가 가리지 못한다).
 // 40·64자리 16진수는 커밋 SHA로 그대로 읽는다. diffStat·reviewSnapshot의 base는 실행기가 쥔 goal 시작 SHA다.

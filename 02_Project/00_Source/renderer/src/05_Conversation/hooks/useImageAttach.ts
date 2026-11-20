@@ -4,7 +4,7 @@ interface UseImageAttachProps {
   onAttachFiles?: (files: File[]) => void
 }
 
-export interface UseImageAttachReturn {
+interface UseImageAttachReturn {
   fileInputRef: RefObject<HTMLInputElement | null>
   dragOver: boolean
   handleAttach: () => void

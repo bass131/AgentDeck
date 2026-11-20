@@ -350,6 +350,13 @@ try {
       const A_DONE2 = goalDoc('01_Milestones/M99_Switch/40_Goal-done2.md', '종결')
       const c = switchBy('Edit', A_DONE, A_DONE2)
       r.judge('PS-07 종결한 goal → 다른 종결 goal — 전환이 지나가지 않는다', c.verdict, 'deny/계획-종결')
+      r.judge('PS-09 종결한 goal → 01_Milestones 밖의 유효한 픽스처 — 전환이 지나가지 않는다',
+        switchBy('Edit', A_DONE, VALID).verdict, 'deny/포인터-전환-범위', { note: '닫힌 뒤의 예외는 다음 goal 문서로만 연다' })
+      const outsidePlan = join(tmpdir(), 'edit-plan-gate-outside-plan.md').split('\\').join('/')
+      r.judge('PS-10 종결한 goal → 저장소 밖 절대 경로 — 전환이 지나가지 않는다',
+        switchBy('Write', A_DONE, outsidePlan).verdict, 'deny/포인터-전환-범위')
+      r.check('PS-11 종결한 goal → 같은 저장소 01_Milestones의 절대 경로 — 지나간다',
+        switchBy('Write', A_DONE, H.path(...B.split('/')).split('\\').join('/')).verdict.startsWith('allow/'), '')
       rmSync(H.configFile, { force: true })
       const broken = judgeRaw(() => {}, 'Write', { file_path: H.configFile, content: cfgText(B) })
       r.judge('PS-08 포인터 결손 중 gate-config 쓰기 — 사용자 복구(M03-26 닫음 판단)', broken.verdict, 'deny/계획-포인터-결손')

@@ -154,6 +154,14 @@ try {
     r.judge('WT-02 작업 폴더 아래 소스 편집은 소스다', seen(edit('PostToolUse', WT('02_Project', '00_Source', 'main', 'x.ts'), 'w')), '통과/연속-미달')
     r.judge('WT-03 작업 폴더 아래 훅 시험도 시험이다', seen(edit('PostToolUse', WT('.claude', 'hooks', 'x.test.mjs'), 'w')), '리셋/테스트-편집')
     r.judge('CS-01 CSS 편집은 소스로 세지 않는다', seen(edit('PostToolUse', H.path('99_Others', 'Dashboard', 'public', 'styles.css'), 'c')), '무발화')
+    // 카운터에서만 빠진다 — 전체 Green 뒤의 CSS 편집은 여전히 PASS 추기 증거를 실효시킨다
+    seen({ ...bash('sc', 'npm test', VITEST_FULL_GREEN) })
+    seen(edit('PostToolUse', H.path('02_Project', '00_Source', 'renderer', 'x.css'), null))
+    const passAdd = {
+      session_id: 'sc', hook_event_name: 'PreToolUse', tool_name: 'Edit', cwd: H.mirror,
+      tool_input: { file_path: H.path('.claude', 'hooks', 'fixtures', 'tdd-phase-source.md'), old_string: '- (기록 없음)', new_string: '- (기록 없음)\n- PASS 2026-11-21T00:00 — 프로브' },
+    }
+    r.judge('CS-02 전체 Green 뒤 CSS 편집 — PASS 추기 증거가 실효한다', seen(passAdd), 'deny/green-실효')
   }
 
   // ---- 차단 문구가 채집되는 실행 꼴과 시험 경로를 알려 준다 (M02-6 · M05-23 · M05-60) ----

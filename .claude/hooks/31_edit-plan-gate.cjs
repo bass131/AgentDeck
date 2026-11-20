@@ -13,7 +13,7 @@
 //   그 밖의 저장소 안 경로: 판정 ①②③을 묻는다. ④(라우팅)는 분업 규격이라 거부 사유에서 빼고
 //     로그 필드로만 남긴다 — 편집 한 건의 자격이 아니다.
 // 예외 하나 — 지금 계획이 「상태: 종결」로만 걸렸을 때 gate-config.json의 편집은 바뀐 뒤의 planPath로 판정한다
-//   (포인터 전환, M11 G7). 막으면 goal을 닫은 뒤 다음 goal로 넘어가는 길이 잠긴다.
+//   (포인터 전환, M11 G7). 막으면 goal을 닫은 뒤 다음 goal로 넘어가는 길이 잠긴다. 대상은 01_Milestones 안의 계획만이다.
 // 역할 신호(agent_id·agent_type)는 읽지 않는다 — fork도 메인도 같은 판정이다.
 'use strict';
 const fs = require('fs');
@@ -104,6 +104,10 @@ try {
 
   if (v.verdict === 'deny' && v.rule === '계획-종결' && rel === CONFIG_REL) {
     const next = proposedPlanPath();
+    const nextRel = next ? repoRel(ROOT, next) : null;
+    if (next && !(nextRel && nextRel.startsWith(PLAN_SURFACE))) {
+      deny('포인터-전환-범위', `종결한 계획에서의 포인터 전환은 저장소 01_Milestones 안의 다음 계획으로만 연다 — 대상 ${next}`, { ...common, nextPlan: next });
+    }
     const nv = next ? evaluatePlan({ root: ROOT, planRel: next }) : null;
     if (nv && (nv.verdict === 'allow' || nv.judgment === 4)) {
       allow('포인터-전환', `종결한 계획(${v.planRel})에서 다음 계획(${next})으로의 포인터 전환 — 바뀐 뒤의 계획이 판정 ①②③을 통과한다`, { ...common, nextPlan: next });

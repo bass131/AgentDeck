@@ -252,7 +252,11 @@ function heuristic() {
     log({ ...base, duty: '휴리스틱', verdict: '리셋', rule: '테스트-편집', reason: `테스트 파일 손질(${rel}) — 미동반 연속 카운터를 0으로 되돌린다`, evidence: { file: rel, streak: 0 } });
     return;
   }
-  if (!SOURCE_EXTS.includes(path.extname(rel))) return; // 문서·설정·CSS 등 비소스 — 무로그
+  if (path.extname(rel) === '.css') { // 카운터에는 들지 않지만 전체 Green 증거는 실효시킨다
+    saveOwn(own => { own.lastSourceEdit = { ts: ts(), at: Date.now(), file: rel }; });
+    return;
+  }
+  if (!SOURCE_EXTS.includes(path.extname(rel))) return; // 문서·설정 등 비소스 — 무로그
   let streak = 0;
   saveOwn(own => { own.lastSourceEdit = { ts: ts(), at: Date.now(), file: rel }; streak = getStreak(own) + 1; setStreak(own, streak); });
   const evidence = { file: rel, streak, limit: STREAK_LIMIT };

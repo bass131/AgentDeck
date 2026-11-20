@@ -12,16 +12,20 @@
 //   저장소 밖: 관할이 아니다 (스크래치패드·외부 사본).
 //   그 밖의 저장소 안 경로: 판정 ①②③을 묻는다. ④(라우팅)는 분업 규격이라 거부 사유에서 빼고
 //     로그 필드로만 남긴다 — 편집 한 건의 자격이 아니다.
-// 역할 신호(agent_id·agent_type·MOODIE_SESSION_ROLE)는 읽지 않는다 — fork도 메인도 같은 판정이다.
+// 예외 하나 — 지금 계획이 「상태: 종결」로만 걸렸을 때 gate-config.json의 편집은 바뀐 뒤의 planPath로 판정한다
+//   (포인터 전환, M11 G7). 막으면 goal을 닫은 뒤 다음 goal로 넘어가는 길이 잠긴다.
+// 역할 신호(agent_id·agent_type)는 읽지 않는다 — fork도 메인도 같은 판정이다.
 'use strict';
 const fs = require('fs');
 const path = require('path');
-const { evaluatePlan } = require('./_lib/plan-verdict.cjs');
+const { evaluatePlan, stripBom } = require('./_lib/plan-verdict.cjs');
+const { repoRel } = require('./_lib/repo-path.cjs');
 
 const ROOT = process.env.CLAUDE_PROJECT_DIR || process.cwd();
 const GATE_DIR = path.join(ROOT, '98_Management', '01_GateState');
 const LOG_FILE = path.join(GATE_DIR, 'hook-log.jsonl');
 const PLAN_SURFACE = '01_milestones/'; // 저장소 상대 소문자 슬래시 — 계획·기록 표면
+const CONFIG_REL = '98_management/01_gatestate/gate-config.json';
 
 function ts() {
   const d = new Date(), p = n => String(n).padStart(2, '0');
@@ -65,19 +69,32 @@ function deny(rule, reason, evidence) {
   process.exit(0);
 }
 
-// 저장소 상대 경로 (소문자 슬래시) — 경계 밖이면 null (tdd-guard의 adRel과 같은 규약)
-function relOf(p) {
-  const rel = path.relative(path.resolve(ROOT), path.resolve(String(p)));
-  if (!rel || rel.startsWith('..') || path.isAbsolute(rel)) return null;
-  return rel.split(path.sep).join('/').toLowerCase();
+// 편집이 적용된 뒤 gate-config.json의 planPath — 계산할 수 없으면 null
+function proposedPlanPath() {
+  let text = null;
+  if (typeof ti.content === 'string') text = ti.content;
+  else {
+    let cur;
+    try { cur = fs.readFileSync(path.join(GATE_DIR, 'gate-config.json'), 'utf8'); } catch (e) { return null; }
+    const edits = Array.isArray(ti.edits) ? ti.edits : [ti];
+    for (const e of edits) {
+      if (!e || typeof e.old_string !== 'string' || typeof e.new_string !== 'string' || !cur.includes(e.old_string)) return null;
+      cur = e.replace_all ? cur.split(e.old_string).join(e.new_string) : cur.replace(e.old_string, () => e.new_string);
+    }
+    text = cur;
+  }
+  try {
+    const c = JSON.parse(stripBom(text));
+    return c && typeof c.planPath === 'string' && c.planPath.trim() ? c.planPath : null;
+  } catch (e) { return null; }
 }
 
 try {
   // 대상 경로가 없는 편집 입력은 판정할 수 없다 — 허용이 아니라 거부다 (M03 Phase 4 Step 11 · Backlog 20).
   // 내려간 역할 게이트도 대상 없음을 거부했다. 정상 입력은 위 대상 필드를 반드시 갖는다.
   if (!target) deny('대상-없음', '편집 대상 경로가 없다 — 판정할 수 없는 편집 입력은 열지 않고 거부한다 (fail-closed)');
-  const rel = relOf(target);
-  if (rel === null) allow('저장소-밖', '편집 대상이 저장소 밖이다 — 계획 게이트의 관할이 아니다');
+  const rel = repoRel(ROOT, target);
+  if (!rel) allow('저장소-밖', '편집 대상이 저장소 밖이다 — 계획 게이트의 관할이 아니다');
   if (rel.startsWith(PLAN_SURFACE)) {
     allow('계획-표면', `계획·기록 표면(${rel})의 편집 — 계획 상태와 무관하게 연다 (계획을 쓰는 편집을 막으면 교착)`, { file: rel });
   }
@@ -85,6 +102,14 @@ try {
   const v = evaluatePlan({ root: ROOT });
   const common = { file: rel, planPath: v.planRel, ...(v.planFiles ? { planFiles: v.planFiles } : {}) };
 
+  if (v.verdict === 'deny' && v.rule === '계획-종결' && rel === CONFIG_REL) {
+    const next = proposedPlanPath();
+    const nv = next ? evaluatePlan({ root: ROOT, planRel: next }) : null;
+    if (nv && (nv.verdict === 'allow' || nv.judgment === 4)) {
+      allow('포인터-전환', `종결한 계획(${v.planRel})에서 다음 계획(${next})으로의 포인터 전환 — 바뀐 뒤의 계획이 판정 ①②③을 통과한다`, { ...common, nextPlan: next });
+    }
+    if (nv) deny(nv.rule, `포인터 전환 대상(${next})이 판정을 통과하지 못한다 — ${nv.reason}`, { ...common, nextPlan: next, judgment: nv.judgment });
+  }
   if (v.verdict === 'deny' && v.judgment <= 3) {
     deny(v.rule, v.reason, { ...common, judgment: v.judgment, ...v.evidence });
   }

@@ -69,11 +69,13 @@ try {
       `실측 ${JSON.stringify(c.reason.slice(0, 90))}`)
   }
 
-  // ---- 회귀 불변식 — 실계획(M02 파일 구획)은 통과한다 ----------------------
-  // planPath를 실저장소 절대 경로로 준다 — 훅은 계획을 읽기만 하고, 로그·상태는 미러에만 쌓인다.
+  // ---- 회귀 불변식 — 지금 계획(실저장소 planPath)은 규격 판정에 걸리지 않는다 ------------
+  // 훅은 계획을 읽기만 하고, 로그·상태는 미러에만 쌓인다. 실패 카운터·종결은 계획의 진행 상태라 여기서 보지 않는다.
   {
-    const c = judgePlan(join(REPO_ROOT, '01_Milestones', 'M02_Hardening', '_MilestonePreview.md'))
-    r.judge('PR-06 실계획 M02 파일 구획', c.verdict, 'allow/통과', { note: '회귀 불변식 — 위장 헤더 수리가 실계획을 깨지 않는다' })
+    const live = JSON.parse(readFileSync(join(REPO_ROOT, '98_Management', '01_GateState', 'gate-config.json'), 'utf8').trim()).planPath
+    const c = judgePlan(join(REPO_ROOT, ...String(live).split('/')))
+    r.check(`PR-06 지금 계획(${live})이 규격 판정을 통과한다`, !/^deny\/(검증-미통과|계획-문서-부재|계획-충돌-표지)$/.test(c.verdict),
+      `실측 ${c.verdict} · ${c.reason.slice(0, 90)}`)
   }
 
   // ---- ③ 헤더 계약 정합 — tdd-guard·pass-watcher (M02 Backlog 5) --------------

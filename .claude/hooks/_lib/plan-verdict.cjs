@@ -19,15 +19,22 @@ const PHASE_LIMIT = 8; // 집행 사본 — 값의 소유자는 노션 01장 「
 // 위장 헤더 한 줄이면 절 실존 검사가 우회되고 판정 ②의 집계 시작점도 엉뚱한 자리로 옮겨 갔다.
 const RECORD_HEADER = /^검증 기록\s*$/;
 
+const stripBom = (s) => (s.charCodeAt(0) === 0xfeff ? s.slice(1) : s);
+const hasConflictMarkers = (text) => /^<{7}(?: |$)/m.test(text) && /^>{7}(?: |$)/m.test(text);
+// 머리말(첫 `##` 절 앞)의 「상태: 종결」만 읽는다 — 본문의 서술은 머리말이 아니다 (M04 Backlog 3).
+const isClosed = (text) => /상태:\s*종결/.test(text.split(/^##\s/m)[0]);
+
 // 판정 대상 계획 문서 — gate-config.json의 planPath 포인터 (프로브는 포인터만 바꾼다).
-// fail-closed (M03 Phase 4 Step 11 · M03 Backlog 20): 종전에는 포인터가 없거나 깨졌거나 planPath가 비면
-// 종결된 M01 계획을 기본값으로 판정해 통과시켰고, planPath가 문자열이 아니면 경로 연산이 터져 호출부의
-// 내부 오류 허용으로 빠졌다. 이제 기본값은 없다 — 결손이면 { planRel: null, rule, problem }을 돌려준다.
+// fail-closed (M03 Phase 4 Step 11 · M03 Backlog 20): 포인터가 없거나 깨졌거나 planPath가 비면 기본값 없이
+// { planRel: null, rule, problem }을 돌려준다. BOM은 벗기고(M03 Backlog 29), 충돌 표지는 따로 알린다(M05 Backlog 41).
 function readPlanPointer(root) {
   const missing = (problem) => ({ planRel: null, rule: '계획-포인터-결손', problem });
   let raw;
-  try { raw = fs.readFileSync(path.join(root, '98_Management', '01_GateState', 'gate-config.json'), 'utf8'); }
+  try { raw = stripBom(fs.readFileSync(path.join(root, '98_Management', '01_GateState', 'gate-config.json'), 'utf8')); }
   catch (e) { return missing('gate-config.json을 읽을 수 없다'); }
+  if (hasConflictMarkers(raw)) {
+    return { planRel: null, rule: '계획-포인터-충돌', problem: 'gate-config.json에 merge 충돌 표지(<<<<<<< · >>>>>>>)가 있다 — `git checkout --ours|--theirs 98_Management/01_GateState/gate-config.json` 또는 `git merge --abort`로 충돌을 푼 뒤 다시 시도하라' };
+  }
   let c;
   try { c = JSON.parse(raw); } catch (e) { return missing('gate-config.json이 JSON으로 읽히지 않는다'); }
   if (!c || typeof c !== 'object' || c.planPath === undefined || c.planPath === null) return missing('gate-config.json에 planPath 키가 없다');
@@ -88,6 +95,7 @@ function evaluatePlan(opts = {}) {
   let preview = null;   // 파일 구획일 때 Preview 원문 — 판정 ①의 사람용 개요 검사가 이것만 본다
   const deny = (judgment, rule, reason, evidence, extra) =>
     Object.assign({ verdict: 'deny', judgment, rule, reason, evidence, planRel, planFiles }, extra || {});
+  const unreadable = () => deny(1, '계획-문서-부재', `계획 문서를 읽을 수 없다: ${planRel} — 읽을 수 없는 계획으로는 열지 않는다 (fail-closed)`, { planPath: planRel });
 
   // ---- 계획 텍스트 적재 — 단일 파일 또는 파일 구획(다중 파일) ---------------
   // planPath가 _MilestonePreview.md를 가리키면 같은 폴더의 NN_Phase_N.md를 번호순으로
@@ -95,10 +103,8 @@ function evaluatePlan(opts = {}) {
   // 판정 ①의 사람용 개요 검사는 병합 텍스트가 아니라 Preview 원문(preview)만 본다.
   // Phase 파일이 0개면 병합 결과에 Phase 구획이 없으므로 기존 반려가 그대로 나간다 (fail-closed).
   if (path.basename(planAbs) === '_MilestonePreview.md') {
-    try { preview = fs.readFileSync(planAbs, 'utf8'); } catch (e) { /* 아래에서 반려 */ }
-    if (preview === null) {
-      return deny(1, '계획-문서-부재', `계획 문서를 읽을 수 없다: ${planRel} — 계획 없는 스폰은 반려 (fail-closed)`, { planPath: planRel });
-    }
+    try { preview = stripBom(fs.readFileSync(planAbs, 'utf8')); } catch (e) { /* 아래에서 반려 */ }
+    if (preview === null) return unreadable();
     const dir = path.dirname(planAbs);
     const phaseNum = n => Number(n.match(/_Phase_(\d+)\.md$/)[1]);
     let phaseNames = [];
@@ -107,7 +113,7 @@ function evaluatePlan(opts = {}) {
     } catch (e) { /* 목록 실패 = Phase 파일 0개 — 아래 규격 판정이 반려 */ }
     const parts = [preview];
     for (const n of phaseNames) {
-      try { parts.push(fs.readFileSync(path.join(dir, n), 'utf8')); }
+      try { parts.push(stripBom(fs.readFileSync(path.join(dir, n), 'utf8'))); }
       catch (e) {
         return deny(1, '계획-문서-부재', `Phase 파일을 읽을 수 없다: ${n} — 결손 계획은 반려 (fail-closed)`, { planPath: planRel, file: n });
       }
@@ -115,10 +121,11 @@ function evaluatePlan(opts = {}) {
     text = parts.join('\n');
     planFiles = [path.basename(planAbs), ...phaseNames];
   } else {
-    try { text = fs.readFileSync(planAbs, 'utf8'); } catch (e) { /* 아래에서 반려 */ }
-    if (text === null) {
-      return deny(1, '계획-문서-부재', `계획 문서를 읽을 수 없다: ${planRel} — 계획 없는 스폰은 반려 (fail-closed)`, { planPath: planRel });
-    }
+    try { text = stripBom(fs.readFileSync(planAbs, 'utf8')); } catch (e) { /* 아래에서 반려 */ }
+    if (text === null) return unreadable();
+  }
+  if (hasConflictMarkers(text)) {
+    return deny(1, '계획-충돌-표지', `계획 문서에 merge 충돌 표지(<<<<<<< · >>>>>>>)가 있다: ${planRel} — 충돌을 푼 뒤 다시 시도하라 (fail-closed)`, { planPath: planRel });
   }
 
   // ---- 절 분해 ------------------------------------------------------------
@@ -205,6 +212,11 @@ function evaluatePlan(opts = {}) {
     return deny(3, '주도권-문답분기', `[AI] ${aiSide} > [USER] ${userSide}(${scope}) — 주도권 게이트 발동. 선택지형 문답으로 분기해 [AI] 줄의 답을 받고, 태그를 [USER]로 전환(기준점 이동 문법)한 뒤 재시도하라`, { planPath: planRel, tally, aiLines });
   }
 
+  // 종결은 ①의 거부지만 ②③ 뒤에 본다 — 편집 게이트의 포인터 전환 예외가 실패 카운터·주도권을 건너뛰지 못하게.
+  if (isClosed(preview === null ? text : preview)) {
+    return deny(1, '계획-종결', `계획이 머리말에 「상태: 종결」을 적었다: ${planRel} — 닫힌 계획으로는 열지 않는다. gate-config.json의 planPath를 다음 계획으로 바꿔라 (01_Milestones 안 편집은 열려 있다)`, { planPath: planRel });
+  }
+
   // ---- 판정 ④ 라우팅 표 적용 — 계획 문서의 구조 신호를 세는 기계 연산 ----
   // 라우팅은 거부 여부와 무관하게 끝까지 계산한다 — 편집 자리는 ④를 거부로 쓰지 않고 로그로만 남긴다.
   const tagKinds = [...new Set(phases.flatMap(p => p.tags))];
@@ -233,4 +245,4 @@ function evaluatePlan(opts = {}) {
   return { verdict: 'allow', planRel, planFiles, humanOverview, failCounts, tally, aiLines, routing };
 }
 
-module.exports = { evaluatePlan, readPlanPointer, FAIL_LIMIT, PHASE_LIMIT, RECORD_HEADER };
+module.exports = { evaluatePlan, readPlanPointer, stripBom, FAIL_LIMIT, PHASE_LIMIT, RECORD_HEADER };

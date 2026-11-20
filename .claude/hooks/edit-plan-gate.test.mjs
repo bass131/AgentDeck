@@ -15,6 +15,7 @@
 // 역할 신호(agent_id·agent_type)는 읽지 않는다 — fork도 메인도 같은 판정이다.
 //
 // 판정 근거는 미러 hook-log 줄과 stdout의 deny JSON뿐이다 (실저장소는 건드리지 않는다).
+import { execSync } from 'node:child_process'
 import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
@@ -44,7 +45,24 @@ function judge(planPath, targetAbs, payloadExtra = {}) {
     lines: mine.length,
     reason: reason || '',
     evidence: mine[0]?.evidence ?? null,
+    line: mine[0] ?? null,
   }
+}
+
+// 판정 ①②③을 통과하는 파일 구획 — 실계획을 픽스처로 쓰면 그 계획이 닫히거나 FAIL이 쌓일 때 이 시험이 함께 빨개진다.
+function writeValidPartition() {
+  const dir = '.claude/hooks/fixtures/partition-valid-probe'
+  mkdirSync(H.path(...dir.split('/')), { recursive: true })
+  writeFileSync(H.path(...dir.split('/'), '_MilestonePreview.md'), [
+    '# 픽스처 — 유효한 파일 구획', '', '- 상태: 실행 중', '',
+    '## 사람용 개요', '', '- 편집 게이트 통과 경로의 표적.', '',
+    '## 개요', '', '- **목표**: 판정 ①②③을 통과한다.', '',
+    '## 결정 대장', '', '- [USER] 픽스처 (2026-11-21)', '',
+  ].join('\n'))
+  writeFileSync(H.path(...dir.split('/'), '01_Phase_1.md'), [
+    '## Phase 1 — 픽스처 · 태그: `hooks` · 의존: 없음', '', '검증 기록', '', '- (기록 없음)', '',
+  ].join('\n'))
+  return `${dir}/_MilestonePreview.md`
 }
 
 // 9 Phase 단일 파일 계획 — 판정 ①②③은 통과하고 ④(Phase 수 상한 8)만 걸리는 픽스처다.
@@ -89,12 +107,13 @@ try {
     r.check(`${id}b ${aim}의 거부 사유가 판정을 지목한다`, c.reason.includes(needle),
       `기대 「${needle}」 포함 · 실측 ${JSON.stringify(c.reason.slice(0, 90))}`)
     r.check(`${id}c 판정 줄이 hook-log에 1건 남는다`, c.lines === 1, `실측 ${c.lines}건`)
+    r.check(`${id}d 편집 거부 사유가 스폰을 말하지 않는다`, !c.reason.includes('스폰'), `실측 ${JSON.stringify(c.reason)}`)
   }
 
   // ---- ② 허용 — 유효한 계획 ------------------------------------------------
   {
-    const c = judge(join(REPO_ROOT, '01_Milestones', 'M03_Harness_Refresh', '_MilestonePreview.md'), src)
-    r.judge('EP-06 유효한 실계획(M03 파일 구획)', c.verdict, 'allow/통과', { note: '판정 ①②③ 통과 — 편집을 연다' })
+    const c = judge(writeValidPartition(), src)
+    r.judge('EP-06 유효한 파일 구획 계획', c.verdict, 'allow/통과', { note: '판정 ①②③ 통과 — 편집을 연다' })
     r.check('EP-06b 통과 줄의 evidence에 라우팅 필드가 실린다', !!c.evidence?.routing?.route,
       `실측 ${JSON.stringify(c.evidence?.routing ?? null)}`)
   }
@@ -129,9 +148,10 @@ try {
       { agent_id: 'edit-plan-gate-agent', agent_type: 'worker' })
     r.judge('EP-10 역할 신호(agent_id·agent_type)가 실린 같은 입력', asWorker.verdict, 'deny/실패-카운터',
       { note: 'fork도 메인도 워커도 같은 판정이다 — 역할은 읽지 않는다' })
-    r.check('EP-10b 판정 줄에 역할 필드가 없다',
-      asWorker.evidence !== null && !('role' in (asWorker.evidence ?? {})),
-      `실측 evidence 키 ${JSON.stringify(Object.keys(asWorker.evidence ?? {}))}`)
+    const keys = [...Object.keys(asWorker.line ?? {}), ...Object.keys(asWorker.evidence ?? {})]
+    r.check('EP-10b 판정 줄과 evidence에 역할 필드가 없다',
+      asWorker.line !== null && !keys.some((k) => ['role', 'agent_id', 'agent_type'].includes(k)),
+      `실측 키 ${JSON.stringify(keys)}`)
   }
 
   // ---- fail-open 세 경로 닫기 (M03 Phase 4 Step 11 · M03 Backlog 20) -----------
@@ -326,6 +346,71 @@ try {
       r.judge('PS-06 FAIL 3회 계획에서의 전환은 풀리지 않는다', c.verdict, 'deny/실패-카운터',
         { note: '전환 예외는 종결 판정에만 — 실패 카운터를 포인터 편집으로 피하지 못한다' })
     }
+    {
+      const A_DONE2 = goalDoc('01_Milestones/M99_Switch/40_Goal-done2.md', '종결')
+      const c = switchBy('Edit', A_DONE, A_DONE2)
+      r.judge('PS-07 종결한 goal → 다른 종결 goal — 전환이 지나가지 않는다', c.verdict, 'deny/계획-종결')
+      rmSync(H.configFile, { force: true })
+      const broken = judgeRaw(() => {}, 'Write', { file_path: H.configFile, content: cfgText(B) })
+      r.judge('PS-08 포인터 결손 중 gate-config 쓰기 — 사용자 복구(M03-26 닫음 판단)', broken.verdict, 'deny/계획-포인터-결손')
+    }
+
+    // ---- 「상태: 종결」 계획 (M04-3) — 머리말의 상태만 읽는다 ----
+    {
+      const done = judge(A_DONE, src)
+      r.judge('EP-33 상태: 종결인 계획 — 01_Milestones 밖 편집 거부', done.verdict, 'deny/계획-종결')
+      r.check('EP-33b 거부 사유가 종결과 다음 계획 전환을 말한다', done.reason.includes('종결') && done.reason.includes('planPath'),
+        `실측 ${JSON.stringify(done.reason.slice(0, 120))}`)
+      const spawn = judgeRaw(config({ planPath: A_DONE, workPinPath: PIN }), 'Task', {}, '20_plan-gate.cjs', 'plan-gate')
+      r.judge('EP-33c 스폰 게이트(판정부 공유)도 종결 계획을 거부', spawn.verdict, 'deny/계획-종결')
+      const inBody = goalDoc('01_Milestones/M99_Switch/50_Goal-body.md', '실행 중')
+      writeFileSync(H.path(...inBody.split('/')), readFileSync(H.path(...inBody.split('/')), 'utf8')
+        .replace('- (기록 없음)', '- (기록 없음)\n\n앞 goal의 상태: 종결 — 본문 서술은 머리말이 아니다'))
+      r.judge('EP-33d 본문의 「상태: 종결」 서술은 읽지 않는다', judge(inBody, src).verdict, 'allow/통과')
+      r.judge('EP-33e 승인 완료(M02 꼴)는 종결이 아니다', judge(goalDoc('01_Milestones/M99_Switch/60_Goal-ok.md', '승인 완료 (2026-08-10)'), src).verdict, 'allow/통과')
+    }
+  }
+
+  // ---- 포인터 BOM·충돌 표지 (M03-29 · M05-41) -------------------------------
+  {
+    const VALID_JSON = JSON.stringify({ planPath: VALID, workPinPath: PIN }, null, 2) + '\n'
+    const bom = judgeRaw(() => H.write(H.configFile, '\uFEFF' + VALID_JSON), 'Edit', editAt(src))
+    r.judge('EP-34 BOM 붙은 gate-config — 내용이 맞으면 통과', bom.verdict, 'allow/통과', { note: 'PowerShell 5.1 UTF-8 저장은 BOM을 붙인다' })
+    const conflicted = [
+      '{', '<<<<<<< HEAD', `  "planPath": "${VALID}",`, '=======', '  "planPath": "01_Milestones/x.md",', '>>>>>>> other', `  "workPinPath": "${PIN}"`, '}', '',
+    ].join('\n')
+    const cf = judgeRaw(() => H.write(H.configFile, conflicted), 'Edit', editAt(src))
+    r.judge('EP-35 충돌 표지가 든 gate-config — 충돌로 거부', cf.verdict, 'deny/계획-포인터-충돌')
+    r.check('EP-35b 거부 사유가 merge 충돌과 푸는 길을 말한다', cf.reason.includes('충돌') && cf.reason.includes('git'),
+      `실측 ${JSON.stringify(cf.reason.slice(0, 160))}`)
+    const planRel = '.claude/hooks/fixtures/plan-conflict-probe.md'
+    H.write(H.path(...planRel.split('/')), readFileSync(H.path(...VALID.split('/')), 'utf8')
+      .replace('## 결정 대장', '<<<<<<< HEAD\n줄 하나\n=======\n줄 둘\n>>>>>>> other\n\n## 결정 대장'))
+    const pc = judge(planRel, src)
+    r.judge('EP-36 충돌 표지가 든 계획 문서 — 충돌로 거부', pc.verdict, 'deny/계획-충돌-표지')
+  }
+
+  // ---- 경로 표기 정규화 (M03-19) — 표기만 바꾼 저장소 안 경로가 「저장소 밖」 허용으로 새지 않는다 ----
+  {
+    const FAIL3 = '.claude/hooks/fixtures/plan-fail3.md'
+    const dotted = judge(FAIL3, H.path('..probe.ts'))
+    r.judge('EP-37 `..`으로 시작하는 파일 이름은 저장소 안이다', dotted.verdict, 'deny/실패-카운터')
+    const rel = judge(FAIL3, SOURCE_TARGET.join('/'))
+    r.judge('EP-38 상대 경로는 저장소 뿌리 기준이다', rel.verdict, 'deny/실패-카운터')
+    if (process.platform === 'win32') {
+      r.judge('EP-39 `\\\\?\\` 접두 경로', judge(FAIL3, `\\\\?\\${src}`).verdict, 'deny/실패-카운터')
+      const msys = `/${src[0].toLowerCase()}/${src.slice(3).split('\\').join('/')}`
+      r.judge('EP-40 `/c/…` 경로', judge(FAIL3, msys).verdict, 'deny/실패-카운터', { note: msys })
+      let short = ''
+      try { short = execSync(`cmd /d /c for %I in ("${H.mirror}") do @echo %~sI`, { encoding: 'utf8' }).trim() } catch { /* 아래에서 건너뜀 */ }
+      if (short && short.toLowerCase() !== H.mirror.toLowerCase()) {
+        r.judge('EP-41 8.3 짧은 이름 경로', judge(FAIL3, join(short, ...SOURCE_TARGET)).verdict, 'deny/실패-카운터', { note: short })
+        r.judge('EP-41b 8.3 짧은 이름의 01_Milestones', judge(FAIL3, join(short, '01_Milestones', 'x.md')).verdict, 'allow/계획-표면')
+      } else {
+        console.log(`  skip EP-41 8.3 짧은 이름이 없는 볼륨 (${H.mirror})`)
+      }
+    }
+    r.judge('EP-42 정말 저장소 밖은 여전히 관할 밖', judge(FAIL3, join(dirname(H.mirror), 'other-repo', 'x.ts')).verdict, 'allow/저장소-밖')
   }
 
   // ---- 격리 — 미러 밖으로 새지 않는다 --------------------------------------

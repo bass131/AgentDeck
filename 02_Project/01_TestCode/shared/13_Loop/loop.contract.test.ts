@@ -26,7 +26,7 @@ describe('loop IPC 묶음 (M09 G4)', () => {
   it('채널 이름 — invoke 열여섯과 push 다섯(M10 G2: 메인 대화 읽기·보내기·새로 열기, 메인 대화 push, 세션 사건 push. M10 G3: 깃발 내리기. M10 G4: 세션 기록 읽기·지난 메인 대화 읽기. M10 G5: 그래프 읽기·알림 읽기, 알림 push·알림 열기 push)', () => {
     expect(Object.values(LOOP_CHANNELS).sort()).toEqual([
       'loop.alertOpen', 'loop.alerts', 'loop.alertsState',
-      'loop.answerCard', 'loop.cancelSession', 'loop.close', 'loop.decide', 'loop.graph', 'loop.lowerFlag', 'loop.mainArchives', 'loop.mainNew', 'loop.mainRead', 'loop.mainSend', 'loop.mainState',
+      'loop.answerCard', 'loop.cancelSession', 'loop.close', 'loop.decide', 'loop.graph', 'loop.listDir', 'loop.lowerFlag', 'loop.mainArchives', 'loop.mainNew', 'loop.mainRead', 'loop.mainSend', 'loop.mainState',
       'loop.open', 'loop.releaseLatch', 'loop.sessionEvent', 'loop.sessionLog', 'loop.start', 'loop.state', 'loop.status',
     ])
     for (const v of Object.values(LOOP_CHANNELS)) expect(Object.values(IPC_CHANNELS)).toContain(v)
@@ -57,7 +57,14 @@ describe('loop IPC 묶음 (M09 G4)', () => {
       alerts: { kind: 'call0', channel: 'loop.alerts' },
       onAlerts: { kind: 'push', channel: 'loop.alertsState' },
       onAlertOpen: { kind: 'push', channel: 'loop.alertOpen' },
+      listDir: { kind: 'call', channel: 'loop.listDir' },
     })
+  })
+
+  it('[M11-G4 M10-16] 작업 폴더 목록은 cwd와 상대 경로를 받고, 열린 실행기가 있을 때만 ok다', () => {
+    const req: ReqOf<'loop.listDir'> = { cwd: 'C:/work/practice', relDir: 'src' }
+    const res: ResOf<'loop.listDir'> = { ok: true, entries: [{ name: 'a.ts', path: `${req.relDir}/a.ts`, kind: 'file' }] }
+    expect(res.entries[0].path).toBe('src/a.ts')
   })
 
   it('그래프 읽기와 알림 (M10 G5) — 그래프는 cwd만 받고, 알림 목록은 읽기 응답과 push가 같은 꼴이다', () => {

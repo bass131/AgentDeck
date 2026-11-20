@@ -129,3 +129,16 @@ describe('메인 대화의 할 일·서브에이전트와 줄 이름 (M10 G4)', 
     expect(rowLabel({ kind: 'review', node: 'review', goal: null })).toBe('review · 검수')
   })
 })
+
+describe('메인 턴 접기 (M11 G4)', () => {
+  it('[M11-G4 M10-22] 도는 턴만 실행 중·사고 표시를 싣고, 턴의 오류 글은 싣지 않는다(대화 기록의 알림이 보인다)', async () => {
+    const { foldMainTurn } = await import('@renderer/13_Loop/sessionLogModel')
+    const events: AgentEvent[] = [{ type: 'thinking', text: '따져 본다' }, tool('t1'), { type: 'error', message: '연결 끊김' }]
+    const live = foldMainTurn(events.slice(0, 2), true)
+    expect(live.isRunning).toBe(true)
+    expect(live.thinkingText).toBe('따져 본다')
+    const ended = foldMainTurn(events, false)
+    expect([ended.isRunning, ended.thinkingText, ended.errorMessage]).toEqual([false, null, undefined])
+    expect(ended.thread.some((t) => t.kind === 'toolgroup')).toBe(true)
+  })
+})

@@ -120,6 +120,8 @@ export const FLAT_ROUTES = {
   loopAlerts: { group: 'loop', action: 'alerts' },
   onLoopAlerts: { group: 'loop', action: 'onAlerts' },
   onLoopAlertOpen: { group: 'loop', action: 'onAlertOpen' },
+  // M11 G4 — 작업 폴더 목록
+  loopListDir: { group: 'loop', action: 'listDir' },
 } as const satisfies Record<string, FlatRoute>
 
 export type FlatKey = keyof typeof FLAT_ROUTES
@@ -233,6 +235,7 @@ const DEFAULT_RESULTS: { [C in InvokeChannel]?: ResOf<C> } = {
   'settings.confirmControls': { ok: true },
   'loop.graph': { ok: false, reason: '시험 기본값 — 그래프 없음' },
   'loop.alerts': { alerts: [] },
+  'loop.listDir': { ok: false, entries: [] },
 }
 
 const SYNC_RESULTS: Partial<Record<FlatKey, unknown>> = {

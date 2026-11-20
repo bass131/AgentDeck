@@ -6,6 +6,7 @@
 // M10 G3 — 사람이 깃발을 내리는 invoke(loop.lowerFlag), 취소는 대상(메인 턴 / 작업 세션)을 싣는다. LoopStatus.cards의 메인 대화 카드는 inChat이다.
 import type { AgentEvent } from '../agentEvents'
 import type { AgentQuestion } from '../03_Agent/events/interaction'
+import type { FileTreeNode } from '../07_Workspace/workspace'
 
 export const LOOP_CHANNELS = {
   LOOP_OPEN: 'loop.open',
@@ -31,7 +32,13 @@ export const LOOP_CHANNELS = {
   LOOP_ALERTS: 'loop.alerts',
   LOOP_ALERTS_STATE: 'loop.alertsState',
   LOOP_ALERT_OPEN: 'loop.alertOpen',
+  // M11 G4 — 작업 모드 「파일·변경」 탐색기가 열린 루프의 작업 폴더를 읽는다(채팅 모드의 폴더와 따로)
+  LOOP_LIST_DIR: 'loop.listDir',
 } as const
+
+// ok: 그 작업 폴더의 실행기가 열려 있다. 아니면 목록 없이 거짓이다
+export interface LoopListDirRequest { cwd: string; relDir: string }
+export interface LoopListDirResponse { ok: boolean; entries: FileTreeNode[] }
 
 // M10 G5 — 사람을 부르는 사건. now(halted·latched·blocked)는 Windows 알림 한 번과 앱 안 표시, later(마일스톤 병합 대기)는 앱 안 표시만.
 // key는 작업 폴더·phase·노드에서 만든다(사유 글은 넣지 않는다). 그 상태를 벗어나면 목록에서 빠진다.
@@ -125,8 +132,9 @@ export interface LoopEventItem {
 // 메인 대화의 한 턴이 무엇으로 시작됐나 — 사용자 글, 브레인스토밍 시작, 스펙 반려, 실행기 사건(경계), 다시 물은 카드의 답
 export type MainTurnKind = 'user' | 'start' | 'rejected' | 'event' | 'card-answer'
 // 대화 기록 한 줄. user의 state: queued(줄 서 있음) → sent(세션에 넘김). 재기동 때 queued는 다시 줄을 선다.
+// proxy: 사람이 아니라 위임받은 대리인이 보낸 글(M11 G4)
 export type MainChatItem =
-  | { id: string; at: string; kind: 'user'; text: string; state: 'queued' | 'sent' }
+  | { id: string; at: string; kind: 'user'; text: string; state: 'queued' | 'sent'; proxy?: boolean }
   | { id: string; at: string; kind: 'assistant'; text: string; turn: MainTurnKind }
   | { id: string; at: string; kind: 'event'; event: LoopEventItem }
   | { id: string; at: string; kind: 'notice'; text: string }
@@ -146,7 +154,7 @@ export interface MainChatView {
   // 줄 서 있는 턴 수(돌고 있는 턴 제외)
   queued: number
 }
-export interface LoopMainSendRequest { cwd: string; text: string }
+export interface LoopMainSendRequest { cwd: string; text: string; proxy?: boolean }
 export interface LoopMainResponse { ok: boolean; reason?: string; view: MainChatView }
 // 세션 사건 배선 — 루프 세션 하나(메인 대화·작업 노드·검수)의 AgentEvent를 세션 꼬리표와 함께 내보낸다(G4 노드 세션 탭이 같은 길을 쓴다).
 // key는 앱이 정한 세션 이름(메인 대화는 'main'), sessionId는 SDK가 알린 세션 id(아직 모르면 null)다.

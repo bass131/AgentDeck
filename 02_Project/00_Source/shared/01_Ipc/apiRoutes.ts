@@ -146,6 +146,8 @@ export const API_ROUTES = {
     alerts: call0(IPC_CHANNELS.LOOP_ALERTS),
     onAlerts: push(IPC_CHANNELS.LOOP_ALERTS_STATE),
     onAlertOpen: push(IPC_CHANNELS.LOOP_ALERT_OPEN),
+    // M11 G4 — 작업 모드 탐색기가 열린 루프의 작업 폴더를 읽는다
+    listDir: call(IPC_CHANNELS.LOOP_LIST_DIR),
   },
 } as const
 

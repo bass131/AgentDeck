@@ -11,20 +11,25 @@
 //   · 일시 정지: 깃발이 올라 있으면 표시와 「이어 가기」 — 깃발만 내린다(loop.lowerFlag, 판정 칸 없음). 멈춘 실행의 사람 이어 가기(decide)는
 //     루프 화면의 예외 한 줄에 그대로 있다. 취소는 대상(메인 턴 main / 작업 세션 worker)을 골라 보낸다(Backlog 9·12).
 //   · 새 메인 대화는 확인을 한 번 받은 뒤 loop.mainNew다. 화면이 내려가도 대화를 닫지 않는다(구독만 푼다).
-import { memo, useCallback, useEffect, useRef, useState, type JSX, type KeyboardEvent } from 'react'
-import type { LoopCancelTarget, LoopCard, LoopCardResponse, LoopStatus, MainChatItem, MainChatView as ChatView } from '@shared/ipcContract'
+import { memo, useCallback, useEffect, useMemo, useRef, useState, type JSX, type KeyboardEvent } from 'react'
+import type { LoopCancelTarget, LoopCard, LoopCardResponse, LoopSessionRecord, LoopStatus, MainChatItem, MainChatView as ChatView } from '@shared/ipcContract'
 import { ipc } from '@renderer/01_Ipc'
 import { MarkdownView } from '@renderer/05_Conversation'
+import { ThreadView } from '@renderer/05_Conversation/ThreadView'
 import { QuestionModal } from '@renderer/03_Agent/prompt'
 import { ApprovalCard } from './LoopCards'
 import { errText, sameCwd } from './loopModel'
-import { CHAT_APPROVE_EVIDENCE, blockedReason, clockOf, lookOf, sameItem, workSessionLive } from './mainChatModel'
+import { CHAT_APPROVE_EVIDENCE, blockedReason, clockOf, lookOf, mainChatRows, sameItem, sameTurn, workSessionLive, type MainTurn } from './mainChatModel'
+import { foldMainTurn } from './sessionLogModel'
+import '@renderer/05_Conversation/Conversation.css'
 import './LoopScreen.css'
 import './MainChat.css'
 
 export interface MainChatViewProps {
   // 작업 폴더(루프 화면에서 고른 저장소). null이면 아무것도 읽지 않는다
   cwd: string | null
+  // 메인 세션의 사건 기록(세션 기록 키 main) — 추론 중·흘러나오는 글·도구 호출을 채팅 모드의 스레드 그리기로 보인다(M11 G4)
+  session?: LoopSessionRecord
 }
 
 type Where = 'top' | 'send' | 'cards' | 'approval' | 'flag' | 'cancel' | 'new'
@@ -33,11 +38,21 @@ type Errors = Partial<Record<Where, string>>
 const CARD_REFUSED = '카드 답이 받아지지 않았어요 — 턴이 이미 끝났거나 카드가 바뀌었을 수 있어요'
 export const PLACEHOLDER = '메인에게 말하기 — 질문, 「멈춰」, 「이어 가」, 「미룬 일로」…'
 
-function ChatItemView({ item }: { item: MainChatItem }): JSX.Element {
+const NOOP = (): void => {}
+
+function TurnThread({ turn, live, cwd }: { turn: MainTurn; live: boolean; cwd: string | null }): JSX.Element | null {
+  const state = useMemo(() => foldMainTurn(turn.events, live), [turn, live])
+  if (!live && state.thread.length === 0) return null
+  return <ThreadView state={state} onOpenSubagent={NOOP} className="thread mc-turn" cwd={cwd} />
+}
+const MainTurnView = memo(TurnThread, (a, b) => a.live === b.live && a.cwd === b.cwd && sameTurn(a.turn, b.turn))
+
+function ChatItemView({ item, turn = null, cwd = null }: { item: MainChatItem; turn?: MainTurn | null; cwd?: string | null }): JSX.Element {
   switch (item.kind) {
     case 'user':
       return (
         <div className="mc-msg user" data-item={item.id} data-state={item.state}>
+          {item.proxy === true && <span className="mc-proxy">대리 입력</span>}
           <div className="mc-text">{item.text}</div>
           <span className="mc-state">{item.state === 'queued' ? '줄 서 있어요' : '보냄'}</span>
         </div>
@@ -46,7 +61,7 @@ function ChatItemView({ item }: { item: MainChatItem }): JSX.Element {
       return (
         <div className="mc-msg assistant" data-item={item.id}>
           <div className="mc-who">{`메인${item.turn === 'event' ? ' · 사건' : ''} · ${clockOf(item.at)}`}</div>
-          <MarkdownView source={item.text} />
+          {turn !== null ? <MainTurnView turn={turn} live={false} cwd={cwd} /> : <MarkdownView source={item.text} />}
         </div>
       )
     case 'event': {
@@ -66,7 +81,7 @@ function ChatItemView({ item }: { item: MainChatItem }): JSX.Element {
 }
 
 // push는 매번 새 객체를 준다 — id와 그리는 칸이 같으면 그 줄을 다시 그리지 않는다
-export const ChatItem = memo(ChatItemView, (a, b) => sameItem(a.item, b.item))
+export const ChatItem = memo(ChatItemView, (a, b) => sameItem(a.item, b.item) && a.cwd === b.cwd && sameTurn(a.turn ?? null, b.turn ?? null))
 
 function ChatCard({ card, done, blocked, onAsk, onPermission }: {
   card: LoopCard
@@ -155,7 +170,7 @@ const Composer = memo(function Composer({ blocked, error, onSend }: {
   )
 })
 
-export function MainChatView({ cwd }: MainChatViewProps): JSX.Element {
+export function MainChatView({ cwd, session }: MainChatViewProps): JSX.Element {
   const [view, setView] = useState<ChatView | null>(null)
   const [status, setStatus] = useState<LoopStatus | null>(null)
   const [errors, setErrors] = useState<Errors>({})
@@ -223,10 +238,13 @@ export function MainChatView({ cwd }: MainChatViewProps): JSX.Element {
   // 새 글이 오면 기록의 끝을 보인다 — 길이가 아니라 마지막 줄의 id를 본다(상한 500에 닿으면 길이가 그대로다, G3 독립 검수 사소 6)
   const items = view?.items ?? []
   const lastId = items.length > 0 ? items[items.length - 1].id : null
+  const turnBusy = view?.busy ?? false
+  const viewItems = view?.items
+  const rows = useMemo(() => mainChatRows(viewItems ?? [], session, turnBusy), [viewItems, session, turnBusy])
   useEffect(() => {
     const el = threadRef.current
     if (el) el.scrollTop = el.scrollHeight
-  }, [lastId, view?.cards.length, status?.approval?.sha256])
+  }, [lastId, view?.cards.length, status?.approval?.sha256, session?.next])
 
   // 호출 하나(판정·깃발·취소·새로 열기) — 요청 중에는 그 버튼들을 끈다. freshMain·freshState는 호출 중 그 push가 없었다는 뜻이다
   const run = async <R,>(where: Where, call: (c: string) => Promise<R>, done: (r: R, freshMain: boolean, freshState: boolean) => void): Promise<void> => {
@@ -387,7 +405,9 @@ export function MainChatView({ cwd }: MainChatViewProps): JSX.Element {
           {view !== null && items.length === 0 && cards.length === 0 && approval === null && (
             <div className="loop-muted mc-empty">아직 대화가 없어요 — 메인에게 먼저 말을 걸거나, 루프를 시작하면 메인이 브레인스토밍을 열어요.</div>
           )}
-          {items.map((item) => <ChatItem key={item.id} item={item} />)}
+          {rows.map((r) => (r.kind === 'item'
+            ? <ChatItem key={r.item.id} item={r.item} turn={r.turn} cwd={cwd} />
+            : <MainTurnView key={r.turn.key} turn={r.turn} live={r.live} cwd={cwd} />))}
           {cards.map((c) => (
             <ChatCard
               key={c.requestId}

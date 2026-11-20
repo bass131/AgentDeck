@@ -881,3 +881,62 @@ describe('자동 모드 꺼짐을 다시 열기 — 알림은 한 번 (M10 G5 �
     expect(shown).toHaveLength(1)
   })
 })
+
+describe('작업 폴더 목록 (M11 G4)', () => {
+  it('[M11-G4 M10-16] 열린 루프의 작업 폴더만 읽고, 그 밖으로 나가는 경로와 닫힌 폴더는 목록이 없다', SLOW, async () => {
+    const d = driver().d
+    expect(await d.listDir(repos.work, '')).toEqual({ ok: false, entries: [] })
+    await d.open({ cwd: repos.work })
+    const top = await d.listDir(repos.work, '')
+    expect(top.ok).toBe(true)
+    expect(top.entries.map((e) => e.name)).toContain('README.md')
+    expect((await d.listDir(repos.work, '..')).entries).toEqual([])
+    await d.close(repos.work)
+    expect(await d.listDir(repos.work, '')).toEqual({ ok: false, entries: [] })
+  })
+})
+
+describe('재기동 뒤 다시 열기 (M11 G4)', () => {
+  it('[M11-G4 M09-10] 앱을 끌 때 열려 있던 루프는 새 구동자의 reopenLast로 다시 열린다', SLOW, async () => {
+    const first = driver().d
+    expect((await first.open({ cwd: repos.work })).phase).toBe('not-started')
+    await first.closeAll()
+    expect(JSON.parse(fs.readFileSync(path.join(appData, 'open.json'), 'utf8'))).toEqual({ folders: [repos.work] })
+    const next = driver().d
+    expect(next.status(repos.work).phase).toBe('closed')
+    pushed = []
+    await next.reopenLast()
+    // 상태는 구동(kick)이 끝날 때 push로 온다 — 화면이 받는 것과 같은 길로 본다
+    expect(await until((s) => s.cwd === repos.work && s.phase === 'not-started', '다시 연 루프')).toMatchObject({ reason: null })
+  })
+
+  it('[M11-G4 M09-10] 사람이 닫은 루프는 reopenLast로 열리지 않는다', SLOW, async () => {
+    const first = driver().d
+    await first.open({ cwd: repos.work })
+    await first.close(repos.work)
+    await first.closeAll()
+    expect(JSON.parse(fs.readFileSync(path.join(appData, 'open.json'), 'utf8'))).toEqual({ folders: [] })
+    const next = driver().d
+    await next.reopenLast()
+    expect(next.status(repos.work).phase).toBe('closed')
+  })
+
+  it('[M11-G4 M09-10] 부팅의 다시 열기와 화면의 열기가 겹쳐도 실행기는 하나만 연다', SLOW, async () => {
+    const first = driver().d
+    await first.open({ cwd: repos.work })
+    await first.closeAll()
+    let opened = 0
+    const { backend } = fakeBackend()
+    const next = createLoopDriver({
+      appDataDir: appData, backend, ciRetryMs: 20, humanPollMs: 20,
+      openExtras: { gh, template: TEMPLATE, executorEnv: repos.env, commandTimeoutMs: 60_000 },
+      openLoopImpl: async (o) => { opened++; return openLoop(o) },
+    })
+    drivers.push(next)
+    const [, shown] = await Promise.all([next.reopenLast(), next.open({ cwd: repos.work })])
+    expect(shown.phase).toBe('not-started')
+    expect(opened).toBe(1)
+    await next.closeAll()
+    expect(JSON.parse(fs.readFileSync(path.join(appData, 'open.json'), 'utf8'))).toEqual({ folders: [repos.work] })
+  })
+})

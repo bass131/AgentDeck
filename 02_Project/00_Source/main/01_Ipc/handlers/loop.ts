@@ -13,7 +13,7 @@ import type {
   LoopStatus,
 } from '@shared/ipcContract'
 import type {
-  LoopAlert, LoopAlertList, LoopAlertOpen, LoopCancelTarget, LoopMainResponse, LoopSessionEventPayload, LoopSessionLog, MainChatArchives, MainChatView,
+  LoopAlert, LoopAlertList, LoopAlertOpen, LoopCancelTarget, LoopListDirResponse, LoopMainResponse, LoopSessionEventPayload, LoopSessionLog, MainChatArchives, MainChatView,
 } from '@shared/13_Loop/loop'
 import type { LoopGraphResponse } from '@shared/13_Loop/graph'
 import { handle } from '../handle'
@@ -23,7 +23,7 @@ const MAIN_TEXT_MAX = 20_000
 // 핸들러가 부르는 구동자의 면. loopDriver.createLoopDriver가 이것을 채운다.
 export interface LoopDriverApi {
   mainRead(cwd: string): MainChatView
-  mainSend(cwd: string, text: string): LoopMainResponse
+  mainSend(cwd: string, text: string, opts?: { proxy?: boolean }): LoopMainResponse
   mainNew(cwd: string): Promise<LoopMainResponse>
   // M10 G3 — 사람이 깃발을 내린다(cwd만), 취소는 대상을 고른다
   lowerFlag(cwd: string): LoopMainResponse
@@ -31,6 +31,8 @@ export interface LoopDriverApi {
   mainArchives(cwd: string): Promise<MainChatArchives>
   // M10 G5 — 그 작업 폴더의 템플릿을 화면용 그래프로(보기 전용)
   graph(cwd: string): LoopGraphResponse
+  // M11 G4 — 그 작업 폴더의 실행기가 열려 있을 때만 그 뿌리 아래를 읽는다
+  listDir(cwd: string, relDir: string): Promise<LoopListDirResponse>
   open(req: LoopOpenRequest): Promise<LoopStatus>
   start(cwd: string, milestoneId: string): Promise<LoopStatus>
   status(cwd: string): LoopStatus
@@ -151,7 +153,8 @@ export function registerLoopHandlers(deps: LoopHandlerDeps): void {
   handle(IPC_CHANNELS.LOOP_MAIN_SEND, async (_e, req) => {
     const r = obj(req, 'loop.mainSend')
     const cwd = cwdOf(r, 'loop.mainSend')
-    return driver.mainSend(cwd, text(r, 'text', 'loop.mainSend', MAIN_TEXT_MAX))
+    const body = text(r, 'text', 'loop.mainSend', MAIN_TEXT_MAX)
+    return r['proxy'] === true ? driver.mainSend(cwd, body, { proxy: true }) : driver.mainSend(cwd, body)
   })
 
   handle(IPC_CHANNELS.LOOP_MAIN_NEW, async (_e, req) => driver.mainNew(cwdOf(obj(req, 'loop.mainNew'), 'loop.mainNew')))
@@ -164,6 +167,15 @@ export function registerLoopHandlers(deps: LoopHandlerDeps): void {
   handle(IPC_CHANNELS.LOOP_MAIN_ARCHIVES, async (_e, req) => driver.mainArchives(cwdOf(obj(req, 'loop.mainArchives'), 'loop.mainArchives')))
   handle(IPC_CHANNELS.LOOP_GRAPH, async (_e, req) => driver.graph(cwdOf(obj(req, 'loop.graph'), 'loop.graph')))
   handle(IPC_CHANNELS.LOOP_ALERTS, async () => ({ alerts: deps.alerts?.list() ?? [] }))
+
+  // M11 G4 — 작업 폴더 목록. 어느 폴더를 읽을지는 구동자가 그 cwd의 열린 실행기에서 정한다(다른 뿌리 칸은 읽지 않는다)
+  handle(IPC_CHANNELS.LOOP_LIST_DIR, async (_e, req) => {
+    const r = obj(req, 'loop.listDir')
+    const cwd = cwdOf(r, 'loop.listDir')
+    const relDir = r['relDir']
+    if (typeof relDir !== 'string' || relDir.length > 4096) throw new Error('loop.listDir: relDir는 상대 경로 글자다')
+    return driver.listDir(cwd, relDir)
+  })
 }
 
 function pushTo<C extends Parameters<typeof sendPush>[1]>(state: { win: BrowserWindow | null }, ch: C, payload: Parameters<typeof sendPush<C>>[2]): void {

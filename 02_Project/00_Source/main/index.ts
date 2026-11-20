@@ -47,24 +47,39 @@ function createWindow(): BrowserWindow {
   return win
 }
 
-app.whenReady().then(() => {
-  startApp()
+// M11 G4 — 앱은 한 벌만 돈다(같은 앱 영역). 둘째 실행은 기동하지 않고 끝나며, 첫 실행이 제 창을 앞으로 가져온다
+function focusFirstWindow(): void {
+  const win = BrowserWindow.getAllWindows().find((w) => !w.isDestroyed())
+  if (!win) return
+  if (win.isMinimized()) win.restore()
+  win.show()
+  win.focus()
+}
 
-  const win = createWindow()
-  attachWindow(win)
+if (!app.requestSingleInstanceLock()) {
+  app.quit()
+} else {
+  app.on('second-instance', focusFirstWindow)
 
-  app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) {
-      const newWin = createWindow()
-      attachWindow(newWin)
-    }
+  app.whenReady().then(() => {
+    startApp()
+
+    const win = createWindow()
+    attachWindow(win)
+
+    app.on('activate', () => {
+      if (BrowserWindow.getAllWindows().length === 0) {
+        const newWin = createWindow()
+        attachWindow(newWin)
+      }
+    })
   })
-})
 
-app.on('before-quit', () => {
-  stopApp()
-})
+  app.on('before-quit', () => {
+    stopApp()
+  })
 
-app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') app.quit()
-})
+  app.on('window-all-closed', () => {
+    if (process.platform !== 'darwin') app.quit()
+  })
+}

@@ -26,6 +26,7 @@ import type { AgentEvent } from '@shared/agentEvents'
 import type {
   LoopCard, LoopCardResponse, LoopEventItem, LoopSessionTag, MainChatItem, MainChatView, MainTurnKind,
 } from '@shared/13_Loop/loop'
+import { mainAnswerOf } from '@shared/13_Loop/mainTurn'
 import { repoKeyOf } from './digestStore'
 import {
   MAX_ITEMS, archiveRecord, blankRecord, loadRecordSync, mainChatPath, peekRecordSync, saveRecord,
@@ -59,6 +60,9 @@ export const BRAINSTORM_RULE = [
   '- 합의한 답은 그때그때 결정 대장(.agentdeck/decisions.md)에 적는다.',
   '- 마일스톤 스펙 파일(.agentdeck/milestone-spec.md)은 초안이 준비됐을 때만 쓴다. 스펙이 바뀌면 브레인스토밍이 끝나고 사람에게 승인 카드가 뜬다.',
 ].join('\n')
+
+// 대리 입력 턴의 글 끝에 붙는다(M06-29)
+export const PROXY_NOTE = '[대리 입력] 이 글은 사람이 아니라 사람에게 위임받은 대리인이 보냈다. 이 글로 정한 것은 결정 대장에 [USER·위임]으로 적는다.'
 
 export interface MainActions {
   pause(): Promise<string>
@@ -96,7 +100,7 @@ export interface MainChatDeps {
 }
 
 export interface MainChat {
-  send(text: string): { ok: boolean; reason?: string }
+  send(text: string, opts?: { proxy?: boolean }): { ok: boolean; reason?: string }
   recordEvent(event: LoopEventItem, speak?: boolean): void
   brainstorm(req: WorkRequest): Promise<WorkResult>
   cards(): LoopCard[]
@@ -120,6 +124,7 @@ interface Turn {
   kind: MainTurnKind
   text: string
   itemId: string | null
+  proxy?: boolean
   events?: LoopEventItem[]
   node?: WorkNode
   goal?: GoalState | null
@@ -137,7 +142,7 @@ const errText = (e: unknown): string => (e instanceof Error ? e.message : String
 function tailLine(i: MainChatItem): string | null {
   const cut = (s: string): string => (s.length > TAIL_CHARS ? `${s.slice(0, TAIL_CHARS - 1)}…` : s)
   switch (i.kind) {
-    case 'user': return `- 사람: ${cut(i.text)}`
+    case 'user': return `- ${i.proxy === true ? '사람(대리 입력)' : '사람'}: ${cut(i.text)}`
     case 'assistant': return `- 메인: ${cut(i.text)}`
     case 'event': return `- 사건: ${cut(i.event.text)}`
     case 'notice': return null
@@ -192,7 +197,7 @@ export function openMainChat(deps: MainChatDeps): MainChat {
   // 저장본의 대기열 — 받기 전의 턴(inflight)이 맨 앞이다. 여는 턴(start·rejected)은 저장하지 않는다(visit.open으로 다시 넣는다)
   const stored = (): StoredTurn[] => [...(inflight ? [inflight] : []), ...queue]
     .filter(storable)
-    .map((t) => ({ kind: t.kind, text: t.text, itemId: t.itemId, ...(t.events ? { events: t.events } : {}) }))
+    .map((t) => ({ kind: t.kind, text: t.text, itemId: t.itemId, ...(t.proxy ? { proxy: true } : {}), ...(t.events ? { events: t.events } : {}) }))
 
   // 저장 실패는 처음 한 번만 알린다 — 여기서 persist를 부르지 않는다(실패가 되풀이돼도 저장이 저장을 부르지 않게)
   function save(snap: MainChatRecord): void {
@@ -244,6 +249,7 @@ export function openMainChat(deps: MainChatDeps): MainChat {
   async function promptOf(t: Turn): Promise<string> {
     switch (t.kind) {
       case 'user':
+        return t.proxy ? `${t.text}\n\n${PROXY_NOTE}` : t.text
       case 'card-answer':
         return t.text
       case 'event':
@@ -317,11 +323,7 @@ export function openMainChat(deps: MainChatDeps): MainChat {
       const prompt = seed ? await seeded(base) : base
       const turnId = deps.nextTurnId()
       let sawSession = false
-      const paras: string[] = []
-      let cur = ''
-      let msgId: string | undefined
-      let afterTool = false
-      const flush = (): void => { if (cur.trim() !== '') paras.push(cur.trim()); cur = '' }
+      const said: AgentEvent[] = []
       // 도구 서버를 만들지 못하면 알린다(규칙 글은 도구를 말하므로 사람이 알아야 한다) — 턴은 도구 없이 돈다
       const tools = deps.buildTools
         ? await deps.buildTools().catch((e: unknown) => { notice(`앱 안 도구를 싣지 못했다 — ${oneLine(errText(e))}`); return null })
@@ -359,18 +361,13 @@ export function openMainChat(deps: MainChatDeps): MainChat {
               if ((t.kind === 'start' || t.kind === 'rejected') && rec.visit && rec.visit.open !== 'sent') { rec.visit.open = 'sent'; changed = true }
               if (changed) persist()
             }
-          } else if (ev.type === 'text' && ev.parentToolId === undefined) {
-            if (afterTool || (ev.messageId !== undefined && ev.messageId !== msgId)) { flush(); msgId = ev.messageId }
-            afterTool = false
-            cur += ev.delta
-          } else if (ev.type === 'tool_call' && ev.parentToolId === undefined) {
-            afterTool = true
+          } else if ((ev.type === 'text' || ev.type === 'tool_call') && ev.parentToolId === undefined) {
+            said.push(ev)
           }
           deps.onEvent?.({ key: 'main', kind: 'main', node: node === 'main' ? null : node, goal: null, sessionId: rec.sessionId }, ev)
         },
       })
       const end = await session.done
-      flush()
       // 세션이 끝난 카드는 거둔다. 닫을 때는 질문 카드를 남긴다(다시 묻는다)
       for (const [id, c] of [...live]) {
         if (c.turnId !== turnId) continue
@@ -385,7 +382,7 @@ export function openMainChat(deps: MainChatDeps): MainChat {
         continue
       }
       if (rec !== own) return
-      const text = paras.join('\n\n')
+      const text = mainAnswerOf(said)
       if (text !== '') push({ id: newId(), at: new Date().toISOString(), kind: 'assistant', text, turn: t.kind })
       if (end.kind === 'error') notice(`턴이 오류로 끝났다 — ${oneLine(end.error)}`)
       else if (end.kind === 'start-failed') notice(`턴을 열지 못했다 — ${oneLine(end.error)}`)
@@ -429,13 +426,14 @@ export function openMainChat(deps: MainChatDeps): MainChat {
   pump()
 
   const api: MainChat = {
-    send(text) {
+    send(text, opts) {
       const body = text.trim()
       if (closing) return { ok: false, reason: '메인 대화가 닫혔다' }
       if (body === '') return { ok: false, reason: '빈 글이다' }
       const id = newId()
-      push({ id, at: new Date().toISOString(), kind: 'user', text: body, state: 'queued' })
-      queue.push({ kind: 'user', text: body, itemId: id })
+      const proxy = opts?.proxy === true ? { proxy: true } : {}
+      push({ id, at: new Date().toISOString(), kind: 'user', text: body, state: 'queued', ...proxy })
+      queue.push({ kind: 'user', text: body, itemId: id, ...proxy })
       persist()
       pump()
       return { ok: true }

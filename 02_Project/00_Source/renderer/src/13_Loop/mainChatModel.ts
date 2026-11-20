@@ -1,6 +1,7 @@
 // M10 G3 메인 대화 보기의 순수 도우미 — 사건 줄의 이름표·모양, 시각 글자, 고정 근거 문구, 입력을 막는 까닭.
 // 화면은 대화를 만들지 않는다. 여기 함수는 main이 준 보기(MainChatView)와 상태(LoopStatus)를 읽어 보일 글만 고른다.
-import type { LoopEventKind, LoopStatus, MainChatItem, MainChatView } from '@shared/ipcContract'
+import type { AgentEvent, LoopEventKind, LoopSessionRecord, LoopStatus, MainChatItem, MainChatView } from '@shared/ipcContract'
+import { mainAnswerOf } from '@shared/13_Loop/mainTurn'
 
 // 사건 줄의 모양 — ok(통과·병합), run(노드 시작), fail(FAIL·멈춤·오류·래치), human(사람 판정), flag(메인의 일시 정지 깃발), muted(기록)
 // 깃발(flag)은 사람의 이어 가기(resumed, human)와 다른 모양이다 — 깃발은 「멈춤」 표시이고, 이어 가기는 사람의 판정이다(G2 독립 검수)
@@ -36,7 +37,7 @@ export function sameItem(a: MainChatItem, b: MainChatItem): boolean {
   if (a === b) return true
   if (a.id !== b.id || a.at !== b.at) return false
   switch (a.kind) {
-    case 'user': return b.kind === 'user' && a.text === b.text && a.state === b.state
+    case 'user': return b.kind === 'user' && a.text === b.text && a.state === b.state && a.proxy === b.proxy
     case 'assistant': return b.kind === 'assistant' && a.text === b.text && a.turn === b.turn
     case 'notice': return b.kind === 'notice' && a.text === b.text
     case 'event': {
@@ -46,6 +47,64 @@ export function sameItem(a: MainChatItem, b: MainChatItem): boolean {
       return x.kind === y.kind && x.text === y.text && x.node === y.node && x.goal === y.goal && x.verdict === y.verdict
     }
   }
+}
+
+// ── 메인 세션 사건을 대화 기록에 얹기(M11 G4 M10-22) ──
+// 세션 사건은 턴마다 session으로 시작하고 done으로 끝난다. 끝난 턴은 그 답 글(mainAnswerOf)이 같은 메인 답 자리에 그리고
+// 그 답 글은 다시 그리지 않는다. 짝은 최근 것부터 찾는다 — 세션 기록은 앱을 켠 뒤의 턴만 갖는다.
+// 짝이 없는 끝난 턴(글 없는 턴)은 다음 짝 앞에, 도는 턴은 맨 끝에 둔다. 앞부분이 잘린 기록의 첫 턴은 버린다(조각이다).
+export interface MainTurn { key: string; events: AgentEvent[] }
+export type MainChatRow =
+  | { kind: 'item'; item: MainChatItem; turn: MainTurn | null }
+  | { kind: 'turn'; turn: MainTurn; live: boolean }
+
+function splitTurns(events: readonly AgentEvent[]): { events: AgentEvent[]; ended: boolean }[] {
+  const out: { events: AgentEvent[]; ended: boolean }[] = []
+  let cur: AgentEvent[] = []
+  for (const e of events) {
+    if (e.type === 'session' && cur.some((x) => x.type !== 'session')) { out.push({ events: cur, ended: true }); cur = [] }
+    cur.push(e)
+    if (e.type === 'done') { out.push({ events: cur, ended: true }); cur = [] }
+  }
+  if (cur.length > 0) out.push({ events: cur, ended: false })
+  return out
+}
+
+export function mainChatRows(items: readonly MainChatItem[], record: LoopSessionRecord | undefined, busy: boolean): MainChatRow[] {
+  const all = splitTurns(record?.events ?? [])
+  const parts = record?.truncated === true ? all.slice(1) : all
+  const turns: MainTurn[] = parts.map((p, i) => ({ key: `turn-${i}`, events: p.events }))
+  const last = parts.length - 1
+  const live = busy && last >= 0 && !parts[last].ended ? last : -1
+  const answers = turns.map((t, i) => (i === live ? '' : mainAnswerOf(t.events)))
+  const paired = new Map<number, number>()
+  let k = (live === -1 ? turns.length : live) - 1
+  for (let i = items.length - 1; i >= 0 && k >= 0; i--) {
+    const item = items[i]
+    if (item.kind !== 'assistant') continue
+    for (let m = k; m >= 0; m--) {
+      if (answers[m] !== '' && answers[m] === item.text) { paired.set(i, m); k = m - 1; break }
+    }
+  }
+  const rows: MainChatRow[] = []
+  let s = 0
+  items.forEach((item, i) => {
+    const m = paired.get(i)
+    if (m === undefined) { rows.push({ kind: 'item', item, turn: null }); return }
+    for (; s < m; s++) rows.push({ kind: 'turn', turn: turns[s], live: false })
+    rows.push({ kind: 'item', item, turn: turns[m] })
+    s = m + 1
+  })
+  for (; s < turns.length; s++) rows.push({ kind: 'turn', turn: turns[s], live: s === live })
+  if (busy && live === -1) rows.push({ kind: 'turn', turn: { key: 'turn-next', events: [] }, live: true })
+  return rows
+}
+
+// 끝난 턴의 사건 배열은 push마다 새로 잘리지만 원소는 그대로다 — 원소가 모두 같으면 같은 턴이다
+export function sameTurn(a: MainTurn | null, b: MainTurn | null): boolean {
+  if (a === b) return true
+  if (a === null || b === null || a.key !== b.key || a.events.length !== b.events.length) return false
+  return a.events.every((e, i) => e === b.events[i])
 }
 
 // 사람이 메인 대화의 승인 카드 버튼으로 낸 판정의 근거 — main은 빈 근거를 받지 않는다

@@ -1,10 +1,9 @@
 import { useCallback, useEffect, useMemo, useState, type JSX } from 'react'
 import type { GitChange, LoopSessionRecord } from '@shared/ipcContract'
 import { ipc } from '@renderer/01_Ipc'
-import { useAppStore, selectWorkspaceRoot } from '@renderer/00_App/appStore'
 import { TodosSection } from '@renderer/03_Agent'
-import { FileExplorer } from '@renderer/07_Workspace/file'
-import { errText, sameCwd } from './loopModel'
+import { FileExplorer, type ExplorerSource } from '@renderer/07_Workspace/file'
+import { errText } from './loopModel'
 import { mainPanelOf, panelKeyOf } from './sessionLogModel'
 import { folderName } from './workModel'
 
@@ -13,23 +12,21 @@ export interface FilesPanelProps {
   main: LoopSessionRecord | undefined
 }
 
-// 탐색기를 작업 폴더로 옮기면 채팅 모드의 작업 폴더가 바뀌므로, 다른 폴더를 보일 때는 알리기만 한다
-function explorerNote(cwd: string | null, chatRoot: string | null): string | null {
-  if (cwd === null) return null
-  if (chatRoot === null) return '탐색기는 채팅 모드에서 연 폴더를 보여요 — 채팅에서 아직 연 폴더가 없어요'
-  if (!sameCwd(chatRoot, cwd)) return `탐색기는 채팅 모드에서 연 폴더(${folderName(chatRoot)})를 보여요`
-  return null
+const UNAVAILABLE = '루프 화면에서 이 폴더의 실행기를 열면 파일이 보여요'
+
+// 탐색기는 작업 폴더를 받아 그 트리만 그린다 — 채팅 모드의 폴더·참조 폴더는 읽지도 바꾸지도 않는다(M11 G4)
+function workSource(cwd: string): ExplorerSource {
+  return { root: cwd, list: (relDir) => ipc.loop.listDir({ cwd, relDir }), unavailable: UNAVAILABLE }
 }
 
 export function FilesPanel({ cwd, main }: FilesPanelProps): JSX.Element {
-  const chatRoot = useAppStore(selectWorkspaceRoot)
+  const source = useMemo(() => (cwd === null ? null : workSource(cwd)), [cwd])
   const [changes, setChanges] = useState<GitChange[] | null>(null)
   const [branch, setBranch] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const panelKey = panelKeyOf(main)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const panel = useMemo(() => mainPanelOf(main), [panelKey])
-  const note = explorerNote(cwd, chatRoot)
 
   const reload = useCallback((): (() => void) => {
     let alive = true
@@ -51,9 +48,10 @@ export function FilesPanel({ cwd, main }: FilesPanelProps): JSX.Element {
     <section className="files-panel" aria-label="파일·변경">
       <section className="board-box" aria-label="파일">
         <h3 className="board-h"><span>파일</span>{cwd !== null && <small>{`${folderName(cwd)}${branch ? ` · ${branch}` : ''}`}</small>}</h3>
-        {note !== null && <div className="board-empty">{note}</div>}
         <div className="files-explorer">
-          <FileExplorer />
+          {source === null
+            ? <div className="board-empty">작업 폴더를 먼저 골라요</div>
+            : <FileExplorer key={source.root} source={source} />}
         </div>
       </section>
 

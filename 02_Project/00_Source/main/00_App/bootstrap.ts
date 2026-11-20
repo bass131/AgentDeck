@@ -107,6 +107,9 @@ export function attachWindow(win: BrowserWindow): void {
     getProfileStore,
     getModelList: () => getModelListProvider().load(),
   })
+
+  // M11 G4 — 앱을 끌 때 열려 있던 작업 폴더를 다시 연다(사람이 닫은 폴더는 빠진다). 화면의 열기와 겹쳐도 구동자가 한 줄로 세운다
+  void _loopDriver.reopenLast().catch((err) => console.error('[main] 루프 다시 열기 실패:', err))
 }
 
 // 종료 정리 — 실행 중인 run과 LSP 서버를 닫고 대화 저장소를 닫는다. 루프 구동자는 닫기를 걸어 두고 기다리지 않는다(M09 G4 —

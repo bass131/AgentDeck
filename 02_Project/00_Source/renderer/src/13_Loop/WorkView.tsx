@@ -163,7 +163,7 @@ export function WorkView(): JSX.Element {
         </div>
         {/* 숨기기만 한다 — 내리면 입력하던 글과 구독을 잃는다 */}
         <div className="work-panel" data-tab-panel="main" hidden={center !== 'main'}>
-          <MainChatPane cwd={cwd} />
+          <MainChatPane cwd={cwd} session={sessions.get('main')} />
         </div>
         {openSessionKey !== null && (
           <div className="work-panel" data-tab-panel={center}>

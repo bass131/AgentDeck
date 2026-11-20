@@ -19,7 +19,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import type { AgentBackend, AgentRun, AgentRunInput } from '@main/03_Agent/AgentBackend'
 import { repoKeyOf } from '@main/05_Loop/digestStore'
 import { MAIN_CHAT_RULE, openMainChat, readMainChatView, type MainChat, type MainChatDeps } from '@main/05_Loop/mainChat'
-import { mainChatPath } from '@main/05_Loop/mainChatStore'
+import { loadRecordSync, mainChatPath } from '@main/05_Loop/mainChatStore'
 import type { WorkRequest } from '@main/05_Loop/ports'
 import { createFsPort } from '@main/05_Loop/realPorts/fsPort'
 import { DOCS } from '@main/05_Loop/survivalDocs'
@@ -688,5 +688,90 @@ describe('저장본 검사와 저장 실패 (M10 G2 검수)', () => {
     expect(fake.starts).toHaveLength(2)
     const notes = chat.view(root).items.filter((i) => i.kind === 'notice' && i.text.includes('저장하지 못했다'))
     expect(notes).toHaveLength(1)
+  })
+})
+
+describe('대리 입력 (M11 G4)', () => {
+  const users = (chat: MainChat): [string, boolean][] =>
+    chat.view(root).items.flatMap((i) => (i.kind === 'user' ? [[i.text, i.proxy === true] as [string, boolean]] : []))
+
+  it('[M11-G4 M06-29] 대리로 보낸 글은 기록에 표지를 달고, 메인 세션은 그 턴에 [USER·위임]으로 적으라는 줄을 받는다', async () => {
+    const fake = scriptedBackend(textOnly('알았다'))
+    const chat = open(fake)
+    expect(chat.send('사람의 글').ok).toBe(true)
+    await chat.idle()
+    expect(chat.send('합의', { proxy: true }).ok).toBe(true)
+    await chat.idle()
+    expect(fake.prompts).toHaveLength(2)
+    expect(fake.prompts[0]).not.toContain('[USER·위임]')
+    expect(fake.prompts[1]).toContain('합의')
+    expect(fake.prompts[1]).toContain('[USER·위임]')
+    expect(users(chat)).toEqual([['사람의 글', false], ['합의', true]])
+  })
+
+  it('[M11-G4 M06-29] 줄 서 있던 대리 입력은 다시 열어도 표지와 [USER·위임] 줄을 잃지 않는다', async () => {
+    const fake = scriptedBackend(async function* (t) {
+      if (t.n === 1) { await t.answer('never'); return }
+      yield { type: 'done' }
+    })
+    const chat = open(fake)
+    chat.send('하나')
+    chat.send('합의', { proxy: true })
+    await new Promise((r) => setTimeout(r, 30))
+    await closeAll()
+    const again = open(fake)
+    await again.idle()
+    expect(fake.prompts.at(-1)).toContain('합의')
+    expect(fake.prompts.at(-1)).toContain('[USER·위임]')
+    expect(users(again)).toEqual([['하나', false], ['합의', true]])
+  })
+})
+
+describe('저장본 칸 검사 (M11 G4)', () => {
+  const known = { kind: 'flag-raised', node: null, goal: null, text: '아는 사건' }
+  const write = (body: Record<string, unknown>): string => {
+    fs.mkdirSync(app, { recursive: true })
+    const file = mainChatPath(app, repoKeyOf(root))
+    fs.writeFileSync(file, JSON.stringify({ version: 1, root, sessionId: null, everSession: true, items: [], visit: null, paused: false, queue: [], cards: [], ...body }))
+    return file
+  }
+
+  it('[M11-G4 M10-13] 대기열의 사건 턴은 사건 칸이 배열이고 사건마다 아는 종류·글이 있어야 남는다', () => {
+    const rec = loadRecordSync(write({ queue: [
+      { kind: 'event', text: '글이 사건이다', itemId: null, events: '사건' },
+      { kind: 'event', text: '사건 칸 없음', itemId: null },
+      { kind: 'event', text: '빈 사건', itemId: null, events: [null, known] },
+      { kind: 'event', text: '모르는 종류', itemId: null, events: [{ ...known, kind: 'paused' }] },
+      { kind: 'event', text: '정상 사건', itemId: null, events: [known] },
+      { kind: 'user', text: '사람 글', itemId: null, events: '덤' },
+    ] }), root)
+    expect(rec?.queue.map((t) => t.text)).toEqual(['정상 사건', '사람 글'])
+    expect(rec?.queue[0].events).toEqual([known])
+    expect(rec?.queue[1].events).toBeUndefined()
+  })
+
+  it('[M11-G4 M10-13] 카드는 글이 있고 질문마다 질문 글과 고를 것 목록이 있어야 남는다', () => {
+    const q = { question: '범위는?', options: [{ label: '덧셈' }] }
+    const card = (requestId: string, over: Record<string, unknown>): Record<string, unknown> =>
+      ({ kind: 'question', requestId, node: 'brainstorm', goal: null, text: '묻는다', questions: [q], ...over })
+    const rec = loadRecordSync(write({ cards: [
+      card('q1', { questions: [null] }),
+      card('q2', { text: undefined }),
+      card('q3', { questions: [{ options: [] }] }),
+      card('q4', { questions: [{ question: '범위는?', options: [{}] }] }),
+      card('q5', { questions: [{ question: '범위는?' }] }),
+      card('q6', {}),
+    ] }), root)
+    expect(rec?.cards.map((c) => c.requestId)).toEqual(['q6'])
+  })
+
+  it('[M11-G4 M10-13] 칸이 틀린 저장본으로 열어도 줄 선 사건 턴이 예외 없이 돈다', async () => {
+    write({ queue: [{ kind: 'event', text: '빈 사건', itemId: null, events: [null] }, { kind: 'event', text: '정상', itemId: null, events: [known] }] })
+    const fake = scriptedBackend(textOnly('알렸다'))
+    const chat = open(fake)
+    await chat.idle()
+    expect(fake.prompts).toHaveLength(1)
+    expect(fake.prompts[0]).toContain('아는 사건')
+    expect(chat.view(root).items.some((i) => i.kind === 'notice' && i.text.includes('돌리지 못했다'))).toBe(false)
   })
 })

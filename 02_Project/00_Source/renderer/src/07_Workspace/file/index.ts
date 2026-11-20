@@ -7,7 +7,7 @@ export { FileBadge } from './FileBadge'
 // 기존 앱 소비처(Shell.tsx)가 memo 버전을 써 왔다 — 배럴에서도 memo 버전을 유지해
 // 재편이 렌더 최적화를 조용히 없애지 않도록 한다.
 export { default as FileExplorer } from './FileExplorer'
-export type { FileExplorerProps } from './FileExplorer'
+export type { ExplorerSource, FileExplorerProps } from './FileExplorer'
 
 export { default as FileModal } from './FileModal'
 export type { FileModalProps } from './FileModal'

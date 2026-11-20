@@ -3,7 +3,10 @@
 - 범위 밖 발견을 한 줄로 남긴다(헌법 11조). 최신 번호가 위다.
 - M01~M10 Backlog의 닫힘은 각 파일의 「## 닫힘 (M11)」 표가 갖는다. 여기에는 M11 진행 중 새로 생긴 것과 해결됨 항목의 남은 갈래만 둔다.
 
-64. tdd-guard의 PASS 추기 증거(lastGreen)는 지금도 전체 `npm test` 출력이 훅에 닿을 때만 생긴다. 전체 실행이 약 200초라 뒤로 돌리면 출력이 PostToolUse에 오지 않아, `source` 태그 Phase의 PASS 추기는 Bash 시간 한도를 늘려 앞에서 돌릴 때만 열린다. 좁힌 실행은 카운터만 푼다(goal 7, 결정 대장 [USER·위임]) (M11 G7 관찰).
+67. 현황판 `lib/phrases.mjs`가 tdd-guard `리셋`을 모두 「테스트 파일을 고쳐서…」로 읽어, goal 7의 좁힌 실행 리셋(`vitest-green-좁힘`·`node-test-green-좁힘`)을 잘못 말한다. `node-test-red`와 편집 게이트의 새 규칙(`계획-종결`·`포인터-전환`·`포인터-전환-범위`·`계획-포인터-충돌`·`계획-충돌-표지`)에는 문구가 없다 — 현황판은 goal 7 「건드릴 곳」 밖이다 (M11 G7 관찰).
+66. `10_start-brief.cjs:31`과 `50_stop-gate.cjs:102`는 `gate-config.json`을 BOM을 벗기지 않고 읽는다. goal 7 뒤로 BOM 붙은 포인터는 편집을 열지만, 이 두 훅은 그 포인터를 부재로 읽는다(결손 경고, pin 경로 없음) (M03 Backlog 29 남은 몫, M11 G7 관찰).
+65. `npm run test:hooks`의 초록은 tdd-guard 카운터를 풀지 않는다(vitest·`node --test` 요약만 읽는다). 훅 소스를 연달아 고치는 동안에는 훅 시험 파일을 손대거나 다른 시험을 돌려야 풀린다 (M11 G7 실측).
+64. tdd-guard의 PASS 추기 증거(lastGreen)는 지금도 전체 `npm test` 출력이 훅에 닿을 때만 생긴다. 전체 실행이 약 200초라 뒤로 돌리면 출력이 PostToolUse에 오지 않는다 — `source` 태그 Phase의 PASS 추기를 어떻게 열지는 재지 않았다. 좁힌 실행은 카운터만 푼다(goal 7, 결정 대장 [USER·위임]) (M11 G7 관찰).
 63. 현황판 알림음 기억(`public/chime.js:13` `RUNG_MAX = 200`)이 넘치면 계속 보이는 항목이 한 번 더 울린다 — M05 Backlog 60의 현황판 갈래다. 판정 장치가 아니라 goal 7 범위 밖이다 (M11 G7 관찰).
 62. `98_Management/03_Tools/check-readme-links.cjs`는 뿌리의 `README.md` 하나만 읽는다. goal 7이 현황판 README를 그 폴더를 뿌리로 돌려 실물 검사에 넣었지만(RL-29), `99_Others/Dashboard/docs/*.md`의 링크는 스크립트가 다른 파일 이름을 받게 해야 본다 — 그 스크립트는 goal 7 「건드릴 곳」 밖이다 (M07 Backlog 28 남은 몫, M11 G7).
 61. `02_Project/01_TestCode/hooks/tdd-guard-hook-test-recognition.test.ts:55`의 `delete env.MOODIE_SESSION_ROLE`이 남는다 — 아무것도 읽지 않는 변수를 지우는 무해한 줄이고, 앱 시험 폴더라 goal 7 「건드릴 곳」 밖이다 (M03 Backlog 15 ②, M11 G7).

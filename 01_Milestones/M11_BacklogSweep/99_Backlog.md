@@ -5,7 +5,7 @@
 
 36. 실앱 e2e가 연습 앱 데이터 `loop/`에 임시 저장소 두 벌의 메인 대화 저장본(`1be55c4c….main.json`, `78fd994e….main.json`)과 래치 파일(`digests/` 같은 이름 `.latch`)을 남겼다 — 가드가 지우기를 막아 사람 손으로 지운다. 같은 자리에 원자 쓰기 임시 파일(`*.main.json.<pid>.<hex>.tmp`)도 앱 종료 때마다 쌓인다(기존 15:13분 것 포함) (M11 G4).
 35. 재기동 뒤 메인 대화의 지난 턴은 답 글만 남고 도구 줄·추론 표시가 사라진다 — 세션 사건이 메모리에만 있어서다(e2e D 캡처). 저장할지 정한다 (M10-22, M11 G4).
-34. 사고 글이 없는 사고 조각은 턴이 끝난 뒤에도 「사고 중… ~N 토큰」으로 남는다(`renderer/src/05_Conversation/ThreadView.tsx:32`, 실행 중 여부를 보지 않는다) — 채팅과 메인 대화 공통, e2e A 캡처 (M11 G4).
+34. 사고 글이 없는 사고 조각은 턴이 끝난 뒤에도 「사고 중… ~N 토큰」으로 남는다(`renderer/src/05_Conversation/ThreadView.tsx:32,357`, 실행 중 여부를 보지 않는다. `thinking_clear`는 진행 글만 지우고 조각은 두며(`05_Conversation/state/reducer/text.ts:172`) 메인 대화도 같은 리듀서로 접는다(`13_Loop/sessionLogModel.ts:35`)) — 채팅과 메인 대화 공통, e2e A 캡처 (M11 G4).
 33. Playwright로 띄운 앱 창은 `ready-to-show`가 오지 않아 숨은 채로 그리지 않는다(requestAnimationFrame 0회) — 캡처 한 장을 찍어야 보인다(`main/index.ts:18,31`, 투명·테두리 없는 창). 실제 사용자 기동에서도 늦는지는 재지 않았다 (M09-10, M11 G4).
 32. 모달 층(`02_Common/modalStack.ts`)은 Esc만 맨 위 하나에 준다 — `ImageViewer`·`WhatsNew`의 화살표, `QuestionModal`의 숫자 키는 위에 다른 모달이 떠도 반응한다 (M11 G4).
 31. 옛 모달 선택자 목록의 `.sa-overlay`는 그리는 컴포넌트가 없어 모달 층으로 옮기지 않고 뺐다 (M11 G4 설계 감사 22).

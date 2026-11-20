@@ -1,4 +1,4 @@
-// M11 G4 실앱 확인 (opt-in: M11G4LIVE=1, 출력 폴더 M11G4_OUT). 창은 2번 모니터에 둔다.
+// M11 G4 실앱 확인 (opt-in: M11G4LIVE=1, 출력 폴더 M11G4_OUT). 창은 2번 모니터에 둔다(디스플레이가 하나면 그대로 — 놓인 자리를 report에 남긴다).
 // 연습 앱 데이터(%USERPROFILE%\.agentdeck-practice\udd)로 띄운다. M11G4_TOKEN_FILE을 주면 앱 프로세스에만 GH_TOKEN으로 넣는다(값은 출력하지 않는다).
 // 메인 대화 턴과 알림은 임시 git 저장소에서 낸다 — 연습 저장소의 메인 대화 기록에 시험 턴을 남기지 않는다.
 // 임시 저장소의 실행 상태는 스키마 밖이라 루프가 사람을 부르는 상태(진행 불가 또는 위조 래치)가 되고, 그 Windows 알림 객체에 누름 사건을 낸다.
@@ -11,7 +11,7 @@
 import { test, expect, _electron as electron } from '@playwright/test'
 import type { ElectronApplication, Page } from '@playwright/test'
 import { spawn, execFileSync } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { homedir, tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { dismissStartupModal } from './helpers/bootGates'
@@ -53,14 +53,20 @@ async function launch(tag: string): Promise<void> {
   app = await electron.launch({ args: [`--user-data-dir=${UDD}`, join(process.cwd(), 'out', 'main', 'index.js')], env: appEnv() })
   page = await app.firstWindow()
   await page.waitForLoadState('domcontentloaded')
-  await app.evaluate(({ BrowserWindow, screen }) => {
+  const placeWindow = (): Promise<unknown> => app.evaluate(({ BrowserWindow, screen }) => {
     const primary = screen.getPrimaryDisplay()
     const other = screen.getAllDisplays().find((d) => d.id !== primary.id)
     const win = BrowserWindow.getAllWindows()[0]
     if (other && win) win.setBounds({ x: other.workArea.x + 40, y: other.workArea.y + 40, width: 1500, height: 950 })
+    return { displays: screen.getAllDisplays().length, primary: primary.bounds, other: other?.bounds ?? null, window: win?.getBounds() ?? null }
   })
+  await placeWindow()
   await page.waitForSelector('.titlebar', { timeout: 30_000 })
   const titlebarMs = Date.now() - t0
+  // 되살린 표시인지 다시 연 루프가 새로 낸 표시인지 가르려고, 제목 줄 직후의 알림 목록과 같은 때의 그 폴더 상태를 함께 남긴다(M10-19)
+  // 목록을 먼저 읽고 상태를 뒤에 읽는다 — 상태가 아직 열리기 전이면 그 앞에 읽은 표시는 되살린 것이다
+  const alertsAtBoot = await page.evaluate(async () => (await (window as unknown as { api: { loop: { alerts(): Promise<{ alerts: unknown[] }> } } }).api.loop.alerts()).alerts).catch((e: unknown) => String(e))
+  const probeAtBoot = await page.evaluate(async (cwd) => ((await (window as unknown as { api: { loop: { status(r: { cwd: string }): Promise<{ phase: string }> } } }).api.loop.status({ cwd })).phase), probe).catch((e: unknown) => String(e))
   // 창이 보이기 전(show 전)에는 화면이 그려지지 않아(requestAnimationFrame 0회) 클릭의 안정 판정이 끝나지 않는다(M09-10).
   // 구동기는 창이 보일 때까지 기다리고, 10초 안에 안 보이면 캡처 한 장으로 한 장면을 그리게 한 뒤 다시 본다
   const shown = (): Promise<boolean> => app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]?.isVisible() ?? false).catch(() => false)
@@ -79,8 +85,8 @@ async function launch(tag: string): Promise<void> {
     await page.screenshot({ path: join(OUT, `${tag}-before-show.png`) })
     shownMs = await waitShown(10_000)
   }
-  report[`boot-${tag}-show`] = { shownMs, forcedFrame }
-  const alertsAtBoot = await page.evaluate(async () => (await (window as unknown as { api: { loop: { alerts(): Promise<{ alerts: unknown[] }> } } }).api.loop.alerts()).alerts).catch((e: unknown) => String(e))
+  // 보이기 전의 setBounds가 보일 때 덮이면 다시 옮긴다 — 실제 놓인 자리를 남긴다
+  report[`boot-${tag}-show`] = { shownMs, forcedFrame, display: await placeWindow() }
   // 첫 시도의 실패 사유를 남기고, 붙을 때까지 짧게 다시 누른다(구동기의 기다림 — M09-10)
   const tries: string[] = []
   let firstClick = 'ok'
@@ -116,7 +122,7 @@ async function launch(tag: string): Promise<void> {
       if (Date.now() - t0 > 40_000) { firstClick = '실패 — 40초 안에 붙지 않았다'; break }
     }
   }
-  report[`boot-${tag}`] = { titlebarMs, firstClickMs: Date.now() - t0, firstClick, failedTries: tries.length, firstFailure: tries[0] ?? null, alertsAtBoot }
+  report[`boot-${tag}`] = { titlebarMs, firstClickMs: Date.now() - t0, firstClick, failedTries: tries.length, firstFailure: tries[0] ?? null, alertsAtBoot, probeAtBoot }
   await page.screenshot({ path: join(OUT, `${tag}-after-boot.png`) })
   await dismissStartupModal(page, 3000)
 }
@@ -255,6 +261,20 @@ test.describe.serial('M11 G4 작업 모드 실앱 (opt-in: M11G4LIVE=1)', () => 
       threadClasses: await chat.locator('.mc-turn').last().getAttribute('class'),
       text: (await chat.innerText()).slice(-1200),
     }
+    // 실제로 쓴 모델은 그 세션의 대화 기록(assistant 줄의 message.model)에서 읽는다
+    const transcripts = join(homedir(), '.claude', 'projects', probe.replace(/[^A-Za-z0-9]/g, '-'))
+    const models: Record<string, number> = {}
+    if (existsSync(transcripts)) {
+      for (const f of readdirSync(transcripts).filter((n) => n.endsWith('.jsonl'))) {
+        for (const line of readFileSync(join(transcripts, f), 'utf8').split('\n')) {
+          try {
+            const j = JSON.parse(line) as { type?: string; message?: { model?: string } }
+            if (j.type === 'assistant' && j.message?.model) models[j.message.model] = (models[j.message.model] ?? 0) + 1
+          } catch { /* 빈 줄 */ }
+        }
+      }
+    }
+    report.mainModels = models
     expect((sent as { ok: boolean }).ok).toBe(true)
     expect(seen.tool).toBe(true)
     expect(seen.stream).toBe(true)

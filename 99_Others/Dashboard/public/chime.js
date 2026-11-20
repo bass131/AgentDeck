@@ -278,15 +278,15 @@ function closedLine(view) {
 }
 
 // 「내 손이 필요한 일」의 병합 대기 줄을 병합 카드가 GitHub에서 읽은 같은 PR에 맞춘다(M05 Backlog 61). goal 문서 머리말은 늦게 바뀐다.
-// 병합됐거나 닫혔으면 줄을 빼고 note 한 줄만 남기고(알림음·배지에서도 빠진다), 필수 검사 hard-gates가 실패면 빨강의 새 사실로 바꾼다.
+// 병합됐으면 줄을 빼고 note 한 줄만 남긴다(알림음·배지에서도 빠진다). 병합 없이 닫혔거나 필수 검사 hard-gates가 실패면 빨강의 새 사실로 바꾼다.
 const REQUIRED_CHECK = 'hard-gates';
 function mergeHand(hand, view) {
   const list = (hand || []).filter(Boolean), pr = pendingPr(list);
   if (!pr || !view || view.number !== pr) return { hand: list, note: null };
-  if (view.state !== 'open') {
-    const note = view.merged ? `PR ${pr}은 병합됐어요. goal 문서 갱신만 남았어요.` : `PR ${pr}은 병합 없이 닫혔어요. goal 문서의 「병합 대기」를 고쳐야 해요.`;
-    return { hand: list.filter(h => h.id !== 'merge'), note };
-  }
+  if (view.state !== 'open' && view.merged) return { hand: list.filter(h => h.id !== 'merge'), note: `PR ${pr}은 병합됐어요. goal 문서 갱신만 남았어요.` };
+  // 병합 없이 닫혔으면 사용자에게 알린다(헌법 11조) — 빨강의 새 사실로 셈에 남긴다
+  if (view.state !== 'open') return { hand: list.map(h => h.id !== 'merge' ? h : { ...h, level: 'stop', key: `${h.key}:closed`,
+    say: `PR ${pr}은 병합 없이 닫혔어요 — goal 문서의 「병합 대기」를 고치거나 PR을 다시 열어야 해요.` }), note: null };
   const red = (view.checks || []).some(c => c && c.name === REQUIRED_CHECK && c.result === 'failure');
   if (!red) return { hand: list, note: null };
   return { hand: list.map(h => h.id !== 'merge' ? h : { ...h, level: 'stop', key: `${h.key}:ci-red`,

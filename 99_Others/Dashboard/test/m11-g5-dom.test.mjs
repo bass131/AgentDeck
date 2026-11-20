@@ -27,6 +27,8 @@ async function page(t, vm, routes = {}) {
   const w = dom.window, calls = [], streams = [];
   let closed = false;
   w.matchMedia = media => ({ matches: false, media, addEventListener() {}, removeEventListener() {} });
+  const seen = [];
+  w.IntersectionObserver = class { constructor(cb) { this.cb = cb; seen.push(this); } observe(el) { this.el = el; } disconnect() {} };
   w.EventSource = class { constructor(url) { this.url = url; this.on = {}; streams.push(this); } addEventListener(type, fn) { this.on[type] = fn; } close() {} };
   w.CSS ??= {};
   w.CSS.escape ??= s => String(s).replace(/[^\w-]/g, c => '\\' + c);
@@ -43,7 +45,9 @@ async function page(t, vm, routes = {}) {
   await wait(20);
   const $ = s => w.document.querySelector(s);
   return { w, doc: w.document, $, $$: s => [...w.document.querySelectorAll(s)], calls, text: s => $(s)?.textContent ?? '',
-    push(next) { streams.at(-1).on.snapshot({ data: JSON.stringify(next) }); }, click(s) { const el = typeof s === 'string' ? $(s) : s; assert.ok(el, `누를 것이 없어요: ${s}`); el.click(); } };
+    push(next) { streams.at(-1).on.snapshot({ data: JSON.stringify(next) }); },
+    /* 「지금」 카드가 화면 밖으로 나간 것처럼 관찰자에게 알린다(띠의 손 줄은 그때만 그린다) */
+    hideNow() { for (const o of seen.filter(o => o.el?.id === 'now')) o.cb([{ isIntersecting: false }]); }, click(s) { const el = typeof s === 'string' ? $(s) : s; assert.ok(el, `누를 것이 없어요: ${s}`); el.click(); } };
 }
 
 // ── 71: 결정 카드 배선 (decide-view.test.mjs의 app.js 정규식 절을 옮김) ──
@@ -252,7 +256,23 @@ test('[M11-G5 61] once the card reads the pending PR as merged, the hand stops a
   assert.match(mixed.text('#brief .q-hand'), /goal 문서 갱신만 남았어요/, '결정 요청 줄이 함께 있어도 병합됨 줄이 남는다');
   assert.match(mixed.text('#brief .q-hand'), /결정 요청 1건/);
   assert.match(mixed.doc.title, /^\(1\) /, '배지는 결정 하나만 센다');
-  assert.ok(!mixed.text('#strip-status').includes('병합을 기다려요'), '띠의 손 줄도 카드가 읽은 상태를 따른다');
+  const shut = await page(t, await withHand(mergeItem(9)), mergeRoutes({ views: { 9: prView(9, { state: 'closed', merged: false }) } }));
+  await until(() => shut.text('#merge-card').includes('병합 없이 닫혔어요'), '닫힌 카드');
+  assert.ok(shut.$('#brief .q-hand').classList.contains('is-stop'), '병합 없이 닫힘은 초록이 아니라 빨강 주의다');
+  assert.match(shut.text('#brief .hand-list'), /PR 9은 병합 없이 닫혔어요/);
+  assert.match(shut.doc.title, /^\(!1\) /, '배지 셈에 남는다');
+});
+
+test('[M11-G5 61] the strip hand line follows the card: it asks to merge while the PR is open and stops once the card reads it merged', async t => {
+  const gate = { hold: true, go: null }, routes = mergeRoutes({ views: { 9: prView(9, { state: 'closed', merged: true }) } }), read = routes['/api/merge/read'];
+  routes['/api/merge/read'] = body => gate.hold ? new Promise(r => { gate.go = () => r(read(body)); }) : read(body);
+  const vm = await withHand(mergeItem(9));
+  const p = await page(t, vm, routes);
+  p.hideNow();
+  assert.match(p.text('#strip-status .mini-hand'), /PR 9의 병합을 기다려요/, '카드가 읽기 전에는 띠가 병합을 부탁한다');
+  gate.hold = false; gate.go();
+  await until(() => p.text('#merge-card').includes('병합됐어요'), '닫힌 카드');
+  assert.equal(p.$('#strip-status .mini-hand'), null, '병합됐으면 띠의 손 줄이 사라진다');
 });
 
 // ── M07-27 ──

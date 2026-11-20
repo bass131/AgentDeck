@@ -85,6 +85,10 @@ const WAITING = [
 test('[M11-G5 M10-24] a USER-INPUT line that records the answer is not a wait; anything else still is', () => {
   for (const t of ANSWERED) assert.equal(userInputAnswered(t), true, t);
   for (const t of WAITING) assert.equal(userInputAnswered(t), false, t);
+  // 질문 꼴의 줄은 답 표지가 있어도 기다림이다 — 숨긴 질문이 더 비싸다(코디네이터 diff 실사, 성향 29)
+  assert.equal(userInputAnswered('사용자 결정: A/B 중 무엇?'), false, '질문 꼴은 기다림');
+  assert.equal(userInputAnswered('사용자 결정: A로 확정'), true, '답 꼴은 답함');
+  for (const t of ['사용자 결정: 어느 쪽으로 갈지', '사용자 결정: 지금 마감할지', '사용자 결정(전각 물음표)？']) assert.equal(userInputAnswered(t), false, t);
   const steps = [{ mark: '>', flow: 'current', label: '1', name: 'a' }];
   const rec = text => ({ section: true, pass: 1, fail: 0, userInput: 1, failSinceUserInput: 0, last: { marker: 'USER-INPUT', text, file: 'g.md', line: 9 } });
   assert.equal(judgeGoal(steps, rec(ANSWERED[0])).waitingUser, false);
@@ -241,7 +245,10 @@ test('[M11-G5 61] the hand line for the pending PR follows the PR the merge card
   assert.deepEqual(merged.hand.map(h => h.id), ['stopped'], '병합됐으면 병합을 부탁하지 않는다(알림음·배지에서도 빠진다)');
   assert.match(merged.note, /PR 9.*병합됐어요.*goal 문서 갱신만 남았어요/);
   const closed = M.mergeHand([pending()], view({ state: 'closed', merged: false }));
-  assert.deepEqual([closed.hand.length, /병합 없이 닫혔어요/.test(closed.note)], [0, true]);
+  assert.equal(closed.hand.length, 1, '병합 없이 닫혔으면 사용자에게 알린다 — 배지 셈에 남는다(헌법 11조)');
+  assert.deepEqual([closed.hand[0].level, /병합 없이 닫혔어요/.test(closed.hand[0].say), closed.note], ['stop', true, null], '주의는 빨강 줄이고 초록 note가 아니다');
+  assert.notEqual(closed.hand[0].key, pending().key, '새 사실이라 한 번 울린다');
+  assert.deepEqual(M.mergeHand([pending(), other], view({ state: 'closed', merged: false })).hand.map(h => [h.id, h.level]), [['merge', 'stop'], ['stopped', 'stop']], '다른 항목은 그대로다');
   const red = M.mergeHand([pending()], view({ checks: [{ name: 'hard-gates', result: 'failure' }, { name: 'x', result: 'success' }] }));
   assert.equal(red.hand[0].level, 'stop', 'CI 실패는 빨강');
   assert.match(red.hand[0].say, /필수 검사.*hard-gates.*실패/);

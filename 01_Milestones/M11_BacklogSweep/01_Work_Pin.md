@@ -12,7 +12,7 @@
 - 마일스톤 스펙: `01_Milestones/M11_BacklogSweep/00_마일스톤-스펙.md`(분류표 `10_`~`13_분류-*.md`). 다음 `M12_CharterTaste/00_마일스톤-스펙.md`, `M13_Installer/00_마일스톤-스펙.md`.
 - 마일스톤 브랜치: `milestone/m11-backlog-sweep`(`5419b812`에서 가름 — `chore/m10-close` 머리, M10 종결 기록과 브레인스토밍 기록).
 - 사슬 PR: (아직 없음)
-- 현재 goal: G2 앱 결함 — 세션·대화·계기·모델·권한 — `20_Goal-G2-앱-결함-세션-대화-계기-모델-권한.md`, 브랜치 `fix/m11-g2-app-session`. G1은 종결(PR 108, `1de6e917`).
+- 현재 goal: G3 실행기·잠금·병합 판독·엔진 + 설계 감사 결함 17~21 — `30_Goal-G3-실행기-잠금-병합판독-엔진.md`, 브랜치 `fix/m11-g3-executor`(재현 시험 선작성분 위에 마일스톤 머리 `9a0a8efd`를 합침). G1 종결(PR 108, `1de6e917`), G2 종결(PR 109, `9a0a8efd`).
 - 연습 저장소: `bass131/AgentDeck_Test`(공개, `main` 룰셋 `main-protect`). clone `C:\Dev\AgentDeck_Test`. 연습 토큰 `%USERPROFILE%\.agentdeck-practice\gh-token.txt`(만료 2026-11-27 03:20 UTC, 룰셋 읽기 확인). 연습 앱 데이터는 G1부터 `%USERPROFILE%\.agentdeck-practice\udd`.
 - goal 병합의 정형 절차: ① goal 브랜치를 push하고 독립 검수를 PR 전에 반영한다. ② `gh pr view <N> --json headRefOid,statusCheckRollup`으로 `hard-gates`와 머리 SHA를 읽는다. ③ `git fetch origin` 뒤 로컬 마일스톤 브랜치가 원격과 같은지 확인하고 `git switch milestone/m11-backlog-sweep`, `git merge --no-ff -m "<메시지>" origin/<goal 브랜치>`. ④ 병합한 SHA가 머리 SHA와 같은지 확인한 뒤 `git push -u origin milestone/m11-backlog-sweep`. 작업 트리는 병합 전에 깨끗해야 한다.
 - push는 항상 `-u origin <브랜치>`로 원격 브랜치를 명시합니다. `master`로 가는 병합은 사용자가 직접 합니다.
@@ -22,7 +22,7 @@
 
 ## 마감 요약 (최신 1건 — 3줄: 바뀐 것 / 내린 결정 / 봐야 할 것)
 
-- 스탬프: 2026-11-20T18:40:59+09:00
-- 바뀐 것: goal 2 구현(29건)이 하드 게이트와 `npm test` 실패 0을 통과했습니다. goal 3 재현 시험 19건이 `fix/m11-g3-executor`에 먼저 들어갔고, goal 4는 문서와 시험 초안까지만 있습니다.
-- 내린 결정: 시험 선작성 파이프라인은 tdd-guard가 격리 작업 폴더를 막아 goal 7 수리 전까지 문서·초안까지만 합니다(스펙 결정 대장). 설계 감사는 측정과 평가만 하고 수리는 사용자 판단입니다.
-- 봐야 할 것: goal 2 독립 검수와 설계 감사 검토자 셋을 기다립니다. goal 4 문서는 `.claude/worktrees/agent-acfd3e7598cc3ec8e/`에, 시험 초안은 세션 scratchpad `m11-g4-test-drafts.md`에 있으니 정리 전에 옮깁니다.
+- 스탬프: 2026-11-20T19:13:46+09:00
+- 바뀐 것: goal 2가 독립 검수 반영까지 끝나 PR 109를 열었습니다(`bdc4dfc4`). 설계 감사 보고 `90_설계-감사.md`를 남겼습니다.
+- 내린 결정: 사용자가 설계 감사 결함 8건을 M11에 넣는 A를 골랐고, 17~21은 goal 3, 22~24는 goal 4에 담습니다. 구조 정리는 로드맵의 뒤 마일스톤 후보입니다.
+- 봐야 할 것: PR 109 `hard-gates` 뒤 로컬 병합하고, goal 3 작업 폴더를 정리한 뒤 `fix/m11-g3-executor`에 마일스톤 머리를 합쳐 시작합니다. goal 4 문서는 `.claude/worktrees/agent-acfd3e7598cc3ec8e/`에, 시험 초안은 세션 scratchpad `m11-g4-test-drafts.md`에 있습니다.

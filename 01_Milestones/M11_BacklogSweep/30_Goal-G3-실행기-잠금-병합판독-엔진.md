@@ -13,12 +13,14 @@
   - 엔진(M06·M07): M06-9·M07-6 SDK를 올릴 때 다시 돌릴 블랙박스 실측 절차(제안 없으면 카드, 엔진 경로 잠금, `onFailure`, `//c/` 규칙)를 문서로 · M07-7 엔진 경로 잠금의 재지 않은 꼴(8.3 짧은 이름, `\\?\`·UNC, junction, 괄호 든 사용자 이름, 콜백 시간 초과, 하위 에이전트, MCP 쓰기 도구) · M07-9 `installVersion`이 버전 폴더를 비우지 않음 · M07-11 봉인의 남은 틈(형제 파일 크기·시각만, 위쪽 `node_modules`, 원자성, 걷기 비용) · M07-12 `version()`이 major 불일치·로드 실패에도 활성 버전을 보임.
   - 컨트롤·PR(M07·M09·M10): M07-13 노드의 판정 기록 칸과 「최근 판정 수」 · M07-24·M09-11·M10-23 PR 카드가 고전 보호만 읽음(룰셋 `rules/branches/<b>`), 같은 이름 검사 CI 판정 실측.
   - 실행기·잠금(M09): M09-4 실행기 PATH · M09-5 설정 대조 거부 안내 · M09-6 잠금 오탐 셋 · M09-8 `PS_ENV_SET`·`recordedStart ?? headSha(from)` · M09-9 브랜치 push가 이름으로 감, 래치 풀기의 `remote.<이름>.proxy`·`http.curloptResolve`, 대기열 답 화면 · M09-12 「스펙을 쓰는 노드」 술어와 재시도 프롬프트.
-- **건드릴 곳**: `02_Project/00_Source/main/`(`05_Loop/`, `04_Claude/permission/`, `08_Git/prMerge.ts`, `10_Engine/`, `04_Claude/ClaudeCodeBackend.ts`)과 필요한 `renderer`·`shared` 칸, `02_Project/01_TestCode/`, `00_Documents/`(SDK 재실측 절차), `01_Milestones/M06_SelfDev`·`M07_Controls`·`M09_AppLoop`·`M10_LoopView/99_Backlog.md`(닫힘 표 행만), `01_Milestones/M11_BacklogSweep/`. 판정 장치: `98_Management/01_GateState/gate-config.json`(`planPath` 전환, 1단계).
-- **하지 않을 것**: 세션·대화·계기·모델·권한(goal 2), 메인 대화 표현·탐색기(goal 4), 현황판(goal 5), 시험 정리·문서 일반(goal 6), 훅·가드(goal 7·8). 가드 판독 재설계와 셸 파서(v2). M07-5·M07-15(v2로 닫힘). M09-7(G5·G3 겹침 — 가드 표와 함께 goal 8). SDK 번들·`claude.exe` 내부 열람.
+  - 설계 감사 결함(M11 Backlog 17~21, 사용자 결정 A — 스펙 결정 대장 2026-11-20 18:55): 17 앱 판독 패리티 — `mergeDeny`·`loopLock`이 가드가 막는 10꼴(`timeout -vs`·`--sig`, `bash -ce`·`-c -x`, `eval`, `find -exec`, `gh api -iX DELETE`·`-X=PUT`)을 같게 막는다(앱 쪽만, 가드 쪽 같음 시험 확장은 goal 8) · 18 `claudeAgentRun.ts` `userDataForLock` fail-open을 닫힌 실패로·주입으로(둘째 절 `TARGET_WORD`는 goal 2가 고침) · 19 `git show`의 `hash`에 `-` 머리 값 거부 · 20 대화 색인 — 깨진 `index.json` 뒤 덮어쓰기 방지, 원자적 쓰기, `safeId`의 `index` · 21 `diff.ts` LCS 메모리 상한.
+- **건드릴 곳**: `02_Project/00_Source/main/`(`05_Loop/`, `04_Claude/permission/`, `04_Claude/run/claudeAgentRun.ts`, `08_Git/`, `01_Ipc/handlers/git.ts`, `06_Sessions/store.ts`, `10_Engine/`, `04_Claude/ClaudeCodeBackend.ts`)과 필요한 `renderer`·`shared` 칸, `02_Project/01_TestCode/`, `00_Documents/`(SDK 재실측 절차), `01_Milestones/M06_SelfDev`·`M07_Controls`·`M09_AppLoop`·`M10_LoopView/99_Backlog.md`(닫힘 표 행만), `01_Milestones/M11_BacklogSweep/`. 판정 장치: `98_Management/01_GateState/gate-config.json`(`planPath` 전환, 1단계).
+- **하지 않을 것**: 세션·대화·계기·모델·권한(goal 2), 메인 대화 표현·탐색기(goal 4), 현황판(goal 5), 시험 정리·문서 일반(goal 6), 훅·가드(goal 7·8). 가드 판독 재설계와 셸 파서(v2). M07-5·M07-15(v2로 닫힘). M09-7의 가드 쪽 몫과 같음 시험 확장(goal 8 — 앱 쪽 판독은 이 goal의 Backlog 17). SDK 번들·`claude.exe` 내부 열람.
 - **완료조건**
   - 16건마다 그 결함을 겨누는 시험이 `it`으로 통과하거나, 실측 기록 줄과 문서가 있다. 하드 게이트 다섯 종과 `npm test`가 실패 0이다.
   - PR 카드가 룰셋으로 지키는 연습 저장소 `main`에 「보호가 없다」를 보이지 않는 것을 e2e 캡처로 확인한다(창은 2번 모니터).
   - M06·M07·M09·M10 닫힘 표에서 16건 행이 `고침(M11 goal 3)`(M09-5·M09-12는 `정함 → goal 3`에서 바뀜)이다.
+  - M11 Backlog 17~21마다 고친 커밋과 그 결함을 겨누는 시험이 있고, 그 줄 끝에 `→ 고침(M11 goal 3, <커밋>)`이 붙는다. 17은 설계 감사 프로브의 10꼴이 앱 잠금에서 모두 거부된다.
 
 ## Phase 1 — 실행기·잠금·병합 판독·엔진 수리 · 태그: `app` · 의존: 없음
 
@@ -26,7 +28,7 @@
 
 - [x] 1. goal 준비 — 이 문서, `gate-config.json` `planPath` 전환(판정 장치)
 - [x] 2. 재현 시험 선작성(시험 담당, `it.fails`)
-- [ ] 3. 실행기·잠금 묶음(M09) 수리 — 시험을 `it`으로 뒤집는다
+- [>] 3. 실행기·잠금 묶음(M09) 수리 — 시험을 `it`으로 뒤집는다. 설계 감사 결함 17~21도 시험 먼저 쓰고 고친다
 - [ ] 4. PR 카드 룰셋 읽기와 같은 이름 검사 실측(M07-24·M09-11·M10-23)
 - [ ] 5. 엔진 묶음(M07-7·9·11·12) 수리와 M07-13 판정 기록 칸
 - [ ] 6. SDK 재실측 절차 문서(M06-9·M07-6)와 M07-7 실측 기록
@@ -57,6 +59,7 @@ DoD
 - [USER·위임] M09-4는 실행기 자신의 git·gh 환경(`executorGitEnv`, 자격 있음)의 PATH만 좁힌다 — 사용자가 쓸 수 있는 폴더(`%APPDATA%\npm` 같은 사용자 프로필 아래)를 뺀다. 작업 노드 세션의 PATH는 그대로다(자격이 없고 `npm test`가 돌아야 한다). 근거: Backlog 원문의 안, 성향 29(자격 있는 쪽만 좁힌다)·25. (2026-11-20)
 - [USER·위임] M09-9의 대기열 답 화면(닫기 실패 때 이미 답한 카드가 잠깐 다시 보임)은 고치지 않고 닫는다 — 보내면 main이 거부 사유로 막는다(이중 답이 생기지 않는다). 브랜치 push는 머리를 확인한 SHA로 보내고, `remote.<이름>.proxy`·`http.curloptResolve`는 화면 풀기로 받지 않는 키에 더한다. 근거: 성향 25, G4 확인 검수의 「원격 요청을 바꾸는 키」와 같은 부류. (2026-11-20)
 - [USER·위임] M07-13 판정 기록은 가장 작은 꼴로 둔다 — 노드마다 메모리 안의 최근 판정 고리(상한을 둔다, 입력 요약은 `maskCredentials`로 가림)와 패널의 「최근 판정 수」. 파일로 남기지 않는다. 시험은 칸을 정한 뒤 구현이 쓴다(지금은 겨눌 표면이 없다). 근거: 스펙 「성향에 없는 판단은 좁은 쪽」, 성향 25·30(셀 수 있는 기록). (2026-11-20)
+- [USER·위임] 설계 감사 결함 17~21을 이 goal에 담는다(사용자 결정 A와 스펙 결정 대장 「기존 goal에 나눠 담는다」). 17은 앱 판독이 가드의 거부 집합을 따라가게 고치되 정책 차이(앱은 병합 경로를 메서드와 관계없이 막음)는 유지한다. 20은 `index.json`이 깨지면 덮어쓰지 않고 대화 파일들로 색인을 다시 짓거나 `.broken`으로 격리한다 — `mainChatStore`의 격리와 `realPorts/atomicWrite.ts`를 재사용한다. 21은 줄 수 상한을 넘으면 LCS 대신 줄 단위 앞뒤 공통 부분만 잘라 보이는 좁은 쪽이다. 근거: 성향 29·27, 「좁은 쪽」. (2026-11-20)
 - [USER·위임] M07-7·M06-9·M07-6의 SDK 동작 몫(junction, 하위 에이전트 안 거부, MCP 쓰기 도구, 콜백 시간 초과, `//c/` 규칙 해석)은 공개 `query()`의 블랙박스 실측으로만 잰다. 셸 잠금 글자로 재현되는 8.3 짧은 이름만 시험으로 겨눈다. 근거: 사용자 메모 「SDK 내부 뒤지지 않기」, 성향 18(결정론화할 수 없는 대상엔 체크포인트)·31. (2026-11-20)
 
 출처 태그는 네 가지다 — `[USER]`·`[USER·위임]`·`[AI]`·`[AI·비가역]`.

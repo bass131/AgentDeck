@@ -5,6 +5,7 @@ import { IconPlus } from '@renderer/02_Common/icons'
 import { cwdKey, sameCwd } from './loopModel'
 import { folderName, projectTag } from './workModel'
 import { useWorkStore } from './workStore'
+import { alertsOf, useAlertStore } from './alertStore'
 
 function useProjectStatuses(projects: readonly string[]): ReadonlyMap<string, LoopStatus> {
   const [map, setMap] = useState<ReadonlyMap<string, LoopStatus>>(() => new Map())
@@ -52,6 +53,7 @@ export function ProjectSidebar(): JSX.Element {
   const center = useWorkStore((s) => s.center)
   const archives = useWorkStore((s) => s.archives)
   const statuses = useProjectStatuses(projects)
+  const alerts = useAlertStore((s) => s.alerts)
   const [branch, setBranch] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const active = cwd === null ? undefined : statuses.get(cwdKey(cwd))
@@ -98,11 +100,13 @@ export function ProjectSidebar(): JSX.Element {
         {projects.map((p) => {
           const active = sameCwd(p, cwd)
           const tag = projectTag(statuses.get(cwdKey(p)) ?? null)
+          const alert = alertsOf(alerts, p)[0]
           return (
             <li key={p} className="sb-proj" data-active={active ? 'true' : 'false'}>
-              <button type="button" className="sb-proj-head" title={p} onClick={() => useWorkStore.getState().choose(p)}>
+              <button type="button" className="sb-proj-head" title={alert ? `${p}\n${alert.text}` : p} onClick={() => useWorkStore.getState().choose(p)}>
                 <span className="sb-proj-name">{folderName(p)}</span>
                 {tag !== null && <small className="sb-proj-tag" data-tone={tag.tone}>{tag.label}</small>}
+                {alert && <span className="sb-proj-alert" data-level={alert.level} aria-hidden="true" />}
               </button>
               {active && (
                 <div className="sb-proj-body">

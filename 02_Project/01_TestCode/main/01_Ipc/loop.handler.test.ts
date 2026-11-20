@@ -3,7 +3,7 @@
 // 카드 응답에 「항상 허용」은 받지 않는다, 구동자가 내는 상태 변화는 창이 있을 때만 loop.state로 push한다.
 import { describe, expect, it, vi } from 'vitest'
 import type { LoopStatus } from '@shared/ipcContract'
-import type { LoopSessionEventPayload, MainChatView } from '@shared/13_Loop/loop'
+import type { LoopAlert, LoopSessionEventPayload, MainChatView } from '@shared/13_Loop/loop'
 
 const h = vi.hoisted(() => ({ handlers: new Map<string, (...args: unknown[]) => unknown>() }))
 
@@ -48,13 +48,16 @@ function fakeDriver(): { driver: LoopDriverApi; calls: unknown[][] } {
       lowerFlag: rec('lowerFlag', { ok: true, view: view() }),
       sessionLog: rec('sessionLog', { cwd: CWD, sessions: [] }),
       mainArchives: rec('mainArchives', Promise.resolve({ cwd: CWD, archives: [] })),
+      graph: rec('graph', { ok: false, reason: '없음' }),
     },
   }
 }
 
-function register(driver: LoopDriverApi): (ch: string, req: unknown) => Promise<unknown> {
+const ALERT: LoopAlert = { key: 'k1', cwd: CWD, phase: 'halted', node: 'G1/checks', level: 'now', text: '멈췄다' }
+
+function register(driver: LoopDriverApi, alerts?: { list(): LoopAlert[] }): (ch: string, req: unknown) => Promise<unknown> {
   h.handlers.clear()
-  registerLoopHandlers({ driver })
+  registerLoopHandlers({ driver, ...(alerts ? { alerts } : {}) })
   return async (ch, req) => {
     const fn = h.handlers.get(ch)
     if (!fn) throw new Error(`${ch} 핸들러가 등록되지 않았다`)
@@ -63,11 +66,22 @@ function register(driver: LoopDriverApi): (ch: string, req: unknown) => Promise<
 }
 
 describe('loop IPC 핸들러 (M09 G4)', () => {
-  it('열네 채널을 등록하고 구동자로 넘긴다(M10 G2 — 메인 대화 읽기·보내기·새로 열기, M10 G3 — 깃발 내리기, M10 G4 — 세션 기록·지난 메인 대화 읽기)', async () => {
+  it('그래프 읽기는 cwd만 구동자로 넘기고, 알림 읽기는 알림 목록을 돌려준다(없으면 빈 목록) (M10 G5)', async () => {
+    const { driver, calls } = fakeDriver()
+    const call = register(driver, { list: () => [ALERT] })
+    expect(await call(IPC_CHANNELS.LOOP_GRAPH, { cwd: CWD, nodes: [] })).toEqual({ ok: false, reason: '없음' })
+    await expect(call(IPC_CHANNELS.LOOP_GRAPH, { cwd: 'rel' })).rejects.toThrow(/loop\.graph/)
+    expect(calls).toEqual([['graph', CWD]])
+    expect(await call(IPC_CHANNELS.LOOP_ALERTS, undefined)).toEqual({ alerts: [ALERT] })
+    const bare = register(driver)
+    expect(await bare(IPC_CHANNELS.LOOP_ALERTS, undefined)).toEqual({ alerts: [] })
+  })
+
+  it('열여섯 채널을 등록하고 구동자로 넘긴다(M10 G2 — 메인 대화 읽기·보내기·새로 열기, M10 G3 — 깃발 내리기, M10 G4 — 세션 기록·지난 메인 대화 읽기, M10 G5 — 그래프·알림 읽기)', async () => {
     const { driver, calls } = fakeDriver()
     const call = register(driver)
     expect([...h.handlers.keys()].sort()).toEqual([
-      'loop.answerCard', 'loop.cancelSession', 'loop.close', 'loop.decide', 'loop.lowerFlag', 'loop.mainArchives', 'loop.mainNew', 'loop.mainRead', 'loop.mainSend',
+      'loop.alerts', 'loop.answerCard', 'loop.cancelSession', 'loop.close', 'loop.decide', 'loop.graph', 'loop.lowerFlag', 'loop.mainArchives', 'loop.mainNew', 'loop.mainRead', 'loop.mainSend',
       'loop.open', 'loop.releaseLatch', 'loop.sessionLog', 'loop.start', 'loop.status',
     ])
     expect(await call(IPC_CHANNELS.LOOP_SESSION_LOG, { cwd: CWD, verdict: 'pass' })).toEqual({ cwd: CWD, sessions: [] })
@@ -186,5 +200,16 @@ describe('loop.state push 배선 (M09 G4)', () => {
     pushMainState({ win: null }, v)
     pushSessionEvent({ win: null }, p)
     expect(send.mock.calls).toEqual([['loop.mainState', v], ['loop.sessionEvent', p]])
+  })
+
+  it('알림 목록과 알림 열기도 창이 있을 때만 보낸다 (M10 G5)', async () => {
+    const { pushAlerts, pushAlertOpen } = await import('@main/01_Ipc/handlers/loop')
+    const send = vi.fn()
+    const win = { win: { isDestroyed: () => false, webContents: { send } } as never }
+    pushAlerts(win, { alerts: [ALERT] })
+    pushAlertOpen(win, { cwd: CWD })
+    pushAlerts({ win: null }, { alerts: [] })
+    pushAlertOpen({ win: null }, { cwd: CWD })
+    expect(send.mock.calls).toEqual([['loop.alertsState', { alerts: [ALERT] }], ['loop.alertOpen', { cwd: CWD }]])
   })
 })

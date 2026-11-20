@@ -86,7 +86,7 @@ describe('메인 대화 기록 (M10 G3)', () => {
     install(mv({
       items: [
         user('u1', '범위는 덧셈', 'sent'), said('a1', '좋아, **결정 대장**에 적었어'), user('u2', '타임아웃은 짧게', 'queued'),
-        ev('e1', 'goal-merged', 'G1 goal을 병합했다'), ev('e2', 'fail', 'G2/checks FAIL — npm test'),
+        ev('e1', 'goal-merged', 'G1 목표를 병합했다'), ev('e2', 'fail', 'G2/checks 실패 — npm test'),
         note('n1', '턴이 오류로 끝났다 — 연결 끊김'), note('n2', '대화 기록을 저장하지 못했다 — EACCES'),
       ],
     }))
@@ -138,6 +138,15 @@ describe('메인 대화 기록 (M10 G3)', () => {
     ]
     expect(Object.keys(EVENT_LOOK).sort()).toEqual([...kinds].sort())
     for (const k of kinds) expect(EVENT_LOOK[k].label.trim().length, k).toBeGreaterThan(0)
+    // M10 G5 — 작업 모드의 화면 글은 한글로 맞춘다. 이름표에 영어 낱말(PR 제외)을 두지 않는다
+    expect([EVENT_LOOK['node-start'].label, EVENT_LOOK['node-end'].label, EVENT_LOOK.fail.label, EVENT_LOOK.backlog.label]).toEqual(['시작', '통과', '실패', '미룬 일'])
+    for (const k of kinds) expect(EVENT_LOOK[k].label.replace(/\bPR\b/g, ''), k).not.toMatch(/[A-Za-z]/)
+  })
+
+  it('입력칸 안내 글도 한글이다 — 「미룬 일로」', async () => {
+    const { PLACEHOLDER } = await import('@renderer/13_Loop/MainChatView')
+    expect(PLACEHOLDER).toContain('「미룬 일로」')
+    expect(PLACEHOLDER).not.toMatch(/Backlog/)
   })
 })
 

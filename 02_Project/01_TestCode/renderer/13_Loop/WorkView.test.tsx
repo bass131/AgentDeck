@@ -82,10 +82,11 @@ describe('작업 모드 세 영역과 탭 (M10 G4)', () => {
     expect(r.container.querySelector('.work-side .status-board')).not.toBeNull()
   })
 
-  it('그래프 탭은 자리만 있다(캔버스는 G5). 탭을 바꿔도 메인 대화는 내려가지 않고 숨는다', async () => {
+  it('그래프 탭을 열면 그래프를 읽는다(캔버스는 WorkView.graph.test). 탭을 바꿔도 메인 대화는 내려가지 않고 숨는다', async () => {
     const r = await renderWork()
     await click(within(tabs('가운데 탭')).getByRole('tab', { name: '그래프' }))
-    expect(screen.getByText(/G5/)).toBeTruthy()
+    expect(installed.api.loopGraph).toHaveBeenCalledWith({ cwd: CWD })
+    expect(r.container.querySelector('[data-tab-panel="graph"]')?.hasAttribute('hidden')).toBe(false)
     const chat = r.container.querySelector('.main-chat')?.closest('[data-tab-panel]') as HTMLElement
     expect(chat).not.toBeNull()
     expect(chat.hidden).toBe(true)

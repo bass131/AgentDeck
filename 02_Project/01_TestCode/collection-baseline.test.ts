@@ -100,7 +100,12 @@ const SKIP_DIRS = new Set(['node_modules', 'dist', 'out', 'coverage', '.git'])
 // 프로젝트 사이드바와 채팅 대기 표시 renderer/13_Loop/ProjectSidebar.test.tsx를 더했다.
 // M10 G4 검수 반영: 477 → 479. main과 화면이 같이 쓰는 세션 사건 잇기·상한 shared/13_Loop/sessionMerge.test.ts,
 // 세션 push의 다시 그리기 범위(무거운 칸을 대역으로 바꿔 센다) renderer/13_Loop/WorkView.render.test.tsx를 더했다.
-const BASELINE_TEST_FILES = 479
+// M10 G5: 479 → 481. 그래프 캔버스와 알림 — 템플릿을 화면용 그래프로 바꾸는 main/05_Loop/templateGraph.test.ts,
+// 알림 판정(중복 막기·재기동·풀림·나중 사건) main/05_Loop/loopNotifier.test.ts, 실물 알림 포트 main/05_Loop/notifyPort.test.ts,
+// 개발 빌드의 AppUserModelID main/00_App/appUserModel.test.ts, 그래프 탭의 표시 판정(노드 이름 대응·지금 위치·끝남·실패 수·선·맞춤)
+// renderer/13_Loop/graphModel.test.ts, 캔버스와 「노드 설정」 탭 renderer/13_Loop/WorkView.graph.test.tsx,
+// 앱 안 알림 표시(현황판 띠·프로젝트 점·「작업」 버튼 점·알림 열기) renderer/13_Loop/alerts.test.tsx를 더했다.
+const BASELINE_TEST_FILES = 486
 
 function collectTestFiles(dir: string, acc: string[] = []): string[] {
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {

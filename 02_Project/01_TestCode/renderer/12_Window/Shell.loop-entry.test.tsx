@@ -140,6 +140,45 @@ describe('루프 화면 진입점 — 작업 모드 (M10 G1)', () => {
     }
   })
 
+  // M10 G5 — 알림 목록은 채팅 모드에서도 Shell 수명으로 구독한다(「작업」 버튼 점). Windows 알림을 누르면 그 폴더의 작업 모드를 연다
+  it('채팅 모드에서도 알림을 구독하고, 알림 열기 push가 오면 그 작업 폴더의 작업 모드로 바꾼다', async () => {
+    const opens = new Set<(o: { cwd: string }) => void>()
+    const overrides = {
+      ...shellBase(),
+      loopStatus: vi.fn().mockResolvedValue(closed),
+      onLoopState: vi.fn(() => () => {}),
+      loopMainRead: vi.fn().mockResolvedValue(blankView),
+      onLoopMainState: vi.fn(() => () => {}),
+      loopAlerts: vi.fn().mockResolvedValue({ alerts: [] }),
+      onLoopAlerts: vi.fn(() => () => {}),
+      onLoopAlertOpen: vi.fn((cb: (o: { cwd: string }) => void) => { opens.add(cb); return () => opens.delete(cb) }),
+      getUiPrefs: vi.fn().mockResolvedValue({ 'whatsnew.seenVersion': '0.0.0-test' }),
+      checkEngineUpdate: vi.fn().mockResolvedValue({ current: null, latest: null, updateAvailable: false }),
+    }
+    const installed = installWindowApi(overrides)
+    installMatchMedia()
+    try {
+      const { loadPrefs } = await import('@renderer/11_Settings/prefs')
+      await loadPrefs()
+      const { Shell } = await import('@renderer/12_Window/Shell')
+      const { container } = render(<Shell />)
+      await flush()
+      expect(overrides.loopAlerts).toHaveBeenCalledTimes(1)
+      expect(overrides.onLoopAlerts).toHaveBeenCalled()
+      expect(overrides.onLoopAlertOpen).toHaveBeenCalled()
+      expect(container.querySelector('.pane.chat')).not.toBeNull()
+      await act(async () => { for (const cb of [...opens]) cb({ cwd: CWD }) })
+      await flush()
+      const { useAppStore } = await import('@renderer/00_App/appStore')
+      const { useWorkStore } = await import('@renderer/13_Loop')
+      expect(useAppStore.getState().workspaceMode).toBe('work')
+      expect(useWorkStore.getState().cwd).toBe(CWD)
+      expect(container.querySelector('.pane.work .status-board')).not.toBeNull()
+    } finally {
+      installed.uninstall()
+    }
+  })
+
   // M10 G3(Backlog 6) — 작업 모드로 끈 뒤 다시 켜면 그 작업 폴더로 뜬다. 고른 폴더는 설정(work.cwd)에 남는다.
   // 다시 켤 때 루프를 저절로 열지 않는다(열기는 저장소 잠금을 잡고 실행기를 돌리는 사람의 동작이다) — 읽기만 한다
   it('고른 작업 폴더를 설정에 남기고, 다시 켜면 그 폴더의 루프 상태와 메인 대화를 읽는다(열지는 않는다)', async () => {
@@ -234,8 +273,14 @@ describe('작업 모드 배치 CSS', () => {
     expect(work).toMatch(/\.status-board\s*\{/)
     expect(work).toMatch(/\.work-panel\[hidden\]\s*\{[^}]*display:\s*none/)
     const side = css('12_Window/Sidebar.css')
-    for (const cls of ['sb-projects', 'sb-proj-head', 'sb-proj-tag', 'sb-proj-item', 'sb-proj-open', 'sb-mode-wait']) {
+    for (const cls of ['sb-projects', 'sb-proj-head', 'sb-proj-tag', 'sb-proj-item', 'sb-proj-open', 'sb-mode-wait', 'sb-proj-alert']) {
       expect(side, cls).toMatch(new RegExp(`\\.${cls}\\b`))
     }
+    // M10 G5 — 현황판의 알림 띠와 프로젝트 점. 나중 사건은 다른 꼴이다
+    expect(work).toMatch(/\.board-alert\s*\{/)
+    expect(work).toMatch(/\.board-alert\[data-level='later'\]/)
+    expect(side).toMatch(/\.sb-proj-alert\[data-level='later'\]/)
+    // G5 검수 5 — 건너뛴 노드는 끝남(흐림)과 다른 꼴이다
+    expect(css('13_Loop/Graph.css')).toMatch(/\.gc-card\[data-skipped='true'\]\s*\{[^}]*dashed/)
   })
 })

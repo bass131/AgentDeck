@@ -23,9 +23,10 @@ const STATUS: LoopStatus = {
 }
 
 describe('loop IPC 묶음 (M09 G4)', () => {
-  it('채널 이름 — invoke 열넷과 push 셋(M10 G2: 메인 대화 읽기·보내기·새로 열기, 메인 대화 push, 세션 사건 push. M10 G3: 깃발 내리기. M10 G4: 세션 기록 읽기·지난 메인 대화 읽기)', () => {
+  it('채널 이름 — invoke 열여섯과 push 다섯(M10 G2: 메인 대화 읽기·보내기·새로 열기, 메인 대화 push, 세션 사건 push. M10 G3: 깃발 내리기. M10 G4: 세션 기록 읽기·지난 메인 대화 읽기. M10 G5: 그래프 읽기·알림 읽기, 알림 push·알림 열기 push)', () => {
     expect(Object.values(LOOP_CHANNELS).sort()).toEqual([
-      'loop.answerCard', 'loop.cancelSession', 'loop.close', 'loop.decide', 'loop.lowerFlag', 'loop.mainArchives', 'loop.mainNew', 'loop.mainRead', 'loop.mainSend', 'loop.mainState',
+      'loop.alertOpen', 'loop.alerts', 'loop.alertsState',
+      'loop.answerCard', 'loop.cancelSession', 'loop.close', 'loop.decide', 'loop.graph', 'loop.lowerFlag', 'loop.mainArchives', 'loop.mainNew', 'loop.mainRead', 'loop.mainSend', 'loop.mainState',
       'loop.open', 'loop.releaseLatch', 'loop.sessionEvent', 'loop.sessionLog', 'loop.start', 'loop.state', 'loop.status',
     ])
     for (const v of Object.values(LOOP_CHANNELS)) expect(Object.values(IPC_CHANNELS)).toContain(v)
@@ -52,7 +53,34 @@ describe('loop IPC 묶음 (M09 G4)', () => {
       lowerFlag: { kind: 'call', channel: 'loop.lowerFlag' },
       sessionLog: { kind: 'call', channel: 'loop.sessionLog' },
       mainArchives: { kind: 'call', channel: 'loop.mainArchives' },
+      graph: { kind: 'call', channel: 'loop.graph' },
+      alerts: { kind: 'call0', channel: 'loop.alerts' },
+      onAlerts: { kind: 'push', channel: 'loop.alertsState' },
+      onAlertOpen: { kind: 'push', channel: 'loop.alertOpen' },
     })
+  })
+
+  it('그래프 읽기와 알림 (M10 G5) — 그래프는 cwd만 받고, 알림 목록은 읽기 응답과 push가 같은 꼴이다', () => {
+    const req: ReqOf<'loop.graph'> = { cwd: 'C:/work/practice' }
+    const res: ResOf<'loop.graph'> = {
+      ok: true,
+      graph: {
+        templateId: 'program-dev', title: '프로그램 개발', failLimit: 3, goalLoop: null,
+        nodes: [{ id: 'a', title: 'A', kind: 'work', scope: 'milestone', role: 'worker', rule: null, commands: [], next: null, onFail: null, when: null, position: { x: 0, y: 0 } }],
+        edges: [],
+      },
+    }
+    const refused: ResOf<'loop.graph'> = { ok: false, reason: '템플릿을 읽지 못했다' }
+    const list: ResOf<'loop.alerts'> = { alerts: [{ key: 'k', cwd: req.cwd, phase: 'halted', node: 'G1/checks', level: 'now', text: '멈췄다' }] }
+    const pushed: PayloadOf<'loop.alertsState'> = list
+    const open: PayloadOf<'loop.alertOpen'> = { cwd: req.cwd }
+    expect([res.ok, refused.ok, pushed.alerts[0].level, open.cwd]).toEqual([true, false, 'now', req.cwd])
+    // @ts-expect-error 그래프 읽기는 편집 값을 싣지 못한다
+    const forged: ReqOf<'loop.graph'> = { cwd: req.cwd, nodes: [] }
+    void forged
+    // @ts-expect-error 알림 수준은 now·later뿐이다
+    const bad: ResOf<'loop.alerts'> = { alerts: [{ ...list.alerts[0], level: 'soon' }] }
+    void bad
   })
 
   it('세션 기록·지난 메인 대화·상태의 새 칸 (M10 G4)', () => {

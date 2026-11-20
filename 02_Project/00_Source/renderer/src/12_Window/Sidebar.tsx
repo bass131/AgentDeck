@@ -10,7 +10,7 @@ import {
   selectPendingPermission,
   selectPendingQuestion,
 } from '@renderer/00_App/appStore'
-import { ProjectSidebar } from '@renderer/13_Loop'
+import { ProjectSidebar, useAlertStore } from '@renderer/13_Loop'
 import {
   IconSearch,
   IconPlus,
@@ -359,6 +359,7 @@ function SidebarInner({ onCollapse, onOpenSettings }: SidebarProps): JSX.Element
 
   const mode = useAppStore(selectWorkspaceMode)
   const chatWaiting = useAppStore((s) => selectPendingQuestion(s) !== null || selectPendingPermission(s) !== null)
+  const hasLoopAlert = useAlertStore((s) => s.alerts.length > 0)
   const setMode = (m: WorkspaceMode): void => {
     useAppStore.getState().setWorkspaceMode(m)
   }
@@ -431,7 +432,9 @@ function SidebarInner({ onCollapse, onOpenSettings }: SidebarProps): JSX.Element
       <div className="sb-mode" role="tablist" aria-label="작업 모드">
         {MODES.map(({ mode: m, label, Icon }) => {
           // 탭의 접근 이름을 바꾸지 않도록 점은 aria-hidden, 설명은 title에만 둔다
-          const waiting = m === 'single' && chatWaiting
+          // 작업 쪽 점은 채팅 모드에서만 — 작업 모드에서는 프로젝트 점이 대신한다(M10 G5)
+          const workWaiting = m === 'work' && mode === 'single' && hasLoopAlert
+          const waiting = (m === 'single' && chatWaiting) || workWaiting
           return (
             <button
               key={m}
@@ -440,7 +443,7 @@ function SidebarInner({ onCollapse, onOpenSettings }: SidebarProps): JSX.Element
               aria-selected={mode === m}
               className={'sb-mode-btn' + (mode === m ? ' on' : '')}
               data-waiting={waiting ? 'true' : undefined}
-              title={waiting ? '채팅이 네 답을 기다려요' : undefined}
+              title={workWaiting ? '작업에 사람이 필요한 일이 있어요' : waiting ? '채팅이 네 답을 기다려요' : undefined}
               onClick={() => setMode(m)}
             >
               <Icon size={14} />

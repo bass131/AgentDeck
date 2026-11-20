@@ -1,0 +1,124 @@
+// M10 G5 — 알림 판정자. 구동자가 내는 LoopStatus를 보고 사람을 부르는 사건을 정한다(구동자·실행기 동작은 그대로다).
+//   - 바로 알릴 사건: halted·latched·blocked. Windows 알림 한 번(NotifyPort)과 앱 안 표시.
+//   - 나중 사건: waiting-human이면서 milestonePr가 있다. 앱 안 표시만.
+//   - 열쇠는 작업 폴더·phase·노드다(사유 글은 넣지 않는다). 알린 열쇠는 앱 영역의 alerts.json에 남겨 재기동 뒤에도 다시 알리지 않는다.
+//   - 그 폴더가 사건 밖의 상태가 되면 열쇠를 지운다. closed·open-failed는 루프가 닫혔을 뿐이라 표시만 내리고 열쇠는 둔다 —
+//     다시 연 같은 멈춤은 새 사건이 아니다.
+//   - 판정은 한 줄로 세운다. 저장본 읽기가 끝난 뒤에 첫 상태를 보고, 앞 판정의 열쇠를 본 뒤에 다음 판정을 한다.
+import { promises as fsp } from 'node:fs'
+import path from 'node:path'
+import type { LoopAlert, LoopAlertList, LoopPhase, LoopStatus } from '@shared/13_Loop/loop'
+import { repoKeyOf } from './digestStore'
+import type { NotifyPort } from './ports'
+import { writeFileAtomic } from './realPorts/atomicWrite'
+
+const NOW_PHASES: ReadonlySet<LoopPhase> = new Set<LoopPhase>(['halted', 'latched', 'blocked'])
+const UNSEEN_PHASES: ReadonlySet<LoopPhase> = new Set<LoopPhase>(['closed', 'open-failed'])
+const LABEL: Partial<Record<LoopPhase, string>> = { halted: '멈춤', latched: '위조 래치', blocked: '진행 불가' }
+const STORE = 'alerts.json'
+const REASON_MAX = 160
+const TITLE = 'AgentDeck — 사람이 필요해요'
+
+export interface LoopNotifierOptions {
+  // 앱 영역(실물은 join(getUserDataDir(), 'loop') — 다른 루프 저장본과 같은 곳)
+  appDataDir: string
+  notify: NotifyPort
+  onChange?: (list: LoopAlertList) => void
+  // 사람이 Windows 알림을 눌렀다 — 그 작업 폴더의 작업 모드를 연다
+  onOpen?: (cwd: string) => void
+}
+
+export interface LoopNotifier {
+  observe(s: LoopStatus): Promise<void>
+  list(): LoopAlert[]
+}
+
+function levelOf(s: LoopStatus): LoopAlert['level'] | null {
+  if (NOW_PHASES.has(s.phase)) return 'now'
+  if (s.phase === 'waiting-human' && s.milestonePr !== null) return 'later'
+  return null
+}
+
+function textOf(s: LoopStatus): string {
+  if (s.phase === 'waiting-human') return `마일스톤 PR #${s.milestonePr ?? ''} 병합을 기다려요`
+  const head = [LABEL[s.phase] ?? s.phase, s.node].filter((x) => x !== null && x !== '').join(' · ')
+  const reason = (s.reason ?? '').replace(/\s+/g, ' ').trim()
+  if (reason === '') return head
+  return `${head} — ${reason.length > REASON_MAX ? `${reason.slice(0, REASON_MAX)}…` : reason}`
+}
+
+async function readKeys(file: string): Promise<Set<string>> {
+  try {
+    const raw: unknown = JSON.parse(await fsp.readFile(file, 'utf8'))
+    const keys = (raw as { keys?: unknown } | null)?.keys
+    return new Set(Array.isArray(keys) ? keys.filter((k): k is string => typeof k === 'string') : [])
+  } catch {
+    return new Set()
+  }
+}
+
+export function createLoopNotifier(o: LoopNotifierOptions): LoopNotifier {
+  const file = path.join(o.appDataDir, STORE)
+  const current = new Map<string, LoopAlert>()
+  let sent: Set<string> | null = null
+  let chain: Promise<void> = Promise.resolve()
+  const list = (): LoopAlert[] => [...current.values()]
+  const emit = (): void => {
+    try { o.onChange?.({ alerts: list() }) } catch { /* 화면 쪽 오류는 판정을 막지 않는다 */ }
+  }
+
+  async function save(keys: Set<string>): Promise<void> {
+    try {
+      await fsp.mkdir(o.appDataDir, { recursive: true })
+      await writeFileAtomic(file, `${JSON.stringify({ keys: [...keys] })}\n`)
+    } catch {
+      // 저장하지 못하면 재기동 뒤 같은 사건을 한 번 더 알릴 뿐이다
+    }
+  }
+
+  function show(s: LoopStatus, text: string): void {
+    const where = path.basename(s.root ?? s.cwd) || s.cwd
+    try {
+      o.notify.show({ title: TITLE, body: `${where} — ${text}`, onClick: () => o.onOpen?.(s.cwd) })
+    } catch {
+      // 알림을 띄우지 못해도 앱 안 표시는 남는다
+    }
+  }
+
+  async function apply(s: LoopStatus): Promise<void> {
+    sent ??= await readKeys(file)
+    const keys = sent
+    const folder = repoKeyOf(s.cwd)
+    const before = current.get(folder)
+    if (UNSEEN_PHASES.has(s.phase)) {
+      if (before) { current.delete(folder); emit() }
+      return
+    }
+    const level = levelOf(s)
+    const key = level === null ? null : `${folder}:${s.phase}:${s.node ?? '-'}`
+    let dirty = false
+    for (const k of [...keys]) {
+      if (k.startsWith(`${folder}:`) && k !== key) { keys.delete(k); dirty = true }
+    }
+    if (key === null || level === null) {
+      if (before) { current.delete(folder); emit() }
+    } else {
+      const alert: LoopAlert = { key, cwd: before?.cwd ?? s.cwd, phase: s.phase, node: s.node, level, text: textOf(s) }
+      if (level === 'now' && !keys.has(key)) {
+        keys.add(key)
+        dirty = true
+        show(s, alert.text)
+      }
+      if (before?.key !== key || before.text !== alert.text) { current.set(folder, alert); emit() }
+    }
+    if (dirty) await save(keys)
+  }
+
+  return {
+    observe(s) {
+      chain = chain.then(() => apply(s)).catch(() => undefined)
+      return chain
+    },
+    list,
+  }
+}

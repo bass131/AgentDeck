@@ -30,6 +30,7 @@ type Action =
   | { op: 'waitMain'; text: string; ms?: number }
   | { op: 'wait'; ms: number }
   | { op: 'restart' }
+  | { op: 'notify' }
   | { op: 'quit' }
 
 const stamp = (): string => new Date().toISOString()
@@ -106,6 +107,18 @@ async function snapshot(page: Page): Promise<string> {
     if (pill) parts.push('[question-pill] 내려둔 질문 있음')
     return parts.join('\n\n')
   }).catch((e: unknown) => `[snapshot-error] ${String(e)}`)
+}
+
+// 앱 프로세스에서 Windows 알림 하나를 띄우고 show·failed 사건 중 먼저 온 것을 돌려준다
+async function probeNotification(app: ElectronApplication): Promise<string> {
+  return app.evaluate(({ Notification }) => new Promise<string>((done) => {
+    if (!Notification.isSupported()) { done('unsupported'); return }
+    const n = new Notification({ title: 'AgentDeck 알림 시험', body: 'G5 캡처 — 바로 알릴 사건의 실제 포트' })
+    const timer = setTimeout(() => done('timeout'), 8000)
+    n.once('show', () => { clearTimeout(timer); done('show') })
+    n.once('failed', (_e, err) => { clearTimeout(timer); done(`failed ${err}`) })
+    n.show()
+  }))
 }
 
 async function runAction(page: Page, a: Action): Promise<void> {
@@ -223,6 +236,10 @@ test.describe('M09 G5 연습 저장소 실주행 구동기 (opt-in: M09_G5_RUN=1
               restarts++
               await openLoop(page).catch((e: unknown) => log.push(`openLoop after restart: ${String(e)}`))
               log.push('ok restart')
+              continue
+            }
+            if (a.op === 'notify') {
+              log.push(`notify ${await probeNotification(app)}`)
               continue
             }
             await runAction(page, a)

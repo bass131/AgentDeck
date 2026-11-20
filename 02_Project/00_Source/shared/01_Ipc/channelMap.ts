@@ -123,7 +123,10 @@ import type {
   LoopStartRequest,
   LoopStatus,
   MainChatView,
+  LoopAlertList,
+  LoopAlertOpen,
 } from '../13_Loop/loop'
+import type { LoopGraphResponse } from '../13_Loop/graph'
 import type { Ack } from '../02_Common/common'
 import type {
   WindowMaximizedResponse,
@@ -230,6 +233,9 @@ export interface IpcInvokeMap {
   'loop.lowerFlag': { req: LoopCwdRequest; res: LoopMainResponse }
   'loop.sessionLog': { req: LoopCwdRequest; res: LoopSessionLog }
   'loop.mainArchives': { req: LoopCwdRequest; res: MainChatArchives }
+  // M10 G5 — 그래프 읽기(보기 전용)와 알림 목록 읽기
+  'loop.graph': { req: LoopCwdRequest; res: LoopGraphResponse }
+  'loop.alerts': { req: void; res: LoopAlertList }
 }
 
 // main → renderer push 채널. 값은 payload 타입이다.
@@ -240,6 +246,8 @@ export interface IpcPushMap {
   'loop.state': LoopStatus
   'loop.mainState': MainChatView
   'loop.sessionEvent': LoopSessionEventPayload
+  'loop.alertsState': LoopAlertList
+  'loop.alertOpen': LoopAlertOpen
 }
 
 export type InvokeChannel = keyof IpcInvokeMap

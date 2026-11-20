@@ -31,7 +31,7 @@ type Where = 'top' | 'send' | 'cards' | 'approval' | 'flag' | 'cancel' | 'new'
 type Errors = Partial<Record<Where, string>>
 
 const CARD_REFUSED = '카드 답이 받아지지 않았어요 — 턴이 이미 끝났거나 카드가 바뀌었을 수 있어요'
-const PLACEHOLDER = '메인에게 말하기 — 질문, 「멈춰」, 「이어 가」, 「Backlog로」…'
+export const PLACEHOLDER = '메인에게 말하기 — 질문, 「멈춰」, 「이어 가」, 「미룬 일로」…'
 
 function ChatItemView({ item }: { item: MainChatItem }): JSX.Element {
   switch (item.kind) {

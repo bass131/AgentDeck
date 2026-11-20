@@ -26,7 +26,18 @@ export const LOOP_CHANNELS = {
   LOOP_LOWER_FLAG: 'loop.lowerFlag',
   LOOP_SESSION_LOG: 'loop.sessionLog',
   LOOP_MAIN_ARCHIVES: 'loop.mainArchives',
+  // M10 G5 — 그래프 읽기(보기 전용), 알림 목록 읽기와 그 push, Windows 알림을 눌렀을 때 그 작업 폴더를 여는 push
+  LOOP_GRAPH: 'loop.graph',
+  LOOP_ALERTS: 'loop.alerts',
+  LOOP_ALERTS_STATE: 'loop.alertsState',
+  LOOP_ALERT_OPEN: 'loop.alertOpen',
 } as const
+
+// M10 G5 — 사람을 부르는 사건. now(halted·latched·blocked)는 Windows 알림 한 번과 앱 안 표시, later(마일스톤 병합 대기)는 앱 안 표시만.
+// key는 작업 폴더·phase·노드에서 만든다(사유 글은 넣지 않는다). 그 상태를 벗어나면 목록에서 빠진다.
+export interface LoopAlert { key: string; cwd: string; phase: LoopPhase; node: string | null; level: 'now' | 'later'; text: string }
+export interface LoopAlertList { alerts: LoopAlert[] }
+export interface LoopAlertOpen { cwd: string }
 
 // closed       열린 실행기가 없다(열기 전·닫은 뒤)
 // open-failed  열지 못했다(reason). 설정 차이로 못 열었으면 latch가 있다 — 사람이 확인하고 풀면 그 차이를 새 기준선으로 연다

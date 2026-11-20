@@ -12,7 +12,9 @@ import { controlsForRun, setControlEnabled } from '@main/04_Claude/permission/co
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import type { AgentBackend, AgentRun, AgentRunInput, RunResponse } from '@main/03_Agent/AgentBackend'
 import { repoKeyOf } from '@main/05_Loop/digestStore'
-import { autoModeReasonOf, createLoopDriver, type LoopDriver } from '@main/05_Loop/loopDriver'
+import { autoModeReasonOf, contextText, createLoopDriver, stateSummary, type LoopDriver } from '@main/05_Loop/loopDriver'
+import { FAIL_LIMIT, createRunState, type RunState } from '@main/05_Loop/runState'
+import { createLoopNotifier } from '@main/05_Loop/loopNotifier'
 import { openLoop } from '@main/05_Loop/openLoop'
 import { DOCS } from '@main/05_Loop/survivalDocs'
 import type { AgentEvent } from '@shared/agentEvents'
@@ -190,9 +192,13 @@ describe('구동자 — 마일스톤 하나를 사람과 함께 끝까지 (M09 G
     const told = rec.starts.map((s) => String(s.messages.at(-1)?.content)).filter((p) => p.startsWith('[실행기 사건]'))
     expect(told.length).toBeGreaterThanOrEqual(1)
     for (const p of told) {
-      for (const line of p.split('\n').filter((l) => l.startsWith('- '))) expect(line).toMatch(/goal을 병합했다|마일스톤 PR을 열었다/)
+      for (const line of p.split('\n').filter((l) => l.startsWith('- '))) expect(line).toMatch(/목표를 병합했다|마일스톤 PR을 열었다/)
     }
-    expect(told.join('\n').match(/goal을 병합했다/g)).toHaveLength(2)
+    expect(told.join('\n').match(/목표를 병합했다/g)).toHaveLength(2)
+    // M10 G5 — 사람이 읽는 사건 문장은 한글이다(PR·이름은 그대로)
+    const texts = d.mainRead(CWD).items.flatMap((i) => (i.kind === 'event' ? [i.event.text] : []))
+    // 노드 id(goal-branch·goal-pr)와 브랜치(goal/…)는 이름이라 남는다 — 낱말 goal·FAIL·Backlog가 없다(G5 검수 4)
+    for (const t of texts) expect(t, t).not.toMatch(/(?<![\w/-])goal(?![\w/-])|\bFAIL\b|Backlog/i)
     expect(told.join('\n')).toContain('마일스톤 PR을 열었다')
 
     // 앱을 다시 켠 것 — 구동자를 닫고 새로 만들어 연다. 같은 노드에서 이어 가고, 사람이 병합하면 끝낸다.
@@ -277,6 +283,37 @@ describe('카드 차례는 구동자 전역에서 단조 증가한다 (M09 G4 �
   })
 })
 
+// G5 검수 4 — 래치 카드의 상태 요약(사람이 본다)과 메인 에이전트의 실행 상태 요약은 사건 문장과 같은 어휘(목표·실패)다
+describe('상태 요약의 어휘 (M10 G5 검수 4)', () => {
+  const state = (): RunState => {
+    const s = createRunState(TEMPLATE.template, TEMPLATE.hash, 'M1', 'main')
+    if (!s.ok) throw new Error(s.reason)
+    const fail = (sentence: string): RunState['lines'][number] => ({ marker: 'FAIL', at: '2026-11-20T00:00:00Z', node: 'brainstorm', goal: null, by: 'executor', judge: 'rule', sentence })
+    return {
+      ...s.state, status: 'needs-user', haltReason: '멈춤', failCount: 2,
+      goals: [{ id: 'G1', title: 'a', status: 'active', grade: null, baseSha: null, pr: null, pushedSha: null, ciSha: null, mergedSha: null }],
+      lines: [fail('스펙이 없다'), fail('npm test 실패')],
+    }
+  }
+
+  it('래치 카드의 요약은 상태 값을 한글 낱말로, 실패 수를 「실패 N」으로 보인다 — 저장 형식은 그대로다', () => {
+    const text = JSON.stringify(state())
+    const sum = stateSummary(text) ?? ''
+    expect(sum).toContain('사람 판정 대기')
+    expect(sum).toContain('실패 2')
+    expect(sum).not.toMatch(/needs-user|\bFAIL\b/)
+    expect(JSON.parse(text).status).toBe('needs-user')
+  })
+
+  it('메인 에이전트의 실행 상태 요약에는 목표·실패 어휘만 있다 — goal·FAIL이 섞이지 않는다', () => {
+    const ctx = contextText(state(), 'brainstorm')
+    expect(ctx).toContain('실패 2')
+    expect(ctx).toContain('목표: G1')
+    expect(ctx).toContain('- 실패 brainstorm: npm test 실패')
+    expect(ctx).not.toMatch(/(?<![\w/-])goal(?![\w/-])|\bFAIL\b/)
+  })
+})
+
 describe('자동 모드 허용 노드 판독 (M09 G4)', () => {
   it('컨트롤을 못 읽거나 노드가 꺼져 있으면 사유, 켜져 있으면 null', () => {
     expect(autoModeReasonOf({ ok: false, status: 'error', message: '읽지 못했다' })).toContain('읽지 못했다')
@@ -285,6 +322,9 @@ describe('자동 모드 허용 노드 판독 (M09 G4)', () => {
     expect(autoModeReasonOf({ ok: true, nodes: [] })).toContain('「다시 열기」')
     expect(autoModeReasonOf({ ok: false, status: 'error', message: '읽지 못했다' })).toContain('「다시 열기」')
     expect(autoModeReasonOf({ ok: true, nodes: [{ id: 'mode-auto-bypass-allow' } as never] })).toBeNull()
+    // G5 검수 4 — 화면에 보이는 사유는 한글 어휘다
+    expect(autoModeReasonOf({ ok: true, nodes: [] })).toContain('실패가 쌓인다')
+    expect(autoModeReasonOf({ ok: true, nodes: [] })).not.toMatch(/\bFAIL\b/)
   })
 
   it('실물 컨트롤 저장소(controlsForRun)에서 — 처음엔 켜져 있어 null, 컨트롤 화면의 끄기 경로로 끄면 사유', () => {
@@ -648,5 +688,65 @@ describe('알림은 단계가 바뀌면 지운다 (M09 G4 검수 사소 6)', () 
     d.answerCard(CWD, carded.cards[0].requestId, { kind: 'question', answers: [['덧셈']] })
     const waiting = await until((s) => s.phase === 'waiting-human' && s.approval !== null, '스펙 승인')
     expect(waiting.reason).toBeNull()
+  })
+})
+
+// M10 G5 — 그래프 읽기는 실행기를 열지 않아도 답한다(원격 없는 저장소처럼 열기가 실패한 폴더도). 열 때 쓰는 템플릿과 같은 것을 쓴다
+describe('구동자 그래프 읽기 (M10 G5)', () => {
+  it('열지 않은 폴더에도 실행기가 쓸 템플릿(시험이 끼운 것, 없으면 번들)의 그래프를 준다', () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'ad-graph-'))
+    try {
+      const custom = createLoopDriver({ appDataDir: tmp, openExtras: { template: TEMPLATE } })
+      const r = custom.graph(path.join(tmp, 'nowhere'))
+      expect(r.ok).toBe(true)
+      if (r.ok) expect([r.graph.nodes.find((n) => n.id === 'checks')?.commands, r.graph.failLimit]).toEqual([[OK_CMD], FAIL_LIMIT])
+      const bundled = createLoopDriver({ appDataDir: tmp }).graph(tmp)
+      expect(bundled.ok && bundled.graph.nodes.find((n) => n.id === 'checks')?.commands).toEqual(['npm run build', 'npm test'])
+    } finally {
+      fs.rmSync(tmp, { recursive: true, force: true })
+    }
+  })
+})
+
+// M10 G5 검수 1 — 자동 모드가 꺼진 채 다시 열면, 여는 쪽의 상태 계산과 구동(kick)의 읽기가 경쟁해도 running 한 장이 끼지 않는다.
+// running이 끼면 알림기가 열쇠를 지워 같은 blocked를 또 알린다
+describe('자동 모드 꺼짐을 다시 열기 — 알림은 한 번 (M10 G5 검수 1)', () => {
+  it('구동의 첫 읽기가 늦어도 상태는 처음부터 blocked이고, 다시 열기를 거듭해도 Windows 알림은 한 번이다', SLOW, async () => {
+    const first = driver()
+    await first.d.open({ cwd: repos.work })
+    await first.d.start(repos.work, 'M1')
+    await until((x) => x.cards.length === 1, '질문 카드')
+    await first.d.closeAll()
+    const shown: string[] = []
+    const notifier = createLoopNotifier({ appDataDir: path.join(appData, 'loop'), notify: { show: (n) => { shown.push(n.body) } } })
+    const phases: string[] = []
+    for (let round = 0; round < 3; round++) {
+      const { backend } = fakeBackend()
+      const d = createLoopDriver({
+        appDataDir: appData, backend, ciRetryMs: 20, humanPollMs: 20,
+        openExtras: { gh, template: TEMPLATE, executorEnv: repos.env, commandTimeoutMs: 60_000 },
+        autoModeCheck: () => '컨트롤 노드 mode-auto-bypass-allow가 꺼져 있다',
+        // 구동(kick)의 첫 읽기를 늦춰 여는 쪽의 상태 계산이 먼저 끝나게 한다
+        openLoopImpl: async (o) => {
+          const r = await openLoop(o)
+          if (!r.ok) return r
+          const { runner } = r.loop
+          let loads = 0
+          const load: typeof runner.load = async () => {
+            if (loads++ === 0) await new Promise((res) => setTimeout(res, 300))
+            return runner.load()
+          }
+          return { ...r, loop: { ...r.loop, runner: { ...runner, load } } }
+        },
+        onState: (s) => { phases.push(s.phase); void notifier.observe(s) },
+      })
+      drivers.push(d)
+      const s = await d.open({ cwd: repos.work })
+      expect(s.phase, `${round}회째 열기`).toBe('blocked')
+      await new Promise((res) => setTimeout(res, 500))
+      await d.closeAll()
+    }
+    expect(phases).not.toContain('running')
+    expect(shown).toHaveLength(1)
   })
 })

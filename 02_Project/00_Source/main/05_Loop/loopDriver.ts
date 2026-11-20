@@ -54,7 +54,10 @@ import type { AgentEvent } from '@shared/agentEvents'
 import type {
   LoopCancelTarget, LoopEventItem, LoopMainResponse, LoopSessionEventPayload, LoopSessionLog, LoopSessionTag, LoopVerificationLine, MainChatArchives, MainChatView,
 } from '@shared/13_Loop/loop'
+import type { LoopGraphResponse } from '@shared/13_Loop/graph'
+import { loadBundledTemplate } from './bundledTemplate'
 import type { NextStep } from './executor'
+import { templateGraph } from './templateGraph'
 import { createFileDigestStore, repoKeyOf, stateDigest } from './digestStore'
 import { TAMPERED_REASON, visitKeyOf } from './loopRunner'
 import { openMainChat, readMainChatView, type MainActions, type MainChat } from './mainChat'
@@ -75,7 +78,7 @@ const REOPEN_HINT = '켠 뒤 루프 화면의 「다시 열기」로 이어 간�
 export function autoModeReasonOf(c: ControlsForRun): string | null {
   if (!c.ok) return `컨트롤 설정을 확인하지 못해 루프를 돌리지 않는다 — ${c.message}. 설정을 확인한 뒤 루프 화면의 「다시 열기」로 이어 간다`
   if (!c.nodes.some((n) => n.id === AUTO_MODE_NODE)) {
-    return `컨트롤 노드 ${AUTO_MODE_NODE}(앱 「자동」 모드 허용)가 꺼져 있다 — 켜지 않으면 작업자 노드의 편집이 거부돼 FAIL이 쌓인다. 설정 › 컨트롤에서 ${REOPEN_HINT}`
+    return `컨트롤 노드 ${AUTO_MODE_NODE}(앱 「자동」 모드 허용)가 꺼져 있다 — 켜지 않으면 작업자 노드의 편집이 거부돼 실패가 쌓인다. 설정 › 컨트롤에서 ${REOPEN_HINT}`
   }
   return null
 }
@@ -125,6 +128,8 @@ export interface LoopDriver {
   lowerFlag(cwd: string): LoopMainResponse
   sessionLog(cwd: string): LoopSessionLog
   mainArchives(cwd: string): Promise<MainChatArchives>
+  // M10 G5 — 열 때 쓰는 템플릿(openExtras.template, 없으면 번들)의 화면용 그래프. 실행기를 열지 않아도 답한다
+  graph(cwd: string): LoopGraphResponse
 }
 
 interface OpenFailure { reason: string; changed?: string[]; root?: string }
@@ -197,15 +202,26 @@ async function readText(file: string): Promise<string | null> {
   }
 }
 
+// 사람·메인에게 보이는 낱말 — 저장 값(status·marker)은 그대로다(G5 검수 4)
+const RUN_STATUS_WORD: Record<RunState['status'], string> = { running: '진행 중', 'needs-user': '사람 판정 대기', done: '끝' }
+const MARKER_WORD: Record<RunState['lines'][number]['marker'], string> = { PASS: '통과', FAIL: '실패', 'USER-INPUT': '사람 입력' }
+
 // 래치 카드에 보이는 상태 파일 요약(사람이 무엇을 받는지 본다)
-function summarize(text: string | null): string | null {
+export function stateSummary(text: string | null): string | null {
   if (text === null) return null
   let raw: unknown
   try { raw = JSON.parse(text) } catch { return '상태 파일이 JSON으로 읽히지 않는다' }
   const checked = validateRunState(raw)
   if (!checked.ok) return `상태 파일이 스키마에 맞지 않는다 — ${checked.errors.slice(0, 3).map((e) => `${e.path} ${e.reason}`).join('; ')}`
   const s = checked.state
-  return `${s.milestoneId} · ${cursorLabel(s)} · ${s.status} · FAIL ${s.failCount} · 검증 줄 ${s.lines.length}`
+  return `${s.milestoneId} · ${cursorLabel(s)} · ${RUN_STATUS_WORD[s.status]} · 실패 ${s.failCount} · 검증 줄 ${s.lines.length}`
+}
+
+// 메인 에이전트에게 주는 실행 상태 요약 — 사건 문장과 같은 어휘(목표·실패)다. 상태 값 이름은 그대로 둔다
+export function contextText(state: RunState, label: string | null): string {
+  const goals = state.goals.map((g) => `${g.id}(${g.status})`).join(', ') || '없음'
+  const lines = state.lines.slice(-5).map((l) => `- ${MARKER_WORD[l.marker]} ${l.node}: ${oneLine(l.sentence)}`).join('\n') || '- (없음)'
+  return `실행 상태: ${state.milestoneId} · ${label ?? cursorLabel(state)} · ${state.status} · 실패 ${state.failCount}\n목표: ${goals}\n최근 검증 줄:\n${lines}`
 }
 
 // 상태 파일이 앱의 다이제스트와 맞는가(둘 다 없음도 맞음). 맞지 않으면 풀 때 사본으로 되돌린다.
@@ -333,10 +349,7 @@ export function createLoopDriver(opts: LoopDriverOptions): LoopDriver {
     const r = await loop.runner.load()
     if (r.kind === 'missing') return '실행 상태: 아직 시작하지 않았다'
     if (r.kind !== 'ok') return `실행 상태: ${r.kind} — ${r.reason}`
-    const { state, next } = r
-    const goals = state.goals.map((g) => `${g.id}(${g.status})`).join(', ') || '없음'
-    const lines = state.lines.slice(-5).map((l) => `- ${l.marker} ${l.node}: ${oneLine(l.sentence)}`).join('\n') || '- (없음)'
-    return `실행 상태: ${state.milestoneId} · ${labelOf(next) ?? cursorLabel(state)} · ${state.status} · FAIL ${state.failCount}\ngoal: ${goals}\n최근 검증 줄:\n${lines}`
+    return contextText(r.state, labelOf(r.next))
   }
 
   // 깃발 내리기 — 메인의 resume 도구와 사람의 loop.lowerFlag(M10 G3)가 같은 길을 쓴다. 깃발만 내리고 kick한다 —
@@ -372,7 +385,7 @@ export function createLoopDriver(opts: LoopDriverOptions): LoopDriver {
       appendBacklog: async (line) => {
         const r = await appendBacklogLine(fsPort, line)
         if (!r.ok) return `적지 않았다 — ${r.reason}`
-        record(e, { kind: 'backlog', node: null, goal: null, text: `Backlog에 적었다 — ${line.trim()}` })
+        record(e, { kind: 'backlog', node: null, goal: null, text: `미룬 일에 적었다 — ${line.trim()}` })
         return 'Backlog에 적었다'
       },
     }
@@ -413,7 +426,7 @@ export function createLoopDriver(opts: LoopDriverOptions): LoopDriver {
     e.latchSeen.delete(token)
     e.latchSeen.set(token, { token, textSha, tampered, copy })
     while (e.latchSeen.size > LATCH_SEEN_MAX) e.latchSeen.delete(e.latchSeen.keys().next().value as string)
-    return { reason, file, changed, state: summarize(text), restore: summarize(copy), token }
+    return { reason, file, changed, state: stateSummary(text), restore: stateSummary(copy), token }
   }
 
   // 사유는 실행기가 돌려준 것(load)만 쓴다 — 실행기는 래치를 메모리에 먼저 걸고 앱 영역 파일을 뒤에 쓰므로, 파일을 읽으면
@@ -467,7 +480,9 @@ export function createLoopDriver(opts: LoopDriverOptions): LoopDriver {
     }
     if (state.status === 'done' || next.kind === 'done') return { ...filled, phase: 'done' }
     if (state.status === 'needs-user' || next.kind === 'needs-user') return { ...filled, phase: 'halted', reason: state.haltReason }
-    if (e.blocked) return { ...filled, phase: 'blocked', reason: e.blocked }
+    // 구동(kick)과 같은 판단을 상태 계산이 직접 한다 — 여는 쪽의 계산이 구동보다 먼저 끝나도 running 한 장이 끼지 않는다(G5 검수 1)
+    const blocked = e.blocked ?? (chat?.paused() ? null : autoCheck())
+    if (blocked) return { ...filled, phase: 'blocked', reason: blocked }
     if (next.kind === 'gate' && next.node.judge === 'human') {
       if (next.node.watch) return { ...filled, phase: 'waiting-human', milestonePr: state.milestonePr }
       const view = await loop.runner.specView()
@@ -520,11 +535,11 @@ export function createLoopDriver(opts: LoopDriverOptions): LoopDriver {
       const v = out.verdict
       const evidence = oneLine(v.evidence)
       if (next.kind === 'action' && v.verdict === 'pass' && next.node.action === 'mergeGoal') {
-        record(e, { kind: 'goal-merged', node, goal, verdict: 'pass', text: `${goal ?? ''} goal을 병합했다 — ${evidence}` }, true)
+        record(e, { kind: 'goal-merged', node, goal, verdict: 'pass', text: `${goal ?? ''} 목표를 병합했다 — ${evidence}` }, true)
       } else if (next.kind === 'action' && v.verdict === 'pass' && next.node.action === 'openMilestonePr') {
         record(e, { kind: 'milestone-pr', node, goal, verdict: 'pass', text: `마일스톤 PR을 열었다 — ${evidence}` }, true)
       } else if (v.verdict === 'fail') {
-        record(e, { kind: 'fail', node, goal, verdict: 'fail', text: `${label} FAIL — ${evidence}` })
+        record(e, { kind: 'fail', node, goal, verdict: 'fail', text: `${label} 실패 — ${evidence}` })
       } else if (v.verdict === 'pass') {
         record(e, { kind: 'node-end', node, goal, verdict: 'pass', text: `${label} 통과 — ${evidence}` })
       }
@@ -842,6 +857,14 @@ export function createLoopDriver(opts: LoopDriverOptions): LoopDriver {
     },
 
     mainRead: (cwd) => mainViewOf(cwd),
+
+    graph: () => {
+      const given = opts.openExtras?.template
+      if (given) return { ok: true, graph: templateGraph(given.template) }
+      const t = loadBundledTemplate()
+      if (!t.ok) return { ok: false, reason: `번들 템플릿이 스키마에 맞지 않는다 — ${t.errors.map((x) => `${x.path} ${x.reason}`).join('; ')}` }
+      return { ok: true, graph: templateGraph(t.template) }
+    },
 
     mainSend(cwd, text) {
       const chat = entryOf(cwd)?.chat

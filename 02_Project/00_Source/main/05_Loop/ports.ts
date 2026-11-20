@@ -161,6 +161,13 @@ export interface ConfigCheck {
   check(): Promise<string | null>
 }
 
+// M10 G5 — 사람을 부르는 Windows 알림(실물: realPorts/notifyPort.ts의 Electron Notification). onClick은 사람이 알림을 눌렀을 때 한 번 불린다.
+// 실행기 포트가 아니라 알림 판정자(loopNotifier.ts)가 쓴다.
+export interface NotifyRequest { title: string; body: string; onClick: () => void }
+export interface NotifyPort {
+  show(n: NotifyRequest): void
+}
+
 export interface LoopPorts {
   command: CommandPort
   git: GitPort

@@ -1,11 +1,13 @@
 import { memo, useEffect, useRef, useState, type JSX } from 'react'
-import type { LoopStatus } from '@shared/ipcContract'
+import type { LoopGraphResponse, LoopStatus } from '@shared/ipcContract'
 import { ipc } from '@renderer/01_Ipc'
 import { StatusBoard } from './LoopScreen'
 import { ChatItem, MainChatView } from './MainChatView'
 import { NodeSessionView, labelOf } from './NodeSessionView'
 import { FilesPanel } from './FilesPanel'
-import { sameCwd } from './loopModel'
+import { GraphCanvas } from './GraphCanvas'
+import { NodeSettings } from './NodeSettings'
+import { errText, sameCwd } from './loopModel'
 import { useSessionLog } from './useSessionLog'
 import { useWorkStore, type CenterTab } from './workStore'
 import './Work.css'
@@ -18,10 +20,13 @@ const MainChatPane = memo(MainChatView)
 const BoardPane = memo(StatusBoard)
 const NodeSessionPane = memo(NodeSessionView)
 const FilesPane = memo(FilesPanel)
+const GraphPane = memo(GraphCanvas)
+const NodeSettingsPane = memo(NodeSettings)
 const store = useWorkStore.getState
 const openMain = (): void => store().openTab('main')
 const openSession = (key: string): void => store().openTab(`${SESSION}${key}`)
 const chooseCwd = (c: string): void => store().choose(c)
+const selectNode = (id: string): void => store().selectNode(id)
 
 function useLoopStatus(cwd: string | null): LoopStatus | null {
   const [status, setStatus] = useState<LoopStatus | null>(null)
@@ -48,6 +53,22 @@ function useLoopStatus(cwd: string | null): LoopStatus | null {
     return () => { alive = false }
   }, [cwd])
   return status
+}
+
+// 그래프는 그래프 탭을 처음 열 때 그 작업 폴더의 것을 한 번 읽는다
+function useLoopGraph(cwd: string | null, wanted: boolean): LoopGraphResponse | null {
+  const [got, setGot] = useState<{ cwd: string; res: LoopGraphResponse } | null>(null)
+  const have = got !== null && sameCwd(got.cwd, cwd)
+  useEffect(() => {
+    if (!wanted || cwd === null || have) return
+    let alive = true
+    ipc.loop
+      .graph({ cwd })
+      .then((res) => { if (alive) setGot({ cwd, res }) })
+      .catch((e: unknown) => { if (alive) setGot({ cwd, res: { ok: false, reason: errText(e) } }) })
+    return () => { alive = false }
+  }, [cwd, wanted, have])
+  return have ? got.res : null
 }
 
 function dateOf(at: string | undefined): Date | null {
@@ -95,8 +116,11 @@ export function WorkView(): JSX.Element {
   const extraTabs = useWorkStore((s) => s.extraTabs)
   const right = useWorkStore((s) => s.right)
   const archives = useWorkStore((s) => s.archives)
+  const selected = useWorkStore((s) => s.selectedNode)
   const sessions = useSessionLog(cwd)
   const status = useLoopStatus(cwd)
+  const graphOpen = center === 'graph'
+  const graph = useLoopGraph(cwd, graphOpen)
 
   const rowOf = (key: string) => status?.sessions.find((r) => r.key === key)
   const tabLabel = (t: CenterTab): string => {
@@ -128,11 +152,14 @@ export function WorkView(): JSX.Element {
             </span>
           ))}
         </div>
-        <div className="work-panel" data-tab-panel="graph" hidden={center !== 'graph'}>
-          <div className="work-graph-slot">
-            <b>그래프</b>
-            <span>마일스톤 템플릿의 노드 그래프가 이 탭에 들어온다(G5). 지금은 오른쪽 현황판에서 진척을 봐.</span>
-          </div>
+        <div className="work-panel" data-tab-panel="graph" hidden={!graphOpen}>
+          {graph === null ? (
+            <div className="graph-empty">그래프를 읽는 중…</div>
+          ) : graph.ok ? (
+            <GraphPane graph={graph.graph} status={status} selected={selected} onSelect={selectNode} />
+          ) : (
+            <div className="graph-empty">{`그래프를 읽지 못했어요 — ${graph.reason}`}</div>
+          )}
         </div>
         {/* 숨기기만 한다 — 내리면 입력하던 글과 구독을 잃는다 */}
         <div className="work-panel" data-tab-panel="main" hidden={center !== 'main'}>
@@ -157,9 +184,21 @@ export function WorkView(): JSX.Element {
       </div>
       <aside className="work-side">
         <div className="work-tabs work-rtabs" role="tablist" aria-label="오른쪽 탭">
+          {graphOpen && <TabButton label="노드 설정" selected={right === 'node'} onSelect={() => store().setRight('node')} />}
           <TabButton label="현황판" selected={right === 'board'} onSelect={() => store().setRight('board')} />
           <TabButton label="파일·변경" selected={right === 'files'} onSelect={() => store().setRight('files')} />
         </div>
+        {graphOpen && right === 'node' && (
+          <div className="work-panel" data-tab-panel="node">
+            <NodeSettingsPane
+              graph={graph?.ok ? graph.graph : null}
+              status={status}
+              nodeId={selected}
+              onOpenSession={openSession}
+              onOpenMain={openMain}
+            />
+          </div>
+        )}
         <div className="work-panel" data-tab-panel="board" hidden={right !== 'board'}>
           <BoardPane cwd={cwd} onCwdChange={chooseCwd} onOpenSession={openSession} onOpenMain={openMain} />
         </div>

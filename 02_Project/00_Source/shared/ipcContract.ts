@@ -33,6 +33,7 @@ export * from './11_Settings/settings'
 export * from './12_Window/window'
 export * from './11_Settings/personalization'
 export * from './13_Loop/loop'
+export * from './13_Loop/graph'
 export * from './01_Ipc/channelMap'
 
 export const IPC_CHANNELS = {

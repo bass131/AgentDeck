@@ -181,8 +181,8 @@ export function LatchCard({ latch, busy, onRelease, error }: {
 export function GoalList({ goals }: { goals: LoopGoalView[] }): JSX.Element | null {
   if (goals.length === 0) return null
   return (
-    <section className="loop-sec" aria-label="goal 목록">
-      <h3 className="loop-h">goal</h3>
+    <section className="loop-sec" aria-label="목표 목록">
+      <h3 className="loop-h">목표</h3>
       <ul className="loop-goals">
         {goals.map((g) => (
           <li key={g.id} className="loop-goal" data-status={g.status}>

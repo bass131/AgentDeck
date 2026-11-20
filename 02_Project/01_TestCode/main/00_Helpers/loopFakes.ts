@@ -212,8 +212,11 @@ export class FakeGit implements GitPort {
   }
   // 시험이 diff 길이를 정하면 상한을 넘은 스냅숏을 흉내 낸다(G4 검수 I9)
   reviewTooLarge: number | null = null
+  // 시험이 켜면 diff 스냅숏을 만들지 못한 것을 흉내 낸다(G5 검수 4)
+  reviewMissing = false
   async reviewSnapshot(base: string): Promise<{ tree: string; diff: string; tooLarge?: boolean; chars?: number } | null> {
     this.calls.push(`reviewSnapshot ${base}`)
+    if (this.reviewMissing) return null
     if (this.reviewTooLarge !== null) return { tree: this.tree, diff: '', tooLarge: true, chars: this.reviewTooLarge }
     return { tree: this.tree, diff: this.reviewDiff, chars: this.reviewDiff.length }
   }

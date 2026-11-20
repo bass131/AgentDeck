@@ -146,4 +146,34 @@ describe('gap1-p13 ④ permission_mode 이벤트 → pickerMode 동기화 (RED)'
 
     unsubscribe?.()
   })
+
+  // M11 G2 — M06 Backlog 1. 배경 대화 run의 모드 변화는 그 대화의 스냅샷에 남는다(전경 선택기는 그대로).
+  it('배경 대화 run의 permission_mode → 그 대화 스냅샷의 pickerMode가 바뀐다', async () => {
+    const bg = await import('@renderer/03_Agent/state/backgroundRuns')
+    bg.__resetBackgroundRunsForTests()
+    bg.__seedBackgroundRunsForTests({
+      'conv-bg': { ...useAppStore.getState(), currentRunId: 'run-bg', isRunning: true, pickerMode: 'auto' } as never,
+    })
+    agentEventHandler!(permissionModePayload('run-bg', 'normal'))
+    expect(bg.__backgroundRunOf('conv-bg')?.pickerMode).toBe('normal')
+    expect(useAppStore.getState().pickerMode).toBe('normal')
+    agentEventHandler!(permissionModePayload('run-bg', 'plan'))
+    expect(bg.__backgroundRunOf('conv-bg')?.pickerMode).toBe('plan')
+    expect(useAppStore.getState().pickerMode).toBe('normal')
+    const saves: unknown[] = []
+    const originalSave = mockApi.conversationSave
+    mockApi.conversationSave = async (req?: unknown) => { saves.push(req); return { id: 'conv-bg' } }
+    try {
+      bg.__seedBackgroundRunsForTests({
+        'conv-bg': { ...bg.__backgroundRunOf('conv-bg')!, thread: [{ kind: 'msg', id: 'm1', role: 'user', text: 'hi' }], selectedModel: 'sonnet' } as never,
+      })
+      agentEventHandler!({ runId: 'run-bg', event: { type: 'done' } } as unknown as AgentEventPayload)
+      expect(saves).toHaveLength(1)
+      expect(saves.at(-1)).toMatchObject({ conversation: { id: 'conv-bg', mode: 'plan', model: 'sonnet' } })
+    } finally {
+      mockApi.conversationSave = originalSave
+    }
+    bg.__resetBackgroundRunsForTests()
+    unsubscribe?.()
+  })
 })

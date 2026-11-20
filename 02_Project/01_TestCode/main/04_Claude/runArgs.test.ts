@@ -15,11 +15,11 @@ afterEach(() => {
 })
 
 describe('buildQueryOptions — 골든 케이스(SDK 목록 기준)', () => {
-  it('(Opus 5.5, max, auto) → effort:max + permissionMode:acceptEdits', () => {
+  it('(Opus 5.5, max, auto) → effort:max + permissionMode:auto', () => {
     expect(buildQueryOptions({ model: OPUS55, effort: 'max', mode: 'auto' }, ROWS)).toEqual({
       model: OPUS55,
       effort: 'max',
-      permissionMode: 'acceptEdits'
+      permissionMode: 'auto'
     })
   })
 
@@ -128,7 +128,7 @@ describe('buildQueryOptions — mode 매핑 전수', () => {
   const cases: [string, string][] = [
     ['normal', 'default'],
     ['plan', 'plan'],
-    ['auto', 'acceptEdits'],
+    ['auto', 'auto'],
     ['acceptEdits', 'acceptEdits'],
     ['bypass', 'bypassPermissions']
   ]

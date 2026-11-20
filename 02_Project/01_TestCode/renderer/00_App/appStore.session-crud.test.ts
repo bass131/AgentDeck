@@ -1,5 +1,7 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { useAppStore } from '@renderer/00_App/appStore'
+import type { ConversationRunState } from '@renderer/00_App/state/types'
+import { __resetBackgroundRunsForTests, __seedBackgroundRunsForTests } from '@renderer/03_Agent/state/backgroundRuns'
 import type { ConversationRecord } from '../../../../02_Project/00_Source/shared/ipcContract'
 import type { ThreadItem } from '@renderer/05_Conversation/state/threadTypes'
 import { adaptFlatApi } from '../00_Helpers/windowApiMock'
@@ -354,6 +356,173 @@ describe('session-crud — selectConversations 셀렉터', () => {
     const { selectConversations } = await import('@renderer/00_App/appStore')
     const result = selectConversations(useAppStore.getState())
     expect(result).toEqual([])
+  })
+})
+
+// M11 G2 — M06 Backlog 1. 권한 모드 선택은 대화마다다 — 새 대화에서 Bypass를 골라도 옛 대화는 자기 모드로 열린다.
+describe('session-crud — 대화마다 권한 모드 (M06-1)', () => {
+  const saved: Array<{ id?: string; mode?: string; model?: string }> = []
+  const originalLoad = mockApi.conversationLoad
+  const originalSave = mockApi.conversationSave
+  const withMode = (id: string, mode?: string): ConversationRecord => ({
+    ...SAMPLE_RECORDS[0], id, ...(mode !== undefined ? { mode } : {}),
+  })
+  beforeEach(() => {
+    resetStore()
+    __resetBackgroundRunsForTests()
+    saved.length = 0
+    useAppStore.setState({ pickerMode: 'auto', currentRunId: null } as Parameters<typeof useAppStore.setState>[0])
+    mockApi.conversationLoad = async (req: { id?: string; limit?: number }) => {
+      const records = [withMode('m-plan', 'plan'), withMode('m-none'), withMode('m-bad', 'dontAsk')]
+      const found = records.find((r) => r.id === req.id)
+      return { conversations: found ? [found] : records }
+    }
+    mockApi.conversationSave = async (req?: unknown) => {
+      const c = (req as { conversation: { id?: string; mode?: string; model?: string } }).conversation
+      saved.push({ id: c.id, mode: c.mode, model: c.model })
+      return { id: c.id ?? 'cv-new' }
+    }
+  })
+  afterEach(() => {
+    mockApi.conversationLoad = originalLoad
+    mockApi.conversationSave = originalSave
+    __resetBackgroundRunsForTests()
+  })
+
+  it('저장된 모드로 열고, 모드가 없는 옛 대화는 기본(자동)으로 연다', async () => {
+    await useAppStore.getState().selectConversation('m-plan')
+    expect(useAppStore.getState().pickerMode).toBe('plan')
+    useAppStore.getState().setPickerMode('bypass')
+    await useAppStore.getState().selectConversation('m-none')
+    expect(useAppStore.getState().pickerMode).toBe('auto')
+    await useAppStore.getState().selectConversation('m-plan')
+    await useAppStore.getState().selectConversation('m-bad')
+    expect(useAppStore.getState().pickerMode).toBe('auto')
+  })
+
+  // done은 currentRunId를 비우지 않는다(지속 세션) — 쉬는 상태는 isRunning으로 본다
+  it('한 턴을 마친 대화에서 모드를 바꾸면 저장된다', async () => {
+    await useAppStore.getState().selectConversation('m-plan')
+    useAppStore.setState({ currentRunId: 'run-done', isRunning: false } as Parameters<typeof useAppStore.setState>[0])
+    useAppStore.getState().setPickerMode('bypass')
+    await new Promise((r) => setTimeout(r, 0))
+    expect(saved.at(-1)).toMatchObject({ id: 'm-plan', mode: 'bypass' })
+    saved.length = 0
+    useAppStore.setState({ isRunning: true } as Parameters<typeof useAppStore.setState>[0])
+    useAppStore.getState().setPickerMode('plan')
+    await new Promise((r) => setTimeout(r, 0))
+    expect(saved).toEqual([])
+  })
+
+  // M06 Backlog 18 — 모델을 바꾼 표시(contextWindowStale)는 그 대화의 것이다. 저장된 대화를 열면 내린다.
+  it('저장된 대화를 열면 contextWindowStale을 내리고 앞 대화의 자동 압축 표시를 지운다', async () => {
+    useAppStore.setState({ contextWindowStale: true, autoCompact: { enabled: true, thresholdTokens: 967_000 } } as Parameters<typeof useAppStore.setState>[0])
+    await useAppStore.getState().selectConversation('m-plan')
+    expect(useAppStore.getState().contextWindowStale).toBe(false)
+    expect(useAppStore.getState().autoCompact).toBeNull()
+  })
+
+  it('conversationModeOf는 선택기에 있는 id만 받는다', async () => {
+    const { conversationModeOf } = await import('@renderer/03_Agent/pickerOptions')
+    expect(conversationModeOf('bypass')).toBe('bypass')
+    expect(conversationModeOf(undefined)).toBe('auto')
+    expect(conversationModeOf('constructor')).toBe('auto')
+  })
+
+  it('새 대화는 기본 모드로 시작한다', async () => {
+    await useAppStore.getState().selectConversation('m-plan')
+    useAppStore.getState().newConversation()
+    expect(useAppStore.getState().pickerMode).toBe('auto')
+    await useAppStore.getState().selectConversation('m-plan')
+    useAppStore.getState().clearConversation()
+    expect(useAppStore.getState().pickerMode).toBe('auto')
+  })
+
+  it('실행 중이 아닌 대화에서 모드를 바꾸면 그 대화에 바로 저장한다', async () => {
+    await useAppStore.getState().selectConversation('m-plan')
+    useAppStore.getState().setPickerMode('normal')
+    await Promise.resolve()
+    expect(saved.at(-1)).toMatchObject({ id: 'm-plan', mode: 'normal' })
+  })
+
+  it('실행 중에 떠난 대화는 배경 스냅샷에 모드를 들고 가고, 돌아오면 그 모드다', async () => {
+    await useAppStore.getState().selectConversation('m-plan')
+    useAppStore.setState({ currentRunId: 'r-run', isRunning: true, pickerMode: 'bypass' } as Parameters<typeof useAppStore.setState>[0])
+    await useAppStore.getState().selectConversation('m-none')
+    expect(useAppStore.getState().pickerMode).toBe('auto')
+    await useAppStore.getState().selectConversation('m-plan')
+    expect(useAppStore.getState().pickerMode).toBe('bypass')
+  })
+})
+
+// M11 G2 — M05 Backlog 51·52. 대화를 바꾸거나 지우거나 /clear로 비울 때 남는 것이 없어야 한다.
+describe('session-crud — 전환·삭제·/clear 정리 (M05-51·52)', () => {
+  const aborts: string[] = []
+  const originalAbort = mockApi.agentAbort
+  beforeEach(() => {
+    resetStore()
+    __resetBackgroundRunsForTests()
+    aborts.length = 0
+    mockApi.agentAbort = async (req?: unknown) => {
+      aborts.push((req as { runId: string }).runId)
+      return { accepted: true }
+    }
+  })
+  afterEach(() => {
+    mockApi.agentAbort = originalAbort
+    __resetBackgroundRunsForTests()
+  })
+
+  it('다른 대화로 옮기면 떠나는 대화의 대기열을 비운다 — 예약분이 다른 대화로 가지 않는다', async () => {
+    useAppStore.setState({ conversationId: 'conv-1', queue: [{ id: 'q1', text: '예약', images: [] }] } as Parameters<typeof useAppStore.setState>[0])
+    await useAppStore.getState().selectConversation('conv-2')
+    expect(useAppStore.getState().conversationId).toBe('conv-2')
+    expect(useAppStore.getState().queue).toEqual([])
+  })
+
+  it('배경에 있던 대화로 옮겨도 대기열은 비어 있다', async () => {
+    __seedBackgroundRunsForTests({
+      'conv-3': { ...useAppStore.getState(), currentRunId: 'r-bg3', isRunning: true } as unknown as ConversationRunState,
+    })
+    useAppStore.setState({ conversationId: 'conv-1', queue: [{ id: 'q1', text: '예약', images: [] }] } as Parameters<typeof useAppStore.setState>[0])
+    await useAppStore.getState().selectConversation('conv-3')
+    expect(useAppStore.getState().conversationId).toBe('conv-3')
+    expect(useAppStore.getState().queue).toEqual([])
+  })
+
+  it('/clear는 그 대화의 REPL 세션(세션키 = 대화 id)을 main에서 끝내고, 새 대화는 끝내지 않는다', async () => {
+    useAppStore.setState({ conversationId: 'conv-1' } as Parameters<typeof useAppStore.setState>[0])
+    useAppStore.getState().newConversation()
+    await Promise.resolve()
+    expect(aborts).toEqual([])
+
+    useAppStore.setState({ conversationId: 'conv-1' } as Parameters<typeof useAppStore.setState>[0])
+    useAppStore.getState().clearConversationSession()
+    await Promise.resolve()
+    expect(aborts).toEqual(['conv-1'])
+    expect(useAppStore.getState().conversationId).toBeNull()
+  })
+
+  it('실행 중인 배경 대화를 지우면 그 run을 끊는다', async () => {
+    __seedBackgroundRunsForTests({
+      'conv-2': { ...useAppStore.getState(), currentRunId: 'r-bg', isRunning: true } as unknown as ConversationRunState,
+    })
+    await useAppStore.getState().deleteConversation('conv-2')
+    expect(aborts).toContain('r-bg')
+  })
+
+  it('실행 중인 전경 대화를 지우면 그 run을 끊는다', async () => {
+    useAppStore.setState({ conversationId: 'conv-1', currentRunId: 'r-fg', isRunning: true } as Parameters<typeof useAppStore.setState>[0])
+    await useAppStore.getState().deleteConversation('conv-1')
+    expect(aborts).toContain('r-fg')
+    expect(useAppStore.getState().conversationId).toBeNull()
+  })
+
+  it('실행 중이 아닌 대화를 지우면 아무 run도 끊지 않는다', async () => {
+    useAppStore.setState({ conversationId: 'conv-1', currentRunId: 'r-fg', isRunning: true } as Parameters<typeof useAppStore.setState>[0])
+    await useAppStore.getState().deleteConversation('conv-9')
+    expect(aborts).toEqual([])
+    expect(useAppStore.getState().conversationId).toBe('conv-1')
   })
 })
 

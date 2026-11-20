@@ -13,7 +13,7 @@ const h = vi.hoisted(() => ({
 }))
 
 // fs.diff는 git 저장소가 있어야 줄을 내므로, 실물 핸들러가 diff 계산에 넘기는 루트를 기록해 고정한다(G11 검수 비차단 2).
-vi.mock('@main/08_Git/diff', () => ({
+vi.mock('@main/08_Git/fsDiff', () => ({
   resolveFsDiffLines: async (root: string): Promise<unknown[]> => { h.diffRoots.push(root); return [{ root }] },
 }))
 

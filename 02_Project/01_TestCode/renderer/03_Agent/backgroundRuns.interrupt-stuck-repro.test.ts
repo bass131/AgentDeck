@@ -80,6 +80,8 @@ function makeRunningSnapshot(overrides: Partial<ConversationRunState> = {}): Con
     attachedImages: [],
     restoredSession: false,
     replMode: true,
+    pickerMode: 'auto',
+    selectedModel: 'default',
     ...overrides,
   }
 }

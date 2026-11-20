@@ -1,6 +1,7 @@
 import type { AgentEvent, AgentEventBgTaskPatch, SearchResultMatch, TodoItem, TokenUsage } from '@shared/agentEvents'
 import { parseOrchestrationMeta } from './orchestrationMeta'
 import { SDK_MODE_TO_PICKER } from '../permissionModes'
+import { stripModelSuffixes } from '@shared/03_Agent/models/modelList'
 
 function oneLine(s: string, max: number): string {
   const t = s.replace(/\s+/g, ' ').trim()
@@ -332,7 +333,7 @@ function mapToolUseSearchResult(raw: unknown, toolUseId: string | undefined): Ag
   return []
 }
 
-function mapUsage(usageRaw: unknown): TokenUsage | undefined {
+export function mapUsage(usageRaw: unknown): TokenUsage | undefined {
   if (!isObject(usageRaw)) return undefined
   const inputTokens = usageRaw['input_tokens']
   const outputTokens = usageRaw['output_tokens']
@@ -347,10 +348,6 @@ function mapUsage(usageRaw: unknown): TokenUsage | undefined {
   if (isNumber(cacheRead)) usage.cacheReadTokens = cacheRead
 
   return usage
-}
-
-function stripWireSuffixes(id: string): string {
-  return id.replace(/\[[^\]]*\]$/, '').replace(/-\d{8}$/, '')
 }
 
 function contextTokensOf(entry: Record<string, unknown>): number {
@@ -372,13 +369,13 @@ export function contextWindowFromModelUsage(modelUsage: unknown, mainModel?: str
   if (entries.length === 0) return undefined
 
   if (mainModel) {
-    const bare = stripWireSuffixes(mainModel)
+    const bare = stripModelSuffixes(mainModel)
     const canonicalOf = (e: Record<string, unknown>): string | undefined =>
       isString(e['canonicalModel']) ? e['canonicalModel'] : undefined
     const hit =
       entries.find(([k]) => k === mainModel) ??
       entries.find(([, e]) => canonicalOf(e) === mainModel) ??
-      entries.find(([k, e]) => stripWireSuffixes(k) === bare || stripWireSuffixes(canonicalOf(e) ?? '') === bare)
+      entries.find(([k, e]) => stripModelSuffixes(k) === bare || stripModelSuffixes(canonicalOf(e) ?? '') === bare)
     if (hit) return hit[1]['contextWindow'] as number
   }
 

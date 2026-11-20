@@ -533,6 +533,10 @@ export function initLspManager(deps: LspManagerDeps): void {
   _instance = createLspManager(deps)
 }
 
+export function disposeLspManager(): void {
+  _instance?.disposeAll()
+}
+
 export function getLspManager(): LspManager {
   if (!_instance) {
     throw new Error('LspManager 미초기화 — initLspManager(deps)를 먼저 호출하세요')

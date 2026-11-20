@@ -477,6 +477,8 @@ describe('E17 — 보관 상한을 넘겨도 실행 중인 run은 버리지 않�
         attachedImages: [],
         restoredSession: false,
         replMode: false,
+        pickerMode: 'auto',
+        selectedModel: 'default',
       }
     }
     // 배경 대화의 거처는 세션 레지스트리다(G9c) — store bgRuns를 통째로 바꾸던 seed를 같은 뜻으로 옮겼다.

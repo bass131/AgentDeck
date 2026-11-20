@@ -1,4 +1,5 @@
-import { memo, useLayoutEffect, useRef, useState, type JSX } from 'react'
+import { memo, useCallback, useLayoutEffect, useRef, useState, type JSX } from 'react'
+import { requestLiveEffortSwitch } from './state/composer'
 import { DEFAULT_EFFORT } from '@renderer/03_Agent/pickerOptions'
 import { useAppStore, selectPickerMode, selectReplMode, selectConversationId, selectSelectedModel } from '@renderer/00_App/appStore'
 import { resolveReplLit } from './replIndicator'
@@ -15,7 +16,12 @@ export type ComposerProps = ComposerInputProps
 function ComposerInner(props: ComposerProps): JSX.Element {
   const model = useAppStore(selectSelectedModel)
   const setModel = useAppStore.getState().setSelectedModel
-  const [effort, setEffort] = useState<string>(DEFAULT_EFFORT)
+  const [effort, setEffortLocal] = useState<string>(DEFAULT_EFFORT)
+  const setEffort = useCallback((id: string): void => {
+    setEffortLocal(id)
+    const { currentRunId, replMode } = useAppStore.getState()
+    requestLiveEffortSwitch(currentRunId, replMode, id)
+  }, [])
   const mode = useAppStore(selectPickerMode)
   const setMode = useAppStore.getState().setPickerMode
 
@@ -32,6 +38,7 @@ function ComposerInner(props: ComposerProps): JSX.Element {
     prevConversationIdRef.current = conversationId
   }, [conversationId])
 
+  const autoCompact = useAppStore((s) => s.autoCompact)
   const replMode = useAppStore(selectReplMode)
   const setReplMode = useAppStore((s) => s.setReplMode)
   const replLit = resolveReplLit(replMode)
@@ -50,6 +57,7 @@ function ComposerInner(props: ComposerProps): JSX.Element {
       replMode={replMode}
       setReplMode={setReplMode}
       replLit={replLit}
+      autoCompact={props.autoCompact ?? autoCompact}
     />
   )
 }

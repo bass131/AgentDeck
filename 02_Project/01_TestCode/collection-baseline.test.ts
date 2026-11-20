@@ -106,7 +106,10 @@ const SKIP_DIRS = new Set(['node_modules', 'dist', 'out', 'coverage', '.git'])
 // renderer/13_Loop/graphModel.test.ts, 캔버스와 「노드 설정」 탭 renderer/13_Loop/WorkView.graph.test.tsx,
 // 앱 안 알림 표시(현황판 띠·프로젝트 점·「작업」 버튼 점·알림 열기) renderer/13_Loop/alerts.test.tsx를 더했다.
 // M10 G6: 486 → 487. 끝난 실행의 판정과 새 마일스톤 시작의 보관(이름 충돌·실패 되돌리기·위조 거부) main/05_Loop/loopRunner.archive.test.ts를 더했다.
-const BASELINE_TEST_FILES = 487
+// M11 G2: 487 → 488. 상태 줄의 가지 칸이 git의 실제 가지를 읽는지 보는 renderer/12_Window/Shell.status-branch.test.tsx를 더했다.
+// M11 G2: 488 → 489. 지속 세션의 effort 전환(실행·실행 관리자·IPC)을 보는 main/04_Claude/ClaudeCodeBackend.live-effort-switch.test.ts를 더했다.
+// M11 G2: 489 → 490. SDK 자동 압축 상태를 첫 턴 뒤 알리는지 보는 main/04_Claude/ClaudeCodeBackend.auto-compact.test.ts를 더했다.
+const BASELINE_TEST_FILES = 490
 
 function collectTestFiles(dir: string, acc: string[] = []): string[] {
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {

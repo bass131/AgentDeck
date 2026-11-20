@@ -8,6 +8,7 @@ import { getUserDataDir } from '@main/02_Common/userData'
 import type { EngineVersionState, EngineInstallProgress } from '../../shared/ipcContract'
 import type { EngineSealStatus } from '../../shared/10_Engine/engine'
 import { computeSeal, fullSeal, quickSeal, readSeal, removeSeal, resolveEntry, sealKey, writeSeal } from './engineSeal'
+import { cmpVer } from './engineCheckUpdate'
 
 const PACKAGE = '@anthropic-ai/claude-agent-sdk'
 
@@ -70,16 +71,6 @@ function installedVersionAt(userData: string, version: string): string | null {
   }
 }
 
-function compareDesc(a: string, b: string): number {
-  const pa = a.split('.').map((x) => parseInt(x, 10) || 0)
-  const pb = b.split('.').map((x) => parseInt(x, 10) || 0)
-  for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
-    const diff = (pb[i] ?? 0) - (pa[i] ?? 0)
-    if (diff !== 0) return diff
-  }
-  return 0
-}
-
 function listInstalled(userData: string): string[] {
   let names: string[] = []
   try {
@@ -90,7 +81,7 @@ function listInstalled(userData: string): string[] {
   } catch {
     return []
   }
-  return names.filter((v) => installedVersionAt(userData, v) != null).sort(compareDesc)
+  return names.filter((v) => installedVersionAt(userData, v) != null).sort((a, b) => cmpVer(b, a))
 }
 
 function bundledVersion(): string | null {

@@ -38,6 +38,7 @@ export function makeInitialState(): AppState {
     isRunning: false,
     lastUsage: undefined,
     lastContextWindow: undefined,
+    contextWindowStale: false,
     sessionId: undefined,
     activeLoops: [],
     loopsStoppedNotice: false,
@@ -55,6 +56,7 @@ export function makeInitialState(): AppState {
     goalRun: null,
     apiRetry: null,
     compacting: null,
+    autoCompact: null,
     sdkSessionState: null,
     hookRuns: [],
   }

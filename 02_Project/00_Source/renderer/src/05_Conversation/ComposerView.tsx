@@ -3,7 +3,7 @@ import { computeComposerHeight } from './composerHeight'
 import type { TokenUsage } from '@shared/agentEvents'
 import type { UsageInfo } from '@shared/ipcContract'
 
-import { ContextStrip } from './ComposerContext'
+import { ContextStrip, type AutoCompactInfo } from './ComposerContext'
 import { SlashPalette } from './SlashPalette'
 import { MentionPalette } from './MentionPalette'
 import { ImageTray } from './ImageTray'
@@ -50,6 +50,7 @@ export interface ComposerInputProps {
   lastUsage?: TokenUsage
   lastContextWindow?: number
   usage?: UsageInfo
+  autoCompact?: AutoCompactInfo | null
   mentionFiles?: string[]
   workspaceRoot?: string | null
   history?: string[]
@@ -102,6 +103,7 @@ function ComposerViewInner({
   lastUsage,
   lastContextWindow,
   usage,
+  autoCompact,
   mentionFiles = [],
   attachedImages = [],
   onAttachFiles,
@@ -181,9 +183,9 @@ function ComposerViewInner({
         {density !== 'compact' && (
           <ContextStrip
             lastUsage={lastUsage}
-            selectedModel={model}
             lastContextWindow={lastContextWindow}
             usage={usage}
+            autoCompact={autoCompact}
           />
         )}
 

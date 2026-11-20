@@ -1,9 +1,9 @@
 import type { FileTreeNode } from './workspace'
 
 export const REFERENCE_CHANNELS = {
-  REFERENCE_ADD: 'reference.add',
-  REFERENCE_LIST: 'reference.list',
-  REFERENCE_TREE: 'reference.tree',
+  REFERENCE_ADD: 'workspace.referenceAdd',
+  REFERENCE_LIST: 'workspace.referenceList',
+  REFERENCE_TREE: 'workspace.referenceTree',
 } as const
 
 export interface ReferenceFolder {

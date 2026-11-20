@@ -201,6 +201,18 @@ export function activePermissionNodes(disabled: readonly string[]): readonly Con
 
 const BLOCKED = '컨트롤 설정(controls.json)이 앱 밖에서 바뀌어 실행을 열지 않았습니다 — 설정 › 컨트롤에서 확인하세요.'
 
+// 앱 실행의 검사 — userData 경로를 못 얻으면 열지 않는다(M11 G2, M07 Backlog 18)
+export function controlsForAppRun(userDataDir: () => string): ControlsForRun {
+  let userData: string
+  try {
+    userData = userDataDir()
+  } catch (err) {
+    const why = err instanceof Error ? err.message : String(err)
+    return { ok: false, status: 'error', message: `앱 데이터 폴더를 얻지 못해 실행을 열지 않았습니다(${why}) — 앱을 다시 시작하세요.` }
+  }
+  return controlsForRun(userData)
+}
+
 export function controlsForRun(userData: string): ControlsForRun {
   try {
     const r = readControls(userData)

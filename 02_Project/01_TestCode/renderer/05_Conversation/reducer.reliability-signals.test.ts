@@ -63,6 +63,41 @@ describe('gap1-p04 reducer — compact(status) → compacting 세팅·null clear
   })
 })
 
+// M11 G2 — M06 Backlog 27. SDK 자동 압축의 켜짐·문턱을 상태에 둔다. 진행 표시(compacting)는 건드리지 않는다.
+describe('reducer — compact(settings) → autoCompact', () => {
+  it('settings 사건은 autoCompact를 채우고 compacting은 그대로 둔다', () => {
+    const base = { ...makeInitialState(), compacting: 'compacting' } as P04State
+    expect(makeInitialState().autoCompact).toBeNull()
+    const next = applyAgentEvent(
+      base,
+      payload({ type: 'compact', kind: 'settings', autoCompactEnabled: true, thresholdTokens: 967_000 })
+    ) as P04State
+    expect(next.autoCompact).toEqual({ enabled: true, thresholdTokens: 967_000 })
+    expect(next.compacting).toBe('compacting')
+    const off = applyAgentEvent(next, payload({ type: 'compact', kind: 'settings', autoCompactEnabled: false })) as P04State
+    expect(off.autoCompact).toEqual({ enabled: false })
+    // 켜짐 값이 없는 settings 사건은 무시한다
+    expect(applyAgentEvent(off, payload({ type: 'compact', kind: 'settings' })) as P04State).toBe(off)
+  })
+})
+
+// M11 G2 — M06 Backlog 18. 모델을 바꾼 뒤 턴이 끝나면 새로 잰 창이 다시 재적재 예산이 된다.
+describe('reducer — done은 창을 새로 재고 contextWindowStale을 내린다', () => {
+  it('done의 contextWindow로 창을 바꾸고 stale을 끈다', () => {
+    expect(makeInitialState().contextWindowStale).toBe(false)
+    const base = { ...makeInitialState(), lastContextWindow: 1_000_000, contextWindowStale: true, isRunning: true }
+    const next = applyAgentEvent(base, payload({ type: 'done', contextWindow: 200_000 }))
+    expect(next.lastContextWindow).toBe(200_000)
+    expect(next.contextWindowStale).toBe(false)
+  })
+
+  it('턴 도중에 모델을 바꿨으면 그 턴의 done은 옛 모델의 창이라 stale을 유지한다', () => {
+    const base = { ...makeInitialState(), lastContextWindow: 1_000_000, contextWindowStale: 'after-turn' as const, isRunning: true }
+    const next = applyAgentEvent(base, payload({ type: 'done', contextWindow: 1_000_000 }))
+    expect(next.contextWindowStale).toBe(true)
+  })
+})
+
 describe('gap1-p04 reducer — session_state → sdkSessionState 세팅', () => {
   it("session_state 'running' → sdkSessionState = 'running'", () => {
     const base = makeInitialState()

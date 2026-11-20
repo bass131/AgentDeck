@@ -127,4 +127,11 @@ describe('노드 등록부 (M07 G2)', () => {
     expect(runPermissionNodes(ctx()).kind).toBe('card')
     expect(runPermissionNodes(ctx({ mode: 'auto' }))).toEqual({ kind: 'allow', nodeId: 'mode-auto-bypass-allow' })
   })
+
+  // M11 G2 — M07 Backlog 17. Bypass는 권한 콜백이 오지 않아(실측) 이름을 자동 모드로 좁혔다. id는 저장 열쇠라 둔다.
+  it('모드 허용 노드의 이름은 「자동 모드는 허용」이고 id는 그대로다', () => {
+    const node = PERMISSION_NODES.find((n) => n.id === 'mode-auto-bypass-allow')!
+    expect(node.name).toBe('자동 모드는 허용')
+    expect(node.decide(ctx({ mode: 'auto' }))).toEqual({ kind: 'allow' })
+  })
 })

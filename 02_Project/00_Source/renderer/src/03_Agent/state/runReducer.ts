@@ -9,6 +9,7 @@ import {
   terminalResetFields,
 } from '@renderer/05_Conversation/state/reducer/helpers'
 import { handleError } from '@renderer/05_Conversation/state/reducer/lifecycle'
+import { popPendingPermission } from '@renderer/05_Conversation/state/reducer/permission'
 import type { QueuedMessage } from '@renderer/00_App/state/types'
 
 // 단일(store)과 멀티(패널) 실행 상태가 공유하는 순수 reducer.
@@ -159,7 +160,7 @@ export function runReducer<S extends RunCoreState>(state: S, action: RunAction):
       return closeDeadRunState(state)
 
     case 'CLEAR_PENDING_PERMISSION':
-      return { ...state, pendingPermission: null }
+      return popPendingPermission(state)
 
     case 'CLEAR_PENDING_QUESTION':
       return { ...state, pendingQuestion: null }

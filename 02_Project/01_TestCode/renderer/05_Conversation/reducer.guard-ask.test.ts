@@ -46,3 +46,36 @@ describe('reducer — permission_request askReason 전달', () => {
     expect(s1.pendingPermission?.escalated).toBeUndefined()
   })
 })
+
+// M11 G2 — M06 Backlog 12. 먼저 온 요청을 보이고 뒤 요청은 줄을 선다.
+describe('reducer — 권한 요청 줄', () => {
+  const req = (requestId: string) => ({
+    runId: 'run-q',
+    event: { type: 'permission_request' as const, requestId, toolName: 'Bash', summary: `명령 실행: ${requestId}` },
+  })
+
+  it('두 번째 요청은 첫 번째를 덮지 않고 줄을 서며, 지우면 다음이 올라온다', async () => {
+    const { runReducer } = await import('@renderer/03_Agent/state/runReducer')
+    const s2 = applyAgentEvent(applyAgentEvent(makeInitialState(), req('p1')), req('p2'))
+    expect(s2.pendingPermission?.requestId).toBe('p1')
+    expect(s2.pendingPermission?.behind?.map((p) => p.requestId)).toEqual(['p2'])
+    const s3 = runReducer({ ...s2, replMode: false, queue: [] }, { type: 'CLEAR_PENDING_PERMISSION' })
+    expect(s3.pendingPermission?.requestId).toBe('p2')
+    expect(s3.pendingPermission?.behind ?? []).toEqual([])
+    expect(runReducer(s3, { type: 'CLEAR_PENDING_PERMISSION' }).pendingPermission).toBeNull()
+  })
+
+  it('같은 요청 id가 다시 오면 줄을 늘리지 않는다', () => {
+    const s = applyAgentEvent(applyAgentEvent(makeInitialState(), req('p1')), req('p1'))
+    expect(s.pendingPermission?.requestId).toBe('p1')
+    expect(s.pendingPermission?.behind ?? []).toEqual([])
+    const s2 = applyAgentEvent(applyAgentEvent(s, req('p2')), req('p2'))
+    expect(s2.pendingPermission?.behind?.map((p) => p.requestId)).toEqual(['p2'])
+  })
+
+  it('run이 끝나면 줄까지 함께 비운다', () => {
+    const s = applyAgentEvent(applyAgentEvent(makeInitialState(), req('p1')), req('p2'))
+    const done = applyAgentEvent(s, { runId: 'run-q', event: { type: 'done' } })
+    expect(done.pendingPermission).toBeNull()
+  })
+})

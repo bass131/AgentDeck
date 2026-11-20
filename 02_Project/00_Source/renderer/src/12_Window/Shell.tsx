@@ -14,6 +14,7 @@ import { ImageViewer } from '@renderer/07_Workspace'
 import { UpdateNotes } from '@renderer/10_Engine'
 import { AppUpdateGate } from '@renderer/10_Engine'
 import { useWindowState } from './useWindowState'
+import { useStatusBranch } from './useStatusBranch'
 import { ipc } from '@renderer/01_Ipc'
 import { useGlobalShortcuts, globalModeSwitchFor } from './useGlobalShortcuts'
 import { useGlobalZoomPersist, stepZoomFactor } from './useGlobalZoom'
@@ -49,6 +50,7 @@ export function Shell(): JSX.Element {
   const openedFile = useAppStore(selectOpenedFile)
   const recentFiles = useAppStore(selectRecentFiles)
   const workspaceMode = useAppStore(selectWorkspaceMode)
+  const statusBranch = useStatusBranch(workspaceRoot, isRunning)
 
   useEffect(() => {
     const saved = loadPaneWidth('agentW', 0)
@@ -268,7 +270,7 @@ export function Shell(): JSX.Element {
           {isRunning ? '실행 중' : '준비됨'}
         </span>
         <span>변경 {changedFiles.size}</span>
-        <span>{workspaceRoot ? 'main' : '—'}</span>
+        <span data-status-branch>{statusBranch ?? '—'}</span>
         <ZoomControl />
       </footer>
       </div>

@@ -14,6 +14,9 @@ M11 Backlog 정리(`01_Milestones/M11_BacklogSweep/`)가 닫은 항목이다. �
 | 10 | 해결됨 | 3글자 이상 접두 뒤 와일드카드를 막는다(`main/04_Claude/permission/enginePathLock.ts:64-65`, G5). |
 | 14 | v2로 | 규칙 노드 GUI는 v2 그래프 편집기와 같은 화면이다(`00_Roadmap.md:33`). |
 | 15 | v2로 | G1 결정 대장 [USER·위임] — 노드 설정 내보내기·가져오기는 그래프 편집기의 일이다. |
+| 16 | 고침(M11 goal 2) | 응답 전에 도착한 실행 이벤트를 붙들었다가 실행 id가 정해지면 적용하고 요청 오류의 Electron 접두를 지운다(`renderer/src/03_Agent/state/runCore.ts:127,173-174,204`, `d95d7051`). |
+| 17 | 고침(M11 goal 2) | 실측(Bypass·허용 규칙·SDK 자체 승인·auto 분류기 승인은 콜백이 오지 않음) 뒤 노드 이름을 「자동 모드는 허용」으로 좁히고 패널 머리말에 적었다(`main/04_Claude/permission/controlNodes.ts:138`, `renderer/src/11_Settings/ControlsView.tsx:156`, `d95d7051`). |
+| 18 | 고침(M11 goal 2) | userData 경로를 못 얻으면 닫힌 실패이고 앱 조립 지점이 검사를 주입한다(`main/04_Claude/permission/controlsStore.ts:205`, `main/00_App/registry.ts:30`, `d95d7051`). |
 | 19 | 해결됨 | 「처음 설정함」 표시를 두 파일과 따로 둔다(`main/04_Claude/permission/controlsStore.ts:8`, PR 73 `aaaef0e4`). |
 | 20 | 정함 → goal 8 | M11 스펙 결정 대장 [USER] 2회차 — 헌법 3조 보호 표면 「넣는다」. |
 | 23 | 해결됨 | 가드가 `gh pr merge`와 병합 API·GraphQL 병합을 차단 목록으로 막고(`dangerous-cmd-guard.mjs:512-516`, M07 G12) 설정 `deny`의 넓은 꼴은 M11 Backlog로 옮겼다. |

@@ -106,6 +106,17 @@ describe('(C) prefs 상대경로 저장/복원', () => {
   it('C-5: Windows 구분자와 루트 끝 슬래시를 정규화한다', () => {
     expect(normalizeToRel(['C:\\work\\proj\\src\\lib'], 'C:\\work\\proj\\')).toEqual(['src/lib'])
   })
+
+  // M11 G2 — M05 Backlog 25. 루트 밖 Windows 절대 경로(다른 드라이브·UNC)가 상대 경로로 남아 통과하던 틈.
+  it('C-6: 루트 밖 Windows 절대 경로(드라이브·UNC)는 빠지고, `..`로 시작하는 이름만인 폴더는 남는다', () => {
+    const root = 'C:\\work\\proj'
+    expect(normalizeToRel(['D:\\other\\src'], root)).toEqual([])
+    expect(normalizeToRel(['C:\\elsewhere\\src'], root)).toEqual([])
+    expect(normalizeToRel(['\\\\server\\share\\src'], root)).toEqual([])
+    expect(normalizeToRel(['c:\\work\\proj\\src'], root)).toEqual(['src'])
+    expect(normalizeToRel(['..cache/x'], root)).toEqual(['..cache/x'])
+    expect(normalizeToRel(['..', '../up'], root)).toEqual([])
+  })
 })
 
 describe('(D) 조상 dir 롤업 (buildChgMaps)', () => {

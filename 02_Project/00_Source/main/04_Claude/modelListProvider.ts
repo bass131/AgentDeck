@@ -113,9 +113,14 @@ export class ModelListProvider {
     return this._rows
   }
 
-  // 첫 호출만 SDK에 묻고, 이어진 호출은 같은 결과를 나눈다.
+  // SDK 목록을 받을 때까지는 호출마다 다시 묻고, 받은 뒤와 묻는 중에는 같은 결과를 나눈다(M06 Backlog 13).
   load(): Promise<ModelListResponse> {
-    if (!this._loading) this._loading = this._resolve()
+    if (!this._loading) {
+      this._loading = this._resolve()
+      void this._loading.then((res) => {
+        if (res.source !== 'sdk') this._loading = null
+      })
+    }
     return this._loading
   }
 

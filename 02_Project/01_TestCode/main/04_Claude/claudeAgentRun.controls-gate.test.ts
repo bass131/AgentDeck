@@ -62,6 +62,34 @@ describe('실행 시작의 컨트롤 설정 검사 (M07 G5)', () => {
     expect(events.map((e) => e.type)).toEqual(expect.arrayContaining(['error', 'done']))
   })
 
+  // M11 G2 — M07 Backlog 18. 조립 지점이 넣은 검사를 쓴다 — 그 검사가 닫으면 SDK를 부르지 않는다.
+  it('주입된 컨트롤 검사가 닫으면 SDK를 부르지 않고 그 문장으로 끝난다', async () => {
+    const query = vi.fn()
+    const run = new ClaudeAgentRun(
+      { messages: [{ role: 'user', content: 'hi' }] },
+      query as unknown as QueryFn,
+      () => null,
+      () => null,
+      null,
+      () => ({ ok: false, status: 'error', message: '주입 검사가 닫음' }),
+    )
+    const events = await drain(run.events)
+    expect(query).not.toHaveBeenCalled()
+    expect(events.map((e) => e.type)).toEqual(['error', 'done'])
+    expect((events[0] as { message: string }).message).toBe('주입 검사가 닫음')
+  })
+
+  it('백엔드 의존성으로 넣은 검사가 그 백엔드의 실행마다 쓰인다', async () => {
+    const { ClaudeCodeBackend } = await import('@main/04_Claude/ClaudeCodeBackend')
+    const query = vi.fn()
+    const backend = new ClaudeCodeBackend(query as unknown as QueryFn, undefined, undefined, {
+      controlsAtRunStart: () => ({ ok: false, status: 'error', message: '백엔드 검사가 닫음' }),
+    })
+    const events = await drain(backend.start({ messages: [{ role: 'user', content: 'hi' }] }).events)
+    expect(query).not.toHaveBeenCalled()
+    expect(events.find((e) => e.type === 'error')).toMatchObject({ message: '백엔드 검사가 닫음' })
+  })
+
   it('봉인만 없어도(missing) 열지 않는다', async () => {
     fs.writeFileSync(path.join(h.ud, 'controls.json'), JSON.stringify({ version: 1, disabled: [] }))
     const query = vi.fn()

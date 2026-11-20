@@ -135,9 +135,10 @@ export const PERMISSION_NODES: readonly ControlNode[] = Object.freeze([
   }),
   builtIn({
     id: 'mode-auto-bypass-allow',
-    name: '자동·Bypass 모드는 허용',
+    name: '자동 모드는 허용',
     results: ['allow'],
     locked: false,
+    // Bypass 모드에서는 SDK가 이 콜백을 부르지 않는다(M11 G2 실측). id는 저장된 켬·끔의 열쇠라 옛 이름 그대로 둔다
     decide: (c) => (c.mode === 'auto' || c.mode === 'bypass' ? { kind: 'allow' } : { kind: 'pass' }),
   }),
   builtIn({

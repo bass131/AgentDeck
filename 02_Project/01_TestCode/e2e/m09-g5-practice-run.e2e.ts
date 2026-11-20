@@ -7,6 +7,7 @@
 // (스펙 승인은 「스펙 승인」·「이어서 고치기」 — scope '.main-chat'). 「이어 가기」가 두 곳(멈춘 실행의 사람 판정 — scope '.status-board',
 // 일시 정지 깃발 내리기 — 메인 대화)에 있으니 click에 scope를 준다. 메인에게 말하기는 'say', 이름 붙인 캡처는 'shot',
 // 메인 대화에 글이 뜨기를 기다리기는 'waitMain'이다. state.txt에 [main] 절을 싣는다.
+// G5_TOKEN_FILE(연습 저장소 전용 fine-grained 토큰 파일)을 주면 앱 프로세스에만 GH_TOKEN과 git 자격 도우미를 넣는다(전역 로그인은 그대로).
 import { test, _electron as electron } from '@playwright/test'
 import type { ElectronApplication, Page } from '@playwright/test'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
@@ -15,6 +16,26 @@ import { join, resolve, sep } from 'node:path'
 const RUN = process.env.M09_G5_RUN === '1'
 const CTL = process.env.G5_CTL ?? ''
 const REPO = process.env.G5_REPO ?? ''
+// M10 G6 [USER] 보관 방식: 연습 저장소 전용 토큰 파일(저장소 밖). 있으면 앱 프로세스에만 gh·git 자격으로 넣는다.
+const TOKEN_FILE = process.env.G5_TOKEN_FILE ?? ''
+
+function practiceCredentialEnv(token: string): Record<string, string> {
+  return {
+    GH_TOKEN: token,
+    GIT_CONFIG_COUNT: '2',
+    GIT_CONFIG_KEY_0: 'credential.helper',
+    GIT_CONFIG_VALUE_0: '',
+    GIT_CONFIG_KEY_1: 'credential.helper',
+    GIT_CONFIG_VALUE_1: '!gh auth git-credential',
+  }
+}
+
+function readPracticeToken(): string | null {
+  if (!TOKEN_FILE) return null
+  const token = readFileSync(TOKEN_FILE, 'utf8').trim()
+  if (!/^github_pat_[A-Za-z0-9_]+$/.test(token)) throw new Error(`G5_TOKEN_FILE에 fine-grained 토큰(github_pat_) 한 줄이 아니다: ${TOKEN_FILE}`)
+  return token
+}
 
 type Action =
   | { op: 'click'; name: string; exact?: boolean; scope?: string; nth?: number }
@@ -40,6 +61,11 @@ async function launch(userDataDir: string): Promise<{ app: ElectronApplication; 
     ...process.env,
     AGENTDECK_E2E_NO_ENGINE_UPDATE: '1',
     AGENTDECK_E2E_PICK_FOLDER: REPO,
+  }
+  const token = readPracticeToken()
+  if (token) {
+    for (const k of Object.keys(env)) if (/^GIT_CONFIG_(COUNT|KEY_\d+|VALUE_\d+)$/.test(k) || k === 'GITHUB_TOKEN') delete env[k]
+    Object.assign(env, practiceCredentialEnv(token))
   }
   delete env.AGENTDECK_E2E
   delete env.ELECTRON_RUN_AS_NODE

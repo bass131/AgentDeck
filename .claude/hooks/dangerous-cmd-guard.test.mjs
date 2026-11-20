@@ -28,6 +28,7 @@ import { readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { createRunner } from './_lib/runner.mjs'
 import { createGuardHarness, REPO_ROOT } from './_lib/guard-spawn.mjs'
+import { CANONICAL_COMMANDS, MILESTONE } from './_lib/canonical-commands.mjs'
 
 const r = createRunner('dangerous-cmd-guard 축별 회귀')
 const h = createGuardHarness('dangerous-cmd-guard.mjs')
@@ -1365,6 +1366,14 @@ try {
 
   console.log('판정 대상 없음 → 조용히 통과')
   r.judge('command 없는 payload', h.verdictPayload({ tool_name: 'Read', tool_input: { file_path: 'a.ts' } }), 'allow')
+
+  // ── 정형 절차 명령 (M11 goal 8) — 메인의 goal 병합·push·PR 사슬은 마일스톤 브랜치 머리에서 질문 없이 지나간다 ──
+  // 설정 쪽 판정은 settings-matcher.test.mjs가 같은 목록으로 본다.
+  console.log('정형 절차 명령 — 마일스톤 브랜치 머리의 저장소에서 가드 무출력')
+  {
+    h.initRepo(h.mirror, { head: MILESTONE, branches: ['chore/x'] })
+    for (const cmd of CANONICAL_COMMANDS) expectSilent(cmd)
+  }
 
   console.log('병합만 승인 — 불변식: 이 러너의 어떤 판정에서도 명시적 통과가 나오지 않았다')
   r.check('명시적 통과(permissionDecision "allow") 0건', explicitPasses.length === 0,

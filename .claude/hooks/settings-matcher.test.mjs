@@ -23,6 +23,8 @@ import { readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { createRunner } from './_lib/runner.mjs'
 import { REPO_ROOT } from './_lib/guard-spawn.mjs'
+import { settingsVerdict } from './_lib/settings-rules.mjs'
+import { CANONICAL_COMMANDS } from './_lib/canonical-commands.mjs'
 
 const SETTINGS = join(REPO_ROOT, '.claude', 'settings.json')
 const GUARD = 'dangerous-cmd-guard.mjs'
@@ -177,6 +179,23 @@ if (settings) {
   const renames = readdirSync(mainSrc, { recursive: true }).filter((f) => /\.ts$/.test(String(f)))
     .filter((f) => /app\.setName\(|setPath\(\s*['"]userData['"]/.test(readFileSync(join(mainSrc, String(f)), 'utf8')))
   r.check('main 소스가 앱 이름·userData 경로를 바꾸지 않는다', renames.length === 0, renames.join(', ') || '0건')
+
+  // ---- ⑥ 정형 절차 명령 (M11 goal 8) — 메인의 goal 병합·push·PR 사슬이 설정에서 질문 없이 지나간다 ----
+  // 판정기는 공식 문서의 규칙을 옮긴 _lib/settings-rules.mjs다. 먼저 문서 표의 행으로 판정기 자체를 맞춰 본다.
+  for (const [rule, cmd, want] of [
+    ['Bash(ls *)', 'ls', true], ['Bash(ls *)', 'lsof', false], ['Bash(ls*)', 'lsof', true],
+    ['Bash(git log * main)', 'git log --oneline main', true], ['Bash(git log * main)', 'git log main', false],
+    ['Bash(* --help *)', 'npm --help', false], ['Bash(npm run build)', 'npm run build --watch', false],
+  ]) {
+    r.judge(`판정기 — ${rule} 이 \`${cmd}\`에 맞는가`, settingsVerdict({ allow: [rule] }, cmd) === 'allow', want)
+  }
+  r.judge('판정기 — 복합 명령은 하위 명령 전부가 allow여야 한다', settingsVerdict({ allow: ['Bash(git status)'] }, 'git status && rm x'), 'prompt')
+  r.judge('판정기 — ask가 allow를 이긴다', settingsVerdict({ allow: ['Bash(git push*)'], ask: ['Bash(git push *)'] }, 'git push origin x'), 'ask')
+  r.judge('판정기 — deny는 머리 할당을 건너뛴다', settingsVerdict({ deny: ['Bash(rm *)'] }, 'FOO=bar rm -rf tmp/'), 'deny')
+  const perms = settings.permissions ?? {}
+  for (const cmd of CANONICAL_COMMANDS) {
+    r.judge(`정형 절차 명령 — 설정 allow \`${cmd}\``, settingsVerdict(perms, cmd), 'allow')
+  }
 }
 
 process.exit(r.summary())

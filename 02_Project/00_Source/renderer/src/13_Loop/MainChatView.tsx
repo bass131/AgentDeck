@@ -14,6 +14,7 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState, type JSX, type KeyboardEvent } from 'react'
 import type { LoopCancelTarget, LoopCard, LoopCardResponse, LoopSessionRecord, LoopStatus, MainChatItem, MainChatView as ChatView } from '@shared/ipcContract'
 import { ipc } from '@renderer/01_Ipc'
+import { isScrolledUp } from '@renderer/02_Common/scrollHelpers'
 import { MarkdownView } from '@renderer/05_Conversation'
 import { ThreadView } from '@renderer/05_Conversation/ThreadView'
 import { QuestionModal } from '@renderer/03_Agent/prompt'
@@ -241,9 +242,15 @@ export function MainChatView({ cwd, session }: MainChatViewProps): JSX.Element {
   const turnBusy = view?.busy ?? false
   const viewItems = view?.items
   const rows = useMemo(() => mainChatRows(viewItems ?? [], session, turnBusy), [viewItems, session, turnBusy])
+  // 사람이 위로 올려 읽는 중이면 끌어내리지 않는다 — 채팅의 userScrolledUp과 같은 판정이다(M11 G4)
+  const scrolledUp = useRef(false)
+  const onThreadScroll = useCallback(() => {
+    const el = threadRef.current
+    if (el) scrolledUp.current = isScrolledUp({ scrollHeight: el.scrollHeight, scrollTop: el.scrollTop, clientHeight: el.clientHeight })
+  }, [])
   useEffect(() => {
     const el = threadRef.current
-    if (el) el.scrollTop = el.scrollHeight
+    if (el && !scrolledUp.current) el.scrollTop = el.scrollHeight
   }, [lastId, view?.cards.length, status?.approval?.sha256, session?.next])
 
   // 호출 하나(판정·깃발·취소·새로 열기) — 요청 중에는 그 버튼들을 끈다. freshMain·freshState는 호출 중 그 push가 없었다는 뜻이다
@@ -275,6 +282,7 @@ export function MainChatView({ cwd, session }: MainChatViewProps): JSX.Element {
     const c = cwdRef.current
     if (c === null) return false
     setError('send', null)
+    scrolledUp.current = false
     const m0 = mainSeq.current
     try {
       const r = await ipc.loop.mainSend({ cwd: c, text })
@@ -400,7 +408,7 @@ export function MainChatView({ cwd, session }: MainChatViewProps): JSX.Element {
         </div>
       )}
 
-      <div className="mc-thread" ref={threadRef} role="log" aria-label="메인 대화 기록">
+      <div className="mc-thread" ref={threadRef} role="log" aria-label="메인 대화 기록" onScroll={onThreadScroll}>
         <div className="mc-col">
           {view !== null && items.length === 0 && cards.length === 0 && approval === null && (
             <div className="loop-muted mc-empty">아직 대화가 없어요 — 메인에게 먼저 말을 걸거나, 루프를 시작하면 메인이 브레인스토밍을 열어요.</div>

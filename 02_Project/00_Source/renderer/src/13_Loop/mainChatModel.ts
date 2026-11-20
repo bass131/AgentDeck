@@ -72,13 +72,12 @@ function splitTurns(events: readonly AgentEvent[]): { events: AgentEvent[]; ende
 
 export function mainChatRows(items: readonly MainChatItem[], record: LoopSessionRecord | undefined, busy: boolean): MainChatRow[] {
   const all = splitTurns(record?.events ?? [])
-  const parts = record?.truncated === true ? all.slice(1) : all
+  const parts = record?.truncated === true && all[0]?.events[0]?.type !== 'session' ? all.slice(1) : all
   const turns: MainTurn[] = parts.map((p, i) => ({ key: `turn-${i}`, events: p.events }))
   const last = parts.length - 1
-  const live = busy && last >= 0 && !parts[last].ended ? last : -1
-  const answers = turns.map((t, i) => (i === live ? '' : mainAnswerOf(t.events)))
+  const answers = turns.map((t) => mainAnswerOf(t.events))
   const paired = new Map<number, number>()
-  let k = (live === -1 ? turns.length : live) - 1
+  let k = turns.length - 1
   for (let i = items.length - 1; i >= 0 && k >= 0; i--) {
     const item = items[i]
     if (item.kind !== 'assistant') continue
@@ -86,6 +85,9 @@ export function mainChatRows(items: readonly MainChatItem[], record: LoopSession
       if (answers[m] !== '' && answers[m] === item.text) { paired.set(i, m); k = m - 1; break }
     }
   }
+  // done 없이 끝난 턴(멈춤)도 그 답이 기록에 짝지어졌으면 도는 턴이 아니다
+  const pairedTurns = new Set(paired.values())
+  const live = busy && last >= 0 && !parts[last].ended && !pairedTurns.has(last) ? last : -1
   const rows: MainChatRow[] = []
   let s = 0
   items.forEach((item, i) => {

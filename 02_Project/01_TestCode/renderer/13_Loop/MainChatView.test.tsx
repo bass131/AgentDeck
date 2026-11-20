@@ -479,6 +479,25 @@ describe('G3 독립 검수 반영 (M10 G3)', () => {
     expect(set).toHaveBeenCalledWith(9000)
   })
 
+  it('[M11-G4 M10-22] 사람이 위로 올려 읽는 중이면 새 글·세션 사건이 와도 바닥으로 끌어내리지 않는다(채팅과 같다)', async () => {
+    install(mv({ items: [note('n1', '글 1')] }))
+    const { container } = await renderChat()
+    const thread = container.querySelector('.mc-thread') as HTMLElement
+    const set = vi.fn()
+    Object.defineProperty(thread, 'scrollHeight', { configurable: true, get: () => 9000 })
+    Object.defineProperty(thread, 'clientHeight', { configurable: true, get: () => 500 })
+    Object.defineProperty(thread, 'scrollTop', { configurable: true, get: () => 0, set })
+    fireEvent.scroll(thread)
+    await pushView(mv({ items: [note('n1', '글 1'), note('n2', '글 2')] }))
+    expect(set).not.toHaveBeenCalled()
+    // 사람이 보내면 제 글을 보도록 다시 바닥에 붙는다
+    fireEvent.change(box(), { target: { value: '보낸다' } })
+    await act(async () => { fireEvent.keyDown(box(), { key: 'Enter' }) })
+    await flush()
+    await pushView(mv({ items: [note('n1', '글 1'), note('n2', '글 2'), note('n3', '글 3')] }))
+    expect(set).toHaveBeenLastCalledWith(9000)
+  })
+
   it('한글 조합 중의 Enter(isComposing)는 보내지 않는다 — 조합이 끝난 Enter는 보낸다', async () => {
     // 이 시험이 헛돌지 않는다는 받침 — 시험 환경의 키 사건이 isComposing을 정말 싣는다(싣지 않으면 막는 줄이 없어도 통과한다)
     expect(new KeyboardEvent('keydown', { key: 'Enter', isComposing: true }).isComposing).toBe(true)
@@ -519,7 +538,19 @@ describe('메인 세션 사건을 대화 기록에 얹기 (M11 G4)', () => {
     const items = [user('u1', '하나', 'sent'), said('a1', '알았다')]
     expect(shape(mainChatRows(items, undefined, false))).toEqual(['u1', 'a1'])
     expect(shape(mainChatRows(items, rec(turn('m1', '알았다')), true))).toEqual(['u1', 'a1+turn-0', 'turn-next*'])
-    expect(shape(mainChatRows(items, rec([...turn('m0', '잘린 조각'), ...turn('m1', '알았다')], true), false))).toEqual(['u1', 'a1+turn-0'])
+    expect(shape(mainChatRows(items, rec([...turn('m0', '잘린 조각').slice(1), ...turn('m1', '알았다')], true), false))).toEqual(['u1', 'a1+turn-0'])
+  })
+
+  it('[M11-G4 M10-22] 잘린 기록이라도 첫 조각이 턴 시작(session)이면 버리지 않는다 — 4000개를 넘은 도는 턴이 사라지지 않는다', async () => {
+    const { mainChatRows } = await import('@renderer/13_Loop/mainChatModel')
+    const items = [user('u1', '하나', 'sent')]
+    expect(shape(mainChatRows(items, rec(turn('m1', '쓰는 중', false), true), true))).toEqual(['u1', 'turn-0*'])
+  })
+
+  it('[M11-G4 M10-22] 멈춰 done 없이 끝난 턴은 그 답이 기록에 있으면 도는 턴으로 잡지 않는다(답이 두 번 보이지 않는다)', async () => {
+    const { mainChatRows } = await import('@renderer/13_Loop/mainChatModel')
+    const items = [user('u1', '하나', 'sent'), said('a1', '알았다'), user('u2', '둘', 'sent')]
+    expect(shape(mainChatRows(items, rec(turn('m1', '알았다', false)), true))).toEqual(['u1', 'a1+turn-0', 'u2', 'turn-next*'])
   })
 })
 

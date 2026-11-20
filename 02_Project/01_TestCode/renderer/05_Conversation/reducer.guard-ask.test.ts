@@ -47,8 +47,7 @@ describe('reducer — permission_request askReason 전달', () => {
   })
 })
 
-// M11 G2 — M06 Backlog 12. 대기 카드가 한 칸이면 두 번째 요청이 첫 번째를 덮고, 보이는 카드의 허용이 뒤 요청에 꽂힌다.
-// 먼저 온 요청을 보이고, 뒤 요청은 줄을 선다. 응답해 지우면 다음 요청이 올라온다.
+// M11 G2 — M06 Backlog 12. 먼저 온 요청을 보이고 뒤 요청은 줄을 선다.
 describe('reducer — 권한 요청 줄', () => {
   const req = (requestId: string) => ({
     runId: 'run-q',

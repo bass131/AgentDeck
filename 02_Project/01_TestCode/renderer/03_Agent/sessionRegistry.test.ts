@@ -174,8 +174,7 @@ describe('G9c 레지스트리 — 대화 어댑터(loopDisplay·runtime)도 같�
     expect(sessionRegistry.lookup('rp')).toBe(panelKey('s', 0))
   })
 
-  // M11 G2 — M05 Backlog 53. 프로덕션 호출부가 없던 실행 판정(isRunning)과 그것만 읽던 활성 키 포트(active)를 지웠다.
-  // 실행 표시는 Sidebar가 전경 store와 runningKeys로 판정한다(sessionRegistry.b1-sidebar-running 시험).
+  // M11 G2 — M05 Backlog 53. 호출부가 없던 isRunning·active 포트를 지웠다.
   it('레지스트리에 죽은 실행 판정 isRunning과 active 포트가 없다', async () => {
     expect('isRunning' in sessionRegistry).toBe(false)
     const fs = await import('node:fs')

@@ -1,8 +1,4 @@
-// M11 G2 — M06 Backlog 24. effort가 세션을 만들 때 정해져 대화 중에 바뀌지 않았다.
-// 공개 타입 Query.applyFlagSettings({ effortLevel })로 지속 세션의 effort를 바꾼다.
-// 실측(SDK 0.3.325, haiku): 첫 턴 뒤 applyFlagSettings({effortLevel:'low'}) → 다음 턴 CLAUDE_EFFORT=low,
-// 같은 세션의 settings.permissions.deny 규칙(Bash(echo denyprobe*))은 그대로 막았다(최상위 키 얕은 병합).
-// 단계 고르기는 시작 때와 같은 규칙(runArgs.runEffortFor)이다.
+// M11 G2 — M06 Backlog 24. 지속 세션의 effort를 공개 Query.applyFlagSettings({ effortLevel })로 바꾼다(실측: deny 규칙 유지).
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
 const h = vi.hoisted(() => ({ handlers: new Map<string, (...args: unknown[]) => unknown>() }))

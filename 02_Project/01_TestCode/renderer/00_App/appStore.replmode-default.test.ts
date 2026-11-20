@@ -101,8 +101,7 @@ describe('LR2-01 T2: 명시적 setReplMode(false) → 단발+resume 페이로드
     expect('contextWindow' in getCapture()).toBe(false)
   })
 
-  // M11 G2 — M06 Backlog 18. 모델을 바꾼 뒤 첫 실행은 옛 모델이 잰 창을 예산으로 싣지 않는다.
-  // 계기는 잰 창을 그대로 보여 사용량이 창을 넘어 보이지 않는다(M06 Backlog 2).
+  // M11 G2 — M06 Backlog 18
   it('모델을 바꾼 뒤 첫 실행은 contextWindow를 싣지 않고, 계기의 창은 그대로다', async () => {
     useAppStore.getState().setReplMode(false)
     useAppStore.setState({ sessionId: 'sess-prev', selectedModel: 'claude-opus-5-5', lastContextWindow: 1_000_000 } as Parameters<typeof useAppStore.setState>[0])

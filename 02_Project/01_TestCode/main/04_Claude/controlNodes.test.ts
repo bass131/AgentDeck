@@ -128,9 +128,7 @@ describe('노드 등록부 (M07 G2)', () => {
     expect(runPermissionNodes(ctx({ mode: 'auto' }))).toEqual({ kind: 'allow', nodeId: 'mode-auto-bypass-allow' })
   })
 
-  // M11 G2 — M07 Backlog 17. Bypass(bypassPermissions)에서는 SDK가 권한 콜백을 부르지 않는다(실측: Bash·Write 호출 0회,
-  // SDK 경고 CLAUDE_SDK_CAN_USE_TOOL_SHADOWED). 이 노드가 실제로 판정하는 것은 자동 모드뿐이라 이름을 좁혔다.
-  // Bypass 칸은 닿지 않지만 Bypass의 뜻(전부 허용)과 같아 남긴다. id는 저장된 켬·끔 상태의 열쇠라 그대로 둔다.
+  // M11 G2 — M07 Backlog 17. Bypass는 권한 콜백이 오지 않아(실측) 이름을 자동 모드로 좁혔다. id는 저장 열쇠라 둔다.
   it('모드 허용 노드의 이름은 「자동 모드는 허용」이고 id는 그대로다', () => {
     const node = PERMISSION_NODES.find((n) => n.id === 'mode-auto-bypass-allow')!
     expect(node.name).toBe('자동 모드는 허용')

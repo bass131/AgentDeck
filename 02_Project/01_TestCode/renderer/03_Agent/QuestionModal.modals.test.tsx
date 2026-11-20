@@ -278,8 +278,7 @@ describe('QuestionModal — 화면 층', () => {
     expect(loopCss).not.toMatch(/z-index|transform|filter|isolation|contain\s*:/)
   })
 
-  // M11 G2 — M05 Backlog 49. 질문 창은 열리면 포커스와 숫자 키를 가져간다. 다른 모달 뒤에 깔리면 보이지 않는 질문에 답이 나간다.
-  // 그래서 질문 창은 앱의 다른 모달 겹침(전체 화면 이미지 보기 .fs-overlay 제외)보다 위에 그린다.
+  // M11 G2 — M05 Backlog 49. 질문 창은 숫자 키를 가져가므로 다른 모달 겹침(.fs-overlay 제외)보다 위에 그린다.
   it('질문 창(.q-overlay)은 다른 모달 겹침보다 위다', async () => {
     const fs = await import('node:fs')
     const path = await import('node:path')

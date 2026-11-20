@@ -74,8 +74,8 @@ function handleCases(): void {
   handle('window.state', () => ({ maximized: true }))
   // @ts-expect-error 요청 타입이 맵과 다른 핸들러는 거부된다
   handle('agent.setMode', (_e, req: { runId: number }) => ({ ok: req.runId > 0 }))
-  // @ts-expect-error conversation.delete는 { ok }를 돌려준다
-  handle('conversation.delete', () => ({ deleted: true }))
+  // @ts-expect-error sessions.delete는 { ok }를 돌려준다
+  handle('sessions.delete', () => ({ deleted: true }))
   // @ts-expect-error engine.state는 EngineState를 돌려준다
   handle('engine.state', async () => ({ available: true }))
   // @ts-expect-error workspace.pickFolder는 { path }를 돌려준다 (옛 mock의 folderPath가 아니다)
@@ -90,8 +90,8 @@ function handleCases(): void {
   handle('multi.load', () => ({ state: null }))
   // @ts-expect-error settings.getProfile은 Profile | null을 돌려준다
   handle('settings.getProfile', async () => ({ nickname: 'n' }))
-  // @ts-expect-error reference.list는 { references }를 돌려준다
-  handle('reference.list', () => ({ refs: [] }))
+  // @ts-expect-error workspace.referenceList는 { references }를 돌려준다
+  handle('workspace.referenceList', () => ({ refs: [] }))
   // @ts-expect-error settings.listSkills는 반환 선언이 없던 채널이다 — 이제 SkillInfo[]로 검사받는다
   handle('settings.listSkills', async () => [{ name: 'x' }])
   // @ts-expect-error workspace.open은 { rootPath, tree }를 돌려준다

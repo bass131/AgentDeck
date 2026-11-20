@@ -96,7 +96,7 @@ export const createComposerSlice: StateCreator<AppStore, [], [], ComposerState &
   setSelectedModel: (modelId) => {
     if (modelId === get().selectedModel) return
     // 직전 턴이 잰 창은 옛 모델의 창이다 — 다음 턴이 새로 잴 때까지 재적재 예산에서 빼고(M06 Backlog 18) 계기는 그대로 둔다
-    set({ selectedModel: modelId, modelChosen: true, contextWindowStale: true })
+    set({ selectedModel: modelId, modelChosen: true, contextWindowStale: get().isRunning ? 'after-turn' : true })
     const { replMode, currentRunId, modelRows } = get()
     requestLiveModelSwitch(currentRunId, replMode, modelId, modelRows)
   },
@@ -122,10 +122,10 @@ export const createComposerSlice: StateCreator<AppStore, [], [], ComposerState &
 
   setPickerMode: (mode) => {
     set({ pickerMode: mode })
-    const { replMode, currentRunId, conversationId } = get()
+    const { replMode, currentRunId, conversationId, isRunning } = get()
     requestLiveModeSwitch(currentRunId, replMode, mode)
-    // 대화마다 기억한다(M06 Backlog 1) — 실행 중이면 그 실행의 저장(시작·done)이 새 모드를 싣는다
-    if (conversationId !== null && currentRunId === null) void get().saveConversation().catch(() => {})
+    // 대화마다 기억한다(M06 Backlog 1) — 턴이 도는 중이면 그 턴의 done 저장이 새 모드를 싣는다
+    if (conversationId !== null && !isRunning) void get().saveConversation().catch(() => {})
   },
   cyclePickerMode: () => {
     const current = get().pickerMode

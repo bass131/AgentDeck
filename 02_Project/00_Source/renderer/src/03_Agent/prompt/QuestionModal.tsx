@@ -37,7 +37,7 @@ export interface QuestionModalProps {
 }
 
 // 질문 창의 화면 층 — CSS z-index와 같은 값이다(시험이 CSS 파일과 대조한다).
-//   app: 대화(Conversation)·패널(PanelView)·루프 화면(LoopScreen)의 질문 창 — QuestionModal.css의 .q-overlay(80)
+//   app: 대화·루프 화면의 질문 창 — QuestionModal.css의 .q-overlay(320)
 // M10 G1 — 루프 화면이 모달을 벗어나 작업 모드의 가운데 칸에 그려지며 겹침 맥락(옛 .loop-overlay, 60)이 없어졌다.
 // 그래서 루프 질문 창도 app 층에 그려지고 loop 층을 뺐다. 층 prop은 다른 겹침 맥락이 생길 때를 위해 남긴다.
 export const DIALOG_LAYER = { app: 320 } as const

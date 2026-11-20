@@ -108,9 +108,7 @@ describe('RunEventNormalizer — 주 모델을 추적해 계기에 넘긴다', (
     expect(n.process(resultLine(HAIKU45_TURN), 'user').done?.contextWindow).toBe(200_000)
   })
 
-  // M11 G2 — M06 Backlog 2·26. result.usage는 공개 타입상 「한 턴 안 API 호출의 합」이라 도구를 여러 번 쓴 턴에서는 창을 넘는다
-  // (실측: 다섯 호출 턴 result.usage 139,134, 마지막 최상위 assistant usage 29,451 = getContextUsage totalTokens 29,451).
-  // 계기용 usage는 그 턴 마지막 최상위(서브에이전트가 아닌) assistant 메시지의 usage다.
+  // M11 G2 — M06 Backlog 2·26. result.usage는 턴 합계라 창을 넘는다 — 마지막 최상위 assistant usage를 쓴다(실측).
   it('done.usage는 턴 합계가 아니라 마지막 최상위 assistant 메시지의 usage다', () => {
     const n = new RunEventNormalizer('t-usage')
     n.process({ type: 'system', subtype: 'init', session_id: 's6', model: 'claude-haiku-5-5' })

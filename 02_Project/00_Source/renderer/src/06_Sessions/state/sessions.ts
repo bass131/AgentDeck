@@ -170,6 +170,7 @@ export const createSessionListSlice: StateCreator<AppStore, [], [], SessionListS
       restoredSession: Boolean(conv.sessionId) && loadedMessages.length > 0,
       lastContextWindow: conv.lastContextWindow,
       contextWindowStale: false,
+      autoCompact: null,
       lastUsage: conv.lastUsage,
       activeLoops: savedLoopDisplay?.activeLoops ?? [],
       loopsStoppedNotice: savedLoopDisplay?.loopsStoppedNotice ?? false,

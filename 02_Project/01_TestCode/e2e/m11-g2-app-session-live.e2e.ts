@@ -142,4 +142,35 @@ test.describe('M11 G2 실앱 확인 (opt-in: M11G2LIVE=1)', () => {
     expect(modeB).toBe('플랜')
     expect(modeBAgain).toBe('플랜')
   })
+
+  test('D) 「자동」으로 시작한 대화가 도구를 쓰고 모드가 자동으로 남는다', async () => {
+    test.setTimeout(240_000)
+    await page.getByRole('button', { name: '새 대화' }).click()
+    await page.waitForTimeout(800)
+    await pick('모델', 'Sonnet 5.5')
+    await pick('모드', '자동')
+    const input = page.locator('.pane.chat').getByLabel('메시지 입력')
+    await input.click()
+    await input.fill('Run the bash command `echo auto-ok` exactly once, then reply with only the word done.')
+    await input.press('Enter')
+    await page.waitForTimeout(1500)
+    let cardSeen = false
+    const deadline = Date.now() + 180_000
+    while (Date.now() < deadline) {
+      if (await page.locator('[data-perm-choice]').first().isVisible().catch(() => false)) {
+        cardSeen = true
+        await page.screenshot({ path: join(OUT, 'd-auto-card.png') })
+        await page.locator('[data-perm-choice="allow"]').first().click().catch(() => {})
+      }
+      if (!(await page.getByLabel('실행 중단').isVisible().catch(() => false))) break
+      await page.waitForTimeout(800)
+    }
+    await page.waitForTimeout(1500)
+    const thread = await page.locator('.pane.chat').innerText()
+    const modeAfter = await pickValue('모드')
+    await page.screenshot({ path: join(OUT, 'd-auto-mode.png') })
+    report.autoMode = { modeAfter, cardSeen, toolRan: thread.includes('auto-ok') }
+    expect(thread).toContain('auto-ok')
+    expect(modeAfter).toBe('자동')
+  })
 })

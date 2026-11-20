@@ -170,6 +170,44 @@ describe('PermissionCard — 접힌 긴 명령은 펼치기 전에 허용할 수
     expect(allow.disabled).toBe(false)
   })
 
+  it('줄에 요청이 더 붙어도 펼친 전문은 접히지 않는다', async () => {
+    const { PermissionCard } = await import('@renderer/10_Engine')
+    const first = guardPending(VERY_LONG_CMD)
+    const { container, rerender } = render(<PermissionCard pending={first} onRespond={vi.fn()} />)
+    fireEvent.click(container.querySelector('[data-cmd-toggle]') as HTMLElement)
+    expect(container.querySelector('[data-cmd-toggle]')?.getAttribute('aria-expanded')).toBe('true')
+    rerender(<PermissionCard pending={{ ...first, behind: [{ ...guardPending('ls'), requestId: 'perm-2' }] }} onRespond={vi.fn()} />)
+    expect(container.querySelector('[data-cmd-toggle]')?.getAttribute('aria-expanded')).toBe('true')
+  })
+
+  it('길게 누른 키(반복 입력)는 답으로 받지 않는다', async () => {
+    const { PermissionCard } = await import('@renderer/10_Engine')
+    const onRespond = vi.fn()
+    const { container } = render(<PermissionCard pending={guardPending('ls')} onRespond={onRespond} />)
+    const card = container.querySelector('.perm-card') as HTMLElement
+    for (const key of ['1', '2', 'Escape']) fireEvent.keyDown(card, { key, repeat: true })
+    expect(onRespond).not.toHaveBeenCalled()
+  })
+
+  it('줄 선 다음 요청으로 바뀐 직후의 키는 잠깐 받지 않는다', async () => {
+    const { PermissionCard } = await import('@renderer/10_Engine')
+    const onRespond = vi.fn()
+    let now = 1_000_000
+    const spy = vi.spyOn(Date, 'now').mockImplementation(() => now)
+    try {
+      const { container, rerender } = render(<PermissionCard pending={guardPending('ls')} onRespond={onRespond} />)
+      rerender(<PermissionCard pending={{ ...guardPending('pwd'), requestId: 'perm-2' }} onRespond={onRespond} />)
+      const card = container.querySelector('.perm-card') as HTMLElement
+      fireEvent.keyDown(card, { key: '1' })
+      expect(onRespond).not.toHaveBeenCalled()
+      now += 400
+      fireEvent.keyDown(card, { key: '1' })
+      expect(onRespond).toHaveBeenCalledWith('allow')
+    } finally {
+      spy.mockRestore()
+    }
+  })
+
   it('뒤에 줄 선 요청이 있으면 그 수를 보인다', async () => {
     const { PermissionCard } = await import('@renderer/10_Engine')
     const pending = { ...guardPending(LONG_CMD), behind: [{ ...guardPending('ls'), requestId: 'perm-2' }] }

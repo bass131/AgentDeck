@@ -60,8 +60,7 @@ describe('PermissionCard — pending 있음: 렌더 계약', () => {
     expect(container.textContent).toContain('rm -rf /tmp/test')
   })
 
-  // M11 G2 — M06 Backlog 11. 숫자 키의 뜻을 카드 종류와 관계없이 고정한다 — 1 허용, 2 거부(계획 카드는 계속 계획), 3 항상 허용.
-  // 옛 배치는 일반 카드의 2가 「항상 허용」(Bash 전체가 세션 동안 열림), 올라온 카드의 2가 거부였다.
+  // M11 G2 — M06 Backlog 11. 숫자 키는 카드 종류와 관계없이 1 허용, 2 거부, 3 항상 허용이다.
   it('perm-card-opt 3개 렌더(allow/deny/allow_always 순서, 번호 1·2·3)', async () => {
     const { PermissionCard } = await import('@renderer/10_Engine')
     const { container } = render(<PermissionCard pending={SAMPLE_PENDING} onRespond={vi.fn()} />)

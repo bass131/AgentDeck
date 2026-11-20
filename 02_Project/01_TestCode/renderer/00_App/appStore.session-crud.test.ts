@@ -400,11 +400,26 @@ describe('session-crud — 대화마다 권한 모드 (M06-1)', () => {
     expect(useAppStore.getState().pickerMode).toBe('auto')
   })
 
+  // done은 currentRunId를 비우지 않는다(지속 세션) — 쉬는 상태는 isRunning으로 본다
+  it('한 턴을 마친 대화에서 모드를 바꾸면 저장된다', async () => {
+    await useAppStore.getState().selectConversation('m-plan')
+    useAppStore.setState({ currentRunId: 'run-done', isRunning: false } as Parameters<typeof useAppStore.setState>[0])
+    useAppStore.getState().setPickerMode('bypass')
+    await new Promise((r) => setTimeout(r, 0))
+    expect(saved.at(-1)).toMatchObject({ id: 'm-plan', mode: 'bypass' })
+    saved.length = 0
+    useAppStore.setState({ isRunning: true } as Parameters<typeof useAppStore.setState>[0])
+    useAppStore.getState().setPickerMode('plan')
+    await new Promise((r) => setTimeout(r, 0))
+    expect(saved).toEqual([])
+  })
+
   // M06 Backlog 18 — 모델을 바꾼 표시(contextWindowStale)는 그 대화의 것이다. 저장된 대화를 열면 내린다.
-  it('저장된 대화를 열면 contextWindowStale을 내린다', async () => {
-    useAppStore.setState({ contextWindowStale: true } as Parameters<typeof useAppStore.setState>[0])
+  it('저장된 대화를 열면 contextWindowStale을 내리고 앞 대화의 자동 압축 표시를 지운다', async () => {
+    useAppStore.setState({ contextWindowStale: true, autoCompact: { enabled: true, thresholdTokens: 967_000 } } as Parameters<typeof useAppStore.setState>[0])
     await useAppStore.getState().selectConversation('m-plan')
     expect(useAppStore.getState().contextWindowStale).toBe(false)
+    expect(useAppStore.getState().autoCompact).toBeNull()
   })
 
   it('conversationModeOf는 선택기에 있는 id만 받는다', async () => {

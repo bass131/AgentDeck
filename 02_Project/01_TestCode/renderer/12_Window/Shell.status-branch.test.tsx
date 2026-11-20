@@ -89,6 +89,27 @@ describe('상태 줄 가지 칸 (M06 Backlog 3)', () => {
     }
   })
 
+  it('실행 중에 폴더가 바뀌면 새 폴더의 가지를 바로 읽는다', async () => {
+    const ROOT2 = 'C:\\work\\other'
+    const git = {
+      root: vi.fn(async ({ cwd }: { cwd: string }) => cwd),
+      status: vi.fn(async ({ root }: { root: string }) => statusOf(root === ROOT2 ? 'feat/other' : 'main')),
+    }
+    const { installed, useAppStore, branchCell } = await renderShell(git)
+    try {
+      await act(async () => { useAppStore.setState({ workspaceRoot: ROOT } as Parameters<typeof useAppStore.setState>[0]) })
+      await flush()
+      expect(branchCell()).toBe('main')
+      await act(async () => { useAppStore.setState({ isRunning: true } as Parameters<typeof useAppStore.setState>[0]) })
+      await flush()
+      await act(async () => { useAppStore.setState({ workspaceRoot: ROOT2 } as Parameters<typeof useAppStore.setState>[0]) })
+      await flush()
+      expect(branchCell()).toBe('feat/other')
+    } finally {
+      installed.uninstall()
+    }
+  })
+
   it('실행이 끝나면 다시 읽는다 — 에이전트가 가지를 바꿨을 수 있다', async () => {
     const git = {
       root: vi.fn().mockResolvedValue(ROOT),

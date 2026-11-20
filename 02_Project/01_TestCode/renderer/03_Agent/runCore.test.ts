@@ -154,8 +154,7 @@ describe('createRunCore.send — 실행 대상이 동기로 정해지면 agentRu
   })
 })
 
-// M11 G2 — M07 Backlog 16. agent.run 응답(실행 id)보다 먼저 도착한 그 실행의 이벤트를 버리면, 곧바로 오류를 낸 실행이
-// 「생각 중」에 멈춘다. 응답을 기다리는 동안 온 이벤트를 붙들었다가 실행 id가 정해지면 그 id의 것만 이어 적용한다.
+// M11 G2 — M07 Backlog 16. agent.run 응답 전에 온 이벤트를 붙들었다가 실행 id가 정해지면 그 id의 것만 적용한다.
 describe('createRunCore.send — 응답 전에 도착한 실행 이벤트 (M07-16)', () => {
   function rig(agentRun: () => Promise<{ runId: string }>) {
     Object.defineProperty(globalThis, 'window', {

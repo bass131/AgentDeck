@@ -274,6 +274,11 @@ describe('store — main에서 목록 받기', () => {
     useAppStore.setState({ contextWindowStale: false } as never)
     useAppStore.getState().setSelectedModel('claude-haiku-4-5-20251001')
     expect(useAppStore.getState().contextWindowStale).toBe(false)
+    // 턴이 도는 중에 바꾸면 그 턴의 done이 내리지 못하게 표시한다
+    useAppStore.setState({ isRunning: true } as never)
+    useAppStore.getState().setSelectedModel('claude-opus-5-5')
+    expect(useAppStore.getState().contextWindowStale).toBe('after-turn')
+    useAppStore.setState({ isRunning: false } as never)
   })
 
   it('IPC가 실패하면 지금 목록을 그대로 둔다', async () => {

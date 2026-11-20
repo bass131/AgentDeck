@@ -58,6 +58,8 @@ function isInputFocused(): boolean {
   return !!ae && (ae.tagName === 'TEXTAREA' || ae.tagName === 'INPUT' || ae.isContentEditable)
 }
 
+const NEXT_REQUEST_KEY_DELAY_MS = 300
+
 function scrolledToEnd(el: HTMLElement): boolean {
   return el.scrollHeight - el.scrollTop - el.clientHeight <= 2
 }
@@ -77,11 +79,17 @@ export function PermissionCard({ pending, onRespond }: PermissionCardProps): JSX
   const [planOpen, setPlanOpen] = useState(false)
   const [cmdOpen, setCmdOpen] = useState(false)
   const [tailSeen, setTailSeen] = useState(false)
+  const requestId = pending?.requestId ?? null
+  const lastRequestIdRef = useRef<string | null>(null)
+  const armedAtRef = useRef(0)
   useEffect(() => {
     setPlanOpen(false)
     setCmdOpen(false)
     setTailSeen(false)
-  }, [pending])
+    // 줄 선 다음 요청으로 바뀐 직후의 키는 앞 요청에 누른 키일 수 있다
+    if (requestId !== null && lastRequestIdRef.current !== null) armedAtRef.current = Date.now() + NEXT_REQUEST_KEY_DELAY_MS
+    lastRequestIdRef.current = requestId
+  }, [requestId])
 
   useEffect(() => {
     if (cmdOpen && cmdRef.current && scrolledToEnd(cmdRef.current)) setTailSeen(true)
@@ -89,7 +97,7 @@ export function PermissionCard({ pending, onRespond }: PermissionCardProps): JSX
 
   const escalated = pending != null && isEscalated(pending)
   const cmdLong = escalated && pending != null && isLongCommand(pending.summary)
-  // 긴 명령은 꼬리를 보기 전에는 허용(버튼·숫자 키)을 막는다 — 접혀 있거나, 펼쳤어도 높이 상한 아래로 꼬리가 남은 동안. 거부와 Esc는 언제나 열려 있다.
+  // 긴 명령은 꼬리를 보기 전에는 허용을 막는다. 거부와 Esc는 언제나 열려 있다.
   const allowLocked = cmdLong && (!cmdOpen || !tailSeen)
   const lockHint = cmdOpen ? ALLOW_TAIL_HINT : ALLOW_LOCKED_HINT
   const allowLockedRef = useRef(allowLocked)
@@ -105,6 +113,7 @@ export function PermissionCard({ pending, onRespond }: PermissionCardProps): JSX
     const choices = choicesFor(pending)
 
     function onKey(e: KeyboardEvent): void {
+      if (e.repeat || Date.now() < armedAtRef.current) return
       if (e.key === 'Escape') {
         onRespondRef.current('deny')
         return

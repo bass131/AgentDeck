@@ -1,7 +1,4 @@
-// M11 G2 — M06 Backlog 27. 「앱에 AutoCompact가 없다」 — 실측(SDK 0.3.325, 앱과 같은 설정 소스):
-// getContextUsage({ detail: 'summary' })가 isAutoCompactEnabled=true, autoCompactThreshold=967000(창 1M)을 돌려줬다.
-// SDK가 이미 자동 압축을 하고(압축 경계·진행 표시는 앱이 그린다) 앱은 그 사실을 보이지 않았을 뿐이다.
-// 첫 턴 결과 뒤 한 번 묻고 compact settings 사건으로 알린다 — done을 늦추지 않는다.
+// M11 G2 — M06 Backlog 27. SDK 자동 압축의 켜짐·문턱(getContextUsage summary)을 compact settings 사건으로 알린다.
 import { describe, it, expect } from 'vitest'
 import { ClaudeCodeBackend } from '@main/04_Claude/ClaudeCodeBackend'
 import type { QueryFn } from '@main/04_Claude/ClaudeCodeBackend'
@@ -30,6 +27,7 @@ function compactQueryFn(getContextUsage: () => Promise<unknown>, calls: { n: num
       await inputIter.next()
     })()
     return Object.assign(gen, {
+      setModel: (): Promise<void> => Promise.resolve(),
       getContextUsage: (opts: unknown): Promise<unknown> => {
         calls.n++
         expect(opts).toEqual({ detail: 'summary' })
@@ -67,18 +65,47 @@ describe('자동 압축 상태 알리기', () => {
     }
   })
 
-  it('한 턴짜리 실행도 결과를 받은 자리에서 묻는다', async () => {
+  it('지속 세션에서 모델을 바꾸면 다음 턴 뒤 다시 묻는다', async () => {
     const calls = { n: 0 }
+    const run = new ClaudeCodeBackend(compactQueryFn(async () => ({ isAutoCompactEnabled: true, autoCompactThreshold: 167_000 }), calls, 3)).start({
+      messages: [{ role: 'user', content: 'x' }],
+      persistent: true,
+    }) as ReturnType<ClaudeCodeBackend['start']> & { setModel?: (m: string) => void }
+    try {
+      await collect(run, (es) => settingsOf(es).length > 0)
+      run.setModel?.('claude-haiku-4-5-20251001')
+      run.push('두 번째')
+      const deadline = Date.now() + 3000
+      while (calls.n < 2 && Date.now() < deadline) await new Promise((r) => setTimeout(r, 5))
+      expect(calls.n).toBe(2)
+    } finally {
+      run.abort()
+    }
+  })
+
+  // 실측: 문자열 프롬프트 query는 result 뒤 물으면 「Query closed before response received」, 첫 메시지에서 물으면 답한다
+  it('한 턴짜리 실행은 첫 메시지에서 물어 닫히기 전에 settings 사건을 낸다', async () => {
+    const calls = { n: 0 }
+    let ended = false
     const queryFn: QueryFn = () => {
-      const gen = (async function* () { yield mkResult() })()
+      const gen = (async function* () {
+        yield { type: 'system', subtype: 'init', session_id: 'sess-compact', model: 'claude-haiku-4-5-20251001', tools: [], permissionMode: 'default' }
+        await new Promise((r) => setTimeout(r, 20))
+        yield mkResult()
+        ended = true
+      })()
       return Object.assign(gen, {
-        getContextUsage: async (): Promise<unknown> => { calls.n++; return { isAutoCompactEnabled: true, autoCompactThreshold: 167_000 } },
+        getContextUsage: async (): Promise<unknown> => {
+          calls.n++
+          if (ended) throw new Error('Query closed before response received')
+          return { isAutoCompactEnabled: true, autoCompactThreshold: 167_000 }
+        },
       })
     }
     const run = new ClaudeCodeBackend(queryFn).start({ messages: [{ role: 'user', content: 'x' }] })
-    const events = await collect(run, (es) => es.some((e) => e.type === 'done') && settingsOf(es).length > 0, 500)
+    const events = await collect(run, (es) => es.some((e) => e.type === 'done'), 1000)
     expect(calls.n).toBe(1)
-    expect(events.some((e) => e.type === 'done')).toBe(true)
+    expect(settingsOf(events)).toEqual([{ type: 'compact', kind: 'settings', autoCompactEnabled: true, thresholdTokens: 167_000 }])
   })
 
   it('꺼져 있으면 꺼짐을 알리고, 문턱이 없으면 싣지 않는다', async () => {

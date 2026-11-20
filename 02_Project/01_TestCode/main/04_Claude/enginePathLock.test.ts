@@ -24,6 +24,7 @@ describe('보호 대상과 거부 규칙 (M07 G3)', () => {
       'C:/Users/x/AppData/Roaming/agentdeck/engine-seal.json',
       'C:/Users/x/AppData/Roaming/agentdeck/controls-seal.json',
       'C:/Users/x/AppData/Roaming/agentdeck/first-setup.json',
+      'C:/Users/x/AppData/Roaming/agentdeck/chats',
       'C:/Users/x/AppData/Roaming/agentdeck-guard',
     ])
   })
@@ -36,6 +37,7 @@ describe('보호 대상과 거부 규칙 (M07 G3)', () => {
       'Edit(//c/Users/x/AppData/Roaming/agentdeck/engine-seal.json)',
       'Edit(//c/Users/x/AppData/Roaming/agentdeck/controls-seal.json)',
       'Edit(//c/Users/x/AppData/Roaming/agentdeck/first-setup.json)',
+      'Edit(//c/Users/x/AppData/Roaming/agentdeck/chats/**)',
       'Edit(//c/Users/x/AppData/Roaming/agentdeck-guard/**)',
     ])
   })
@@ -135,6 +137,28 @@ describe('보호 대상과 거부 규칙 (M07 G3)', () => {
     expect(bashLockReason('cd /c/Dev/AgentDeck && cat ./02_Project/00_Source/main/10_Engine/engineSeal.ts', WIN_UD)).toBeNull()
   })
 
+  // M11 G2 — 대화 파일이 권한 모드를 싣는다(M06-1). 에이전트가 `"mode":"bypass"`를 써 두면 다음 기동에 그 모드로 열린다.
+  it('대화 폴더(chats)도 보호 대상이다 — 파일 도구와 셸 모두', () => {
+    expect(protectedTargets(WIN_UD)).toContain('C:/Users/x/AppData/Roaming/agentdeck/chats')
+    expect(enginePathDenyRules(WIN_UD)).toContain('Edit(//c/Users/x/AppData/Roaming/agentdeck/chats/**)')
+    for (const cmd of [
+      'echo {"mode":"bypass"} > "$APPDATA/agentdeck/chats/a.json"',
+      'node -e "require(\'fs\').writeFileSync(process.env.APPDATA + \'/agentdeck/chats/a.json\', \'{}\')"',
+      'cd "$APPDATA/agentdeck" && sed -i s/auto/bypass/ chats/a.json',
+      'cd "$APPDATA/agentdeck" && rm -r chats',
+      'cd "$APPDATA/agentdeck" && rm cha*',
+    ]) {
+      expect(bashLockReason(cmd, WIN_UD), cmd).not.toBeNull()
+    }
+    expect(bashLockReason('ls ./chats', WIN_UD)).toBeNull()
+  })
+
+  it('폴더로 들어간 뒤의 낱말 판정은 보호 대상 표 하나에서 나온다', () => {
+    for (const name of ['engines', 'engine-config.json', 'controls.json', 'engine-seal.json', 'controls-seal.json', 'first-setup.json', 'chats']) {
+      expect(bashLockReason(`cd "$APPDATA/agentdeck" && rm -r ${name}`, WIN_UD), name).not.toBeNull()
+    }
+  })
+
   it('끝 구분자가 붙은 경로도 같은 규칙이 된다', () => {
     expect(enginePathDenyRules(WIN_UD + '\\')).toEqual(enginePathDenyRules(WIN_UD))
   })
@@ -166,11 +190,11 @@ describe('Bash 잠금 노드 (M07 G3)', () => {
 
   const passed = [
     'echo ok',
-    'cat "$APPDATA/agentdeck/chats/a.json"',
+    'cat "$APPDATA/agentdeck/logs/main.log"',
     'ls engines',
     'npm run build',
     'cat engine-config.json',
-    'ls $APPDATA/agentdeck/chats/*',
+    'ls $APPDATA/agentdeck/logs/*',
     'cd C:/Dev/AgentDeck && npm test',
     'cd C:/Dev/AgentDeck && ls ./02_Project/00_Source/main/10_Engine',
   ]

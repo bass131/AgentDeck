@@ -124,7 +124,7 @@ export class ClaudeAgentRun implements AgentRun {
     this._currentOrchestration = req.orchestration === true
     this._currentModel = normalizeRunModel(req.model) ?? null
     this._currentEffort = req.effort !== undefined ? runEffortFor(req.effort, req.model) ?? null : null
-    this._perm =new PermissionCoordinator((e) => this._push(e))
+    this._perm = new PermissionCoordinator((e) => this._push(e))
     this._bgTaskObserver = new BgTaskObserver((e) => this._push(e))
     this._idleGovernor = new IdleCloseGovernor({
       emit: (e) => this._push(e),
@@ -207,6 +207,7 @@ export class ClaudeAgentRun implements AgentRun {
     this._currentModel = resolved
     // 계기가 다음 턴 결과에서 새 주 모델의 창을 고르게 한다 (M06 G4). 전환이 거절되면 되돌린다.
     this._normalizer.setMainModel(resolved)
+    this._autoCompactAsked = false
     const rollback = (): void => {
       if (this._currentModel !== resolved) return
       this._currentModel = prev
@@ -410,6 +411,8 @@ export class ClaudeAgentRun implements AgentRun {
           if (this._aborted || this._abortController.signal.aborted) {
             return
           }
+          // 문자열 프롬프트 query는 결과 뒤 곧 닫혀 그때는 답을 못 받는다 — 첫 메시지에서 묻는다
+          this._askAutoCompactOnce()
           const { events: normEvents, done } = this._normalizer.process(msg)
           this._bgTaskObserver.maybeStartTail(msg)
           for (const e of normEvents) {
@@ -419,10 +422,7 @@ export class ClaudeAgentRun implements AgentRun {
             }
             this._push(e)
           }
-          if (done !== null) {
-            lastDone = done
-            this._askAutoCompactOnce()
-          }
+          if (done !== null) lastDone = done
         }
 
         if (!this._aborted && !this._abortController.signal.aborted) {
@@ -618,7 +618,7 @@ export class ClaudeAgentRun implements AgentRun {
     this._push(e)
   }
 
-  // SDK 자동 압축의 켜짐과 문턱을 첫 턴 뒤 한 번 묻는다(M06 Backlog 27). done을 기다리게 하지 않는다.
+  // SDK 자동 압축의 켜짐과 문턱을 묻는다(M06 Backlog 27) — 모델마다 한 번, done을 기다리게 하지 않는다.
   private _askAutoCompactOnce(): void {
     const handle = this._queryHandle
     if (this._autoCompactAsked || !handle || typeof handle.getContextUsage !== 'function') return

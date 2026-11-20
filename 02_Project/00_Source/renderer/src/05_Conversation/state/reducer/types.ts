@@ -61,7 +61,8 @@ export interface AppState {
   isRunning: boolean
   lastUsage?: TokenUsage
   lastContextWindow?: number
-  contextWindowStale: boolean
+  // 'after-turn' — 턴 도중에 모델을 바꿨다. 그 턴의 done은 옛 모델의 창이라 내리지 않는다
+  contextWindowStale: boolean | 'after-turn'
   sessionId?: string
   activeLoops: LoopInfo[]
   loopsStoppedNotice: boolean

@@ -90,6 +90,12 @@ describe('reducer — done은 창을 새로 재고 contextWindowStale을 내린�
     expect(next.lastContextWindow).toBe(200_000)
     expect(next.contextWindowStale).toBe(false)
   })
+
+  it('턴 도중에 모델을 바꿨으면 그 턴의 done은 옛 모델의 창이라 stale을 유지한다', () => {
+    const base = { ...makeInitialState(), lastContextWindow: 1_000_000, contextWindowStale: 'after-turn' as const, isRunning: true }
+    const next = applyAgentEvent(base, payload({ type: 'done', contextWindow: 1_000_000 }))
+    expect(next.contextWindowStale).toBe(true)
+  })
 })
 
 describe('gap1-p04 reducer — session_state → sdkSessionState 세팅', () => {

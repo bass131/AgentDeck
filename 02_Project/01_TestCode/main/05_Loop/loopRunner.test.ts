@@ -535,3 +535,37 @@ describe('템플릿 해시와 상태 스키마', () => {
     expect(ctx.rig.fs.files.get(DOCS.runState)).not.toContain('instruction')
   })
 })
+
+describe('실행기 브랜치와 재시도 (M11 G3)', () => {
+  it.fails('[M11-G3 M09-9] 마일스톤 브랜치 push는 이름이 아니라 확인한 머리 SHA로 보낸다', async () => {
+    const ctx = setup()
+    await until(ctx, 'milestone-branch')
+    const pushes: [string, string | undefined][] = []
+    const push = ctx.rig.git.push.bind(ctx.rig.git)
+    ctx.rig.git.push = async (branch, sha) => { pushes.push([branch, sha]); await push(branch, sha) }
+    expect((await ctx.runner.step()).kind).toBe('advanced')
+    expect(pushes).toEqual([['milestone/M1', await ctx.rig.git.headSha('milestone/M1')]])
+  })
+
+  it.fails('[M11-G3 M09-8] 시작 SHA 없이 이미 있는 브랜치는 로컬 ref가 아니라 원격 머리로 계보를 본다 — 로컬 base를 옮긴 커밋은 push하지 않는다', async () => {
+    const ctx = setup()
+    await until(ctx, 'milestone-branch')
+    ctx.rig.git.local.set('master', ['m0', 'x1'])
+    ctx.rig.git.local.set('milestone/M1', ['m0', 'x1'])
+    const out = await ctx.runner.step()
+    expect(out.kind).not.toBe('advanced')
+    expect(ctx.rig.git.remote.get('milestone/M1') ?? []).not.toContain('x1')
+  })
+
+  it.fails('[M11-G3 M09-12] 메인 노드가 FAIL한 뒤 같은 노드의 다음 요청은 직전 FAIL 사유를 싣는다', async () => {
+    const ctx = setup()
+    await ensureStarted(ctx)
+    ctx.rig.session.nextResult = { ok: false, summary: '질문 도구 없이 글로 묻고 끝났다' }
+    expect((await ctx.runner.step()).kind).toBe('failed')
+    let seen: unknown = null
+    ctx.rig.session.onWork = async (req) => { seen = req }
+    await ctx.runner.step()
+    expect(ctx.rig.session.calls).toEqual(['brainstorm', 'brainstorm'])
+    expect(JSON.stringify(seen)).toContain('질문 도구 없이 글로 묻고 끝났다')
+  })
+})

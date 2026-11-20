@@ -289,3 +289,56 @@ describe('엔진 봉인 (M07 G4)', () => {
     expect(await new ClaudeCodeBackend().version()).not.toBe('1.4.0')
   })
 })
+
+describe('봉인의 남은 틈과 보이는 버전 (M11 G3)', () => {
+  it.fails('[M11-G3 M07-11] 형제 파일의 내용을 크기·수정 시각은 그대로 둔 채 바꾸면 그 엔진을 쓰지 않는다', async () => {
+    quiet()
+    const { setActive } = await engine()
+    const ud = newUserData()
+    const dir = installEngine(ud, '1.4.0')
+    setActive('1.4.0', ud)
+    const core = path.join(dir, 'core.mjs')
+    const st = fs.statSync(core)
+    fs.writeFileSync(core, 'export const y = 2\n')
+    fs.utimesSync(core, st.atime, Math.floor(st.mtimeMs) / 1000)
+    expect(fs.statSync(core).size).toBe(st.size)
+    expect(await run(ud)).toBeNull()
+  })
+
+  it.fails('[M11-G3 M07-11] 버전 폴더 위쪽(engines/node_modules)에 패키지가 생기면 그 엔진을 쓰지 않는다 — Node가 올라가며 찾는 길이다', async () => {
+    quiet()
+    const { setActive } = await engine()
+    const ud = newUserData()
+    installEngine(ud, '1.4.0')
+    setActive('1.4.0', ud)
+    const planted = path.join(ud, 'engines', 'node_modules', 'zod')
+    fs.mkdirSync(planted, { recursive: true })
+    fs.writeFileSync(path.join(planted, 'package.json'), JSON.stringify({ name: 'zod', version: '9.9.9', main: 'index.js' }))
+    expect(await run(ud)).toBeNull()
+  })
+
+  it.fails('[M11-G3 M07-12] major가 번들과 달라 번들이 돌면 보이는 버전도 번들 쪽이다', async () => {
+    quiet()
+    const ud = newUserData()
+    h.userData.value = ud
+    installEngine(ud, '2.0.0')
+    const { setActive } = await engine()
+    setActive('2.0.0')
+    expect(await run(ud)).toBeNull()
+    const { ClaudeCodeBackend } = await import('@main/04_Claude/ClaudeCodeBackend')
+    expect(await new ClaudeCodeBackend(undefined, undefined, undefined, { resolvePackageVersion: () => '1.2.3' }).version()).toBe('1.2.3')
+  })
+
+  it.fails('[M11-G3 M07-12] 봉인은 맞지만 불러오기에 실패해 번들이 돌면 보이는 버전도 번들 쪽이다', async () => {
+    quiet()
+    const ud = newUserData()
+    h.userData.value = ud
+    const dir = installEngine(ud, '1.4.0')
+    fs.rmSync(path.join(dir, 'index.mjs'))
+    const { setActive } = await engine()
+    setActive('1.4.0')
+    expect(await run(ud)).toBeNull()
+    const { ClaudeCodeBackend } = await import('@main/04_Claude/ClaudeCodeBackend')
+    expect(await new ClaudeCodeBackend(undefined, undefined, undefined, { resolvePackageVersion: () => '1.2.3' }).version()).toBe('1.2.3')
+  })
+})

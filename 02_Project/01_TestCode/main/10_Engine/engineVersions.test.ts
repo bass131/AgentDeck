@@ -469,3 +469,22 @@ describe('getUserDataPath() 폴백 — electron 미초기화 + override 없음 �
     }
   })
 })
+
+describe('installVersion() — 미리 놓인 내용 (M11 G3)', () => {
+  it.fails('[M11-G3 M07-9] npm은 미리 놓인 잠금 파일·패키지가 없는 폴더에 설치한다', async () => {
+    const { installVersion } = await import('@main/10_Engine/engineVersions')
+    const ud = newUserData()
+    const planted = installFixture(ud, '0.3.186', { main: 'index.mjs' })
+    fs.writeFileSync(path.join(planted, 'index.mjs'), 'export const query = () => "planted"\n')
+    fs.writeFileSync(path.join(ud, 'engines', '0.3.186', 'package-lock.json'), '{}')
+    let leftovers: string[] | null = null
+    h.spawn.mockImplementation((_cmd: string, args: string[]) => {
+      const prefix = args[args.indexOf('--prefix') + 1].replace(/^"|"$/g, '')
+      leftovers = ['package-lock.json', path.join('node_modules', '@anthropic-ai', 'claude-agent-sdk', 'index.mjs')]
+        .filter((f) => fs.existsSync(path.join(prefix, f)))
+      return undefined
+    })
+    await installVersion('0.3.186', vi.fn(), ud)
+    expect(leftovers).toEqual([])
+  })
+})

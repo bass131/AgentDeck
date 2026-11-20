@@ -357,3 +357,15 @@ describe('실물 백엔드 배선 (M09 G2)', () => {
     }
   })
 })
+
+describe('「스펙을 쓰는 노드」 술어 (M11 G3)', () => {
+  it.fails('[M11-G3 M09-12] 질문 도구 규칙을 받은 세션의 질문 카드는 자동 거부되지 않는다 — 규칙과 카드 응답자가 같은 술어를 쓴다', async () => {
+    const MAIN: WorkNode = { ...NODE, id: 'brainstorm', role: 'main', docs: ['milestoneSpec'] }
+    const { backend, rec } = fakeBackend([{ type: 'question_request', requestId: 'q1', questions: [] }, { type: 'done' }])
+    await createWorkSessionPort(opts(backend)).runWork(request({ node: MAIN, goal: null }))
+    await tick()
+    const prompt = String(rec.starts[0]?.messages[0]?.content ?? '')
+    const autoDenied = rec.responses.some(([id, r]) => id === 'q1' && r.kind === 'question' && r.answers === null)
+    expect(prompt.includes('AskUserQuestion') && autoDenied).toBe(false)
+  })
+})

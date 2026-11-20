@@ -298,3 +298,9 @@ describe('실행 배선 (M07 G3)', () => {
     expect(hooks.PreToolUse.map((m) => m.onFailure)).toEqual(['block', 'block'])
   })
 })
+
+describe('재지 않은 경로 꼴 (M11 G3)', () => {
+  it.fails('[M11-G3 M07-7] 8.3 짧은 이름으로 쓴 앱 데이터 폴더의 엔진 경로도 막는다', () => {
+    expect(bashLockReason('rm -rf C:/Users/x/AppData/Roaming/AGENTD~1/engines', WIN_UD)).not.toBeNull()
+  })
+})

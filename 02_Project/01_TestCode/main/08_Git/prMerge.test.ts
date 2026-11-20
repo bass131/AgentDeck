@@ -486,3 +486,34 @@ describe('비동기 병합 API 호출', () => {
     expect(f.calls.length).toBe(before)
   })
 })
+
+// `GET repos/{o}/{r}/rules/branches/{b}` — 그 브랜치에 걸린 룰셋 규칙 목록
+describe('룰셋으로 지키는 base (M11 G3)', () => {
+  const RULES = /rules\/branches\/master$/
+  const notProtected = fail(404, 'Branch not protected')
+
+  it.fails('[M11-G3 M07-24 M09-11] 고전 보호가 없어도 룰셋의 필수 검사를 읽어 머리의 결과로 판정한다', async () => {
+    const rules = ok([
+      { type: 'deletion' },
+      { type: 'required_status_checks', parameters: { strict_required_status_checks_policy: false, required_status_checks: [{ context: 'hard-gates', integration_id: APP }] } },
+    ])
+    const { svc } = setup({
+      protection: notProtected,
+      extra: [[RULES, rules]],
+      runs: [{ name: 'hard-gates', status: 'completed', conclusion: 'failure' }],
+    })
+    const r = await svc.readPr(CWD, { number: 12 })
+    if (!r.ok) throw new Error('읽기 실패')
+    expect(r.pr.checks).toEqual([{ name: 'hard-gates', result: 'failure' }])
+    expect(r.pr.canMerge).toBe(false)
+  })
+
+  it.fails('[M11-G3 M10-23] 룰셋으로만 지키고 필수 검사가 없으면 「보호가 없다」가 아니라 「필수 검사가 없다」고 안내한다', async () => {
+    const rules = ok([{ type: 'deletion' }, { type: 'non_fast_forward' }, { type: 'pull_request', parameters: { required_approving_review_count: 0 } }])
+    const { svc } = setup({ protection: notProtected, extra: [[RULES, rules]] })
+    const r = await svc.readPr(CWD, { number: 12 })
+    if (!r.ok) throw new Error('읽기 실패')
+    expect(r.pr.notes.join(' ')).not.toMatch(/보호가 없/)
+    expect(r.pr.notes.join(' ')).toMatch(/필수 검사/)
+  })
+})

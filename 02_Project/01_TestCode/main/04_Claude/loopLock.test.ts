@@ -634,6 +634,22 @@ describe('loop-lock 셸 위치 (M09 G2 재검수 중요 C)', () => {
     expect(await call('cd .git && ls')).not.toBeNull()
     expect(await call('echo x > config')).toBeNull()
   })
+
+  it.fails('[M11-G3 M09-6] 커밋 메시지 안의 CDPATH 글자는 CDPATH 설정으로 보지 않는다', () => {
+    expect(loopCommandReason('git commit -m "fix: CDPATH=.git 꼴을 막는다"', SCOPE)).toBeNull()
+  })
+
+  it.fails('[M11-G3 M09-6] source 뒤의 「위치 모름」은 다음 호출로 넘어가지 않는다 — 훅이 준 cwd가 저장소 뿌리면 상대 쓰기가 지나간다', async () => {
+    const call = session()
+    expect(await call('source .venv/bin/activate', 'C:\\work\\repo')).toBeNull()
+    expect(await call('echo x > out.txt', 'C:\\work\\repo')).toBeNull()
+  })
+})
+
+describe('loop-lock 읽기 전용 꼴의 PowerShell 환경 대입 (M11 G3)', () => {
+  it.fails('[M11-G3 M09-8] $env:GIT_PAGER처럼 git이 명령으로 돌리는 변수를 PowerShell 꼴로 정하는 것도 거부한다', () => {
+    expect(loopCommandReason('$env:GIT_PAGER = "sh -c x"; git log', { ...SCOPE, readOnly: true })).not.toBeNull()
+  })
 })
 
 describe('loop-lock MCP 도구 (M09 G2 검수 중요 5)', () => {

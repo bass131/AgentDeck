@@ -417,7 +417,7 @@ function handBlock(now) {
   const pointers = [toMerge, toDecide].filter(Boolean), mergedNote = mergeNote();
   const more = [...pointers.map(a => `<p class="hand-more">${a}</p>`), mergedNote && facts.length ? `<p class="hand-more is-ok">${G.ok}<span>${esc(mergedNote)}</span></p>` : ''].join('');
   const items = facts.length ? `<ul class="hand-list">${facts.map(h => `<li class="is-${h.level}">${G[HAND_G[h.level]]}<div><p>${esc(h.say)}${h.id === 'merge' && MRG ? ' <a href="#merge">현황판 병합 카드</a>' : ''}</p>${h.quote ? `<p class="rawtext">「${md(clipText(h.quote, 160))}」</p>` : ''}<p class="q-src">근거: ${esc(h.source)}${h.ref ? ' ' + srcLink(h.ref) : ''}</p></div></li>`).join('')}</ul>${more}`
-    : pointers.length ? `<p class="q-line is-defer">${G.note}${pointers.join(' · ')}</p>`
+    : pointers.length ? `<p class="q-line is-defer">${G.note}${pointers.join(' · ')}</p>${mergedNote ? `<p class="hand-more is-ok">${G.ok}<span>${esc(mergedNote)}</span></p>` : ''}`
     : `<p class="q-line is-none">${G.ok}<span>${mergedNote ? esc(mergedNote) : '없음'}</span></p>`;
   const chores = S.chores?.length ? fold('chores', `급하지 않은 정리 일 ${S.chores.length}개 <small>인수인계 메모에 「사용자 몫」으로 적힌 문장</small>`, sents(S.chores) + (S.choresRef ? srcLink(S.choresRef) : ''), 'raw') : '';
   const noteHtml = notes.length ? `<ul class="q-notes">${notes.map(n => `<li class="is-${n.kind}">${(NOTE_G[n.kind] || NOTE_G.note)()}<span>${n.html}</span></li>`).join('')}</ul>` : '';
@@ -742,7 +742,7 @@ function sendBox() {
   else line = `<p class="send-line">${esc(p.text)}</p>`;
   const ready = !!(p && !p.pending && p.text && !p.refusal);
   const result = !res ? '' : res.phase === 'sending' ? '<p class="send-result">넣는 중이에요…</p>'
-    : res.phase === 'inserted' ? `<p class="send-result is-done">${G.ok}<span>메인 입력창에 넣었어요. 메인 pane에서 Enter를 눌러야 전달돼요.${res.note ? ' ' + esc(res.note) : ''}</span></p>`
+    : res.phase === 'inserted' ? `<p class="send-result is-done">${G.ok}<span>메인 입력창${res.terminal ? `(「${esc(res.terminal)}」)` : ''}에 넣었어요. 메인 pane에서 Enter를 눌러야 전달돼요.${res.note ? ' ' + esc(res.note) : ''}</span></p>`
     : res.phase === 'clipboard' ? `<p class="send-result is-todo">${G.note}<span>${res.reason ? esc(res.reason) + ' ' : ''}문장을 복사했어요. 메인 입력창에 붙여 넣고 Enter를 눌러 주세요.</span></p>`
     : res.phase === 'manual' ? `<p class="send-result is-todo">${G.note}<span>${res.reason ? esc(res.reason) + ' ' : ''}복사하지 못했어요. 아래 글을 직접 복사해 주세요.</span></p><textarea class="send-manual" readonly rows="2">${esc(res.line)}</textarea>`
     : `<p class="send-result is-todo">${G.note}<span>${esc(res.reason)}</span></p>`;
@@ -808,7 +808,7 @@ async function sendLine() {
   try { r = await postAnswer('send', shown); } catch { r = { ok: false, copy: true, line: dec.preview?.text ?? '', reason: '서버에 닿지 못했어요. 메인 입력창을 먼저 확인해 주세요.' }; }
   if (dec.result !== pending) return;
   /* 서버가 고쳐 고름 표지를 붙여 넣었으면(corrected) note가 앞 문장이 입력창에 남아 있을 수 있다고 알린다 */
-  if (r.ok) dec.result = { phase: 'inserted', line: r.line, note: r.note || '', ids };
+  if (r.ok) dec.result = { phase: 'inserted', line: r.line, note: r.note || '', terminal: typeof r.terminal === 'string' ? r.terminal : '', ids };
   else if (r.copy && r.line) {
     const ok = await copyText(r.line);
     if (dec.result !== pending) return;
@@ -929,7 +929,7 @@ function renderMerge() {
   if (paint(act, mergeAction()) && fSel) act.querySelector(fSel)?.focus({ preventScroll: true });
   /* 카드가 읽은 PR이 「내 손」의 병합 대기 줄을 바꾼다(mergeHand·mergeFolded). 바뀌었을 때만 「지금」과 배지를 다시 맞춘다 */
   const now = Date.now();
-  if (nowSig(now) !== st.nowSig) { renderNow(now); notify(now); }
+  if (nowSig(now) !== st.nowSig) { renderNow(now); renderStrip(now); notify(now); }
 }
 /* 카드를 내린다. 늦게 온 읽기가 내린 카드를 되살리지 않게 순번을 올린다 */
 function dropCard() {

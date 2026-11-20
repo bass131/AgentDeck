@@ -211,6 +211,8 @@ test('[M11-G5 M07-35] the main-terminal finder leaves out orchestration workers 
   assert.equal(onlyWorker.handle, null);
   assert.match(onlyWorker.reason, /worker/);
   assert.deepEqual(pickMain({ terminals: [T(1), T(2)] }, 'C:/Dev/AgentDeck', null, ps(main, worker)), { handle: H(1), title: '제목 1' });
+  const nl = String.fromCharCode(10), cr = String.fromCharCode(13), ls = String.fromCharCode(0x2028);
+  assert.equal(pickMain({ terminals: [T(1, { title: `가${nl}나${cr}다${ls}라` })] }, 'C:/Dev/AgentDeck', null, null).title, '가 나 다 라', '제목의 제어문자는 모두 빈칸');
   // ps를 못 읽으면 예전처럼 terminal list만으로 고른다
   assert.deepEqual(pickMain({ terminals: [T(1)] }, 'C:/Dev/AgentDeck', null, null), { handle: H(1), title: '제목 1' });
   const seen = [];

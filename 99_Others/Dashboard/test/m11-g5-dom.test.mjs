@@ -104,6 +104,32 @@ test('[M11-G5 71] 「지금」 holds only the doing card; hand and where sit in 
   assert.equal(none.$('[data-dec-send]'), null);
 });
 
+test('[M11-G5 71] decision cards: a repaint from a changed list puts focus and caret back into the comment being typed', async t => {
+  const vm = await baseVm(); vm.decisions = board([decision()]);
+  const p = await page(t, vm, answerRoutes());
+  p.click('[data-pick="g5-a"][data-key="C"]');
+  const input = await until(() => p.$('[data-comment="g5-a"]'), '코멘트 칸');
+  input.value = '먼저 diff를'; input.dispatchEvent(new p.w.Event('input', { bubbles: true }));
+  input.setSelectionRange(2, 2);
+  p.push({ ...vm, revision: vm.revision + 1, decisions: board([decision(), decision({ id: 'g5-b', title: '둘째 결정' })], 's2') });
+  const again = p.$('[data-comment="g5-a"]');
+  assert.equal(p.$$('#decide .dec').length, 2, '목록이 바뀌어 다시 칠했다');
+  assert.equal(p.doc.activeElement, again, '입력 중이던 칸으로 초점이 돌아온다');
+  assert.deepEqual([again.value, again.selectionStart], ['먼저 diff를', 2], '글과 커서 자리가 그대로다');
+});
+
+test('[M11-G5 M07-35] the insert result names the terminal the server typed into, escaped', async t => {
+  const vm = await baseVm(); vm.decisions = board([decision()]);
+  const routes = answerRoutes();
+  routes['/api/answer/send'] = body => ({ ok: true, via: 'input', line: body.expect, terminal: '메인 <세션>' });
+  const p = await page(t, vm, routes);
+  p.click('[data-pick="g5-a"][data-key="A"]');
+  await until(() => p.text('#decide-send .send-line'), '서버 문장');
+  p.click('[data-dec-send]');
+  await until(() => p.$('#decide-send .send-result.is-done'), '넣은 결과 줄');
+  assert.match(p.$('#decide-send .send-result').innerHTML, /「메인 &lt;세션&gt;」/);
+});
+
 test('[M11-G5 71] the insert button follows canType; without it only copy is offered', async t => {
   const vm = await baseVm(); vm.decisions = board([decision()]); vm.answer = { canType: false };
   const p = await page(t, vm, answerRoutes());
@@ -171,6 +197,29 @@ test('[M11-G5 71] merge card: a failed read leaves no stale card but keeps 「�
   assert.equal(gh.$('#merge-card .dec-head a').getAttribute('rel'), 'noopener noreferrer');
 });
 
+test('[M11-G5 71] merge card: a PR number loads by the button or Enter; while the confirm window is up the card says where to press', async t => {
+  const gate = { hold: true, go: null };
+  const routes = mergeRoutes();
+  const cancel = routes['/api/merge/run'];
+  routes['/api/merge/run'] = body => gate.hold ? new Promise(r => { gate.go = () => r(cancel(body)); }) : cancel(body);
+  const p = await page(t, await baseVm(), routes);
+  const num = p.$('[data-merge-num]');
+  num.value = '#9';
+  p.click('[data-merge-load]');
+  await until(() => p.$('#merge-card .mg'), '번호로 부른 카드');
+  assert.deepEqual(p.calls.filter(c => c.url === '/api/merge/read').map(c => c.body), [{ pr: 9 }]);
+  num.value = '9';
+  num.dispatchEvent(new p.w.KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+  await until(() => p.calls.filter(c => c.url === '/api/merge/read').length === 2, 'Enter로 다시 부름');
+  await until(() => p.$('[data-merge-run]') && !p.$('[data-merge-run]').disabled, '병합 단추');
+  p.click('[data-merge-run]');
+  await until(() => p.text('#merge-act').includes('바탕화면의 확인 창에서 병합을 눌러 주세요'), '확인 창 안내');
+  assert.ok(p.$('[data-merge-run]').disabled, '확인 창이 떠 있는 동안은 다시 못 누른다');
+  gate.hold = false; gate.go();
+  await until(() => p.text('#merge-act').includes('확인 창에서 병합하지 않았어요'), '결과 줄');
+  await wait(30);
+});
+
 // ── 72 ──
 test('[M11-G5 72] the waiting-merge fact folds into the merge card showing the same PR; it still counts, and a card that failed to load keeps the full line', async t => {
   const p = await page(t, await withHand(mergeItem(9)), mergeRoutes());
@@ -197,6 +246,13 @@ test('[M11-G5 61] once the card reads the pending PR as merged, the hand stops a
   assert.ok(red.$('#brief .q-hand').classList.contains('is-stop'), 'CI 실패는 빨강');
   assert.match(red.text('#brief .q-hand'), /필수 검사.*hard-gates.*실패/);
   assert.match(red.doc.title, /^\(!1\) /);
+  const both = await withHand(mergeItem(9)); both.decisions = board([decision()]);
+  const mixed = await page(t, both, { ...answerRoutes(), ...mergeRoutes({ views: { 9: prView(9, { state: 'closed', merged: true }) } }) });
+  await until(() => mixed.text('#merge-card').includes('병합됐어요'), '닫힌 카드');
+  assert.match(mixed.text('#brief .q-hand'), /goal 문서 갱신만 남았어요/, '결정 요청 줄이 함께 있어도 병합됨 줄이 남는다');
+  assert.match(mixed.text('#brief .q-hand'), /결정 요청 1건/);
+  assert.match(mixed.doc.title, /^\(1\) /, '배지는 결정 하나만 센다');
+  assert.ok(!mixed.text('#strip-status').includes('병합을 기다려요'), '띠의 손 줄도 카드가 읽은 상태를 따른다');
 });
 
 // ── M07-27 ──

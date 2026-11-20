@@ -56,7 +56,8 @@ function workerPanes(ps) {
   return out;
 }
 const paneOf = x => typeof x.tabId === 'string' && typeof x.leafId === 'string' ? `${x.tabId}:${x.leafId}` : null;
-const titleOf = x => { const t = typeof x?.title === 'string' ? Array.from(x.title.replace(CONTROL, ' ').trim()).slice(0, 80).join('') : ''; return t ? { title: t } : {}; };
+const CONTROL_ALL = new RegExp(CONTROL.source, 'g');
+const titleOf = x => { const t = typeof x?.title === 'string' ? Array.from(x.title.replace(CONTROL_ALL, ' ').trim()).slice(0, 80).join('') : ''; return t ? { title: t } : {}; };
 
 export function pickMain(result, repoPath, configHandle, ps = null) {
   const list = Array.isArray(result?.terminals) ? result.terminals : [], workers = workerPanes(ps);

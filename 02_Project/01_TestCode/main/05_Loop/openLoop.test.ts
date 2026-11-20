@@ -106,6 +106,20 @@ afterEach(async () => {
   repos.cleanup()
 })
 
+describe('openLoop — 실행기 PATH와 자식 PATH (M11 G3)', () => {
+  it('[M11-G3 M09-4] 작업 노드 세션(자식 환경)의 PATH는 좁히지 않는다 — 좁히는 것은 실행기 git·gh 환경뿐이다', async () => {
+    const user = path.join(repos.root, 'user')
+    const npmDir = path.join(user, 'AppData', 'Roaming', 'npm')
+    const key = Object.keys(repos.env).find((k) => k.toUpperCase() === 'PATH') ?? 'PATH'
+    const executorEnv = { ...repos.env, USERPROFILE: user, [key]: `${repos.env[key] ?? ''}${path.delimiter}${npmDir}` }
+    const r = await openLoop({ cwd: repos.work, appDataDir: appData, session, review, gh, template: TEMPLATE, executorEnv })
+    if (!r.ok) throw new Error(`openLoop 실패: ${r.reason}`)
+    opened.push(r.loop)
+    const childPath = Object.entries(r.loop.childEnv.env).find(([k]) => k.toUpperCase() === 'PATH')?.[1] ?? ''
+    expect(childPath.split(path.delimiter)).toContain(npmDir)
+  })
+})
+
 describe('openLoop — 실 git으로 goal 하나를 끝까지', () => {
   it('브랜치 가르기→커밋 push→PR→CI→로컬 --no-ff 병합→push, 그리고 마일스톤 PR과 사람 병합까지 간다', SLOW, async () => {
     // 작업 저장소의 훅(세션이 쓸 수 있는 코드)은 자격 있는 실행기 git에서 돌지 않는다 — 돌면 checkout·merge·commit이 막힌다

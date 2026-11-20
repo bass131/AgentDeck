@@ -286,7 +286,11 @@ const protectedAssign = (t: string): boolean => { const n = assignName(t); retur
 const EXEC_ENV_NAMES = 'GIT_EXTERNAL_DIFF|GIT_PAGER|PAGER|GIT_EDITOR|EDITOR|VISUAL|GIT_SEQUENCE_EDITOR|GIT_SSH|GIT_SSH_COMMAND|GIT_PROXY_COMMAND|GIT_ASKPASS|SSH_ASKPASS|LESSOPEN|LESSCLOSE|GIT_CONFIG|GIT_CONFIG_PARAMETERS|GIT_CONFIG_COUNT|GIT_CONFIG_KEY_\\d+|GIT_CONFIG_VALUE_\\d+|GIT_CONFIG_GLOBAL|GIT_CONFIG_SYSTEM'
 const EXEC_ENV = new RegExp(`^(?:${EXEC_ENV_NAMES})$`, 'i')
 // M11 G3(M09-8) — PowerShell 꼴(`$env:GIT_PAGER = …`)과 .NET 꼴로 정하는 것도 읽기 전용 꼴에서 거부한다
-const PS_EXEC_ENV_SET = new RegExp(`\\$env:(?:${EXEC_ENV_NAMES})\\s*[+]?=|SetEnvironmentVariable\\s*\\(\\s*['"](?:${EXEC_ENV_NAMES})['"]`, 'i')
+const PS_EXEC_ENV_SET = new RegExp([
+  `\\$env:(?:${EXEC_ENV_NAMES})\\s*[+]?=`,
+  `(?:set-item|new-item|si|ni)\\b[^;|\\n]*\\benv:[\\\\/]?(?:${EXEC_ENV_NAMES})\\b`,
+  `SetEnvironmentVariable\\s*\\(\\s*['"](?:${EXEC_ENV_NAMES})['"]`,
+].join('|'), 'i')
 const execEnvAssign = (t: string): boolean => { const n = assignName(t); return n !== null && EXEC_ENV.test(n) }
 const ENV_SETTERS = new Set(['env', 'export', 'declare', 'typeset', 'local', 'readonly', 'set'])
 
@@ -895,8 +899,11 @@ const CDPATH_PS_SET = /\$env:CDPATH\s*\+?=|(?:set-item|new-item|si|ni)\b[^;|\n]*
 const CDPATH_SETTERS = new Set(['export', 'declare', 'typeset', 'readonly', 'local', 'read', 'mapfile', 'readarray', 'setx', 'set', 'env'])
 const isCdpath = (t: string): boolean => /^CDPATH(?:\+?=|$)/i.test(t)
 
+const HEAD_WORDS = new Set(['{', '}', '!', 'then', 'do', 'else', 'elif', 'if', 'while', 'until'])
+
 function cdpathSet(tokens: string[], cmds: Cmd[]): boolean {
   for (const t of tokens) {
+    if (HEAD_WORDS.has(t)) continue
     if (!/^[A-Za-z_][A-Za-z0-9_]*\+?=/.test(t)) break
     if (isCdpath(t)) return true
   }

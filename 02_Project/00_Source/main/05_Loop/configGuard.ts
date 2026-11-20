@@ -62,10 +62,15 @@ const DEFAULT_RETRY_DELAY_MS = 200
 
 // 실행기 git·gh 환경 — 자격 묻는 창을 띄우지 않는다(무인 루프가 멈추지 않게, 세션이 심은 프롬프트가 뜨지 않게).
 // 교체 객체(refs/replace)도 따르지 않는다 — gh가 부르는 git과 설정 읽기도 같다(G2 재검수 차단 A, gitPort.NO_REPLACE_ENV와 같은 값).
-// M11 G3(M09-4) — PATH에서 사용자 프로필 아래 폴더(USERPROFILE·HOME·APPDATA·LOCALAPPDATA, %APPDATA%\npm 등)를 뺀다. 작업 노드 세션이
-// 그곳에 심은 shim이 git이 sh로 부르는 설정 명령(lfs filter 등)을 실행기 자격으로 가로챈다. git·gh가 그 아래 깔렸으면 실행기가 닫혀 실패한다.
+export function promptlessGitEnv(base: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
+  return { ...base, GIT_TERMINAL_PROMPT: '0', GCM_INTERACTIVE: 'never', GIT_NO_REPLACE_OBJECTS: '1' }
+}
+
+// M11 G3(M09-4) — 실행기 자신의 환경(자격 있음)만 PATH에서 사용자 프로필 아래 폴더(USERPROFILE·HOME·APPDATA·LOCALAPPDATA, %APPDATA%\npm 등)를
+// 뺀다. 작업 노드 세션이 그곳에 심은 shim이 git이 sh로 부르는 설정 명령(lfs filter 등)을 실행기 자격으로 가로챈다. git·gh가 그 아래 깔렸으면
+// 실행기가 닫혀 실패한다. 작업 노드 세션의 바탕(promptlessGitEnv)은 좁히지 않는다 — 자격이 없고 npm test가 돌아야 한다.
 export function executorGitEnv(base: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
-  const env: NodeJS.ProcessEnv = { ...base, GIT_TERMINAL_PROMPT: '0', GCM_INTERACTIVE: 'never', GIT_NO_REPLACE_OBJECTS: '1' }
+  const env = promptlessGitEnv(base)
   const key = Object.keys(env).find((k) => k.toUpperCase() === 'PATH')
   if (key !== undefined) env[key] = withoutUserDirs(env[key] ?? '', env)
   return env

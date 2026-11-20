@@ -638,7 +638,10 @@ describe('loop-lock 셸 위치 (M09 G2 재검수 중요 C)', () => {
   it('[M11-G3 M09-6] 커밋 메시지 안의 CDPATH 글자는 CDPATH 설정으로 보지 않는다', () => {
     expect(loopCommandReason('git commit -m "fix: CDPATH=.git 꼴을 막는다"', SCOPE)).toBeNull()
     expect(loopCommandReason("git commit -F - <<'EOF'\nexport CDPATH=.git 막기\nEOF", SCOPE)).toBeNull()
-    for (const cmd of ['CDPATH+=:.git; cd hooks', 'declare -x "CDPATH=.git"', 'printf -v CDPATH .git', 'bash -c "export CDPATH=.git"', 'read -r CDPATH']) {
+    for (const cmd of [
+      'CDPATH+=:.git; cd hooks', 'declare -x "CDPATH=.git"', 'printf -v CDPATH .git', 'bash -c "export CDPATH=.git"', 'read -r CDPATH',
+      '{ CDPATH=.git; }', 'if true; then CDPATH=.git; fi', 'for i in 1; do CDPATH=.git; done', 'f() { CDPATH=.git; }', '! CDPATH=.git',
+    ]) {
       expect(loopCommandReason(cmd, SCOPE)).toContain('CDPATH')
     }
   })
@@ -662,6 +665,9 @@ describe('loop-lock 셸 위치 (M09 G2 재검수 중요 C)', () => {
 describe('loop-lock 읽기 전용 꼴의 PowerShell 환경 대입 (M11 G3)', () => {
   it('[M11-G3 M09-8] $env:GIT_PAGER처럼 git이 명령으로 돌리는 변수를 PowerShell 꼴로 정하는 것도 거부한다', () => {
     expect(loopCommandReason('$env:GIT_PAGER = "sh -c x"; git log', { ...SCOPE, readOnly: true })).not.toBeNull()
+    expect(loopCommandReason('Set-Item env:GIT_EXTERNAL_DIFF "x"; git diff', { ...SCOPE, readOnly: true })).not.toBeNull()
+    expect(loopCommandReason('ni Env:\\PAGER -Value x; git log', { ...SCOPE, readOnly: true })).not.toBeNull()
+    expect(loopCommandReason('$env:GIT_PAGER = "cat"; git log', SCOPE)).toBeNull()
   })
 })
 
@@ -690,6 +696,9 @@ describe('loop-lock — 가드와 같은 판독 (M11 G3)', () => {
     'bash -ce "git status"',
     'bash -c -x "npm test"',
     'find . -name "*.ts" -exec grep -l push {} \\;',
+    'find . -name "*.tmp" -exec rm {} \\;',
+    'find src -name "*.sh" -exec chmod +x {} +',
+    'find . -name "*.log" -execdir rm -- {} \';\'',
     'gh api -X=GET repos/o/r',
     'gh api -iX GET repos/o/r/pulls',
   ]

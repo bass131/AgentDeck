@@ -22,7 +22,7 @@ import type { AgentEvent } from '@shared/agentEvents'
 import type { LoopSessionTag } from '@shared/13_Loop/loop'
 import { loadBundledTemplate } from './bundledTemplate'
 import { createCredentialFreeEnv, type CredentialFreeEnv, type GitIdentity } from './childEnv'
-import { createConfigGuard, executorGitEnv } from './configGuard'
+import { createConfigGuard, executorGitEnv, promptlessGitEnv } from './configGuard'
 import { createFileDigestStore, repoKeyOf } from './digestStore'
 import { createLoopRunner, type LoopRunner } from './loopRunner'
 import type { Clock, DigestStore, GhPort, ReviewPort, SessionPort, WorkRequest, WorkResult } from './ports'
@@ -63,7 +63,7 @@ export interface OpenLoopOptions {
   clock?: Clock
   // 실행기 자신의 git·gh 환경(자격 있음). 기본은 이 프로세스의 환경. 묻는 창은 언제나 끈다(executorGitEnv)
   executorEnv?: NodeJS.ProcessEnv
-  // 자격 없는 자식 환경의 바탕. 기본은 executorEnv
+  // 자격 없는 자식 환경의 바탕. 기본은 executorEnv(PATH를 좁히기 전 — M11 G3)
   childBaseEnv?: NodeJS.ProcessEnv
   commandTimeoutMs?: number
   // CI 기다림의 시간 상한(기본 60분)과 횟수 보조 상한
@@ -168,7 +168,7 @@ export async function openLoop(opts: OpenLoopOptions): Promise<OpenLoopResult> {
       throw new Error('origin의 기본 브랜치를 읽지 못했다 — refs/remotes/origin/HEAD가 없고 gh 저장소 정보에서도 읽지 못했다(`git remote set-head origin --auto`로 정한 뒤 다시 연다)')
     }
     await ensureAgentdeckExcluded(root, executorEnv)
-    child = createCredentialFreeEnv(opts.childBaseEnv ?? executorEnv, await readIdentity(root, executorEnv))
+    child = createCredentialFreeEnv(opts.childBaseEnv ?? promptlessGitEnv(opts.executorEnv ?? process.env), await readIdentity(root, executorEnv))
     const sessions = new AbortController()
     const session = opts.session ?? createWorkSessionPort({
       backend: opts.backend as AgentBackend,

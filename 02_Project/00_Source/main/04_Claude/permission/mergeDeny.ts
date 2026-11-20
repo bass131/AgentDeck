@@ -244,11 +244,17 @@ function commandsOf(tokens: string[]): Cmd[] {
   }
   if (baseName(tokens[head]).replace(/\.exe$/, '') === 'find') {
     for (let j = head + 1; j < tokens.length - 1; j++) {
-      if (FIND_EXEC.has(tokens[j].toLowerCase())) cmds.push({ base: baseName(tokens[j + 1]), args: tokens.slice(j + 2) })
+      if (!FIND_EXEC.has(tokens[j].toLowerCase())) continue
+      // 명령 인자는 끝맺음(`;`·`\;`, `{} +`) 앞까지다 — 따옴표 밖 `\;`는 구분자에서 잘려 `\`만 남는다
+      let end = j + 2
+      while (end < tokens.length && !findExecEnd(tokens, end)) end++
+      cmds.push({ base: baseName(tokens[j + 1]), args: tokens.slice(j + 2, end) })
     }
   }
   return cmds
 }
+const findExecEnd = (tokens: string[], k: number): boolean =>
+  tokens[k] === ';' || tokens[k] === '\\;' || tokens[k] === '\\' || (tokens[k] === '+' && tokens[k - 1] === '{}')
 
 // ── gh 판정 ──────────────────────────────────────────────────────────────
 const isGh = (c: Cmd): boolean => c.base === 'gh' || c.base === 'gh.exe'

@@ -3,6 +3,8 @@
 - 범위 밖 발견을 한 줄로 남긴다(헌법 11조). 최신 번호가 위다.
 - M01~M10 Backlog의 닫힘은 각 파일의 「## 닫힘 (M11)」 표가 갖는다. 여기에는 M11 진행 중 새로 생긴 것과 해결됨 항목의 남은 갈래만 둔다.
 
+73. (M11 G7 검수 반영 중) tdd-guard의 `node --test` 판별이 `--require=<파일>`·`--import=<파일>` 선적재를 거르지 않는다 — 선적재가 `# pass 1 / # fail 0`을 찍으면 시험 없이 계수가 풀린다(코드 읽기, 실행 확인 안 함).
+72. (M11 G7 검수 반영 중) `40_pass-watcher.cjs:101`과 `10_start-brief.cjs:32`는 포인터를 아직 날 경로로 읽어 `/c/` 꼴 `planPath`를 `C:\c\…`로 연다. 편집 게이트는 `_lib/repo-path.cjs`의 `toAbs`로 바르게 읽으므로 둘도 같은 함수를 쓰면 된다.
 71. (M11 G7 검수) tdd-guard `classifyRun`은 `--reporter`로 시작하는 인자를 출력 형태로만 보고 넘겨(`t.startsWith('--reporter')`), `npm test -- --reporter=<사용자 파일>` 실행도 전체 Green(`lastGreen`)으로 채집한다. 직접 짠 reporter가 요약 줄을 지어 내면 PASS 추기 증거를 위조할 수 있다 — goal 7 이전부터 있던 꼴이다.
 70. (M11 G7 검수) UNC 경로(`\\localhost\c$\Dev\AgentDeck\…`)는 편집 게이트와 tdd-guard 모두에서 저장소 밖으로 읽힌다 — `gate-config.json` 자신도 그렇다. `repo-path.cjs`가 `\\?\UNC\`만 벗기고 관리 공유를 드라이브 경로로 펴지 않기 때문이며, goal 7 이전부터 있던 M03-19 갈래다.
 69. (M11 G7 검수) tdd-guard `AGENT_CAP = 8`(`33_tdd-guard.cjs:34`, 적용 `:84`)은 한 세션에서 하위 에이전트가 9개 이상 돌면 가장 오래된 워커의 카운터를 말없이 지운다. 지워진 워커는 카운터 0에서 다시 센다.

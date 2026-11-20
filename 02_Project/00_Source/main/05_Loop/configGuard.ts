@@ -51,7 +51,7 @@ export interface ConfigGuard extends ConfigCheck {
 }
 
 // changed: 지난 스냅숏과의 차이로 거부했을 때만 싣는다(받기 목록으로 쓸 수 있는 차이). 다른 거부에는 없다.
-type ConfigGuardResult ={ ok: true; guard: ConfigGuard } | { ok: false; reason: string; changed?: string[] }
+type ConfigGuardResult = { ok: true; guard: ConfigGuard } | { ok: false; reason: string; changed?: string[] }
 
 interface Snapshot { entries: string[]; files: Record<string, string> }
 

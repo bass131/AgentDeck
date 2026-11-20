@@ -27,7 +27,7 @@ M11 Backlog 정리(`01_Milestones/M11_BacklogSweep/`)가 닫은 항목이다. �
 | 19 | 고침(M11 goal 6) | `FileModal.test.tsx:307` 「본문 갈래와 읽기전용 배지」가 배지·too-large·binary·not-found·markdown·image 갈래를 본다(`42cdd5f9`). |
 | 20 | 고침(M11 goal 6) | 'new' 규칙을 지우고, 순수 함수를 `renderer/src/07_Workspace/file/explorerTree.ts:4`로 옮겼다(`a55db0e9`). 지운 시험 D-1·3·4·7('new' 갈래)은 갈래째 없어졌고, edit 올림은 D-2·5·6·8이 덮는다. |
 | 21 | 고침(M11 goal 6) | 대상 없는 `.sa-overlay`·`.sa-card*`·`.sa-tool*` CSS를 지우고 시험 제목을 고쳤다(`AgentPanel.subagent.test.tsx:99`, `a55db0e9`). Esc 셀렉터는 goal 4가 이미 지웠고 `PanelPicker.tsx`는 M10 G1에서 지워졌다. |
-| 22 | 고침(M11 goal 6) | `MentionToken`과 `QuestionOption` 재수출을 지우고, 중복 it 하나를 지웠다(첫 it 「usePanelSlot().send() — agentRun reject …」가 덮는다). `nextInject`는 `12_Window/inject.ts:5`로 옮겼다(`a55db0e9`). |
+| 22 | 고침(M11 goal 6) | `MentionToken`과 `QuestionOption` 재수출을 지우고, 중복 it 하나를 지웠다(그때 덮던 첫 it 「usePanelSlot().send() — agentRun reject …」는 뒤 `506681b8`에서 패널 코드와 함께 지워져, 대신할 동작이 없다). `nextInject`는 `12_Window/inject.ts:5`로 옮겼다(`a55db0e9`). |
 | 24 | 고침(M11 goal 6) | 공백만 있는 `requestId`·`runId`와 `null` 본문 사례를 더했다(`main/01_Ipc/agent.permission-respond-handler.test.ts:78,120`, `agent.question-respond-handler.test.ts`, `42cdd5f9`). |
 | 23 | 정함 → goal 7 | G1 결정 대장 [USER·위임] — fail-closed는 두고 차단 문구에 단독 실행 꼴 안내를 넣는다. |
 | 25 | 고침(M11 goal 2) | 루트 밖 Windows 절대 경로를 거른다(`renderer/src/07_Workspace/file/FileExplorer.tsx:65,70`, `63911dda`). |

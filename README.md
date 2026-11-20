@@ -69,7 +69,7 @@ npm run typecheck  # 타입검사 (main+renderer)
 - [00_Documents/](./00_Documents/) — 프로젝트 문서 · [02_Rules](./00_Documents/02_Rules/) — 계획 템플릿·모델 라우팅·보고서 표준
 - [98_Management/00_ADR/](./98_Management/00_ADR/) — 주요 의사결정 기록
 - [01_Milestones/00_Vision/](./01_Milestones/00_Vision/) — 무엇이 되려는지 · [00_Roadmap.md](./01_Milestones/00_Roadmap.md) — 마일스톤 순서
-- PRD·아키텍처·디자인 문서는 `00_Documents/`에 자리만 있고 아직 실물이 없습니다.
+- PRD·디자인 문서는 `00_Documents/`에 자리만 있고 아직 실물이 없습니다. 아키텍처 폴더에는 [SDK 재실측 절차](./00_Documents/00_Architecture/01_SDK-재실측-절차.md)가 있습니다.
 - [CLAUDE.md](./CLAUDE.md) — 헌법(절대 규칙)
 
 ## 로드맵

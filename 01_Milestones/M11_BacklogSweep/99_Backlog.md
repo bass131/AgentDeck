@@ -3,6 +3,10 @@
 - 범위 밖 발견을 한 줄로 남긴다(헌법 11조). 최신 번호가 위다.
 - M01~M10 Backlog의 닫힘은 각 파일의 「## 닫힘 (M11)」 표가 갖는다. 여기에는 M11 진행 중 새로 생긴 것과 해결됨 항목의 남은 갈래만 둔다.
 
+60. `0a2f4157`이 export를 걷으며 선언 39줄에서 `=` 뒤 띄어쓰기를 삼켰다(`const AUTO_MODE_NODE ='…'`, `type RouteFn<R> =R extends …` 등, `main/05_Loop`·`main/08_Git`·`renderer/src/05_Conversation`·`13_Loop`·`shared/01_Ipc` 외). 한 줄(`configGuard.ts:54`)만 고쳤다 — 시험이 따르지 않는 소스 편집을 tdd-guard가 두 번마다 막아 서식 수리 38줄에 전체 시험 약 15회가 든다. 소스를 넓게 만지는 goal 9가 함께 고친다. 목록은 `git diff 74ac0922..0a2f4157 -U0`의 추가 줄 중 ` =[^ =>]` (M11 G6 검수).
+59. `.eslintrc.cjs:19`의 `TSImportType[argument.literal.value=…]`는 typescript-eslint가 폐기 예고한 `argument` 속성을 쓴다(`source`로 바꾸라는 경고). 올림에서 속성이 빠지면 선택자가 조용히 아무것도 안 잡는다 — `eslintBoundary` 고정물이 실패로 알린다 (M11 G6 검수).
+58. 래칫 두 개의 약한 곳 — `integration/unusedExports.test.ts`는 다른 파일의 같은 이름 낱말(주석, 무관한 지역 `Options`)을 사용으로 세고 `export { … }` 목록과 `export default`를 보지 않는다. `noticeCapsule.smoke.test.ts`의 도메인 래칫은 새 쌍만 막고, 풀린 `KNOWN_MUTUAL` 항목이 남아 다시 엉켜도 통과하며 쌍 안 import 수는 늘어도 된다 (M11 G6 검수).
+57. `39147bc2`가 이미 자기 창을 2번 모니터로 옮기던 e2e(`m09-g5-practice-run`, `m11-g4-work-mode-live`)에도 `moveToSecondDisplay(app)`을 더해 창이 두 번 옮겨진다. 해는 없고, 옛 옮기기 블록을 헬퍼로 합치면 된다 (M11 G6 검수).
 56. `11_Settings/SettingsModal.tsx:16`이 `12_Window/useGlobalZoom`의 `useZoomFactorPct`를 가져오는 한 줄이 `11⇄12` 상호 의존의 `11→12` 쪽이다. 확대 배율 훅의 거처를 `11_Settings`로 옮기면 그 쌍이 풀릴 수 있다 — 파일 이동이라 계획에 적는 goal의 후보다 (M05-42, M11 G6 관찰).
 55. 패널을 지운 뒤에도 시험이 고정하는 패널 잔재가 있다. `Composer.css`의 `composer--compact`와 `ComposerView`의 `density: 'compact'`, `03_Agent/panelCard.css`의 `.ma-p-foot`, `QuestionModal`의 `source`, 세션 레지스트리·키의 `'panel'` 종류(`sessionRegistry.ts:30`)다. 지우려면 고정하는 시험부터 고쳐야 한다 (M10-3, M11 G6 관찰).
 54. 살아 있는 동작을 보는 시험 8파일이 아직 `panelSession.*` 이름이다 — `resume`·`systemprompt`·`orchestration-send-args`·`difference-pins`·`goal-banner-liveness`·`queue-core`·`banner-revision`·`input-palettes`. 지운 `panelSession.ts`와 이름만 겹친다. 이름 바꾸기는 파일 이동이라 계획에 적는 goal의 후보다 (M10-3, M11 G6 관찰).

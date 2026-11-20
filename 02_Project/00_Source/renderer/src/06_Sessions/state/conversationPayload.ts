@@ -13,6 +13,7 @@ export interface ConversationPayloadSource {
   subagents?: SubAgentInfo[]
   replMode?: boolean
   model?: string
+  mode?: string
 }
 
 function computeSubagentAnchors(
@@ -93,5 +94,6 @@ export function buildConversationSavePayload(
     ...(subagentAnchors.length > 0 ? { subagents: subagentAnchors } : {}),
     ...(source.replMode !== undefined ? { replMode: source.replMode } : {}),
     ...(source.model !== undefined ? { model: source.model } : {}),
+    ...(source.mode !== undefined ? { mode: source.mode } : {}),
   }
 }

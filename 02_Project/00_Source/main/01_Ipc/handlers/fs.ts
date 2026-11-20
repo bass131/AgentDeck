@@ -19,7 +19,7 @@ import type {
 import { resolveSafe, listDir } from '@main/07_Workspace/workspace'
 import { listProjectFiles } from '@main/07_Workspace/listFiles'
 import { saveImageBytes } from '@main/07_Workspace/attachments'
-import { resolveFsDiffLines } from '@main/08_Git/diff'
+import { resolveFsDiffLines } from '@main/08_Git/fsDiff'
 import { readFileSafe } from '@main/07_Workspace/read'
 import { getWorkspaceRootPath } from '@main/07_Workspace/roots'
 import type { RootRegistry } from '@main/07_Workspace/roots'

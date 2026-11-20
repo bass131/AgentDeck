@@ -106,6 +106,26 @@ describe('ComposerView — store 없는 입력창 본체', () => {
   })
 })
 
+describe('Composer — 자동 압축 상태 (M11 G2, M06 Backlog 27)', () => {
+  // 실행이 첫 턴 뒤 알린 SDK 값이 store에 있다(reducer의 compact settings)
+  it('store의 autoCompact를 사용량 띠에 넘긴다', async () => {
+    const { useAppStore } = await import('@renderer/00_App/appStore')
+    useAppStore.setState({ autoCompact: { enabled: true, thresholdTokens: 967_000 } } as never)
+    const { Composer } = await import('@renderer/05_Conversation/Composer')
+    const { container } = render(
+      <Composer value="" onChange={vi.fn()} onSend={vi.fn()} onAbort={vi.fn()} isRunning={false} />,
+    )
+    expect(container.querySelector('[data-auto-compact]')?.textContent).toBe('자동 압축 967K')
+    useAppStore.setState({ autoCompact: null } as never)
+  })
+
+  it('본체는 props의 autoCompact만 그린다(store를 읽지 않는다)', async () => {
+    const { ComposerView } = await import('@renderer/05_Conversation/ComposerView')
+    const { container } = render(<ComposerView {...viewProps({ autoCompact: { enabled: false } })} />)
+    expect(container.querySelector('[data-auto-compact]')?.textContent).toBe('자동 압축 꺼짐')
+  })
+})
+
 describe('Composer — 단일 store 어댑터', () => {
   it('store pickerMode를 본체 모드 선택기에 넘긴다', async () => {
     const { useAppStore } = await import('@renderer/00_App/appStore')

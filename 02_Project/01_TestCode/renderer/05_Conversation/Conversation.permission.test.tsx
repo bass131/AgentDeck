@@ -119,7 +119,7 @@ describe('BF3 P06 — Conversation: PermissionCard 배선', () => {
     const buttons = container.querySelectorAll('.perm-card-opt')
     expect(buttons).toHaveLength(3)
     await act(async () => {
-      fireEvent.click(buttons[2])
+      fireEvent.click(container.querySelector('[data-perm-choice="deny"]') as HTMLElement)
     })
     expect(respondPermission).toHaveBeenCalledWith('deny')
   })
@@ -161,9 +161,8 @@ describe('BF3 P06 — Conversation: PermissionCard 배선', () => {
     } as Parameters<typeof useAppStore.setState>[0])
 
     const { container } = await renderConv()
-    const buttons = container.querySelectorAll('.perm-card-opt')
     await act(async () => {
-      fireEvent.click(buttons[1])
+      fireEvent.click(container.querySelector('[data-perm-choice="allow_always"]') as HTMLElement)
     })
     expect(respondPermission).toHaveBeenCalledWith('allow_always')
   })

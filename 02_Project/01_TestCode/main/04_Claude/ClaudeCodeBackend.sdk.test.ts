@@ -189,7 +189,8 @@ describe('ClaudeCodeBackend — SDK query 전환 (Phase 21b)', () => {
       expect(doneEvents).toHaveLength(1)
       const done = doneEvents[0] as { type: 'done'; contextWindow?: number; usage?: { inputTokens: number } }
       expect(done.contextWindow).toBe(200000)
-      expect(done.usage?.inputTokens).toBe(100)
+      // 계기용 usage는 결과 합계가 아니라 마지막 최상위 assistant 호출이다(M11 G2)
+      expect(done.usage?.inputTokens).toBe(10)
 
       expect(events[events.length - 1].type).toBe('done')
 

@@ -3,6 +3,7 @@ import path from 'node:path'
 import { randomUUID } from 'node:crypto'
 import type { ConversationRecord, PersistedSubAgent } from '../../shared/ipcContract'
 import { SUBAGENT_PERSIST_LIMITS } from '../../shared/ipcContract'
+import { PERMISSION_MODE_TABLE } from '@main/04_Claude/permissionModes'
 import type { TokenUsage, SubAgentTool, SubAgentTranscriptItem } from '../../shared/agentEvents'
 
 export type ConversationSaveInput = Omit<ConversationRecord, 'createdAt' | 'updatedAt'> & {
@@ -43,6 +44,10 @@ function sanitizeContextWindow(v: unknown): number | undefined {
 
 function sanitizeModel(v: unknown): string | undefined {
   return typeof v === 'string' && v.length > 0 ? v : undefined
+}
+
+function sanitizeMode(v: unknown): string | undefined {
+  return typeof v === 'string' && Object.hasOwn(PERMISSION_MODE_TABLE, v) ? v : undefined
 }
 
 function sanitizeUsage(v: unknown): TokenUsage | undefined {
@@ -179,6 +184,7 @@ export function createConversationStore(dir: string): ConversationStore {
     const subagents = sanitizeSubagents(chat.subagents)
     const replMode = typeof chat.replMode === 'boolean' ? chat.replMode : undefined
     const model = sanitizeModel(chat.model)
+    const mode = sanitizeMode(chat.mode)
     return {
       id: chat.id,
       title: chat.title,
@@ -192,7 +198,8 @@ export function createConversationStore(dir: string): ConversationStore {
       ...(lastUsage !== undefined ? { lastUsage } : {}),
       ...(subagents !== undefined ? { subagents } : {}),
       ...(replMode !== undefined ? { replMode } : {}),
-      ...(model !== undefined ? { model } : {})
+      ...(model !== undefined ? { model } : {}),
+      ...(mode !== undefined ? { mode } : {})
     }
   }
 
@@ -224,6 +231,7 @@ export function createConversationStore(dir: string): ConversationStore {
       const replMode = typeof record.replMode === 'boolean' ? record.replMode : undefined
       // model이 없는 저장(배경 run의 done/session 저장)은 기존 선택을 지우지 않는다 (M06 G4).
       const model = sanitizeModel(record.model) ?? sanitizeModel(existing?.model)
+      const mode = sanitizeMode(record.mode) ?? sanitizeMode(existing?.mode)
 
       const chatData: ChatFile = {
         id,
@@ -239,7 +247,8 @@ export function createConversationStore(dir: string): ConversationStore {
         ...(lastUsage !== undefined ? { lastUsage } : {}),
         ...(subagents !== undefined ? { subagents } : {}),
         ...(replMode !== undefined ? { replMode } : {}),
-        ...(model !== undefined ? { model } : {})
+        ...(model !== undefined ? { model } : {}),
+        ...(mode !== undefined ? { mode } : {})
       }
 
       const json = JSON.stringify(chatData)

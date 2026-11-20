@@ -119,6 +119,31 @@ describe('ModelListProvider — SDK 호출이 실패하면', () => {
     const provider = new ModelListProvider({ fetchRows: async () => Promise.reject(new Error('x')), cacheFile: null })
     expect((await provider.load()).source).toBe('builtin')
   })
+
+  // M11 G2 — M06 Backlog 13. 시작 때 실패한 결과를 재시작 전까지 붙들고 있었다.
+  it('SDK 목록을 못 받았으면 다음 load()가 다시 묻고, 받은 뒤에는 더 묻지 않는다', async () => {
+    const fetchRows = vi.fn()
+      .mockRejectedValueOnce(new Error('cold start'))
+      .mockResolvedValue(SDK_MODEL_ROWS_RAW)
+    const provider = new ModelListProvider({ fetchRows, cacheFile })
+    expect((await provider.load()).source).toBe('builtin')
+    const second = await provider.load()
+    expect(second.source).toBe('sdk')
+    expect(currentModelRows()).toEqual(SDK_MODEL_ROWS)
+    await provider.load()
+    expect(fetchRows).toHaveBeenCalledTimes(2)
+  })
+
+  it('다시 묻는 중의 동시 호출은 한 번만 묻는다', async () => {
+    const fetchRows = vi.fn()
+      .mockRejectedValueOnce(new Error('cold start'))
+      .mockResolvedValue(SDK_MODEL_ROWS_RAW)
+    const provider = new ModelListProvider({ fetchRows, cacheFile })
+    await provider.load()
+    const [a, b] = await Promise.all([provider.load(), provider.load()])
+    expect(a).toBe(b)
+    expect(fetchRows).toHaveBeenCalledTimes(2)
+  })
 })
 
 describe('fetchModelRowsWithoutTurn — 프롬프트 없이 목록만 묻는다', () => {

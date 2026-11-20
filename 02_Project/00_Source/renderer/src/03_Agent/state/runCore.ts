@@ -123,8 +123,12 @@ function msgHistory(thread: ThreadItem[]): ConversationMessage[] {
     .map((m) => ({ role: m.role, content: m.text }))
 }
 
+const EARLY_EVENTS_CAP = 500
+const ELECTRON_INVOKE_PREFIX = /^Error invoking remote method '[^']*': (?:Error: )?/
+
 export function createRunCore<S extends RunCoreState>(ports: RunCorePorts<S>): RunCore {
   const ownerNow = (): string | null => (ports.owner ? ports.owner() : null)
+  let earlyEvents: AgentEventPayload[] | null = null
 
   const send = async (input: RunSendInput): Promise<void> => {
     const before = ports.readState()
@@ -166,6 +170,8 @@ export function createRunCore<S extends RunCoreState>(ports: RunCorePorts<S>): R
     ]
 
     pendingRunGenerations.add(runGeneration)
+    const early: AgentEventPayload[] = []
+    earlyEvents = early
     let res: Awaited<ReturnType<typeof ipc.agent.run>>
     try {
       // 동기로 정해지면 기다리지 않는다 — agentRun이 같은 tick에 나가야 pending 창 판정이 맞는다.
@@ -175,7 +181,7 @@ export function createRunCore<S extends RunCoreState>(ports: RunCorePorts<S>): R
     } catch (err) {
       // 폐기된 거처에는 오류 상태도 되살려 쓰지 않는다(Backlog 46).
       if (disposedSinceStart()) return
-      const message = err instanceof Error ? err.message : String(err)
+      const message = (err instanceof Error ? err.message : String(err)).replace(ELECTRON_INVOKE_PREFIX, '')
       ports.dispatch({
         type: 'RUN_FAILED',
         message,
@@ -185,6 +191,7 @@ export function createRunCore<S extends RunCoreState>(ports: RunCorePorts<S>): R
       return
     } finally {
       pendingRunGenerations.delete(runGeneration)
+      if (earlyEvents === early) earlyEvents = null
     }
 
     // 응답 전에 폐기됐으면 지운 거처를 되살리지 않고 고아가 될 run을 끊는다(Backlog 46, 기존 IPC).
@@ -194,6 +201,7 @@ export function createRunCore<S extends RunCoreState>(ports: RunCorePorts<S>): R
     }
     ports.dispatch({ type: 'SET_RUN_ID', runId: res.runId })
     ports.onRunStarted?.(res.runId)
+    for (const payload of early) if (payload.runId === res.runId) handleEvent(payload)
   }
 
   const abort = async (): Promise<void> => {
@@ -259,7 +267,11 @@ export function createRunCore<S extends RunCoreState>(ports: RunCorePorts<S>): R
 
   const handleEvent = (payload: AgentEventPayload): boolean => {
     const s = ports.readState()
-    if (s.currentRunId === null || payload.runId !== s.currentRunId) return false
+    if (s.currentRunId === null || payload.runId !== s.currentRunId) {
+      // 응답을 기다리는 동안 온 이벤트는 붙든다 — 그 실행의 것인지는 응답이 오면 가린다(M07 Backlog 16)
+      if (earlyEvents !== null && earlyEvents.length < EARLY_EVENTS_CAP) earlyEvents.push(payload)
+      return false
+    }
     if (payload.event.type === 'permission_mode') {
       ports.onPermissionMode(payload.event.mode)
       return true

@@ -8,6 +8,7 @@ export const AGENT_CHANNELS = {
   AGENT_TASK_STOP: 'agent.taskStop',
   AGENT_SET_MODE: 'agent.setMode',
   AGENT_SET_MODEL: 'agent.setModel',
+  AGENT_SET_EFFORT: 'agent.setEffort',
   AGENT_LIST_MODELS: 'agent.listModels',
   AGENT_EVENT: 'agent.event',
   PERMISSION_RESPOND: 'agent.permissionRespond',
@@ -81,6 +82,13 @@ export interface SetModelRequest {
 }
 
 export type SetModelResponse = Ack
+
+export interface SetEffortRequest {
+  runId: string
+  effort: string
+}
+
+export type SetEffortResponse = Ack
 
 export interface PermissionResponse {
   runId: string

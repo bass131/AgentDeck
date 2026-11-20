@@ -148,7 +148,7 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
   const abortRun = useAppStore((s) => s.abortRun)
   const interruptRun = useAppStore((s) => s.interruptRun)
   const setSelectedModel = useAppStore((s) => s.setSelectedModel)
-  const clearConversation = useAppStore((s) => s.clearConversation)
+  const clearConversationSession = useAppStore((s) => s.clearConversationSession)
   const loadProjectFiles = useAppStore((s) => s.loadProjectFiles)
   const projectFiles = useAppStore(selectProjectFiles)
 
@@ -258,7 +258,7 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
 
   const sendNow = useCallback((text: string, images: AttachedImage[], picker?: PickerValues) => {
     if (text === '/clear' || text.startsWith('/clear ')) {
-      clearConversation()
+      clearConversationSession()
       return
     }
     if (text === '/ask' || text.startsWith('/ask ')) {
@@ -280,7 +280,7 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
       displayImages.length > 0 ? displayImages : undefined,
       picker?.orchestration,
     )
-  }, [clearConversation, onSlashAsk, setSelectedModel, sendMessage])
+  }, [clearConversationSession, onSlashAsk, setSelectedModel, sendMessage])
 
   // 실행 중 Enter는 예약, 실행이 끝나면 맨 앞부터 보낸다(C1) — 패널과 같은 공용 훅.
   const submit = useQueuedSend({

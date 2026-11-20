@@ -18,6 +18,8 @@ const TARGETS = [
   // 「처음 설정함」 표시 (M07 G5 검수 차단 1, controlsStore.ts) — 지우면 두 파일 삭제가 첫 실행으로 보인다.
   // 이름을 `control`로 시작하지 않게 해 `rm controls*` 한 번에 함께 지워지지 않게 한다.
   { name: 'first-setup.json', dir: false },
+  // 대화 기록 — 대화마다 권한 모드를 싣는다(M06 Backlog 1). 고치면 다음 기동에 그 모드로 열린다
+  { name: 'chats', dir: true },
 ] as const
 
 function slashed(p: string): string {
@@ -60,7 +62,7 @@ const AFTER_DIR = `(?=$|[\\s"'\`;)|&<>])`
 // 앞 경계에 `./`도 둔다(G4 검수 사소 7 — `cd <폴더> && cp x ./engine-seal.json`). 맨 `/`는 두지 않는다 —
 // 폴더 이름이 같은 저장소(AgentDeck)의 소스 경로가 걸리는 오탐이 커진다.
 const WORD_START = `(?:^|[\\s"'=<>(;&|]|\\./)`
-const TARGET_WORD = new RegExp(`${WORD_START}(?:engines|engine-config\\.json|engine-seal\\.json|controls\\.json|controls-seal\\.json|first-setup\\.json)`)
+const TARGET_WORD = new RegExp(`${WORD_START}(?:${TARGETS.map((t) => escapeRe(t.name)).join('|')})`)
 // ③의 와일드카드 낱말 — 대상 이름의 접두(3글자 이상) 뒤에 와일드카드가 오면 막는다(`rm controls*`, `rm engine-s*`).
 // G5 검수 차단 1과 Backlog 10. 짧은 접두(`c*`)와 경로 안의 낱말(`.../controls*`)은 저장소 명령 오탐이 커서 두지 않는다.
 const WORD_GLOB = new RegExp(`${WORD_START}([a-z0-9._-]{3,})[*?[]`, 'g')

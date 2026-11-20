@@ -50,7 +50,7 @@ describe('PermissionCard — pending 있음: 렌더 계약', () => {
     const { container } = render(<PermissionCard pending={SAMPLE_PENDING} onRespond={vi.fn()} />)
     const descs = container.querySelectorAll('.perm-card-opt-desc')
     expect(descs.length).toBe(3)
-    expect(descs[1].textContent).toContain('세션')
+    expect(descs[2].textContent).toContain('세션')
   })
 
   it('toolName + summary 텍스트 렌더', async () => {
@@ -60,14 +60,16 @@ describe('PermissionCard — pending 있음: 렌더 계약', () => {
     expect(container.textContent).toContain('rm -rf /tmp/test')
   })
 
-  it('perm-card-opt 3개 렌더(allow/allow_always/deny 순서)', async () => {
+  // M11 G2 — M06 Backlog 11. 숫자 키는 카드 종류와 관계없이 1 허용, 2 거부, 3 항상 허용이다.
+  it('perm-card-opt 3개 렌더(allow/deny/allow_always 순서, 번호 1·2·3)', async () => {
     const { PermissionCard } = await import('@renderer/10_Engine')
     const { container } = render(<PermissionCard pending={SAMPLE_PENDING} onRespond={vi.fn()} />)
     const opts = container.querySelectorAll('.perm-card-opt')
     expect(opts.length).toBe(3)
     expect(opts[0].getAttribute('data-perm-choice')).toBe('allow')
-    expect(opts[1].getAttribute('data-perm-choice')).toBe('allow_always')
-    expect(opts[2].getAttribute('data-perm-choice')).toBe('deny')
+    expect(opts[1].getAttribute('data-perm-choice')).toBe('deny')
+    expect(opts[2].getAttribute('data-perm-choice')).toBe('allow_always')
+    expect([...opts].map((o) => o.querySelector('.q-num')?.textContent)).toEqual(['1', '2', '3'])
   })
 
   it('q-num 배경이 인라인 style로 설정됨(q-num 예외 허용)', async () => {
@@ -93,7 +95,7 @@ describe('PermissionCard — 클릭 → onRespond', () => {
     const onRespond = vi.fn()
     const { container } = render(<PermissionCard pending={SAMPLE_PENDING} onRespond={onRespond} />)
     const opts = container.querySelectorAll('.perm-card-opt')
-    fireEvent.click(opts[1])
+    fireEvent.click(opts[2])
     expect(onRespond).toHaveBeenCalledWith('allow_always')
   })
 
@@ -102,7 +104,7 @@ describe('PermissionCard — 클릭 → onRespond', () => {
     const onRespond = vi.fn()
     const { container } = render(<PermissionCard pending={SAMPLE_PENDING} onRespond={onRespond} />)
     const opts = container.querySelectorAll('.perm-card-opt')
-    fireEvent.click(opts[2])
+    fireEvent.click(opts[1])
     expect(onRespond).toHaveBeenCalledWith('deny')
   })
 })
@@ -119,7 +121,7 @@ describe('PermissionCard — 카드 컨테이너 keydown(전역 리스너 아님
     expect(onRespond).toHaveBeenCalledWith('allow')
   })
 
-  it('카드 컨테이너에 숫자 2 → onRespond("allow_always")', async () => {
+  it('카드 컨테이너에 숫자 2 → onRespond("deny")', async () => {
     const { PermissionCard } = await import('@renderer/10_Engine')
     const onRespond = vi.fn()
     const { container } = render(<PermissionCard pending={SAMPLE_PENDING} onRespond={onRespond} />)
@@ -127,10 +129,10 @@ describe('PermissionCard — 카드 컨테이너 keydown(전역 리스너 아님
     await act(async () => {
       fireEvent.keyDown(card, { key: '2' })
     })
-    expect(onRespond).toHaveBeenCalledWith('allow_always')
+    expect(onRespond).toHaveBeenCalledWith('deny')
   })
 
-  it('카드 컨테이너에 숫자 3 → onRespond("deny")', async () => {
+  it('카드 컨테이너에 숫자 3 → onRespond("allow_always")', async () => {
     const { PermissionCard } = await import('@renderer/10_Engine')
     const onRespond = vi.fn()
     const { container } = render(<PermissionCard pending={SAMPLE_PENDING} onRespond={onRespond} />)
@@ -138,7 +140,7 @@ describe('PermissionCard — 카드 컨테이너 keydown(전역 리스너 아님
     await act(async () => {
       fireEvent.keyDown(card, { key: '3' })
     })
-    expect(onRespond).toHaveBeenCalledWith('deny')
+    expect(onRespond).toHaveBeenCalledWith('allow_always')
   })
 
   it('카드 컨테이너에 Esc → onRespond("deny")', async () => {
@@ -219,7 +221,7 @@ describe('PermissionCard — 멀티 인스턴스 격리(포커스 패널만 반�
 
     onRespondA.mockClear()
     await act(async () => {
-      fireEvent.keyDown(cardB, { key: '3' })
+      fireEvent.keyDown(cardB, { key: '2' })
     })
     expect(onRespondB).toHaveBeenCalledWith('deny')
     expect(onRespondA).not.toHaveBeenCalled()

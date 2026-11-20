@@ -62,4 +62,12 @@ describe('conversation.save — 모델 값 저장 (M06 G4)', () => {
     save({ ...base, id: 'c-bad', model: 42 })
     expect(store.load('c-bad')?.model).toBeUndefined()
   })
+
+  // M11 G2 — M06 Backlog 1. 대화마다 고른 권한 모드도 핸들러를 지나 저장된다.
+  it('넘긴 권한 모드가 저장되고 다시 읽힌다', () => {
+    const { id } = save({ ...base, id: 'c-mode', mode: 'plan' })
+    expect(store.load(id)?.mode).toBe('plan')
+    save({ ...base, id: 'c-mode', mode: 7 })
+    expect(store.load(id)?.mode).toBe('plan')
+  })
 })

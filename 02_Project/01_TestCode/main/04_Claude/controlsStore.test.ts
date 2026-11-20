@@ -11,6 +11,7 @@ import {
   confirmControls,
   controlsState,
   controlsForRun,
+  controlsForAppRun,
   activePermissionNodes,
 } from '@main/04_Claude/permission/controlsStore'
 import { PERMISSION_NODES, runPermissionNodes, type PermissionContext } from '@main/04_Claude/permission/controlNodes'
@@ -306,5 +307,18 @@ describe('실행에 넘기는 노드 (M07 G5)', () => {
     expect(events.some((e) => e.type === 'permission_request')).toBe(true)
     coord.cancelAll()
     expect(await pending).toMatchObject({ behavior: 'deny' })
+  })
+})
+
+// M11 G2 — M07 Backlog 18. 앱 실행의 컨트롤 검사 — userData 경로를 얻는 함수가 던지면 닫힌 실패다.
+describe('controlsForAppRun — userData 경로를 못 얻으면 열지 않는다', () => {
+  it('경로 함수가 던지면 ok:false·status error', () => {
+    const r = controlsForAppRun(() => { throw new Error('app 없음') })
+    expect(r).toMatchObject({ ok: false, status: 'error' })
+    expect(!r.ok && r.message).toContain('app 없음')
+  })
+
+  it('경로를 얻으면 controlsForRun과 같다', () => {
+    expect(controlsForAppRun(() => ud)).toEqual(controlsForRun(ud))
   })
 })

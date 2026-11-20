@@ -25,7 +25,7 @@ function mkInit(sessionId = 'wf-session-001') {
   }
 }
 
-function mkAssistant(text: string, toolUse?: { id: string; name: string; input: unknown }) {
+function mkAssistant(text: string, toolUse?: { id: string; name: string; input: unknown }, inputTokens = 10) {
   const content: unknown[] = []
   if (text) content.push({ type: 'text', text })
   if (toolUse) content.push({ type: 'tool_use', id: toolUse.id, name: toolUse.name, input: toolUse.input })
@@ -39,7 +39,7 @@ function mkAssistant(text: string, toolUse?: { id: string; name: string; input: 
       model: 'claude-haiku-4-5-20251001',
       stop_reason: null,
       stop_sequence: null,
-      usage: { input_tokens: 10, output_tokens: 5 }
+      usage: { input_tokens: inputTokens, output_tokens: 5 }
     },
     parent_tool_use_id: null,
     uuid: 'uuid-asst-0000-0000-0000-000000000000' as `${string}-${string}-${string}-${string}-${string}`,
@@ -179,7 +179,7 @@ describe('F-B — 펌프 done 병합: 다중 result → 단일 최종 done', () 
       mkResultSuccess(100),
       mkTaskNotification(),
       mkInit(),
-      mkAssistant('The workflow finished: WORKFLOW_RESULT_OK.'),
+      mkAssistant('The workflow finished: WORKFLOW_RESULT_OK.', undefined, 55),
       mkResultSuccess(555),
     ]
 
@@ -193,7 +193,8 @@ describe('F-B — 펌프 done 병합: 다중 result → 단일 최종 done', () 
     expect(events[events.length - 1].type).toBe('done')
 
     const done = doneEvents[0] as { type: 'done'; usage?: { inputTokens: number }; contextWindow?: number }
-    expect(done.usage?.inputTokens).toBe(555)
+    // 계기용 usage는 마지막 턴의 마지막 최상위 assistant 호출이다(M11 G2, M06 Backlog 2·26)
+    expect(done.usage?.inputTokens).toBe(55)
     expect(done.contextWindow).toBe(200000)
   })
 
@@ -220,7 +221,7 @@ describe('F-B — 펌프 done 병합: 다중 result → 단일 최종 done', () 
   it('회귀: 단일턴(result 1개) → done 정확히 1개 + 마지막 + usage 보존', async () => {
     const messages = [
       mkInit(),
-      mkAssistant('Hello.'),
+      mkAssistant('Hello.', undefined, 42),
       mkResultSuccess(100),
     ]
 
@@ -231,7 +232,7 @@ describe('F-B — 펌프 done 병합: 다중 result → 단일 최종 done', () 
     const doneEvents = events.filter(e => e.type === 'done')
     expect(doneEvents).toHaveLength(1)
     expect(events[events.length - 1].type).toBe('done')
-    expect((doneEvents[0] as { usage?: { inputTokens: number } }).usage?.inputTokens).toBe(100)
+    expect((doneEvents[0] as { usage?: { inputTokens: number } }).usage?.inputTokens).toBe(42)
   })
 
   it('엣지: result#1 후 throw → error 1개 + done 정확히 1개(이중 done 없음)', async () => {

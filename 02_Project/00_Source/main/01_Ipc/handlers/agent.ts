@@ -20,6 +20,7 @@ import type {
   ModelListResponse,
 } from '@shared/ipcContract'
 import { FALLBACK_MODELS } from '@shared/03_Agent/models/knownModels'
+import { isEffortLevel } from '@shared/03_Agent/models/modelEffort'
 import type { RunManager } from '@main/03_Agent/agentRuns'
 import { normalizeSystemPrompt } from '../normalize'
 import { handle } from '../handle'
@@ -145,6 +146,12 @@ export function registerAgentHandlers(deps: AgentHandlerDeps): void {
       return { ok: false }
     }
     return { ok: runManager.setModel(resolved.runId, resolved.model) }
+  })
+
+  // 지속 세션의 effort 전환 (M06 Backlog 24) — 단계 이름만 받는다. 모델에 맞춰 내리는 것은 실행이 한다.
+  handle(IPC_CHANNELS.AGENT_SET_EFFORT, (_e, req: { runId?: unknown; effort?: unknown } | null): { ok: boolean } => {
+    if (typeof req?.runId !== 'string' || req.runId.trim() === '' || !isEffortLevel(req.effort)) return { ok: false }
+    return { ok: runManager.setEffort(req.runId, req.effort) }
   })
 
   handle(IPC_CHANNELS.PERMISSION_RESPOND, (_e, req: PermissionResponse): { ok: boolean } => {

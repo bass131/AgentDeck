@@ -24,7 +24,13 @@ export function computeTaskScope(s: Pick<AppState, 'changedFiles' | 'thread'>): 
   }
   return { fileCount: changedFiles.length, toolCount, changedFiles }
 }
-export const selectTaskScope = (s: AppStore): TaskScope => computeTaskScope(s)
+let lastTaskScope: { changedFiles: Set<string>; thread: ThreadItem[]; scope: TaskScope } | null = null
+export const selectTaskScope = (s: AppStore): TaskScope => {
+  if (lastTaskScope === null || lastTaskScope.changedFiles !== s.changedFiles || lastTaskScope.thread !== s.thread) {
+    lastTaskScope = { changedFiles: s.changedFiles, thread: s.thread, scope: computeTaskScope(s) }
+  }
+  return lastTaskScope.scope
+}
 export const selectIsRunning = (s: AppStore): boolean => s.isRunning
 export const selectErrorMessage = (s: AppStore): string | undefined => s.errorMessage
 export const selectFileTree = (s: AppStore): FileTreeNode | null => s.fileTree

@@ -35,17 +35,18 @@ import path from 'node:path'
 
 // 옮기기 전 네 벌의 값을 글자 그대로 적은 것 — 유도 결과는 이것과 키 순서까지 같아야 한다
 const BEFORE = {
-  start: { normal: 'default', plan: 'plan', acceptEdits: 'acceptEdits', auto: 'acceptEdits', bypass: 'bypassPermissions' },
+  // M11 G2 — M05 Backlog 3 결정(G1 결정 대장): 앱 「자동」은 시작도 SDK 공식 auto다. 시작·실행 중 두 칸이 같아졌다.
+  start: { normal: 'default', plan: 'plan', acceptEdits: 'acceptEdits', auto: 'auto', bypass: 'bypassPermissions' },
   live: { normal: 'default', plan: 'plan', acceptEdits: 'acceptEdits', auto: 'auto' },
   reverse: { default: 'normal', plan: 'plan', acceptEdits: 'acceptEdits', auto: 'auto', bypassPermissions: 'bypass' },
   whitelist: ['normal', 'plan', 'acceptEdits', 'auto'],
 }
 
 describe('한 모듈의 표 — 유도 결과가 옮기기 전 네 벌과 같다 (M05 G11)', () => {
-  it('표는 picker id 다섯 행이고 auto만 두 칸이 다르다', () => {
+  it('표는 picker id 다섯 행이고 시작·실행 중 두 칸이 다른 행이 없다', () => {
     expect(Object.keys(PERMISSION_MODE_TABLE)).toEqual(['normal', 'plan', 'acceptEdits', 'auto', 'bypass'])
     const differ = Object.entries(PERMISSION_MODE_TABLE).filter(([, r]) => r.live !== undefined && r.live !== r.start)
-    expect(differ.map(([k]) => k)).toEqual(['auto'])
+    expect(differ.map(([k]) => k)).toEqual([])
   })
 
   it('bypass 행만 실행 중 칸이 없다 — 시작에서만 bypassPermissions로 쓰이고 실행 중 전환은 거부된다', () => {
@@ -106,7 +107,7 @@ describe('시작 시 매핑 — buildQueryOptions (runArgs)', () => {
     ['normal', 'default'],
     ['plan', 'plan'],
     ['acceptEdits', 'acceptEdits'],
-    ['auto', 'acceptEdits'],
+    ['auto', 'auto'],
     ['bypass', 'bypassPermissions'],
   ])('%s → %s', (mode, sdk) => {
     expect(buildQueryOptions({ mode }).permissionMode).toBe(sdk)

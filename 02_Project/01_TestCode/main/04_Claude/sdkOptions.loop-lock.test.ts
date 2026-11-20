@@ -89,7 +89,7 @@ describe('루프 잠금 노드 배선 (M09 G2)', () => {
 
   it('자동 모드의 시작 모드는 그대로다 (훅은 모드 허용보다 앞에서 판정한다)', () => {
     const settings = build({ loopLock: LOOP })['settings'] as { permissions: { defaultMode: string } }
-    expect(settings.permissions.defaultMode).toBe('acceptEdits')
+    expect(settings.permissions.defaultMode).toBe('auto')
   })
 
   it('env가 있으면 그 환경으로 열고 session_state 옵트인만 더한다 — 이 프로세스의 환경을 섞지 않는다', () => {

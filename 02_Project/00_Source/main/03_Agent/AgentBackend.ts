@@ -40,6 +40,7 @@ export interface AgentRun {
   stopTask?(taskId: string): void
   setPermissionMode?(modeId: string): void
   setModel?(modelId: string): void
+  setEffort?(effort: string): void
   respond(requestId: string, response: RunResponse): void
 }
 

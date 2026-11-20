@@ -36,11 +36,14 @@ export interface AgentEventApiRetry {
 
 export interface AgentEventCompact {
   type: 'compact'
-  kind: 'boundary' | 'status'
+  // settings — SDK 자동 압축의 켜짐과 문턱(getContextUsage, M06 Backlog 27)
+  kind: 'boundary' | 'status' | 'settings'
   trigger?: 'manual' | 'auto'
   preTokens?: number
   postTokens?: number
   status?: 'compacting' | 'requesting' | null
+  autoCompactEnabled?: boolean
+  thresholdTokens?: number
 }
 
 export interface AgentEventSessionState {

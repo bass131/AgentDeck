@@ -1,6 +1,29 @@
 import { describe, it, expect } from 'vitest'
+import fs from 'node:fs'
+import path from 'node:path'
 import { computeDiff } from '@main/08_Git/diff'
 import type { DiffLine } from '../../../../02_Project/00_Source/shared/ipcContract'
+
+// M11 G2 — M05 Backlog 29. 08_Git 안 파일끼리 import가 돌지 않는다(옛 diff.ts ⇄ git.ts).
+describe('08_Git 파일 의존', () => {
+  it('폴더 안 상대 import에 순환이 없다', () => {
+    const dir = path.resolve(__dirname, '../../../00_Source/main/08_Git')
+    const files = fs.readdirSync(dir).filter((f) => f.endsWith('.ts')).map((f) => f.slice(0, -3))
+    const edges = new Map<string, string[]>()
+    for (const f of files) {
+      const src = fs.readFileSync(path.join(dir, `${f}.ts`), 'utf8')
+      const local = [...src.matchAll(/from '(?:\.\/|@main\/08_Git\/)([A-Za-z]+)'/g)].map((m) => m[1])
+      edges.set(f, local.filter((t) => files.includes(t)))
+    }
+    const cycles: string[] = []
+    const walk = (node: string, trail: string[]): void => {
+      if (trail.includes(node)) { cycles.push([...trail, node].join(' → ')); return }
+      for (const next of edges.get(node) ?? []) walk(next, [...trail, node])
+    }
+    for (const f of files) walk(f, [])
+    expect(cycles).toEqual([])
+  })
+})
 
 describe('computeDiff', () => {
   it('동일한 내용이면 모두 context 라인을 반환한다', () => {

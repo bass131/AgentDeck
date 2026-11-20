@@ -154,6 +154,67 @@ describe('createRunCore.send — 실행 대상이 동기로 정해지면 agentRu
   })
 })
 
+// M11 G2 — M07 Backlog 16. agent.run 응답 전에 온 이벤트를 붙들었다가 실행 id가 정해지면 그 id의 것만 적용한다.
+describe('createRunCore.send — 응답 전에 도착한 실행 이벤트 (M07-16)', () => {
+  function rig(agentRun: () => Promise<{ runId: string }>) {
+    Object.defineProperty(globalThis, 'window', {
+      value: { api: adaptFlatApi({ agentRun }) },
+      writable: true,
+      configurable: true,
+    })
+    let state = base()
+    const core = createRunCore<RunCoreState>({
+      readState: () => state,
+      dispatch: (a) => { state = runReducer(state, a) },
+      refreshStale: () => {},
+      resolveRunTarget: () => ({}),
+      onPermissionMode: () => {},
+    })
+    return { core, read: () => state }
+  }
+
+  it('응답 전에 온 error·done을 실행 id가 정해진 뒤 적용해 실행 중 표시를 끝낸다', async () => {
+    let resolveRun!: (v: { runId: string }) => void
+    const { core, read } = rig(() => new Promise((r) => { resolveRun = r }))
+    const sending = core.send({ text: '안녕' })
+    expect(read().isRunning).toBe(true)
+    expect(core.handleEvent({ runId: 'r-early', event: { type: 'error', message: 'SDK 로드 실패' } })).toBe(false)
+    expect(core.handleEvent({ runId: 'r-other', event: { type: 'error', message: '남의 실행' } })).toBe(false)
+    core.handleEvent({ runId: 'r-early', event: { type: 'done' } })
+    resolveRun({ runId: 'r-early' })
+    await sending
+    expect(read().currentRunId).toBe('r-early')
+    expect(read().isRunning).toBe(false)
+    expect(read().errorMessage).toBe('SDK 로드 실패')
+  })
+
+  it('요청이 실패하면 붙든 이벤트를 버린다', async () => {
+    let rejectRun!: (e: Error) => void
+    const { core, read } = rig(() => new Promise((_, rej) => { rejectRun = rej }))
+    const sending = core.send({ text: '안녕' })
+    core.handleEvent({ runId: 'r-x', event: { type: 'text', delta: '유령' } })
+    rejectRun(new Error('거절'))
+    await sending
+    expect(read().errorMessage).toBe('거절')
+    expect(JSON.stringify(read().thread)).not.toContain('유령')
+  })
+
+  it('응답 뒤에는 붙들지 않는다 — 다른 실행의 이벤트는 그대로 버린다', async () => {
+    const { core, read } = rig(async () => ({ runId: 'r1' }))
+    await core.send({ text: '안녕' })
+    expect(core.handleEvent({ runId: 'r-late', event: { type: 'error', message: 'x' } })).toBe(false)
+    expect(read().errorMessage).toBeUndefined()
+  })
+
+  it('요청 단계 오류 문장에서 Electron 접두를 떼어 낸다', async () => {
+    const { core, read } = rig(async () => {
+      throw new Error("Error invoking remote method 'agent.run': Error: 컨트롤 설정이 바뀌어 실행을 열지 않았습니다")
+    })
+    await core.send({ text: '안녕' })
+    expect(read().errorMessage).toBe('컨트롤 설정이 바뀌어 실행을 열지 않았습니다')
+  })
+})
+
 describe('createRunCore.handleEvent — permission_mode는 모드 포트로만 간다(E15)', () => {
   it('현재 run의 permission_mode는 dispatch 없이 onPermissionMode만 부른다', () => {
     const dispatched: string[] = []

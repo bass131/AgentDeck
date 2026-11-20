@@ -33,6 +33,14 @@ function isNonEmptyString(v: unknown): v is string {
   return typeof v === 'string' && v.length > 0
 }
 
+// 캐시 파일·SDK 응답의 모델 값 꼴 — 별칭(opus·default)과 정식 ID, 끝의 「[…]」 표기만 받는다(M06 Backlog 18)
+const ROW_MODEL_SHAPE = /^[a-z0-9][a-z0-9.-]*(?:\[[a-z0-9]+\])?$/
+const MAX_ROW_MODEL_LENGTH = 128
+
+function isModelValue(v: unknown): v is string {
+  return typeof v === 'string' && v.length <= MAX_ROW_MODEL_LENGTH && ROW_MODEL_SHAPE.test(v)
+}
+
 // SDK 응답이나 캐시 파일 같은 신뢰 밖 원자료를 행 목록으로 거른다. 모양이 틀린 행은 버린다.
 export function sanitizeModelRows(raw: unknown): ModelRow[] {
   if (!Array.isArray(raw)) return []
@@ -40,7 +48,7 @@ export function sanitizeModelRows(raw: unknown): ModelRow[] {
   for (const item of raw) {
     if (item === null || typeof item !== 'object') continue
     const o = item as Record<string, unknown>
-    if (!isNonEmptyString(o['value'])) continue
+    if (!isModelValue(o['value'])) continue
     const levels = Array.isArray(o['supportedEffortLevels'])
       ? (o['supportedEffortLevels'] as unknown[]).filter(isEffortLevel)
       : []
@@ -50,7 +58,7 @@ export function sanitizeModelRows(raw: unknown): ModelRow[] {
       description: typeof o['description'] === 'string' ? o['description'] : '',
       supportedEffortLevels: levels,
     }
-    if (isNonEmptyString(o['resolvedModel'])) row.resolvedModel = o['resolvedModel']
+    if (isModelValue(o['resolvedModel'])) row.resolvedModel = o['resolvedModel']
     rows.push(row)
   }
   return rows

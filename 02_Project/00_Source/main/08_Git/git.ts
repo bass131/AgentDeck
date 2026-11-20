@@ -200,7 +200,11 @@ export async function gitLog(root: string, limit = 80): Promise<GitCommit[]> {
   return commits
 }
 
+// renderer가 보낸 커밋 이름 — `-` 머리는 git show의 옵션(`--output=<경로>` 등)으로 읽혀 받지 않는다(M11 G3, Backlog 19)
+export const isSafeRev = (rev: string): boolean => rev.trim() !== '' && !rev.startsWith('-')
+
 export async function gitCommitDetail(root: string, hash: string): Promise<GitChange[]> {
+  if (!isSafeRev(hash)) return []
   const [names, nums] = await Promise.all([
     gitTry(root, ['show', '--name-status', '--format=', hash]),
     gitTry(root, ['show', '--numstat', '--format=', hash]),
@@ -236,6 +240,7 @@ function looksBinary(s: string): boolean {
 }
 
 export async function gitFileAt(root: string, hash: string, relPath: string): Promise<GitFileAt> {
+  if (!isSafeRev(hash)) return { content: null, diff: null, error: '읽을 수 없는 커밋 이름이에요' }
   const cur = await gitTry(root, ['show', `${hash}:${relPath}`])
   if (cur == null) {
     return {

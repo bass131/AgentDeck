@@ -24,13 +24,14 @@ export const MAX_CONSECUTIVE_AUTONOMOUS_TURNS = 100
 const AUTO_COMPACT_ASK_MS = 2000
 
 // 엔진 경로 잠금에 넘길 userData 경로 (M07 G3). 실행마다 다시 읽는다 — 임시 --user-data-dir도 그 경로가 잠긴다.
-// Electron 밖(단위 테스트)에서는 app이 없어 던진다. 그때는 잠금 없이 열고 main 로그에 남긴다.
-function userDataForLock(): { userDataDir?: string } {
+// 앱 조립 지점(registry)이 engineLockDir를 넣는다 — 그 읽기가 던지면 실행을 열지 않는다(M11 G3, Backlog 18).
+// 넣지 않은 기본(Electron 밖 단위 테스트)은 app이 없어 던지면 잠금 없이 열고 main 로그에 남긴다.
+function defaultEngineLockDir(): string | undefined {
   try {
-    return { userDataDir: getUserDataDir() }
+    return getUserDataDir()
   } catch (err) {
     console.error('[controls] 엔진 경로 잠금 — userData 경로를 얻지 못해 잠금 없이 연다:', err instanceof Error ? err.message : err)
-    return {}
+    return undefined
   }
 }
 
@@ -106,6 +107,7 @@ export class ClaudeAgentRun implements AgentRun {
   private readonly _mcpDeniedProvider: () => { serverName: string }[] | null
   private readonly _onCommandsCaptured: ((cmds: SlashCommandInfo[]) => void) | null
   private readonly _controlsAtRunStart: () => ControlsForRun
+  private readonly _engineLockDir: () => string | undefined
 
   constructor(
     req: AgentRunInput,
@@ -114,9 +116,11 @@ export class ClaudeAgentRun implements AgentRun {
     mcpDeniedProvider: () => { serverName: string }[] | null,
     onCommandsCaptured: ((cmds: SlashCommandInfo[]) => void) | null = null,
     controlsProvider: () => ControlsForRun = controlsAtRunStart,
+    engineLockDir: () => string | undefined = defaultEngineLockDir,
   ) {
     this._req = req
     this._controlsAtRunStart = controlsProvider
+    this._engineLockDir = engineLockDir
     this._queryFn = queryFn
     this._skillOverridesProvider = skillOverridesProvider
     this._mcpDeniedProvider = mcpDeniedProvider
@@ -342,6 +346,16 @@ export class ClaudeAgentRun implements AgentRun {
       return null
     }
 
+    let userDataDir: string | undefined
+    try {
+      userDataDir = this._engineLockDir()
+    } catch (err) {
+      const why = err instanceof Error ? err.message : String(err)
+      this._push({ type: 'error', message: `앱 데이터 폴더를 얻지 못해 엔진 경로 잠금을 걸 수 없어 실행을 열지 않았습니다(${why}) — 앱을 다시 시작하세요.` })
+      this._push({ type: 'done' })
+      return null
+    }
+
     let resolvedQueryFn: QueryFn
     try {
       resolvedQueryFn = this._queryFn !== null ? this._queryFn : await getDefaultQueryFn()
@@ -366,7 +380,7 @@ export class ClaudeAgentRun implements AgentRun {
       skillOverrides: this._skillOverridesProvider(),
       mcpDenied: this._mcpDeniedProvider(),
       onUserDialog: makeRefusalFallbackHandler(this._normalizer, (e) => this._push(e)),
-      ...userDataForLock(),
+      ...(userDataDir ? { userDataDir } : {}),
     })
     return { resolvedQueryFn, sdkOptions }
   }

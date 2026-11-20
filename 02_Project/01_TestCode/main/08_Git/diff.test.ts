@@ -108,3 +108,31 @@ describe('computeDiff', () => {
     expect(lines).toEqual([])
   })
 })
+
+// M11 G3 — M11 Backlog 21. LCS 표는 (옛 줄 수 × 새 줄 수) 칸이다. 큰 파일은 그 표가 main 메모리를 다 쓴다.
+// 상한을 넘으면 표를 만들지 않고 앞뒤 공통 줄만 문맥으로, 가운데는 지운 줄·더한 줄로 보인다.
+describe('computeDiff 크기 상한 (M11 G3)', () => {
+  const big = (n: number, f: (i: number) => string): string => Array.from({ length: n }, (_, i) => f(i)).join('\n')
+
+  it('[M11-G3 M11-21] 상한을 넘으면 앞뒤 공통 줄만 문맥이고 가운데는 지운 줄 뒤 더한 줄이다', () => {
+    const n = 2601
+    const oldText = big(n, (i) => `k${i}`)
+    const newText = big(n, (i) => (i >= 5 && i < n - 5 && (i - 5) % 2 === 0 ? `new${i}` : `k${i}`))
+    const lines = computeDiff(oldText, newText)
+    const kinds = lines.map((l) => l.kind)
+    expect(kinds.filter((k) => k === 'context')).toHaveLength(10)
+    expect(kinds.slice(0, 5).every((k) => k === 'context')).toBe(true)
+    expect(kinds.slice(-5).every((k) => k === 'context')).toBe(true)
+    const mid = lines.slice(5, -5)
+    expect(mid.filter((l) => l.kind === 'remove')).toHaveLength(n - 10)
+    expect(mid.findIndex((l) => l.kind === 'add')).toBe(n - 10)
+    expect(lines[5]).toMatchObject({ kind: 'remove', content: 'k5', lineOld: 6 })
+    expect(lines[lines.length - 6]).toMatchObject({ kind: 'add', content: `new${n - 6}`, lineNew: n - 5 })
+    expect(lines[lines.length - 1]).toMatchObject({ kind: 'context', lineOld: n, lineNew: n })
+  })
+
+  it('[M11-G3 M11-21] 상한 안의 작은 파일은 지금처럼 LCS로 맞춘다', () => {
+    const lines = computeDiff('a\nb\nc\nd', 'a\nx\nc\nd')
+    expect(lines.map((l) => l.kind)).toEqual(['context', 'remove', 'add', 'context', 'context'])
+  })
+})

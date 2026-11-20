@@ -3,6 +3,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { createConversationStore, type ConversationStore } from '@main/06_Sessions/store'
+import { writeFileAtomicSync } from '@main/05_Loop/realPorts/atomicWrite'
 import type { ConversationRecord } from '../../../../02_Project/00_Source/shared/ipcContract'
 
 function makeRecord(overrides: Partial<ConversationRecord> = {}): Omit<ConversationRecord, 'createdAt' | 'updatedAt'> {
@@ -502,6 +503,74 @@ describe('ConversationStore (JSON fan-out)', () => {
       } finally {
         store2.close()
       }
+    })
+  })
+
+  // M11 G3 — M11 Backlog 20. 깨진 index.json 뒤의 저장이 색인을 그 한 건으로 덮어써 나머지 대화가 목록에서 사라졌다.
+  describe('대화 색인의 깨짐과 쓰기 (M11 G3)', () => {
+    const indexPath = (): string => path.join(tmpDir, 'index.json')
+
+    it('[M11-G3 M11-20] 깨진 index.json 뒤 저장해도 앞의 대화가 목록에 남고, 깨진 장은 옆에 둔다', () => {
+      store.save(makeRecord({ id: 'old-1' }))
+      store.save(makeRecord({ id: 'old-2' }))
+      fs.writeFileSync(indexPath(), '{ BROKEN')
+
+      const store2 = createConversationStore(tmpDir)
+      store2.save(makeRecord({ id: 'new-1' }))
+      const ids = store2.listRecent().map((r) => r.id)
+      expect(ids).toEqual(expect.arrayContaining(['old-1', 'old-2', 'new-1']))
+      expect(JSON.parse(fs.readFileSync(indexPath(), 'utf8')).ids).toEqual(['old-1', 'old-2', 'new-1'])
+      const broken = fs.readdirSync(tmpDir).filter((n) => n.startsWith('index.json.broken-'))
+      expect(broken).toHaveLength(1)
+      expect(fs.readFileSync(path.join(tmpDir, broken[0]), 'utf8')).toBe('{ BROKEN')
+      store2.close()
+    })
+
+    it('[M11-G3 M11-20] ids가 배열이 아닌 index.json도 깨진 장으로 보고 대화 파일로 다시 짓는다', () => {
+      store.save(makeRecord({ id: 'keep-1' }))
+      fs.writeFileSync(indexPath(), JSON.stringify({ version: 1, ids: 'x' }))
+      const store2 = createConversationStore(tmpDir)
+      expect(store2.listRecent().map((r) => r.id)).toEqual(['keep-1'])
+      store2.close()
+    })
+
+    it('[M11-G3 M11-20] id `index`는 받지 않는다 — 대화 파일이 색인을 덮지 않는다', () => {
+      store.save(makeRecord({ id: 'a-1' }))
+      expect(() => store.save(makeRecord({ id: 'index' }))).toThrow()
+      expect(() => store.save(makeRecord({ id: 'INDEX' }))).toThrow()
+      expect(store.load('index')).toBeNull()
+      expect(store.delete('index')).toBe(false)
+      expect(store.rename('Index', 'x')).toBe(false)
+      expect(JSON.parse(fs.readFileSync(indexPath(), 'utf8')).ids).toEqual(['a-1'])
+    })
+
+    it('[M11-G3 M11-20] 쓰기는 임시 파일을 거쳐 이름을 바꾼다 — 대상 파일을 직접 쓰지 않는다', () => {
+      const writes: string[] = []
+      const real = fs.writeFileSync
+      const spy = vi.spyOn(fs, 'writeFileSync').mockImplementation(((file: fs.PathOrFileDescriptor, data: string) => {
+        writes.push(String(file))
+        real(file, data)
+      }) as typeof fs.writeFileSync)
+      try {
+        store.save(makeRecord({ id: 'atomic-1' }))
+        store.rename('atomic-1', '새 제목')
+      } finally {
+        spy.mockRestore()
+      }
+      expect(writes.length).toBeGreaterThanOrEqual(3)
+      expect(writes.every((f) => f.endsWith('.tmp'))).toBe(true)
+      expect(store.load('atomic-1')?.title).toBe('새 제목')
+      expect(fs.readdirSync(tmpDir).filter((n) => n.endsWith('.tmp'))).toEqual([])
+    })
+
+    it('[M11-G3 M11-20] 동기 원자 쓰기는 이름 바꾸기가 실패하면 던지고 임시 파일을 남기지 않는다', () => {
+      const target = path.join(tmpDir, 'is-dir')
+      fs.mkdirSync(target)
+      fs.writeFileSync(path.join(target, 'x'), '1')
+      expect(() => writeFileAtomicSync(target, 'data')).toThrow()
+      expect(fs.readdirSync(tmpDir).filter((n) => n.endsWith('.tmp'))).toEqual([])
+      writeFileAtomicSync(path.join(tmpDir, 'ok.json'), '{"a":1}')
+      expect(fs.readFileSync(path.join(tmpDir, 'ok.json'), 'utf8')).toBe('{"a":1}')
     })
   })
 })

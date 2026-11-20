@@ -2,7 +2,7 @@
 // Windows에서는 백신·색인기가 대상 파일을 잠깐 붙들어 rename이 EPERM·EACCES·EBUSY로 실패할 수 있어 몇 번 다시 해 본다.
 // fs 포트(작업 저장소의 생존 문서)와 다이제스트 저장소(앱 영역)가 같이 쓴다. fs 포트의 옮기기도 같은 재시도를 쓴다(M10 G6).
 import { randomBytes } from 'node:crypto'
-import { promises as fsp } from 'node:fs'
+import fs, { promises as fsp } from 'node:fs'
 
 const RETRY = new Set(['EPERM', 'EACCES', 'EBUSY'])
 
@@ -15,6 +15,26 @@ export async function renameRetrying(from: string, to: string): Promise<void> {
       if (i >= 5 || !RETRY.has((e as NodeJS.ErrnoException).code ?? '')) throw e
       await new Promise((r) => setTimeout(r, 20 * (i + 1)))
     }
+  }
+}
+
+// 동기 쓰기만 하는 저장소(대화 색인, M11 G3)가 쓰는 같은 꼴
+export function writeFileAtomicSync(file: string, text: string): void {
+  const tmp = `${file}.${process.pid}.${randomBytes(4).toString('hex')}.tmp`
+  try {
+    fs.writeFileSync(tmp, text)
+    for (let i = 0; ; i++) {
+      try {
+        fs.renameSync(tmp, file)
+        return
+      } catch (e) {
+        if (i >= 5 || !RETRY.has((e as NodeJS.ErrnoException).code ?? '')) throw e
+        Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 20 * (i + 1))
+      }
+    }
+  } catch (e) {
+    fs.rmSync(tmp, { force: true })
+    throw e
   }
 }
 

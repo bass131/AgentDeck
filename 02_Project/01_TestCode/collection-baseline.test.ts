@@ -109,7 +109,8 @@ const SKIP_DIRS = new Set(['node_modules', 'dist', 'out', 'coverage', '.git'])
 // M11 G2: 487 → 488. 상태 줄의 가지 칸이 git의 실제 가지를 읽는지 보는 renderer/12_Window/Shell.status-branch.test.tsx를 더했다.
 // M11 G2: 488 → 489. 지속 세션의 effort 전환(실행·실행 관리자·IPC)을 보는 main/04_Claude/ClaudeCodeBackend.live-effort-switch.test.ts를 더했다.
 // M11 G2: 489 → 490. SDK 자동 압축 상태를 첫 턴 뒤 알리는지 보는 main/04_Claude/ClaudeCodeBackend.auto-compact.test.ts를 더했다.
-const BASELINE_TEST_FILES = 490
+// M11 G3: 490 → 491. git IPC 핸들러가 `-` 머리 hash를 git에 넘기지 않는지 보는 main/01_Ipc/git.hash-guard.test.ts를 더했다.
+const BASELINE_TEST_FILES = 491
 
 function collectTestFiles(dir: string, acc: string[] = []): string[] {
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {

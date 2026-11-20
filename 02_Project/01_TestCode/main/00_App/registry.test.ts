@@ -15,6 +15,14 @@ describe('registry — 컨트롤 검사는 닫힌 실패', () => {
     expect(types).toEqual(['error', 'done'])
     expect(message).toContain('앱 데이터 폴더를 얻지 못해 실행을 열지 않았습니다')
   })
+
+  // M11 G3 — M11 Backlog 18. 엔진 경로 잠금의 경로도 조립 지점이 넣는다 — 기본(잠금 없이 열기)으로 두지 않는다
+  it('[M11-G3 M11-18] claude-code 백엔드에 엔진 경로 잠금 경로 읽기를 넣고, 그 읽기는 Electron 밖에서 던진다', () => {
+    const backend = getBackend('claude-code') as unknown as { _engineLockDir?: () => string; _controlsAtRunStart?: unknown }
+    expect(typeof backend._controlsAtRunStart).toBe('function')
+    expect(typeof backend._engineLockDir).toBe('function')
+    expect(() => backend._engineLockDir?.()).toThrow()
+  })
 })
 
 describe('registry', () => {

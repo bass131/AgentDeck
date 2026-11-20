@@ -28,6 +28,7 @@ const mcpDeniedProvider = (): { serverName: string }[] | null => {
 const _backends: Record<BackendId, AgentBackend> = {
   'claude-code': new ClaudeCodeBackend(undefined, skillOverridesProvider, mcpDeniedProvider, {
     controlsAtRunStart: () => controlsForAppRun(getUserDataDir),
+    engineLockDir: getUserDataDir,
   }),
   'codex': new CodexBackend()
 }

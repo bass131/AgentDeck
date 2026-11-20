@@ -35,7 +35,7 @@ M11 Backlog 정리(`01_Milestones/M11_BacklogSweep/`)가 닫은 항목이다. �
 | 31 | 해결됨 | 넣기 직전 Orca 목록으로 메인 터미널을 찾는다(`99_Others/Dashboard/lib/deliver.mjs:64`, `53f5c91b`). |
 | 32 | 고침(M11 goal 5) | goal의 병합 대기 PR 번호가 바뀌면 PR 목록을 다시 읽고, 「목록 새로 읽기」·「다시 읽기」는 읽는 동안 끄지 않고 `aria-disabled`로 알려 키보드 초점이 남는다(`99_Others/Dashboard/public/app.js:911,988`, `20329d6f`). 시험 `[M11-G5 M07-32]`. |
 | 34 | v2로 | M11 스펙 결정 대장 [USER] 2회차 — 두 표 일원화는 가드 재설계와 함께 「이번엔 안 한다」. |
-| 35 | 고침(M11 goal 5) | 후보가 있을 때 `orca worktree ps --json`(읽기 전용)을 한 번 더 읽어 `agents[].parentPaneKey`가 있는 pane(`tabId:leafId`)을 빼고, ps를 못 읽으면 예전대로 고른다. 성공 응답에 넣은 터미널 제목(`terminal`)을 싣는다(`99_Others/Dashboard/lib/deliver.mjs:52,61`, `server.mjs:160`, `03d25f64`). `answer.test.mjs`의 `canType` 소스 정규식은 지웠다(`c98b20a1`). worker·셸 pane의 실제 목록 모양은 실측하지 못했다. |
+| 35 | 고침(M11 goal 5) | 후보가 있을 때 `orca worktree ps --json`(읽기 전용)을 한 번 더 읽어 `agents[].parentPaneKey`가 있는 pane(`tabId:leafId`)을 빼고, ps를 못 읽으면 예전대로 고른다. 성공 응답에 넣은 터미널 제목(`terminal`)을 싣고 화면의 「넣었어요」 줄이 그 제목을 보인다(`99_Others/Dashboard/lib/deliver.mjs:52,62`, `server.mjs:160`, `public/app.js:745`, `03d25f64`·`8e4116c0`). `answer.test.mjs`의 `canType` 소스 정규식은 지웠다(`c98b20a1`). worker·셸 pane의 실제 목록 모양은 실측하지 못했다. |
 | 36 | 해결됨 | ADR-005와 바뀐 거부 사유(가드 `MERGE_HINT`, 앱 `mergeDeny.ts:17` `REASON`)와 `smoke.test.mjs:141-142` 단언이 있고 SessionStart 몫은 M08-4가 맡는다. |
 
 1. CLI 세션의 에이전트가 Bash 경유(`node -e`, 스크립트)로 앱 데이터 폴더(`engines/`, `engine-config.json`)를 쓰는 길이 열려 있다. G1의 `Edit(~/AppData/Roaming/agentdeck/**)` 거부는 파일 도구와 Claude Code가 알아보는 Bash 파일 명령에만 걸린다. G8 `30_노드-구조.md` 보호 6의 나머지이고 맡을 goal이 아직 없다 (G1 검수 4).

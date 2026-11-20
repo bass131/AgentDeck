@@ -43,7 +43,7 @@ M11 Backlog 정리(`01_Milestones/M11_BacklogSweep/`)가 닫은 항목이다. �
 | 57 | 해결됨 | `testTimeout`이 30000이다(`vitest.config.ts:20`). |
 | 58 | 해결됨 | 항목 본문대로 G11 2b(`7cb426cd`)에서 닫혔다. |
 | 59 | 해결됨 | 현황판 시험을 테스트 경로로 인정한다(`33_tdd-guard.cjs:225,233`, H4 2a `12b71046`). |
-| 61 | 고침(M11 goal 5) | 「내 손」의 병합 대기 줄이 병합 카드가 GitHub에서 읽은 같은 PR을 따른다 — 병합·닫힘이면 빠지고 「goal 문서 갱신만 남았어요」, `hard-gates` 실패면 빨강(`99_Others/Dashboard/public/chime.js:283`, `public/app.js:147`, `03d25f64`·`20329d6f`). 시험 `[M11-G5 61]` 둘. |
+| 61 | 고침(M11 goal 5) | 「내 손」의 병합 대기 줄이 병합 카드가 GitHub에서 읽은 같은 PR을 따른다 — 병합·닫힘이면 빠지고 「goal 문서 갱신만 남았어요」, `hard-gates` 실패면 빨강(`99_Others/Dashboard/public/chime.js:283`, `public/app.js:147`, `03d25f64`·`20329d6f`·`8e4116c0`). 시험 `[M11-G5 61]` 둘. |
 | 62 | 고침(M11 goal 5) | goal 문서의 마지막 커밋 뒤에 브랜치 커밋이 있는데 `[>]`가 그대로면 사실 줄 하나를 보인다(`99_Others/Dashboard/lib/collector.mjs:131`, `03d25f64`). 실기동에서 G5 문서에 「커밋이 2개 더」가 떴다. |
 | 63 | 고침(M11 goal 5) | 선택 설정 `inboxHandle`이 있을 때만 `orca orchestration inbox --full --json`(읽기 전용)을 30초마다 읽어 워커 완료·에스컬레이션·질문 최근 5개를 보인다(`99_Others/Dashboard/lib/inbox.mjs`, `server.mjs:92`, `03d25f64`). 칸이 없거나 orca가 없으면 절이 없다. |
 | 64 | 고침(M11 goal 5) | 「원문 N개를 읽지 못했어요」는 빨강 네모 깨짐 줄이고 `.mini-stop`·`.mini-todo`를 지웠다(`99_Others/Dashboard/public/app.js:186`, `styles.css:239`, `20329d6f`). 「알림음 없음」은 jsdom 화면 시험 `[M11-G5 64]`이 본다. |

@@ -50,6 +50,7 @@ DoD
 
 - PASS 2026-11-20T20:50:56+09:00 — 구현: 작업 하위 에이전트가 커밋 일곱(`a6e7f88a`·`bc920e64` 실행기·잠금과 Backlog 17, `ae748e3e` Backlog 18~21, `2af8fd68` 룰셋 판독, `0c2fec37`·`ed5411ae` 엔진·판정 기록·색인 다시 짓기, `7b901703` SDK 재실측 절차 문서와 닫힘 표)으로 고쳤다. `[M11-G3 …]` `it.fails` 19건이 모두 `it`이고(`grep` 0건), 머리 `ed5411ae`에서 `npm test` Test Files 486 passed·6 skipped, Tests 9295 passed·10 skipped, 실패 0, 문서 최종본에서 하드 게이트 다섯 종 통과(lint 기존 경고 1). M07-7의 SDK 동작 꼴은 재지 않고 `00_Documents/00_Architecture/01_SDK-재실측-절차.md` 「아직 재지 않은 꼴」에 두었다. 범위 밖 발견은 M11 Backlog 26·27.
 - PASS 2026-11-20T20:50:56+09:00 — 실앱 e2e(`m11-g3-ruleset-card-live.e2e.ts`, `M11G3LIVE=1`, 두 번 통과): 룰셋 `main-protect`로 지키는 연습 저장소 `main`의 PR #6 카드가 「main 브랜치 룰셋에 필수 검사가 없어요」를 보이고 「보호가 없다」를 보이지 않음을 메인이 `ruleset-card.png`로 눈 확인했다. 2번 모니터는 이번에도 감지되지 않았다.
+- PASS 2026-11-20T21:23:16+09:00 — 독립 검수(구현 문맥 없는 reviewer, 수정 전 코드 대비 단언 판정과 우회 프로브)의 중요 2·사소 4를 `734e579e`로 반영했다: 작은따옴표 밖 `${CDPATH=…}`·`${CDPATH:=…}` 거부(M09-6 회귀), `source` 뒤 위치는 공개 `query()` 블랙박스 실측(훅 `cwd`가 셸 위치를 따라감, Temp 밖 저장소)으로 지금 판독 유지와 절차 문서 기록, 엔진 재설치를 임시 형제 폴더 뒤 바꿔 끼우기로, 판정을 못 보는 노드는 「최근 판정 기록 없음」, 실행기가 git을 못 찾을 때 별도 안내, mock 조건 복제 제거. PowerShell 꼴은 가드와 함께 통과하는 기존 틈이라 M11 Backlog 28(goal 8). 워커가 `734e579e`에서 하드 게이트 다섯 종 통과, `npm test` Tests 9301 passed·실패 0. 실측 임시 저장소 `%USERPROFILE%\.agentdeck-practice\cwdprobe\`는 가드가 지우기를 막아 남았다(사람 손 목록).
 
 ## 결정 대장
 

@@ -5,6 +5,38 @@
 M02에서 이월된 항목의 정본은 `01_Milestones/M02_Hardening/99_Backlog.md`이고, 이 파일은 M03에서 새로 나온 것만 담습니다.
 항목을 실제로 고칠지, 언제 고칠지는 사용자가 정합니다.
 
+## 닫힘 (M11)
+
+M11 Backlog 정리(`01_Milestones/M11_BacklogSweep/`)가 닫은 항목이다. 아래 항목 줄은 그대로 두고 닫힘은 이 표가 갖는다. 표에 없는 항목은 M11 goal 2~9가 고치면서 더한다.
+
+| 항목 | 닫힘 | 근거 |
+|---|---|---|
+| 2 | 해결됨 | `master` PR의 필수 검사 `hard-gates`가 하드 게이트 다섯 종을 돌린다(`.github/workflows/hard-gates.yml`, 헌법 6조). |
+| 3 | 정함 → goal 7 | G1 결정 대장 [USER·위임] — persisted 출력 읽기를 M05-12·M07-4와 같은 수리로 고친다. |
+| 4 | 닫음(판단) | G1 결정 대장 [USER·위임] — STREAK_LIMIT 휴리스틱과 `_lib` 미인정을 그대로 둔다. |
+| 5 | 정함 → goal 6 | G1 결정 대장 [USER·위임] — 사람용 동등성 기준표가 기계 표를 정본으로 가리키게 한다. |
+| 6 | 낡음 | 스폰 자리 배선이 내려가 판정 ② 문구 「전진 차단」은 편집 자리에만 나간다(`_lib/plan-verdict.cjs:178`). |
+| 7 | 정함 → goal 6 | G1 결정 대장 [USER·위임] — 라우팅 정책의 낡은 서술을 지금 운영에 맞게 고친다. |
+| 8 | 해결됨 | 앱 최소 모델 목록이 `claude-opus-5-5`를 안다(`shared/03_Agent/models/knownModels.ts:8`, M06 G4). |
+| 9 | 정함 → goal 6 | G1 결정 대장 [USER·위임] — 라우팅 정책의 낡은 서술(제목 판)을 고친다. |
+| 10 | 정함 → goal 6 | G1 결정 대장 [USER·위임] — 라우팅 정책의 낡은 서술(effort 값)을 고친다. |
+| 11 | 해결됨 | M03 P4가 실행 워커 행 칸에서 「코드를 조사하고」를 지웠다(`02_모델-라우팅-정책.md:25`). |
+| 12 | 정함 → goal 6 | G1 결정 대장 [USER·위임] — 라우팅 정책의 낡은 서술(Moodie 좌표)을 고친다. |
+| 14 | 정함 → goal 6 | G1 결정 대장 [USER·위임] — 설계 노트 머리에 역사 기록 표시를 단다. |
+| 16 | 해결됨 | `20_plan-gate.cjs`는 판정부를 공유하고 훅 시험이 직접 구동해 배선 없이 둔다(M07 G1 결정 대장 [USER], `10_Goal-G1-판정-장치-정비.md:72`). |
+| 17 | 해결됨 | `shellScriptsOf`가 세 갈래를 읽고(`dangerous-cmd-guard.mjs:669`, `cmd-guard-equivalence.test.mjs:92-97` WR-04~09) 남은 꼴은 M03-28이 맡는다. |
+| 18 | 해결됨 | 래퍼의 값 옵션과 맨 앞 할당을 건너뛴다(`dangerous-cmd-guard.mjs:135` `WRAPPER_SPECS`, `:237`, M07 G12). |
+| 20 | 해결됨 | 포인터 결손·형식 오류를 거부하고(`_lib/plan-verdict.cjs:22-38`) 대상 없는 편집도 거부한다(`31_edit-plan-gate.cjs:78`). |
+| 23 | 낡음 | 워커별 기록 규율을 낳은 코디네이터·워커 운영이 폐지됐다(헌법 2조 현행). |
+| 24 | v2로 | G1 결정 대장 [USER·위임] — 가드 판독 재설계 묶음이라 v2로 보낸다. |
+| 25 | 닫음(판단) | G1 결정 대장 [USER·위임] — catch의 fail-open을 그대로 둔다. |
+| 26 | 닫음(판단) | G1 결정 대장 [USER·위임] — 포인터 결손은 사용자가 복구한다. |
+| 27 | 닫음(판단) | G1 결정 대장 [USER·위임] — 해가 없는 상위 집합이라 MultiEdit 매처를 둔다. |
+| 31 | v2로 | G1 결정 대장 [USER·위임] — 줄 이음은 M06 G5가 고쳤고(`dangerous-cmd-guard.mjs:7-8`), `\ ` 이스케이프 공백은 가드 판독 재설계와 함께 다룬다. |
+| 33 | 해결됨 | 대상 시험 파일이 M10 G1 `95125a05`에서 지워졌고 `testTimeout`은 30000이다(`vitest.config.ts:20`). |
+| 34 | 정함 → goal 6 | G1 결정 대장 [USER·위임] — 사람용 기준표가 기계 표를 정본으로 가리키게 한다. |
+| 35 | 닫음(판단) | G1 결정 대장 [USER·위임] — 이미 있는 [USER] 「마감」 한계 인정을 다시 열지 않는다. |
+
 ## 대기 항목
 
 1. **`plan-record-header.test.mjs`의 실계획 회귀 불변식이 M02 계획을 고정한다** (Phase 1 Step 5 관찰, 2026-11-11) — `.claude/hooks/plan-record-header.test.mjs` 69줄의 PR-06은 「실계획 파일 구획은 통과한다」를 검사하면서 경로를 `01_Milestones/M02_Hardening/_MilestonePreview.md`로 못박습니다. 포인터가 M03으로 옮겨진 뒤에도 이 케이스는 종결된 M02 계획만 보므로, 현재 계획이 규격을 깨도 이 테스트는 green입니다. 지금 green이고 M02 폴더는 역사 표면으로 보존되므로 이 Phase에서는 고치지 않았습니다. 고친다면 `gate-config.json`의 `planPath`를 읽어 현재 계획을 대상으로 삼는 쪽입니다.

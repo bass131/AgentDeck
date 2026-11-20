@@ -3,6 +3,42 @@
 완료조건 밖의 발견을 한 줄씩 남깁니다. 승인을 묻지 않고 기록만 하며, 다음 goal의 후보입니다.
 M04에서 넘어온 항목은 `M04_Goal_Loop/99_Backlog.md`가 계속 소유합니다.
 
+## 닫힘 (M11)
+
+M11 Backlog 정리(`01_Milestones/M11_BacklogSweep/`)가 닫은 항목이다. 아래 항목 줄은 그대로 두고 닫힘은 이 표가 갖는다. 표에 없는 항목은 M11 goal 2~9가 고치면서 더한다.
+
+| 항목 | 닫힘 | 근거 |
+|---|---|---|
+| 2 | 해결됨 | `@keyframes rise`가 `renderer/src/11_Settings/SettingsModal.css:171` 한 벌만 남았다. |
+| 3 | 정함 → goal 2 | G1 결정 대장 [USER·위임] — 앱 「자동」의 시작도 공식 `auto`로 맞춘다. 분류기 비교·규칙 GUI는 v2다. |
+| 4 | 해결됨 | 폴백 상수가 `main/10_Engine/sdkVersion.ts:8` 한 곳이고 `sdkVersion.read.test.ts`가 package.json 명세와의 드리프트를 고정한다. |
+| 6 | v2로 | Codex 실행기는 v1 범위 밖으로 미뤘다(`00_Vision/50_v1-범위.md:34`). |
+| 7 | 닫음(판단) | G1 결정 대장 [USER·위임] — 영속 기록 호환 때문에 `'model-fallback'` 이름을 둔다. |
+| 9 | 정함 → goal 8 | G1 결정 대장 [USER·위임] — 규칙이 없는 꼴(`gh repo rename·archive·sync --force`, `gh secret set`, `gh alias set`, `--receive-pack`)은 goal 8이 규칙을 더하고, 판독이 못 읽는 꼴은 v2로. |
+| 13 | 낡음 | 대상 시험(뒤 이름 `MultiWorkspace.session-persist-2.test.tsx`)이 M10 G1 `95125a05`에서 지워졌다. |
+| 14 | 해결됨 | 다섯 하네스의 esbuild 호출이 `tsconfig: 'tsconfig.web.json'`을 준다(예: `gap1-p14-splitview-shots.e2e.ts:188`). |
+| 20 | 정함 → goal 6 | G1 결정 대장 [USER·위임] — `FileExplorer`의 닿지 않는 'new' 규칙을 지운다. |
+| 23 | 정함 → goal 7 | G1 결정 대장 [USER·위임] — fail-closed는 두고 차단 문구에 단독 실행 꼴 안내를 넣는다. |
+| 30 | 해결됨 | 러너가 쓰기 실패 쪽 임계구간을 `writeAt`까지로 읽는다(G11 2b `7cb426cd`). |
+| 31 | 해결됨 | 창 채널이 `main/01_Ipc/handlers/window.ts`에 있고 `01_Ipc/handlers/multi.ts`는 없다. |
+| 33 | 낡음 | `MultiWorkspace`가 M10 G1 `95125a05`에서 지워졌고 남은 순환은 M05-42가 맡는다. |
+| 34 | 정함 → goal 6 | G1 결정 대장 [USER·위임] — 지운 멀티 화면을 그리는 스크린샷 하네스를 지운다. |
+| 35 | 해결됨 | 항목 본문에 H2의 닫힘(결정적 캡처와 digest 대조)이 적혀 있다. |
+| 38 | 해결됨 | 항목 본문에 닫힘이 적혀 있고 `tsconfig.web.json:28`이 e2e를 포함한다. |
+| 39 | 정함 → goal 6 | G1 결정 대장 [USER·위임] — M05-34와 같이 그 하네스와 로더를 지운다. |
+| 45 | 해결됨 | 테스트·훅 타임아웃이 30000이고(`vitest.config.ts:20,22`) 콜드 import 근본 몫은 M11 Backlog로 옮겼다. |
+| 46 | 해결됨 | 폐기 포트가 지운 거처의 결과를 되살리지 않는다(`renderer/src/03_Agent/state/runCore.ts:99-100`, `2f78992a`). |
+| 48 | 닫음(판단) | G1 결정 대장 [USER·위임] — interrupt 때 대기열은 지금 동작을 둔다. |
+| 50 | 낡음 | 멀티 질문 창과 패널 배지가 M10 G1 `95125a05`에서 화면째 지워졌다. |
+| 57 | 해결됨 | `testTimeout`이 30000이다(`vitest.config.ts:20`). |
+| 58 | 해결됨 | 항목 본문대로 G11 2b(`7cb426cd`)에서 닫혔다. |
+| 59 | 해결됨 | 현황판 시험을 테스트 경로로 인정한다(`33_tdd-guard.cjs:225,233`, H4 2a `12b71046`). |
+| 67 | 닫음(판단) | G1 결정 대장 [USER·위임] — lint 안전망으로 충분해 규범 줄을 두지 않는다. |
+| 70 | 해결됨 | 현황판이 넣기 직전 Orca 목록으로 메인 터미널을 찾고(`99_Others/Dashboard/lib/deliver.mjs:64`, `a112b4f4`) 결정 보드 도구와 전달 판정 몫은 M11 Backlog로 옮겼다. |
+| 73 | 낡음 | 운영 메모라 할 일이 없다. |
+| 75 | M12로 | G1 결정 대장 [USER·위임] — 스펙 지정대로 M12 전역 Taste 「문서 말투」가 맡는다. |
+| 76 | 해결됨 | 코드맵이 `99_Others/CodeMap/`에 편입돼 있다(H9). |
+
 1. `main/03_lsp/manager.ts:519`의 `disposeAll()`을 프로덕션에서 아무도 부르지 않는다. 앱 종료(`before-quit`)는 실행과 store만 닫으므로 LSP 자식 프로세스가 남을 수 있다 (G1 감사, 판독 — 실행 확인 필요).
 2. `@keyframes rise`가 몸체가 다른 두 벌이다(`MultiWorkspace.css:698` +14px, `SettingsModal.css:171` -6px). 적용되는 쪽이 번들 순서에 달렸다 (G1 감사 실측, 화면 영향은 추측).
 3. 권한 모드 매핑이 시작 때(`runArgs.ts:10`, `auto→acceptEdits`)와 실행 중 전환 때(`claudeAgentRun.ts:31`, `auto→auto`) 다르다. M06의 권한 처리 goal이 의미를 정한다 (G1 감사 실측).

@@ -5,6 +5,28 @@
 항목을 실제로 고칠지, 언제 고칠지는 사용자가 정합니다. 고치기로 하면 워커 태스크로 발행합니다.
 지금은 마일스톤 폴더에 두지만, 마일스톤을 넘는 항목이 쌓이면 저장소 수준 표면으로 옮기는 것을 검토합니다.
 
+## 닫힘 (M11)
+
+M11 Backlog 정리(`01_Milestones/M11_BacklogSweep/`)가 닫은 항목이다. 아래 항목 줄은 그대로 두고 닫힘은 이 표가 갖는다. 표에 없는 항목은 M11 goal 2~9가 고치면서 더한다.
+
+| 항목 | 닫힘 | 근거 |
+|---|---|---|
+| 1 | 해결됨 | gh·npm 규칙도 토큰의 명령 이름으로 판정한다(`dangerous-cmd-guard.mjs:543-545`, M02 P2 `3d127772`). |
+| 2 | 해결됨 | 세 픽스처의 Preview에 「사람용 개요」 절이 있다(`fixtures/partition-preview-only`·`no-tag`·`no-record`의 `_MilestonePreview.md:3`). |
+| 3 | 해결됨 | 인용부 드롭을 버리고 따옴표만 벗기는 토큰화로 바꿨다(`dangerous-cmd-guard.mjs:9`). |
+| 4 | 해결됨 | M02 P1 `01d4cd2a`가 2조 문안을 고쳤고, 2조는 뒤에 「Phase 경계의 새 세션은 권장」으로 다시 개정됐다. |
+| 5 | 해결됨 | 라우팅 정책 스펙 문법 절에 「계획 밖 변경 금지 — 발견은 Backlog 보고」 조항이 있다(`02_모델-라우팅-정책.md:82`). |
+| 6 | 해결됨 | stop-gate가 pin 갱신을 pass-watcher 증인으로 귀속하고(`50_stop-gate.cjs:145`, M02 P3 `b972fb5f`) 코디네이터·워커 운영도 폐지됐다. |
+| 7 | 해결됨 | 채집 때 제어 문자를 벗긴다(`33_tdd-guard.cjs:299` `stripAnsi`). |
+| 8 | 해결됨 | 옛 문서 이름 줄이 「문서 재편 과정에서 제외」 안내로 바뀌었고(`README.md:74`), 새로 낡은 `README.md:62-64`는 goal 6이 고친다. |
+| 9 | 해결됨 | M02 P2 `3d127772`가 우회면을 고쳐 기대-실패 표지를 18건에서 0건으로 내렸다(`cmd-guard-equivalence.test.mjs`에 `flag: true` 행 0). |
+| 10 | 해결됨 | 가드가 hook-log에 판정을 남기고(`dangerous-cmd-guard.mjs:41`) matcher가 `^Bash$`이며(`.claude/settings.json:68`) `git config --get`은 읽기로 본다(`dangerous-cmd-guard.mjs:281`). |
+| 11 | 해결됨 | 전체 실행만 Green으로 채집하고(`33_tdd-guard.cjs:271` `classifyRun`) 훅 시험을 테스트 경로로 인정한다(`33_tdd-guard.cjs:222-233`). |
+| 12 | 해결됨 | stop-gate가 마감 요약 3줄을 읽고(`50_stop-gate.cjs:107-116`) pass-watcher가 기준선 없는 첫 Write에서 PASS가 있으면 장전하며(`40_pass-watcher.cjs:215-221`) 헤더는 제목 단독 줄만 인정한다(`_lib/plan-verdict.cjs:20`). |
+| 13 | 해결됨 | 공백 타깃·reference 링크·저장소 밖 형제·대소문자 사각을 `readme-links.test.mjs` RL-01~16이 고정한다. |
+| 14 | 해결됨 | M02 Preview 매핑표(`M02_Hardening/_MilestonePreview.md:64`)대로 P2·P4가 나눠 고쳤고 두 헌법의 8조 문면이 지금 같다. |
+| 15 | 해결됨 | 표피 검사 훅이 Stop에 피드백형으로 배선돼 있고(`51_surface-probe.cjs`, M02 P4 `ab0cc1c0`) 남은 차단형 승격 판정은 M11 Backlog로 옮겼다. |
+
 ## 대기 항목
 
 1. **gh·npm 규칙의 정규식 판정 잔존** (Phase 3 관찰) — dangerous-cmd-guard에서 git 계열은 머리 토큰 판정으로 바꿨지만, gh pr·gh release·npm publish 규칙은 아직 정규식이라 판정 방식이 갈립니다. 같은 토큰 방식으로 맞출지 검토가 필요합니다.

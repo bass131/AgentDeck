@@ -90,7 +90,8 @@ describe('그래프 탭 캔버스 (M10 G5)', () => {
     expect(canvas.querySelectorAll('path[data-edge="fail"]')).toHaveLength(1)
     expect(canvas.querySelectorAll('path[data-edge="repeat"]')).toHaveLength(1)
     expect(within(canvas).getByText('목표 반복 — G1 ✓ · 지금 G2')).toBeTruthy()
-    expect(within(canvas).getByText('실패 → 다시 (최대 3)')).toBeTruthy()
+    // 글자에 되돌아갈 곳이 있어 어느 선인지 읽힌다(G5 검수 3)
+    expect(within(canvas).getByText('실패 → 구현 (최대 3)')).toBeTruthy()
     expect(within(canvas).getByText(/보기 전용/)).toBeTruthy()
     // 범례는 노드 종류 다섯 가지를 카드와 같은 색 표식으로 보인다
     const key = within(canvas).getByLabelText('범례')
@@ -102,6 +103,7 @@ describe('그래프 탭 캔버스 (M10 G5)', () => {
     expect(card(canvas, 'checks').getAttribute('data-now')).toBe('true')
     expect(['brainstorm', 'goal-branch', 'implement'].map((id) => card(canvas, id).getAttribute('data-done'))).toEqual(['true', 'true', 'true'])
     expect(card(canvas, 'regression').getAttribute('data-done')).toBe('false')
+    expect(GRAPH.nodes.map((n) => card(canvas, n.id).getAttribute('data-skipped'))).toEqual(GRAPH.nodes.map(() => 'false'))
     expect(within(card(canvas, 'checks')).getByText(/실패 1/)).toBeTruthy()
     const before = canvas.innerHTML
     await push(st())
@@ -109,6 +111,20 @@ describe('그래프 탭 캔버스 (M10 G5)', () => {
     await push(st({ node: 'regression', nodeTitle: '마일스톤 회귀', failCount: 0, goals: st().goals.map((g) => ({ ...g, status: 'done' as const })) }))
     expect(card(canvas, 'regression').getAttribute('data-now')).toBe('true')
     expect(card(canvas, 'checks').getAttribute('data-done')).toBe('true')
+  })
+
+  // G5 검수 5 — 약 등급 목표에서 강 등급 노드(독립 검수)는 끝남(흐림·✓)이 아니라 건너뜀이다
+  it('지금 목표의 등급에서 켜지지 않는 노드는 「건너뜀」 표시이고 ✓가 없다', async () => {
+    const review = node('review', '독립 검수', 'goal', 360, 202, { kind: 'model', role: null, when: { grade: 'strong' } })
+    const g = { ...GRAPH, nodes: [...GRAPH.nodes.slice(0, 3), review, ...GRAPH.nodes.slice(3)] }
+    api.loopGraph.mockResolvedValue({ ok: true, graph: g })
+    api.loopStatus.mockResolvedValue(st({ goals: [st().goals[0], { ...st().goals[1], grade: 'weak' }] }))
+    const { canvas } = await renderGraph()
+    const c = card(canvas, 'review')
+    expect([c.getAttribute('data-skipped'), c.getAttribute('data-done')]).toEqual(['true', 'false'])
+    expect(c.textContent).toContain('건너뜀')
+    expect(c.querySelector('.gc-ok')).toBeNull()
+    expect(card(canvas, 'implement').getAttribute('data-skipped')).toBe('false')
   })
 
   it('확대·축소·맞춤 단추가 배율을 바꾼다', async () => {
@@ -161,6 +177,21 @@ describe('「노드 설정」 탭 (M10 G5)', () => {
     expect(within(lines).getByText('통과')).toBeTruthy()
     expect(panel.querySelectorAll('input, textarea, select, [contenteditable="true"]')).toHaveLength(0)
     expect(within(panel).queryByRole('button', { name: '세션 열기' })).toBeNull()
+  })
+
+  // G5 검수 2 — 사람의 반려는 USER-INPUT이라 실패로 세지 않는다. 사람 게이트에는 횟수 문구가 없다
+  it('사람 게이트의 되돌아가는 길은 횟수 없이 「반려 → 되돌아갈 곳」이고, 「노드 설정」에도 횟수가 없다', async () => {
+    const approval = node('spec-approval', '스펙 승인', 'milestone', 200, 40, { kind: 'human', role: null, next: 'goal-branch', onFail: { goto: 'brainstorm', limit: null } })
+    api.loopGraph.mockResolvedValue({
+      ok: true,
+      graph: { ...GRAPH, nodes: [...GRAPH.nodes, approval], edges: [...GRAPH.edges, { from: 'spec-approval', to: 'brainstorm', kind: 'fail' }] },
+    })
+    const { canvas } = await renderGraph()
+    expect(within(canvas).getByText('반려 → 브레인스토밍')).toBeTruthy()
+    await click(card(canvas, 'spec-approval'))
+    const panel = screen.getByRole('region', { name: '노드 설정' })
+    expect(within(panel).getByText(/브레인스토밍.*되돌림/)).toBeTruthy()
+    expect(panel.textContent).not.toMatch(/최대/)
   })
 
   it('그 노드의 세션이 있으면 「세션 열기」로 가운데에 세션 탭을 연다', async () => {

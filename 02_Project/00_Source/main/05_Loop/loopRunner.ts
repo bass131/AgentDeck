@@ -322,7 +322,7 @@ export function createLoopRunner(deps: LoopRunnerDeps): LoopRunner {
       if (node.produces !== 'goals') return v(node, 'pass', `작업 세션이 끝났다 — ${res.summary}`)
       const seeds = await readGoalSeeds(ports.fs)
       if (!seeds.ok) return v(node, 'fail', `분해 결과를 읽지 못했다 — ${seeds.reason}`)
-      return v(node, 'pass', `goal ${seeds.goals.length}개로 나눴다 — ${seeds.goals.map((g) => g.id).join(', ')}`, { goals: seeds.goals })
+      return v(node, 'pass', `목표 ${seeds.goals.length}개로 나눴다 — ${seeds.goals.map((g) => g.id).join(', ')}`, { goals: seeds.goals })
     } catch (e) {
       return v(node, 'fail', `작업 세션 오류 — ${errorText(e)}`)
     }
@@ -380,7 +380,7 @@ export function createLoopRunner(deps: LoopRunnerDeps): LoopRunner {
       const drift = goalDocDrift(goal, goalDoc)
       if (drift) return v(node, 'stop', `${drift} 검수를 열지 않았다`)
       const snap = await git.reviewSnapshot(baseSha)
-      if (!snap) return v(node, 'fail', `${names.milestone}의 goal 시작 ${short(baseSha)} 대비 diff를 만들지 못해 검수를 열지 않았다`)
+      if (!snap) return v(node, 'fail', `${names.milestone}의 목표 시작 ${short(baseSha)} 대비 diff를 만들지 못해 검수를 열지 않았다`)
       // G4 검수 I9 — 잘린 diff로 검수하지 않는다(pass가 전체 트리에 묶이므로). FAIL로 세지 않고 멈춘다
       if (snap.tooLarge) {
         return v(node, 'stop', `검수 diff가 ${snap.chars ?? '?'}자로 상한을 넘어 검수를 열지 않았다 — 목표를 나누거나 사람이 판단한다`)

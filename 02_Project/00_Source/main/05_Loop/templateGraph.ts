@@ -25,7 +25,7 @@ function nodeOf(n: StepNode, scope: LoopGraphNode['scope'], next: string | null,
     rule: rule?.type ?? null,
     commands: rule?.type === 'commands' ? [...rule.commands] : [],
     next,
-    onFail: n.onFail ? { goto: n.onFail.goto, limit: failLimit } : null,
+    onFail: n.onFail ? { goto: n.onFail.goto, limit: n.kind === 'gate' && n.judge === 'human' ? null : failLimit } : null,
     when: n.when ? { grade: n.when.grade } : null,
     position: { x: ORIGIN.x + col * COL, y: ORIGIN.y + row * ROW },
   }

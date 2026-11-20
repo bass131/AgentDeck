@@ -66,7 +66,11 @@ export function NodeSettings({ graph, status, nodeId, onOpenSession, onOpenMain 
           </Field>
           <Field label="실패하면">
             <div className="ns-val">
-              {n.onFail === null ? '되돌아가는 길 없음' : `${titleOf(n.onFail.goto)}(으)로 되돌림 · 최대 ${n.onFail.limit}번, 넘으면 사람을 부른다`}
+              {n.onFail === null
+                ? '되돌아가는 길 없음'
+                : n.onFail.limit === null
+                  ? `${titleOf(n.onFail.goto)}(으)로 되돌림 · 사람의 반려는 실패로 세지 않는다`
+                  : `${titleOf(n.onFail.goto)}(으)로 되돌림 · 최대 ${n.onFail.limit}번, 넘으면 사람을 부른다`}
             </div>
           </Field>
           {n.when !== null && <Field label="켜지는 조건"><div className="ns-val">{`${n.when.grade === 'strong' ? '강' : '약'} 등급 목표에서만`}</div></Field>}

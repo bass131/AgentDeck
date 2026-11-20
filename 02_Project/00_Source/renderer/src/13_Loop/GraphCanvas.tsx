@@ -1,13 +1,15 @@
 // M10 G5 그래프 탭 캔버스(보기 전용) — 카드는 DOM, 선은 SVG다. 위치는 그래프의 position 칸을 그대로 쓴다.
 import { useEffect, useMemo, useRef, useState, type JSX } from 'react'
 import type { GraphNodeKind, LoopGraph, LoopGraphNode, LoopStatus } from '@shared/ipcContract'
-import { KIND_SHORT, edgeLabelAt, edgePath, fitScale, graphBounds, loopBox, loopLabel, nodeMarks, type NodeMark } from './graphModel'
+import {
+  KIND_SHORT, backLabel, backLanes, edgeKey, edgeLabelAt, edgePath, fitScale, graphBounds, loopBox, loopLabel, nodeMarks, type NodeMark,
+} from './graphModel'
 import './Graph.css'
 
 const STEP = 0.1
 const MIN = 0.3
 const MAX = 2
-const NO_MARK: NodeMark = { now: false, done: false, fails: 0 }
+const NO_MARK: NodeMark = { now: false, done: false, skipped: false, fails: 0 }
 const clamp = (v: number): number => Math.round(Math.min(MAX, Math.max(MIN, v)) * 100) / 100
 
 export interface GraphCanvasProps {
@@ -18,7 +20,9 @@ export interface GraphCanvasProps {
 }
 
 function Card({ n, mark, selected, onSelect }: { n: LoopGraphNode; mark: NodeMark; selected: boolean; onSelect: (id: string) => void }): JSX.Element {
-  const sub = [KIND_SHORT[n.kind], n.role === 'main' ? '메인' : null, mark.fails > 0 ? `실패 ${mark.fails}` : null].filter((x) => x !== null).join(' · ')
+  const sub = [
+    KIND_SHORT[n.kind], n.role === 'main' ? '메인' : null, mark.skipped ? '건너뜀' : null, mark.fails > 0 ? `실패 ${mark.fails}` : null,
+  ].filter((x) => x !== null).join(' · ')
   return (
     <button
       type="button"
@@ -27,6 +31,7 @@ function Card({ n, mark, selected, onSelect }: { n: LoopGraphNode; mark: NodeMar
       data-kind={n.kind}
       data-now={mark.now ? 'true' : 'false'}
       data-done={mark.done ? 'true' : 'false'}
+      data-skipped={mark.skipped ? 'true' : 'false'}
       data-selected={selected ? 'true' : 'false'}
       aria-label={`${n.title} 노드`}
       aria-pressed={selected}
@@ -45,6 +50,7 @@ export function GraphCanvas({ graph, status, selected, onSelect }: GraphCanvasPr
   const viewRef = useRef<HTMLDivElement>(null)
   const bounds = useMemo(() => graphBounds(graph), [graph])
   const box = useMemo(() => loopBox(graph), [graph])
+  const lanes = useMemo(() => backLanes(graph), [graph])
   const byId = useMemo(() => new Map(graph.nodes.map((n) => [n.id, n])), [graph])
   const marks = useMemo(() => (status ? nodeMarks(graph, status) : {}), [graph, status])
   const fit = (): void => {
@@ -57,7 +63,7 @@ export function GraphCanvas({ graph, status, selected, onSelect }: GraphCanvasPr
   const edges = graph.edges.flatMap((e) => {
     const from = byId.get(e.from)
     const to = byId.get(e.to)
-    return from && to ? [{ e, from, to }] : []
+    return from && to ? [{ e, from, to, lane: lanes.get(edgeKey(e)) ?? 0 }] : []
   })
 
   return (
@@ -78,16 +84,15 @@ export function GraphCanvas({ graph, status, selected, onSelect }: GraphCanvasPr
               </div>
             )}
             <svg className="gc-wires" width={bounds.w} height={bounds.h} aria-hidden="true">
-              {edges.map(({ e, from, to }) => (
-                <path key={`${e.kind}-${e.from}-${e.to}`} data-edge={e.kind} className={`gc-wire gc-wire-${e.kind}`} d={edgePath(from, to, e.kind)} />
+              {edges.map(({ e, from, to, lane }) => (
+                <path key={edgeKey(e)} data-edge={e.kind} className={`gc-wire gc-wire-${e.kind}`} d={edgePath(from, to, e.kind, lane)} />
               ))}
             </svg>
-            {edges.filter(({ e }) => e.kind === 'fail').map(({ e, from, to }) => {
-              const at = edgeLabelAt(from, to, e.kind)
-              const text = from.kind === 'human' ? '반려 → 다시' : `실패 → 다시 (최대 ${from.onFail?.limit ?? graph.failLimit})`
+            {edges.filter(({ e }) => e.kind === 'fail').map(({ e, from, to, lane }) => {
+              const at = edgeLabelAt(from, to, e.kind, lane)
               return (
-                <span key={`l-${e.from}-${e.to}`} className="gc-edge-label" data-kind={from.kind === 'human' ? 'reject' : 'fail'} style={{ left: at.x, top: at.y }}>
-                  {text}
+                <span key={`l-${edgeKey(e)}`} className="gc-edge-label" data-kind={from.kind === 'human' ? 'reject' : 'fail'} style={{ left: at.x, top: at.y }}>
+                  {backLabel(from, to)}
                 </span>
               )
             })}

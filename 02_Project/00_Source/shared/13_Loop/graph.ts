@@ -20,7 +20,8 @@ export interface LoopGraphNode {
   commands: string[]
   // 통과하면 갈 노드(반복 틀의 끝은 틀 다음 노드, 마지막 노드는 null)
   next: string | null
-  onFail: { goto: string; limit: number } | null
+  // limit은 사람 게이트에서 null이다 — 사람의 반려는 USER-INPUT이라 실패로 세지 않는다
+  onFail: { goto: string; limit: number | null } | null
   when: { grade: 'strong' | 'weak' } | null
   position: GraphPosition
 }

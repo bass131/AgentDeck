@@ -280,5 +280,7 @@ describe('작업 모드 배치 CSS', () => {
     expect(work).toMatch(/\.board-alert\s*\{/)
     expect(work).toMatch(/\.board-alert\[data-level='later'\]/)
     expect(side).toMatch(/\.sb-proj-alert\[data-level='later'\]/)
+    // G5 검수 5 — 건너뛴 노드는 끝남(흐림)과 다른 꼴이다
+    expect(css('13_Loop/Graph.css')).toMatch(/\.gc-card\[data-skipped='true'\]\s*\{[^}]*dashed/)
   })
 })

@@ -126,6 +126,21 @@ describe('앱 안 알림 표시 (M10 G5)', () => {
     expect(opened).toEqual([B])
   })
 
+  // G5 검수 6 — 끄면 두 push 구독을 모두 푼다. 푼 뒤의 push는 표시도 열기도 바꾸지 않는다
+  it('구독을 끄면 알림 목록·알림 열기 push를 더 받지 않는다', async () => {
+    const opened: string[] = []
+    await start((cwd) => opened.push(cwd))
+    expect([alertHandlers.size, openHandlers.size]).toEqual([1, 1])
+    stop?.()
+    stop = null
+    expect([alertHandlers.size, openHandlers.size]).toEqual([0, 0])
+    const { useAlertStore } = await import('@renderer/13_Loop')
+    const before = useAlertStore.getState().alerts
+    await pushAlerts([LATER])
+    expect(useAlertStore.getState().alerts).toBe(before)
+    expect(opened).toEqual([])
+  })
+
   it('브리지에 알림 길이 없으면(옛 목) 조용히 아무것도 하지 않는다', async () => {
     installed.uninstall()
     installed = installWindowApi({})

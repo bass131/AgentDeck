@@ -25,7 +25,8 @@ describe('templateGraph — 템플릿을 화면용 그래프로 (M10 G5)', () =>
     ])
     const n = (id: string) => g.nodes.find((x) => x.id === id)
     expect(n('brainstorm')).toMatchObject({ kind: 'work', scope: 'milestone', role: 'main', next: 'spec-approval', onFail: null })
-    expect(n('spec-approval')).toMatchObject({ kind: 'human', onFail: { goto: 'brainstorm', limit: FAIL_LIMIT } })
+    // 사람의 반려는 USER-INPUT이라 실패로 세지 않는다 — 횟수 상한이 없다(G5 검수 2)
+    expect(n('spec-approval')).toMatchObject({ kind: 'human', onFail: { goto: 'brainstorm', limit: null } })
     expect(n('milestone-branch')).toMatchObject({ kind: 'action', role: null })
     expect(n('decompose')).toMatchObject({ kind: 'work', role: 'worker', next: 'goal-branch' })
     expect(n('checks')).toMatchObject({

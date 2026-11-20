@@ -101,6 +101,20 @@ describe('알림 판정자 (M10 G5)', () => {
     expect(n.list()).toHaveLength(1)
   })
 
+  // G5 검수 6 — 열기 실패(open-failed)도 닫기처럼 풀림이 아니다. 그 자체로 알리지 않고 표시를 내리며, 다시 연 같은 멈춤을 또 알리지 않는다
+  it('열기 실패는 사건이 아니고 풀림도 아니다 — 표시는 내리고 열쇠는 남긴다', async () => {
+    const n = make()
+    await n.observe(halted())
+    await n.observe(st({ phase: 'open-failed', node: null, reason: '원격이 없다' }))
+    expect(n.list()).toEqual([])
+    expect(changes.at(-1)?.alerts).toEqual([])
+    expect(shown).toHaveLength(1)
+    await make().observe(halted())
+    expect(shown).toHaveLength(1)
+    await make().observe(st({ phase: 'open-failed', node: null, reason: '원격이 없다' }, OTHER))
+    expect(shown).toHaveLength(1)
+  })
+
   it('작업 폴더마다 따로 센다 — 경로 표기가 달라도 같은 폴더다', async () => {
     const n = make()
     await n.observe(halted())

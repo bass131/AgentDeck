@@ -166,6 +166,27 @@ describe('모델 게이트의 입력과 트리 해시 묶기', () => {
     expect(out.state?.lines.filter((l) => l.marker === 'FAIL')).toEqual([])
   })
 
+  // G5 검수 4 — 사람이 읽는 판정 문장은 목표·실패 어휘다(브랜치 이름은 그대로)
+  it('diff를 만들지 못하면 검수를 열지 않는 실패이고, 그 문장은 「목표 시작」이다', async () => {
+    const ctx = setup()
+    await until(ctx, 'G1/review')
+    ctx.rig.git.reviewMissing = true
+    const out = await ctx.runner.step()
+    const last = out.state?.lines.at(-1)
+    expect(last?.marker).toBe('FAIL')
+    expect(last?.sentence).toContain('목표 시작')
+    expect(last?.sentence).not.toMatch(/(?<![\w/-])goal(?![\w/-])/)
+    expect(ctx.rig.review.calls).toEqual([])
+  })
+
+  it('분해 노드의 통과 문장은 「목표 N개로 나눴다」다', async () => {
+    const ctx = setup()
+    await until(ctx, 'decompose')
+    const out = await ctx.runner.step()
+    expect(out.kind).toBe('advanced')
+    expect(out.kind === 'advanced' ? out.verdict?.evidence : null).toMatch(/^목표 \d+개로 나눴다 — /)
+  })
+
   // G4 검수 중요 I8 — 트리를 대조한 SHA 하나를 push한다. 대조와 push 사이에 로컬 브랜치가 움직여도 그 커밋은 원격에 가지 않는다
   it('goal PR은 트리를 대조한 그 SHA를 push한다 — 대조 뒤 로컬 브랜치에 얹힌 커밋은 올리지 않는다', async () => {
     const ctx = setup()

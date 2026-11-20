@@ -58,6 +58,7 @@ button.gc-tool:hover { color: var(--text); border-color: var(--line-strong); }
 .gc-card[data-kind='model'] { --c: var(--blue); }
 .gc-card[data-kind='human'] { --c: var(--yellow); }
 .gc-card[data-done='true'] { opacity: 0.6; }
+.gc-card[data-skipped='true'] { border-style: dashed; background: transparent; box-shadow: none; color: var(--text-3); }
 .gc-card[data-now='true'] { border-color: var(--blue); box-shadow: inset 4px 0 0 var(--c), 0 0 0 4px var(--blue-soft); }
 .gc-card[data-selected='true'] { border-color: var(--accent); box-shadow: inset 4px 0 0 var(--c), 0 0 0 3px var(--accent-soft); }
 .gc-card:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }

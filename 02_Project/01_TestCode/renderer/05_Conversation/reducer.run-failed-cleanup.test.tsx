@@ -124,18 +124,4 @@ describe('패널 usePanelSlot — agentRun reject 시 isRunning 롤백 + 에러 
     expect(result.current.state.isRunning).toBe(false)
     expect(mockApi.agentAbort).not.toHaveBeenCalled()
   })
-
-  it('usePanelSlot(매니저 승격 경로, performManagedSend) — agentRun reject → isRunning false + errorMessage', async () => {
-    agentRunShouldFail = true
-    const { usePanelSlot } = await import('@renderer/03_Agent/state/panelSession')
-    const { result } = renderHook(() => usePanelSlot('sess-run-failed', 0))
-
-    await act(async () => {
-      await result.current.send('안녕')
-    })
-
-    expect(result.current.state.isRunning).toBe(false)
-    expect(result.current.state.currentRunId).toBeNull()
-    expect(result.current.state.errorMessage).toBeTruthy()
-  })
 })

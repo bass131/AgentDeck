@@ -14,13 +14,13 @@
 export { Conversation } from './Conversation'
 export type { InjectedInput, ConversationProps } from './Conversation'
 
-export { NoticeItem, ThinkingItem } from './Conversation'
-export type { NoticeItemProps, ThinkingItemProps, NoticeTone } from './Conversation'
+export { NoticeItem, ThinkingItem } from './ThreadView'
+export type { NoticeItemProps, ThinkingItemProps, NoticeTone } from './ThreadView'
 export {
   informationalTone,
   informationalDisplayText,
   permissionDeniedDisplayText,
-} from './Conversation'
+} from './ThreadView'
 
 export { MessageBubble } from './MessageBubble'
 export type { MessageBubbleProps } from './MessageBubble'

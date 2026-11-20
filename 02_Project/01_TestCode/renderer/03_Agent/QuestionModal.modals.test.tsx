@@ -300,7 +300,6 @@ describe('QuestionModal — 화면 층', () => {
       ['08_Git/GitModal.css', '.gitm-overlay'],
       ['07_Workspace/file/FileModal.css', '.fv-overlay'],
       ['12_Window/Sidebar.css', '.set-dialog-overlay'],
-      ['03_Agent/AgentPanel.css', '.sa-overlay'],
     ]
     for (const [rel, sel] of others) expect({ sel, z: zOf(rel, sel) < question }).toEqual({ sel, z: true })
   })

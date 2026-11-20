@@ -133,12 +133,14 @@ describe('ThreadView — 작업 폴더 공급 (M07 G8)', () => {
 })
 
 describe('항목 렌더 부품의 거처', () => {
-  it('NoticeItem·ThinkingItem은 ThreadView에 있고 Conversation은 같은 것을 재수출한다', async () => {
+  it('NoticeItem·ThinkingItem은 ThreadView에 있고 배럴이 같은 것을 내보낸다 — Conversation.tsx는 컴포넌트 아닌 값을 내보내지 않는다 (M06 Backlog 7)', async () => {
     const tv = await import('@renderer/05_Conversation/ThreadView')
+    const barrel = await import('@renderer/05_Conversation')
+    expect(barrel.NoticeItem).toBe(tv.NoticeItem)
+    expect(barrel.ThinkingItem).toBe(tv.ThinkingItem)
+    expect(barrel.permissionDeniedDisplayText).toBe(tv.permissionDeniedDisplayText)
     const conv = await import('@renderer/05_Conversation/Conversation')
-    expect(conv.NoticeItem).toBe(tv.NoticeItem)
-    expect(conv.ThinkingItem).toBe(tv.ThinkingItem)
-    expect(conv.permissionDeniedDisplayText).toBe(tv.permissionDeniedDisplayText)
+    expect(Object.keys(conv).sort()).toEqual(['Conversation', 'RestoredContextBadge', 'Welcome', 'default'])
   })
 })
 

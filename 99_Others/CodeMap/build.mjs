@@ -33,7 +33,7 @@ const gz = zlib.gzipSync(Buffer.from(JSON.stringify(sources)), { level: 9 })
 const b64 = gz.toString('base64')
 
 const html = tpl.replace(MARK, () => safe).replace(SRC_MARK, () => JSON.stringify(b64))
-fs.writeFileSync('codemap.html', html)
+fs.writeFileSync(path.join(HERE, 'codemap.html'), html)
 const kb = (n) => (n / 1024).toFixed(0) + ' KB'
 console.log(`소스 ${files.length}개 원문 ${kb(rawBytes)} → gzip ${kb(gz.length)} → base64 ${kb(b64.length)}`)
 console.log(`codemap.html 작성: ${kb(Buffer.byteLength(html))}`)

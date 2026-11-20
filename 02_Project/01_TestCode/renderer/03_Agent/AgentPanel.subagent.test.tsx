@@ -96,7 +96,7 @@ describe('Phase 24b — AgentPanel subagents store 연결', () => {
     expect(screen.getByText('아직 서브에이전트가 없어요')).toBeTruthy()
   })
 
-  it('SubAgent 카드 클릭 → SubAgentModal 오픈(에이전트 이름 표시)', async () => {
+  it('SubAgent 카드 클릭 → 서브에이전트 대화 보기가 열린다(에이전트 이름 표시)', async () => {
     const subs: SubAgentInfo[] = [
       { id: 'sa-modal', name: '모달 테스트 에이전트', role: 'r', status: 'running', tools: [] },
     ]

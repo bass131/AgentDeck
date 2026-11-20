@@ -62,17 +62,6 @@ import { useQueuedSend } from './hooks/useQueuedSend'
 import { isScrolledUp } from '@renderer/02_Common/scrollHelpers'
 import './Conversation.css'
 
-// 항목 렌더 부품은 공용 스레드 렌더(ThreadView)로 옮겼다 — 기존 소비처를 위해 같은 것을 재수출한다.
-export {
-  ThinkingItem,
-  NoticeItem,
-  informationalTone,
-  informationalDisplayText,
-  decisionReasonTypeLabel,
-  permissionDeniedDisplayText,
-} from './ThreadView'
-export type { ThinkingItemProps, NoticeTone, NoticeItemProps } from './ThreadView'
-
 const SUGGESTIONS: { Icon: (p: IconProps) => JSX.Element; label: string }[] = [
   { Icon: IconEye, label: '이 프로젝트의 구조를 설명해줘' },
   { Icon: IconSearch, label: '버그를 찾아서 고쳐줘' },

@@ -5,7 +5,6 @@ import { readFileSync, readdirSync, statSync } from 'fs'
 import { join, relative, resolve } from 'path'
 import { render, renderHook, act, cleanup } from '@testing-library/react'
 import { convKey, panelKey } from '@renderer/03_Agent/state/sessionKeys'
-import type { FolderSwitchMessage } from '@renderer/07_Workspace/file'
 import { adaptFlatApi } from '../00_Helpers/windowApiMock'
 
 // G9c — 단일·멀티 분기를 화면 배치(12_Window) 밖에서 키·포트로 옮겼다. 값은 그대로다(P4 포함).
@@ -188,25 +187,6 @@ describe('G9c PanelView — UltraCode 범위는 세션이 돌려준 키를 쓴�
     const noKey = await renderPanel()
     act(() => { btn(noKey.container).click() })
     expect(renderHook(() => useUltracodeToggle(panelKey('', 1))).result.current[0]).toBe(false)
-  })
-})
-
-describe('G9c 폴더 변경 창 — 본문은 호출부가 넘긴다', () => {
-  it('message를 넘기면 그 본문을 그리고, 없으면 대화 문구를 그린다', async () => {
-    const { FolderSwitchDialog } = await import('@renderer/07_Workspace/file')
-    const custom = render(
-      <FolderSwitchDialog from="/a/x" to="/b/y" onCancel={() => {}} onConfirm={() => {}} message={({ to }) => <>패널 {to}</>} />
-    )
-    expect(custom.container.querySelector('.sd-msg')?.textContent).toBe('패널 y')
-    custom.unmount()
-    const names = vi.fn<FolderSwitchMessage>(() => null)
-    const probe = render(<FolderSwitchDialog from="C:\\a\\from-dir" to="/b/to-dir/" onCancel={() => {}} onConfirm={() => {}} message={names} />)
-    expect(names).toHaveBeenCalledWith({ from: 'from-dir', to: 'to-dir' })
-    probe.unmount()
-    const dflt = render(<FolderSwitchDialog from="/a/x" to="/b/y" onCancel={() => {}} onConfirm={() => {}} />)
-    expect(dflt.container.querySelector('.sd-msg')?.textContent).toBe(
-      '대화는 폴더 단위로 이어지기 때문에 x → y(으)로 바꾸면 현재 대화 내용이 지워지고 새 대화로 시작됩니다.'
-    )
   })
 })
 

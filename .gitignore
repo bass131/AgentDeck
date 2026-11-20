@@ -52,6 +52,8 @@ playwright-report/
 # 시각 검증 스크린샷 산출물 (재생성 가능 — 커밋 X). 루트 한정 —
 # 00_Documents/Artifacts(마일스톤 검증 증거, 재생성 불가)는 커밋 대상 (영호 2026-07-14)
 /artifacts/
+# 옛 e2e 하네스의 SHOT_DIR(`01_Phases/<작업>/ScreenShot`) — 폴더 자체가 산출물 자리다 (M05 Backlog 27)
+/01_Phases/
 
 # CodeGraph 인덱스 (로컬 캐시 — init 2.9s로 재생성 가능, 머신별 로컬)
 .codegraph/

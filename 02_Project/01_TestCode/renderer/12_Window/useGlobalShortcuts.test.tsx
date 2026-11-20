@@ -141,7 +141,8 @@ describe('Shell의 Esc 배선 (M11 G4 24)', () => {
     const files = (readdirSync(SRC, { recursive: true }) as string[]).filter((f) => f.endsWith('.tsx'))
     const overlay = /className=[{"'`][^>\n]*?\b[a-z0-9]+(?:-[a-z0-9]+)*-overlay\b/
     const drawers = files.filter((f) => overlay.test(readFileSync(resolve(SRC, f), 'utf8')))
-    expect(drawers.length).toBeGreaterThanOrEqual(16)
+    // M11 G6: 16 → 15. 앱 호출부가 없던 FolderSwitchDialog를 지웠다(M10 Backlog 3).
+    expect(drawers.length).toBeGreaterThanOrEqual(15)
     const missing = drawers.filter((f) => !/useModalLayer\(/.test(readFileSync(resolve(SRC, f), 'utf8')))
     expect(missing).toEqual([])
     const ownEsc = drawers.flatMap((f) => readFileSync(resolve(SRC, f), 'utf8').split('\n')

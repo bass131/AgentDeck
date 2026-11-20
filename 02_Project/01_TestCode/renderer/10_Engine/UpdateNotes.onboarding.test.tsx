@@ -99,6 +99,11 @@ describe('WhatsNew — open=true', () => {
     expect(container.textContent).toContain(WN_SLIDES[1].title)
   })
 
+  it('[M10 Backlog 2] 지운 멀티 에이전트 모드를 소개하지 않는다', () => {
+    const text = WN_SLIDES.map((s) => [s.chip, s.accent, s.title, s.titleMuted, s.desc].join(' ')).join('\n')
+    expect(text).not.toMatch(/멀티|패널|in parallel/)
+  })
+
   it('마지막 슬라이드 CTA = "시작하기" → onClose 호출', () => {
     const onClose = vi.fn()
     const { container } = renderWN(onClose)

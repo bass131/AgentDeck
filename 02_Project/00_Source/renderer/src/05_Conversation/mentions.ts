@@ -1,9 +1,3 @@
-export interface MentionToken {
-  query: string
-  start: number
-  end: number
-}
-
 export function extractMentions(text: string): string[] {
   const re = /(?:^|\s)@([^\s@]+)/g
   const out: string[] = []

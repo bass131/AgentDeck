@@ -174,6 +174,12 @@ describe('loop IPC 핸들러 (M09 G4)', () => {
     expect(calls).toEqual([['listDir', CWD, 'src']])
   })
 
+  it('[M11-G4 M10-16] 구동자가 막힘(ok 거짓)으로 답하면 그대로 화면에 넘긴다(빈 목록으로 바꾸지 않는다)', async () => {
+    const { driver } = fakeDriver()
+    const call = register({ ...driver, listDir: async () => ({ ok: false, entries: [] }) })
+    expect(await call(IPC_CHANNELS.LOOP_LIST_DIR, { cwd: CWD, relDir: '..' })).toEqual({ ok: false, entries: [] })
+  })
+
   it('[M11-G4 M06-29] 대리 입력 표지는 proxy가 참일 때만 구동자로 간다', async () => {
     const { driver, calls } = fakeDriver()
     const call = register(driver)

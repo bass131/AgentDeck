@@ -55,7 +55,7 @@ import type {
   LoopCancelTarget, LoopEventItem, LoopListDirResponse, LoopMainResponse, LoopSessionEventPayload, LoopSessionLog, LoopSessionTag, LoopVerificationLine, MainChatArchives, MainChatView,
 } from '@shared/13_Loop/loop'
 import type { LoopGraphResponse } from '@shared/13_Loop/graph'
-import { listDir as listWorkDir } from '@main/07_Workspace/workspace'
+import { listDir as listWorkDir, resolveSafe } from '@main/07_Workspace/workspace'
 import { loadBundledTemplate } from './bundledTemplate'
 import type { NextStep } from './executor'
 import { templateGraph } from './templateGraph'
@@ -711,14 +711,24 @@ export function createLoopDriver(opts: LoopDriverOptions): LoopDriver {
   }
 
   return {
-    open(req) {
-      rememberOpen(req.cwd, true)
-      return serialOpen(req.cwd, () => openNow(req))
+    async open(req) {
+      const s = await serialOpen(req.cwd, () => openNow(req))
+      // 다시 열 목록에는 열린 실행기만 남긴다(열다 실패했거나 그사이 닫혔으면 넣지 않는다)
+      const e = entryOf(req.cwd)
+      if (e?.loop && !e.closed) rememberOpen(req.cwd, true)
+      return s
     },
 
     async reopenLast() {
       const folders = [...(await openSet).values()]
-      await Promise.all(folders.map((cwd) => (entryOf(cwd)?.loop ? undefined : serialOpen(cwd, () => openNow({ cwd })))))
+      // 줄을 서 있는 동안 사람이 닫았으면(목록에서 빠졌으면) 열지 않는다
+      const reopen = (cwd: string) => serialOpen(cwd, async () => {
+        await openWrites
+        const e = entryOf(cwd)
+        if ((await openSet).get(repoKeyOf(cwd)) !== cwd || e?.loop) return e?.status ?? blankStatus(cwd)
+        return openNow({ cwd })
+      })
+      await Promise.all(folders.map((cwd) => (entryOf(cwd)?.loop ? undefined : reopen(cwd))))
     },
 
     async start(cwd, milestoneId) {
@@ -918,7 +928,8 @@ export function createLoopDriver(opts: LoopDriverOptions): LoopDriver {
 
     async listDir(cwd, relDir) {
       const root = entryOf(cwd)?.loop?.root
-      if (!root) return { ok: false, entries: [] }
+      // 실행기가 없거나 작업 저장소 밖으로 나가는 경로는 빈 폴더가 아니라 막힘으로 답한다
+      if (!root || !resolveSafe(root, relDir || '.')) return { ok: false, entries: [] }
       return { ok: true, entries: await listWorkDir(root, relDir) }
     },
 

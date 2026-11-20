@@ -173,7 +173,8 @@ export function FileExplorer({ onOpenGit, onCollapse, source }: FileExplorerProp
     [viewing, references]
   )
 
-  const [childrenCache, setChildrenCache] = useState<Map<string, FileTreeNode[]>>(new Map())
+  // null은 목록이 막힌 폴더다(받은 목록이 ok가 아니다) — 빈 폴더와 다르게 그린다
+  const [childrenCache, setChildrenCache] = useState<Map<string, FileTreeNode[] | null>>(new Map())
 
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
 
@@ -202,7 +203,7 @@ export function FileExplorer({ onOpenGit, onCollapse, source }: FileExplorerProp
           if (relDir === '') setUnavailable(!ok)
           setChildrenCache((m) => {
             const next = new Map(m)
-            next.set(relDir, entries)
+            next.set(relDir, ok ? entries : null)
             return next
           })
         })
@@ -340,14 +341,14 @@ export function FileExplorer({ onOpenGit, onCollapse, source }: FileExplorerProp
       )
     }
 
-    if (list.length === 0) {
+    if (list === null || list.length === 0) {
       return (
         <div
           className="fe-note"
           style={{ paddingLeft: indent(depth) + 18 }}
-          key={base + '/empty'}
+          key={base + (list === null ? '/blocked' : '/empty')}
         >
-          비어 있음
+          {list === null ? '열 수 없는 폴더예요' : '비어 있음'}
         </div>
       )
     }

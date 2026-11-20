@@ -890,7 +890,8 @@ describe('작업 폴더 목록 (M11 G4)', () => {
     const top = await d.listDir(repos.work, '')
     expect(top.ok).toBe(true)
     expect(top.entries.map((e) => e.name)).toContain('README.md')
-    expect((await d.listDir(repos.work, '..')).entries).toEqual([])
+    expect(await d.listDir(repos.work, '..')).toEqual({ ok: false, entries: [] })
+    expect(await d.listDir(repos.work, path.dirname(repos.work))).toEqual({ ok: false, entries: [] })
     await d.close(repos.work)
     expect(await d.listDir(repos.work, '')).toEqual({ ok: false, entries: [] })
   })
@@ -938,5 +939,45 @@ describe('재기동 뒤 다시 열기 (M11 G4)', () => {
     expect(opened).toBe(1)
     await next.closeAll()
     expect(JSON.parse(fs.readFileSync(path.join(appData, 'open.json'), 'utf8'))).toEqual({ folders: [repos.work] })
+  })
+
+  it('[M11-G4 M09-10] 다시 열기가 줄을 서 있는 동안 사람이 닫은 루프는 다시 열지 않는다', SLOW, async () => {
+    const first = driver().d
+    await first.open({ cwd: repos.work })
+    await first.closeAll()
+    let opened = 0
+    let release!: () => void
+    const gate = new Promise<void>((res) => { release = res })
+    const { backend } = fakeBackend()
+    const next = createLoopDriver({
+      appDataDir: appData, backend, ciRetryMs: 20, humanPollMs: 20,
+      openExtras: { gh, template: TEMPLATE, executorEnv: repos.env, commandTimeoutMs: 60_000 },
+      openLoopImpl: async (o) => { if (opened++ === 0) await gate; return openLoop(o) },
+    })
+    drivers.push(next)
+    const shown = next.open({ cwd: repos.work })
+    const reopened = next.reopenLast()
+    await new Promise((res) => setTimeout(res, 50))
+    const closed = next.close(repos.work)
+    release()
+    await Promise.all([shown, reopened, closed])
+    await next.closeAll()
+    expect(opened).toBe(1)
+    expect(next.status(repos.work).phase).toBe('closed')
+    expect(JSON.parse(fs.readFileSync(path.join(appData, 'open.json'), 'utf8'))).toEqual({ folders: [] })
+  })
+
+  it('[M11-G4 M09-10] 열기에 실패한 폴더는 다시 열 목록에 남기지 않는다', SLOW, async () => {
+    const { backend } = fakeBackend()
+    const d = createLoopDriver({
+      appDataDir: appData, backend, ciRetryMs: 20, humanPollMs: 20,
+      openExtras: { gh, template: TEMPLATE, executorEnv: repos.env, commandTimeoutMs: 60_000 },
+      openLoopImpl: async () => ({ ok: false, reason: '시험 — 열지 못한다' }),
+    })
+    drivers.push(d)
+    expect((await d.open({ cwd: repos.work })).phase).toBe('open-failed')
+    await d.closeAll()
+    const stored = fs.existsSync(path.join(appData, 'open.json')) ? JSON.parse(fs.readFileSync(path.join(appData, 'open.json'), 'utf8')) : { folders: [] }
+    expect(stored).toEqual({ folders: [] })
   })
 })

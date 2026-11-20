@@ -284,4 +284,18 @@ describe('받은 폴더를 그리는 탐색기 (M11 G4)', () => {
     expect(r.getByText('실행기를 열면 보여요')).toBeTruthy()
     expect(r.queryByText('비어 있음')).toBeNull()
   })
+
+  it('[M11-G4 M10-16] 하위 폴더 목록이 막히면(ok 아님) 빈 폴더와 다르게 「열 수 없는 폴더」로 보인다', async () => {
+    const { FileExplorer } = await import('@renderer/07_Workspace/file')
+    const list = vi.fn(async (relDir: string) => (relDir === ''
+      ? { ok: true, entries: [{ name: 'locked', path: 'locked', kind: 'directory' as const }, { name: 'empty', path: 'empty', kind: 'directory' as const }] }
+      : relDir === 'locked' ? { ok: false, entries: [] } : { ok: true, entries: [] }))
+    const r = await act(async () => render(<FileExplorer source={{ root: 'C:/work/loop', list, unavailable: '실행기를 열면 보여요' }} />))
+    await act(async () => { await new Promise((res) => setTimeout(res, 30)) })
+    await act(async () => { fireEvent.click(r.getByText('locked')) })
+    await act(async () => { fireEvent.click(r.getByText('empty')) })
+    await act(async () => { await new Promise((res) => setTimeout(res, 30)) })
+    expect(r.getAllByText('열 수 없는 폴더예요')).toHaveLength(1)
+    expect(r.getAllByText('비어 있음')).toHaveLength(1)
+  })
 })

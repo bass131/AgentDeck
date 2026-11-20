@@ -44,6 +44,14 @@ describe('EngineGate — authed=false (인증 안내 주 케이스)', () => {
     expect(container.querySelector('.install-card')).toBeTruthy()
   })
 
+  it('[M11-G4 22] 엔진 관문은 열려 있는 동안 모달 층에 오른다(그동안 Esc가 채팅 실행을 끊지 않는다)', async () => {
+    const { isBlockingModalOpen } = await import('@renderer/02_Common/modalStack')
+    renderAuthGate()
+    expect(isBlockingModalOpen()).toBe(true)
+    cleanup()
+    expect(isBlockingModalOpen()).toBe(false)
+  })
+
   it('ic-head 존재', () => {
     const { container } = renderAuthGate()
     expect(container.querySelector('.ic-head')).toBeTruthy()

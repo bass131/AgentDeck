@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type CSSProperties, type JSX } from 'react'
 import { IconCheck, IconSearch } from '@renderer/02_Common/icons'
 import { IconCopy } from '@renderer/02_Common/icons'
+import { useModalLayer } from '@renderer/02_Common/modalStack'
 import './SelectionToolbar.css'
 
 export interface SelectionToolbarProps {
@@ -12,6 +13,7 @@ export function SelectionToolbar({ scrollRef, onElaborate }: SelectionToolbarPro
   const barRef = useRef<HTMLDivElement>(null)
   const [pos, setPos] = useState<{ cx: number; top: number; bottom: number; text: string } | null>(null)
   const [copied, setCopied] = useState(false)
+  useModalLayer(pos !== null, undefined, 'aside')
 
   useEffect(() => {
     const container = scrollRef.current

@@ -12,14 +12,13 @@ import type { AskSelectionArgs } from '@renderer/07_Workspace'
 import { buildAskPayload } from '@renderer/07_Workspace'
 import { ImageViewer } from '@renderer/07_Workspace'
 import { UpdateNotes } from '@renderer/10_Engine'
-import { AppUpdateGate } from '@renderer/10_Engine'
 import { useWindowState } from './useWindowState'
 import { useStatusBranch } from './useStatusBranch'
 import { ipc } from '@renderer/01_Ipc'
-import { useGlobalShortcuts, globalModeSwitchFor } from './useGlobalShortcuts'
+import { useGlobalShortcuts, globalModeSwitchFor, shellEscape } from './useGlobalShortcuts'
 import { useGlobalZoomPersist, stepZoomFactor } from './useGlobalZoom'
 import { getPref, setPref } from '@renderer/11_Settings/prefs'
-import { decideStopAction } from '@renderer/03_Agent/stopAction'
+import { useModalLayer } from '@renderer/02_Common/modalStack'
 import { loadPaneWidth } from './paneResize'
 import { WhatsNew, SEEN_KEY, decideStartupModal } from '@renderer/10_Engine/whats-new'
 import { ENGINE_SEEN_KEY, decideEngineNotice } from '@renderer/10_Engine/engineUpdateTrigger'
@@ -35,7 +34,6 @@ import {
   selectRecentFiles,
   selectWorkspaceMode,
 } from '@renderer/00_App/appStore'
-import { isAnyModalOpen } from './useGlobalShortcuts'
 import './shell.css'
 
 // 단일 inject 채널 — 주입 출처(FileModal 선택질문·GitModal)와 무관하게 nonce를 하나씩 올려 Conversation에 재주입을 알린다.
@@ -78,8 +76,9 @@ export function Shell(): JSX.Element {
   const [appVersion, setAppVersion] = useState('')
   const [engineNoticeOpen, setEngineNoticeOpen] = useState(false)
   const [engineUpdate, setEngineUpdate] = useState<EngineUpdateInfo | null>(null)
-  const [appUpdateOpen, setAppUpdateOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
+  // 프로필 창은 Esc로 닫지 않는다 — 층에만 올라 그동안 Esc가 채팅 실행을 끊지 않게 한다
+  useModalLayer(profileOpen)
   // 첫 그리기 전에 저장된 작업 폴더를 읽어, 작업 모드가 빈 폴더로 한 번 그려지지 않게 한다
   useState(() => { useWorkStore.getState().hydrate(); return null })
   // 알림 목록은 모드와 상관없이 구독한다 — Windows 알림을 누르면 그 작업 폴더의 작업 모드로 연다(M10 G5)
@@ -157,16 +156,7 @@ export function Shell(): JSX.Element {
       void useAppStore.getState().openWorkspace()
     },
     onZoomIn: () => stepZoomFactor(ZOOM_FACTOR_STEP),
-    onEscape: () => {
-      if (isAnyModalOpen()) return
-      if (workspaceMode !== 'single') return
-      if (isRunning) {
-        const state = useAppStore.getState()
-        const action = decideStopAction(state.replMode, state.activeLoops, state.pendingCommand)
-        if (action === 'interrupt') void state.interruptRun()
-        else void state.abortRun()
-      }
-    },
+    onEscape: (e) => shellEscape(e, { isRunning, workspaceMode, getState: useAppStore.getState }),
     onModeSwitch: globalModeSwitchFor(workspaceMode, () => useAppStore.getState().cyclePickerMode()),
   })
 
@@ -345,12 +335,6 @@ export function Shell(): JSX.Element {
           if (engineUpdate?.latest) setPref(ENGINE_SEEN_KEY, engineUpdate.latest)
           setEngineNoticeOpen(false)
         }}
-      />
-
-      <AppUpdateGate
-        open={appUpdateOpen}
-        phase="available"
-        onClose={() => setAppUpdateOpen(false)}
       />
 
       {profileOpen && (

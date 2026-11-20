@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type JSX } from 'react'
 import { IconCheck, IconChevDown, IconClose, IconExpand, IconPencil, IconSend } from '@renderer/02_Common/icons'
+import { isBlockingModalOpen, useModalLayer } from '@renderer/02_Common/modalStack'
 import type { AgentQuestion } from './types'
 import './QuestionModal.css'
 
@@ -42,9 +43,6 @@ export interface QuestionModalProps {
 // 그래서 루프 질문 창도 app 층에 그려지고 loop 층을 뺐다. 층 prop은 다른 겹침 맥락이 생길 때를 위해 남긴다.
 export const DIALOG_LAYER = { app: 320 } as const
 
-const OTHER_MODALS =
-  '.modal-overlay, .ask-overlay, .pf-overlay, .iv-overlay, .gitm-overlay, .fv-overlay, .set-dialog-overlay, .sa-overlay, .pr-overlay, .ask-mini'
-
 export function QuestionModal({ open, questions, onAnswer, onDismiss, source, layer = DIALOG_LAYER.app }: QuestionModalProps): JSX.Element | null {
   if (!open) return null
   return (
@@ -80,6 +78,11 @@ const isTopDialog = (t: symbol): boolean => {
   if (!me) return false
   for (const [other, e] of dialogStack) if (other !== t && above(e, me)) return false
   return true
+}
+// M11 G4(설계 감사 22) — 펼친 질문 창은 모달 층에 오른다. 그 층이 Esc를 받으면 질문 창끼리의 맨 위(위 순서)를 내려둔다
+const minimizers = new Map<symbol, () => void>()
+const minimizeTopQuestion = (): void => {
+  for (const [t, minimize] of minimizers) if (isTopDialog(t)) { minimize(); return }
 }
 
 function QuestionDialog({
@@ -193,19 +196,24 @@ function QuestionDialog({
   }, [other, step])
 
   useEffect(() => {
+    minimizers.set(token, () => setMinimized(true))
+    return () => { minimizers.delete(token) }
+  }, [token])
+  useModalLayer(!minimized, minimizeTopQuestion)
+  useModalLayer(minimized, undefined, 'aside')
+
+  useEffect(() => {
     const onKey = (e: KeyboardEvent): void => {
       if (!isTopDialog(token)) return
       if (minimized) {
-        // 내려둔 질문은 다른 모달이 열려 있으면 Esc를 그 모달에 양보한다(M05 Backlog 49)
-        if (e.key === 'Escape' && document.querySelector(OTHER_MODALS) === null) {
+        // 내려둔 질문은 다른 모달이 열려 있으면 Esc를 그 모달에 양보한다(M05 Backlog 49 — M11 G4부터 모달 층으로 안다)
+        if (e.key === 'Escape' && !isBlockingModalOpen(e)) {
           onDismiss()
         }
         return
       }
-      if (e.key === 'Escape') {
-        setMinimized(true)
-        return
-      }
+      // 펼친 창의 Esc는 모달 층이 받는다(minimizeTopQuestion)
+      if (e.key === 'Escape') return
       const ae = document.activeElement as HTMLElement | null
       if (ae && (ae.tagName === 'TEXTAREA' || ae.tagName === 'INPUT' || ae.isContentEditable)) return
 

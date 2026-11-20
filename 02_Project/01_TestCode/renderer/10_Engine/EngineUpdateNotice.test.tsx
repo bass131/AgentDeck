@@ -52,6 +52,21 @@ describe('EngineUpdateNotice — prompt 단계 기본 렌더', () => {
     expect(container.querySelector('.set-dialog-overlay')).toBeTruthy()
   })
 
+  it('[M11-G4 22] 엔진 업데이트 알림은 모달 층에 오르고 Esc로 닫히지 않는다(아래 모달도 닫히지 않는다)', async () => {
+    const { isBlockingModalOpen, pushModalLayer } = await import('@renderer/02_Common/modalStack')
+    const under = vi.fn()
+    const closeUnder = pushModalLayer({ onEscape: under })
+    const onClose = vi.fn()
+    try {
+      renderNotice({ onClose })
+      expect(isBlockingModalOpen()).toBe(true)
+      fireEvent.keyDown(window, { key: 'Escape' })
+    } finally {
+      closeUnder()
+    }
+    expect([under.mock.calls.length, onClose.mock.calls.length]).toEqual([0, 0])
+  })
+
   it('set-dialog 내부 카드 렌더', () => {
     const { container } = renderNotice()
     expect(container.querySelector('.set-dialog')).toBeTruthy()

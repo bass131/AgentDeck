@@ -20,6 +20,17 @@ describe('PermissionCard — pending=null', () => {
   })
 })
 
+describe('PermissionCard — 모달 층 (M11 G4 22)', () => {
+  it('[M11-G4 22] 권한 카드는 곁 층이다 — 열린 것으로 세지만(Shell 중단을 막는다) 맨 위 모달이 되지 않는다', async () => {
+    const { PermissionCard } = await import('@renderer/10_Engine')
+    const { isAnyModalOpen, isBlockingModalOpen } = await import('@renderer/02_Common/modalStack')
+    const { rerender } = render(<PermissionCard pending={SAMPLE_PENDING} onRespond={vi.fn()} />)
+    expect([isAnyModalOpen(), isBlockingModalOpen()]).toEqual([true, false])
+    rerender(<PermissionCard pending={null} onRespond={vi.fn()} />)
+    expect(isAnyModalOpen()).toBe(false)
+  })
+})
+
 describe('PermissionCard — pending 있음: 렌더 계약', () => {
   it('.perm-card[role=group][aria-label] 렌더, role="dialog" 아님', async () => {
     const { PermissionCard } = await import('@renderer/10_Engine')

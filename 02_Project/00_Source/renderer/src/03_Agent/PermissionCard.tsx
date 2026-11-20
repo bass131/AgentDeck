@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type JSX } from 'react'
 import { IconShieldChk, IconChevDown } from '@renderer/02_Common/icons'
+import { useModalLayer } from '@renderer/02_Common/modalStack'
 import type { PendingPermission } from '@renderer/05_Conversation/state/reducer'
 import { mcpToolLabel } from './toolKind'
 import { MarkdownView } from '@renderer/05_Conversation'
@@ -80,6 +81,8 @@ export function PermissionCard({ pending, onRespond }: PermissionCardProps): JSX
   const [cmdOpen, setCmdOpen] = useState(false)
   const [tailSeen, setTailSeen] = useState(false)
   const requestId = pending?.requestId ?? null
+  // 곁 층 — 떠 있는 동안 Esc가 채팅 실행을 끊지 않지만, 다른 모달의 Esc는 가로채지 않는다(M11 G4)
+  useModalLayer(pending !== null, undefined, 'aside')
   const lastRequestIdRef = useRef<string | null>(null)
   const armedAtRef = useRef(0)
   useEffect(() => {

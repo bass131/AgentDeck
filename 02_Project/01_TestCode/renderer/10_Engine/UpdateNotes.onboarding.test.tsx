@@ -5,6 +5,7 @@ import { render, screen, fireEvent, cleanup } from '@testing-library/react'
 import { UpdateNotes } from '@renderer/10_Engine'
 import { WhatsNew, WN_SLIDES } from '@renderer/10_Engine/whats-new'
 import { UN_ITEMS } from '@renderer/10_Engine/updateNotesSampleData'
+import { isAnyModalOpen } from '@renderer/02_Common/modalStack'
 
 afterEach(() => cleanup())
 
@@ -91,6 +92,13 @@ describe('WhatsNew — open=true', () => {
     expect(onClose).toHaveBeenCalledOnce()
   })
 
+  it('[M11-G4 22] 새 소식 창은 열려 있는 동안 모달 층에 오르고, 화살표 넘기기는 그대로다', () => {
+    const { container } = renderWN()
+    expect(isAnyModalOpen()).toBe(true)
+    fireEvent.keyDown(window, { key: 'ArrowRight' })
+    expect(container.textContent).toContain(WN_SLIDES[1].title)
+  })
+
   it('마지막 슬라이드 CTA = "시작하기" → onClose 호출', () => {
     const onClose = vi.fn()
     const { container } = renderWN(onClose)
@@ -169,6 +177,15 @@ describe('UpdateNotes — open=true', () => {
     renderUN(onClose)
     fireEvent.keyDown(window, { key: 'Escape' })
     expect(onClose).toHaveBeenCalledOnce()
+  })
+
+  it('[M11-G4 22] 업데이트 노트는 열려 있는 동안만 모달 층에 오른다', () => {
+    expect(isAnyModalOpen()).toBe(false)
+    renderUN()
+    expect(isAnyModalOpen()).toBe(true)
+    cleanup()
+    render(<UpdateNotes open={false} onClose={vi.fn()} />)
+    expect(isAnyModalOpen()).toBe(false)
   })
 
   it('un-marquee 존재 (키워드 마퀴)', () => {

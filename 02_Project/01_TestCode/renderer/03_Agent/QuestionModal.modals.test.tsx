@@ -305,20 +305,57 @@ describe('QuestionModal — 화면 층', () => {
     for (const [rel, sel] of others) expect({ sel, z: zOf(rel, sel) < question }).toEqual({ sel, z: true })
   })
 
+  it('[M11-G4 22] 펼친 질문 창 위에 다른 모달이 열리면 Esc는 그 모달만 닫고 질문 창은 펼친 채 남는다', async () => {
+    const { QuestionModal } = await import('@renderer/03_Agent/prompt')
+    const { isAnyModalOpen, isBlockingModalOpen, pushModalLayer } = await import('@renderer/02_Common/modalStack')
+    render(<QuestionModal open={true} questions={SAMPLE_QS} onAnswer={vi.fn()} onDismiss={vi.fn()} />)
+    expect(isBlockingModalOpen()).toBe(true)
+    const over = vi.fn()
+    const close = pushModalLayer({ onEscape: over })
+    try {
+      await act(async () => { fireEvent.keyDown(window, { key: 'Escape' }) })
+    } finally {
+      close()
+    }
+    expect(over).toHaveBeenCalledTimes(1)
+    expect(document.querySelector('.q-mini-pill')).toBeNull()
+    await act(async () => { fireEvent.keyDown(window, { key: 'Escape' }) })
+    expect(document.querySelector('.q-mini-pill')).toBeTruthy()
+    expect([isAnyModalOpen(), isBlockingModalOpen()]).toEqual([true, false])
+  })
+
+  it('[M11-G4 22] 층이 다른 두 창에서도 Esc는 화면 맨 위 질문 창을 내려둔다', async () => {
+    const { QuestionModal } = await import('@renderer/03_Agent/prompt')
+    const CONV = [{ header: 'C', question: '대화 창 질문', options: [{ label: 'c1', description: '' }], multiSelect: false }]
+    const LOOP = [{ header: 'L', question: '루프 창 질문', options: [{ label: 'l1', description: '' }], multiSelect: false }]
+    const view = render(<QuestionModal open={true} questions={CONV} onAnswer={vi.fn()} onDismiss={vi.fn()} />)
+    view.rerender(
+      <>
+        <QuestionModal open={true} questions={CONV} onAnswer={vi.fn()} onDismiss={vi.fn()} />
+        <QuestionModal open={true} layer={60} questions={LOOP} onAnswer={vi.fn()} onDismiss={vi.fn()} />
+      </>,
+    )
+    await act(async () => { fireEvent.keyDown(window, { key: 'Escape' }) })
+    expect(document.querySelectorAll('.q-mini-pill').length).toBe(1)
+    expect(screen.getByText('루프 창 질문')).toBeTruthy()
+    await act(async () => { fireEvent.keyDown(window, { key: 'Escape' }) })
+    expect(document.querySelectorAll('.q-mini-pill').length).toBe(2)
+  })
+
   it('내려둔 질문은 다른 모달이 열려 있으면 Esc를 그 모달에 양보한다(건너뛰지 않는다)', async () => {
     const { QuestionModal } = await import('@renderer/03_Agent/prompt')
     const onDismiss = vi.fn()
     render(<QuestionModal open={true} questions={SAMPLE_QS} onAnswer={vi.fn()} onDismiss={onDismiss} />)
     await act(async () => { fireEvent.keyDown(window, { key: 'Escape' }) })
     expect(document.querySelector('.q-mini-pill')).toBeTruthy()
-    const other = document.createElement('div')
-    other.className = 'pr-overlay'
-    document.body.appendChild(other)
+    // M11 G4(설계 감사 22) — 다른 모달은 클래스가 아니라 모달 층으로 안다
+    const { pushModalLayer } = await import('@renderer/02_Common/modalStack')
+    const other = pushModalLayer()
     try {
       await act(async () => { fireEvent.keyDown(window, { key: 'Escape' }) })
       expect(onDismiss).not.toHaveBeenCalled()
     } finally {
-      other.remove()
+      other()
     }
     await act(async () => { fireEvent.keyDown(window, { key: 'Escape' }) })
     expect(onDismiss).toHaveBeenCalledTimes(1)

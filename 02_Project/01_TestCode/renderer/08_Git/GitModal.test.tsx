@@ -469,6 +469,20 @@ describe('GitModal — 기존 UI 동작 보존', () => {
     expect(onClose).toHaveBeenCalledOnce()
   })
 
+  it('[M11-G4 22] 위에 다른 모달(파일 창)이 열려 있으면 Esc는 그 모달만 닫고 Git 창은 남는다', async () => {
+    const { pushModalLayer } = await import('@renderer/02_Common/modalStack')
+    const onClose = vi.fn()
+    await renderGitModal({ onClose })
+    const closeFile = vi.fn()
+    const fileLayer = pushModalLayer({ onEscape: closeFile })
+    try {
+      await act(async () => { fireEvent.keyDown(window, { key: 'Escape' }) })
+    } finally {
+      fileLayer()
+    }
+    expect([closeFile.mock.calls.length, onClose.mock.calls.length]).toEqual([1, 0])
+  })
+
   it('오버레이 mousedown+click 시 onClose 호출', async () => {
     const onClose = vi.fn()
     const { container } = await renderGitModal({ onClose })

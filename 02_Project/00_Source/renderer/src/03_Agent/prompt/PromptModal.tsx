@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type JSX } from 'react'
 import { IconClose, IconInfo, IconSpark, IconTrash } from '@renderer/02_Common/icons'
+import { useModalLayer } from '@renderer/02_Common/modalStack'
 import './PromptModal.css'
 
 const MAX_LEN = 4000
@@ -22,13 +23,7 @@ export function PromptModal({
   const [draft, setDraft] = useState(value)
   const taRef = useRef<HTMLTextAreaElement>(null)
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent): void => {
-      if (e.key === 'Escape') onClose()
-    }
-    document.addEventListener('keydown', onKey)
-    return () => document.removeEventListener('keydown', onKey)
-  }, [onClose])
+  useModalLayer(true, onClose)
 
   useEffect(() => {
     const el = taRef.current

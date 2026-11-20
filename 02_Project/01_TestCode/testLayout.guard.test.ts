@@ -22,6 +22,10 @@ const STAY_ROOT_FILES = new Set(['smoke.test.ts', 'collection-baseline.test.ts',
 const TASK_ID_PREFIX = /^(?:[a-z]{1,5}\d+[a-z]?|fb|phase-b)-/
 // 끝에 붙은 작업 ID 13개(`-f14`·`-p5c`·`-fb2-p02`·`-bcd-e` 등). 옛 이름 13개에 맞고 새 이름에는 0개 맞는다.
 const TASK_ID_SUFFIX = /-(?:[a-z]{1,3}\d+[a-z]?)(?:-[a-z]{1,3}\d+[a-z]?)*\.test\.tsx?$|-bcd-e\.test\.tsx?$/
+// 이름 가운데의 작업 ID(`gap1.foo`, `Foo.p13-x`, `x.b1-y`) — `.`·`-`로 나눈 조각 하나가 ID 꼴이면 걸린다 (M05 Backlog 77).
+const TASK_ID_SEGMENT = /^[a-z]{1,5}\d+[a-z]?$/
+const hasTaskIdSegment = (name: string): boolean =>
+  name.replace(/\.test\.tsx?$/, '').split(/[.-]/).some((s) => TASK_ID_SEGMENT.test(s))
 // 재실측 「이름 규칙의 해석」의 모양 검사 — `<대상모듈>` 또는 `<대상모듈>.<관점-kebab>`.
 const NAME_SHAPE = /^[A-Za-z][A-Za-z0-9]*(\.[a-z0-9]+(-[a-z0-9]+)*)?\.test\.tsx?$/
 // 도메인 폴더 아래는 평평하다(재실측 1절 — 소스의 하위 폴더는 비추지 않는다).
@@ -70,6 +74,13 @@ describe('테스트 배치 가드 (M05 G12)', () => {
   it('끝에 작업 ID가 붙은 테스트 파일 이름이 0개다', () => {
     const offenders = collected.filter((rel) => TASK_ID_SUFFIX.test(baseName(rel)))
     expect(offenders, `끝 작업 ID ${offenders.length}개`).toEqual([])
+  })
+
+  it('이름 가운데에 작업 ID 조각이 있는 테스트 파일 이름이 0개다', () => {
+    expect(['gap1.foo.test.ts', 'Foo.p13-x.test.ts', 'x.b1-y.test.tsx'].filter(hasTaskIdSegment)).toHaveLength(3)
+    expect(hasTaskIdSegment('sessionRegistry.sidebar-running.test.tsx')).toBe(false)
+    const offenders = collected.filter((rel) => hasTaskIdSegment(baseName(rel)))
+    expect(offenders, `가운데 작업 ID ${offenders.length}개`).toEqual([])
   })
 
   it('제자리 밖의 테스트는 모두 소스에 있는 <프로세스>/NN_Domain/ 바로 아래에 있다', () => {

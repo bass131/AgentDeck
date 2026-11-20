@@ -1,5 +1,14 @@
 // 작업 ID: gap1-p13 · 옛 이름 gap1-p13-set-mode-handler.test.ts
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
+
+const h = vi.hoisted(() => ({ handlers: new Map<string, (...args: unknown[]) => unknown>() }))
+vi.mock('electron', () => ({
+  ipcMain: { handle: (ch: string, fn: (...a: unknown[]) => unknown): void => { h.handlers.set(ch, fn) } },
+}))
+vi.mock('@main/00_App/registry', () => ({ getBackend: (): unknown => ({}) }))
+
+import { registerAgentHandlers } from '@main/01_Ipc/handlers/agent'
+import { IPC_CHANNELS } from '@shared/ipcContract'
 import { createRunManager } from '@main/03_Agent/agentRuns'
 import type { RunManager } from '@main/03_Agent/agentRuns'
 import type { AgentBackend, AgentRun } from '@main/03_Agent/AgentBackend'
@@ -115,14 +124,11 @@ interface SetModeDelegate {
 }
 
 function handleSetMode(req: SetModeInput, manager: SetModeDelegate): { ok: boolean } {
-  if (!req?.runId || typeof req.runId !== 'string' || req.runId.trim() === '') {
-    return { ok: false }
-  }
-  if (typeof req.mode !== 'string' || !(LIVE_MODE_WHITELIST as readonly string[]).includes(req.mode)) {
-    return { ok: false }
-  }
-  const accepted = manager.setMode?.(req.runId, req.mode) === true
-  return { ok: accepted }
+  h.handlers.clear()
+  registerAgentHandlers({ state: { win: null }, runManager: manager as unknown as RunManager })
+  const handler = h.handlers.get(IPC_CHANNELS.AGENT_SET_MODE)
+  if (!handler) throw new Error('AGENT_SET_MODE 핸들러가 등록되지 않았다')
+  return handler({} as never, req) as { ok: boolean }
 }
 
 function makeRecordingDelegate(ret: boolean): {

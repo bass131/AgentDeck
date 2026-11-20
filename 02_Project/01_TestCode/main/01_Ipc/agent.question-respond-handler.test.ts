@@ -129,6 +129,12 @@ describe('QUESTION_RESPOND 핸들러 입력 검증', () => {
     })
   })
 
+  it('요청 본문이 null이면 위임 없이 ok:false를 반환한다', () => {
+    const { manager, calls } = makeFakeRunManager(true)
+    expect(handleQuestionRespond(null as unknown as QuestionResponseInput, manager)).toEqual({ ok: false })
+    expect(calls).toHaveLength(0)
+  })
+
   describe('answers 검증', () => {
     it('answers가 null이면 통과한다(사용자 dismiss)', () => {
       const { manager, calls } = makeFakeRunManager(true)

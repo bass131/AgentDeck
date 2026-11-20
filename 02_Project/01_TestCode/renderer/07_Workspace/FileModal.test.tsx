@@ -304,6 +304,48 @@ describe('FileModal — 최대화/복원 토글 (F15)', () => {
   })
 })
 
+describe('FileModal — 본문 갈래와 읽기전용 배지 (M05 Backlog 19)', () => {
+  async function renderWith(over: Record<string, unknown>) {
+    useAppStore.setState({
+      openedFile: '/path/test.ts', openedContent: null, openedStatus: 'ready', openedViewer: 'code',
+      openedLanguage: 'typescript', openedRootId: null, openedDataUrl: null, diffFilePath: null,
+      ...over,
+    } as Parameters<typeof useAppStore.setState>[0])
+    const { FileModal } = await import('@renderer/07_Workspace/file')
+    return (await act(async () => render(<FileModal />))).container
+  }
+
+  it('레퍼런스 루트의 파일이면 읽기전용 배지가 보이고, 작업 폴더 파일이면 없다', async () => {
+    const ref = await renderWith({ openedRootId: 'ref-1', openedContent: 'x' })
+    expect(ref.querySelector('.cvp-readonly-badge')?.textContent).toBe('읽기전용')
+    cleanup()
+    const own = await renderWith({ openedContent: 'x' })
+    expect(own.querySelector('.cvp-readonly-badge')).toBeNull()
+  })
+
+  it.each([
+    ['too-large', '너무 큰 파일입니다 (1MB 초과)'],
+    ['binary-skipped', '바이너리 파일은 텍스트 뷰어로 볼 수 없습니다'],
+    ['not-found', '파일을 찾을 수 없습니다'],
+  ])('상태 %s는 코드 뷰어 대신 안내를 보인다', async (status, text) => {
+    const c = await renderWith({ openedStatus: status })
+    expect(c.querySelector('.fv-empty')?.textContent).toBe(text)
+    expect(c.querySelector('.cm-editor')).toBeNull()
+  })
+
+  it('markdown 뷰어는 내용이 없으면 불러올 수 없다고 하고, 배지는 갈래와 무관하게 붙는다', async () => {
+    const c = await renderWith({ openedFile: '/path/a.md', openedViewer: 'markdown', openedRootId: 'ref-1' })
+    expect(c.querySelector('.fv-empty')?.textContent).toBe('내용을 불러올 수 없습니다')
+    expect(c.querySelector('.cvp-readonly-badge')).toBeTruthy()
+  })
+
+  it('image 뷰어는 이미지 미리보기를 그린다', async () => {
+    const c = await renderWith({ openedFile: '/path/a.png', openedViewer: 'image', openedDataUrl: 'data:image/png;base64,AA==' })
+    expect(c.querySelector('.image-preview')).toBeTruthy()
+    expect(c.querySelector('.cm-editor')).toBeNull()
+  })
+})
+
 describe('Shell 재구성 — 탭 제거 (F15-02)', () => {
   async function renderShell() {
     useAppStore.setState({

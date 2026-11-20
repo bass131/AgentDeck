@@ -150,7 +150,7 @@ describe('A. getDefaultQueryFn() — 활성 설치 버전 우선 → 번들 폴�
   })
 })
 
-describe('B. version() — getVersionState active 우선 → _resolvePackageVersion → SDK_VERSION', () => {
+describe('B. version() — getVersionState active 우선 → _resolvePackageVersion → SDK_VERSION_FALLBACK', () => {
 
   it('B1. getVersionState().active = "0.4.0" → version() = "0.4.0"', async () => {
     vi.doMock('@main/10_Engine/engineVersions', () => ({
@@ -196,7 +196,7 @@ describe('B. version() — getVersionState active 우선 → _resolvePackageVers
     expect(ver).toBe('0.3.100')
   })
 
-  it('B3. getVersionState() throw → graceful 폴백(_resolvePackageVersion 또는 SDK_VERSION)', async () => {
+  it('B3. getVersionState() throw → graceful 폴백(_resolvePackageVersion 또는 SDK_VERSION_FALLBACK)', async () => {
     vi.doMock('@main/10_Engine/engineVersions', () => ({
       loadActiveQuery: vi.fn().mockResolvedValue(null),
       getVersionState: vi.fn().mockImplementation(() => {

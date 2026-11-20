@@ -1467,6 +1467,13 @@ describe('멀티세션 영속 채널 제거 (M10 G1)', () => {
   })
 })
 
+describe('라우트 표는 채널마다 한 번만 쓴다 (M05 Backlog 56)', () => {
+  it('두 동작이 같은 채널로 가지 않는다 — 빠진 채널은 apiRoutes.ts의 타입 검사가 잡는다', () => {
+    const channels = Object.values(API_ROUTES).flatMap((g) => Object.values(g).map((r) => r.channel))
+    expect(channels.filter((c, i) => channels.indexOf(c) !== i)).toEqual([])
+  })
+})
+
 describe('SubAgentInfo.model 필드 계약 (FB2 P07)', () => {
   it('model 필드가 있는 SubAgentInfo 샘플이 타입 계약을 충족한다 (원시 모델 ID)', () => {
     const sample: import('../../../../02_Project/00_Source/shared/agentEvents').SubAgentInfo = {

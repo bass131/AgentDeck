@@ -42,8 +42,8 @@ const MIGRATED: string[] = [
   '12_Window/useGlobalZoom.ts',
 ]
 
-// `window.api`·`window?.api`·`typeof window.api.x` 모두 잡는다.
-const DIRECT = /window\s*\??\.\s*api\b/
+// `window.api`·`window?.api`·`typeof window.api.x`, 캐스트(`(window as any).api`), 대괄호(`window['api']`), 구조 분해(`const { api } = window`)를 잡는다 (M05 Backlog 56).
+const DIRECT = /window\s*\??\.\s*api\b|\(\s*window\s+as\s+[^)]*\)\s*\??\.\s*api\b|window\s*(\?\.)?\s*\[\s*['"`]api['"`]\s*\]|\{[^}=]*\bapi\b[^}=]*\}\s*=\s*window\b/
 
 // window.api를 직접 읽어도 되는 곳 — 클라이언트 자신(01_Ipc/)뿐이다.
 // 그 밖의 예외는 「파일 → 근거」로 여기에 적는다. 지금은 0개다.
@@ -77,6 +77,17 @@ describe('M05 G10 — window.api 직접 호출 0', () => {
   it('전수 검사는 옮긴 파일(G10의 32에서 M10 G1에 지운 셋을 뺀 29)을 모두 훑는다', () => {
     expect(MIGRATED).toHaveLength(29)
     for (const rel of MIGRATED) expect(files).toContain(rel)
+  })
+
+  it.each([
+    'window.api.agent', 'window?.api', '(window as any).api.x', '(window as unknown as { api: X }).api',
+    "window['api']", 'window?.["api"]', 'const { api } = window', 'const { api: a, other } = window',
+  ])('직접 사용 꼴 %s를 잡는다', (code) => {
+    expect(DIRECT.test(code)).toBe(true)
+  })
+
+  it.each(['ipc.agent.run()', 'const { api } = props', 'windowApi.x'])('직접 사용이 아닌 %s는 잡지 않는다', (code) => {
+    expect(DIRECT.test(code)).toBe(false)
   })
 
   it('클라이언트(01_Ipc)는 window.api를 읽는 유일한 거처다', () => {

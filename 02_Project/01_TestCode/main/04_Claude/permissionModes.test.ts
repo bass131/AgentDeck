@@ -100,6 +100,22 @@ describe('표를 정의하는 곳은 permissionModes.ts 하나다 (M05 G11)', ()
       expect(src).toMatch(/from '(\.\.?\/)+permissionModes'|from '@main\/04_Claude\/permissionModes'/)
     },
   )
+
+  it('main 어디에도 picker id↔SDK 모드 리터럴 쌍이 permissionModes.ts 밖에 없다 (M05 Backlog 69)', () => {
+    const PAIR = /\b(normal|bypass)['"]?\s*:\s*(\{[^}]*)?['"](default|bypassPermissions)['"]|\b(default|bypassPermissions)['"]?\s*:\s*['"](normal|bypass)['"]/
+    const files: string[] = []
+    const walk = (dir: string): void => {
+      for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+        const full = path.join(dir, e.name)
+        if (e.isDirectory()) walk(full)
+        else if (e.name.endsWith('.ts')) files.push(full)
+      }
+    }
+    walk(MAIN_DIR)
+    const own = path.join(MAIN_DIR, '04_Claude', 'permissionModes.ts')
+    expect(fs.readFileSync(own, 'utf8')).toMatch(PAIR)
+    expect(files.filter((f) => f !== own && PAIR.test(fs.readFileSync(f, 'utf8'))).map((f) => path.relative(MAIN_DIR, f))).toEqual([])
+  })
 })
 
 describe('시작 시 매핑 — buildQueryOptions (runArgs)', () => {

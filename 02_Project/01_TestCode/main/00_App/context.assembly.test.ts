@@ -208,6 +208,10 @@ describe('skills·MCP store — 같은 앱 수명에서 실행 두 번이 조립
 // M10 G1에서 멀티 에이전트 모드를 지워 startApp의 멀티 저장 경로 단계가 없어졌다(사용자 디스크의 옛 파일은 읽지 않을 뿐이다).
 describe('기동·종료 배선 — 00_App/bootstrap 한 곳 (M05 G11 4단계)', () => {
   const calls = (fn: unknown): number => vi.mocked(fn as () => unknown).mock.calls.length
+  // attachWindow는 모듈 수준 1회 가드라, 사례를 혼자 돌려도(-t) 조립된 상태에서 시작하게 한다 (M05 Backlog 69)
+  const assembled = (): void => {
+    if (!h.handlers.has(IPC_CHANNELS.WORKSPACE_OPEN)) attachWindow({ id: 0 } as never)
+  }
 
   it('startApp은 대화 저장소만, 첫 attachWindow가 store·핸들러를 한 번 조립하고, 다음 창은 win만 바꾼다', () => {
     const conv0 = calls(createConversationStore)
@@ -240,9 +244,8 @@ describe('기동·종료 배선 — 00_App/bootstrap 한 곳 (M05 G11 4단계)',
   })
 
   it('settings 배선의 현재 루트는 roots를 읽는다(workspace.open 뒤 root 없는 skill 목록)', async () => {
-    // 조립은 앞 사례에서 끝났다 — 핸들러는 그때 등록됐다
-    const open = h.handlers.get(IPC_CHANNELS.WORKSPACE_OPEN)
-    if (!open) throw new Error('앞 사례가 핸들러를 등록해야 한다')
+    assembled()
+    const open = h.handlers.get(IPC_CHANNELS.WORKSPACE_OPEN)!
     const skills = getSkillsStore()!
     const listSkills = vi.spyOn(skills, 'listSkills').mockReturnValue([])
     await open({}, { folderPath: h.userData })
@@ -253,8 +256,8 @@ describe('기동·종료 배선 — 00_App/bootstrap 한 곳 (M05 G11 4단계)',
   // M06 G4: 모델 목록 공급자도 조립 지점이 만든다. 첫 요청(앱 시작 때 renderer)에서 SDK에 묻고,
   // 엔진이 supportedModels()를 내지 않으면(이 파일의 가짜 질의) 최소 목록으로 뜬다 — 캐시는 쓰지 않는다.
   it('agent.listModels가 배선되고, 목록을 못 받으면 최소 목록(builtin)을 준다', async () => {
-    const list = h.handlers.get(IPC_CHANNELS.AGENT_LIST_MODELS)
-    if (!list) throw new Error('앞 사례가 핸들러를 등록해야 한다')
+    assembled()
+    const list = h.handlers.get(IPC_CHANNELS.AGENT_LIST_MODELS)!
     const res = (await list({})) as { source: string; models: unknown[] }
     expect(res.source).toBe('builtin')
     expect(res.models.length).toBe(4)
@@ -262,6 +265,7 @@ describe('기동·종료 배선 — 00_App/bootstrap 한 곳 (M05 G11 4단계)',
   })
 
   it('stopApp은 실행을 모두 닫고 LSP 서버를 끝내고 쥔 대화 저장소를 닫는다', () => {
+    assembled()
     startApp()
     const s = h.conversationStores.at(-1)!
     const closeAll = vi.spyOn(runManager, 'closeAll')
@@ -276,8 +280,8 @@ describe('기동·종료 배선 — 00_App/bootstrap 한 곳 (M05 G11 4단계)',
 
   // M09 G4: 루프 구동자는 조립 지점이 만들고 stopApp이 닫는다(기다리지 않는다). 닫은 뒤 상태는 빈 한 장이다.
   it('loop.status는 조립된 구동자를 읽는다 — 열린 실행기가 없으면 closed', async () => {
-    const status = h.handlers.get(IPC_CHANNELS.LOOP_STATUS)
-    if (!status) throw new Error('앞 사례가 핸들러를 등록해야 한다')
+    assembled()
+    const status = h.handlers.get(IPC_CHANNELS.LOOP_STATUS)!
     const s = (await status({}, { cwd: h.userData })) as { phase: string; cwd: string }
     expect(s.phase).toBe('closed')
     expect(callersOf(/\bcreateLoopDriver\(/).filter((r) => r !== '05_Loop/loopDriver.ts')).toEqual(['00_App/bootstrap.ts'])

@@ -79,10 +79,35 @@ function escapeRe(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
 
+// 8.3 짧은 이름(M11 G3, M07-7) — Windows는 8.3에 맞지 않는 이름에 `<앞 6글자>~<번호>` 별칭을 둔다(`AGENTD~1`).
+// 명령의 그 별칭을 원래 이름으로 펴서 같은 판정을 한다. 앞 6글자가 같은 이름이 여럿이면 어느 쪽인지 모르니 각각으로 펴 본다.
+const fits83 = (n: string): boolean => /^[^.\s]{1,8}(?:\.[^.\s]{1,3})?$/.test(n)
+const shortStem = (n: string): string =>
+  (n.includes('.') ? n.slice(0, n.lastIndexOf('.')) : n).replace(/[.\s]/g, '').replace(/[+,;=[\]]/g, '_').slice(0, 6)
+
+function expandShort(cmd: string, names: readonly string[]): string {
+  let out = cmd
+  for (const name of names) {
+    if (fits83(name)) continue
+    out = out.replace(new RegExp(`(${BEFORE})${escapeRe(shortStem(name))}~\\d+(?:\\.[a-z0-9_]{1,3})?${AFTER}`, 'g'), `$1${name}`)
+  }
+  return out
+}
+
 export function bashLockReason(command: string, userDataDir: string): string | null {
   const base = slashed(userDataDir).split('/').pop()?.toLowerCase() ?? ''
   if (!base) return null
-  const cmd = command.replace(/\\/g, '/').replace(/\/{2,}/g, '/').toLowerCase()
+  const plain = expandShort(command.replace(/\\/g, '/').replace(/\/{2,}/g, '/').toLowerCase(), TARGETS.map((t) => t.name))
+  // guard는 앱 데이터 폴더 옆에만 있다 — 그 위치가 보일 때만 guard로 펴 본다(저장소 경로 `C:/Dev/AGENTD~1/...` 오탐)
+  const asGuard = APPDATA_HINT.test(plain) ? [expandShort(plain, [`${base}${GUARD_SUFFIX}`])] : []
+  for (const cmd of new Set([plain, expandShort(plain, [base]), ...asGuard])) {
+    const r = lockReasonIn(cmd, base)
+    if (r) return r
+  }
+  return null
+}
+
+function lockReasonIn(cmd: string, base: string): string | null {
   const b = escapeRe(base)
   const reason = (what: string): string =>
     `앱 엔진·설정 경로(${what})를 건드리는 명령은 앱 세션에서 막습니다 — 엔진 교체는 앱 화면에서 하세요.`

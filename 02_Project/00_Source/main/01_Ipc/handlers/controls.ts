@@ -4,6 +4,7 @@ import { handle } from '../handle'
 import { getUserDataDir } from '@main/02_Common/userData'
 import { getVersionState } from '@main/10_Engine/engineVersions'
 import { controlsState, setControlEnabled, confirmControls } from '@main/04_Claude/permission/controlsStore'
+import { verdictCounts } from '@main/04_Claude/permission/verdictLog'
 
 // 컨트롤 패널 (M07 G5) — 노드 목록과 켜짐, controls.json 봉인 상태, 엔진 봉인 상태(G4)를 renderer에 준다.
 // 엔진 쪽은 읽기만 한다. 다시 고르기는 기존 engine.setActive 경로가 맡는다.
@@ -18,7 +19,9 @@ export function registerControlsHandlers(): void {
     } catch (err) {
       console.error('[controls] 엔진 상태를 읽지 못했다:', err)
     }
-    return { ...controlsState(userData), engine }
+    const state = controlsState(userData)
+    const counts = verdictCounts()
+    return { ...state, nodes: state.nodes.map((n) => ({ ...n, recentVerdicts: counts[n.id] ?? 0 })), engine }
   })
 
   handle(IPC_CHANNELS.CONTROLS_SET_ENABLED, (_e, req: ControlSetEnabledReq): Ack => {

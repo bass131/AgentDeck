@@ -481,7 +481,7 @@ describe('getUserDataPath() 폴백 — electron 미초기화 + override 없음 �
 })
 
 describe('installVersion() — 미리 놓인 내용 (M11 G3)', () => {
-  it.fails('[M11-G3 M07-9] npm은 미리 놓인 잠금 파일·패키지가 없는 폴더에 설치한다', async () => {
+  it('[M11-G3 M07-9] npm은 미리 놓인 잠금 파일·패키지가 없는 폴더에 설치한다', async () => {
     const { installVersion } = await import('@main/10_Engine/engineVersions')
     const ud = newUserData()
     const planted = installFixture(ud, '0.3.186', { main: 'index.mjs' })

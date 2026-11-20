@@ -172,6 +172,20 @@ describe('컨트롤 패널 (M07 G5)', () => {
     await renderView()
     expect(screen.queryByRole('alert')).toBeNull()
   })
+
+  // M11 G3 — M07 Backlog 13. 노드마다 메모리에 남은 최근 판정 수를 보인다
+  it('[M11-G3 M07-13] 노드 줄에 「최근 판정」 수를 보인다', async () => {
+    api.getControlsState.mockResolvedValue(state({
+      nodes: [
+        node({ id: 'mode-auto-bypass-allow', name: '자동 모드는 허용', recentVerdicts: 3 }),
+        node({ id: 'merge-deny', name: '병합 거부', recentVerdicts: 0 }),
+      ],
+    }))
+    await renderView()
+    const rows = document.querySelectorAll('.ctl-node')
+    expect(rows[0].textContent).toContain('최근 판정 3')
+    expect(rows[1].textContent).toContain('최근 판정 0')
+  })
 })
 
 describe('설정 모달의 컨트롤 메뉴 (M07 G5)', () => {

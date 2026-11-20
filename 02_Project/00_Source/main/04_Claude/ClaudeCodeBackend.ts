@@ -61,10 +61,10 @@ export class ClaudeCodeBackend implements AgentBackend {
 
   async version(): Promise<string | null> {
     try {
-      const { getVersionState } = await import('@main/10_Engine/engineVersions')
-      const { active, seal } = getVersionState()
-      // M07 G4: 봉인이 맞지 않으면 번들 엔진이 돈다 — 보이는 버전도 번들 쪽이다
-      if (seal === 'ok' && typeof active === 'string' && active.length > 0) return active
+      const { getVersionState, activeInUse } = await import('@main/10_Engine/engineVersions')
+      // M07 G4·M11 G3: 봉인이 맞지 않거나, major가 다르거나, 불러오기에 실패하면 번들 엔진이 돈다 — 보이는 버전도 번들 쪽이다
+      const active = activeInUse(getVersionState())
+      if (active) return active
     } catch {
     }
     try {

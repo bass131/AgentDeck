@@ -179,7 +179,9 @@ export async function installVersion(
     return { ok: false, error }
   }
 
+  // 버전 폴더는 비우고 시작한다 — 미리 놓인 package-lock·node_modules를 npm이 그대로 쓰면 다른 코드가 설치된다(M11 G3, M07-9)
   try {
+    await fsp.rm(dir, { recursive: true, force: true })
     await fsp.mkdir(dir, { recursive: true })
     await fsp.writeFile(
       path.join(dir, 'package.json'),
@@ -323,19 +325,37 @@ export async function loadActiveQuery(overrideUserData?: string): Promise<QueryF
   const key = sealKey(saved)
   if (sdkCache?.userData === userData && sdkCache.version === active && sdkCache.seal === key) return sdkCache.query
 
+  const failKey = `${userData}|${active}|${key}`
   try {
     const pkgDir = packageDir(userData, active)
     const pkg = JSON.parse(await fsp.readFile(path.join(pkgDir, 'package.json'), 'utf8'))
     const entry = resolveEntry(pkg)
-    if (!entry) return null
+    if (!entry) throw new Error('진입 파일 없음')
     const url = pathToFileURL(path.join(pkgDir, entry)).href
     const mod = await import(/* @vite-ignore */ url)
     loadedSeals.set(`${userData}|${active}`, key)
     const query = (mod.query ?? mod.default?.query) as QueryFn | undefined
-    if (typeof query !== 'function') return null
+    if (typeof query !== 'function') throw new Error('query 함수 없음')
     sdkCache = { userData, version: active, seal: key, query }
+    loadFailed.delete(failKey)
     return query
   } catch {
+    loadFailed.add(failKey)
     return null
   }
+}
+
+// 봉인은 맞지만 불러오기에 실패한 엔진(사용자 데이터·버전·봉인) — 그때 번들이 돈다(M11 G3, M07-12)
+const loadFailed = new Set<string>()
+
+// 실행이 실제로 쓰는 활성 엔진. 봉인이 맞고, major가 번들과 같고, 같은 봉인으로 불러오기에 실패한 적이 없을 때만. 아니면 null(번들이 돈다)
+export function activeInUse(state: EngineVersionState, overrideUserData?: string): string | null {
+  const { active, seal } = state
+  if (seal !== 'ok' || !active) return null
+  const bundledMajor = major(state.bundled)
+  if (bundledMajor !== -1 && major(active) !== -1 && major(active) !== bundledMajor) return null
+  const userData = getUserDataPath(overrideUserData)
+  const saved = readSeal(userData)
+  if (saved && loadFailed.has(`${userData}|${active}|${sealKey(saved)}`)) return null
+  return active
 }

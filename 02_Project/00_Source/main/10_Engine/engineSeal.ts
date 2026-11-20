@@ -13,10 +13,13 @@ import fs from 'node:fs'
 import fsp from 'node:fs/promises'
 import { createHash } from 'node:crypto'
 import { readInstalledSdkVersion, SDK_VERSION_FALLBACK } from './sdkVersion'
+import { writeFileAtomicSync } from '@main/05_Loop/realPorts/atomicWrite'
 import type { EngineSealStatus } from '../../shared/10_Engine/engine'
 
 const PACKAGE = '@anthropic-ai/claude-agent-sdk'
 const SEAL_FILE = 'engine-seal.json'
+// 앱 영역 안의 위쪽 node_modules. 그 위(사용자 홈 등)는 앱 밖이라 다른 프로그램이 정당하게 둘 수 있어 보지 않는다
+const UPPER_MODULES = [['engines', 'node_modules'], ['node_modules']] as const
 
 // 칸의 뜻은 shared/10_Engine/engine.ts의 EngineSealStatus 주석에 둔다 (컨트롤 패널 goal이 화면에서 읽는다)
 export type SealStatus = EngineSealStatus
@@ -66,11 +69,45 @@ function entryHash(userData: string, version: string): string {
   return fs.existsSync(entryPath) ? sha256(fs.readFileSync(entryPath)) : 'absent'
 }
 
-// 버전 폴더 전체의 파일 목록(상대 경로·크기·수정 시각) 해시.
-// CLI 바이너리(수백 MB)를 실행마다 해시하지 않으려고 목록으로 본다(G4 「하지 않을 것」).
-function row(root: string, full: string, st: fs.Stats): string {
-  return `${path.relative(root, full).replace(/\\/g, '/')}|${st.size}|${Math.floor(st.mtimeMs)}`
+// 버전 폴더 전체의 파일 목록(상대 경로·크기·내용 해시) 해시 (M11 G3, M07-11 — 크기·수정 시각은 utimes로 되돌릴 수 있다).
+// 내용 해시는 (크기·수정 시각·바뀜 시각·inode)가 같으면 이 프로세스가 앞서 읽은 값을 쓴다. 바뀜 시각(ctime)은 utimes로 되돌리지 못한다.
+// 그래서 CLI 바이너리(수백 MB)도 프로세스마다 한 번만 읽는다.
+const contentCache = new Map<string, { key: string; hash: string }>()
+const statKey = (st: fs.Stats): string => `${st.size}|${st.mtimeMs}|${st.ctimeMs}|${st.ino}`
+
+function cachedHash(full: string, st: fs.Stats): string | null {
+  const c = contentCache.get(full)
+  return c && c.key === statKey(st) ? c.hash : null
 }
+
+function contentHashSync(full: string, st: fs.Stats): string {
+  const hit = cachedHash(full, st)
+  if (hit) return hit
+  const h = createHash('sha256')
+  const fd = fs.openSync(full, 'r')
+  try {
+    const buf = Buffer.alloc(1 << 20)
+    for (let n = fs.readSync(fd, buf); n > 0; n = fs.readSync(fd, buf)) h.update(buf.subarray(0, n))
+  } finally {
+    fs.closeSync(fd)
+  }
+  const hash = h.digest('hex')
+  contentCache.set(full, { key: statKey(st), hash })
+  return hash
+}
+
+async function contentHashAsync(full: string, st: fs.Stats): Promise<string> {
+  const hit = cachedHash(full, st)
+  if (hit) return hit
+  const h = createHash('sha256')
+  for await (const chunk of fs.createReadStream(full)) h.update(chunk as Buffer)
+  const hash = h.digest('hex')
+  contentCache.set(full, { key: statKey(st), hash })
+  return hash
+}
+
+const row = (root: string, full: string, st: fs.Stats, hash: string): string =>
+  `${path.relative(root, full).replace(/\\/g, '/')}|${st.size}|${Math.floor(st.mtimeMs)}|${hash}`
 
 function manifestHashSync(root: string): string {
   const rows: string[] = []
@@ -78,26 +115,40 @@ function manifestHashSync(root: string): string {
     for (const d of fs.readdirSync(dir, { withFileTypes: true })) {
       const full = path.join(dir, d.name)
       if (d.isDirectory()) walk(full)
-      else rows.push(row(root, full, fs.statSync(full)))
+      else {
+        const st = fs.statSync(full)
+        rows.push(row(root, full, st, contentHashSync(full, st)))
+      }
     }
   }
   walk(root)
   return sha256(rows.sort().join('\n'))
 }
 
+const HASH_POOL = 8
+
 async function manifestHashAsync(root: string): Promise<string> {
-  const rows: string[] = []
+  const files: { full: string; st: fs.Stats }[] = []
   const walk = async (dir: string): Promise<void> => {
     const entries = await fsp.readdir(dir, { withFileTypes: true })
     await Promise.all(
       entries.map(async (d) => {
         const full = path.join(dir, d.name)
         if (d.isDirectory()) await walk(full)
-        else rows.push(row(root, full, await fsp.stat(full)))
+        else files.push({ full, st: await fsp.stat(full) })
       })
     )
   }
   await walk(root)
+  const rows: string[] = []
+  let next = 0
+  const worker = async (): Promise<void> => {
+    while (next < files.length) {
+      const { full, st } = files[next++]
+      rows.push(row(root, full, st, await contentHashAsync(full, st)))
+    }
+  }
+  await Promise.all(Array.from({ length: HASH_POOL }, worker))
   return sha256(rows.sort().join('\n'))
 }
 
@@ -108,7 +159,7 @@ export function computeSeal(userData: string, version: string): Seal {
 
 export function writeSeal(userData: string, seal: Seal): void {
   fs.mkdirSync(userData, { recursive: true })
-  fs.writeFileSync(sealPath(userData), JSON.stringify(seal, null, 2))
+  writeFileAtomicSync(sealPath(userData), JSON.stringify(seal, null, 2))
   lastFull.set(userData, { seal: sealKey(seal), status: 'ok' })
 }
 
@@ -160,6 +211,8 @@ function baseSeal(userData: string, active: string | null, installed: string | n
   // 고른 엔진이 없는데 봉인이 남아 있으면 설정이나 폴더가 앱 밖에서 지워진 것이다
   if (!active) return { status: hasSeal ? 'mismatch' : 'none' }
   if (installed !== active) return { status: 'mismatch' }
+  // 버전 폴더 위쪽의 node_modules는 Node가 의존을 찾으며 올라가는 길이다 — 앱이 만들지 않으니 있으면 바뀜이다(M11 G3, M07-11)
+  if (UPPER_MODULES.some((p) => fs.existsSync(path.join(userData, ...p)))) return { status: 'mismatch' }
   if (isBelowFloor(active, floorVersion(bundledSpec))) return { status: 'below-floor' }
   if (!hasSeal) return { status: 'missing' }
   const saved = readSeal(userData)

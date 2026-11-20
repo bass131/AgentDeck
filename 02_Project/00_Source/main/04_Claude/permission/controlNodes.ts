@@ -12,6 +12,14 @@
 // 민감 파일 안전 검사(suggestions: [])와 옵션 없는 호출도 여기에 걸린다 — 모르는 꼴은 허용으로 떨어지지 않는다.
 import { ENGINE_PATH_NODES } from './enginePathLock'
 import { MERGE_DENY_NODE } from './mergeDeny'
+import { recordVerdict, type VerdictResult } from './verdictLog'
+
+const VERDICT_OF: Record<Exclude<NodeDecision['kind'], 'pass'>, VerdictResult> = {
+  allow: 'allow',
+  question: 'ask',
+  card: 'ask',
+  'orchestration-denied': 'deny',
+}
 
 export interface Escalation {
   reason?: string
@@ -187,11 +195,14 @@ export function runPermissionNodes(
       d = checkDecision(node.decide(ctx))
     } catch (err) {
       // 실패 정책 「막는다」 — 판정하지 못한 호출은 허용으로 떨어지지 않는다 (G8 설계 30, 노드의 실패 정책 칸).
-      // 카드 없이 거부하므로 원인은 main 로그에만 남는다. 판정 기록 칸은 아직 없다(M07 Backlog, G5).
+      // 카드 없이 거부한다. 원인은 main 로그와 그 노드의 판정 기록(verdictLog, M11 G3)에 남는다.
       console.error(`[controls] 노드 「${node.id}」 판정 실패 — 막는다:`, err instanceof Error ? err.message : err)
-      return { kind: 'deny', nodeId: node.id, message: `컨트롤 노드 「${node.id}」가 판정하지 못해 막았습니다.` }
+      const message = `컨트롤 노드 「${node.id}」가 판정하지 못해 막았습니다.`
+      recordVerdict(node.id, ctx.toolName, ctx.input, 'deny', message)
+      return { kind: 'deny', nodeId: node.id, message }
     }
     if (d.kind === 'pass') continue
+    recordVerdict(node.id, ctx.toolName, ctx.input, VERDICT_OF[d.kind], d.kind)
     if (d.kind === 'card') return { kind: 'card', nodeId: node.id, ...(d.escalation ? { escalation: d.escalation } : {}) }
     return { kind: d.kind, nodeId: node.id }
   }

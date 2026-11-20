@@ -85,6 +85,8 @@ export interface AppState {
   apiRetry: { attempt: number; maxRetries: number; retryDelayMs: number } | null
 
   compacting: 'compacting' | 'requesting' | null
+  // SDK 자동 압축의 켜짐과 문턱(M06 Backlog 27) — 실행이 첫 턴 뒤 한 번 알린다
+  autoCompact: { enabled: boolean; thresholdTokens?: number } | null
 
   sdkSessionState: 'idle' | 'running' | 'requires_action' | null
 

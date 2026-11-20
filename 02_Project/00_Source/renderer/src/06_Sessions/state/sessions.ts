@@ -6,7 +6,8 @@ import { nextMsgId } from '@renderer/00_App/state/ids'
 import { ipc } from '@renderer/01_Ipc'
 import { rebuildThreadWithSubagents, freezePersistedSubagents } from './conversationPayload'
 import { getReplModeDefault } from '@renderer/05_Conversation/replModeDefault'
-import { DEFAULT_MODEL, conversationModeOf } from '@renderer/03_Agent/pickerOptions'
+import { conversationModeOf } from '@renderer/03_Agent/pickerOptions'
+import { defaultModelOf } from '@shared/03_Agent/models/knownModels'
 import { pruneConversationScope } from '@renderer/03_Agent/state/ultracodeToggle'
 import {
   sessionLoopDisplayRegistry,
@@ -47,6 +48,7 @@ function buildConversationRunSnapshot(state: AppStore): ConversationRunState {
     goalRun: state.goalRun,
     apiRetry: state.apiRetry,
     compacting: state.compacting,
+    autoCompact: state.autoCompact,
     sdkSessionState: state.sdkSessionState,
     hookRuns: state.hookRuns,
     errorMessage: state.errorMessage,
@@ -177,7 +179,7 @@ export const createSessionListSlice: StateCreator<AppStore, [], [], SessionListS
       goalRun: savedLoopDisplay?.goalRun ?? null,
       subagents: freezePersistedSubagents(conv.subagents),
       replMode: conv.replMode ?? getReplModeDefault(),
-      selectedModel: conv.model ?? DEFAULT_MODEL,
+      selectedModel: conv.model ?? defaultModelOf(get().modelRows),
       pickerMode: conversationModeOf(conv.mode),
     })
 

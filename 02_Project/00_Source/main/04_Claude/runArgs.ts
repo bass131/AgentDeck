@@ -25,6 +25,11 @@ function reasoningEffort(effort: string, model: string | undefined, rows: readon
   return clampEffort(row.supportedEffortLevels, requested)
 }
 
+// 실행 중 effort 전환(M06 Backlog 24)도 시작 때와 같은 규칙으로 단계를 고른다.
+export function runEffortFor(effort: string, model: string | undefined, rows: readonly ModelRow[] = currentModelRows()): EffortLevel | undefined {
+  return reasoningEffort(effort, normalizeModel(model, rows), rows)
+}
+
 export function buildQueryOptions(
   opts: {
     model?: string

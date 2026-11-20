@@ -88,12 +88,19 @@ describe('effortPickerFor — 일부 레벨만 받는 모델(합성)', () => {
   })
 })
 
+// M11 G2 — M06 Backlog 16. main의 실행 인자 검사는 목록에 없는 모델에 effort를 싣지 않는다.
+// 메뉴가 켜져 보이면 고른 값이 조용히 버려진다 — 보이는 값과 보내는 값을 맞춰 메뉴를 끈다.
 describe('effortPickerFor — 목록에 없는 모델', () => {
-  it('목록에 없는 모델은 방어적으로 활성 취급한다', () => {
+  it('목록에 없는 모델은 effort 메뉴를 끈다 — main도 effort를 보내지 않는다', () => {
     const state = effortPickerFor('claude-nova-9', 'xhigh', SDK_MODEL_ROWS)
-    expect(state.disabled).toBe(false)
+    expect(state.disabled).toBe(true)
     expect(state.options).toHaveLength(EFFORTS.length)
     expect(state.displayValue).toBe('xhigh')
+  })
+
+  it('최소 목록만 있을 때 저장된 claude-opus-5도 끈다', () => {
+    expect(effortPickerFor('claude-opus-5', 'max', FALLBACK_MODELS).disabled).toBe(true)
+    expect(effortPickerFor('opus', 'max', FALLBACK_MODELS).disabled).toBe(false)
   })
 })
 

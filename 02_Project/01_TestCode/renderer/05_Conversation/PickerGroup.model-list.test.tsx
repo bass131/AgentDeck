@@ -123,10 +123,45 @@ describe('실행 중 모델 전환 — 받는 목록 기준', () => {
     const setModel = vi.fn(async () => ({ ok: true }))
     Object.defineProperty(window, 'api', { value: adaptFlatApi({ agentSetModel: setModel }), writable: true, configurable: true })
     const { requestLiveModelSwitch } = await import('@renderer/05_Conversation/state/composer')
-    requestLiveModelSwitch('run-1', true, 'sonnet', FALLBACK_MODELS)
+    requestLiveModelSwitch('run-1', true, 'nova', SDK_MODEL_ROWS)
     expect(setModel).not.toHaveBeenCalled()
     requestLiveModelSwitch('run-1', true, 'sonnet', SDK_MODEL_ROWS)
     expect(setModel).toHaveBeenCalledWith({ runId: 'run-1', model: 'sonnet' })
+    // 최소 목록도 별칭 행을 가진다(M11 G2, M06 Backlog 16)
+    requestLiveModelSwitch('run-2', true, 'sonnet', FALLBACK_MODELS)
+    expect(setModel).toHaveBeenCalledWith({ runId: 'run-2', model: 'sonnet' })
+  })
+})
+
+// M11 G2 — M06 Backlog 24. effort는 세션을 만들 때 정해져 대화 중에 바뀌지 않았다.
+describe('실행 중 effort 전환', () => {
+  it('REPL 실행이 있으면 agent.setEffort로 보내고, 없거나 단계가 아니면 보내지 않는다', async () => {
+    const setEffort = vi.fn(async () => ({ ok: true }))
+    Object.defineProperty(window, 'api', { value: adaptFlatApi({ agentSetEffort: setEffort }), writable: true, configurable: true })
+    const { requestLiveEffortSwitch } = await import('@renderer/05_Conversation/state/composer')
+    requestLiveEffortSwitch(null, true, 'low')
+    requestLiveEffortSwitch('run-1', false, 'low')
+    requestLiveEffortSwitch('run-1', true, 'turbo')
+    expect(setEffort).not.toHaveBeenCalled()
+    requestLiveEffortSwitch('run-1', true, 'low')
+    expect(setEffort).toHaveBeenCalledWith({ runId: 'run-1', effort: 'low' })
+  })
+
+  it('대화 입력창에서 effort를 고르면 실행 중인 REPL 세션에 보낸다', async () => {
+    const setEffort = vi.fn(async () => ({ ok: true }))
+    Object.defineProperty(window, 'api', { value: adaptFlatApi({ agentSetEffort: setEffort }), writable: true, configurable: true })
+    useAppStore.setState({ replMode: true, currentRunId: 'run-live', modelRows: [...FALLBACK_MODELS], selectedModel: DEFAULT_MODEL } as never)
+    const { Composer } = await import('@renderer/05_Conversation/Composer')
+    const { container } = render(createElement(Composer, { value: '', onChange: vi.fn(), onSend: vi.fn(), onAbort: vi.fn(), isRunning: true }))
+    const effortBtn = Array.from(container.querySelectorAll('.pick-btn')).find(
+      (b) => b.querySelector('.pick-lbl')?.textContent === 'Effort',
+    ) as HTMLButtonElement
+    fireEvent.click(effortBtn)
+    const low = Array.from(container.querySelectorAll('.po-main')).find((el) => el.textContent === '낮음') as HTMLElement
+    fireEvent.click(low)
+    expect(setEffort).toHaveBeenCalledWith({ runId: 'run-live', effort: 'low' })
+    expect(container.querySelector('.pick-btn .pick-val')).toBeTruthy()
+    useAppStore.setState({ replMode: false, currentRunId: null } as never)
   })
 })
 
@@ -142,6 +177,102 @@ describe('store — main에서 목록 받기', () => {
     await useAppStore.getState().loadModelRows()
     expect(listModels).toHaveBeenCalledTimes(1)
     expect(useAppStore.getState().modelRows).toEqual(SDK_MODEL_ROWS)
+  })
+
+  // M11 G2 — M06 Backlog 13. main이 SDK 목록을 못 받아 최소 목록·캐시를 주면, 재시작 전까지 다시 묻지 않았다.
+  it('SDK 목록이 아니면(builtin·cache) 조금 뒤 다시 묻고, sdk를 받으면 멈춘다', async () => {
+    vi.useFakeTimers()
+    try {
+      useAppStore.setState({ modelRows: [...FALLBACK_MODELS] } as never)
+      const listModels = vi.fn()
+        .mockResolvedValueOnce({ models: [...FALLBACK_MODELS], source: 'builtin' })
+        .mockResolvedValueOnce({ models: [...FALLBACK_MODELS], source: 'cache' })
+        .mockResolvedValue({ models: SDK_MODEL_ROWS, source: 'sdk' })
+      Object.defineProperty(window, 'api', {
+        value: adaptFlatApi({ agentListModels: listModels }),
+        writable: true,
+        configurable: true,
+      })
+      await useAppStore.getState().loadModelRows()
+      expect(listModels).toHaveBeenCalledTimes(1)
+      await vi.advanceTimersByTimeAsync(5_000)
+      expect(listModels).toHaveBeenCalledTimes(2)
+      await vi.advanceTimersByTimeAsync(15_000)
+      expect(listModels).toHaveBeenCalledTimes(3)
+      expect(useAppStore.getState().modelRows).toEqual(SDK_MODEL_ROWS)
+      await vi.advanceTimersByTimeAsync(600_000)
+      expect(listModels).toHaveBeenCalledTimes(3)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('다시 묻기는 세 번까지다', async () => {
+    vi.useFakeTimers()
+    try {
+      const listModels = vi.fn().mockResolvedValue({ models: [...FALLBACK_MODELS], source: 'builtin' })
+      Object.defineProperty(window, 'api', {
+        value: adaptFlatApi({ agentListModels: listModels }),
+        writable: true,
+        configurable: true,
+      })
+      await useAppStore.getState().loadModelRows()
+      await vi.advanceTimersByTimeAsync(3_600_000)
+      expect(listModels).toHaveBeenCalledTimes(4)
+      // IPC 자체가 실패해도 같은 규칙으로 다시 묻는다
+      const failing = vi.fn().mockRejectedValue(new Error('ipc down'))
+      Object.defineProperty(window, 'api', {
+        value: adaptFlatApi({ agentListModels: failing }),
+        writable: true,
+        configurable: true,
+      })
+      await useAppStore.getState().loadModelRows()
+      await vi.advanceTimersByTimeAsync(3_600_000)
+      expect(failing).toHaveBeenCalledTimes(4)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  // M11 G2 — M06 Backlog 17. 기본 모델이 손으로 적은 값에 묶여 있었다.
+  it('SDK 목록이 오면 손대지 않은 새 대화의 모델이 default 행의 정식 ID가 된다', async () => {
+    const rows = SDK_MODEL_ROWS.map((r) => (r.value === 'default' ? { ...r, resolvedModel: 'claude-fable-5-2' } : r))
+    useAppStore.setState({ modelRows: [...FALLBACK_MODELS], selectedModel: DEFAULT_MODEL, modelChosen: false, conversationId: null, thread: [] } as never)
+    Object.defineProperty(window, 'api', {
+      value: adaptFlatApi({ agentListModels: vi.fn(async () => ({ models: rows, source: 'sdk' })) }),
+      writable: true,
+      configurable: true,
+    })
+    await useAppStore.getState().loadModelRows()
+    expect(useAppStore.getState().selectedModel).toBe('claude-fable-5-2')
+  })
+
+  it('사람이 고른 모델이나 연 대화의 모델은 덮지 않는다', async () => {
+    const rows = SDK_MODEL_ROWS.map((r) => (r.value === 'default' ? { ...r, resolvedModel: 'claude-fable-5-2' } : r))
+    Object.defineProperty(window, 'api', {
+      value: adaptFlatApi({ agentListModels: vi.fn(async () => ({ models: rows, source: 'sdk' })), agentSetModel: vi.fn(async () => ({ ok: true })) }),
+      writable: true,
+      configurable: true,
+    })
+    useAppStore.setState({ modelRows: [...FALLBACK_MODELS], selectedModel: 'claude-sonnet-5-5', modelChosen: false, conversationId: null, thread: [] } as never)
+    useAppStore.getState().setSelectedModel(DEFAULT_MODEL)
+    await useAppStore.getState().loadModelRows()
+    expect(useAppStore.getState().selectedModel).toBe(DEFAULT_MODEL)
+
+    useAppStore.setState({ selectedModel: DEFAULT_MODEL, modelChosen: false, conversationId: 'cv-9', thread: [] } as never)
+    await useAppStore.getState().loadModelRows()
+    expect(useAppStore.getState().selectedModel).toBe(DEFAULT_MODEL)
+  })
+
+  // M11 G2 — M06 Backlog 18. 직전 턴이 잰 창은 그 모델의 창이다 — 모델을 바꾸면 버려서 재적재 예산이 보수 기본값으로 간다.
+  it('모델을 바꾸면 직전 턴이 잰 창(lastContextWindow)을 버린다', () => {
+    useAppStore.setState({ selectedModel: 'claude-opus-5-5', lastContextWindow: 1_000_000, currentRunId: null } as never)
+    useAppStore.getState().setSelectedModel('claude-haiku-4-5-20251001')
+    expect(useAppStore.getState().lastContextWindow).toBeUndefined()
+    // 같은 모델을 다시 고르면 그대로 둔다
+    useAppStore.setState({ lastContextWindow: 200_000 } as never)
+    useAppStore.getState().setSelectedModel('claude-haiku-4-5-20251001')
+    expect(useAppStore.getState().lastContextWindow).toBe(200_000)
   })
 
   it('IPC가 실패하면 지금 목록을 그대로 둔다', async () => {

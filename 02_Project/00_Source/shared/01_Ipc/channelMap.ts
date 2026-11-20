@@ -15,6 +15,8 @@ import type {
   SetModeResponse,
   SetModelRequest,
   SetModelResponse,
+  SetEffortRequest,
+  SetEffortResponse,
   PermissionResponse,
   QuestionResponse,
   AgentEventPayload,
@@ -147,6 +149,7 @@ export interface IpcInvokeMap {
   'agent.taskStop': { req: TaskStopRequest; res: TaskStopResponse }
   'agent.setMode': { req: SetModeRequest; res: SetModeResponse }
   'agent.setModel': { req: SetModelRequest; res: SetModelResponse }
+  'agent.setEffort': { req: SetEffortRequest; res: SetEffortResponse }
   'agent.listModels': { req: void; res: ModelListResponse }
   'agent.permissionRespond': { req: PermissionResponse; res: Ack }
   'agent.questionRespond': { req: QuestionResponse; res: Ack }

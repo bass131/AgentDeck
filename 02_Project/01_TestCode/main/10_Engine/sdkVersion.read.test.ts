@@ -41,6 +41,13 @@ describe('SDK package.json 실 읽기 (exports 제약 우회) — 회귀 가드'
     expect(typeof spec).toBe('string')
     expect(SDK_VERSION_FALLBACK).toBe(String(spec).replace(/^[\^~]/, ''))
   })
+
+  // M11 G2 — M06 Backlog 19. Dependabot은 package.json만 올린다 — 폴백을 손으로 같이 올리지 않게 의존 명세에서 읽는다.
+  test('폴백 상수를 소스에 손으로 적지 않는다(의존 명세에서 파생)', () => {
+    const src = readFileSync(join(process.cwd(), '02_Project/00_Source/main/10_Engine/sdkVersion.ts'), 'utf8')
+    expect(src).not.toMatch(/SDK_VERSION_FALLBACK\s*=\s*'\d/)
+    expect(src).toMatch(/package\.json/)
+  })
 })
 
 // M05 G11: 두 벌이던 리더를 10_Engine/sdkVersion 하나로 모았다. 두 소비처가 같은 리더를 쓰는지 소비처 쪽에서 고정한다.

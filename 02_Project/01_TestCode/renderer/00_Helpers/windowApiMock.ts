@@ -37,6 +37,7 @@ export const FLAT_ROUTES = {
   agentTaskStop: { group: 'agent', action: 'taskStop' },
   agentSetMode: { group: 'agent', action: 'setMode' },
   agentSetModel: { group: 'agent', action: 'setModel' },
+  agentSetEffort: { group: 'agent', action: 'setEffort' },
   agentListModels: { group: 'agent', action: 'listModels' },
   permissionRespond: { group: 'agent', action: 'permissionRespond' },
   questionRespond: { group: 'agent', action: 'questionRespond' },

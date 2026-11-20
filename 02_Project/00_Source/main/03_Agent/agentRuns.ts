@@ -14,6 +14,7 @@ interface ActiveRun {
   pushFn?: (content: string) => void
   setOrchestrationFn?: (value: boolean) => void
   setModelFn: (modelId: string) => void
+  setEffortFn: (effort: string) => void
 }
 
 export interface RunManager {
@@ -32,6 +33,8 @@ export interface RunManager {
   setMode(runId: string, mode: string): boolean
 
   setModel(runId: string, model: string): boolean
+
+  setEffort(runId: string, effort: string): boolean
 
   respond(runId: string, requestId: string, response: RunResponse): boolean
 
@@ -70,6 +73,8 @@ export function createRunManager(): RunManager {
         if (existing && !existing.done) {
           existing.setOrchestrationFn?.(req.orchestration === true)
           if (typeof req.model === 'string') existing.setModelFn?.(req.model)
+          // 턴 사이에 바꾼 effort도 같은 세션에 싣는다(M06 Backlog 24)
+          if (typeof req.effort === 'string') existing.setEffortFn?.(req.effort)
           const content = lastUserContent(req)
           if (content !== null) existing.pushFn?.(content)
           return existing.runId
@@ -90,6 +95,7 @@ export function createRunManager(): RunManager {
         pushFn: (content) => run.push(content),
         setOrchestrationFn: (value) => run.setOrchestration?.(value),
         setModelFn: (modelId) => run.setModel?.(modelId),
+        setEffortFn: (effort) => run.setEffort?.(effort),
         persistent: sessionKey !== null,
         done: false
       }
@@ -191,6 +197,13 @@ export function createRunManager(): RunManager {
       }
 
       activeRun.setModelFn(model)
+      return true
+    },
+
+    setEffort(runId: string, effort: string): boolean {
+      const activeRun = activeRuns.get(runId)
+      if (!activeRun || activeRun.done) return false
+      activeRun.setEffortFn(effort)
       return true
     },
 

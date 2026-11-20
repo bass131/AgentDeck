@@ -55,6 +55,7 @@ export function makeInitialState(): AppState {
     goalRun: null,
     apiRetry: null,
     compacting: null,
+    autoCompact: null,
     sdkSessionState: null,
     hookRuns: [],
   }

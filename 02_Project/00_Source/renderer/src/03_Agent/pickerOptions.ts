@@ -99,7 +99,7 @@ export interface EffortPickerState {
 }
 
 // effort 메뉴 — 목록 행의 supportedEffortLevels로 그린다. 저장값은 readEffortLevel로 읽는다(옛 「최소」는 low).
-// main의 실행 인자 검사도 같은 규칙이라 보이는 값과 보내는 값이 같다.
+// main의 실행 인자 검사도 같은 규칙이라 보이는 값과 보내는 값이 같다 — 목록에 없는 모델은 main이 effort를 싣지 않으니 메뉴도 끈다(M06 Backlog 16).
 export function effortPickerFor(
   modelId: string,
   selectedEffort: string,
@@ -108,11 +108,7 @@ export function effortPickerFor(
   const selected: EffortLevel = readEffortLevel(selectedEffort)
   const allowed = effortLevelsFor(rows, modelId)
 
-  if (allowed === undefined) {
-    return { options: EFFORTS, disabled: false, displayValue: selected }
-  }
-
-  if (allowed.length === 0) {
+  if (allowed === undefined || allowed.length === 0) {
     return { options: EFFORTS, disabled: true, displayValue: selected }
   }
 

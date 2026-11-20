@@ -5,7 +5,7 @@ import { getUserDataDir } from '@main/02_Common/userData'
 import { PERMISSION_NODES } from '../permission/controlNodes'
 import { controlsForRun, type ControlsForRun } from '../permission/controlsStore'
 import { getDefaultQueryFn, captureSupportedCommands } from '../queryFn'
-import { normalizeRunModel } from '../runArgs'
+import { normalizeRunModel, runEffortFor } from '../runArgs'
 import { LIVE_MODE_TO_SDK } from '../permissionModes'
 import { buildModelContextPrompt } from '../buildPrompt'
 import { BgTaskObserver } from './bgTaskObserver'
@@ -20,6 +20,8 @@ import type { SlashCommandInfo } from '@shared/ipcContract'
 export { IDLE_CLOSE_GRACE_MS } from './idleCloseGovernor'
 
 export const MAX_CONSECUTIVE_AUTONOMOUS_TURNS = 100
+
+const AUTO_COMPACT_ASK_MS = 2000
 
 // 엔진 경로 잠금에 넘길 userData 경로 (M07 G3). 실행마다 다시 읽는다 — 임시 --user-data-dir도 그 경로가 잠긴다.
 // Electron 밖(단위 테스트)에서는 app이 없어 던진다. 그때는 잠금 없이 열고 main 로그에 남긴다.
@@ -55,7 +57,10 @@ export class ClaudeAgentRun implements AgentRun {
     stopTask?: (taskId: string) => unknown
     setPermissionMode?: (mode: string) => unknown
     setModel?: (model: string) => unknown
+    applyFlagSettings?: (settings: { effortLevel?: string }) => unknown
+    getContextUsage?: (opts: { detail: 'summary' }) => Promise<unknown>
   } | null = null
+  private _autoCompactAsked = false
   private _interrupted = false
 
   private _queue: AgentEvent[] = []
@@ -93,6 +98,8 @@ export class ClaudeAgentRun implements AgentRun {
 
   private _currentModel: string | null
 
+  private _currentEffort: string | null
+
   private readonly _req: AgentRunInput
   private readonly _queryFn: QueryFn | null
   private readonly _skillOverridesProvider: () => Record<string, 'off'> | null
@@ -116,7 +123,8 @@ export class ClaudeAgentRun implements AgentRun {
     this._onCommandsCaptured = onCommandsCaptured
     this._currentOrchestration = req.orchestration === true
     this._currentModel = normalizeRunModel(req.model) ?? null
-    this._perm = new PermissionCoordinator((e) => this._push(e))
+    this._currentEffort = req.effort !== undefined ? runEffortFor(req.effort, req.model) ?? null : null
+    this._perm =new PermissionCoordinator((e) => this._push(e))
     this._bgTaskObserver = new BgTaskObserver((e) => this._push(e))
     this._idleGovernor = new IdleCloseGovernor({
       emit: (e) => this._push(e),
@@ -206,6 +214,25 @@ export class ClaudeAgentRun implements AgentRun {
     }
     try {
       void Promise.resolve(handle.setModel(resolved)).catch(rollback)
+    } catch {
+      rollback()
+    }
+  }
+
+  // 지속 세션의 effort 전환 (M06 Backlog 24) — 공개 타입 Query.applyFlagSettings. 지금 모델이 받는 단계로 내린다.
+  setEffort(effort: string): void {
+    if (this._req.persistent !== true) return
+    const level = runEffortFor(effort, this._currentModel ?? undefined)
+    if (level === undefined || level === this._currentEffort) return
+    const handle = this._queryHandle
+    if (!handle || typeof handle.applyFlagSettings !== 'function') return
+    const prev = this._currentEffort
+    this._currentEffort = level
+    const rollback = (): void => {
+      if (this._currentEffort === level) this._currentEffort = prev
+    }
+    try {
+      void Promise.resolve(handle.applyFlagSettings({ effortLevel: level })).catch(rollback)
     } catch {
       rollback()
     }
@@ -394,6 +421,7 @@ export class ClaudeAgentRun implements AgentRun {
           }
           if (done !== null) {
             lastDone = done
+            this._askAutoCompactOnce()
           }
         }
 
@@ -590,9 +618,28 @@ export class ClaudeAgentRun implements AgentRun {
     this._push(e)
   }
 
+  // SDK 자동 압축의 켜짐과 문턱을 첫 턴 뒤 한 번 묻는다(M06 Backlog 27). done을 기다리게 하지 않는다.
+  private _askAutoCompactOnce(): void {
+    const handle = this._queryHandle
+    if (this._autoCompactAsked || !handle || typeof handle.getContextUsage !== 'function') return
+    this._autoCompactAsked = true
+    let timer: ReturnType<typeof setTimeout> | undefined
+    const timeout = new Promise<null>((resolve) => { timer = setTimeout(() => resolve(null), AUTO_COMPACT_ASK_MS) })
+    void Promise.race([Promise.resolve().then(() => handle.getContextUsage!({ detail: 'summary' })), timeout])
+      .then((res) => {
+        const r = res as { isAutoCompactEnabled?: unknown; autoCompactThreshold?: unknown } | null
+        if (!r || typeof r.isAutoCompactEnabled !== 'boolean') return
+        const threshold = typeof r.autoCompactThreshold === 'number' && r.autoCompactThreshold > 0 ? r.autoCompactThreshold : undefined
+        this._push({ type: 'compact', kind: 'settings', autoCompactEnabled: r.isAutoCompactEnabled, ...(threshold !== undefined ? { thresholdTokens: threshold } : {}) })
+      })
+      .catch(() => {})
+      .finally(() => clearTimeout(timer))
+  }
+
   private _handleTurnBoundary(done: AgentEventDone, turnOrigin: 'user' | 'cron'): void {
     this._sendTokens.completeTurn()
     this._push({ ...done, origin: turnOrigin })
+    this._askAutoCompactOnce()
     if (this._interrupted) this._interrupted = false
 
     if (turnOrigin === 'user') {

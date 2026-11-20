@@ -6,7 +6,8 @@ import { nextMsgId } from '@renderer/00_App/state/ids'
 import { ipc } from '@renderer/01_Ipc'
 import { buildConversationSavePayload, rebuildThreadWithSubagents, freezePersistedSubagents } from './conversationPayload'
 import { getReplModeDefault } from '@renderer/05_Conversation/replModeDefault'
-import { DEFAULT_MODEL, DEFAULT_MODE_CONVERSATION, conversationModeOf } from '@renderer/03_Agent/pickerOptions'
+import { DEFAULT_MODE_CONVERSATION, conversationModeOf } from '@renderer/03_Agent/pickerOptions'
+import { defaultModelOf } from '@shared/03_Agent/models/knownModels'
 import { deleteBackgroundRun } from '@renderer/03_Agent/state/backgroundRuns'
 import { sessionLoopDisplayRegistry, unregisterConversationRunsFor } from '@renderer/03_Agent/state/loopDisplay'
 import type { AppStore } from '@renderer/00_App/state/types'
@@ -55,7 +56,7 @@ export const createConversationSlice: StateCreator<AppStore, [], [], Conversatio
       restoredSession: Boolean(conv.sessionId) && loadedMessages.length > 0,
       subagents: freezePersistedSubagents(conv.subagents),
       replMode: conv.replMode ?? getReplModeDefault(),
-      selectedModel: conv.model ?? DEFAULT_MODEL,
+      selectedModel: conv.model ?? defaultModelOf(get().modelRows),
       pickerMode: conversationModeOf(conv.mode),
     })
   },

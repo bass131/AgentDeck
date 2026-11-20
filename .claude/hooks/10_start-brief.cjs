@@ -2,7 +2,7 @@
 // 재개 프로토콜 (SessionStart) — 세션 기동 시 생존 문서 4종의 로드를 확인하고 work-pin을 재부착한다.
 // 기동 시 현재 시각 한 줄을 함께 주입한다 — 무인 세션의 시계 추정 제거 (M02 결정 대장 [USER] 2026-08-04).
 // 생존 문서 4종: Phase-Steps · work-pin · 결정 대장 · 검증 기록 (뒤 둘은 Phase-Steps 안의 절).
-// 재개는 문서로만 한다 — --resume 감지 시 경고를 주입한다 (헌법 금지 사항, SessionStart는 차단 불가).
+// 재개의 정본은 문서다 — --resume 기동이면 통과 여부를 검증 기록 줄에서 다시 읽으라는 안내를 주입한다 (헌법 2조, resume은 금지가 아니다).
 // 설계 원 기록: AgentDeck 00_Documents/05_Design_Notes/08_Clear-게이트.
 'use strict';
 const fs = require('fs');
@@ -97,7 +97,7 @@ if (!missing.length && source !== 'compact') {
   const m = goalLine.match(/병합\s*대기[\s,(·—–-]{0,6}PR\s*#?(\d{1,9})\b/) || goalLine.match(/PR\s*#?(\d{1,9})\s*(?:의\s*)?병합\s*대기/);
   if (m) {
     mergeWatchPr = Number(m[1]);
-    lines.push(`[병합 감시] 현재 goal이 PR ${mergeWatchPr}의 병합을 기다린다. 메인 세션이고 이 PR의 감시가 이미 돌고 있지 않을 때만 백그라운드로 걸어라: node 99_Others/Dashboard/wait-merge.mjs ${mergeWatchPr} — 끝나면 gh pr view로 다시 읽는다. MERGED면 종결 기록을 하고, goal PR이면 같은 마일스톤의 다음 goal로 가고 마일스톤 PR이면 거기서 멈춘다(다음 마일스톤은 열지 않는다). CLOSED면 기록 없이 사용자에게 알린다. ERROR면 아직 열려 있을 때 한 번 다시 걸고, 또 ERROR면 사용자에게 알린다 (헌법 11조).`);
+    lines.push(`[병합 감시] pin의 현재 goal 줄이 PR ${mergeWatchPr}의 병합 대기를 말한다(goal PR이든 마일스톤 PR이든 — 종류는 gh pr view로 읽는다). 메인 세션이고 이 PR의 감시가 이미 돌고 있지 않을 때만 백그라운드로 걸어라: node 99_Others/Dashboard/wait-merge.mjs ${mergeWatchPr} — 끝나면 gh pr view로 다시 읽는다. MERGED면 종결 기록을 하고, goal PR이면 같은 마일스톤의 다음 goal로 가고 마일스톤 PR이면 거기서 멈춘다(다음 마일스톤은 열지 않는다). CLOSED면 기록 없이 사용자에게 알린다. ERROR면 아직 열려 있을 때 한 번 다시 걸고, 또 ERROR면 사용자에게 알린다 (헌법 11조).`);
   }
 }
 

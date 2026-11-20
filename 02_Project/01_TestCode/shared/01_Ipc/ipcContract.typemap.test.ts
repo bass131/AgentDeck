@@ -142,6 +142,7 @@ function routeCases(): void {
   // @ts-expect-error 라우트 표가 유도한 함수도 응답 모양을 지킨다
   const badMin: RoutedApiOf<typeof okRoutes>['x']['min'] = async () => ({ maximized: true })
   void badMin
+  void okRoutes
 }
 void routeCases
 

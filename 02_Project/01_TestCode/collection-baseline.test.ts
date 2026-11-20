@@ -112,7 +112,8 @@ const SKIP_DIRS = new Set(['node_modules', 'dist', 'out', 'coverage', '.git'])
 // M11 G3: 490 → 491. git IPC 핸들러가 `-` 머리 hash를 git에 넘기지 않는지 보는 main/01_Ipc/git.hash-guard.test.ts를 더했다.
 // M11 G3: 491 → 492. 노드마다 메모리 안의 최근 판정 고리(상한·입력 가림·훅 감싸기)를 보는 main/04_Claude/verdictLog.test.ts를 더했다.
 // M11 G4: 492 → 493. 메인 대화 답 글 모으기(메인 턴과 화면이 같은 규칙을 쓴다)를 보는 shared/13_Loop/mainTurn.test.ts를 더했다.
-const BASELINE_TEST_FILES = 493
+// M11 G6: 493 → 494. 프로세스 경계 lint가 동적·타입 위치 import와 preload→main을 잡는지 위반 고정물로 보는 integration/eslintBoundary.test.ts를 더했다.
+const BASELINE_TEST_FILES = 494
 
 function collectTestFiles(dir: string, acc: string[] = []): string[] {
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {

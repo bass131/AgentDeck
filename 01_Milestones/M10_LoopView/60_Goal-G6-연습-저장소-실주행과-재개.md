@@ -52,6 +52,7 @@ DoD
 - PASS 2026-11-20T12:21+09:00 — 3단계 자격 확인(토큰 값은 출력하지 않음): 사용자가 연습 전용 fine-grained 토큰을 `%USERPROFILE%\.agentdeck-practice\gh-token.txt`에 두었고, 구동기와 같은 환경(`GH_TOKEN`, 도우미 목록 비움 뒤 `gh auth git-credential`)에서 연습 저장소는 `gh api` 읽기(push=true)·검사 결과 읽기·`ls-remote`·`push --dry-run`이 됐고, AgentDeck `push --dry-run`은 403 거부였다. 전역 gh 로그인은 원래 `gho_`(gist·read:org·repo·workflow) 그대로다. 연습 저장소 clone은 `main` `7179924c`로 맞췄다(`.agentdeck/`의 M01 끝난 실행은 그대로).
 - FAIL 2026-11-20T12:24+09:00 — 구동기가 git 자격 도우미를 env 설정(`GIT_CONFIG_COUNT`, `credential.helper` 비움 뒤 `gh auth git-credential`)으로 넣자, 앱의 실행기 열기가 「실행기 git 설정이 지난 실행이 적은 스냅숏과 다르다 — credential.helper(command line:)」로 거부했다(설계된 안전장치, 화면 풀기 없음). 시도: 전역 설정에 이미 github.com 도우미 `gh auth git-credential`이 있음을 확인하고 구동기가 `GH_TOKEN`만 넣게 줄였다(`b467e660`). 같은 환경에서 연습 저장소 `push --dry-run` 통과, AgentDeck 403을 다시 확인했다.
 - PASS 2026-11-20T12:25+09:00 — 구동기 재기동(`G5_UDD`는 M09 실주행의 앱 데이터 폴더): 실행기가 열렸고 현황판이 「시작 전」과 알림 「끝난 실행(M01) — 새 마일스톤을 시작하면 보관해요」를 보였다(2단계의 실물 확인).
+- PASS 2026-11-20T12:39+09:00 — 재개 실측: M02 시작(옛 실행이 `.agentdeck/archive/M01/`로 보관됨), 브레인스토밍 답 2, 스펙 승인 1(sha256 `5a486e54`), `milestone/M02`·목표 분해(G1 anchor 제목 검사, G2 참조형 링크 검사)·`goal/M02-G1` 뒤 G1 구현 노드 도중(12:38)에 앱을 껐다 켰다. 다시 켠 앱은 작업 모드와 메인 대화 기록(답 글·사건 줄)을 그대로 보였고, 「열기」 한 번 뒤 실행기가 `G1/implement`에서 작업 세션을 다시 띄워 이어 갔다(실패 0). 구동기의 재기동 뒤 자동 열기는 탭 누름 시간 초과로 실패해 메인이 「열기」를 눌렀다(구동기 쪽, 앱 결함 아님).
 
 ## 결정 대장
 

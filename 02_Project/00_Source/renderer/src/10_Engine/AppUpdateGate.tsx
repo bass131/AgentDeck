@@ -1,5 +1,6 @@
 import { type JSX } from 'react'
 import { IconCheck, IconAlert } from '@renderer/02_Common/icons'
+import { useModalLayer } from '@renderer/02_Common/modalStack'
 import './AppUpdateGate.css'
 
 export type AppUpdatePhase = 'available' | 'downloading' | 'downloaded' | 'error'
@@ -23,6 +24,8 @@ export function AppUpdateGate({
   log = [],
   error,
 }: AppUpdateGateProps): JSX.Element | null {
+  // 받는 중에 닫히면 안 되는 창이라 Esc 처리는 두지 않는다 — 층에만 올라 아래 모달과 Shell이 Esc를 받지 않게 한다
+  useModalLayer(open)
   if (!open) return null
 
   const statusCls =

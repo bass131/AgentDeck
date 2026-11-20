@@ -1,5 +1,6 @@
 import { memo, useState, useMemo, useEffect, useRef, useSyncExternalStore, type JSX } from 'react'
 import { sessionRegistry } from '@renderer/03_Agent/state/sessionRegistry'
+import { useModalLayer } from '@renderer/02_Common/modalStack'
 import { convKey } from '@renderer/03_Agent/state/sessionKeys'
 import {
   useAppStore,
@@ -125,14 +126,7 @@ function RecentChats({
     }
   }, [menu])
 
-  useEffect(() => {
-    if (!dialog) return
-    const onKey = (e: KeyboardEvent): void => {
-      if (e.key === 'Escape') setDialog(null)
-    }
-    document.addEventListener('keydown', onKey)
-    return () => document.removeEventListener('keydown', onKey)
-  }, [dialog])
+  useModalLayer(dialog !== null, () => setDialog(null))
 
   const openRename = (id: string): void => {
     const s = sessions.find((c) => c.id === id)
@@ -310,7 +304,6 @@ function RecentChats({
                   onFocus={(e) => e.currentTarget.select()}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') commitRename()
-                    else if (e.key === 'Escape') setDialog(null)
                   }}
                 />
                 <div className="sd-btns">

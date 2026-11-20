@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type JSX } from 'react'
 import { IconCheck, IconChevDown, IconClose, IconExpand, IconPencil, IconSend } from '@renderer/02_Common/icons'
-import { isBlockingModalOpen, useModalLayer } from '@renderer/02_Common/modalStack'
+import { useModalLayer } from '@renderer/02_Common/modalStack'
 import type { AgentQuestion } from './types'
 import './QuestionModal.css'
 
@@ -83,6 +83,10 @@ const isTopDialog = (t: symbol): boolean => {
 const minimizers = new Map<symbol, () => void>()
 const minimizeTopQuestion = (): void => {
   for (const [t, minimize] of minimizers) if (isTopDialog(t)) { minimize(); return }
+}
+const dismissers = new Map<symbol, () => void>()
+const dismissTopQuestion = (): void => {
+  for (const [t, dismiss] of dismissers) if (isTopDialog(t)) { dismiss(); return }
 }
 
 function QuestionDialog({
@@ -195,25 +199,24 @@ function QuestionDialog({
     if (other[step]) customRef.current?.focus()
   }, [other, step])
 
+  const onDismissRef = useRef(onDismiss)
+  onDismissRef.current = onDismiss
   useEffect(() => {
     minimizers.set(token, () => setMinimized(true))
     return () => { minimizers.delete(token) }
   }, [token])
+  useEffect(() => {
+    if (!minimized) return
+    dismissers.set(token, () => onDismissRef.current())
+    return () => { dismissers.delete(token) }
+  }, [token, minimized])
+  // 펼친 창은 모달 층, 내려둔 알약은 곁 층이다. 알약은 모달이나 나중에 내려간 알약이 있으면 Esc를 양보한다(M05 Backlog 49)
   useModalLayer(!minimized, minimizeTopQuestion)
-  useModalLayer(minimized, undefined, 'aside')
+  useModalLayer(minimized, dismissTopQuestion, 'aside')
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent): void => {
-      if (!isTopDialog(token)) return
-      if (minimized) {
-        // 내려둔 질문은 다른 모달이 열려 있으면 Esc를 그 모달에 양보한다(M05 Backlog 49 — M11 G4부터 모달 층으로 안다)
-        if (e.key === 'Escape' && !isBlockingModalOpen(e)) {
-          onDismiss()
-        }
-        return
-      }
-      // 펼친 창의 Esc는 모달 층이 받는다(minimizeTopQuestion)
-      if (e.key === 'Escape') return
+      if (!isTopDialog(token) || minimized || e.key === 'Escape') return
       const ae = document.activeElement as HTMLElement | null
       if (ae && (ae.tagName === 'TEXTAREA' || ae.tagName === 'INPUT' || ae.isContentEditable)) return
 

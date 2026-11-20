@@ -2,7 +2,7 @@
 // @vitest-environment jsdom
 // M11 G4(설계 감사 22) — 모달 판정은 CSS 클래스 목록이 아니라 열린 모달이 오르는 층(02_Common/modalStack)이다.
 // Esc는 맨 위 모달 하나만 받는다. 권한 카드·최소화 알약·선택 막대는 층에 오르되(Shell 중단·Shift+Tab을 막는다) 맨 위가 되지 않는다.
-import { readFileSync } from 'node:fs'
+import { readdirSync, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, renderHook, act, cleanup } from '@testing-library/react'
@@ -65,6 +65,24 @@ describe('모달 층 — 열린 모달을 한 곳이 안다 (M11 G4 22)', () => 
     expect(settings).toHaveBeenCalledTimes(1)
   })
 
+  it('[M11-G4 22] 곁 층끼리도 순서가 있다 — Esc 처리가 있는 곁 층 둘이면 나중에 오른 하나만 받는다', () => {
+    const older = vi.fn()
+    const newer = vi.fn()
+    layer({ kind: 'aside', onEscape: older })
+    layer({ kind: 'aside', onEscape: newer })
+    act(() => { document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })) })
+    expect([older.mock.calls.length, newer.mock.calls.length]).toEqual([0, 1])
+  })
+
+  it('[M11-G4 22] 모달이 열려 있으면 곁 층은 Esc를 받지 않는다(모달이 먼저다)', () => {
+    const pill = vi.fn()
+    const settings = vi.fn()
+    layer({ onEscape: settings })
+    layer({ kind: 'aside', onEscape: pill })
+    act(() => { document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })) })
+    expect([settings.mock.calls.length, pill.mock.calls.length]).toEqual([1, 0])
+  })
+
   it('[M11-G4 22] 판정은 키 한 번마다 처음 본 층으로 한다 — 앞 처리기가 층을 내려도 뒤 처리기는 열린 것으로 본다', () => {
     const close = pushModalLayer({ kind: 'aside' })
     const seen: boolean[] = []
@@ -115,22 +133,35 @@ describe('Shell의 Esc 배선 (M11 G4 24)', () => {
     expect(src).not.toMatch(/appUpdateOpen|AppUpdateGate/)
   })
 
-  // 옛 클래스 목록(MODAL_SELECTORS)에 있던 모달과 빠져 있던 전체 화면 보기가 모두 층에 오른다. sa-overlay는 그리는 컴포넌트가 없어 뺐다
-  it('[M11-G4 22] 모달 컴포넌트는 모두 useModalLayer로 층에 오르고, Esc를 받는 모달은 제 Esc 처리기를 따로 두지 않는다', () => {
+  // 손으로 적은 목록은 다음 누락을 못 잡는다(독립 검수 중요 1 — 사이드바 이름 변경·삭제 창). 화면 덮개(*-overlay)를 그리는 파일을 모두 모은다.
+  // 덮개의 Esc는 층이 준다 — 'Escape'를 직접 보는 줄은 층에 넘기려고 손을 떼는 줄(… 'Escape') return)뿐이어야 한다.
+  // 예외 하나: 사이드바의 오른쪽 클릭 메뉴는 덮개가 아닌 떠 있는 메뉴라 제 Esc로 닫는다
+  it('[M11-G4 22] 화면 덮개(*-overlay)를 그리는 renderer 파일은 모두 useModalLayer로 층에 오르고, 제 Esc 처리기를 따로 두지 않는다', () => {
     const SRC = resolve(__dirname, '../../../00_Source/renderer/src')
-    const layered: Array<[string, boolean]> = [
-      ['02_Common/Modal.tsx', true], ['02_Common/FullscreenOverlay.tsx', true], ['03_Agent/prompt/PromptModal.tsx', true],
-      ['07_Workspace/file/FileModal.tsx', true], ['08_Git/GitModal.tsx', true], ['07_Workspace/ImageViewer.tsx', true],
-      ['07_Workspace/file/FolderSwitchDialog.tsx', true], ['10_Engine/UpdateNotes.tsx', true], ['10_Engine/whats-new/WhatsNew.tsx', true],
-      ['03_Agent/prompt/AskModal.tsx', false], ['03_Agent/prompt/QuestionModal.tsx', false], ['03_Agent/PermissionCard.tsx', false],
-      ['05_Conversation/SelectionToolbar.tsx', false], ['07_Workspace/SelectionAskBar.tsx', false],
-      ['10_Engine/EngineGate.tsx', false], ['10_Engine/EngineUpdateNotice.tsx', false],
-    ]
-    for (const [rel, escOnly] of layered) {
-      const src = readFileSync(resolve(SRC, rel), 'utf8')
-      expect({ rel, layered: /useModalLayer\(/.test(src) }).toEqual({ rel, layered: true })
-      if (escOnly) expect({ rel, ownEsc: /'Escape'/.test(src) }).toEqual({ rel, ownEsc: false })
+    const files = (readdirSync(SRC, { recursive: true }) as string[]).filter((f) => f.endsWith('.tsx'))
+    const overlay = /className=[{"'`][^>\n]*?\b[a-z0-9]+(?:-[a-z0-9]+)*-overlay\b/
+    const drawers = files.filter((f) => overlay.test(readFileSync(resolve(SRC, f), 'utf8')))
+    expect(drawers.length).toBeGreaterThanOrEqual(16)
+    const missing = drawers.filter((f) => !/useModalLayer\(/.test(readFileSync(resolve(SRC, f), 'utf8')))
+    expect(missing).toEqual([])
+    const ownEsc = drawers.flatMap((f) => readFileSync(resolve(SRC, f), 'utf8').split('\n')
+      .filter((l) => l.includes("'Escape'") && !/'Escape'\) return\b/.test(l) && !/setMenu\(null\)/.test(l))
+      .map((l) => `${f}: ${l.trim()}`))
+    expect(ownEsc).toEqual([])
+  })
+
+  it('[M11-G4 22] 내려둔 알약(질문·Ask)은 곁 층의 Esc 처리로 닫힌다 — 제 창 Esc 처리기를 따로 두지 않는다', () => {
+    const SRC = resolve(__dirname, '../../../00_Source/renderer/src/03_Agent/prompt')
+    for (const f of ['AskModal.tsx', 'QuestionModal.tsx']) {
+      const src = readFileSync(resolve(SRC, f), 'utf8')
+      expect({ f, layer: /useModalLayer\(minimized, (?!undefined)/.test(src), ownEsc: /isBlockingModalOpen\(e\)/.test(src) }).toEqual({ f, layer: true, ownEsc: false })
     }
+  })
+
+  it('[M11-G4 22] 사이드바 이름 변경·삭제 창은 제 Esc 처리기 없이 모달 층으로 닫힌다', () => {
+    const src = readFileSync(resolve(__dirname, '../../../00_Source/renderer/src/12_Window/Sidebar.tsx'), 'utf8')
+    expect(src).toMatch(/useModalLayer\(dialog !== null, /)
+    expect(src).not.toMatch(/if \(e\.key === 'Escape'\) setDialog\(null\)/)
   })
 
   it('[M11-G4 22] Shell의 프로필 창(pf-overlay)도 모달 층에 오른다', () => {

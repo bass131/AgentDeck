@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type JSX } from 'react'
 import { IconShieldChk, IconChevDown } from '@renderer/02_Common/icons'
-import { useModalLayer } from '@renderer/02_Common/modalStack'
+import { isBlockingModalOpen, useModalLayer } from '@renderer/02_Common/modalStack'
 import type { PendingPermission } from '@renderer/05_Conversation/state/reducer'
 import { mcpToolLabel } from './toolKind'
 import { MarkdownView } from '@renderer/05_Conversation'
@@ -118,7 +118,7 @@ export function PermissionCard({ pending, onRespond }: PermissionCardProps): JSX
     function onKey(e: KeyboardEvent): void {
       if (e.repeat || Date.now() < armedAtRef.current) return
       if (e.key === 'Escape') {
-        onRespondRef.current('deny')
+        if (!isBlockingModalOpen(e)) onRespondRef.current('deny')
         return
       }
       const n = parseInt(e.key, 10)

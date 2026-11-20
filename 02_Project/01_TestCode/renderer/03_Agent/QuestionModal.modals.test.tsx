@@ -360,6 +360,26 @@ describe('QuestionModal — 화면 층', () => {
     await act(async () => { fireEvent.keyDown(window, { key: 'Escape' }) })
     expect(onDismiss).toHaveBeenCalledTimes(1)
   })
+
+  it('[M11-G4 22] 내려둔 질문 알약과 Ask 알약이 함께 있으면 Esc 한 번에 나중에 내려간 하나만 닫힌다(질문이 거절되지 않는다)', async () => {
+    const { QuestionModal, AskModal } = await import('@renderer/03_Agent/prompt')
+    const onDismiss = vi.fn()
+    const onClose = vi.fn()
+    const view = render(<QuestionModal open={true} questions={SAMPLE_QS} onAnswer={vi.fn()} onDismiss={onDismiss} />)
+    await act(async () => { fireEvent.keyDown(window, { key: 'Escape' }) })
+    expect(document.querySelector('.q-mini-pill')).toBeTruthy()
+    view.rerender(
+      <>
+        <QuestionModal open={true} questions={SAMPLE_QS} onAnswer={vi.fn()} onDismiss={onDismiss} />
+        <AskModal minimized={true} onClose={onClose} onMinimizedChange={vi.fn()} />
+      </>,
+    )
+    await act(async () => { fireEvent.keyDown(window, { key: 'Escape' }) })
+    expect([onClose.mock.calls.length, onDismiss.mock.calls.length]).toEqual([1, 0])
+    view.rerender(<QuestionModal open={true} questions={SAMPLE_QS} onAnswer={vi.fn()} onDismiss={onDismiss} />)
+    await act(async () => { fireEvent.keyDown(window, { key: 'Escape' }) })
+    expect(onDismiss).toHaveBeenCalledTimes(1)
+  })
 })
 
 describe('QuestionModal — open=false', () => {

@@ -408,6 +408,17 @@ describe('F8-02: rename 다이얼로그', () => {
       expect(container.querySelector('.set-dialog-overlay')).toBeFalsy()
     })
   })
+
+  it('[M11-G4 22] rename 창은 모달 층에 오른다 — 떠 있는 동안 Shell 중단·Shift+Tab이 손을 떼고, 그 아래 알약은 Esc에 닫히지 않는다', async () => {
+    const { isAnyModalOpen, isBlockingModalOpen } = await import('@renderer/02_Common/modalStack')
+    const container = await renderSidebar()
+    fireEvent.click(container.querySelector('.sb-item .more') as HTMLElement)
+    fireEvent.click(Array.from(container.querySelectorAll('.ctx-item')).find((el) => el.textContent?.includes('이름 변경')) as HTMLElement)
+    expect([isAnyModalOpen(), isBlockingModalOpen()]).toEqual([true, true])
+    fireEvent.keyDown(document, { key: 'Escape' })
+    await waitFor(() => expect(container.querySelector('.set-dialog-overlay')).toBeFalsy())
+    expect(isAnyModalOpen()).toBe(false)
+  })
 })
 
 describe('F8-02: delete 다이얼로그', () => {

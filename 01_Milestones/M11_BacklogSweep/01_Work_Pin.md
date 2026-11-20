@@ -22,7 +22,7 @@
 
 ## 마감 요약 (최신 1건 — 3줄: 바뀐 것 / 내린 결정 / 봐야 할 것)
 
-- 스탬프: 2026-11-20T21:23:52+09:00
-- 바뀐 것: goal 3이 독립 검수 반영(`734e579e`)까지 끝나 PR 110을 열었습니다(`4f3609c6`). 실측 임시 저장소 `%USERPROFILE%\.agentdeck-practice\cwdprobe\`는 가드가 지우기를 막아 남았습니다(사람 손).
-- 내린 결정: M09-11은 앞절만 고침, 엔진 봉인은 내용 해시 대신 ctime 행, `talksToHuman`은 사람과 말하는 두 곳만 모읍니다. 옛 봉인은 불일치로 읽혀 엔진을 다시 골라야 하며 결과 보고에 공개합니다.
-- 봐야 할 것: PR 110 `hard-gates` 뒤 로컬 병합을 하고 goal 4를 시작합니다. goal 4 문서는 `.claude/worktrees/agent-acfd3e7598cc3ec8e/`에, 시험 초안은 세션 scratchpad `m11-g4-test-drafts.md`에 있습니다.
+- 스탬프: 2026-11-20T23:32:30+09:00
+- 바뀐 것: goal 3을 병합했고(`9ba04fa8`), goal 4 구현과 e2e가 끝나 검증 기록 두 줄을 남겼습니다(`c05fa8e1`, push됨). 독립 검수가 돌고 있습니다.
+- 내린 결정: `AppUpdateGate`는 연결만 지우고 파일은 M13을 위해 남기며, 목록 밖 앱 소스 칸(모달 층, `loop.listDir`)은 범위 변경이 아닙니다. 사람 손 목록: `cwdprobe\`, 연습 `udd/loop`의 e2e 찌꺼기(Backlog 36), stash `pin-g3`, 옛 봉인 때문에 엔진 다시 고르기.
+- 봐야 할 것: 검수 반영 뒤 goal 4 PR·`hard-gates`·로컬 병합을 하고 goal 5(현황판)를 시작합니다.

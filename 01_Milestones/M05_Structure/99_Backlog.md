@@ -23,7 +23,7 @@ M11 Backlog 정리(`01_Milestones/M11_BacklogSweep/`)가 닫은 항목이다. �
 | 15 | 일부 고침(M11 goal 6) | 대소문자 오탐은 `caseSensitive: true`로 없앴다(`.eslintrc.cjs:16`, `0245db82`). `../Main`·`../Preload`·`./sub/main/x`가 안 걸리는 것을 고정물이 본다. glob이 경로를 풀지 못해 남는 `../main`(= `renderer/src/main.tsx`) 꼴은 M11 Backlog 43. |
 | 16 | 고침(M11 goal 6) | preload 덮어쓰기가 `boundary('renderer', 'main')`이다(`.eslintrc.cjs:43`). 상대·별칭·동적 꼴 모두 고정물이 본다(`0245db82`). |
 | 17 | 고침(M11 goal 6) | e2e의 `declare global`을 지역 타입 `ProbeWindow`로 바꿨다(`e2e/lr3-p01b-stale-session.e2e.ts:6`, `0245db82`). 같은 이름 `.ts`·`.tsx` 쌍은 지금 0쌍이다. 교차 시험의 상대 경로는 항목 줄대로 남는다. |
-| 18 | 미룸 → M11 Backlog 48 | 재실측: 자기 파일 밖에서 이름이 한 번도 안 나오는 export는 237개다(값 52, 타입 185). 셈법은 이름을 단어로 grep하는 근사라 원문 164와 직접 비교되지 않는다. 앱 소스 수십 파일을 건드리는 정리라 goal 6에서 하지 않았다. |
+| 18 | 고침(M11 goal 6) | 다시 잰 셈(파일마다 식별자 토큰 집합, 선언한 파일 밖 어디에도 이름이 없음)으로 243개였다. 235개는 `export`만 뗐고, 어디서도 안 쓰던 8개(`survivalDocs.ts`의 `readRunState`·`writeRunState`·`appendDecision`·`RunStateRead`, `loopModel.ts`의 `APPROVE_EVIDENCE`, `sessionRegistry.ts`의 `SessionRegistry`, 패널 잔재 `PanelThreadSnapshot`·`PersistedMsg`)는 지웠다. 시험만 쓰는 export는 시험이 고정하는 계약이라 쓰는 곳이 있는 것으로 세고 두었다. `integration/unusedExports.test.ts`가 0을 고정한다(`0a2f4157`). |
 | 19 | 고침(M11 goal 6) | `FileModal.test.tsx:307` 「본문 갈래와 읽기전용 배지」가 배지·too-large·binary·not-found·markdown·image 갈래를 본다(`42cdd5f9`). |
 | 20 | 고침(M11 goal 6) | 'new' 규칙을 지우고, 순수 함수를 `renderer/src/07_Workspace/file/explorerTree.ts:4`로 옮겼다(`a55db0e9`). 지운 시험 D-1·3·4·7('new' 갈래)은 갈래째 없어졌고, edit 올림은 D-2·5·6·8이 덮는다. |
 | 21 | 고침(M11 goal 6) | 대상 없는 `.sa-overlay`·`.sa-card*`·`.sa-tool*` CSS를 지우고 시험 제목을 고쳤다(`AgentPanel.subagent.test.tsx:99`, `a55db0e9`). Esc 셀렉터는 goal 4가 이미 지웠고 `PanelPicker.tsx`는 M10 G1에서 지워졌다. |
@@ -41,15 +41,17 @@ M11 Backlog 정리(`01_Milestones/M11_BacklogSweep/`)가 닫은 항목이다. �
 | 33 | 낡음 | `MultiWorkspace`가 M10 G1 `95125a05`에서 지워졌고 남은 순환은 M05-42가 맡는다. |
 | 34 | 고침(M11 goal 6) | 지운 멀티 화면을 그리던 하네스 셋(`tg1-p07-thinking-gui-shots`·`gap1-visual-shots`·`gap1-p14-splitview-shots`)을 지워, 옛 경로 문자열 6줄도 함께 없어졌다(`a55db0e9`). |
 | 35 | 해결됨 | 항목 본문에 H2의 닫힘(결정적 캡처와 digest 대조)이 적혀 있다. |
+| 36 | 고침(M11 goal 6) | renderer 소스 18파일과 시험이 shared를 `@shared` 별칭으로 가져온다. 예로 든 `'../../lib/time'`과 시험의 `store/appStore` 상대 경로는 이제 0건이다. `integration/eslintBoundary.test.ts` 「renderer 소스는 shared를 별칭으로 가져온다」가 고정한다(`fb9706f3`). |
+| 37 | 고침(M11 goal 6) | 실제 앱을 띄우는 e2e 33파일이 기동 직후 `moveToSecondDisplay(app)`로 창을 2번 모니터에 옮긴다. 헬퍼는 `e2e/helpers/isolatedBoot.ts`에 있고 앱 소스 없이 `electronApp.evaluate`로 옮긴다(`a55db0e9`·`39147bc2`). |
 | 38 | 해결됨 | 항목 본문에 닫힘이 적혀 있고 `tsconfig.web.json:28`이 e2e를 포함한다. |
 | 39 | 고침(M11 goal 6) | p14의 `.svg` `'text'` 로더와 tg1의 `__touch` 문자열은 M05-34의 하네스와 함께 지워졌다(`a55db0e9`). `master` ref 판정은 항목 줄대로 `origin/master`로 한다. |
 | 40 | 고침(M11 goal 6) | ① `Math.random` 위험은 tg1 하네스째 지워 없어졌다(`a55db0e9`). ② 보조 화면의 배율이 주 화면과 다르면 `logHarnessDisplay`가 경고한다(`e2e/helpers/stableShot.ts:18-19`, `a55db0e9`). |
-| 42 | 미룸 → M11 Backlog 49 | `10_Engine/index.ts`가 `03_Agent`의 셋을 재수출하는 것은 그대로 두었다. 배럴을 쪼개면 CSS 순서가 바뀌어 화면 판정이 함께 필요하다. 도메인 SCC는 스토어 조립 방향을 바꿔야 한다. |
-| 43 | 미룸 → M11 Backlog 50 | `*SampleData` 이름 바꾸기는 파일 이동이다. 헌법 8조가 계획에 명시된 이동만 허용해서 goal 6은 하지 않았다. |
+| 42 | 일부 고침(M11 goal 6) | `10_Engine/index.ts`가 `03_Agent`의 `HookTimeline`·`LoopStatusBanner`·`PermissionCard`를 더 재수출하지 않고, `Conversation.tsx`가 `@renderer/03_Agent`에서 가져온다. `10_Engine`이 renderer 도메인 SCC에서 빠졌다(남은 SCC 9도메인). 빌드 CSS는 순서만 바뀌었고, 순서가 뒤집힌 파일 쌍은 수식어 클래스만 공유해 선택자가 겹치지 않는다. `noticeCapsule.smoke.test.ts` 「도메인 순환 래칫」이 재수출 부재와 상호 의존 12쌍 상한을 고정한다(`d924a6ab`). 스토어 허브는 조립 방향을 뒤집는 구조 변경이라 하지 않았다(M11 Backlog 53). |
+| 43 | 고침(M11 goal 6) | 실제 콘텐츠 파일 셋을 계획에 적은 내용 무변경 `git mv`로 옮겼다 — `11_Settings/lspServers.ts`, `10_Engine/updateNotesContent.ts`, `10_Engine/whats-new/whatsNewSlides.ts`. 남은 `*SampleData`는 `12_Window/sidebarSampleData.ts` 하나다. `UpdateNotes.onboarding.test.tsx` 「콘텐츠 파일 이름」이 고정한다(`234bad70`). |
 | 44 | 고침(M11 goal 5) | goal 한 장 형식의 진척 단계 읽기는 이미 됐다(`99_Others/Dashboard/lib/collector.mjs:149`, `test/goal.test.mjs`). 남은 마일스톤 목록은 첫머리 문서를 `_MilestonePreview.md` → `00_마일스톤-스펙.md` → `00_Goal.md` 순으로 읽고, 셋 다 없으면 goal 문서 수·종결 수를 보인다(`collector.mjs:15`, `03d25f64`). goal 「## 목표」는 이미 단계 영역 머리의 「이 goal의 목표 원문」으로 보인다(`lib/progress.mjs:63`, `public/app.js:540`). USER-INPUT 몫은 M10-24가 닫았다. Orca 탭 재사용의 흔들림은 재현하지 못해 M11 Backlog 39로 옮겼다. |
 | 45 | 해결됨 | 테스트·훅 타임아웃이 30000이고(`vitest.config.ts:20,22`) 콜드 import 근본 몫은 M11 Backlog로 옮겼다. |
 | 46 | 해결됨 | 폐기 포트가 지운 거처의 결과를 되살리지 않는다(`renderer/src/03_Agent/state/runCore.ts:99-100`, `2f78992a`). |
-| 47 | 일부 고침(M11 goal 6) | 정규식이 `nowTime\w*\s*\(\)`로 넓어졌고, `reducer.ts`에 더해 쪼갠 `reducer/*.ts`도 본다(`reducer.time-bash.test.ts:88`, `42cdd5f9`). 패널 정지 클릭 동작 시험은 대상 `PanelView`가 앱에서 닿지 않는 죽은 코드라 M11 Backlog 42로 넘긴다. |
+| 47 | 고침(M11 goal 6) | 정규식이 `nowTime\w*\s*\(\)`로 넓어졌고, `reducer.ts`에 더해 쪼갠 `reducer/*.ts`도 본다(`reducer.time-bash.test.ts:88`, `42cdd5f9`). 패널 정지 클릭 동작 시험은 대상 `PanelView`를 지우며 함께 지웠다(`506681b8`, M11 Backlog 42). |
 | 48 | 닫음(판단) | G1 결정 대장 [USER·위임] — interrupt 때 대기열은 지금 동작을 둔다. |
 | 49 | 고침(M11 goal 2) | 질문 창 층이 320이고 다른 모달이 열려 있으면 Esc를 양보한다(`03_Agent/prompt/QuestionModal.css:4`, `QuestionModal.tsx:43,200`, `63911dda`). |
 | 50 | 낡음 | 멀티 질문 창과 패널 배지가 M10 G1 `95125a05`에서 화면째 지워졌다. |
@@ -57,6 +59,7 @@ M11 Backlog 정리(`01_Milestones/M11_BacklogSweep/`)가 닫은 항목이다. �
 | 52 | 고침(M11 goal 2) | 실행 중인 대화를 지우면 그 run을 끊고(`sessions.ts:211-214`) 배경 복귀는 스냅숏의 `selectedModel`을 되살린다(`63911dda`, `d95d7051`). `preservePanelLocalFields`는 M11 Backlog 11. |
 | 53 | 일부 고침(M11 goal 2) | 죽은 `isRunning`·`active` 포트를 지웠다(`63911dda`). 응답 전 전환의 뒤늦은 `SET_RUN_ID` 등 남은 갈래는 M11 Backlog 12. |
 | 54 | 고침(M11 goal 2) | 채널 이름이 `sessions.*`·`workspace.*`다(`shared/06_Sessions/conversation.ts:6-8`, `63911dda`). |
+| 55 | 일부 고침(M11 goal 6) | `agentAbort`·`agentSetMode` mock이 지금 계약 `{ ok: true }`를 돌려주고, 지운 `windowGetBounds`·`windowSetBounds` mock 키를 지웠다(`fb9706f3`). 하네스의 `getUsage: null`은 더 없다. 남은 `{ accepted: true }`(`ipcContract.typemap.test.ts`)와 평면 키(`index.ipc-client.test.ts:349`)는 틀린 꼴을 일부러 넣는 시험이다. `USAGE_GET` 이름은 M11 Backlog 46, 콜드 import는 M11 Backlog 3이 갖는다. |
 | 56 | 고침(M11 goal 6) | 일부 묶음만 가진 가짜(`gap1-visual-shots.e2e.ts`)는 하네스째 지웠다(`a55db0e9`). `42cdd5f9`에서 셋을 고쳤다. ① 재구현 시험 셋은 `registerAgentHandlers`의 실제 핸들러를 부른다(`agentRuns.set-mode-handler`·`set-model-handler`·`task-stop-handler`). ② 직접 호출 정규식이 캐스트·대괄호·구조 분해를 잡는다(`renderer/01_Ipc/index.ipc-client.test.ts:46`). ③ 라우트 채널 중복을 `shared/01_Ipc/ipcContract.test.ts`가 잡는다. |
 | 57 | 해결됨 | `testTimeout`이 30000이다(`vitest.config.ts:20`). |
 | 58 | 해결됨 | 항목 본문대로 G11 2b(`7cb426cd`)에서 닫혔다. |

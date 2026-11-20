@@ -18,7 +18,7 @@ M11 Backlog 정리(`01_Milestones/M11_BacklogSweep/`)가 닫은 항목이다. �
 | 6 | 정함 → goal 7 | G1 결정 대장 [USER·위임] — 파이프 판정 불능은 두고 차단 문구에 `npm test -- --no-color --reporter=dot` 꼴 안내를 넣는다. |
 | 7 | 낡음 | 코디네이터·워커 운영이 폐지돼 워커 실행 중에 공용 pin을 고치는 주체가 없다(헌법 2조 현행). |
 | 8 | 낡음 | 대상 `multi-agent-ops.e2e.ts`가 M10 G1 `95125a05`에서 지워졌고, `gate.md`의 기준선 줄은 goal 7이 고친다. |
-| 9 | 정함 → goal 6 | G1 결정 대장 [USER·위임] — 설계 노트 머리에 「역사 기록 — 정본은 헌법·템플릿」 한 줄을 단다. |
+| 9 | 고침(M11 goal 6) | G1 결정 대장 [USER·위임]대로 설계 노트 `00_쟁점-목록.md`·`08_Clear-게이트.md` 머리에 「역사 기록 — 정본은 헌법·템플릿」 한 줄을 달았다(`cf6359ba`). |
 | 10 | 해결됨 | `bash -c`와 `env FOO=1` 뒤의 명령을 판정한다(`cmd-guard-equivalence.test.mjs:87-89` WR-01~03). |
 
 ## 대기 항목

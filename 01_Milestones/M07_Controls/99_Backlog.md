@@ -25,6 +25,7 @@ M11 Backlog 정리(`01_Milestones/M11_BacklogSweep/`)가 닫은 항목이다. �
 | 18 | 고침(M11 goal 2) | userData 경로를 못 얻으면 닫힌 실패이고 앱 조립 지점이 검사를 주입한다(`main/04_Claude/permission/controlsStore.ts:205`, `main/00_App/registry.ts:30`, `d95d7051`). |
 | 19 | 해결됨 | 「처음 설정함」 표시를 두 파일과 따로 둔다(`main/04_Claude/permission/controlsStore.ts:8`, PR 73 `aaaef0e4`). |
 | 20 | 정함 → goal 8 | M11 스펙 결정 대장 [USER] 2회차 — 헌법 3조 보호 표면 「넣는다」. |
+| 22 | 고침(M11 goal 6) | ADR-004 23행 아래에 대체 표시를 달았다 — 병합의 사람 판정은 현황판·앱의 「병합」 버튼과 사용자가 직접 실행하는 `gh pr merge`이고, 에이전트의 병합은 가드가 거부한다(`cf6359ba`). ADR-003 80~81행의 옛 경로는 M08 G2가 ADR-005 대체 표시를 이미 달았다(`72623936`). |
 | 23 | 해결됨 | 가드가 `gh pr merge`와 병합 API·GraphQL 병합을 차단 목록으로 막고(`dangerous-cmd-guard.mjs:512-516`, M07 G12) 설정 `deny`의 넓은 꼴은 M11 Backlog로 옮겼다. |
 | 24 | 고침(M11 goal 3, 앞절) | 고전 보호가 「Branch not protected」면 `rules/branches/<b>`의 `required_status_checks`를 필수 검사로 읽는다(`main/08_Git/prMerge.ts:164,286`, `2af8fd68`). 실앱 e2e `m11-g3-ruleset-card-live.e2e.ts`에서 연습 저장소 PR 6 카드가 「main 브랜치 룰셋에 필수 검사가 없어요」. 뒷절(하위 에이전트 대화·「이미 있음」 오류의 `gh pr create`)은 M11 Backlog 26. |
 | 25 | v2로 | G1 결정 대장 [USER·위임] — 루프 노드 세션은 원격 자격이 없는 환경이라 `mergeDeny`는 겹의 하나이고, 남은 꼴은 판독 재설계와 함께 다룬다. |

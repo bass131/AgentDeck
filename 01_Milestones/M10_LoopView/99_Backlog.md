@@ -11,7 +11,7 @@ M11 Backlog 정리(`01_Milestones/M11_BacklogSweep/`)가 닫은 항목이다. �
 | 4 | 해결됨 | 결정 기록이 같은 폴더 마일스톤 스펙 대장을 goal 대장에 더한다(`99_Others/Dashboard/lib/markdown.mjs:206-214`, `6b23c32c`). |
 | 5 | 해결됨 | G4 결정 대장 [USER·위임]대로 Windows 알림을 더하지 않고 앱 안 표시로 닫는다 — 작업 모드에서도 「채팅」 칸의 점이 채팅의 질문·권한 대기를 보인다(`renderer/src/12_Window/Sidebar.tsx:361,437`, `ProjectSidebar.test.tsx:176`, `e7b26d16`). |
 | 6 | 해결됨 | 작업 모드로 켜도 채팅의 마지막 대화를 복원한다(`renderer/src/12_Window/restoreWorkspace.ts:7`, `547ab01b`). |
-| 8 | 정함 → goal 6 | G1 결정 대장 [USER·위임] — `makeOnEscape` 사본 시험을 지우고 진짜 가드는 `panelSession.difference-pins` B2에 맡긴다. |
+| 8 | 고침(M11 goal 4) | 사본 대신 Shell의 실제 Esc 처리 `shellEscape()`(`useGlobalShortcuts.ts`)를 부르는 시험으로 바꿨다 — 모달·작업 모드 가드를 지우면 3건 실패(M11 Backlog 24, `a29fd8d5`). G1의 「goal 6에서 사본 시험 지우기」 결정을 대신한다. |
 | 9 | 해결됨 | 깃발 내리기 IPC `loop.lowerFlag`가 있다(`main/01_Ipc/handlers/loop.ts:161`, `547ab01b`). |
 | 10 | M13으로 | M11 스펙 「하지 않을 것」 — zod 의존성은 설치본 패키징과 함께 M13이 맡는다. |
 | 11 | M12로 | G1 결정 대장 [USER·위임] — 스펙 지정대로 노드 세션의 설정 원천은 M12가 정한다. |

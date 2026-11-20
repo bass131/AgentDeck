@@ -2,6 +2,28 @@
 
 goal 완료조건 밖에서 찾은 것을 한 줄씩 남긴다. 승인을 묻지 않는다. M06에서 넘어온 항목은 `M06_SelfDev/99_Backlog.md`가 계속 소유한다.
 
+## 닫힘 (M11)
+
+M11 Backlog 정리(`01_Milestones/M11_BacklogSweep/`)가 닫은 항목이다. 아래 항목 줄은 그대로 두고 닫힘은 이 표가 갖는다. 표에 없는 항목은 M11 goal 2~9가 고치면서 더한다.
+
+| 항목 | 닫힘 | 근거 |
+|---|---|---|
+| 2 | M13으로 | M11 스펙 「하지 않을 것」 — `productName`은 설치본 패키징과 함께 M13이 맡는다. |
+| 5 | v2로 | G1 결정 대장 [USER·위임] — 끈 노드의 토글은 그래프 편집기의 일이다. |
+| 8 | 해결됨 | 컨트롤 패널이 엔진 봉인 경고와 「이 엔진 다시 고르기」를 보인다(`renderer/src/11_Settings/ControlsView.tsx:3,141`, `8a0eddd4`). |
+| 10 | 해결됨 | 3글자 이상 접두 뒤 와일드카드를 막는다(`main/04_Claude/permission/enginePathLock.ts:64-65`, G5). |
+| 14 | v2로 | 규칙 노드 GUI는 v2 그래프 편집기와 같은 화면이다(`00_Roadmap.md:33`). |
+| 15 | v2로 | G1 결정 대장 [USER·위임] — 노드 설정 내보내기·가져오기는 그래프 편집기의 일이다. |
+| 19 | 해결됨 | 「처음 설정함」 표시를 두 파일과 따로 둔다(`main/04_Claude/permission/controlsStore.ts:8`, PR 73 `aaaef0e4`). |
+| 20 | 정함 → goal 8 | M11 스펙 결정 대장 [USER] 2회차 — 헌법 3조 보호 표면 「넣는다」. |
+| 23 | 해결됨 | 가드가 `gh pr merge`와 병합 API·GraphQL 병합을 차단 목록으로 막고(`dangerous-cmd-guard.mjs:512-516`, M07 G12) 설정 `deny`의 넓은 꼴은 M11 Backlog로 옮겼다. |
+| 25 | v2로 | G1 결정 대장 [USER·위임] — 루프 노드 세션은 원격 자격이 없는 환경이라 `mergeDeny`는 겹의 하나이고, 남은 꼴은 판독 재설계와 함께 다룬다. |
+| 29 | 해결됨 | PR을 만든 세션이 병합을 뒤에서 감시한다(`99_Others/Dashboard/wait-merge.mjs`, `da219603`). |
+| 30 | 해결됨 | 현황판이 열린 PR 목록을 보인다(`4c49a98b`). |
+| 31 | 해결됨 | 넣기 직전 Orca 목록으로 메인 터미널을 찾는다(`99_Others/Dashboard/lib/deliver.mjs:64`, `53f5c91b`). |
+| 34 | v2로 | M11 스펙 결정 대장 [USER] 2회차 — 두 표 일원화는 가드 재설계와 함께 「이번엔 안 한다」. |
+| 36 | 해결됨 | ADR-005와 바뀐 거부 사유(가드 `MERGE_HINT`, 앱 `mergeDeny.ts:17` `REASON`)와 `smoke.test.mjs:141-142` 단언이 있고 SessionStart 몫은 M08-4가 맡는다. |
+
 1. CLI 세션의 에이전트가 Bash 경유(`node -e`, 스크립트)로 앱 데이터 폴더(`engines/`, `engine-config.json`)를 쓰는 길이 열려 있다. G1의 `Edit(~/AppData/Roaming/agentdeck/**)` 거부는 파일 도구와 Claude Code가 알아보는 Bash 파일 명령에만 걸린다. G8 `30_노드-구조.md` 보호 6의 나머지이고 맡을 goal이 아직 없다 (G1 검수 4).
 2. 앱 데이터 폴더 이름 `agentdeck`은 실측이 아니라 Electron 기본 규칙(`productName ?? name`)에서 추론했다. 이 PC에는 아직 그 폴더가 없다. M08에서 설치본을 패키징할 때 `productName`이 생기면 거부 규칙을 갱신해야 한다. `settings-matcher.test.mjs`가 `package.json`에서 이름을 만들어 대조하므로 그때 빨갛게 된다 (G1 검수 2).
 3. 가드 말고 다른 저장소 훅(편집 계획 게이트, TDD 가드, 마감 게이트)도 기본 `onFailure: 'continue'`라, 시간 초과나 기동 실패 때 판정 없이 지나간다. 훅마다 막힘이 맞는지는 다르다(마감 게이트가 막히면 세션을 못 끝낸다). 판정 장치 goal에서 훅별로 정한다 (G1 실측).

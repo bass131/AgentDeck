@@ -2,6 +2,23 @@
 
 - 범위 밖 발견을 한 줄로 남긴다(헌법 11조). 최신 번호가 위다.
 
+## 닫힘 (M11)
+
+M11 Backlog 정리(`01_Milestones/M11_BacklogSweep/`)가 닫은 항목이다. 아래 항목 줄은 그대로 두고 닫힘은 이 표가 갖는다. 표에 없는 항목은 M11 goal 2~9가 고치면서 더한다.
+
+| 항목 | 닫힘 | 근거 |
+|---|---|---|
+| 4 | 해결됨 | 결정 기록이 같은 폴더 마일스톤 스펙 대장을 goal 대장에 더한다(`99_Others/Dashboard/lib/markdown.mjs:206-214`, `6b23c32c`). |
+| 6 | 해결됨 | 작업 모드로 켜도 채팅의 마지막 대화를 복원한다(`renderer/src/12_Window/restoreWorkspace.ts:7`, `547ab01b`). |
+| 8 | 정함 → goal 6 | G1 결정 대장 [USER·위임] — `makeOnEscape` 사본 시험을 지우고 진짜 가드는 `panelSession.difference-pins` B2에 맡긴다. |
+| 9 | 해결됨 | 깃발 내리기 IPC `loop.lowerFlag`가 있다(`main/01_Ipc/handlers/loop.ts:161`, `547ab01b`). |
+| 10 | M13으로 | M11 스펙 「하지 않을 것」 — zod 의존성은 설치본 패키징과 함께 M13이 맡는다. |
+| 11 | M12로 | G1 결정 대장 [USER·위임] — 스펙 지정대로 노드 세션의 설정 원천은 M12가 정한다. |
+| 12 | 해결됨 | 취소 대상을 고르는 `LoopCancelTarget`이 IPC에 있다(`main/01_Ipc/handlers/loop.ts:39`, `547ab01b`). |
+| 14 | 해결됨 | `LoopStatus`가 `mainNode`를 싣는다(`shared/13_Loop/loop.ts:104`, `e7b26d16`). |
+| 20 | 해결됨 | 끝난 실행은 막지 않고 안내하며 새 마일스톤 시작 때 보관한다(`main/05_Loop/loopRunner.ts:138-140`, `2e85b1fa`·`037f13a7`). |
+| 21 | 고침(M11 goal 1) | 연습 앱 데이터를 `%USERPROFILE%\.agentdeck-practice\udd`로 옮기고(loop 6파일 sha256 일치), 구동기 `m09-g5-practice-run.e2e.ts`가 `G5_UDD`가 없으면 그 자리를 쓴다. |
+
 24. (G6 관찰, 로컬 현황판 불변으로 범위 밖) 로컬 현황판은 goal 검증 기록의 마지막 줄이 `USER-INPUT`이면 「사용자 입력 기다림」(손 항목·탭 배지)으로 읽는다(`99_Others/Dashboard/lib/markdown.mjs:192`). 사용자 답을 받아 적은 USER-INPUT 줄(예: G6 13:18 알림 관찰)도 기다림으로 보인다 — 다음 PASS 줄이 붙기 전까지 오탐이다.
 23. (G6 실주행 관찰) PR 칸이 마일스톤 PR에 「main 브랜치에 보호가 없어 필수 검사가 없어요」를 보였다 — 연습 저장소는 옛 방식의 브랜치 보호가 아니라 룰셋(`main-protect`: 삭제·강제 push 금지, PR 필수)으로 지키는데, 앱은 `branches/<b>/protection`만 읽는다(404). 필수 검사가 없다는 결론은 맞지만 「보호가 없다」는 틀린 말이다 — 룰셋(`rules/branches/<b>`)도 읽어 문구를 고친다.
 22. (사용자 요청 2026-11-20, 작업량으로 다음 마일스톤 이월) 메인 대화의 표현이 채팅 모드보다 빈약하다 — 지금은 사용자 글·메인의 최종 답 글·실행기 사건 줄만 그리고(`MainChatItem`), 추론 중 표시, 글이 흘러나오는 중간 상태, 도구 호출과 결과, 생각 블록 같은 채팅 모드(`05_Conversation/ThreadView.tsx`)의 디테일이 없다. 재료는 이미 있다 — 메인 세션의 `AgentEvent`가 세션 기록(`loop.sessionEvent`, 키 `main`)으로 흐른다. 다음 마일스톤에서 채팅 모드의 스레드 그리기를 메인 대화에 재사용하는 goal로 다룬다.

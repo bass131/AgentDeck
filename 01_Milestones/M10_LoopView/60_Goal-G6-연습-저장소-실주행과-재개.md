@@ -49,6 +49,7 @@ DoD
 검증 기록
 
 - PASS 2026-11-20T10:03+09:00 — 2단계 두 번째 마일스톤 준비(작업 하위 에이전트, 메인이 다시 돌림): `loopRunner` `loadOnce`가 다이제스트·스키마 검사를 지난 `done`만 끝난 실행으로 보아 해시·템플릿 id·기준 브랜치 대조를 건너뛰고, 구동자는 다시 열 때 `not-started`와 「끝난 실행(M01) — 새 마일스톤을 시작하면 보관해요」를 보인다. `start`는 끝난 실행의 goals·스펙·결정·검증·상태 파일을 `.agentdeck/archive/<옛 id>/`로 옮긴 뒤 새 실행을 연다(`backlog.md`는 남김, 이름 충돌은 시각 꼬리, 실패하면 되돌리고 `blocked`). 끝나지 않은 실행의 해시 불일치·위조 `done`은 그대로 막힌다. 새 시험 `loopRunner.archive.test.ts` 12건과 `fsPort` `move`·`exists`. 하드 게이트 다섯 종 exit 0, `npm test` 487 파일 중 481 통과·6 건너뜀, 시험 9106 통과 실패 0, 수집 기준선 486→487.
+- PASS 2026-11-20T12:21+09:00 — 3단계 자격 확인(토큰 값은 출력하지 않음): 사용자가 연습 전용 fine-grained 토큰을 `%USERPROFILE%\.agentdeck-practice\gh-token.txt`에 두었고, 구동기와 같은 환경(`GH_TOKEN`, 도우미 목록 비움 뒤 `gh auth git-credential`)에서 연습 저장소는 `gh api` 읽기(push=true)·검사 결과 읽기·`ls-remote`·`push --dry-run`이 됐고, AgentDeck `push --dry-run`은 403 거부였다. 전역 gh 로그인은 원래 `gho_`(gist·read:org·repo·workflow) 그대로다. 연습 저장소 clone은 `main` `7179924c`로 맞췄다(`.agentdeck/`의 M01 끝난 실행은 그대로).
 
 ## 결정 대장
 

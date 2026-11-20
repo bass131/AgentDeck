@@ -7,7 +7,6 @@ import type { WorkspaceState, WorkspaceActions } from '@renderer/07_Workspace/st
 import type { ViewerState, ViewerActions } from '@renderer/07_Workspace/state/viewer'
 import type { ConversationState, ConversationActions } from '@renderer/06_Sessions/state/conversation'
 import type { SessionListState, SessionListActions } from '@renderer/06_Sessions/state/sessions'
-import type { MultiSessionState, MultiSessionActions } from '@renderer/06_Sessions/state/multiSession'
 import type { ComposerState, ComposerActions } from '@renderer/05_Conversation/state/composer'
 import type { RuntimeState, RuntimeActions } from '@renderer/03_Agent/state/runtime'
 import type { WindowModeState, WindowModeActions } from '@renderer/12_Window/windowMode'
@@ -34,12 +33,6 @@ export interface QueuedMessage {
   picker?: { model: string; effort: string; mode: string; orchestration?: boolean }
 }
 
-export interface MultiSessionSummary {
-  id: string
-  title: string
-  count: number
-}
-
 export type ConversationRunState = AppState & {
   runGeneration: string | null
   workspaceRoot: string | null
@@ -55,7 +48,6 @@ export type StoreState = AppState &
   ViewerState &
   ConversationState &
   SessionListState &
-  MultiSessionState &
   ComposerState &
   RuntimeState
 
@@ -65,7 +57,6 @@ export type StoreActions = SystemActions &
   ViewerActions &
   ConversationActions &
   SessionListActions &
-  MultiSessionActions &
   ComposerActions &
   RuntimeActions
 

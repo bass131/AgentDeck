@@ -1,0 +1,180 @@
+/* 겹침 맥락(위치 고정·z-index·합성 효과)을 만들지 않는다 — 질문 창(.q-overlay)이 .pane.work를 기준으로 떠야 한다 */
+.work-tabs {
+  flex: none;
+  display: flex;
+  align-items: stretch;
+  gap: 2px;
+  padding: 6px 10px 0;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface);
+  overflow-x: auto;
+}
+.work-tab {
+  padding: 7px 12px 8px;
+  border: 1px solid transparent;
+  border-bottom: none;
+  border-radius: 8px 8px 0 0;
+  background: none;
+  color: var(--text-3);
+  font-size: 12.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.work-tab:hover { color: var(--text-2); }
+.work-tab.on { background: var(--bg); color: var(--text); border-color: var(--line); margin-bottom: -1px; }
+.work-tab:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.work-tab-wrap { display: flex; align-items: stretch; }
+.work-tab-wrap.on .work-tab { padding-right: 4px; }
+.work-tab-x {
+  align-self: center;
+  margin-left: -6px;
+  padding: 0 6px;
+  border: none;
+  background: none;
+  color: var(--text-4);
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+}
+.work-tab-x:hover { color: var(--text); }
+.work-rtabs { padding-left: 8px; }
+
+.work-panel { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
+.work-panel[hidden] { display: none; }
+.work-side .work-panel { overflow-y: auto; }
+
+.work-graph-slot {
+  margin: 24px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  border: 1px dashed var(--line-2);
+  border-radius: 12px;
+  background: var(--inset);
+  color: var(--text-3);
+  font-size: 12.5px;
+}
+.work-graph-slot b { color: var(--text-2); font-size: 14px; }
+
+.status-board { display: flex; flex-direction: column; min-height: 0; color: var(--text); font-size: 12.5px; }
+.board-body { display: flex; flex-direction: column; gap: 10px; padding: 12px; }
+.board-box {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--bg);
+}
+.board-box[data-hot='true'] { border-color: var(--yellow); box-shadow: 0 0 0 1px var(--yellow-soft); }
+.board-alert {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 8px 12px;
+  border: 1px solid var(--red);
+  border-radius: 10px;
+  background: var(--red-soft);
+  font-size: 12px;
+}
+.board-alert b { color: var(--red); font-size: 11.5px; }
+.board-alert[data-level='later'] { border-color: var(--yellow); background: var(--yellow-soft); }
+.board-alert[data-level='later'] b { color: var(--yellow); }
+.board-h {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--text);
+}
+.board-h small { font-weight: 500; color: var(--text-3); }
+.board-h .loop-phase { margin-left: auto; font-weight: 500; }
+.board-empty { color: var(--text-3); font-size: 12px; }
+
+.board-decs, .board-nodes, .board-prs, .board-lines { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 6px; }
+.board-dec-btn {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 7px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--yellow);
+  background: var(--yellow-soft);
+  color: var(--text);
+  text-align: left;
+  font-size: 12px;
+}
+button.board-dec-btn { cursor: pointer; }
+button.board-dec-btn:hover { border-color: var(--accent-line); }
+.board-dec[data-kind='merge'] .board-dec-btn { border-color: var(--green); background: var(--green-soft); }
+.board-dec-btn span { color: var(--text-2); word-break: break-word; }
+
+.board-node { display: flex; align-items: center; gap: 8px; }
+.board-node-txt { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.board-node-txt small { color: var(--text-3); }
+.board-pulse, .board-idle { flex: none; width: 8px; height: 8px; border-radius: 50%; }
+.board-pulse { background: var(--running); box-shadow: 0 0 0 3px var(--running-soft); }
+.board-idle { background: var(--line-2); }
+
+.board-pr { display: flex; gap: 10px; align-items: baseline; }
+
+.board-line { display: flex; flex-wrap: wrap; gap: 2px 8px; font-size: 11.5px; align-items: baseline; }
+.board-line-mk { font-family: var(--font-mono); font-weight: 700; }
+.board-line[data-marker='PASS'] .board-line-mk { color: var(--green); }
+.board-line[data-marker='FAIL'] .board-line-mk { color: var(--red); }
+.board-line[data-marker='USER-INPUT'] .board-line-mk { color: var(--yellow); }
+.board-line-txt { flex-basis: 100%; color: var(--text-2); word-break: break-word; }
+
+.node-session {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 13px;
+}
+.node-session-head {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface);
+}
+.node-session-head small { color: var(--text-3); }
+.node-session-cut { margin-left: auto; }
+.node-session .node-thread { flex: 1; min-height: 0; overflow: auto; }
+.node-session-empty { padding: 24px; color: var(--text-3); }
+.node-session-ro {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 8px 16px 12px;
+  padding: 9px 12px;
+  border-radius: 9px;
+  border: 1px dashed var(--line-2);
+  background: var(--inset);
+  color: var(--text-3);
+  font-size: 12px;
+}
+.node-session-ro span { flex: 1; }
+
+.files-panel { display: flex; flex-direction: column; gap: 10px; padding: 12px; font-size: 12.5px; }
+.files-explorer { display: flex; flex-direction: column; min-height: 220px; max-height: 420px; overflow: auto; border-radius: 8px; border: 1px solid var(--line); }
+.files-reload { margin-left: auto; padding: 2px 8px; font-size: 11.5px; }
+.files-changes, .files-subs { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 4px; }
+.files-change, .files-sub { display: flex; gap: 8px; align-items: baseline; }
+.files-path { flex: 1; min-width: 0; word-break: break-all; }
+.files-stat { display: flex; gap: 6px; }
+.files-stat .add { color: var(--green); }
+.files-stat .del { color: var(--red); }
+.files-sub span { flex: 1; min-width: 0; }

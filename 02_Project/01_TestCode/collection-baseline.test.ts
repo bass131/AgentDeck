@@ -84,7 +84,29 @@ const SKIP_DIRS = new Set(['node_modules', 'dist', 'out', 'coverage', '.git'])
 // M09 G4: 479 → 482. 2차분(renderer 루프 화면) — 폴더·열기·시작·닫기·push·goal 목록 renderer/13_Loop/LoopScreen.test.tsx,
 // 예외 한 줄·질문·권한·스펙 승인·래치 풀기·마일스톤 PR 카드 renderer/13_Loop/LoopScreen.cards.test.tsx,
 // 사이드바 진입점과 Shell 배선 renderer/12_Window/Shell.loop-entry.test.tsx를 더했다.
-const BASELINE_TEST_FILES = 482
+// M10 G1: 482 → 465. 멀티 에이전트 모드를 지우며 그 전용 시험 19개(멀티 저장소 main 둘, 멀티 세션 슬라이스, 멀티 저장 훅 둘,
+// 멀티 화면 여덟, 멀티 격리 가드·사이드바 멀티 모드, 패널 cwd·resume 셋, 패널 UltraCode 멀티판)를 지우고,
+// 작업 모드 격리 가드 renderer/12_Window/Shell.work-isolation-guard.test.tsx와
+// 패널 하네스판 UltraCode 시험 renderer/03_Agent/ultracodeToggle.panel.test.tsx를 더했다.
+// M10 G2: 465 → 470. 메인 대화 엔진 — 잠금의 메인 대화 꼴 main/04_Claude/loopLock.main-chat.test.ts,
+// 실행기의 여러 턴 경계 main/05_Loop/loopRunner.main-turns.test.ts, 메인 대화 모듈 main/05_Loop/mainChat.test.ts,
+// 앱 안 도구 main/05_Loop/mainChatTools.test.ts, 구동자와 메인 대화 main/05_Loop/loopDriver.main-chat.test.ts를 더했다.
+// M10 G3: 470 → 472. 메인 대화 화면 — 기록·사건 줄·알림·읽기와 push의 순서·입력칸·일시 정지·취소 대상·새 메인 대화
+// renderer/13_Loop/MainChatView.test.tsx, 대화 안 질문·권한·스펙 승인 카드와 사람 판정 경계·루프 화면에서 빼기
+// renderer/13_Loop/MainChatView.cards.test.tsx를 더했다.
+// M10 G4: 472 → 477. 작업 모드 화면 — 노드 세션 기록(차례·이어 붙이기·상한·끝) main/05_Loop/sessionLog.test.ts,
+// 스냅숏과 push 맞물리기·보기 전용 접기 renderer/13_Loop/sessionLogModel.test.ts, 진행 꼬리표·기다리는 결정·작업 폴더 목록
+// renderer/13_Loop/workModel.test.ts, 가운데 탭·오른쪽 탭·노드 세션 탭·지난 메인 대화·「파일·변경」 renderer/13_Loop/WorkView.test.tsx,
+// 프로젝트 사이드바와 채팅 대기 표시 renderer/13_Loop/ProjectSidebar.test.tsx를 더했다.
+// M10 G4 검수 반영: 477 → 479. main과 화면이 같이 쓰는 세션 사건 잇기·상한 shared/13_Loop/sessionMerge.test.ts,
+// 세션 push의 다시 그리기 범위(무거운 칸을 대역으로 바꿔 센다) renderer/13_Loop/WorkView.render.test.tsx를 더했다.
+// M10 G5: 479 → 481. 그래프 캔버스와 알림 — 템플릿을 화면용 그래프로 바꾸는 main/05_Loop/templateGraph.test.ts,
+// 알림 판정(중복 막기·재기동·풀림·나중 사건) main/05_Loop/loopNotifier.test.ts, 실물 알림 포트 main/05_Loop/notifyPort.test.ts,
+// 개발 빌드의 AppUserModelID main/00_App/appUserModel.test.ts, 그래프 탭의 표시 판정(노드 이름 대응·지금 위치·끝남·실패 수·선·맞춤)
+// renderer/13_Loop/graphModel.test.ts, 캔버스와 「노드 설정」 탭 renderer/13_Loop/WorkView.graph.test.tsx,
+// 앱 안 알림 표시(현황판 띠·프로젝트 점·「작업」 버튼 점·알림 열기) renderer/13_Loop/alerts.test.tsx를 더했다.
+// M10 G6: 486 → 487. 끝난 실행의 판정과 새 마일스톤 시작의 보관(이름 충돌·실패 되돌리기·위조 거부) main/05_Loop/loopRunner.archive.test.ts를 더했다.
+const BASELINE_TEST_FILES = 487
 
 function collectTestFiles(dir: string, acc: string[] = []): string[] {
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {

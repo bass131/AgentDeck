@@ -1,0 +1,649 @@
+<!doctype html>
+<html lang="ko" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>M10 화면 시안</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/wanteddev/wanted-sans@v1.0.3/packages/wanted-sans/fonts/webfonts/variable/split/WantedSansVariable.min.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,500;6..72,600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* AgentDeck 토큰(02_Project/00_Source/renderer/src/02_Common/tokens.css)에서 옮긴 값 */
+:root{
+  --desktop:#EFE7D6;--bg:#FBF8F1;--surface:#F4EFE4;--surface-2:#EFE7D7;--surface-3:#E8DFCD;--inset:#F6F1E7;
+  --line:#E6DDCB;--line-2:#DDD3C0;--line-strong:#CFC3A9;
+  --text:#2A2620;--text-2:#6B6358;--text-3:#8C8473;--text-4:#A9A192;
+  --accent:#D97757;--accent-2:#C96A4A;--accent-soft:#F2DBD5;--accent-line:#E7B9A8;--on-accent:#fff;
+  --green:#5E9968;--blue:#5E94BC;--yellow:#C99A2E;--red:#C25B4A;--violet:#B07FA8;
+  --green-soft:#DFEBE0;--blue-soft:#DEEAF1;--yellow-soft:#F1E6C9;--red-soft:#F2DED9;
+  --font-serif:'Newsreader','Noto Serif KR',Georgia,serif;
+  --font-sans:'Wanted Sans Variable','Wanted Sans',system-ui,sans-serif;
+  --font-mono:'JetBrains Mono',ui-monospace,Consolas,monospace;
+  --shadow-lg:0 1px 2px rgba(60,48,28,.06),0 24px 64px rgba(60,48,28,.18);
+}
+:root[data-theme="dark"]{
+  --desktop:#1A1917;--bg:#242322;--surface:#2C2B2A;--surface-2:#343331;--surface-3:#3D3B38;--inset:#1E1D1B;
+  --line:#38352F;--line-2:#45413A;--line-strong:#565049;
+  --text:#ECE8E1;--text-2:#B1ABA2;--text-3:#8B857C;--text-4:#6E6960;
+  --accent:#E08763;--accent-2:#D5764F;--accent-soft:rgba(224,135,99,.16);--accent-line:rgba(224,135,99,.36);--on-accent:#2A2620;
+  --green:#88B883;--blue:#73AACD;--yellow:#D7A946;--red:#D77A66;--violet:#B79BD0;
+  --green-soft:rgba(136,184,131,.16);--blue-soft:rgba(115,170,205,.16);--yellow-soft:rgba(215,169,70,.16);--red-soft:rgba(215,122,102,.16);
+  --shadow-lg:0 24px 64px rgba(0,0,0,.45);
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{margin:0;background:var(--desktop);color:var(--text);font-family:var(--font-sans);font-size:13px}
+
+/* 시안 조작 띠(앱 밖) */
+.ctl{display:flex;flex-wrap:wrap;gap:10px;align-items:center;padding:14px 20px;max-width:1640px;margin:0 auto}
+.ctl h1{font-family:var(--font-serif);font-weight:600;font-size:20px;margin:0 12px 0 0}
+.seg{display:flex;flex-wrap:wrap;background:var(--surface);border:1px solid var(--line);border-radius:9px;padding:3px;gap:2px}
+.seg button{border:0;background:none;padding:6px 11px;border-radius:7px;cursor:pointer;color:var(--text-2);font:inherit}
+.seg button.on{background:var(--accent);color:var(--on-accent);font-weight:600}
+.ctl label{display:flex;gap:6px;align-items:center;color:var(--text-2);cursor:pointer}
+.cap{max-width:1640px;margin:0 auto;padding:0 20px 10px;color:var(--text-2);line-height:1.6}
+.cap b{color:var(--text)}
+
+/* 앱 창 */
+.stage{padding:0 20px 20px;max-width:1640px;margin:0 auto}
+.win{position:relative;height:880px;background:var(--bg);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow-lg);display:grid;grid-template-rows:40px 1fr 26px;overflow:hidden}
+.titlebar{display:flex;align-items:center;gap:12px;padding:0 14px;border-bottom:1px solid var(--line);font-family:var(--font-serif);font-size:14px}
+.titlebar .sp{flex:1}
+.bell{font-family:var(--font-sans);font-size:12px;color:var(--text-2);border:1px solid var(--line);border-radius:8px;padding:4px 9px;background:var(--surface)}
+.bell b{display:inline-block;min-width:16px;padding:0 4px;margin-left:4px;border-radius:8px;background:var(--yellow);color:#2A2620;font-size:11px;text-align:center}
+.bell.hot{border-color:var(--yellow);box-shadow:0 0 0 3px var(--yellow-soft)}
+.wc{color:var(--text-3);letter-spacing:10px;font-family:var(--font-sans)}
+.body{display:grid;grid-template-columns:248px 1fr 380px;min-height:0}
+body[data-scene="chat"] .body{grid-template-columns:248px 236px 1fr 340px}
+.status{display:flex;align-items:center;gap:14px;padding:0 12px;border-top:1px solid var(--line);font-size:11px;color:var(--text-3)}
+.dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--green);margin-right:5px;vertical-align:1px}
+.dot.warn{background:var(--yellow)}
+
+/* 사이드바 */
+.side{border-right:1px solid var(--line);background:var(--surface);display:flex;flex-direction:column;padding:12px 10px;gap:10px;min-height:0}
+.brand{display:flex;gap:9px;align-items:center;padding:2px 4px}
+.brand .mk{width:26px;height:26px;border-radius:7px;background:var(--accent);color:var(--on-accent);display:grid;place-items:center;font-family:var(--font-serif);font-weight:600}
+.brand .n{font-family:var(--font-serif);font-weight:600;font-size:14px}
+.brand .s{font-size:11px;color:var(--text-3)}
+.mode{display:grid;grid-template-columns:1fr 1fr;background:var(--inset);border:1px solid var(--line);border-radius:9px;padding:3px;gap:2px}
+.mode span{text-align:center;padding:6px 0;border-radius:7px;font-size:12px;color:var(--text-2)}
+.mode span.on{background:var(--accent);color:var(--on-accent);font-weight:600}
+.sbtn{border:1px solid var(--line);border-radius:9px;padding:8px 10px;color:var(--text-2);font-size:12px;background:var(--bg)}
+.sbtn small{float:right;color:var(--text-4);font-family:var(--font-mono);font-size:10px}
+.sec{font-size:11px;color:var(--text-3);padding:6px 6px 2px}
+.ci{padding:7px 9px;border-radius:8px;font-size:12px;color:var(--text-2)}
+.ci.on{background:var(--surface-2);color:var(--text);box-shadow:inset 2px 0 0 var(--accent)}
+.ci small{display:block;color:var(--text-4);font-size:11px}
+.proj{border:1px solid var(--line);border-radius:10px;background:var(--bg);padding:8px;display:flex;flex-direction:column;gap:3px}
+.proj.dim{background:none}
+.proj .pn{display:flex;align-items:center;gap:7px;font-weight:600}
+.proj .pn small{margin-left:auto;font-weight:500;font-size:11px;color:var(--text-3)}
+.proj .pn small.warn{color:var(--yellow)}
+.pi{display:flex;align-items:center;gap:7px;padding:6px 7px;border-radius:7px;color:var(--text-2);font-size:12px}
+.pi.on{background:var(--accent-soft);color:var(--text);box-shadow:inset 2px 0 0 var(--accent)}
+.pi .ic{width:14px;text-align:center;color:var(--text-3)}
+.wt{font-size:11px;color:var(--text-3);padding:3px 7px 1px;font-family:var(--font-mono)}
+.wt.add{border-top:1px dashed var(--line-2);margin-top:3px;padding-top:6px;color:var(--text-4);font-family:var(--font-sans)}
+.newp{border:1px dashed var(--line-2);border-radius:9px;padding:8px;text-align:center;color:var(--text-3);font-size:12px}
+.side .grow{flex:1}
+.me{display:flex;align-items:center;gap:8px;border-top:1px solid var(--line);padding-top:10px}
+.me .av{width:24px;height:24px;border-radius:50%;background:#6E6AE0;color:#fff;display:grid;place-items:center;font-size:11px;font-weight:700}
+
+/* 탐색기(채팅 모드만) */
+.explorer{border-right:1px solid var(--line);background:var(--surface);padding:12px 10px;font-size:12px;color:var(--text-2)}
+.explorer .hd{font-size:11px;color:var(--text-3);margin-bottom:8px}
+.tree div{padding:3px 4px;border-radius:5px;font-family:var(--font-mono);font-size:11.5px}
+.tree .d{color:var(--text)}
+.tree .in{padding-left:16px}
+.tree .m{color:var(--yellow)}
+
+/* 가운데 */
+.center{display:flex;flex-direction:column;min-width:0;min-height:0}
+.tabs{display:flex;align-items:flex-end;gap:2px;padding:8px 14px 0;border-bottom:1px solid var(--line);background:var(--surface)}
+.tab{display:flex;align-items:center;gap:7px;padding:7px 12px;border:1px solid transparent;border-bottom:0;border-radius:9px 9px 0 0;color:var(--text-2);font-size:12px}
+.tab.on{background:var(--bg);border-color:var(--line);color:var(--text);font-weight:600;margin-bottom:-1px}
+.tab .x{color:var(--text-4);margin-left:4px}
+.tabs .sp{flex:1}
+.tabs .act{font-size:11px;color:var(--text-2);border:1px solid var(--line-2);border-radius:7px;padding:3px 8px;margin-bottom:6px;background:var(--bg)}
+.thread{flex:1;overflow:auto;padding:22px 0}
+.col{max-width:760px;margin:0 auto;padding:0 28px;display:flex;flex-direction:column;gap:14px}
+.msg{line-height:1.65}
+.msg .who{font-size:11px;color:var(--text-3);margin-bottom:3px}
+.msg.user{align-self:flex-end;max-width:78%;background:var(--surface-2);border:1px solid var(--line);border-radius:12px;padding:9px 13px}
+.evt{display:flex;gap:9px;align-items:flex-start;font-size:12px;color:var(--text-2);background:var(--inset);border:1px solid var(--line);border-radius:9px;padding:8px 11px}
+.evt .k{font-family:var(--font-mono);font-size:11px;padding:1px 6px;border-radius:5px;white-space:nowrap}
+.k.ok{background:var(--green-soft);color:var(--green)} .k.run{background:var(--blue-soft);color:var(--blue)} .k.fail{background:var(--red-soft);color:var(--red)}
+.card{border:1px solid var(--line-2);border-radius:12px;background:var(--surface);overflow:hidden}
+.card.ask{border-color:var(--yellow);box-shadow:0 0 0 3px var(--yellow-soft)}
+.card .hd{display:flex;align-items:center;gap:8px;padding:10px 13px;border-bottom:1px solid var(--line);font-weight:600}
+.card .hd .tag{font-size:11px;font-weight:600;padding:1px 7px;border-radius:6px;background:var(--yellow-soft);color:var(--yellow)}
+.card .bd{padding:11px 13px;display:flex;flex-direction:column;gap:8px}
+.opt{display:flex;gap:10px;border:1px solid var(--line);border-radius:9px;padding:9px 11px;background:var(--bg)}
+.opt.rec{border-color:var(--accent-line)}
+.opt .r{width:15px;height:15px;border-radius:50%;border:1.5px solid var(--line-strong);margin-top:2px;flex:none}
+.opt.sel .r{border:4.5px solid var(--accent)}
+.opt b{display:block;margin-bottom:2px}
+.opt span{color:var(--text-2);font-size:12px}
+.btns{display:flex;gap:8px;justify-content:flex-end}
+.btn{border:1px solid var(--line-2);background:var(--bg);border-radius:8px;padding:6px 13px;font-size:12px}
+.btn.pri{background:var(--accent);border-color:var(--accent);color:var(--on-accent);font-weight:600}
+.btn.you{background:var(--yellow);border-color:var(--yellow);color:#2A2620;font-weight:700}
+.spec{font-size:12px;color:var(--text-2);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:10px 12px;line-height:1.6}
+.spec h4{margin:0 0 4px;color:var(--text);font-family:var(--font-serif);font-size:14px}
+.ro{display:flex;align-items:center;gap:8px;margin:0 28px 6px;padding:8px 12px;border-radius:9px;background:var(--blue-soft);color:var(--blue);font-size:12px}
+.tool{font-family:var(--font-mono);font-size:12px;background:var(--inset);border:1px solid var(--line);border-radius:9px;padding:9px 11px;color:var(--text-2);white-space:pre-wrap}
+.tool .t{color:var(--accent)}
+.chips{display:flex;gap:8px;max-width:760px;margin:0 auto;padding:0 28px 8px;width:100%}
+.chip{flex:1;border:1px solid var(--line);border-radius:9px;padding:6px 10px;font-size:11px;color:var(--text-3);background:var(--surface)}
+.chip b{color:var(--text-2);font-weight:600;margin-right:6px}
+.composer{max-width:760px;margin:0 auto 14px;width:calc(100% - 56px);border:1px solid var(--line-2);border-radius:12px;background:var(--surface);padding:10px 12px}
+.composer .ph{color:var(--text-4);padding:2px 2px 10px}
+.composer .bar{display:flex;gap:10px;align-items:center;font-size:11px;color:var(--text-3)}
+.composer .bar .send{margin-left:auto;width:28px;height:28px;border-radius:8px;background:var(--accent);display:grid;place-items:center;color:var(--on-accent)}
+.composer.off{opacity:.55}
+
+/* 그래프 탭 */
+.graphview{padding:0 28px}
+.gv-head{font-family:var(--font-serif);font-size:16px;font-weight:600;margin-bottom:14px}
+.gv-head small{display:block;font-family:var(--font-sans);font-size:12px;font-weight:400;color:var(--text-3);margin-top:3px}
+.lane{display:flex;align-items:center;flex-wrap:wrap;gap:6px;padding:12px;border:1px solid var(--line);border-radius:10px;background:var(--surface);margin-bottom:10px}
+.ln{width:78px;font-size:11px;color:var(--text-3);font-weight:600}
+.gn{display:inline-flex;flex-direction:column;justify-content:center;min-height:34px;padding:5px 10px;border-radius:8px;border:1.5px solid var(--line-2);background:var(--bg);font-size:12px;font-weight:600;color:var(--text)}
+.gn small{font-size:10.5px;font-weight:500;color:var(--text-3)}
+.gn.act{border-style:dashed}
+.gn.rule{border-color:var(--green)} .gn.model{border-color:var(--blue)} .gn.human{border-color:var(--yellow)}
+.gn.done{opacity:.55}
+.gn.now{box-shadow:0 0 0 3px var(--blue-soft);border-color:var(--blue);background:var(--blue-soft)}
+.gn.sel{outline:2px solid var(--accent);outline-offset:2px}
+.ga{color:var(--text-4)}
+.gkey{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
+.gkey .gn{min-height:0;font-weight:500;font-size:11px}
+
+/* 그래프 캔버스안 */
+.canvas{position:relative;height:470px;border:1px solid var(--line);border-radius:12px;background-color:var(--inset);background-image:radial-gradient(var(--line-2) 1px,transparent 1px);background-size:18px 18px;overflow:hidden}
+.canvas svg{position:absolute;left:0;top:0;width:940px;height:470px;pointer-events:none;z-index:1}
+.canvas .w path{fill:none;stroke:var(--line-strong);stroke-width:2}
+.canvas .wf{fill:none;stroke:var(--red);stroke-width:1.6;stroke-dasharray:5 4}
+.canvas .wr{fill:none;stroke:var(--yellow);stroke-width:1.6;stroke-dasharray:5 4}
+.cn{position:absolute;z-index:2;width:86px;height:52px;border-radius:10px;border:1.5px solid var(--line-2);background:var(--surface);display:flex;flex-direction:column;justify-content:center;padding:0 8px 0 11px;font-size:11.5px;line-height:1.25;box-shadow:inset 4px 0 0 var(--c,var(--line-strong)),0 2px 6px rgba(0,0,0,.18)}
+.cn b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cn small{font-size:10px;color:var(--text-3)}
+.cn::before,.cn::after{content:'';position:absolute;top:21px;width:8px;height:8px;border-radius:50%;background:var(--surface-3);border:1.5px solid var(--line-strong)}
+.cn::before{left:-5px}.cn::after{right:-5px}
+.cn.work{--c:var(--accent)} .cn.act{--c:var(--text-3)} .cn.rule{--c:var(--green)} .cn.model{--c:var(--blue)} .cn.human{--c:var(--yellow)}
+.cn.done{opacity:.6}
+.cn.now{border-color:var(--blue);box-shadow:inset 4px 0 0 var(--c),0 0 0 4px var(--blue-soft)}
+.cn.sel{border-color:var(--accent);box-shadow:inset 4px 0 0 var(--c),0 0 0 3px var(--accent-soft)}
+.cn .ok{position:absolute;top:-7px;right:-7px;width:16px;height:16px;border-radius:50%;background:var(--green);color:#1d1b19;font-size:10px;font-style:normal;font-weight:800;display:grid;place-items:center}
+.grp{position:absolute;z-index:0;border:1.5px dashed var(--line-strong);border-radius:12px;background:rgba(127,127,127,.04)}
+.grp .gl{position:absolute;top:-10px;left:14px;background:var(--inset);padding:0 6px;font-size:11px;color:var(--text-2);font-weight:600}
+.el{position:absolute;z-index:2;font-family:var(--font-mono);font-size:10px;background:var(--inset);padding:0 4px}
+.ctool{position:absolute;right:10px;top:10px;z-index:3;display:flex;gap:4px}
+.ctool span{border:1px solid var(--line-2);background:var(--surface);border-radius:6px;padding:3px 8px;font-size:11px;color:var(--text-2)}
+.ctool .ro2{color:var(--blue);border-color:var(--blue);background:var(--blue-soft)}
+.ckey{position:absolute;left:12px;bottom:10px;z-index:3;display:flex;gap:12px;font-size:11px;color:var(--text-3)}
+.ckey i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:4px;vertical-align:-1px}
+.fields{display:flex;flex-direction:column;gap:10px}
+.field{display:flex;flex-direction:column;gap:4px;font-size:11px;color:var(--text-3)}
+.inp{border:1px solid var(--line-2);border-radius:7px;padding:6px 9px;background:var(--inset);color:var(--text-2);font-size:12px}
+.inp.dd::after{content:'▾';float:right;color:var(--text-4)}
+.lock{font-size:11px;color:var(--text-3);background:var(--surface-2);border-radius:8px;padding:8px 10px;line-height:1.5}
+
+/* 오른쪽 */
+.right{border-left:1px solid var(--line);background:var(--surface);display:flex;flex-direction:column;min-height:0}
+.rtabs{display:flex;gap:2px;padding:10px 12px 0;border-bottom:1px solid var(--line)}
+.rtabs span{padding:6px 11px;font-size:12px;color:var(--text-3);border-bottom:2px solid transparent}
+.rtabs span.on{color:var(--text);font-weight:600;border-color:var(--accent)}
+.rbody{flex:1;overflow:auto;padding:12px;display:flex;flex-direction:column;gap:12px}
+.box{border:1px solid var(--line);border-radius:10px;background:var(--bg)}
+.box.hot{border-color:var(--yellow)}
+.box>.h{display:flex;align-items:center;gap:6px;padding:9px 11px 6px;font-size:12px;font-weight:600}
+.box>.h small{margin-left:auto;font-weight:500;color:var(--text-3)}
+.box>.c{padding:0 11px 10px}
+.ms{font-family:var(--font-serif);font-size:17px;font-weight:600}
+.ms small{font-family:var(--font-sans);font-size:11px;color:var(--text-3);font-weight:500;margin-left:6px}
+.strip{display:flex;align-items:center;gap:3px;margin-top:8px;flex-wrap:wrap}
+.nd{font-size:10.5px;padding:3px 6px;border-radius:6px;border:1px solid var(--line-2);color:var(--text-3);white-space:nowrap}
+.nd.done{background:var(--green-soft);border-color:transparent;color:var(--green)}
+.nd.now{background:var(--blue-soft);border-color:var(--blue);color:var(--blue);font-weight:700}
+.nd.you{background:var(--yellow-soft);border-color:var(--yellow);color:var(--yellow);font-weight:700}
+.nd.stop{background:var(--red-soft);border-color:var(--red);color:var(--red);font-weight:700}
+.arr{color:var(--text-4);font-size:10px}
+.goal{display:flex;align-items:center;gap:8px;padding:6px 0;border-top:1px solid var(--line);font-size:12px}
+.goal:first-child{border-top:0}
+.goal .st{width:16px;text-align:center}
+.goal .g{flex:1}
+.goal small{color:var(--text-3)}
+.node{display:flex;align-items:center;gap:8px;padding:7px 8px;border-radius:8px;font-size:12px}
+.node .pulse{width:8px;height:8px;border-radius:50%;background:var(--blue);box-shadow:0 0 0 3px var(--blue-soft);flex:none}
+.node .idle{width:8px;height:8px;border-radius:50%;border:1.5px solid var(--text-4);flex:none}
+.node .txt{flex:1;min-width:0}
+.node .txt div{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.node .txt small{color:var(--text-3)}
+.node .open{font-size:11px;color:var(--accent);border:1px solid var(--accent-line);border-radius:6px;padding:2px 7px}
+.dec{border:1px solid var(--yellow);background:var(--yellow-soft);border-radius:9px;padding:9px 10px;font-size:12px;display:flex;flex-direction:column;gap:6px}
+.dec b{color:var(--yellow)}
+.kv{display:flex;flex-direction:column;gap:6px;font-size:12px}
+.kv .row{display:flex;justify-content:space-between;gap:10px;color:var(--text-2)}
+.kv .row b{color:var(--text);text-align:right}
+.ver{font-family:var(--font-mono);font-size:11px;color:var(--text-2);display:flex;flex-direction:column;gap:4px}
+.ver .p{color:var(--green)} .ver .f{color:var(--red)} .ver .u{color:var(--yellow)}
+.empty{color:var(--text-3);font-size:12px}
+.ag{padding:12px 14px;border-bottom:1px solid var(--line)}
+.ag b{display:flex;justify-content:space-between;font-size:12px}
+.ag b small{color:var(--text-3);font-family:var(--font-mono);font-weight:400}
+.ag div{color:var(--text-3);font-size:12px;margin-top:4px}
+
+/* Windows 알림 흉내 */
+.toast{position:absolute;right:18px;bottom:40px;width:340px;background:#2B2B2B;color:#eee;border-radius:8px;box-shadow:0 12px 40px rgba(0,0,0,.5);padding:12px 14px;font-family:'Segoe UI',var(--font-sans);font-size:12px;border:1px solid #3a3a3a;z-index:6}
+.toast .a{font-size:11px;color:#aaa;margin-bottom:4px}
+.toast b{font-size:13px}
+
+/* 재배치 표시 */
+.pin{position:absolute;z-index:5;width:22px;height:22px;border-radius:50%;background:var(--violet);color:#1d1b19;font-weight:800;font-size:12px;display:grid;place-items:center;box-shadow:0 0 0 3px rgba(183,155,208,.3)}
+body:not(.notes) .pin{display:none}
+.legend{margin-top:16px;display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:10px}
+body:not(.notes) .legend{display:none}
+.lg{display:flex;gap:10px;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 12px;line-height:1.55}
+.lg i{font-style:normal;flex:none;width:22px;height:22px;border-radius:50%;background:var(--violet);color:#1d1b19;font-weight:800;display:grid;place-items:center}
+.lg b{display:block}
+.lg span{color:var(--text-2)}
+</style>
+</head>
+<body data-scene="run" class="notes">
+
+<div class="ctl">
+  <h1>M10 화면 시안 (최종안)</h1>
+  <div class="seg" id="scenes">
+    <button data-s="chat">채팅 모드</button>
+    <button data-s="brain">작업 · 브레인스토밍</button>
+    <button data-s="run" class="on">작업 · goal 진행</button>
+    <button data-s="alert">작업 · 사람 부름</button>
+    <button data-s="node">작업 · 노드 세션</button>
+    <button data-s="canvas">작업 · 그래프 탭</button>
+    <button data-s="files">작업 · 파일·변경</button>
+    <button data-s="merge">작업 · 병합 대기</button>
+  </div>
+  <div class="seg" id="themes"><button data-t="dark" class="on">다크</button><button data-t="light">라이트</button></div>
+  <label><input type="checkbox" id="notes" checked> 재배치 표시</label>
+</div>
+<div class="cap" id="cap"></div>
+
+<div class="stage">
+<div class="win">
+  <div class="titlebar">
+    AgentDeck <span class="sp"></span>
+    <span class="bell" data-in="chat brain run node graph canvas files merge">🔔 알림<b data-in="brain merge">1</b></span>
+    <span class="bell hot" data-in="alert">🔔 알림<b>1</b></span>
+    <span class="wc">–□×</span>
+  </div>
+
+  <div class="body">
+    <!-- 사이드바 -->
+    <aside class="side">
+      <div class="brand"><div class="mk">A</div><div><div class="n">AgentDeck</div><div class="s">Claude Code</div></div></div>
+      <div class="mode"><span data-on="chat">채팅</span><span data-on="brain run alert node graph canvas files merge">작업</span></div>
+      <div data-in="chat" style="display:flex;flex-direction:column;gap:8px">
+        <div class="sbtn">＋ 새 대화 <small>Ctrl N</small></div>
+        <div class="sbtn" style="color:var(--text-4)">⌕ 대화 검색</div>
+        <div class="sec">최근 채팅</div>
+        <div class="ci on">링크 검사 출력 형식 질문<small>AgentDeck_Test · 방금</small></div>
+        <div class="ci">tokens.css 다크 값 정리<small>AgentDeck · 어제</small></div>
+        <div class="ci">vitest 느린 시험 찾기<small>AgentDeck · 11월 17일</small></div>
+      </div>
+      <div data-in="brain run alert node graph canvas files merge" style="display:flex;flex-direction:column;gap:10px">
+        <div class="sec">프로젝트</div>
+        <div class="proj">
+          <div class="pn">AgentDeck_Test
+            <small data-in="brain">브레인스토밍</small><small data-in="run node graph canvas files">M02 · 진행 중</small><small class="warn" data-in="alert">M02 · 멈춤</small><small data-in="merge">병합 대기</small></div>
+          <div class="wt">⎇ 기본 폴더 · main</div>
+          <div class="pi on"><span class="ic">◆</span>메인 대화</div>
+          <div class="pi"><span class="ic">▤</span>M01 기록 · 종결</div>
+          <div class="wt add">＋ 워크트리 추가 — 나중 마일스톤</div>
+        </div>
+        <div class="proj dim"><div class="pn">AgentDeck <small>M10 · 브레인스토밍</small></div></div>
+        <div class="newp">＋ 프로젝트 열기(폴더 고르기)</div>
+      </div>
+      <div class="grow"></div>
+      <div class="me"><div class="av">Y</div>유영호</div>
+    </aside>
+
+    <!-- 탐색기: 채팅 모드에만 -->
+    <aside class="explorer" data-in="chat">
+      <div class="hd">탐색기 · AgentDeck_Test</div>
+      <div class="tree">
+        <div class="d">▾ src</div><div class="in">cli.ts</div><div class="in m">report.ts  M</div><div class="in">links.ts</div>
+        <div class="d">▸ test</div><div class="d">▸ .github</div><div>package.json</div><div>README.md</div>
+      </div>
+    </aside>
+
+    <!-- 가운데 -->
+    <section class="center">
+      <div class="tabs" data-in="brain run alert node graph canvas files merge">
+        <span class="tab" data-on="graph canvas">◇ 그래프</span>
+        <span class="tab" data-on="brain run alert files merge">◆ 메인 대화</span>
+        <span class="tab" data-in="run alert node graph canvas files merge" data-on="node">● G2 구현 <span class="x">×</span></span>
+        <span class="tab" data-in="run alert node graph canvas files merge">○ G1 검수 <span class="x">×</span></span>
+        <span class="sp"></span>
+        <span class="act">＋ 새 메인 대화 열기</span>
+      </div>
+
+      <div class="thread">
+        <!-- 채팅 모드 -->
+        <div class="col" data-in="chat">
+          <div class="msg user">report.ts 결과 표를 마크다운 표로도 뽑을 수 있어?</div>
+          <div class="msg"><div class="who">Claude</div>지금 표는 터미널 폭에 맞춘 글자 표야. 마크다운으로 내려면 `--format md`를 받아서 `|` 구분 줄을 쓰면 돼. 고칠 곳은 `formatTable` 하나야.</div>
+          <div class="tool"><span class="t">Read</span> src/report.ts  (1–48)</div>
+          <div class="msg"><div class="who">Claude</div>이 대화는 「채팅」 모드라 마일스톤 루프와 상관없이 바로 고칠 수 있어. 고칠까?</div>
+        </div>
+
+        <!-- 브레인스토밍 -->
+        <div class="col" data-in="brain">
+          <div class="msg"><div class="who">메인</div>M01은 링크 검사 CLI까지 끝났어. M02 방향을 같이 정하자. 먼저 범위부터 물을게.</div>
+          <div class="card ask">
+            <div class="hd">질문 1/3 <span class="tag">네 답이 필요해</span></div>
+            <div class="bd">
+              <div style="color:var(--text-2)">M02에서 CLI에 무엇을 더할까?</div>
+              <div class="opt rec sel"><div class="r"></div><div><b>외부 링크 검사 (추천)</b><span>http 링크도 요청해 404를 잡는다. 네트워크 시험이 필요해.</span></div></div>
+              <div class="opt"><div class="r"></div><div><b>설정 파일</b><span>무시할 경로와 규칙을 `.linkcheckrc`로 받는다.</span></div></div>
+              <div class="btns"><span class="btn">직접 쓰기</span><span class="btn pri">보내기</span></div>
+            </div>
+          </div>
+          <div class="msg user">외부 링크로 가자. 타임아웃은 짧게.</div>
+          <div class="msg"><div class="who">메인</div>좋아, 결정 대장에 적었어. 완료조건까지 물은 뒤 스펙 초안을 보여 줄게.</div>
+          <div class="card">
+            <div class="hd">스펙 초안 · <span style="font-weight:500;color:var(--text-3)">.agentdeck/milestone-spec.md</span></div>
+            <div class="bd"><div class="spec"><h4>M02 — 외부 링크 검사</h4>만들 것: http(s) 링크 요청, 타임아웃 3초, 결과 표…<br>완료조건: `npm test` 통과, 404 픽스처를 잡는다…</div>
+            <div class="btns"><span class="btn">이어서 고치기</span><span class="btn you">스펙 승인</span></div></div>
+          </div>
+        </div>
+
+        <!-- goal 진행 / 파일·변경 / 병합 대기 / 사람 부름 (메인 대화) -->
+        <div class="col" data-in="run files merge alert">
+          <div class="msg"><div class="who">메인 · 14:02</div>스펙을 승인받았어. goal 둘로 나눴어 — G1 요청기와 타임아웃, G2 결과 표.</div>
+          <div class="evt"><span class="k ok">PASS</span><div>G1 · CI `hard-gates` 통과 → 마일스톤 브랜치에 병합 <b>#4</b></div></div>
+          <div class="msg"><div class="who">메인 · 14:31</div>G1이 들어갔어. 검수자가 타임아웃 기본값을 문서에 적으라고 해서 반영했어. 지금 G2 구현이 돌고 있어.</div>
+          <div class="msg user">G2는 표 말고 JSON 출력도 되게 해줘</div>
+          <div class="msg"><div class="who">메인</div>그건 스펙의 완료조건 밖이라 Backlog에 한 줄로 남겼어. 이번 마일스톤에 넣으려면 범위 변경이라 멈추고 물어야 해 — 그렇게 할까?</div>
+          <div class="evt" data-in="run files"><span class="k run">RUN</span><div>G2 구현 · 테스트 작성 중 (오른쪽 「노드 세션」에서 열어 볼 수 있어)</div></div>
+          <div class="evt" data-in="alert"><span class="k fail">FAIL</span><div>G2 검사 · `npm test` 실패 — 같은 곳 세 번째. 실행기가 G2에서 멈췄어</div></div>
+          <div class="msg" data-in="alert"><div class="who">메인 · 14:58</div>G2 검사가 세 번 실패해서 멈췄어. 세 번 모두 외부 요청 시험이 CI에서 시간 초과야 — 방법 자체가 틀렸을 수 있어. 네 판단이 필요해.</div>
+          <div class="card ask" data-in="alert">
+            <div class="hd">사람 부름 · FAIL 세 번 <span class="tag">네 답이 필요해</span></div>
+            <div class="bd">
+              <div class="opt rec sel"><div class="r"></div><div><b>시험은 가짜 서버로 (추천)</b><span>외부 요청 시험을 로컬 가짜 서버로 바꾸고 G2를 이어 간다. 완료조건은 그대로야.</span></div></div>
+              <div class="opt"><div class="r"></div><div><b>외부 시험을 빼고 범위를 줄인다</b><span>완료조건에서 「실제 404를 잡는다」를 뺀다. 범위 변경이야.</span></div></div>
+              <div class="btns"><span class="btn">직접 쓰기</span><span class="btn pri">보내기</span></div>
+            </div>
+          </div>
+          <div class="evt" data-in="merge"><span class="k ok">PASS</span><div>마일스톤 회귀 통과 · 마일스톤 PR <b>#6</b> 열림</div></div>
+          <div class="msg" data-in="merge"><div class="who">메인 · 15:20</div>M02가 끝났어. 결과 보고는 오른쪽 PR 카드에 있어. 사람을 부른 예외는 1번(G2 FAIL 세 번)이야. 병합은 네가 버튼으로 해 줘.</div>
+        </div>
+
+        <!-- 노드 세션 펼침 -->
+        <div class="col" data-in="node">
+          <div class="msg"><div class="who">G2 구현 · 작업 노드 세션</div>goal 문서를 읽었어. 결과 표 함수부터 테스트를 쓸게.</div>
+          <div class="tool"><span class="t">Write</span> src/report.test.ts  (+42)</div>
+          <div class="tool"><span class="t">Bash</span> npm test -- report
+✓ 결과 표는 깨진 링크를 파일 순서로 묶는다
+✗ 타임아웃 링크는 「시간 초과」로 표시한다</div>
+          <div class="msg"><div class="who">G2 구현</div>타임아웃 표기가 빠졌어. report.ts를 고칠게.</div>
+          <div class="tool"><span class="t">Edit</span> src/report.ts  (+6 −1)</div>
+        </div>
+
+        <!-- 그래프 탭 -->
+        <div class="graphview" data-in="graph">
+          <div class="gv-head">프로그램 개발 템플릿 · M02 <small>보기 전용 — 노드를 누르면 그 세션 탭이 열려. 노드 설정 바꾸기는 그래프 편집(v2)에서 이 탭에 더한다.</small></div>
+          <div class="lane"><div class="ln">마일스톤</div>
+            <div class="gn work done">브레인스토밍<small>작업 · 메인</small></div><span class="ga">→</span>
+            <div class="gn human done">스펙 승인<small>사람 게이트</small></div><span class="ga">→</span>
+            <div class="gn act done">마일스톤 브랜치<small>실행기 동작</small></div><span class="ga">→</span>
+            <div class="gn work done">goal 분해<small>작업</small></div>
+          </div>
+          <div class="lane"><div class="ln">G1 ✓</div>
+            <div class="gn act done">브랜치</div><span class="ga">→</span><div class="gn work done">구현</div><span class="ga">→</span><div class="gn rule done">검사</div><span class="ga">→</span><div class="gn rule done">등급</div><span class="ga">→</span><div class="gn model done">독립 검수</div><span class="ga">→</span><div class="gn act done">PR #4</div><span class="ga">→</span><div class="gn rule done">CI</div><span class="ga">→</span><div class="gn act done">병합</div>
+          </div>
+          <div class="lane"><div class="ln">G2 ●</div>
+            <div class="gn act done">브랜치</div><span class="ga">→</span><div class="gn work now">구현<small>테스트 작성 중</small></div><span class="ga">→</span><div class="gn rule sel">검사<small>FAIL 1</small></div><span class="ga">→</span><div class="gn rule">등급</div><span class="ga">→</span><div class="gn model">독립 검수</div><span class="ga">→</span><div class="gn act">PR</div><span class="ga">→</span><div class="gn rule">CI</div><span class="ga">→</span><div class="gn act">병합</div>
+          </div>
+          <div class="lane"><div class="ln">마일스톤 끝</div>
+            <div class="gn rule">회귀</div><span class="ga">→</span><div class="gn act">마일스톤 PR</div><span class="ga">→</span><div class="gn human">마일스톤 병합<small>사람 게이트</small></div>
+          </div>
+          <div class="gkey"><span class="gn work">작업 노드</span><span class="gn act">실행기 동작</span><span class="gn rule">규칙 게이트</span><span class="gn model">모델 게이트</span><span class="gn human">사람 게이트</span></div>
+        </div>
+
+        <!-- 그래프 탭 캔버스안 -->
+        <div data-in="canvas" style="padding:0 16px">
+          <div class="canvas">
+            <svg viewBox="0 0 940 470" preserveAspectRatio="xMinYMin meet">
+              <g class="w">
+                <path d="M122 56 L176 56"/><path d="M262 56 L316 56"/><path d="M402 56 L456 56"/>
+                <path d="M542 56 H580 Q590 56 590 66 V130 Q590 140 580 140 H30 Q20 140 20 150 V216 Q20 226 30 226 H36"/>
+                <path d="M122 226 L148 226"/><path d="M234 226 L260 226"/><path d="M346 226 L372 226"/><path d="M458 226 L484 226"/>
+                <path d="M570 226 L596 226"/><path d="M682 226 L708 226"/><path d="M794 226 L820 226"/>
+                <path d="M906 226 H920 Q930 226 930 236 V350 Q930 360 920 360 H30 Q20 360 20 370 V396 Q20 406 30 406 H36"/>
+                <path d="M122 406 L176 406"/><path d="M262 406 L316 406"/>
+              </g>
+              <path class="wf" d="M303 252 C303 292 191 292 191 252"/>
+              <path class="wr" d="M527 252 C527 320 191 320 191 252"/>
+            </svg>
+            <div class="ctool"><span>－</span><span>100%</span><span>＋</span><span>맞춤</span><span class="ro2">보기 전용 · 편집은 v2</span></div>
+            <div class="grp" style="left:16px;top:165px;width:908px;height:170px"><span class="gl">goal 반복 — G1 ✓ · 지금 G2</span></div>
+
+            <div class="cn work done" style="left:36px;top:30px"><b>브레인스토밍</b><small>작업 · 메인</small><i class="ok">✓</i></div>
+            <div class="cn human done" style="left:176px;top:30px"><b>스펙 승인</b><small>사람</small><i class="ok">✓</i></div>
+            <div class="cn act done" style="left:316px;top:30px"><b>브랜치 가르기</b><small>실행기</small><i class="ok">✓</i></div>
+            <div class="cn work done" style="left:456px;top:30px"><b>goal 분해</b><small>작업</small><i class="ok">✓</i></div>
+
+            <div class="cn act done" style="left:36px;top:200px"><b>브랜치</b><small>실행기</small><i class="ok">✓</i></div>
+            <div class="cn work now" style="left:148px;top:200px"><b>구현</b><small>테스트 작성 중</small></div>
+            <div class="cn rule sel" style="left:260px;top:200px"><b>검사</b><small>규칙 · FAIL 1</small></div>
+            <div class="cn rule" style="left:372px;top:200px"><b>등급</b><small>규칙</small></div>
+            <div class="cn model" style="left:484px;top:200px"><b>독립 검수</b><small>모델</small></div>
+            <div class="cn act" style="left:596px;top:200px"><b>goal PR</b><small>실행기</small></div>
+            <div class="cn rule" style="left:708px;top:200px"><b>CI</b><small>규칙</small></div>
+            <div class="cn act" style="left:820px;top:200px"><b>병합</b><small>실행기</small></div>
+            <span class="el" style="left:216px;top:282px;color:var(--red)">FAIL → 다시 (≤3)</span>
+            <span class="el" style="left:330px;top:306px;color:var(--yellow)">반려 → 다시</span>
+
+            <div class="cn rule" style="left:36px;top:380px"><b>회귀</b><small>규칙</small></div>
+            <div class="cn act" style="left:176px;top:380px"><b>마일스톤 PR</b><small>실행기</small></div>
+            <div class="cn human" style="left:316px;top:380px"><b>마일스톤 병합</b><small>사람</small></div>
+
+            <div class="ckey"><span><i style="background:var(--accent)"></i>작업</span><span><i style="background:var(--text-3)"></i>실행기 동작</span><span><i style="background:var(--green)"></i>규칙</span><span><i style="background:var(--blue)"></i>모델</span><span><i style="background:var(--yellow)"></i>사람</span><span class="sep">── 다음 · ┄ 되돌아감</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="ro" data-in="node">ⓘ 노드 세션은 보기 전용이야. 말 걸기와 지시는 메인 대화에서 해.</div>
+      <div class="chips" data-in="chat brain run alert files merge"><div class="chip"><b data-in="chat">현재 컨텍스트</b><b data-in="brain run alert files merge">메인 컨텍스트</b>38%</div><div class="chip"><b>5시간 한도</b>41%</div><div class="chip"><b>주간 한도</b>13%</div></div>
+      <div class="composer" data-in="chat"><div class="ph">무엇이든 물어보세요</div><div class="bar">모델 Opus 5.5 · Effort 최대 · 모드 자동 · UltraCode · REPL<span class="send">↑</span></div></div>
+      <div class="composer" data-in="brain run alert files merge"><div class="ph">메인에게 말하기 — 질문, 「멈춰」, 「이어 가」, 「Backlog로」…</div><div class="bar">모델 Opus 5.5 · Effort 최대 · 모드 작업(파일 쓰기 없음)<span class="send">↑</span></div></div>
+      <div class="composer off" data-in="node"><div class="ph">이 세션에는 직접 입력할 수 없어 — 메인 대화로 돌아가기</div><div class="bar">G2 구현 · Opus 5.5 · 자동 모드<span class="send">↩</span></div></div>
+    </section>
+
+    <!-- 오른쪽 -->
+    <aside class="right">
+      <!-- 채팅 모드: 지금의 에이전트 패널 그대로 -->
+      <div data-in="chat" style="display:flex;flex-direction:column">
+        <div class="rtabs"><span class="on">에이전트</span></div>
+        <div class="ag"><b>☰ 할 일 <small>1/3</small></b><div>formatTable에 md 형식 더하기</div></div>
+        <div class="ag"><b>⌂ 서브에이전트 <small>0/0</small></b><div>아직 서브에이전트가 없어요</div></div>
+        <div class="ag"><b>▢ 변경된 파일 <small>0</small></b><div>아직 변경된 파일이 없어요</div></div>
+      </div>
+
+      <div data-in="brain run alert node graph canvas files merge" style="display:flex;flex-direction:column;min-height:0;flex:1">
+        <div class="rtabs"><span data-in="canvas" data-on="canvas">노드 설정</span><span data-on="brain run alert node graph merge">현황판</span><span data-on="files">파일·변경</span></div>
+
+        <!-- 노드 설정 탭(그래프 캔버스안) -->
+        <div class="rbody" data-in="canvas">
+          <div class="box">
+            <div class="h">노드 설정 <small>G2 · 검사</small></div>
+            <div class="c fields">
+              <div class="field">이름<div class="inp">검사</div></div>
+              <div class="field">종류<div class="inp dd">규칙 게이트</div></div>
+              <div class="field">실행할 명령<div class="inp">npm run build</div><div class="inp">npm test</div></div>
+              <div class="field">통과하면<div class="inp dd">등급</div></div>
+              <div class="field">실패하면<div class="inp dd">구현으로 되돌림 · 최대 3번, 넘으면 사람 부름</div></div>
+              <div class="lock">🔒 보기 전용 — 이 칸들을 고치는 일은 그래프 편집(v2)에서 연다.</div>
+            </div>
+          </div>
+          <div class="box">
+            <div class="h">이 노드의 실행 <small>최근</small></div>
+            <div class="c ver">
+              <span class="p">PASS 14:12 G1 checks(rule)</span>
+              <span class="f">FAIL 14:40 G2 checks(rule) npm test</span>
+              <span style="color:var(--text-3)">→ 구현으로 되돌아감 (1/3)</span>
+            </div>
+          </div>
+          <div class="box">
+            <div class="h">고르기 <small>캔버스안</small></div>
+            <div class="c empty">노드를 누르면 여기 설정이 열리고, 작업 노드는 「세션 열기」로 그 세션 탭을 연다.</div>
+          </div>
+        </div>
+
+        <!-- 파일·변경 탭 -->
+        <div class="rbody" data-in="files">
+          <div class="box"><div class="h">파일 <small>AgentDeck_Test · goal/M02-G2</small></div><div class="c tree">
+            <div class="d">▾ src</div><div class="in">cli.ts</div><div class="in m">report.ts  M</div><div class="in m">report.test.ts  A</div><div class="in">links.ts</div><div class="d">▸ test</div><div>package.json</div></div></div>
+          <div class="box"><div class="h">변경된 파일 <small>2</small></div><div class="c kv"><div class="row"><span style="font-family:var(--font-mono)">src/report.ts</span><b style="color:var(--green)">+6 −1</b></div><div class="row"><span style="font-family:var(--font-mono)">src/report.test.ts</span><b style="color:var(--green)">+42</b></div></div></div>
+          <div class="box"><div class="h">할 일 <small>메인 대화</small></div><div class="c empty">메인 대화의 할 일 목록이 여기 보여.</div></div>
+          <div class="box"><div class="h">서브에이전트 <small>0</small></div><div class="c empty">메인이 띄운 서브에이전트가 여기 보여.</div></div>
+        </div>
+
+        <!-- 현황판 탭 -->
+        <div class="rbody" data-in="brain run alert node graph merge">
+          <div class="box">
+            <div class="h">마일스톤 <small>AgentDeck_Test</small></div>
+            <div class="c">
+              <div class="ms">M02 외부 링크 검사<small data-in="brain">브레인스토밍</small><small data-in="run node graph">goal 1/2 끝</small><small data-in="alert" style="color:var(--red)">G2에서 멈춤</small><small data-in="merge">병합 대기</small></div>
+              <div class="strip" data-in="brain"><span class="nd now">브레인스토밍</span><span class="arr">→</span><span class="nd">스펙 승인</span><span class="arr">→</span><span class="nd">분해</span><span class="arr">→</span><span class="nd">goal</span><span class="arr">→</span><span class="nd">회귀</span><span class="arr">→</span><span class="nd">PR</span><span class="arr">→</span><span class="nd">병합</span></div>
+              <div class="strip" data-in="run node graph"><span class="nd done">브레인스토밍</span><span class="arr">→</span><span class="nd done">승인</span><span class="arr">→</span><span class="nd done">분해</span><span class="arr">→</span><span class="nd done">G1</span><span class="arr">→</span><span class="nd now">G2 구현</span><span class="arr">→</span><span class="nd">검사</span><span class="arr">→</span><span class="nd">검수</span><span class="arr">→</span><span class="nd">회귀</span><span class="arr">→</span><span class="nd">PR</span></div>
+              <div class="strip" data-in="alert"><span class="nd done">브레인스토밍</span><span class="arr">→</span><span class="nd done">승인</span><span class="arr">→</span><span class="nd done">분해</span><span class="arr">→</span><span class="nd done">G1</span><span class="arr">→</span><span class="nd stop">G2 검사 ✕3</span><span class="arr">→</span><span class="nd">검수</span><span class="arr">→</span><span class="nd">회귀</span><span class="arr">→</span><span class="nd">PR</span></div>
+              <div class="strip" data-in="merge"><span class="nd done">브레인스토밍</span><span class="arr">→</span><span class="nd done">승인</span><span class="arr">→</span><span class="nd done">G1</span><span class="arr">→</span><span class="nd done">G2</span><span class="arr">→</span><span class="nd done">회귀</span><span class="arr">→</span><span class="nd done">PR</span><span class="arr">→</span><span class="nd you">병합(너)</span></div>
+            </div>
+          </div>
+
+          <div class="box" data-in="graph">
+            <div class="h">고른 노드 <small>G2 · 검사</small></div>
+            <div class="c kv">
+              <div class="row"><span>종류</span><b>규칙 게이트</b></div>
+              <div class="row"><span>판정</span><b>`npm run build`, `npm test`</b></div>
+              <div class="row"><span>마지막 판정</span><b style="color:var(--red)">FAIL 14:40</b></div>
+              <div class="row"><span>통과하면</span><b>등급</b></div>
+              <div class="row"><span>실패하면</span><b>구현으로 (FAIL 1/3)</b></div>
+            </div>
+          </div>
+
+          <div class="box hot" data-in="brain alert">
+            <div class="h">기다리는 결정 <small>1</small></div>
+            <div class="c"><div class="dec" data-in="brain"><b>질문 1/3 — 메인 대화에 있어</b>M02에서 CLI에 무엇을 더할까?</div><div class="dec" data-in="alert"><b>FAIL 세 번 — 메인 대화에 있어</b>G2 외부 요청 시험을 어떻게 할까?</div></div>
+          </div>
+
+          <div class="box" data-in="run node graph alert merge">
+            <div class="h">goal <small>2</small></div>
+            <div class="c">
+              <div class="goal"><span class="st" style="color:var(--green)">✓</span><span class="g">G1 요청기와 타임아웃 <small>· 강 · #4</small></span><small>병합</small></div>
+              <div class="goal"><span class="st" data-in="run node graph" style="color:var(--blue)">●</span><span class="st" data-in="alert" style="color:var(--red)">■</span><span class="st" data-in="merge" style="color:var(--green)">✓</span><span class="g">G2 결과 표 <small>· 약</small></span><small data-in="run node graph">구현 중</small><small data-in="alert">FAIL 3/3 · 멈춤</small><small data-in="merge">병합 #5</small></div>
+            </div>
+          </div>
+
+          <div class="box" data-in="brain run alert node graph merge">
+            <div class="h">노드 세션</div>
+            <div class="c">
+              <div class="node" data-in="brain"><span class="pulse"></span><div class="txt"><div>메인 · 브레인스토밍</div><small>질문 1/3에 답을 기다리는 중</small></div></div>
+              <div class="node" data-in="run node graph"><span class="pulse"></span><div class="txt"><div>G2 구현 · 테스트 작성 중</div><small>report.test.ts · 3분째</small></div><span class="open">열기</span></div>
+              <div class="node" data-in="alert"><span class="idle"></span><div class="txt"><div>G2 구현 · 멈춤</div><small>네 답을 기다리는 중</small></div><span class="open">열기</span></div>
+              <div class="node" data-in="run node graph alert"><span class="idle"></span><div class="txt"><div>G2 검수 · 대기</div><small>구현이 끝나면 시작</small></div></div>
+              <div class="node" data-in="run node graph alert"><span class="idle"></span><div class="txt"><div>G1 검수 · 끝 (pass)</div><small>14:24 · 판정 줄 지킴</small></div><span class="open">열기</span></div>
+              <div class="node" data-in="merge"><span class="idle"></span><div class="txt"><div>돌고 있는 노드 없음</div><small>지난 세션 6개는 열어 볼 수 있어</small></div></div>
+            </div>
+          </div>
+
+          <div class="box" data-in="run node graph">
+            <div class="h">기다리는 결정 <small>0</small></div>
+            <div class="c empty">지금 네 손이 필요한 일은 없어.</div>
+          </div>
+
+          <div class="box hot" data-in="merge">
+            <div class="h">마일스톤 PR #6 <small>main ← milestone/M02</small></div>
+            <div class="c kv">
+              <div class="row"><span>hard-gates</span><b style="color:var(--green)">통과</b></div>
+              <div class="row"><span>머리</span><b style="font-family:var(--font-mono)">a41c9e2</b></div>
+              <div class="row"><span>사람 부른 예외</span><b>1번</b></div>
+              <div class="btns"><span class="btn">결과 보고 보기</span><span class="btn you">병합</span></div>
+            </div>
+          </div>
+
+          <div class="box">
+            <div class="h">검증 기록 <small>최근</small></div>
+            <div class="c ver">
+              <span data-in="brain">(아직 없음)</span>
+              <span class="p" data-in="run node graph alert merge">PASS 14:24 G1 review(model)</span>
+              <span class="p" data-in="run node graph alert merge">PASS 14:29 G1 ci(rule) #4</span>
+              <span class="f" data-in="node graph alert">FAIL 14:40 G2 checks(rule) npm test</span>
+              <span class="f" data-in="alert">FAIL 14:49 G2 checks(rule) npm test</span>
+              <span class="f" data-in="alert">FAIL 14:57 G2 checks(rule) npm test</span>
+              <span class="u" data-in="merge">USER-INPUT 15:01 가짜 서버로</span>
+              <span class="p" data-in="merge">PASS 15:18 regression(rule)</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <div class="status">
+    <span data-in="chat"><span class="dot"></span>준비됨 · 채팅 · AgentDeck_Test</span>
+    <span data-in="brain run node graph canvas files merge"><span class="dot"></span>작업 · AgentDeck_Test · 메인 대화</span>
+    <span data-in="alert"><span class="dot warn"></span>작업 · AgentDeck_Test · 실행기 멈춤(FAIL 세 번)</span>
+  </div>
+
+  <div class="toast" data-in="alert"><div class="a">AgentDeck</div><b>AgentDeck_Test — 네 판단이 필요해</b><div>G2 검사가 세 번 실패해 멈췄어. 메인 대화에 선택지가 있어.</div></div>
+
+  <!-- 재배치 표시(작업 모드에서만) -->
+  <span class="pin" data-in="brain run alert node graph canvas files merge" style="left:232px;top:96px">1</span>
+  <span class="pin" data-in="brain run alert node graph canvas files merge" style="left:236px;top:228px">2</span>
+  <span class="pin" data-in="brain run alert node graph canvas files merge" style="left:700px;top:50px">3</span>
+  <span class="pin" data-in="brain run alert node graph canvas files merge" style="left:1480px;top:52px">4</span>
+  <span class="pin" data-in="brain run alert node graph canvas files merge" style="left:1386px;top:9px">5</span>
+  <span class="pin" data-in="brain run alert merge files" style="left:352px;top:178px">6</span>
+</div>
+
+<div class="legend">
+  <div class="lg"><i>1</i><div><b>모드는 「채팅 · 작업」 둘</b><span>지금의 「단일 에이전트」가 「채팅」이 되고 그대로 쓴다. 「멀티 에이전트」는 코드까지 지운다. 「작업」이 마일스톤 루프 화면이다. 사이드바 아래 「마일스톤 루프」 버튼과 따로 뜨던 창도 없앤다.</span></div></div>
+  <div class="lg"><i>2</i><div><b>작업 모드 사이드바는 프로젝트 목록</b><span>프로젝트(저장소) 아래에 작업 폴더(워크트리)를 한 단계 두고, 작업 폴더마다 메인 대화 하나와 지난 마일스톤 기록. 지금은 기본 폴더 하나이고, 워크트리 추가는 나중 마일스톤. 폴더 고르기는 「프로젝트 열기」. 채팅 모드의 사이드바는 지금처럼 최근 채팅이다.</span></div></div>
+  <div class="lg"><i>3</i><div><b>가운데 탭: 그래프 · 메인 대화 · 노드 세션들</b><span>멀티 에이전트의 여러 세션 보기를 이 탭이 갈음한다. 노드 세션은 보기 전용. 그래프는 보기 전용이고 편집은 v2에서 이 탭에 더한다. 「새 메인 대화 열기」는 네가 누를 때만.</span></div></div>
+  <div class="lg"><i>4</i><div><b>오른쪽: 현황판 · 파일·변경</b><span>현황판은 진척, goal, 노드 세션 한 줄, 기다리는 결정, PR과 병합 버튼, 검증 기록. 작업 모드에서는 왼쪽 탐색기 열을 접고, 탐색기·변경된 파일·할 일·서브에이전트를 「파일·변경」 탭으로 옮긴다.</span></div></div>
+  <div class="lg"><i>5</i><div><b>알림</b><span>바로 알릴 사건(범위 변경, FAIL 세 번)은 Windows 알림 한 번과 제목 줄 표시. 나중에 봐도 될 사건(병합 대기)은 제목 줄 표시만. 해결될 때까지 남고 반복하지 않는다.</span></div></div>
+  <div class="lg"><i>6</i><div><b>질문·승인·사람 부름 카드는 메인 대화 안</b><span>M09의 질문 창, 스펙 승인 카드, 예외 표시 한 줄이 메인 대화 흐름 안 카드가 된다. 같은 항목이 현황판 「기다리는 결정」에도 보인다. 노랑은 네가 할 일이다.</span></div></div>
+</div>
+</div>
+
+<script>
+const CAP={
+  chat:'<b>채팅 모드</b> — 지금의 단일 에이전트 화면 그대로. 사이드바는 최근 채팅, 탐색기 열, 오른쪽은 에이전트 패널(할 일·서브에이전트·변경된 파일). 루프와 무관한 일은 여기서 한다.',
+  brain:'<b>작업 · 브레인스토밍</b> — 메인 대화 안에서 여러 턴으로 묻고 답한다. 질문 카드와 스펙 승인 카드가 대화 흐름 안에 뜨고, 같은 항목이 현황판 「기다리는 결정」에 보인다.',
+  run:'<b>작업 · goal 진행</b> — 메인이 노드 사건을 짧게 말하고 네 질문·지시를 받는다. 순서와 판정은 실행기가 쥔다. 범위 밖 요청은 Backlog로 가거나, 넣으려면 멈추고 묻는다.',
+  alert:'<b>작업 · 사람 부름</b> — 같은 곳 FAIL 세 번. Windows 알림 한 번, 제목 줄 표시, 메인 대화의 선택지 카드, 현황판 「기다리는 결정」. 답하면 USER-INPUT 줄이 남고 이어 간다.',
+  node:'<b>작업 · 노드 세션</b> — 현황판의 노드 한 줄에서 「열기」를 누르면 가운데 탭으로 채팅 전체가 열린다. 보기 전용.',
+  graph:'<b>작업 · 그래프 탭</b> — 템플릿의 노드·게이트와 지금 위치. 노드를 고르면 오른쪽에 판정 규칙이 보인다. 편집은 v2.',
+  canvas:'<b>작업 · 그래프 탭(캔버스)</b> — n8n식 노드 캔버스. 노드는 입출력 점과 선으로 이어지고, 실패·반려로 되돌아가는 길은 점선이다. 노드를 누르면 오른쪽 「노드 설정」에 그 노드의 설정이 열린다. M10에서는 보기 전용이고, v2 편집은 같은 칸을 고칠 수 있게 연다.',
+  files:'<b>작업 · 파일·변경</b> — 작업 모드에서 접은 탐색기와 변경된 파일, 메인 대화의 할 일·서브에이전트가 오른쪽 둘째 탭에 있다.',
+  merge:'<b>작업 · 병합 대기</b> — 마일스톤 PR이 검사를 통과했다. 나중에 봐도 되는 사건이라 Windows 알림은 띄우지 않고 제목 줄 표시만. 병합은 PR 카드의 노랑 버튼으로 네가 한다.'
+}
+const body=document.body
+function show(s){
+  body.dataset.scene=s
+  document.querySelectorAll('[data-in]').forEach(e=>{e.hidden=!e.dataset.in.split(' ').includes(s)})
+  document.querySelectorAll('[data-on]').forEach(e=>e.classList.toggle('on',e.dataset.on.split(' ').includes(s)))
+  document.querySelectorAll('#scenes button').forEach(b=>b.classList.toggle('on',b.dataset.s===s))
+  document.getElementById('cap').innerHTML=CAP[s]
+}
+document.querySelectorAll('#scenes button').forEach(b=>b.onclick=()=>show(b.dataset.s))
+document.querySelectorAll('#themes button').forEach(b=>b.onclick=()=>{document.documentElement.dataset.theme=b.dataset.t;document.querySelectorAll('#themes button').forEach(x=>x.classList.toggle('on',x===b))})
+document.getElementById('notes').onchange=e=>body.classList.toggle('notes',e.target.checked)
+show('run')
+</script>
+</body>
+</html>

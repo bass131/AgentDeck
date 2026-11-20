@@ -67,6 +67,10 @@ import type { ActionNode, GateNode, SchemaError, StepNode, Template, WorkNode } 
 export const DEFAULT_CI_WAIT_LIMIT = 120
 export const DEFAULT_CI_WAIT_MS = 60 * 60_000
 export const TAMPERED_REASON = '상태 파일이 실행기 밖에서 바뀌었다'
+
+// M10 G2 — 메인 노드 방문의 키. 기다리는 동안은 줄이 늘지 않아 같고, 판정(반려·FAIL)이 줄을 더하면 바뀐다.
+// 메인 대화 포트(WorkRequest.visit)와 구동자의 쓰기 창 판정이 같이 쓴다.
+export const visitKeyOf = (state: RunState): string => `${state.milestoneId}#${state.lines.length}`
 export const LATCH_TAIL = '— 위조 래치가 걸렸다. 사람이 화면에서 확인하고 풀기 전까지 짝이 맞아도 멈춘다.'
 
 export interface LoopRunnerDeps {
@@ -130,6 +134,12 @@ type Checked =
   | { kind: 'ok'; state: RunState; digest: string }
 
 class Tampered extends Error {}
+
+// M10 G6 — 끝난 실행의 보관 자리(backlog.md는 옮기지 않는다). 보관본은 실행기가 다시 읽지 않는다.
+export const ARCHIVE_DIR = `${DOCS.dir}/archive`
+export const finishedNotice = (milestoneId: string): string => `끝난 실행(${milestoneId}) — 새 마일스톤을 시작하면 보관해요`
+class ArchiveFailed extends Error {}
+const ARCHIVED_DOCS = [DOCS.milestoneSpec, DOCS.decisions, DOCS.verification] as const
 
 // 실행기가 매 단계 쓰는 생존 문서는 goal의 변경이 아니므로 등급 통계에서 뺀다(템플릿과 관계없이).
 const EXECUTOR_OWNED = /^(\.[\\/])*\.agentdeck[\\/]/
@@ -206,20 +216,85 @@ export function createLoopRunner(deps: LoopRunnerDeps): LoopRunner {
   }
 
   // expected: 이번 호출이 읽은 저장본의 다이제스트(새로 시작이면 null — 파일이 없어야 한다).
-  async function persist(state: RunState, expected: string | null): Promise<void> {
+  // prepare: 대조 뒤 쓰기 전에 돈다(M10 G6 보관). 같은 persisting 안이라 그 틈에 읽는 load가 래치를 걸지 않는다.
+  // 상태 파일을 쓰기 전에 실패하면 prepare가 돌려준 되돌리기를 부른다(되돌린 결과를 한 문장으로 돌려준다).
+  async function persist(state: RunState, expected: string | null, prepare?: () => Promise<() => Promise<string>>): Promise<void> {
     const run = (async () => {
       const now = await ports.fs.read(DOCS.runState)
       const nowDigest = now === null ? null : (() => { try { return stateDigest(JSON.parse(now)) } catch { return 'unreadable' } })()
       if (nowDigest !== expected) throw new Tampered(`${TAMPERED_REASON} — 이번 단계가 읽은 뒤 상태 파일이 바뀌어 덮어쓰지 않았다`)
+      const undo = prepare ? await prepare() : null
       // G4 검수 I1 — 사본 → 상태 파일 → 다이제스트. 어디서 꺼져도 사본은 상태 파일보다 낡지 않다.
       const text = runStateText(state)
-      await ports.digest.writeCopy(repoKey, text)
-      await ports.fs.write(DOCS.runState, text)
+      try {
+        await ports.digest.writeCopy(repoKey, text)
+        await ports.fs.write(DOCS.runState, text)
+      } catch (e) {
+        if (!undo) throw e
+        throw new ArchiveFailed(`새 실행 상태를 쓰지 못했다(${errorText(e)}) — ${await undo()}`)
+      }
       await ports.digest.write(repoKey, stateDigest(JSON.parse(text)))
       await writeVerification(ports.fs, state)
     })()
     persisting = run
     try { await run } finally { if (persisting === run) persisting = null }
+  }
+
+  // 파일이 든 자리는 쓰인 것으로 본다(보관이 옮겨 넣는 곳은 그 폴더와 goals/뿐이다) — 되돌린 뒤 남은 빈 폴더는 다시 쓴다.
+  // 같은 이름이 있으면 시각 꼬리(숫자만 — Windows 이름에 쓸 수 없는 글자를 뺀다), 그것도 있으면 번호를 더 붙인다.
+  async function archiveDirFor(milestoneId: string): Promise<string> {
+    const taken = async (dir: string): Promise<boolean> => {
+      if (!(await ports.fs.exists(dir))) return false
+      try { return (await ports.fs.list(dir)).length > 0 || (await ports.fs.list(`${dir}/goals`)).length > 0 } catch { return true }
+    }
+    const first = `${ARCHIVE_DIR}/${milestoneId}`
+    if (!(await taken(first))) return first
+    const stamped = `${first}-${ports.clock.now().replace(/[^0-9]/g, '').slice(0, 14)}`
+    for (let n = 1; n < 100; n++) {
+      const name = n === 1 ? stamped : `${stamped}-${n}`
+      if (!(await taken(name))) return name
+    }
+    throw new Error(`보관 자리 ${stamped}의 이름이 모두 쓰였다`)
+  }
+
+  // M10 G6 — persist의 prepare. 돌려주는 함수는 새 상태를 쓰지 못했을 때의 되돌리기다(앱 영역 사본도 옛것으로 둔다).
+  async function archive(state: RunState): Promise<() => Promise<string>> {
+    const moved: [string, string][] = []
+    const back = async (): Promise<string[]> => {
+      const left: string[] = []
+      for (const [from, to] of moved.splice(0).reverse()) {
+        try { await ports.fs.move(to, from) } catch (e) { left.push(`${to} → ${from}(${errorText(e)})`) }
+      }
+      return left
+    }
+    const backText = (left: string[]): string => (left.length === 0 ? '옮긴 파일은 되돌렸다' : `되돌리지 못한 파일: ${left.join(', ')}`)
+    let copy: string | null = null
+    let oldText: string | null = null
+    try {
+      copy = await ports.digest.readCopy(repoKey)
+      oldText = await ports.fs.read(DOCS.runState)
+      const dir = await archiveDirFor(state.milestoneId)
+      const plan: [string, string][] = (await ports.fs.list(DOCS.goalsDir)).map((n) => [`${DOCS.goalsDir}/${n}`, `${dir}/goals/${n}`])
+      for (const doc of ARCHIVED_DOCS) if (await ports.fs.exists(doc)) plan.push([doc, `${dir}/${doc.slice(DOCS.dir.length + 1)}`])
+      plan.push([DOCS.runState, `${dir}/run-state.json`])
+      for (const [from, to] of plan) {
+        await ports.fs.move(from, to)
+        moved.push([from, to])
+      }
+    } catch (e) {
+      throw new ArchiveFailed(`${errorText(e)} — ${backText(await back())}`)
+    }
+    // 사본이 없던 실행이면 옛 상태 본문을 사본으로 쓴다 — 디스크·다이제스트·사본이 옛 실행으로 맞는다
+    const restore = copy ?? oldText ?? runStateText(state)
+    return async () => {
+      const files = backText(await back())
+      try {
+        await ports.digest.writeCopy(repoKey, restore)
+        return files
+      } catch (e) {
+        return `${files} / 앱 영역 상태 사본을 맞추지 못했다(${errorText(e)})`
+      }
+    }
   }
 
   async function readCurrent(): Promise<{ ok: true; state: RunState; digest: string } | { ok: false; outcome: StepOutcome }> {
@@ -273,30 +348,52 @@ export function createLoopRunner(deps: LoopRunnerDeps): LoopRunner {
     return { kind, state: s, verdict }
   }
 
-  async function runWork(node: WorkNode, state: RunState, goal: GoalState | null): Promise<Verdict> {
+  // M10 G2 — 사람 반려가 이 노드로 되돌렸으면 그 줄의 문장(메인 대화의 반려 사유 턴). 마지막 줄이 그 반려일 때만이다.
+  function rejectedInto(state: RunState, node: WorkNode): string | null {
+    const last = state.lines.at(-1)
+    if (!last || last.marker !== 'USER-INPUT' || last.judge !== 'human') return null
+    const gate = template.nodes.find((n) => n.kind === 'gate' && n.id === last.node)
+    return gate?.kind === 'gate' && gate.onFail?.goto === node.id ? last.sentence : null
+  }
+
+  // null: 메인 노드의 여러 턴 대화가 아직 끝나지 않았다(M10 G2 — 판정 없이 기다린다)
+  async function runWork(node: WorkNode, state: RunState, goal: GoalState | null): Promise<Verdict | null> {
     try {
       const docs = await readNodeDocs(ports.fs, node.docs, goal?.id ?? null)
-      const res = await ports.session.runWork({ milestoneId: state.milestoneId, node, goal, docs })
+      const visit = { key: visitKeyOf(state), rejected: rejectedInto(state, node) }
+      const res = await ports.session.runWork({ milestoneId: state.milestoneId, node, goal, docs, visit })
+      // M10 G2 — 대화 중(사람을 기다림)은 판정이 아니다. 메인 노드에만 받는다
+      if (res.waiting) {
+        if (node.role === 'main') return null
+        return v(node, 'fail', `작업자 노드 세션이 끝나지 않은 채 돌아왔다 — ${res.summary}`)
+      }
       // 취소(실행기 닫기·화면의 취소)는 검증 실패가 아니다 — FAIL로 세지 않고 멈춘다(G4, Backlog 3)
       if (res.cancelled) return v(node, 'stop', `작업 세션이 취소됐다 — ${res.summary}. 사람이 이어 가기로 같은 노드를 다시 돌린다`)
       if (!res.ok) return v(node, 'fail', `작업 세션이 일을 마치지 못했다 — ${res.summary}`)
       // G5 실주행 — 스펙을 다루는 메인 노드(브레인스토밍)는 스펙 파일을 남겨야 끝난 것이다. 없거나 비었으면 다시 돈다.
       // 독립 검수 중요 1: 반려 뒤나 다음 마일스톤에서는 옛 스펙이 남아 있으므로, 이번 세션에서 스펙이나 결정 대장이 바뀌었는지도 본다
       // (세션 전 본문은 위 readNodeDocs가 읽어 둔 값이다).
+      // M10 G2 — 메인 대화 포트가 방문의 처음 스펙 해시(baseline)를 주면 스펙만 그것과 대조한다(결정 대장은 턴마다 바뀐다).
       if (node.role === 'main' && node.docs.includes('milestoneSpec')) {
         const spec = await ports.fs.read(DOCS.milestoneSpec)
         if (spec === null || spec.trim() === '') {
           return v(node, 'fail', `작업 세션이 ${DOCS.milestoneSpec}를 쓰지 않고 끝났다 — ${res.summary}`)
         }
-        const decisionsSame = !node.docs.includes('decisions') || (await ports.fs.read(DOCS.decisions)) === (docs.decisions ?? null)
-        if (spec === (docs.milestoneSpec ?? null) && decisionsSame) {
-          return v(node, 'fail', `이번 세션에서 ${DOCS.milestoneSpec}도 ${DOCS.decisions}도 바뀌지 않았다 — ${res.summary}`)
+        if (res.baseline) {
+          if (sha256Text(spec) === res.baseline.specSha256) {
+            return v(node, 'fail', `이번 브레인스토밍 방문에서 ${DOCS.milestoneSpec}가 바뀌지 않았다 — ${res.summary}`)
+          }
+        } else {
+          const decisionsSame = !node.docs.includes('decisions') || (await ports.fs.read(DOCS.decisions)) === (docs.decisions ?? null)
+          if (spec === (docs.milestoneSpec ?? null) && decisionsSame) {
+            return v(node, 'fail', `이번 세션에서 ${DOCS.milestoneSpec}도 ${DOCS.decisions}도 바뀌지 않았다 — ${res.summary}`)
+          }
         }
       }
       if (node.produces !== 'goals') return v(node, 'pass', `작업 세션이 끝났다 — ${res.summary}`)
       const seeds = await readGoalSeeds(ports.fs)
       if (!seeds.ok) return v(node, 'fail', `분해 결과를 읽지 못했다 — ${seeds.reason}`)
-      return v(node, 'pass', `goal ${seeds.goals.length}개로 나눴다 — ${seeds.goals.map((g) => g.id).join(', ')}`, { goals: seeds.goals })
+      return v(node, 'pass', `목표 ${seeds.goals.length}개로 나눴다 — ${seeds.goals.map((g) => g.id).join(', ')}`, { goals: seeds.goals })
     } catch (e) {
       return v(node, 'fail', `작업 세션 오류 — ${errorText(e)}`)
     }
@@ -348,16 +445,16 @@ export function createLoopRunner(deps: LoopRunnerDeps): LoopRunner {
     try {
       // G4 검수 I6 — diff의 기준은 goal을 가를 때 실행기가 적은 시작 SHA다(작업 노드가 옮길 수 있는 로컬 ref 이름이 아니다)
       const baseSha = goal?.baseSha ?? null
-      if (!baseSha) return v(node, 'stop', 'goal 시작 SHA가 상태에 없어 검수 diff의 기준을 정할 수 없다 — 사람 판단이 필요하다')
+      if (!baseSha) return v(node, 'stop', '목표 시작 SHA가 상태에 없어 검수 diff의 기준을 정할 수 없다 — 사람 판단이 필요하다')
       // G4 검수 I7 — 검수 기준 문서가 분해 때 읽은 것과 같은가. 검수에 주는 본문과 대조하는 본문이 같은 읽기다
       const goalDoc = goal ? await ports.fs.read(goalDocPath(goal.id)) : null
       const drift = goalDocDrift(goal, goalDoc)
       if (drift) return v(node, 'stop', `${drift} 검수를 열지 않았다`)
       const snap = await git.reviewSnapshot(baseSha)
-      if (!snap) return v(node, 'fail', `${names.milestone}의 goal 시작 ${short(baseSha)} 대비 diff를 만들지 못해 검수를 열지 않았다`)
+      if (!snap) return v(node, 'fail', `${names.milestone}의 목표 시작 ${short(baseSha)} 대비 diff를 만들지 못해 검수를 열지 않았다`)
       // G4 검수 I9 — 잘린 diff로 검수하지 않는다(pass가 전체 트리에 묶이므로). FAIL로 세지 않고 멈춘다
       if (snap.tooLarge) {
-        return v(node, 'stop', `검수 diff가 ${snap.chars ?? '?'}자로 상한을 넘어 검수를 열지 않았다 — goal을 나누거나 사람이 판단한다`)
+        return v(node, 'stop', `검수 diff가 ${snap.chars ?? '?'}자로 상한을 넘어 검수를 열지 않았다 — 목표를 나누거나 사람이 판단한다`)
       }
       const r = await ports.review.review({ milestoneId: state.milestoneId, node, goal, goalDoc, diff: snap.diff, base: names.milestone, baseSha })
       if (r.verdict !== 'pass') return { node: node.id, judge: 'model', verdict: r.verdict, evidence: r.evidence }
@@ -535,10 +632,10 @@ export function createLoopRunner(deps: LoopRunnerDeps): LoopRunner {
     const recorded = goal?.docSha256 ?? null
     if (!goal || recorded === null) return null
     const path = goalDocPath(goal.id)
-    if (text === null) return `분해 때 읽은 goal 문서 ${path}가 없어졌다 — 사람 판단이 필요하다.`
+    if (text === null) return `분해 때 읽은 목표 문서 ${path}가 없어졌다 — 사람 판단이 필요하다.`
     const now = sha256Text(text)
     if (now === recorded) return null
-    return `goal 문서 ${path}가 분해 때 적은 해시 ${short(recorded)}와 다르다(지금 ${short(now)}) — 검수 기준 문서가 바뀌었다. 사람이 되돌리거나 판단한다.`
+    return `목표 문서 ${path}가 분해 때 적은 해시 ${short(recorded)}와 다르다(지금 ${short(now)}) — 검수 기준 문서가 바뀌었다. 사람이 되돌리거나 판단한다.`
   }
 
   async function runAction(node: ActionNode, state: RunState, goal: GoalState | null, names: BranchNames): Promise<Verdict> {
@@ -553,7 +650,7 @@ export function createLoopRunner(deps: LoopRunnerDeps): LoopRunner {
           if (!goal || names.goal === null) return v(node, 'fail', 'goal 밖에서 goal PR을 열 수 없다')
           // G4 검수 I7 — 검수 없는(약 등급) goal도 PR 전에 goal 문서를 대조한다
           const drift = goalDocDrift(goal, await ports.fs.read(goalDocPath(goal.id)))
-          if (drift) return v(node, 'stop', `${drift} goal PR을 열지 않았다`)
+          if (drift) return v(node, 'stop', `${drift} 목표 PR을 열지 않았다`)
           const body = `goal ${goal.id} — ${goal.title}\n\n${renderGoalLines(state, goal.id)}\n`
           return await ensurePr(node, names.goal, names.milestone, `${goal.id}: ${goal.title}`, body, true, false, goal.reviewedTree ?? null)
         }
@@ -572,7 +669,11 @@ export function createLoopRunner(deps: LoopRunnerDeps): LoopRunner {
     if (next.kind === 'done' || next.kind === 'needs-user') return null
     const names = branchNames(template, state.milestoneId, next.goal?.id ?? null, state.base ?? base)
     switch (next.kind) {
-      case 'work': return { kind: 'verdict', verdict: await runWork(next.node, state, next.goal) }
+      case 'work': {
+        const verdict = await runWork(next.node, state, next.goal)
+        // M10 G2 — 메인 노드의 대화가 사람을 기다린다. 판정 없이 기다림으로 돌려준다(줄을 쓰지 않는다)
+        return verdict === null ? { kind: 'waiting', on: 'human' } : { kind: 'verdict', verdict }
+      }
       case 'gate': return runGate(next.node, state, next.goal, names)
       case 'action': return { kind: 'verdict', verdict: await runAction(next.node, state, next.goal, names) }
     }
@@ -583,6 +684,8 @@ export function createLoopRunner(deps: LoopRunnerDeps): LoopRunner {
     if (read.kind === 'missing') return read
     if (read.kind === 'tampered') return { kind: 'needs-user', reason: read.reason }
     if (read.kind === 'invalid') return { kind: 'blocked', reason: '실행 상태가 스키마에 맞지 않는다', errors: read.errors }
+    // M10 G6 — 끝난 실행은 위조·스키마 검사를 지난 뒤에만 여기 닿는다. 템플릿이 바뀌었어도 막지 않는다(start가 보관한다)
+    if (read.state.status === 'done') return { kind: 'ok', state: read.state, next: nextStep(template, read.state) }
     const check = checkResumable(template, hash, read.state)
     if (!check.ok) return { kind: 'blocked', reason: check.reason }
     const moved = baseMoved(read.state)
@@ -604,13 +707,18 @@ export function createLoopRunner(deps: LoopRunnerDeps): LoopRunner {
       if (held) return { kind: 'needs-user', reason: held }
       const existing = await readChecked()
       if (existing.kind === 'tampered') return { kind: 'needs-user', reason: await latch(existing.reason) }
-      if (existing.kind !== 'missing') return { kind: 'blocked', reason: '실행 상태가 이미 있다 — 새로 시작하지 않는다(load로 이어 간다)' }
+      // M10 G6 — 끝난 실행만 보관하고 새로 연다. 끝나지 않은 실행은 지금처럼 거부한다
+      const done = existing.kind === 'ok' && existing.state.status === 'done' ? existing : null
+      if (existing.kind !== 'missing' && !done) return { kind: 'blocked', reason: '실행 상태가 이미 있다 — 새로 시작하지 않는다(load로 이어 간다)' }
       const created = createRunState(template, hash, milestoneId, base)
       if (!created.ok) return { kind: 'blocked', reason: created.reason }
       try {
-        await persist(created.state, null)
+        await persist(created.state, done?.digest ?? null, done ? () => archive(done.state) : undefined)
       } catch (e) {
         if (e instanceof Tampered) return { kind: 'needs-user', reason: await latch(e.message) }
+        if (e instanceof ArchiveFailed && done) {
+          return { kind: 'blocked', reason: `끝난 실행(${done.state.milestoneId})을 보관하지 못해 새로 시작하지 않았다 — ${e.message}` }
+        }
         throw e
       }
       return { kind: 'ok', state: created.state, next: nextStep(template, created.state) }

@@ -6,10 +6,18 @@ import { adaptFlatApi } from '../00_Helpers/windowApiMock'
 
 afterEach(() => cleanup())
 
+// M10 G1 — 멀티 화면을 지웠다. 패널 카드(PanelView)는 남겼으므로 패널 쪽 사례는 패널 하네스로 그린다.
 beforeAll(async () => {
   await import('@renderer/00_App/appStore')
-  await import('@renderer/12_Window/MultiWorkspace')
+  await import('../00_Helpers/panelHarness')
 })
+
+async function renderPanelCards(): Promise<HTMLElement> {
+  const { useAppStore } = await import('@renderer/00_App/appStore')
+  useAppStore.setState({ workspaceMode: 'single' })
+  const { PanelHarness } = await import('../00_Helpers/panelHarness')
+  return render(<PanelHarness />).container
+}
 
 const mockApi = {
   conversationLoad: vi.fn().mockResolvedValue({ conversations: [] }),
@@ -73,6 +81,14 @@ describe('pickerOptions — 공유 옵션 모듈 (N1~N5)', () => {
     expect('MODEL_OPTIONS' in mod).toBe(false)
   })
 
+  it('멀티 모드 잔여물(COLS·COUNT_OPTIONS·SAMPLE_*·선택지 재수출)이 없고, 패널 보기가 쓰는 것만 남는다 (M10 G4)', async () => {
+    const mod = await import('@renderer/03_Agent/multiAgentDefaults')
+    for (const gone of ['COLS', 'COUNT_OPTIONS', 'SAMPLE_PANELS', 'SAMPLE_BATCH_TO', 'EFFORT_OPTIONS', 'MODE_OPTIONS']) {
+      expect(gone in mod, gone).toBe(false)
+    }
+    expect(Object.keys(mod).sort()).toEqual(['DEFAULT_PICKER', 'STATUS_META'])
+  })
+
   it('EFFORTS max.label="최대", xhigh.label="매우 높음" (N3 수정)', async () => {
     const { EFFORTS } = await import('@renderer/03_Agent/pickerOptions')
     const max = EFFORTS.find((e) => e.id === 'max')!
@@ -116,23 +132,15 @@ describe('pickerOptions — 공유 옵션 모듈 (N1~N5)', () => {
   })
 })
 
-describe('MultiWorkspace — RunPickers caption "Effort" (N2)', () => {
-  async function renderMulti() {
-    const { useAppStore } = await import('@renderer/00_App/appStore')
-    useAppStore.setState({ workspaceMode: 'single' })
-    const { MultiWorkspace } = await import('@renderer/12_Window/MultiWorkspace')
-    const { container } = render(<MultiWorkspace />)
-    return container
-  }
-
+describe('패널 카드 — RunPickers caption "Effort" (N2)', () => {
   it('RunPickers에 "Effort" 텍스트(.pick-lbl)가 있다', async () => {
-    const container = await renderMulti()
+    const container = await renderPanelCards()
     const lbls = Array.from(container.querySelectorAll('.pick-lbl')).map((el) => el.textContent)
     expect(lbls).toContain('Effort')
   })
 
   it('"노력" 텍스트는 없다 (이전 caption 제거됨)', async () => {
-    const container = await renderMulti()
+    const container = await renderPanelCards()
     const lbls = Array.from(container.querySelectorAll('.pick-lbl')).map((el) => el.textContent)
     expect(lbls).not.toContain('노력')
   })
@@ -230,53 +238,38 @@ describe('Composer — 모드 Bypass warn 렌더 (N5)', () => {
   })
 })
 
-describe('MultiWorkspace — 컨텍스트 1M 표시 (N6)', () => {
+describe('패널 카드 — 컨텍스트 1M 표시 (N6)', () => {
   it('ma-ctx-detail에 "1M 토큰" 텍스트가 있다', async () => {
-    const { useAppStore } = await import('@renderer/00_App/appStore')
-    useAppStore.setState({ workspaceMode: 'single' })
-    const { MultiWorkspace } = await import('@renderer/12_Window/MultiWorkspace')
-    const { container } = render(<MultiWorkspace />)
+    const container = await renderPanelCards()
     const details = Array.from(container.querySelectorAll('.ma-ctx-detail')).map((el) => el.textContent)
     expect(details.some((d) => d?.includes('1M'))).toBe(true)
   })
 
   it('"200,000 토큰" 텍스트가 없다 (이전 값 제거됨)', async () => {
-    const { useAppStore } = await import('@renderer/00_App/appStore')
-    useAppStore.setState({ workspaceMode: 'single' })
-    const { MultiWorkspace } = await import('@renderer/12_Window/MultiWorkspace')
-    const { container } = render(<MultiWorkspace />)
+    const container = await renderPanelCards()
     const details = Array.from(container.querySelectorAll('.ma-ctx-detail')).map((el) => el.textContent)
     expect(details.some((d) => d?.includes('200,000'))).toBe(false)
   })
 })
 
-describe('MultiWorkspace — 기본 picker 값 (N6)', () => {
-  it('멀티 패널 기본 model → "Opus 5.5" 표시', async () => {
-    const { useAppStore } = await import('@renderer/00_App/appStore')
-    useAppStore.setState({ workspaceMode: 'single' })
-    const { MultiWorkspace } = await import('@renderer/12_Window/MultiWorkspace')
-    const { container } = render(<MultiWorkspace />)
-    const panel = container.querySelector('.ma-panel:not(.ma-placeholder)') as HTMLElement
+describe('패널 카드 — 기본 picker 값 (N6)', () => {
+  it('패널 기본 model → "Opus 5.5" 표시', async () => {
+    const container = await renderPanelCards()
+    const panel = container.querySelector('.ma-panel') as HTMLElement
     const vals = Array.from(panel.querySelectorAll('.pick-val')).map((el) => el.textContent)
     expect(vals).toContain('Opus 5.5')
   })
 
-  it('멀티 패널 기본 effort → "최대" 표시', async () => {
-    const { useAppStore } = await import('@renderer/00_App/appStore')
-    useAppStore.setState({ workspaceMode: 'single' })
-    const { MultiWorkspace } = await import('@renderer/12_Window/MultiWorkspace')
-    const { container } = render(<MultiWorkspace />)
-    const panel = container.querySelector('.ma-panel:not(.ma-placeholder)') as HTMLElement
+  it('패널 기본 effort → "최대" 표시', async () => {
+    const container = await renderPanelCards()
+    const panel = container.querySelector('.ma-panel') as HTMLElement
     const vals = Array.from(panel.querySelectorAll('.pick-val')).map((el) => el.textContent)
     expect(vals).toContain('최대')
   })
 
-  it('멀티 패널 기본 mode=bypass → "Bypass" 표시', async () => {
-    const { useAppStore } = await import('@renderer/00_App/appStore')
-    useAppStore.setState({ workspaceMode: 'single' })
-    const { MultiWorkspace } = await import('@renderer/12_Window/MultiWorkspace')
-    const { container } = render(<MultiWorkspace />)
-    const panel = container.querySelector('.ma-panel:not(.ma-placeholder)') as HTMLElement
+  it('패널 기본 mode=bypass → "Bypass" 표시', async () => {
+    const container = await renderPanelCards()
+    const panel = container.querySelector('.ma-panel') as HTMLElement
     const vals = Array.from(panel.querySelectorAll('.pick-val')).map((el) => el.textContent)
     expect(vals).toContain('Bypass')
   })

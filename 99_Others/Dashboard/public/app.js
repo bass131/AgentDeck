@@ -625,6 +625,7 @@ function renderLedger() {
   const line = a => `<li class="ai-line"${fxAttr(aiKey(a))}><span class="chip">${esc(a.tag)}</span><div><p class="rawtext">${md(a.text)} ${freshTag(aiKey(a))}</p>${srcLink({ path: a.file, line: a.line })}</div></li>`;
   paint(el, panel('ledger', '결정 기록', L.gate !== 'clear' ? tag('새 워커를 띄울 수 없음', 'tag-todo') : '새 워커를 띄우는 데 걸림 없음',
     `<p class="gate"${fxAttr('ledger')}>${gate} ${freshTag('ledger')}</p>
+    <p class="empty">${L.spec ? `goal 대장과 같은 폴더 마일스톤 스펙 대장의 합계예요 — 판정 장치와 같은 셈이에요. ${srcLink({ path: L.spec.file, line: L.spec.line })}` : 'goal 대장만 셌어요 — 같은 폴더에 마일스톤 스펙 대장이 없어요.'}</p>
     <dl class="tally">${cell('사용자 결정', 'USER', T.USER)}${cell('사용자 위임', 'USER·위임', T['USER·위임'])}${cell('AI 판단', 'AI', T.AI, T.AI ? 'is-ai' : '')}${cell('AI 판단 · 되돌리기 어려움', 'AI·비가역', T['AI·비가역'], T['AI·비가역'] ? 'is-ai' : '')}</dl>
     ${L.aiLines.length ? `<h3 class="pan-h">AI가 혼자 내린 결정 <small>원문 ${L.aiLines.length}줄</small></h3><ol class="list" data-list="ai">${L.aiLines.map(line).join('')}</ol>` : '<p class="empty">AI가 혼자 내린 결정이 없어요.</p>'}
     ${srcLink(L.ref)}`, L.gate !== 'clear'));

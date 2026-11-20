@@ -8,7 +8,8 @@ import { convKey, panelKey } from '@renderer/03_Agent/state/sessionKeys'
 import type { FolderSwitchMessage } from '@renderer/07_Workspace/file'
 import { adaptFlatApi } from '../00_Helpers/windowApiMock'
 
-// G9c — 'multi'/'single' 분기를 화면 배치(12_Window) 밖에서 키·포트로 옮겼다. 값은 그대로다(P4 포함).
+// G9c — 단일·멀티 분기를 화면 배치(12_Window) 밖에서 키·포트로 옮겼다. 값은 그대로다(P4 포함).
+// M10 G1 — 멀티 에이전트 모드를 지워 모드는 「채팅(single) · 작업(work)」 둘이다.
 
 const SRC_ROOT = resolve(__dirname, '../../../00_Source/renderer/src')
 
@@ -24,8 +25,9 @@ function sourceFiles(dir: string, acc: string[] = []): string[] {
 afterEach(() => cleanup())
 
 describe('G9c 분기 정리 — 12_Window 밖에 단일·멀티 분기가 남지 않는다', () => {
-  // 모드 분기의 표식 — 배치 상태·selector·판정 함수 이름(대소문자 무시)과 'multi'·"multi"·'single'·"single" 리터럴.
-  const MODE_MARK = /workspaceMode|selectWorkspaceMode|isConversationLayout|['"](multi|single)['"]/i
+  // 모드 분기의 표식 — 배치 상태·selector·판정 함수 이름(대소문자 무시)과 모드 값 리터럴('single'·'work', 큰따옴표 포함).
+  // M10 G1에서 모드가 「채팅(single) · 작업(work)」이 되어 'work'를 더했고, 옛 값 리터럴도 계속 잡는다.
+  const MODE_MARK = /workspaceMode|selectWorkspaceMode|isConversationLayout|['"](multi|single|work)['"]/i
   // 줄 단위 예외 꼴 — 서브에이전트 메시지 묶음의 종류 kind: 'single' / kind === 'single'(작업 공간 모드와 무관).
   // 이 꼴만 지우고 다시 검사하므로, 같은 줄이나 같은 파일에 진짜 모드 분기가 있으면 걸린다.
   const KIND_SINGLE = /\bkind\s*(?::|===)\s*['"]single['"]/g
@@ -63,10 +65,10 @@ describe('G9c 분기 정리 — 12_Window 밖에 단일·멀티 분기가 남지
     expect(probe("const m = useAppStore(selectWorkspaceMode)")).toBe(true)
     expect(probe('if (isConversationLayout(mode)) restore()')).toBe(true)
     expect(probe('const mode = s.WorkspaceMode')).toBe(true)
-    expect(probe('if (mode === "multi") return')).toBe(true)
+    expect(probe('if (mode === "work") return')).toBe(true)
     expect(probe("if (mode === 'single') return")).toBe(true)
     expect(probe("groups.push({ kind: 'single', item })")).toBe(false)
-    expect(probe("if (g.kind === 'single' && mode === 'multi') return")).toBe(true)
+    expect(probe("if (g.kind === 'single' && mode === 'work') return")).toBe(true)
     // 허용 목록에 근거가 빠진 항목이 없다.
     expect(ALLOWED_LINES.every((a) => a.why.length > 0)).toBe(true)
   })
@@ -173,20 +175,19 @@ describe('G9c PanelView — UltraCode 범위는 세션이 돌려준 키를 쓴�
     )
   }
 
-  it('session.key가 있으면 그 키, 없으면(하네스 가짜 세션) 활성 멀티 세션과 슬롯으로 만든 패널 키다', async () => {
+  // M10 G1 — 활성 멀티 세션 id가 없어져, 키 없는 가짜 세션은 빈 범위와 슬롯으로 만든 패널 키를 쓴다.
+  it('session.key가 있으면 그 키, 없으면(하네스 가짜 세션) 빈 범위와 슬롯으로 만든 패널 키다', async () => {
     const { __resetUltracodeToggleForTests, useUltracodeToggle } = await import('@renderer/03_Agent/state/ultracodeToggle')
     __resetUltracodeToggleForTests()
-    const { useAppStore } = await import('@renderer/00_App/appStore')
-    useAppStore.setState({ activeMultiSessionId: 'active' })
     const btn = (c: HTMLElement): HTMLElement => c.querySelector('[aria-label="UltraCode 모드 토글"]') as HTMLElement
     const withKey = await renderPanel(panelKey('own', 1))
     act(() => { btn(withKey.container).click() })
     expect(renderHook(() => useUltracodeToggle(panelKey('own', 1))).result.current[0]).toBe(false)
-    expect(renderHook(() => useUltracodeToggle(panelKey('active', 1))).result.current[0]).toBe(true)
+    expect(renderHook(() => useUltracodeToggle(panelKey('', 1))).result.current[0]).toBe(true)
     withKey.unmount()
     const noKey = await renderPanel()
     act(() => { btn(noKey.container).click() })
-    expect(renderHook(() => useUltracodeToggle(panelKey('active', 1))).result.current[0]).toBe(false)
+    expect(renderHook(() => useUltracodeToggle(panelKey('', 1))).result.current[0]).toBe(false)
   })
 })
 
@@ -210,7 +211,9 @@ describe('G9c 폴더 변경 창 — 본문은 호출부가 넘긴다', () => {
 })
 
 describe('G9c 시작 복원 — main은 12_Window의 함수만 부른다', () => {
-  it('저장된 모드를 store에 넣고, 대화 배치일 때만 마지막 대화를 복원한다', async () => {
+  // M10 G3(Backlog 6) — 두 모드의 복원. 작업 모드로 켜도 채팅의 마지막 대화를 store에 복원해 둔다 — 채팅 모드로 돌아가면
+  // 그 대화로 뜬다(옛 동작은 대화 배치일 때만 복원해, 작업 모드로 끈 뒤 켜면 채팅이 빈 화면이었다). 작업 폴더의 복원은 Shell 몫이다.
+  it('저장된 모드를 store에 넣고, 어느 모드로 켜든 마지막 대화를 한 번 복원한다', async () => {
     Object.defineProperty(window, 'api', {
       value: adaptFlatApi({ getUiPrefs: vi.fn().mockResolvedValue({}), setUiPref: vi.fn().mockResolvedValue(undefined) }),
       writable: true,
@@ -222,14 +225,44 @@ describe('G9c 시작 복원 — main은 12_Window의 함수만 부른다', () =>
     const { restoreSavedWorkspace } = await import('@renderer/12_Window/restoreWorkspace')
     const restore = vi.fn(async () => {})
     useAppStore.setState({ restoreLastActiveConversation: restore } as never)
-    prefs.setPref('workspace.mode', 'multi')
+    prefs.setPref('workspace.mode', 'work')
     restoreSavedWorkspace()
-    expect(useAppStore.getState().workspaceMode).toBe('multi')
-    expect(restore).not.toHaveBeenCalled()
+    expect(useAppStore.getState().workspaceMode).toBe('work')
+    expect(restore).toHaveBeenCalledTimes(1)
     prefs.setPref('workspace.mode', 'single')
     restoreSavedWorkspace()
     expect(useAppStore.getState().workspaceMode).toBe('single')
-    expect(restore).toHaveBeenCalledTimes(1)
+    expect(restore).toHaveBeenCalledTimes(2)
+  })
+
+  // M10 G1 — 멀티 에이전트 모드를 지웠다. 옛 저장값 'multi'와 모르는 값은 「채팅」으로 읽고, 저장 파일은 고치지 않는다.
+  it("저장된 'multi'나 모르는 값으로 켜면 「채팅」(single)으로 뜨고 마지막 대화를 복원한다", async () => {
+    Object.defineProperty(window, 'api', {
+      value: adaptFlatApi({ getUiPrefs: vi.fn().mockResolvedValue({}), setUiPref: vi.fn().mockResolvedValue(undefined) }),
+      writable: true,
+      configurable: true,
+    })
+    const prefs = await import('@renderer/11_Settings/prefs')
+    await prefs.loadPrefs()
+    const { useAppStore } = await import('@renderer/00_App/appStore')
+    const { restoreSavedWorkspace } = await import('@renderer/12_Window/restoreWorkspace')
+    for (const saved of ['multi', 'grid', 42, null]) {
+      const restore = vi.fn(async () => {})
+      useAppStore.setState({ workspaceMode: 'work', restoreLastActiveConversation: restore } as never)
+      prefs.setPref('workspace.mode', saved)
+      restoreSavedWorkspace()
+      expect(useAppStore.getState().workspaceMode).toBe('single')
+      expect(restore).toHaveBeenCalledTimes(1)
+    }
+  })
+
+  it('parseWorkspaceMode는 work만 그대로 두고 나머지를 single로 읽는다', async () => {
+    const { parseWorkspaceMode } = await import('@renderer/12_Window/windowMode')
+    expect(parseWorkspaceMode('work')).toBe('work')
+    expect(parseWorkspaceMode('single')).toBe('single')
+    expect(parseWorkspaceMode('multi')).toBe('single')
+    expect(parseWorkspaceMode(undefined)).toBe('single')
+    expect(parseWorkspaceMode({ mode: 'work' })).toBe('single')
   })
 
   it('화면 배치 슬라이스는 12_Window에 있고 store 필드 이름(workspaceMode)과 기본값은 그대로다', async () => {
@@ -237,7 +270,7 @@ describe('G9c 시작 복원 — main은 12_Window의 함수만 부른다', () =>
     const slice = createWindowModeSlice(() => {}, () => ({}) as never, {} as never)
     expect(slice.workspaceMode).toBe('single')
     expect(isConversationLayout('single')).toBe(true)
-    expect(isConversationLayout('multi')).toBe(false)
+    expect(isConversationLayout('work')).toBe(false)
     const app = await import('@renderer/00_App/appStore')
     expect(app.selectWorkspaceMode).toBe(selectWorkspaceMode)
   })
@@ -245,6 +278,6 @@ describe('G9c 시작 복원 — main은 12_Window의 함수만 부른다', () =>
   it('main.tsx에는 작업 공간 모드 분기가 없다', () => {
     const main = readFileSync(join(SRC_ROOT, 'main.tsx'), 'utf8')
     expect(main).toContain('restoreSavedWorkspace()')
-    expect(main).not.toMatch(/'(multi|single)'/)
+    expect(main).not.toMatch(/'(multi|single|work)'/)
   })
 })

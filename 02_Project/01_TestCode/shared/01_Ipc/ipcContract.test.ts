@@ -1433,120 +1433,18 @@ describe('P10 command.list 채널 계약', () => {
   })
 })
 
-describe('RMW1 multi.* 멀티세션 영속 채널 계약 (ADR-031)', () => {
-
-  it('MULTI_SESSION_LOAD 채널이 정확한 문자열로 존재한다 (READ 전용 — ADR-031 이후에도 폐기 대상 아님)', () => {
-    expect(IPC_CHANNELS.MULTI_SESSION_LOAD).toBe('multi.load')
+// M10 G1 — 멀티 에이전트 모드를 지우며 그 영속 채널(옛 RMW1 multi.* 6채널, ADR-031)을 계약에서 뺐다.
+// 사용자 디스크의 옛 멀티 저장 파일은 지우지도 읽지도 않는다.
+describe('멀티세션 영속 채널 제거 (M10 G1)', () => {
+  it('multi.* 네임스페이스 채널이 하나도 없다', () => {
+    const values = Object.values(IPC_CHANNELS) as string[]
+    expect(values.filter((ch) => ch.startsWith('multi.'))).toEqual([])
+    expect(Object.keys(IPC_CHANNELS).filter((k) => k.startsWith('MULTI_'))).toEqual([])
   })
 
-  it('multi.cmd* 의도 명령 5종이 정확한 문자열로 존재한다', () => {
-    expect(IPC_CHANNELS.MULTI_CMD_UPSERT).toBe('multi.cmdUpsert')
-    expect(IPC_CHANNELS.MULTI_CMD_CREATE).toBe('multi.cmdCreate')
-    expect(IPC_CHANNELS.MULTI_CMD_DELETE).toBe('multi.cmdDelete')
-    expect(IPC_CHANNELS.MULTI_CMD_RENAME).toBe('multi.cmdRename')
-    expect(IPC_CHANNELS.MULTI_CMD_SELECT).toBe('multi.cmdSelect')
-  })
-
-  it('multi.* 6채널(load 1 + cmd 5종)이 전체 채널 목록에 포함된다', () => {
-    const values = Object.values(IPC_CHANNELS)
-    expect(values).toContain('multi.load')
-    expect(values).toContain('multi.cmdUpsert')
-    expect(values).toContain('multi.cmdCreate')
-    expect(values).toContain('multi.cmdDelete')
-    expect(values).toContain('multi.cmdRename')
-    expect(values).toContain('multi.cmdSelect')
-  })
-
-  it('채널명 유니크 불변식이 multi.* 채널 추가 후에도 유지된다', () => {
+  it('채널명 유니크 불변식이 채널 제거 후에도 유지된다', () => {
     const values = Object.values(IPC_CHANNELS)
     expect(new Set(values).size).toBe(values.length)
-  })
-
-  it('multi.* 채널명은 전역 dot-namespaced 규칙(namespace.action, camelCase 허용)을 따른다', () => {
-    const multiChannels = [
-      IPC_CHANNELS.MULTI_SESSION_LOAD,
-      IPC_CHANNELS.MULTI_CMD_UPSERT,
-      IPC_CHANNELS.MULTI_CMD_CREATE,
-      IPC_CHANNELS.MULTI_CMD_DELETE,
-      IPC_CHANNELS.MULTI_CMD_RENAME,
-      IPC_CHANNELS.MULTI_CMD_SELECT,
-    ]
-    for (const ch of multiChannels) {
-      expect(ch).toMatch(/^[a-z]+\.[a-z][a-zA-Z]*$/)
-    }
-  })
-
-  it('multi.cmd* 5종은 단일-dot(namespace.action) 안에서 "cmd" 접두 camelCase로 세분화한다 (RMW1-P02 규약 — 2-dot 금지)', () => {
-    const cmdChannels = [
-      IPC_CHANNELS.MULTI_CMD_UPSERT,
-      IPC_CHANNELS.MULTI_CMD_CREATE,
-      IPC_CHANNELS.MULTI_CMD_DELETE,
-      IPC_CHANNELS.MULTI_CMD_RENAME,
-      IPC_CHANNELS.MULTI_CMD_SELECT,
-    ]
-    for (const ch of cmdChannels) {
-      expect(ch.split('.')).toHaveLength(2)
-      expect(ch).toMatch(/^multi\.cmd[A-Z][a-zA-Z]*$/)
-    }
-  })
-
-  it('MultiCmdResponse 샘플(ok:true)이 타입 계약을 충족한다 — 병합 후 권위 state 포함', () => {
-    const res: import('../../../../02_Project/00_Source/shared/ipcContract').MultiCmdResponse = {
-      ok: true,
-      state: { version: 2, activeSessionId: 'sess-1', sessions: [] },
-    }
-    expect(res.ok).toBe(true)
-    expect(res.state.version).toBe(2)
-  })
-
-  it('MultiCmdResponse 는 ok:false(stale 명령)여도 state는 여전히 main 권위 상태를 담는다', () => {
-    const res: import('../../../../02_Project/00_Source/shared/ipcContract').MultiCmdResponse = {
-      ok: false,
-      state: {
-        version: 2,
-        activeSessionId: 'sess-1',
-        sessions: [{ id: 'sess-1', title: '', count: 2, panels: [] }],
-      },
-    }
-    expect(res.ok).toBe(false)
-    expect(res.state.sessions).toHaveLength(1)
-  })
-
-  it('MultiCmdUpsertRequest.session 은 title 필드를 의도적으로 제외한다 (upsert는 콘텐츠만 갱신)', () => {
-    const req: import('../../../../02_Project/00_Source/shared/ipcContract').MultiCmdUpsertRequest = {
-      session: { id: 'sess-1', count: 2, panels: [] },
-    }
-    const keys = Object.keys(req.session)
-    expect(keys).not.toContain('title')
-  })
-
-  it('MultiCmdDeleteRequest / MultiCmdRenameRequest / MultiCmdSelectRequest 샘플이 타입 계약을 충족한다', () => {
-    const del: import('../../../../02_Project/00_Source/shared/ipcContract').MultiCmdDeleteRequest = { id: 'sess-1' }
-    const rename: import('../../../../02_Project/00_Source/shared/ipcContract').MultiCmdRenameRequest = {
-      id: 'sess-1',
-      title: '새 제목',
-    }
-    const select: import('../../../../02_Project/00_Source/shared/ipcContract').MultiCmdSelectRequest = { id: 'sess-1' }
-    expect(del.id).toBe('sess-1')
-    expect(rename.title).toBe('새 제목')
-    expect(select.id).toBe('sess-1')
-  })
-
-  it('multi.* 채널명은 시크릿 패턴을 포함하지 않는다', () => {
-    const multiChannels = [
-      IPC_CHANNELS.MULTI_SESSION_LOAD,
-      IPC_CHANNELS.MULTI_CMD_UPSERT,
-      IPC_CHANNELS.MULTI_CMD_CREATE,
-      IPC_CHANNELS.MULTI_CMD_DELETE,
-      IPC_CHANNELS.MULTI_CMD_RENAME,
-      IPC_CHANNELS.MULTI_CMD_SELECT,
-    ]
-    for (const ch of multiChannels) {
-      expect(ch).not.toMatch(/sk-ant-/)
-      expect(ch).not.toMatch(/Bearer/)
-      expect(ch).not.toMatch(/token=/)
-      expect(ch).not.toMatch(/secret=/)
-    }
   })
 })
 

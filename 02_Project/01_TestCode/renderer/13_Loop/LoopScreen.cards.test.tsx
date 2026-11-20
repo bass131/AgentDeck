@@ -14,7 +14,8 @@ const TOKEN = 'cd'.repeat(32)
 const st = (over: Partial<LoopStatus> = {}): LoopStatus => ({
   cwd: CWD, root: ROOT, phase: 'running', milestoneId: 'M01', node: null, nodeTitle: null, reason: null,
   base: 'main', ghRepo: 'me/practice', failCount: 0, goals: [], approval: null, milestonePr: null, cards: [],
-  sessionActive: false, lastVerdict: null, latch: null, ...over,
+  sessionActive: false, lastVerdict: null, latch: null, paused: false, mainBusy: false, mainWaiting: false,
+  mainNode: false, recentLines: [], sessions: [], ...over,
 })
 
 type Fn = ReturnType<typeof vi.fn>
@@ -47,8 +48,8 @@ const click = async (el: HTMLElement): Promise<void> => {
 
 async function renderScreen(initial: LoopStatus) {
   install(initial)
-  const { LoopScreen } = await import('@renderer/13_Loop')
-  const r = render(<LoopScreen initialCwd={CWD} onCwdChange={() => {}} onClose={() => {}} />)
+  const { StatusBoard } = await import('@renderer/13_Loop')
+  const r = render(<StatusBoard cwd={CWD} onCwdChange={() => {}} />)
   await flush()
   return r
 }
@@ -87,6 +88,24 @@ describe('예외 한 줄 (M09 G4)', () => {
     const line = screen.getByRole('status')
     expect(line.textContent).toContain('알림')
     expect(line.textContent).toContain('실행 상태를 만들지 못했다')
+  })
+
+  it('끝난 실행 안내(notice)는 「기다리는 결정」 칸 안의 강조 없는 알림 줄이다 — 시작 실패 알림은 그대로 강조한다 (M10 G6)', async () => {
+    const notice = '끝난 실행(M01) — 새 마일스톤을 시작하면 보관해요'
+    await renderScreen(st({ phase: 'not-started', milestoneId: null, notice }))
+    const box = screen.getByRole('region', { name: '기다리는 결정' })
+    expect(box.getAttribute('data-hot')).toBeNull()
+    const line = within(box).getByRole('note')
+    expect(line.textContent).toContain('알림')
+    expect(line.textContent).toContain(notice)
+    expect(line.closest('.loop-exc')).toBeNull()
+    expect(screen.queryByRole('status')).toBeNull()
+    cleanup()
+    await renderScreen(st({ phase: 'not-started', milestoneId: null, notice, reason: '끝난 실행(M01)을 보관하지 못해 새로 시작하지 않았다' }))
+    const hot = screen.getByRole('region', { name: '기다리는 결정' })
+    expect(hot.getAttribute('data-hot')).toBe('true')
+    expect(within(hot).getByRole('status').textContent).toContain('보관하지 못해')
+    expect(within(hot).getByRole('note').textContent).toContain(notice)
   })
 
   it('running·done에 사유가 없으면 예외 줄이 없다', async () => {
@@ -263,17 +282,18 @@ describe('질문 카드와 권한 카드 (M09 G4)', () => {
     expect(btn('답하기').disabled).toBe(false)
   })
 
-  // G4 확인 검수 — 루프 질문 창은 루프 오버레이(z 60) 층으로 쌓인다. 대화 질문 창(z 80)이 떠 있으면 나중에 연 루프 창은 키를 받지 않는다
-  it('대화 질문 창이 떠 있으면 나중에 연 루프 질문 창은 숫자 키를 받지 않는다', async () => {
+  // M10 G1 — 루프 화면은 모달이 아니라 작업 모드의 몸체라 겹침 맥락이 없다. 루프 질문 창은 대화 질문 창과 같은 층(app, z 80)이고,
+  // 같은 층에서는 나중에 연 창이 키를 받는다(옛 G4의 z 60 루프 오버레이 층은 없어졌다).
+  it('루프 질문 창은 대화 질문 창과 같은 층이다 — 나중에 연 루프 질문 창이 숫자 키를 받는다', async () => {
     install(st({ cards: [question], sessionActive: true }))
-    const { LoopScreen } = await import('@renderer/13_Loop')
+    const { StatusBoard } = await import('@renderer/13_Loop')
     const { QuestionModal } = await import('@renderer/03_Agent/prompt')
     const conv = vi.fn()
     const CONV = [{ header: 'C', question: '대화 창 질문', options: [{ label: 'c1', description: '' }], multiSelect: false }]
     render(
       <>
         <QuestionModal open={true} questions={CONV} onAnswer={conv} onDismiss={vi.fn()} />
-        <LoopScreen initialCwd={CWD} onCwdChange={() => {}} onClose={() => {}} />
+        <StatusBoard cwd={CWD} onCwdChange={() => {}} />
       </>,
     )
     await flush()
@@ -281,65 +301,66 @@ describe('질문 카드와 권한 카드 (M09 G4)', () => {
     expect(screen.getByText('어느 쪽으로 갈까요?')).toBeTruthy()
     await act(async () => { fireEvent.keyDown(window, { key: '1' }) })
     await flush()
-    expect(conv).toHaveBeenCalledWith([['c1']])
-    expect(api.loopAnswerCard).not.toHaveBeenCalled()
+    expect(conv).not.toHaveBeenCalled()
+    expect(api.loopAnswerCard).toHaveBeenCalledTimes(1)
   })
 
-  it('세션 취소는 cancelSession({cwd})다', async () => {
+  // M10 G3 — 메인 턴의 취소는 메인 대화 화면이 대상 main으로 보낸다. 루프 화면의 취소는 작업 세션(worker)이다(Backlog 12)
+  it('작업 세션 취소는 cancelSession({cwd, target: worker})다', async () => {
     await renderScreen(st({ cards: [permission], sessionActive: true }))
-    await click(btn('세션 취소'))
-    expect(api.loopCancelSession).toHaveBeenCalledWith({ cwd: CWD })
+    await click(btn('작업 세션 취소'))
+    expect(api.loopCancelSession).toHaveBeenCalledWith({ cwd: CWD, target: 'worker' })
+  })
+
+  // G3 독립 검수 사소 3 — 상태의 sessionActive는 메인 턴도 센다. 실행이 노드를 돌지 않는데(사람 기다림) 메인 턴만 돌면 작업 세션이 아니다.
+  // 메인 대화 화면의 「작업 세션 멈추기」와 같은 판단(mainChatModel.workSessionLive)을 쓴다
+  it('메인 턴만 돌고 실행이 노드를 돌지 않으면 작업 세션 취소를 보이지 않는다', async () => {
+    await renderScreen(st({ phase: 'waiting-human', sessionActive: true, mainBusy: true }))
+    expect(screen.queryByRole('button', { name: '작업 세션 취소' })).toBeNull()
+    cleanup()
+    await renderScreen(st({ phase: 'running', sessionActive: true, mainBusy: false }))
+    expect(screen.getByRole('button', { name: '작업 세션 취소' })).toBeTruthy()
+  })
+
+  it('메인 대화의 카드(inChat)는 루프 화면에 그리지 않는다 — 답하는 곳은 메인 대화 한 곳이다 (M10 G3)', async () => {
+    const inChat: LoopCard = { ...question, requestId: 'sx.7-q7', inChat: true }
+    await renderScreen(st({ cards: [inChat, permission], sessionActive: true }))
+    expect(screen.queryByTestId(`loop-card-${inChat.requestId}`)).toBeNull()
+    expect(screen.getByTestId(`loop-card-${permission.requestId}`)).toBeTruthy()
+    // 메인 대화 카드만 남으면 세션 카드 칸 자체가 없다
+    cleanup()
+    await renderScreen(st({ cards: [inChat], sessionActive: true }))
+    expect(screen.queryByRole('region', { name: '세션 카드' })).toBeNull()
+  })
+
+  it('메인 대화 카드는 「기다리는 결정」에 답 버튼 없는 가리킴으로 보이고, 누르면 메인 대화로 간다 (M10 G4)', async () => {
+    const inChat: LoopCard = { ...question, requestId: 'sx.7-q7', inChat: true }
+    install(st({ cards: [inChat] }))
+    const onOpenMain = vi.fn()
+    const { StatusBoard } = await import('@renderer/13_Loop')
+    render(<StatusBoard cwd={CWD} onCwdChange={() => {}} onOpenMain={onOpenMain} />)
+    await flush()
+    const box = screen.getByRole('region', { name: '기다리는 결정' })
+    expect(within(box).getByText(/메인 대화에 있어/)).toBeTruthy()
+    expect(within(box).queryByRole('button', { name: '답하기' })).toBeNull()
+    await click(within(box).getByRole('button', { name: /메인 대화에 있어/ }))
+    expect(onOpenMain).toHaveBeenCalledTimes(1)
+    expect(api.loopAnswerCard).not.toHaveBeenCalled()
   })
 })
 
-describe('스펙 승인 카드 (M09 G4)', () => {
+// M10 G3 — 스펙 승인 카드는 메인 대화 안으로 옮겼다(MainChatView.cards.test.tsx가 승인·반려 시험을 이어받는다).
+// 루프 화면은 예외 한 줄로 「사람 대기」만 보이고 승인·반려 버튼을 그리지 않는다(카드에 답하는 곳은 한 곳)
+describe('스펙 승인은 메인 대화에서 답한다 (M10 G3)', () => {
   const approval = { node: 'spec-approve', title: '스펙 승인', spec: '# 마일스톤 스펙\n\n목표: 작게', sha256: SHA }
 
-  it('스펙 본문과 sha256 앞 12자리를 보이고, 승인은 받은 sha256과 expectNode를 그대로 실어 decide pass를 보낸다', async () => {
+  it('승인 카드가 있어도 루프 화면에는 승인·반려 버튼과 사유 칸이 없고, 예외 한 줄이 사람 대기를 알린다', async () => {
     await renderScreen(st({ phase: 'waiting-human', node: 'spec-approve', approval }))
-    expect(screen.getByText(/목표: 작게/)).toBeTruthy()
-    expect(screen.getByText(SHA.slice(0, 12))).toBeTruthy()
-    await click(btn('승인'))
-    const req = api.loopDecide.mock.calls[0][0]
-    expect(req).toMatchObject({ cwd: CWD, verdict: 'pass', specSha256: SHA, expectNode: 'spec-approve' })
-    expect(req.evidence.trim().length).toBeGreaterThan(0)
-  })
-
-  it('반려는 사유가 있어야 켜지고, 사유를 evidence로 verdict:fail을 같은 sha256·expectNode와 보낸다', async () => {
-    await renderScreen(st({ phase: 'waiting-human', node: 'spec-approve', approval }))
-    expect(btn('반려').disabled).toBe(true)
-    fireEvent.change(screen.getByLabelText('반려 사유'), { target: { value: '범위가 너무 크다' } })
-    await click(btn('반려'))
-    expect(api.loopDecide).toHaveBeenCalledWith({
-      cwd: CWD, verdict: 'fail', evidence: '범위가 너무 크다', specSha256: SHA, expectNode: 'spec-approve',
-    })
-  })
-
-  it('ok:false면 reason을 보인다', async () => {
-    await renderScreen(st({ phase: 'waiting-human', node: 'spec-approve', approval }))
-    api.loopDecide.mockResolvedValue({ ok: false, reason: '사람이 본 스펙과 지금 스펙 파일이 다르다', status: st({ phase: 'waiting-human', node: 'spec-approve', approval }) })
-    await click(btn('승인'))
-    expect(screen.getByText('사람이 본 스펙과 지금 스펙 파일이 다르다')).toBeTruthy()
-  })
-
-  it('spec이나 sha256이 null이면 승인 버튼이 꺼진다', async () => {
-    await renderScreen(st({ phase: 'waiting-human', node: 'spec-approve', approval: { ...approval, spec: null, sha256: null } }))
-    expect(btn('승인').disabled).toBe(true)
-  })
-
-  // G4 검수 중요 I3 — 스펙 파일이 없을 때 빠져나갈 길. 반려는 해시 없이 보낸다(main이 해시 없는 반려만 받는다)
-  it('스펙 파일이 없으면 반려는 켜지고 해시 없이 verdict:fail을 보낸다', async () => {
-    await renderScreen(st({ phase: 'waiting-human', node: 'spec-approve', approval: { ...approval, spec: null, sha256: null } }))
-    fireEvent.change(screen.getByLabelText('반려 사유'), { target: { value: '스펙이 써지지 않았다' } })
-    expect(btn('반려').disabled).toBe(false)
-    await click(btn('반려'))
-    expect(api.loopDecide).toHaveBeenCalledWith({ cwd: CWD, verdict: 'fail', evidence: '스펙이 써지지 않았다', expectNode: 'spec-approve' })
-  })
-
-  it('지금 노드가 없으면 expectNode를 싣지 않는다', async () => {
-    await renderScreen(st({ phase: 'waiting-human', node: null, approval }))
-    await click(btn('승인'))
-    expect('expectNode' in api.loopDecide.mock.calls[0][0]).toBe(false)
+    expect(screen.queryByRole('button', { name: '승인' })).toBeNull()
+    expect(screen.queryByRole('button', { name: '반려' })).toBeNull()
+    expect(screen.queryByLabelText('반려 사유')).toBeNull()
+    expect(document.querySelector('.loop-exc-label')?.textContent).toBe('사람 대기')
+    expect(api.loopDecide).not.toHaveBeenCalled()
   })
 })
 

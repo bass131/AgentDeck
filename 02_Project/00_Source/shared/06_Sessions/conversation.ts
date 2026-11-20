@@ -71,3 +71,22 @@ export interface ConversationRenameRequest {
 export interface ConversationRenameResponse {
   ok: boolean
 }
+
+// 패널 세션(usePanelSlot)의 스레드 스냅샷 — M10 G1에서 멀티 에이전트 모드의 계약 파일을 지우며 여기로 옮겼다.
+// 패널 기계는 G3 세션 탭이 다시 쓰려고 남긴다. 디스크에 쓰는 채널은 이제 없다.
+export interface PersistedMsg {
+  id: string
+  role: 'user' | 'assistant'
+  text: string
+  error?: boolean
+  images?: string[]
+}
+
+export interface PanelThreadSnapshot {
+  messages: PersistedMsg[]
+  seq: number
+  lastUsage?: TokenUsage
+  lastContextWindow?: number
+  sessionId?: string
+  replMode?: boolean
+}

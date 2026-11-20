@@ -50,12 +50,6 @@ export const API_ROUTES = {
     save: call(IPC_CHANNELS.CONVERSATION_SAVE),
     delete: call(IPC_CHANNELS.CONVERSATION_DELETE),
     rename: call(IPC_CHANNELS.CONVERSATION_RENAME),
-    multiLoad: call0(IPC_CHANNELS.MULTI_SESSION_LOAD),
-    multiUpsert: call(IPC_CHANNELS.MULTI_CMD_UPSERT),
-    multiCreate: call0(IPC_CHANNELS.MULTI_CMD_CREATE),
-    multiDelete: call(IPC_CHANNELS.MULTI_CMD_DELETE),
-    multiRename: call(IPC_CHANNELS.MULTI_CMD_RENAME),
-    multiSelect: call(IPC_CHANNELS.MULTI_CMD_SELECT),
   },
   workspace: {
     open: call(IPC_CHANNELS.WORKSPACE_OPEN),
@@ -136,6 +130,21 @@ export const API_ROUTES = {
     releaseLatch: call(IPC_CHANNELS.LOOP_RELEASE_LATCH),
     close: call(IPC_CHANNELS.LOOP_CLOSE),
     onState: push(IPC_CHANNELS.LOOP_STATE),
+    // M10 G2 — 메인 대화(읽기·사용자 턴·새 메인 대화)와 그 push, 루프 세션 사건 push
+    mainRead: call(IPC_CHANNELS.LOOP_MAIN_READ),
+    mainSend: call(IPC_CHANNELS.LOOP_MAIN_SEND),
+    mainNew: call(IPC_CHANNELS.LOOP_MAIN_NEW),
+    onMainState: push(IPC_CHANNELS.LOOP_MAIN_STATE),
+    onSessionEvent: push(IPC_CHANNELS.LOOP_SESSION_EVENT),
+    // M10 G3 — 사람이 일시 정지 깃발을 내린다(판정 칸 없음)
+    lowerFlag: call(IPC_CHANNELS.LOOP_LOWER_FLAG),
+    sessionLog: call(IPC_CHANNELS.LOOP_SESSION_LOG),
+    mainArchives: call(IPC_CHANNELS.LOOP_MAIN_ARCHIVES),
+    // M10 G5 — 그래프 읽기(보기 전용), 알림 목록 읽기와 그 push, 알림을 눌렀을 때 여는 push
+    graph: call(IPC_CHANNELS.LOOP_GRAPH),
+    alerts: call0(IPC_CHANNELS.LOOP_ALERTS),
+    onAlerts: push(IPC_CHANNELS.LOOP_ALERTS_STATE),
+    onAlertOpen: push(IPC_CHANNELS.LOOP_ALERT_OPEN),
   },
 } as const
 

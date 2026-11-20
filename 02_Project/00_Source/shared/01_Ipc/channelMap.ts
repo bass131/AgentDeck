@@ -31,18 +31,6 @@ import type {
   ConversationRenameResponse,
 } from '../06_Sessions/conversation'
 import type {
-  MultiSessionLoadResponse,
-  MultiCmdUpsertRequest,
-  MultiCmdUpsertResponse,
-  MultiCmdCreateResponse,
-  MultiCmdDeleteRequest,
-  MultiCmdDeleteResponse,
-  MultiCmdRenameRequest,
-  MultiCmdRenameResponse,
-  MultiCmdSelectRequest,
-  MultiCmdSelectResponse,
-} from '../06_Sessions/multi'
-import type {
   WorkspaceOpenRequest,
   WorkspaceOpenResponse,
   WorkspaceTreeRequest,
@@ -119,16 +107,26 @@ import type {
 import type { Profile, UiPrefs, UiPrefsSetReq } from '../11_Settings/personalization'
 import type {
   LoopAnswerCardRequest,
+  LoopCancelRequest,
   LoopCwdRequest,
   LoopDecideRequest,
   LoopDecideResponse,
+  LoopMainResponse,
+  LoopMainSendRequest,
   LoopOkResponse,
   LoopOpenRequest,
   LoopReleaseLatchRequest,
   LoopReleaseLatchResponse,
+  LoopSessionEventPayload,
+  LoopSessionLog,
+  MainChatArchives,
   LoopStartRequest,
   LoopStatus,
+  MainChatView,
+  LoopAlertList,
+  LoopAlertOpen,
 } from '../13_Loop/loop'
+import type { LoopGraphResponse } from '../13_Loop/graph'
 import type { Ack } from '../02_Common/common'
 import type {
   WindowMaximizedResponse,
@@ -217,22 +215,27 @@ export interface IpcInvokeMap {
   'window.resizeStart': { req: WindowResizeStartRequest; res: void }
   'window.resizeEnd': { req: void; res: void }
 
-  'multi.load': { req: void; res: MultiSessionLoadResponse }
-  'multi.cmdUpsert': { req: MultiCmdUpsertRequest; res: MultiCmdUpsertResponse }
-  'multi.cmdCreate': { req: void; res: MultiCmdCreateResponse }
-  'multi.cmdDelete': { req: MultiCmdDeleteRequest; res: MultiCmdDeleteResponse }
-  'multi.cmdRename': { req: MultiCmdRenameRequest; res: MultiCmdRenameResponse }
-  'multi.cmdSelect': { req: MultiCmdSelectRequest; res: MultiCmdSelectResponse }
-
   // M09 G4 — 앱 안 루프(main/05_Loop/loopDriver.ts)
   'loop.open': { req: LoopOpenRequest; res: LoopStatus }
   'loop.start': { req: LoopStartRequest; res: LoopStatus }
   'loop.status': { req: LoopCwdRequest; res: LoopStatus }
   'loop.decide': { req: LoopDecideRequest; res: LoopDecideResponse }
   'loop.answerCard': { req: LoopAnswerCardRequest; res: LoopOkResponse }
-  'loop.cancelSession': { req: LoopCwdRequest; res: LoopOkResponse }
+  // M10 G3 — 취소는 대상(메인 턴 main / 작업 세션 worker)을 싣는다
+  'loop.cancelSession': { req: LoopCancelRequest; res: LoopOkResponse }
   'loop.releaseLatch': { req: LoopReleaseLatchRequest; res: LoopReleaseLatchResponse }
   'loop.close': { req: LoopCwdRequest; res: LoopOkResponse }
+  // M10 G2 — 메인 대화(main/05_Loop/mainChat.ts). 카드 답은 loop.answerCard다
+  'loop.mainRead': { req: LoopCwdRequest; res: MainChatView }
+  'loop.mainSend': { req: LoopMainSendRequest; res: LoopMainResponse }
+  'loop.mainNew': { req: LoopCwdRequest; res: LoopMainResponse }
+  // M10 G3 — 사람이 일시 정지 깃발을 내린다(판정 칸 없음)
+  'loop.lowerFlag': { req: LoopCwdRequest; res: LoopMainResponse }
+  'loop.sessionLog': { req: LoopCwdRequest; res: LoopSessionLog }
+  'loop.mainArchives': { req: LoopCwdRequest; res: MainChatArchives }
+  // M10 G5 — 그래프 읽기(보기 전용)와 알림 목록 읽기
+  'loop.graph': { req: LoopCwdRequest; res: LoopGraphResponse }
+  'loop.alerts': { req: void; res: LoopAlertList }
 }
 
 // main → renderer push 채널. 값은 payload 타입이다.
@@ -241,6 +244,10 @@ export interface IpcPushMap {
   'engine.installProgress': EngineInstallProgress
   'window.state': WindowStatePayload
   'loop.state': LoopStatus
+  'loop.mainState': MainChatView
+  'loop.sessionEvent': LoopSessionEventPayload
+  'loop.alertsState': LoopAlertList
+  'loop.alertOpen': LoopAlertOpen
 }
 
 export type InvokeChannel = keyof IpcInvokeMap

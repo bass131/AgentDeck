@@ -39,6 +39,7 @@ const mockApi = {
   referenceAdd: vi.fn().mockResolvedValue({ reference: null }),
   fsRead: vi.fn().mockResolvedValue({ kind: 'not-found' }),
   getAppVersion: vi.fn().mockResolvedValue('0.1.0'),
+  onLoopState: vi.fn(() => () => {}),
 }
 
 Object.defineProperty(window, 'api', { value: adaptFlatApi(mockApi), writable: true, configurable: true })
@@ -110,6 +111,34 @@ beforeEach(() => {
 afterEach(() => {
   cleanup()
   useAppStore.setState({ workspaceMode: 'single' })
+})
+
+describe('M10 G4: 작업 모드에는 대화 행이 없고, 채팅 칸으로 돌아가면 대화를 다룬다', () => {
+  it('작업 모드에서는 대화 행·새 대화가 없다 → 채팅 칸으로 돌아가 행을 누르면 selectConversation', async () => {
+    patchStore({ workspaceMode: 'work' })
+    const container = await renderSidebar()
+    expect(container.querySelectorAll('.sb-item')).toHaveLength(0)
+    expect(screen.queryByLabelText('새 대화')).toBeNull()
+    await act(async () => {
+      fireEvent.click(screen.getByRole('tab', { name: '채팅' }))
+    })
+    expect(useAppStore.getState().workspaceMode).toBe('single')
+    const rows = container.querySelectorAll('.sb-item')
+    await act(async () => {
+      fireEvent.click(rows[1] as HTMLElement)
+    })
+    expect(mockSelectConversation).toHaveBeenCalledWith('c2')
+  })
+
+  it('채팅 칸의 「새 대화」 → newConversation 호출, 모드는 채팅 그대로', async () => {
+    patchStore({ workspaceMode: 'single' })
+    await renderSidebar()
+    await act(async () => {
+      fireEvent.click(screen.getByLabelText('새 대화'))
+    })
+    expect(useAppStore.getState().workspaceMode).toBe('single')
+    expect(mockNewConversation).toHaveBeenCalledOnce()
+  })
 })
 
 describe('23c: store conversations → 행 표시', () => {

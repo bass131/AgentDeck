@@ -118,7 +118,7 @@ function enterTop(template: Template, s: RunState, i: number): void {
   if (i >= template.nodes.length) { s.status = 'done'; return }
   const n = template.nodes[i]
   if (n.kind !== 'goalLoop') { s.cursor = { node: n.id, goal: null }; return }
-  if (s.goals.length === 0) { halt(s, 'goal 목록이 비어 goal 고리에 들어갈 수 없다'); return }
+  if (s.goals.length === 0) { halt(s, '목표 목록이 비어 목표 반복에 들어갈 수 없다'); return }
   s.goals[0].status = 'active'
   s.cursor = { node: n.steps[0].id, goal: 0 }
 }
@@ -284,7 +284,7 @@ export function applyVerdict(template: Template, state: RunState, verdict: Verdi
       s.cursor = { node: here.node.onFail.goto, goal: s.cursor.goal }
       settle(template, s)
     }
-    if (fails >= FAIL_LIMIT) halt(s, `마지막 USER-INPUT 뒤 FAIL ${fails}번 — ${verdict.evidence}`)
+    if (fails >= FAIL_LIMIT) halt(s, `마지막 사람 입력 뒤 실패 ${fails}번 — ${verdict.evidence}`)
   } else {
     halt(s, verdict.evidence)
   }

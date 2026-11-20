@@ -12,21 +12,37 @@ import type {
   LoopReleaseLatchResponse,
   LoopStatus,
 } from '@shared/ipcContract'
+import type {
+  LoopAlert, LoopAlertList, LoopAlertOpen, LoopCancelTarget, LoopMainResponse, LoopSessionEventPayload, LoopSessionLog, MainChatArchives, MainChatView,
+} from '@shared/13_Loop/loop'
+import type { LoopGraphResponse } from '@shared/13_Loop/graph'
 import { handle } from '../handle'
+
+const MAIN_TEXT_MAX = 20_000
 
 // 핸들러가 부르는 구동자의 면. loopDriver.createLoopDriver가 이것을 채운다.
 export interface LoopDriverApi {
+  mainRead(cwd: string): MainChatView
+  mainSend(cwd: string, text: string): LoopMainResponse
+  mainNew(cwd: string): Promise<LoopMainResponse>
+  // M10 G3 — 사람이 깃발을 내린다(cwd만), 취소는 대상을 고른다
+  lowerFlag(cwd: string): LoopMainResponse
+  sessionLog(cwd: string): LoopSessionLog
+  mainArchives(cwd: string): Promise<MainChatArchives>
+  // M10 G5 — 그 작업 폴더의 템플릿을 화면용 그래프로(보기 전용)
+  graph(cwd: string): LoopGraphResponse
   open(req: LoopOpenRequest): Promise<LoopStatus>
   start(cwd: string, milestoneId: string): Promise<LoopStatus>
   status(cwd: string): LoopStatus
   decide(req: LoopDecideRequest): Promise<LoopDecideResponse>
   answerCard(cwd: string, requestId: string, response: LoopCardResponse): boolean
-  cancelSession(cwd: string): boolean
+  cancelSession(cwd: string, target: LoopCancelTarget): boolean
   releaseLatch(cwd: string, token: string): Promise<LoopReleaseLatchResponse>
   close(cwd: string): Promise<void>
 }
 
-export interface LoopHandlerDeps { driver: LoopDriverApi }
+// alerts — 알림 판정자(main/05_Loop/loopNotifier.ts)의 지금 목록. 없으면 빈 목록이다
+export interface LoopHandlerDeps { driver: LoopDriverApi; alerts?: { list(): LoopAlert[] } }
 
 const SHA256 = /^[0-9a-f]{64}$/
 const EVIDENCE_MAX = 2000
@@ -106,7 +122,15 @@ export function registerLoopHandlers(deps: LoopHandlerDeps): void {
     return { ok: driver.answerCard(cwd, requestId, response) }
   })
 
-  handle(IPC_CHANNELS.LOOP_CANCEL_SESSION, async (_e, req) => ({ ok: driver.cancelSession(cwdOf(obj(req, 'loop.cancelSession'), 'loop.cancelSession')) }))
+  // M10 G3 — 취소는 대상(메인 턴 main / 작업 세션 worker)을 골라야 한다. 대상이 없거나 모르면 거부한다(옛 「메인 먼저」로 기울지 않는다, Backlog 12).
+  // 판정 칸은 읽지 않는다 — 구동자는 cwd와 대상만 받는다
+  handle(IPC_CHANNELS.LOOP_CANCEL_SESSION, async (_e, req) => {
+    const r = obj(req, 'loop.cancelSession')
+    const cwd = cwdOf(r, 'loop.cancelSession')
+    const target = r['target']
+    if (target !== 'main' && target !== 'worker') throw new Error('loop.cancelSession: target은 main·worker 중 하나다')
+    return { ok: driver.cancelSession(cwd, target) }
+  })
 
   handle(IPC_CHANNELS.LOOP_RELEASE_LATCH, async (_e, req) => {
     const r = obj(req, 'loop.releaseLatch')
@@ -120,11 +144,49 @@ export function registerLoopHandlers(deps: LoopHandlerDeps): void {
     await driver.close(cwdOf(obj(req, 'loop.close'), 'loop.close'))
     return { ok: true }
   })
+
+  // ── M10 G2 메인 대화 ── 보내는 것은 글 하나뿐이다(판정 칸은 읽지 않는다). 카드 답은 loop.answerCard를 그대로 쓴다.
+  handle(IPC_CHANNELS.LOOP_MAIN_READ, async (_e, req) => driver.mainRead(cwdOf(obj(req, 'loop.mainRead'), 'loop.mainRead')))
+
+  handle(IPC_CHANNELS.LOOP_MAIN_SEND, async (_e, req) => {
+    const r = obj(req, 'loop.mainSend')
+    const cwd = cwdOf(r, 'loop.mainSend')
+    return driver.mainSend(cwd, text(r, 'text', 'loop.mainSend', MAIN_TEXT_MAX))
+  })
+
+  handle(IPC_CHANNELS.LOOP_MAIN_NEW, async (_e, req) => driver.mainNew(cwdOf(obj(req, 'loop.mainNew'), 'loop.mainNew')))
+
+  // M10 G3 — 사람이 일시 정지 깃발을 내린다. cwd만 읽는다 — 판정 칸(verdict·evidence·specSha256·expectNode)이 와도 구동자에 닿지 않는다.
+  // 깃발 내리기는 사람 판정(decide)을 대신하지 않는다 — 실행 상태·검증 기록을 쓰지 않는다(USER-INPUT 줄 없음)
+  handle(IPC_CHANNELS.LOOP_LOWER_FLAG, async (_e, req) => driver.lowerFlag(cwdOf(obj(req, 'loop.lowerFlag'), 'loop.lowerFlag')))
+
+  handle(IPC_CHANNELS.LOOP_SESSION_LOG, async (_e, req) => driver.sessionLog(cwdOf(obj(req, 'loop.sessionLog'), 'loop.sessionLog')))
+  handle(IPC_CHANNELS.LOOP_MAIN_ARCHIVES, async (_e, req) => driver.mainArchives(cwdOf(obj(req, 'loop.mainArchives'), 'loop.mainArchives')))
+  handle(IPC_CHANNELS.LOOP_GRAPH, async (_e, req) => driver.graph(cwdOf(obj(req, 'loop.graph'), 'loop.graph')))
+  handle(IPC_CHANNELS.LOOP_ALERTS, async () => ({ alerts: deps.alerts?.list() ?? [] }))
+}
+
+function pushTo<C extends Parameters<typeof sendPush>[1]>(state: { win: BrowserWindow | null }, ch: C, payload: Parameters<typeof sendPush<C>>[2]): void {
+  const win = state.win
+  if (!win || win.isDestroyed()) return
+  sendPush(win.webContents, ch, payload)
 }
 
 // 구동자의 상태 변화 → 창. 창이 없거나 닫혔으면 보내지 않는다(다음 status 호출이 같은 한 장을 돌려준다).
 export function pushLoopState(state: { win: BrowserWindow | null }, s: LoopStatus): void {
-  const win = state.win
-  if (!win || win.isDestroyed()) return
-  sendPush(win.webContents, IPC_CHANNELS.LOOP_STATE, s)
+  pushTo(state, IPC_CHANNELS.LOOP_STATE, s)
+}
+// M10 G2 — 메인 대화 보기(다음 mainRead가 같은 것을 돌려준다)와 루프 세션 사건(꼬리표 동봉)
+export function pushMainState(state: { win: BrowserWindow | null }, v: MainChatView): void {
+  pushTo(state, IPC_CHANNELS.LOOP_MAIN_STATE, v)
+}
+export function pushSessionEvent(state: { win: BrowserWindow | null }, p: LoopSessionEventPayload): void {
+  pushTo(state, IPC_CHANNELS.LOOP_SESSION_EVENT, p)
+}
+// M10 G5 — 알림 목록(다음 loop.alerts가 같은 것을 돌려준다)과 Windows 알림을 눌렀을 때 열 작업 폴더
+export function pushAlerts(state: { win: BrowserWindow | null }, list: LoopAlertList): void {
+  pushTo(state, IPC_CHANNELS.LOOP_ALERTS_STATE, list)
+}
+export function pushAlertOpen(state: { win: BrowserWindow | null }, open: LoopAlertOpen): void {
+  pushTo(state, IPC_CHANNELS.LOOP_ALERT_OPEN, open)
 }

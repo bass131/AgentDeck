@@ -18,7 +18,6 @@ const mockApi = {
   agentAbort:        vi.fn().mockResolvedValue({ accepted: true }),
   agentInterrupt:    vi.fn().mockResolvedValue({}),
   onAgentEvent:      vi.fn().mockReturnValue(() => {}),
-  multiSessionLoad:  vi.fn().mockResolvedValue({ state: null }),
   pickFolder:        vi.fn().mockResolvedValue({ path: null }),
   conversationLoad:  vi.fn().mockResolvedValue({ conversations: [] }),
   getAppVersion:     vi.fn().mockResolvedValue('0.1.0'),
@@ -40,7 +39,6 @@ beforeEach(() => {
   vi.clearAllMocks()
   mockApi.listSlashCommands.mockResolvedValue(PANEL_SAMPLE_COMMANDS)
   mockApi.listSkills.mockResolvedValue(PANEL_SAMPLE_SKILLS)
-  mockApi.multiSessionLoad.mockResolvedValue({ state: null })
   __resetPanelSessionManagerForTests()
 })
 
@@ -54,8 +52,9 @@ const PANEL_MENTION_FILES = [
   'README.md',
 ]
 
-async function renderMultiWorkspaceWithFiles(mentionFiles?: string[]) {
-  const { MultiWorkspace } = await import('@renderer/12_Window/MultiWorkspace')
+// M10 G1 — 멀티 에이전트 화면을 지웠다. 패널 입력창(PanelView)은 남겼으므로 패널 하네스로 그린다(멘션 파일은 store의 projectFiles).
+async function renderPanelsWithFiles(mentionFiles?: string[]) {
+  const { PanelHarness } = await import('../00_Helpers/panelHarness')
   const { useAppStore } = await import('@renderer/00_App/appStore')
 
   useAppStore.setState({ workspaceRoot: '/test/project' })
@@ -64,14 +63,14 @@ async function renderMultiWorkspaceWithFiles(mentionFiles?: string[]) {
     useAppStore.setState({ projectFiles: mentionFiles })
   }
 
-  const { container } = render(<MultiWorkspace />)
+  const { container } = render(<PanelHarness />)
   return container
 }
 
 describe('PanelComposer — 슬래시 커맨드 팔레트 (1~5)', () => {
 
   it('(1) 패널 textarea에 "/" 입력 → .slash-menu[role=listbox] 표시', async () => {
-    const container = await renderMultiWorkspaceWithFiles()
+    const container = await renderPanelsWithFiles()
     const firstPanel = container.querySelector('.ma-panel:not(.ma-placeholder)') as HTMLElement
     expect(firstPanel).toBeTruthy()
 
@@ -87,7 +86,7 @@ describe('PanelComposer — 슬래시 커맨드 팔레트 (1~5)', () => {
   })
 
   it('(2) 슬래시 팔레트에 IPC listSlashCommands 항목이 렌더된다', async () => {
-    const container = await renderMultiWorkspaceWithFiles()
+    const container = await renderPanelsWithFiles()
     const firstPanel = container.querySelector('.ma-panel:not(.ma-placeholder)') as HTMLElement
     const ta = firstPanel.querySelector('textarea') as HTMLTextAreaElement
 
@@ -104,7 +103,7 @@ describe('PanelComposer — 슬래시 커맨드 팔레트 (1~5)', () => {
   })
 
   it('(3) ↓ 키 → 두 번째 항목 .on (slashIdx 이동)', async () => {
-    const container = await renderMultiWorkspaceWithFiles()
+    const container = await renderPanelsWithFiles()
     const firstPanel = container.querySelector('.ma-panel:not(.ma-placeholder)') as HTMLElement
     const ta = firstPanel.querySelector('textarea') as HTMLTextAreaElement
 
@@ -124,7 +123,7 @@ describe('PanelComposer — 슬래시 커맨드 팔레트 (1~5)', () => {
 
   it('(4) Enter → .slash-menu 닫힘 + 값 변경', async () => {
     const currentValue = '/'
-    const container = await renderMultiWorkspaceWithFiles()
+    const container = await renderPanelsWithFiles()
     const firstPanel = container.querySelector('.ma-panel:not(.ma-placeholder)') as HTMLElement
     const ta = firstPanel.querySelector('textarea') as HTMLTextAreaElement
 
@@ -146,7 +145,7 @@ describe('PanelComposer — 슬래시 커맨드 팔레트 (1~5)', () => {
   })
 
   it('(5) Esc → .slash-menu 닫힘', async () => {
-    const container = await renderMultiWorkspaceWithFiles()
+    const container = await renderPanelsWithFiles()
     const firstPanel = container.querySelector('.ma-panel:not(.ma-placeholder)') as HTMLElement
     const ta = firstPanel.querySelector('textarea') as HTMLTextAreaElement
 
@@ -167,7 +166,7 @@ describe('PanelComposer — 슬래시 커맨드 팔레트 (1~5)', () => {
 describe('PanelComposer — @멘션 팔레트 (6~8)', () => {
 
   it('(6) "@" 입력 → .slash-menu 팔레트 표시 (멘션 모드)', async () => {
-    const container = await renderMultiWorkspaceWithFiles(PANEL_MENTION_FILES)
+    const container = await renderPanelsWithFiles(PANEL_MENTION_FILES)
     const firstPanel = container.querySelector('.ma-panel:not(.ma-placeholder)') as HTMLElement
     const ta = firstPanel.querySelector('textarea') as HTMLTextAreaElement
 
@@ -180,7 +179,7 @@ describe('PanelComposer — @멘션 팔레트 (6~8)', () => {
   })
 
   it('(7) mentionFiles prop의 파일 항목이 팔레트에 렌더된다', async () => {
-    const container = await renderMultiWorkspaceWithFiles(PANEL_MENTION_FILES)
+    const container = await renderPanelsWithFiles(PANEL_MENTION_FILES)
     const firstPanel = container.querySelector('.ma-panel:not(.ma-placeholder)') as HTMLElement
     const ta = firstPanel.querySelector('textarea') as HTMLTextAreaElement
 
@@ -196,7 +195,7 @@ describe('PanelComposer — @멘션 팔레트 (6~8)', () => {
   })
 
   it('(8) 멘션 팔레트 Enter → 경로 삽입 + 팔레트 닫힘', async () => {
-    const container = await renderMultiWorkspaceWithFiles(PANEL_MENTION_FILES)
+    const container = await renderPanelsWithFiles(PANEL_MENTION_FILES)
     const firstPanel = container.querySelector('.ma-panel:not(.ma-placeholder)') as HTMLElement
     const ta = firstPanel.querySelector('textarea') as HTMLTextAreaElement
 
@@ -218,11 +217,11 @@ describe('PanelComposer — @멘션 팔레트 (6~8)', () => {
 describe('PanelComposer — 입력 히스토리 (9~11)', () => {
 
   it('(9) history prop + ArrowUp → 최신 히스토리 항목으로 textarea 값 변경', async () => {
-    const { default: MultiWorkspace } = await import('@renderer/12_Window/MultiWorkspace')
+    const { PanelHarness } = await import('../00_Helpers/panelHarness')
     const { useAppStore } = await import('@renderer/00_App/appStore')
     useAppStore.setState({ workspaceRoot: '/test/project' })
 
-    const { container } = render(<MultiWorkspace />)
+    const { container } = render(<PanelHarness />)
     const firstPanel = container.querySelector('.ma-panel:not(.ma-placeholder)') as HTMLElement
     const ta = firstPanel.querySelector('textarea') as HTMLTextAreaElement
 
@@ -246,11 +245,11 @@ describe('PanelComposer — 입력 히스토리 (9~11)', () => {
   })
 
   it('(10) 히스토리 탐색 ↓ → draft 복원 (구현 전 단순 크래시 없음 검증)', async () => {
-    const { default: MultiWorkspace } = await import('@renderer/12_Window/MultiWorkspace')
+    const { PanelHarness } = await import('../00_Helpers/panelHarness')
     const { useAppStore } = await import('@renderer/00_App/appStore')
     useAppStore.setState({ workspaceRoot: '/test/project' })
 
-    const { container } = render(<MultiWorkspace />)
+    const { container } = render(<PanelHarness />)
     const firstPanel = container.querySelector('.ma-panel:not(.ma-placeholder)') as HTMLElement
     const ta = firstPanel.querySelector('textarea') as HTMLTextAreaElement
 
@@ -265,7 +264,7 @@ describe('PanelComposer — 입력 히스토리 (9~11)', () => {
   })
 
   it('(11) 슬래시 팔레트 열림 시 ↑↓는 히스토리 미발동', async () => {
-    const container = await renderMultiWorkspaceWithFiles()
+    const container = await renderPanelsWithFiles()
     const firstPanel = container.querySelector('.ma-panel:not(.ma-placeholder)') as HTMLElement
     const ta = firstPanel.querySelector('textarea') as HTMLTextAreaElement
 
@@ -291,11 +290,11 @@ describe('PanelComposer — 입력 히스토리 (9~11)', () => {
 describe('PanelComposer — 기존 동작 불변 (12)', () => {
 
   it('(12-a) disabled=true(workspaceRoot=null) → 전송 버튼 disabled', async () => {
-    const { default: MultiWorkspace } = await import('@renderer/12_Window/MultiWorkspace')
+    const { PanelHarness } = await import('../00_Helpers/panelHarness')
     const { useAppStore } = await import('@renderer/00_App/appStore')
     useAppStore.setState({ workspaceRoot: null })
 
-    const { container } = render(<MultiWorkspace />)
+    const { container } = render(<PanelHarness />)
     const firstPanel = container.querySelector('.ma-panel:not(.ma-placeholder)') as HTMLElement
     const sendBtn = firstPanel.querySelector('button.send[aria-label="전송"]') as HTMLButtonElement | null
     expect(sendBtn).toBeTruthy()
@@ -303,11 +302,11 @@ describe('PanelComposer — 기존 동작 불변 (12)', () => {
   })
 
   it('(12-b) Enter 전송 → onSend 호출 (슬래시 없는 일반 입력)', async () => {
-    const { default: MultiWorkspace } = await import('@renderer/12_Window/MultiWorkspace')
+    const { PanelHarness } = await import('../00_Helpers/panelHarness')
     const { useAppStore } = await import('@renderer/00_App/appStore')
     useAppStore.setState({ workspaceRoot: '/test/project' })
 
-    const { container } = render(<MultiWorkspace />)
+    const { container } = render(<PanelHarness />)
     const firstPanel = container.querySelector('.ma-panel:not(.ma-placeholder)') as HTMLElement
     const ta = firstPanel.querySelector('textarea') as HTMLTextAreaElement
 

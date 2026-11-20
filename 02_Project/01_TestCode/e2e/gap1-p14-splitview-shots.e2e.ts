@@ -16,7 +16,7 @@ const CSS_FILES = [
   '02_Common/tokens.css',
   '12_Window/shell.css',
   '12_Window/PaneSplitter.css',
-  '12_Window/MultiWorkspace.css',
+  '03_Agent/panelCard.css',
   '03_Agent/SubAgentSplitView.css',
   '03_Agent/SubAgentCell.css',
   '03_Agent/SubAgentFullscreen.css',
@@ -84,7 +84,7 @@ function small(id, display, roleText, bodyText) {
 
 /** p14-four — 4개: 지그재그 좌[a,c]·우[b,d](§📐 TG1 P08 — 짝수 index=좌·홀수=우, 균등). */
 const FOUR = [
-  small('sa-a', '자료 조사', '기존 그리드 관례를 조사해 주세요.', 'MultiWorkspace의 .ma-grid 관례를 확인 중입니다.'),
+  small('sa-a', '자료 조사', '기존 그리드 관례를 조사해 주세요.', '패널 카드의 그리드 관례를 확인 중입니다.'),
   small('sa-b', '구현 검토', '셀 컴포넌트 재사용성을 검토해 주세요.', 'SubAgentCell props 표면을 검토 중입니다.'),
   small('sa-c', '테스트 정리', '정책 테스트 시나리오를 정리해 주세요.', '1~7개 배치 시나리오를 표로 정리 중입니다.'),
   small('sa-d', '문서 초안', 'UI.md 셸 골격 갱신 초안을 써 주세요.', '우측 도크 분기 서술을 작성 중입니다.'),
@@ -92,7 +92,7 @@ const FOUR = [
 
 /** p14-queue — 7개: 6셀 + 대기열 탭 1(§📐 상한 초과 → FIFO 대기). */
 const QUEUE = [
-  small('sa-a', '자료 조사', '기존 그리드 관례를 조사해 주세요.', 'MultiWorkspace의 .ma-grid 관례를 확인 중입니다.'),
+  small('sa-a', '자료 조사', '기존 그리드 관례를 조사해 주세요.', '패널 카드의 그리드 관례를 확인 중입니다.'),
   small('sa-b', '구현 검토', '셀 컴포넌트 재사용성을 검토해 주세요.', 'SubAgentCell props 표면을 검토 중입니다.'),
   small('sa-c', '테스트 정리', '정책 테스트 시나리오를 정리해 주세요.', '1~7개 배치 시나리오를 표로 정리 중입니다.'),
   small('sa-d', '문서 초안', 'UI.md 셸 골격 갱신 초안을 써 주세요.', '우측 도크 분기 서술을 작성 중입니다.'),
@@ -103,7 +103,7 @@ const QUEUE = [
 
 /** p14-active — 5개(좌[a,c,e]·우[b,d]): __touch('sa-b')로 정적 하이라이트(.sag-cell--active) 트리거. */
 const ACTIVE = [
-  small('sa-a', '자료 조사', '기존 그리드 관례를 조사해 주세요.', 'MultiWorkspace의 .ma-grid 관례를 확인 중입니다.'),
+  small('sa-a', '자료 조사', '기존 그리드 관례를 조사해 주세요.', '패널 카드의 그리드 관례를 확인 중입니다.'),
   small('sa-b', '구현 검토', '셀 컴포넌트 재사용성을 검토해 주세요.', 'SubAgentCell props 표면을 검토 중입니다.'),
   small('sa-c', '테스트 정리', '정책 테스트 시나리오를 정리해 주세요.', '1~7개 배치 시나리오를 표로 정리 중입니다.'),
   small('sa-d', '문서 초안', 'UI.md 셸 골격 갱신 초안을 써 주세요.', '우측 도크 분기 서술을 작성 중입니다.'),
@@ -112,7 +112,7 @@ const ACTIVE = [
 
 /** p14-disabled — 3개: 셀 sa-b를 실 토글 클릭으로 비활성(.sac-off dim). */
 const DISABLED = [
-  small('sa-a', '자료 조사', '기존 그리드 관례를 조사해 주세요.', 'MultiWorkspace의 .ma-grid 관례를 확인 중입니다.'),
+  small('sa-a', '자료 조사', '기존 그리드 관례를 조사해 주세요.', '패널 카드의 그리드 관례를 확인 중입니다.'),
   small('sa-b', '구현 검토', '셀 컴포넌트 재사용성을 검토해 주세요.', 'SubAgentCell props 표면을 검토 중입니다.'),
   small('sa-c', '테스트 정리', '정책 테스트 시나리오를 정리해 주세요.', '1~7개 배치 시나리오를 표로 정리 중입니다.'),
 ]

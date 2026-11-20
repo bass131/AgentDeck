@@ -1,11 +1,14 @@
-import type { BrowserWindow } from 'electron'
+import { app, type BrowserWindow } from 'electron'
 import { join } from 'node:path'
 import { getUserDataDir } from '@main/02_Common/userData'
 import { getWorkspaceRootPath } from '@main/07_Workspace/roots'
 import { registerIpc } from '@main/01_Ipc/index'
-import { pushLoopState } from '@main/01_Ipc/handlers/loop'
+import { pushAlertOpen, pushAlerts, pushLoopState, pushMainState, pushSessionEvent } from '@main/01_Ipc/handlers/loop'
 import { controlsForRun } from '@main/04_Claude/permission/controlsStore'
 import { autoModeReasonOf, createLoopDriver, type LoopDriver } from '@main/05_Loop/loopDriver'
+import { createLoopNotifier } from '@main/05_Loop/loopNotifier'
+import { createNotifyPort } from '@main/05_Loop/realPorts/notifyPort'
+import { applyDevAppUserModelId } from './appUserModel'
 import { getBackend } from './registry'
 import {
   ipcState,
@@ -16,7 +19,6 @@ import {
   getStore,
   initStores,
   initLsp,
-  initMultiStore,
   disposeAllRuns,
   getPrefsStore,
   getProfileStore,
@@ -28,10 +30,13 @@ import {
 
 // main 프로세스의 조립 지점 (M05 G11) — 객체 생성과 배선은 여기서 한 번 일어난다.
 // 진입점(index.ts)은 창을 만들고 Electron 수명주기 이벤트에서 아래 셋을 부르기만 한다.
-// 기동 순서는 옮기기 전과 같다: 대화 저장소 → multi 경로 → (창 생성) → 창 붙이기.
+// 기동 순서: 대화 저장소 → (창 생성) → 창 붙이기. M10 G1에서 멀티 에이전트 모드를 지워 멀티 저장 경로 단계가 없어졌다
+// (사용자 디스크의 옛 멀티 저장 파일은 지우지도 읽지도 않는다).
 
 // 창을 만들기 전의 기동 — 실패해도 앱은 뜬다(영속화만 꺼진다)
 export function startApp(): void {
+  // M10 G5 — 개발 빌드에서도 Windows 알림이 뜨도록 AppUserModelID를 정한다(패키지 빌드는 설치기의 id를 쓴다)
+  applyDevAppUserModelId(app)
   try {
     initConversationStore(join(getUserDataDir(), 'chats'))
   } catch (err) {
@@ -40,12 +45,6 @@ export function startApp(): void {
         'JSON 디렉토리 생성 또는 파일 I/O 오류:',
       err
     )
-  }
-
-  try {
-    initMultiStore(getUserDataDir())
-  } catch (err) {
-    console.error('[main] multiStore 초기화 실패 — 멀티 세션 영속 비활성:', err)
   }
 }
 
@@ -61,16 +60,40 @@ export function attachWindow(win: BrowserWindow): void {
   initStores()
   initLsp()
 
+  // M10 G5 — 알림 판정자. 구동자의 상태를 받아 사람을 부르는 사건을 정한다. 알림을 누르면 창을 앞으로 가져와 그 작업 폴더를 연다
+  const loopAppDir = join(getUserDataDir(), 'loop')
+  const notifier = createLoopNotifier({
+    appDataDir: loopAppDir,
+    notify: createNotifyPort(),
+    onChange: (list) => pushAlerts(ipcState, list),
+    onOpen: (cwd) => {
+      const w = ipcState.win
+      if (w && !w.isDestroyed()) {
+        if (w.isMinimized()) w.restore()
+        w.show()
+        w.focus()
+      }
+      pushAlertOpen(ipcState, { cwd })
+    },
+  })
+
   // M09 G4 — 앱 안 루프 구동자. 앱 영역은 userData/loop, 상태 변화는 창으로 push, 자동 모드 허용 노드는 구동마다 다시 읽는다.
   _loopDriver = createLoopDriver({
-    appDataDir: join(getUserDataDir(), 'loop'),
+    appDataDir: loopAppDir,
     backend: getBackend('claude-code'),
     autoModeCheck: () => autoModeReasonOf(controlsForRun(getUserDataDir())),
-    onState: (s) => pushLoopState(ipcState, s),
+    onState: (s) => {
+      pushLoopState(ipcState, s)
+      void notifier.observe(s)
+    },
+    // M10 G2 — 메인 대화 보기와 루프 세션 사건(꼬리표 동봉)도 창으로 push한다
+    onMainState: (v) => pushMainState(ipcState, v),
+    onSessionEvent: (p) => pushSessionEvent(ipcState, p),
   })
 
   registerIpc({
     loopDriver: _loopDriver,
+    loopAlerts: notifier,
     state: ipcState,
     roots,
     runManager,
@@ -81,7 +104,6 @@ export function attachWindow(win: BrowserWindow): void {
     getCommandsStore,
     getPrefsStore,
     getProfileStore,
-    getMultiStorePath: () => ipcState.multiStorePath,
     getModelList: () => getModelListProvider().load(),
   })
 }

@@ -24,13 +24,12 @@ function typeCases(target: PushTarget): void {
   const optional: ArgsOf<'settings.listSkills'> = []
   const optionalWithReq: ArgsOf<'settings.listSkills'> = [{ root: '/w' }]
   sendPush(target, 'window.state', { maximized: false })
-  // ack 통일 — 확인 응답 채널은 모두 Ack { ok, error? } 하나를 받는다 (multi는 state를 더 싣는다)
+  // ack 통일 — 확인 응답 채널은 모두 Ack { ok, error? } 하나를 받는다
   const acks: Array<ResOf<'agent.interrupt' | 'agent.setMode' | 'git.push' | 'engine.install' | 'settings.setUiPref'>> = [
     { ok: true },
     { ok: false, error: 'why' },
   ]
-  const multiAck: ResOf<'multi.cmdDelete'> = { ok: false, error: 'locked', state: { version: 2, activeSessionId: '', sessions: [] } }
-  void [run, req, state, noArgs, optional, optionalWithReq, acks, multiAck]
+  void [run, req, state, noArgs, optional, optionalWithReq, acks]
 
   // 응답 모양이 맵과 다르면 실패한다
   // @ts-expect-error agent.abort의 응답은 G10 ack 통일로 { ok }다 — 옛 { accepted }는 거부된다
@@ -85,10 +84,10 @@ function handleCases(): void {
   handle('git.commit', async () => ({ ok: 'yes' }))
   // @ts-expect-error lsp.definition은 위치 배열을 돌려준다
   handle('lsp.definition', async () => null)
-  // @ts-expect-error multi.cmdCreate는 인자 없는 채널이다 — 요청을 받는 핸들러는 맞지 않는다
-  handle('multi.cmdCreate', (_e, req: { id: string }) => ({ ok: req.id.length > 0, state: { version: 2, activeSessionId: '', sessions: [] } }))
-  // @ts-expect-error multi.cmd*는 state를 함께 돌려준다
-  handle('multi.cmdSelect', () => ({ ok: true }))
+  // @ts-expect-error window.minimize는 인자 없는 채널이다 — 요청을 받는 핸들러는 맞지 않는다
+  handle('window.minimize', (_e, req: { id: string }) => void req.id)
+  // @ts-expect-error M10 G1 — 멀티 에이전트 모드의 영속 채널은 맵에서 빠졌다
+  handle('multi.load', () => ({ state: null }))
   // @ts-expect-error settings.getProfile은 Profile | null을 돌려준다
   handle('settings.getProfile', async () => ({ nickname: 'n' }))
   // @ts-expect-error reference.list는 { references }를 돌려준다
@@ -120,7 +119,7 @@ function preloadCases(api: PreloadApi): void {
   // @ts-expect-error 평면 이름은 더 없다 (평면 별칭을 두지 않는다)
   void api.agentRun
   // @ts-expect-error 위치 인자는 요청 객체로 바뀌었다
-  void api.sessions.multiDelete('id-1')
+  void api.sessions.delete('id-1')
   void badAbort
 }
 void preloadCases
@@ -151,9 +150,14 @@ describe('M05 G10 — IPC 채널 타입 맵', () => {
   // M07 G5: 71 → 74. 컨트롤 패널 채널 settings.controlsState·setControlEnabled·confirmControls(invoke)를 더했다.
   // M09 G4: 76 → 85. 앱 안 루프 묶음 loop의 invoke 여덟(open·start·status·decide·answerCard·cancelSession·releaseLatch·close)과
   // push 하나(loop.state)를 더했다.
-  it('채널 수는 재실측 기준에서 미사용 3개를 빼고 M06 G4의 agent.listModels, M07 G5의 컨트롤 셋, M07 G8의 PR 카드 둘, M09 G4의 loop 아홉을 더한 수다 (invoke 67+1+3+2+8=81 + push 3+1)', () => {
-    expect(Object.values(IPC_CHANNELS)).toHaveLength(85)
-    expect(new Set(Object.values(IPC_CHANNELS)).size).toBe(85)
+  // M10 G1: 85 → 79. 멀티 에이전트 모드를 지우며 multi 묶음 invoke 여섯(load·cmdUpsert·cmdCreate·cmdDelete·cmdRename·cmdSelect)을 뺐다.
+  // M10 G2: 79 → 84. 메인 대화 invoke 셋(loop.mainRead·mainSend·mainNew)과 push 둘(loop.mainState·loop.sessionEvent)을 더했다.
+  // M10 G3: 84 → 85. 사람이 일시 정지 깃발을 내리는 invoke 하나(loop.lowerFlag)를 더했다.
+  // M10 G4: 85 → 87. 노드 세션 기록 읽기(loop.sessionLog)와 지난 메인 대화 읽기(loop.mainArchives) invoke 둘을 더했다.
+  // M10 G5: 87 → 91. 그래프 읽기(loop.graph)·알림 읽기(loop.alerts) invoke 둘과 알림 push 둘(loop.alertsState·loop.alertOpen)을 더했다.
+  it('채널 수는 재실측 기준에서 미사용 3개를 빼고 M06 G4의 agent.listModels, M07 G5의 컨트롤 셋, M07 G8의 PR 카드 둘, M09 G4의 loop 아홉, M10 G2의 메인 대화 다섯, M10 G3의 깃발 내리기 하나, M10 G4의 기록 읽기 둘, M10 G5의 그래프·알림 넷을 더하고 M10 G1의 multi 여섯을 뺀 수다 (invoke 67+1+3+2+8-6+3+1+2+2=83 + push 3+1+2+2)', () => {
+    expect(Object.values(IPC_CHANNELS)).toHaveLength(91)
+    expect(new Set(Object.values(IPC_CHANNELS)).size).toBe(91)
     const values = Object.values(IPC_CHANNELS) as string[]
     for (const gone of ['window.getBounds', 'window.setBounds', 'engine.versionState']) expect(values).not.toContain(gone)
   })
@@ -183,8 +187,10 @@ describe('M05 G10 — IPC 채널 타입 맵', () => {
     }
   })
 
-  it('push 채널은 넷이다(M09 G4 loop.state)', () => {
-    const push: PushChannel[] = ['agent.event', 'engine.installProgress', 'window.state', 'loop.state']
+  it('push 채널은 여덟이다(M09 G4 loop.state, M10 G2 loop.mainState·loop.sessionEvent, M10 G5 loop.alertsState·loop.alertOpen)', () => {
+    const push: PushChannel[] = [
+      'agent.event', 'engine.installProgress', 'window.state', 'loop.state', 'loop.mainState', 'loop.sessionEvent', 'loop.alertsState', 'loop.alertOpen',
+    ]
     const values = Object.values(IPC_CHANNELS) as string[]
     for (const ch of push) expect(values).toContain(ch)
   })

@@ -24,6 +24,16 @@
 //   - 다시 열기: 앱을 다시 켜고 open하면 실행기가 저장본에서 같은 노드를 고르고 이어 간다(load). 앱 종료(stopApp)는 closeAll을 기다리지 않는다 —
 //     저장소 잠금은 죽은 프로세스의 것을 넘겨받는다(repoLock). 상태 파일 쓰기와 다이제스트 쓰기 사이에 꺼지면 다음 열기에서 래치가 걸리고,
 //     풀면 사본(상태 파일보다 먼저 쓰므로 같은 내용)으로 맞춰 이어 간다.
+// M10 G2 — 메인 대화(mainChat.ts). 실행기를 열면(백엔드가 있을 때) 작업 폴더의 메인 대화를 함께 연다.
+//   - 브레인스토밍 노드는 메인 대화로 간다(openLoop mainWork). 턴이 끝날 때마다 kick — 실행기가 다시 부르고, 스펙이 바뀌었으면 승인 카드다.
+//     닫기는 브레인스토밍을 멈춤으로 만들지 않는다(대화 턴의 취소는 판정이 아니다). 다시 열면 같은 방문이다.
+//   - 일시 정지 깃발(메인의 「멈춤」)은 메인 대화 장(main.json)에 산다. runSteps가 단계마다 앞에서 보고, 올라 있으면 다음 단계를 돌지 않는다.
+//     실행 상태·검증 기록과 무관하다. 「이어 가기」는 깃발만 내리고 kick한다 — 사람 판정(decide)을 대신하지 않는다.
+//   - 쓰기 창(canWrite): 실행기 커서가 그 방문의 메인 노드이고 실행이 running일 때만 참.
+//   - 사건 줄: 노드 시작(같은 노드는 한 번)·판정·FAIL·멈춤·예외(구동 오류)·goal 병합·마일스톤 PR·스펙 승인/반려·래치·끝,
+//     메인의 깃발(flag-raised·flag-lowered — 사람의 이어 가기 resumed와 다른 이름)을 모델 없이 대화 기록에 남긴다.
+//     경계(goal 병합·멈춤·마일스톤 PR)에서만 메인이 짧은 턴으로 말한다(사건 턴은 줄 서 있는 동안 하나로 합쳐진다).
+//   - 세션 사건: 작업·검수·메인 대화 세션의 사건을 꼬리표와 함께 onSessionEvent로 흘린다(G4 노드 세션 탭이 같은 길을 쓴다).
 // 이 모듈은 electron을 import하지 않는다 — 앱 영역(join(getUserDataDir(), 'loop'))과 push는 조립 지점(bootstrap)이 준다.
 import { createHash, randomBytes } from 'node:crypto'
 import { promises as fsp } from 'node:fs'
@@ -40,15 +50,26 @@ import type {
   LoopReleaseLatchResponse,
   LoopStatus,
 } from '@shared/ipcContract'
+import type { AgentEvent } from '@shared/agentEvents'
+import type {
+  LoopCancelTarget, LoopEventItem, LoopMainResponse, LoopSessionEventPayload, LoopSessionLog, LoopSessionTag, LoopVerificationLine, MainChatArchives, MainChatView,
+} from '@shared/13_Loop/loop'
+import type { LoopGraphResponse } from '@shared/13_Loop/graph'
+import { loadBundledTemplate } from './bundledTemplate'
 import type { NextStep } from './executor'
+import { templateGraph } from './templateGraph'
 import { createFileDigestStore, repoKeyOf, stateDigest } from './digestStore'
-import { TAMPERED_REASON } from './loopRunner'
+import { TAMPERED_REASON, finishedNotice, visitKeyOf } from './loopRunner'
+import { openMainChat, readMainChatView, type MainActions, type MainChat } from './mainChat'
+import { listArchives } from './mainChatStore'
+import { createSessionLog } from './sessionLog'
+import { appendBacklogLine, buildMainTools } from './mainChatTools'
 import { openLoop, type OpenedLoop, type OpenLoopOptions, type OpenLoopResult } from './openLoop'
-import type { DigestStore } from './ports'
+import type { DigestStore, WorkRequest, WorkResult } from './ports'
 import { createFsPort } from './realPorts/fsPort'
 import { validateRunState, type RunState } from './runState'
 import { DOCS } from './survivalDocs'
-import { denyCards, type CardEvent, type CardResponder } from './workSession'
+import { denyCards, oneLine, type CardEvent, type CardResponder } from './workSession'
 
 export const AUTO_MODE_NODE = 'mode-auto-bypass-allow'
 const REOPEN_HINT = '켠 뒤 루프 화면의 「다시 열기」로 이어 간다'
@@ -57,7 +78,7 @@ const REOPEN_HINT = '켠 뒤 루프 화면의 「다시 열기」로 이어 간�
 export function autoModeReasonOf(c: ControlsForRun): string | null {
   if (!c.ok) return `컨트롤 설정을 확인하지 못해 루프를 돌리지 않는다 — ${c.message}. 설정을 확인한 뒤 루프 화면의 「다시 열기」로 이어 간다`
   if (!c.nodes.some((n) => n.id === AUTO_MODE_NODE)) {
-    return `컨트롤 노드 ${AUTO_MODE_NODE}(앱 「자동」 모드 허용)가 꺼져 있다 — 켜지 않으면 작업자 노드의 편집이 거부돼 FAIL이 쌓인다. 설정 › 컨트롤에서 ${REOPEN_HINT}`
+    return `컨트롤 노드 ${AUTO_MODE_NODE}(앱 「자동」 모드 허용)가 꺼져 있다 — 켜지 않으면 작업자 노드의 편집이 거부돼 실패가 쌓인다. 설정 › 컨트롤에서 ${REOPEN_HINT}`
   }
   return null
 }
@@ -77,6 +98,11 @@ export interface LoopDriverOptions {
   // 앱 「자동」 모드 허용 노드가 켜져 있는가 — 꺼져 있으면 사유
   autoModeCheck?: () => string | null
   onState?: (s: LoopStatus) => void
+  // M10 G2 — 메인 대화 보기가 바뀌었다 / 루프 세션의 사건(꼬리표 동봉)
+  onMainState?: (v: MainChatView) => void
+  onSessionEvent?: (p: LoopSessionEventPayload) => void
+  // M10 G2 시험 이음매 — 메인의 앱 안 도구 서버를 만든다(기본 buildMainTools). 시험은 능력 객체를 받아 직접 부른다
+  mainTools?: (actions: MainActions) => Promise<Record<string, unknown> | null>
   ciRetryMs?: number
   humanPollMs?: number
   // 시험 이음매 — 실행기를 여는 함수(기본 openLoop). 열기·풀기 도중 닫기의 시점을 시험이 잡는다
@@ -89,10 +115,21 @@ export interface LoopDriver {
   status(cwd: string): LoopStatus
   decide(req: LoopDecideRequest): Promise<LoopDecideResponse>
   answerCard(cwd: string, requestId: string, response: LoopCardResponse): boolean
-  cancelSession(cwd: string): boolean
+  // M10 G3 — 취소는 대상을 고른다: main은 메인 대화의 턴만, worker는 작업·검수 세션만 멈춘다(서로 넘어가지 않는다, Backlog 12)
+  cancelSession(cwd: string, target: LoopCancelTarget): boolean
   releaseLatch(cwd: string, token: string): Promise<LoopReleaseLatchResponse>
   close(cwd: string): Promise<void>
   closeAll(): Promise<void>
+  // M10 G2 메인 대화 — 읽기(닫힌 저장소는 앱 영역 파일), 사용자 글 보내기, 새 메인 대화
+  mainRead(cwd: string): MainChatView
+  mainSend(cwd: string, text: string): LoopMainResponse
+  mainNew(cwd: string): Promise<LoopMainResponse>
+  // M10 G3 — 사람이 일시 정지 깃발을 내린다(판정 칸 없음 — 실행 상태·검증 기록을 쓰지 않는다)
+  lowerFlag(cwd: string): LoopMainResponse
+  sessionLog(cwd: string): LoopSessionLog
+  mainArchives(cwd: string): Promise<MainChatArchives>
+  // M10 G5 — 열 때 쓰는 템플릿(openExtras.template, 없으면 번들)의 화면용 그래프. 실행기를 열지 않아도 답한다
+  graph(cwd: string): LoopGraphResponse
 }
 
 interface OpenFailure { reason: string; changed?: string[]; root?: string }
@@ -124,6 +161,13 @@ interface Entry {
   notePhase: LoopStatus['phase'] | null
   lastVerdict: LoopStatus['lastVerdict']
   latchSeen: Map<string, LatchSeen>
+  // M10 G2 — 메인 대화, 마지막으로 시작을 적은 노드(같은 노드를 되풀이해 적지 않는다), 마지막 래치 사유
+  chat: MainChat | null
+  lastStarted: string | null
+  lastLatch: string | null
+  chatNotify: boolean
+  // M10 G6 — 이 항목에서 실행이 끝났다(그 동안은 「끝남」으로 보인다). 열 때 이미 끝나 있던 실행은 「시작 전」과 안내 한 줄이다
+  finishedHere?: boolean
 }
 
 const sha256 = (s: string): string => createHash('sha256').update(s, 'utf8').digest('hex')
@@ -133,7 +177,17 @@ export function blankStatus(cwd: string): LoopStatus {
   return {
     cwd, root: null, phase: 'closed', milestoneId: null, node: null, nodeTitle: null, reason: null, base: null, ghRepo: null,
     failCount: 0, goals: [], approval: null, milestonePr: null, cards: [], sessionActive: false, lastVerdict: null, latch: null,
+    paused: false, mainBusy: false, mainWaiting: false, mainNode: false, recentLines: [], sessions: [],
   }
+}
+
+export const RECENT_LINES = 6
+const LINE_SENTENCE_MAX = 200
+export function recentLinesOf(lines: RunState['lines']): LoopVerificationLine[] {
+  return lines.slice(-RECENT_LINES).map((l) => {
+    const one = oneLine(l.sentence)
+    return { marker: l.marker, at: l.at, node: l.node, goal: l.goal, sentence: one.length > LINE_SENTENCE_MAX ? `${one.slice(0, LINE_SENTENCE_MAX)}…` : one }
+  })
 }
 
 const labelOf = (next: NextStep): string | null =>
@@ -150,15 +204,26 @@ async function readText(file: string): Promise<string | null> {
   }
 }
 
+// 사람·메인에게 보이는 낱말 — 저장 값(status·marker)은 그대로다(G5 검수 4)
+const RUN_STATUS_WORD: Record<RunState['status'], string> = { running: '진행 중', 'needs-user': '사람 판정 대기', done: '끝' }
+const MARKER_WORD: Record<RunState['lines'][number]['marker'], string> = { PASS: '통과', FAIL: '실패', 'USER-INPUT': '사람 입력' }
+
 // 래치 카드에 보이는 상태 파일 요약(사람이 무엇을 받는지 본다)
-function summarize(text: string | null): string | null {
+export function stateSummary(text: string | null): string | null {
   if (text === null) return null
   let raw: unknown
   try { raw = JSON.parse(text) } catch { return '상태 파일이 JSON으로 읽히지 않는다' }
   const checked = validateRunState(raw)
   if (!checked.ok) return `상태 파일이 스키마에 맞지 않는다 — ${checked.errors.slice(0, 3).map((e) => `${e.path} ${e.reason}`).join('; ')}`
   const s = checked.state
-  return `${s.milestoneId} · ${cursorLabel(s)} · ${s.status} · FAIL ${s.failCount} · 검증 줄 ${s.lines.length}`
+  return `${s.milestoneId} · ${cursorLabel(s)} · ${RUN_STATUS_WORD[s.status]} · 실패 ${s.failCount} · 검증 줄 ${s.lines.length}`
+}
+
+// 메인 에이전트에게 주는 실행 상태 요약 — 사건 문장과 같은 어휘(목표·실패)다. 상태 값 이름은 그대로 둔다
+export function contextText(state: RunState, label: string | null): string {
+  const goals = state.goals.map((g) => `${g.id}(${g.status})`).join(', ') || '없음'
+  const lines = state.lines.slice(-5).map((l) => `- ${MARKER_WORD[l.marker]} ${l.node}: ${oneLine(l.sentence)}`).join('\n') || '- (없음)'
+  return `실행 상태: ${state.milestoneId} · ${label ?? cursorLabel(state)} · ${state.status} · 실패 ${state.failCount}\n목표: ${goals}\n최근 검증 줄:\n${lines}`
 }
 
 // 상태 파일이 앱의 다이제스트와 맞는가(둘 다 없음도 맞음). 맞지 않으면 풀 때 사본으로 되돌린다.
@@ -171,13 +236,27 @@ async function stateMatchesDigest(digest: DigestStore, key: string, text: string
 
 export function createLoopDriver(opts: LoopDriverOptions): LoopDriver {
   const entries = new Map<string, Entry>()
+  // 항목과 따로 둬서, 닫기가 항목을 지워도 지난 노드 세션을 열어 볼 수 있다
+  const log = createSessionLog()
+  function sessionEvent(cwd: string, session: LoopSessionTag, event: AgentEvent): void {
+    const { seq, isNew } = log.record(cwd, session, event)
+    try { opts.onSessionEvent?.({ cwd, session, event, seq }) } catch { /* 화면 쪽 오류는 세션을 막지 않는다 */ }
+    const newNodeRow = isNew && session.kind !== 'main'
+    if (newNodeRow) {
+      const e = entryOf(cwd)
+      if (e && !e.closed) void publish(e)
+    }
+  }
+  const blank = (cwd: string): LoopStatus => ({ ...blankStatus(cwd), sessions: log.rows(cwd) })
   // 카드 차례(G4 확인 검수) — 저장소 항목마다가 아니라 구동자 전역에서 단조 증가한다(닫기가 항목을 지워도 0부터 다시 세지 않는다).
   // 앱을 다시 켜면 새 구동자의 차례가 앞 구동자의 것과 겹치지 않게 구동자마다 무작위 접두를 붙인다.
   const turnPrefix = randomBytes(4).toString('hex')
   let turnSeq = 0
+  const nextTurn = (): string => `${turnPrefix}.${++turnSeq}`
   const ciRetryMs = opts.ciRetryMs ?? DEFAULT_CI_RETRY_MS
   const humanPollMs = opts.humanPollMs ?? DEFAULT_HUMAN_POLL_MS
   const openImpl = opts.openLoopImpl ?? openLoop
+  const mainTools = opts.mainTools ?? buildMainTools
   const appDigest = (): DigestStore => createFileDigestStore(path.join(opts.appDataDir, 'digests'))
   const autoCheck = (): string | null => {
     try { return opts.autoModeCheck?.() ?? null } catch (e) { return `자동 모드 허용 노드를 확인하지 못했다 — ${errText(e)}. ${REOPEN_HINT}` }
@@ -190,6 +269,7 @@ export function createLoopDriver(opts: LoopDriverOptions): LoopDriver {
       key: repoKeyOf(cwd), cwd, gen: 0, closed: false, loop: null, openFailure: null,
       status: blankStatus(cwd), seq: 0, cards: new Map(), turns: new WeakMap(), running: false, again: false, timer: null,
       sessionActive: false, waitingCi: false, blocked: null, note: null, notePhase: null, lastVerdict: null, latchSeen: new Map(),
+      chat: null, lastStarted: null, lastLatch: null, chatNotify: false,
     }
     entries.set(e.key, e)
     return e
@@ -204,11 +284,12 @@ export function createLoopDriver(opts: LoopDriverOptions): LoopDriver {
   const superseded = (e: Entry, gen: number): boolean => e.closed || e.gen !== gen || entries.get(e.key) !== e
 
   // 메인 노드 세션의 카드 → 상태. 화면의 답이나 세션의 끝(ctx.signal)이 카드를 거둔다.
+  // M10 G2 — 메인 대화가 있으면 브레인스토밍은 그쪽 카드다(이 응답자는 메인 대화 없이 한 세션으로 도는 길에만 쓰인다).
   function cardResponder(e: Entry): CardResponder {
     return (ev: CardEvent, ctx) => new Promise<RunResponse>((resolve) => {
       let turn = e.turns.get(ctx.signal)
       if (turn === undefined) {
-        turn = `${turnPrefix}.${++turnSeq}`
+        turn = nextTurn()
         e.turns.set(ctx.signal, turn)
       }
       // 세션의 원래 id는 세션에 답할 때(runNodeSession)만 쓴다. 화면과 answerCard는 차례가 붙은 id로 부른다.
@@ -231,6 +312,12 @@ export function createLoopDriver(opts: LoopDriverOptions): LoopDriver {
     })
   }
 
+  // M10 G2 — 브레인스토밍 노드 → 메인 대화. 대화가 아직 없으면(열리는 중) 판정 없이 기다린다
+  async function mainWorkOf(e: Entry, req: WorkRequest): Promise<WorkResult> {
+    if (!e.chat) return { ok: false, summary: '메인 대화가 아직 열리지 않았다', waiting: true }
+    return e.chat.brainstorm(req)
+  }
+
   function openFor(e: Entry, accept?: readonly string[]): Promise<OpenLoopResult> {
     return openImpl({
       cwd: e.cwd,
@@ -238,8 +325,92 @@ export function createLoopDriver(opts: LoopDriverOptions): LoopDriver {
       ...(opts.backend ? { backend: opts.backend } : {}),
       requiredChecks: DEFAULT_REQUIRED_CHECKS,
       mainCard: cardResponder(e),
+      mainWork: (req) => mainWorkOf(e, req),
+      onSessionEvent: (event, session) => sessionEvent(e.cwd, session, event),
       ...opts.openExtras,
       ...(accept && accept.length > 0 ? { acceptConfigChanged: accept } : {}),
+    })
+  }
+
+  // ── M10 G2 메인 대화 ──
+  const record = (e: Entry, ev: LoopEventItem, speak = false): void => { e.chat?.recordEvent(ev, speak) }
+
+  // 보기 변화는 한 틱에 한 번만 밀어 준다(턴 하나에 저장이 여러 번 돈다)
+  function chatChanged(e: Entry): void {
+    if (e.chatNotify) return
+    e.chatNotify = true
+    queueMicrotask(() => {
+      e.chatNotify = false
+      if (!e.chat || e.closed) return
+      try { opts.onMainState?.(e.chat.view(e.cwd)) } catch { /* 화면 쪽 오류는 대화를 막지 않는다 */ }
+      void publish(e)
+    })
+  }
+
+  async function contextOf(loop: OpenedLoop): Promise<string> {
+    const r = await loop.runner.load()
+    if (r.kind === 'missing') return '실행 상태: 아직 시작하지 않았다'
+    if (r.kind !== 'ok') return `실행 상태: ${r.kind} — ${r.reason}`
+    return contextText(r.state, labelOf(r.next))
+  }
+
+  // 깃발 내리기 — 메인의 resume 도구와 사람의 loop.lowerFlag(M10 G3)가 같은 길을 쓴다. 깃발만 내리고 kick한다 —
+  // 실행 상태·검증 기록을 쓰지 않고 사람 판정(decide)을 대신하지 않는다. 사건 이름은 flag-lowered다(사람 판정의 resumed와 다르다)
+  function lowerFlagOf(e: Entry, by: 'main' | 'human'): { ok: boolean; reason?: string } {
+    const chat = e.chat
+    if (!chat) return { ok: false, reason: '메인 대화가 닫혔다' }
+    if (!chat.paused()) return { ok: false, reason: '일시 정지 깃발이 올라 있지 않다' }
+    chat.setPaused(false)
+    record(e, { kind: 'flag-lowered', node: null, goal: null, text: by === 'human' ? '사람이 일시 정지 깃발을 내렸다' : '일시 정지 깃발을 내렸다' })
+    if (e.loop) void kick(e)
+    return { ok: true }
+  }
+
+  function attachChat(e: Entry, loop: OpenedLoop): void {
+    if (!opts.backend || e.chat) return
+    const fsPort = createFsPort(loop.root)
+    const actions: MainActions = {
+      pause: async () => {
+        const chat = e.chat
+        if (!chat) return '메인 대화가 닫혔다'
+        if (chat.paused()) return '일시 정지 깃발이 이미 올라 있다'
+        chat.setPaused(true)
+        // 깃발 사건은 사람의 이어 가기(resumed)와 다른 이름이다(G2 독립 검수)
+        record(e, { kind: 'flag-raised', node: null, goal: null, text: '일시 정지 깃발을 올렸다 — 지금 노드가 끝나면 다음 노드로 가지 않는다' })
+        void publish(e)
+        return '일시 정지 깃발을 올렸다 — 실행 상태와 검증 기록은 그대로다'
+      },
+      resume: async () => {
+        const r = lowerFlagOf(e, 'main')
+        return r.ok ? '일시 정지 깃발을 내렸다 — 사람 판정을 기다리는 실행은 그대로 기다린다' : (r.reason as string)
+      },
+      appendBacklog: async (line) => {
+        const r = await appendBacklogLine(fsPort, line)
+        if (!r.ok) return `적지 않았다 — ${r.reason}`
+        record(e, { kind: 'backlog', node: null, goal: null, text: `미룬 일에 적었다 — ${line.trim()}` })
+        return 'Backlog에 적었다'
+      },
+    }
+    e.chat = openMainChat({
+      root: loop.root,
+      appDataDir: opts.appDataDir,
+      env: loop.childEnv.env,
+      backend: opts.backend,
+      fs: fsPort,
+      // 쓰기 창 — 실행기 커서가 그 방문의 메인 노드이고 실행이 running일 때만
+      canWrite: async (key) => {
+        if (e.closed || e.loop !== loop) return false
+        const r = await loop.runner.load()
+        return r.kind === 'ok' && r.state.status === 'running' && r.next.kind === 'work' && r.next.node.role === 'main' && visitKeyOf(r.state) === key
+      },
+      actions,
+      context: () => contextOf(loop),
+      nextTurnId: nextTurn,
+      onTurnEnd: () => { if (e.loop === loop) void kick(e) },
+      onChange: () => chatChanged(e),
+      onEvent: (session, event) => sessionEvent(e.cwd, session, event),
+      onNewChat: () => log.clear(e.cwd, 'main'),
+      buildTools: () => mainTools(actions),
     })
   }
 
@@ -257,7 +428,7 @@ export function createLoopDriver(opts: LoopDriverOptions): LoopDriver {
     e.latchSeen.delete(token)
     e.latchSeen.set(token, { token, textSha, tampered, copy })
     while (e.latchSeen.size > LATCH_SEEN_MAX) e.latchSeen.delete(e.latchSeen.keys().next().value as string)
-    return { reason, file, changed, state: summarize(text), restore: summarize(copy), token }
+    return { reason, file, changed, state: stateSummary(text), restore: stateSummary(copy), token }
   }
 
   // 사유는 실행기가 돌려준 것(load)만 쓴다 — 실행기는 래치를 메모리에 먼저 걸고 앱 영역 파일을 뒤에 쓰므로, 파일을 읽으면
@@ -278,21 +449,29 @@ export function createLoopDriver(opts: LoopDriverOptions): LoopDriver {
 
   // ── 상태 한 장 ──
   async function compute(e: Entry): Promise<LoopStatus> {
-    const s = blankStatus(e.cwd)
+    const s = blank(e.cwd)
     if (!e.loop) {
       if (!e.openFailure) return s
       return { ...s, phase: 'open-failed', root: e.openFailure.root ?? null, reason: e.openFailure.reason, latch: await openLatch(e, e.openFailure) }
     }
     const loop = e.loop
+    const chat = e.chat
     const v: LoopStatus = {
-      ...s, root: loop.root, base: loop.base, ghRepo: loop.ghRepo, cards: [...e.cards.values()].map((c) => c.card),
-      sessionActive: e.sessionActive, lastVerdict: e.lastVerdict, reason: e.note,
+      ...s, root: loop.root, base: loop.base, ghRepo: loop.ghRepo,
+      // M10 G3 — 메인 대화의 카드는 inChat을 붙인다(현황판은 보이고, 답하는 곳은 메인 대화 화면 한 곳이다)
+      cards: [...[...e.cards.values()].map((c) => c.card), ...(chat?.cards() ?? []).map((c) => ({ ...c, inChat: true }))],
+      sessionActive: e.sessionActive || (chat?.busy() ?? false), lastVerdict: e.lastVerdict, reason: e.note,
+      paused: chat?.paused() ?? false, mainBusy: chat?.busy() ?? false, mainWaiting: chat?.waitingUser() ?? false,
+      sessions: log.rows(e.cwd),
     }
     const r = await loop.runner.load()
     if (r.kind === 'missing') return e.blocked ? { ...v, phase: 'blocked', reason: e.blocked } : { ...v, phase: 'not-started' }
     if (r.kind === 'blocked') return { ...v, phase: 'blocked', reason: r.reason }
     if (r.kind === 'needs-user') return { ...v, phase: 'latched', reason: r.reason, latch: await liveLatch(e, loop, r.reason) }
     const { state, next } = r
+    if (state.status === 'done' && !e.finishedHere) {
+      return e.blocked ? { ...v, phase: 'blocked', reason: e.blocked } : { ...v, phase: 'not-started', notice: finishedNotice(state.milestoneId) }
+    }
     const filled: LoopStatus = {
       ...v,
       milestoneId: state.milestoneId,
@@ -300,10 +479,15 @@ export function createLoopDriver(opts: LoopDriverOptions): LoopDriver {
       goals: state.goals.map((g) => ({ id: g.id, title: g.title, status: g.status, grade: g.grade, pr: g.pr })),
       node: labelOf(next) ?? (state.status === 'done' ? null : cursorLabel(state)),
       nodeTitle: next.kind === 'work' || next.kind === 'gate' || next.kind === 'action' ? next.node.title : null,
+      // 쓰기 창(mainChat)과 같은 판단이어야 두 화면이 같은 세션을 메인 대화로 본다
+      mainNode: next.kind === 'work' && next.node.role === 'main',
+      recentLines: recentLinesOf(state.lines),
     }
     if (state.status === 'done' || next.kind === 'done') return { ...filled, phase: 'done' }
     if (state.status === 'needs-user' || next.kind === 'needs-user') return { ...filled, phase: 'halted', reason: state.haltReason }
-    if (e.blocked) return { ...filled, phase: 'blocked', reason: e.blocked }
+    // 구동(kick)과 같은 판단을 상태 계산이 직접 한다 — 여는 쪽의 계산이 구동보다 먼저 끝나도 running 한 장이 끼지 않는다(G5 검수 1)
+    const blocked = e.blocked ?? (chat?.paused() ? null : autoCheck())
+    if (blocked) return { ...filled, phase: 'blocked', reason: blocked }
     if (next.kind === 'gate' && next.node.judge === 'human') {
       if (next.node.watch) return { ...filled, phase: 'waiting-human', milestonePr: state.milestonePr }
       const view = await loop.runner.specView()
@@ -346,24 +530,71 @@ export function createLoopDriver(opts: LoopDriverOptions): LoopDriver {
   }
   const alive = (e: Entry, gen: number): boolean => !e.closed && e.gen === gen && e.loop !== null
 
+  // M10 G2 — 판정 하나를 사건 줄로. 경계(goal 병합·마일스톤 PR)는 메인이 말한다
+  function recordVerdict(e: Entry, next: NextStep, out: Awaited<ReturnType<OpenedLoop['runner']['step']>>): void {
+    if (next.kind === 'done' || next.kind === 'needs-user') return
+    const node = next.node.id
+    const goal = next.goal?.id ?? null
+    const label = labelOf(next) ?? node
+    if ('verdict' in out && out.verdict) {
+      const v = out.verdict
+      const evidence = oneLine(v.evidence)
+      if (next.kind === 'action' && v.verdict === 'pass' && next.node.action === 'mergeGoal') {
+        record(e, { kind: 'goal-merged', node, goal, verdict: 'pass', text: `${goal ?? ''} 목표를 병합했다 — ${evidence}` }, true)
+      } else if (next.kind === 'action' && v.verdict === 'pass' && next.node.action === 'openMilestonePr') {
+        record(e, { kind: 'milestone-pr', node, goal, verdict: 'pass', text: `마일스톤 PR을 열었다 — ${evidence}` }, true)
+      } else if (v.verdict === 'fail') {
+        record(e, { kind: 'fail', node, goal, verdict: 'fail', text: `${label} 실패 — ${evidence}` })
+      } else if (v.verdict === 'pass') {
+        record(e, { kind: 'node-end', node, goal, verdict: 'pass', text: `${label} 통과 — ${evidence}` })
+      }
+    }
+    if (out.kind === 'halted') {
+      record(e, { kind: 'halt', node, goal, verdict: 'stop', text: `실행이 멈췄다(${label}) — ${oneLine(out.state.haltReason ?? '사유 없음')}` }, true)
+    } else if (out.kind === 'done') {
+      record(e, { kind: 'done', node, goal, text: '마일스톤 실행이 끝났다' })
+    }
+  }
+
   async function runSteps(e: Entry, gen: number): Promise<void> {
     for (let i = 0; i < STEP_BUDGET; i++) {
       if (!alive(e, gen)) return
       const loop = e.loop as OpenedLoop
       const loaded = await loop.runner.load()
-      if (!alive(e, gen) || loaded.kind !== 'ok') return
+      if (!alive(e, gen)) return
+      if (loaded.kind === 'needs-user' && e.lastLatch !== loaded.reason) {
+        e.lastLatch = loaded.reason
+        record(e, { kind: 'latched', node: null, goal: null, text: `위조 래치가 걸렸다 — ${oneLine(loaded.reason)}` })
+      }
+      if (loaded.kind !== 'ok') return
+      e.lastLatch = null
       const next = loaded.next
       if (next.kind === 'done' || next.kind === 'needs-user') return
+      // M10 G2 — 일시 정지 깃발이 올라 있으면 다음 단계를 돌지 않는다(실행 상태는 그대로)
+      if (e.chat?.paused()) return
       const why = autoCheck()
       if (why) { e.blocked = why; return }
       e.blocked = null
+      const label = labelOf(next)
+      if (label !== null && label !== e.lastStarted) {
+        e.lastStarted = label
+        record(e, { kind: 'node-start', node: next.node.id, goal: next.goal?.id ?? null, text: `${label} — ${next.node.title}` })
+      }
       const sessionNode = next.kind === 'work' || (next.kind === 'gate' && next.node.judge === 'model')
       e.sessionActive = sessionNode
       if (sessionNode) void publish(e)
-      const out = await loop.runner.step()
-      e.sessionActive = false
+      let out: Awaited<ReturnType<typeof loop.runner.step>>
+      try {
+        out = await loop.runner.step()
+      } finally {
+        e.sessionActive = false
+        // 꼬리표에는 끝 신호가 없어서, 단계가 돌아오거나 깨진 때를 그 단계 노드 세션의 끝으로 본다
+        log.endAll(e.cwd)
+      }
       if (!alive(e, gen)) return
       if ('verdict' in out && out.verdict) e.lastVerdict = { node: out.verdict.node, verdict: out.verdict.verdict, evidence: out.verdict.evidence }
+      recordVerdict(e, next, out)
+      if (out.kind === 'done') e.finishedHere = true
       e.waitingCi = out.kind === 'waiting' && out.on === 'ci'
       void publish(e)
       if (out.kind === 'advanced' || out.kind === 'failed' || out.kind === 'resumed') continue
@@ -387,6 +618,8 @@ export function createLoopDriver(opts: LoopDriverOptions): LoopDriver {
       } while (e.again && !e.closed)
     } catch (err) {
       setNote(e, `구동 오류 — ${errText(err)}`)
+      // M10 G2 검수 — 예외도 사건 줄로 남긴다(모델 턴 없이)
+      record(e, { kind: 'error', node: null, goal: null, text: `구동 오류 — ${oneLine(errText(err))}` })
     } finally {
       e.running = false
       e.sessionActive = false
@@ -399,15 +632,28 @@ export function createLoopDriver(opts: LoopDriverOptions): LoopDriver {
     clearTimer(e)
     const loop = e.loop
     e.loop = null
+    e.finishedHere = false
+    // M10 G2 — 메인 대화를 먼저 닫는다(돌던 턴을 멈추고 남은 질문 카드를 저장한다 — 다음 열기에서 다시 묻는다)
+    const chat = e.chat
+    e.chat = null
+    if (chat) await chat.close()
     // 실행기 닫기가 세션을 멈추고, 세션의 끝이 카드를 거둔다(카드를 먼저 답하면 세션이 그 답으로 나아간다)
     if (loop) await loop.close()
     for (const c of [...e.cards.values()]) c.settle({ kind: 'question', answers: null })
     e.cards.clear()
+    log.endAll(e.cwd)
   }
 
   const rejectWith = async (e: Entry, reason: string): Promise<LoopDecideResponse> => ({ ok: false, reason, status: await publish(e) })
   const releaseRefused = async (e: Entry, reason: string): Promise<LoopReleaseLatchResponse> => ({ ok: false, reason, status: await publish(e) })
   const CLOSED_MEANWHILE = '기다리는 동안 루프가 닫혔다 — 새로 연 실행기를 닫았다'
+  const NOT_OPEN = '열린 실행기가 없다 — 먼저 연다'
+
+  function mainViewOf(cwd: string): MainChatView {
+    const e = entryOf(cwd)
+    if (e?.chat) return e.chat.view(cwd)
+    return readMainChatView(opts.appDataDir, e?.loop?.root ?? e?.openFailure?.root ?? cwd)
+  }
 
   return {
     async open(req) {
@@ -421,7 +667,7 @@ export function createLoopDriver(opts: LoopDriverOptions): LoopDriver {
           if (r.ok) await r.loop.close()
           return entryOf(req.cwd)?.status ?? { ...blankStatus(req.cwd), reason: CLOSED_MEANWHILE }
         }
-        if (r.ok) { e.loop = r.loop; e.openFailure = null } else e.openFailure = { reason: r.reason, changed: r.changed, root: r.root }
+        if (r.ok) { e.loop = r.loop; e.openFailure = null; attachChat(e, r.loop) } else e.openFailure = { reason: r.reason, changed: r.changed, root: r.root }
       }
       if (e.loop) void kick(e)
       return publish(e)
@@ -429,17 +675,19 @@ export function createLoopDriver(opts: LoopDriverOptions): LoopDriver {
 
     async start(cwd, milestoneId) {
       const e = entryOf(cwd)
-      if (!e?.loop) return e ? publish(e) : { ...blankStatus(cwd), reason: '열린 실행기가 없다 — 먼저 연다' }
+      if (!e?.loop) return e ? publish(e) : { ...blankStatus(cwd), reason: NOT_OPEN }
       const why = autoCheck()
       if (why) { e.blocked = why; return publish(e) }
       e.blocked = null
       const r = await e.loop.runner.start(milestoneId)
       setNote(e, r.kind === 'ok' ? null : r.kind === 'missing' ? '실행 상태를 만들지 못했다' : r.reason)
+      // M10 G2 — 새 실행이다. 메인 대화 장의 방문은 앞 실행의 것이라 잊는다(방문 키 M1#0이 겹쳐 여는 턴을 건너뛰지 않게)
+      if (r.kind === 'ok') { e.chat?.resetVisit(); e.lastStarted = null; e.finishedHere = false }
       void kick(e)
       return publish(e)
     },
 
-    status: (cwd) => entryOf(cwd)?.status ?? blankStatus(cwd),
+    status: (cwd) => entryOf(cwd)?.status ?? blank(cwd),
 
     async decide(req) {
       const e = entryOf(req.cwd)
@@ -453,36 +701,60 @@ export function createLoopDriver(opts: LoopDriverOptions): LoopDriver {
         return rejectWith(e, `화면이 본 노드 ${req.expectNode}와 지금 노드 ${here ?? '(없음)'}가 다르다 — 다시 보고 판정한다`)
       }
       let out
+      let event: LoopEventItem
       if (state.status === 'needs-user') {
         if (req.verdict !== 'pass') return rejectWith(e, '멈춘 실행은 이어 가기(pass)만 받는다')
         const why = autoCheck()
         if (why) { e.blocked = why; return rejectWith(e, why) }
         out = await loop.runner.submit({ node: state.cursor.node, judge: 'human', verdict: 'pass', evidence: req.evidence })
+        event = { kind: 'resumed', node: state.cursor.node, goal: null, verdict: 'pass', text: `사람이 멈춘 실행을 이어 갔다 — ${oneLine(req.evidence)}` }
       } else if (next.kind === 'gate' && next.node.judge === 'human') {
         if (next.node.watch) return rejectWith(e, `${next.node.id}는 PR 병합 사실로만 통과한다 — 병합 버튼으로 사람이 병합한다`)
         out = await loop.runner.submit(
           { node: next.node.id, judge: 'human', verdict: req.verdict, evidence: req.evidence },
           req.specSha256 !== undefined ? { specSha256: req.specSha256 } : {},
         )
+        event = req.verdict === 'pass'
+          ? { kind: 'spec-approved', node: next.node.id, goal: null, verdict: 'pass', text: `사람이 스펙을 승인했다 — ${oneLine(req.evidence)}` }
+          : { kind: 'spec-rejected', node: next.node.id, goal: null, verdict: 'fail', text: `사람이 스펙을 반려했다 — ${oneLine(req.evidence)}` }
       } else {
         return rejectWith(e, `지금 노드 ${here ?? '(없음)'}는 사람 판정을 받지 않는다`)
       }
       if (out.kind === 'blocked' || out.kind === 'needs-user') return rejectWith(e, out.reason)
       e.blocked = null
       if ('verdict' in out && out.verdict) e.lastVerdict = { node: out.verdict.node, verdict: out.verdict.verdict, evidence: out.verdict.evidence }
+      record(e, event)
       void kick(e)
       return { ok: true, status: await publish(e) }
     },
 
     answerCard(cwd, requestId, response) {
-      const c = entryOf(cwd)?.cards.get(requestId)
+      const e = entryOf(cwd)
+      const c = e?.cards.get(requestId)
       // 카드 종류와 답의 꼴이 같아야 한다(질문 카드에 허용·거부를 넣지 않는다)
-      if (!c || c.card.kind !== response.kind) return false
-      c.settle(response)
-      return true
+      if (c) {
+        if (c.card.kind !== response.kind) return false
+        c.settle(response)
+        return true
+      }
+      // M10 G2 — 메인 대화의 카드(다시 묻는 카드 포함)
+      return e?.chat?.answerCard(requestId, response) ?? false
     },
 
-    cancelSession: (cwd) => entryOf(cwd)?.loop?.cancelSession() ?? false,
+    // M10 G3 — 대상을 고른 취소(Backlog 12). main은 메인 대화의 턴만 멈추고(실행 상태와 무관), worker는 작업·검수 세션만 멈춘다 —
+    // 작업 세션 취소의 멈춤(needs-user)은 실행기의 판정이다(M09 G4 — FAIL이 아니라 stop). 한쪽이 없어도 다른 쪽으로 넘어가지 않는다
+    cancelSession: (cwd, target) => {
+      const e = entryOf(cwd)
+      if (target === 'main') return e?.chat?.cancel() ?? false
+      return e?.loop?.cancelSession() ?? false
+    },
+
+    lowerFlag(cwd) {
+      const e = entryOf(cwd)
+      if (!e?.chat) return { ok: false, reason: NOT_OPEN, view: mainViewOf(cwd) }
+      const r = lowerFlagOf(e, 'human')
+      return { ok: r.ok, ...(r.reason !== undefined ? { reason: r.reason } : {}), view: mainViewOf(cwd) }
+    },
 
     async releaseLatch(cwd, token) {
       const e = entryOf(cwd)
@@ -559,6 +831,7 @@ export function createLoopDriver(opts: LoopDriverOptions): LoopDriver {
       e.blocked = null
       e.latchSeen.clear()
       setNote(e, null)
+      attachChat(e, r.loop)
       void kick(e)
       return { ok: true, status: await publish(e) }
     },
@@ -569,7 +842,16 @@ export function createLoopDriver(opts: LoopDriverOptions): LoopDriver {
       e.closed = true
       await closeEntry(e)
       entries.delete(e.key)
-      opts.onState?.(blankStatus(e.cwd))
+      opts.onState?.(blank(e.cwd))
+    },
+
+    sessionLog: (cwd) => log.read(cwd),
+
+    // 보관 키는 mainRead와 같은 뿌리에서 만들어야 그 폴더의 보관 장을 찾는다
+    async mainArchives(cwd) {
+      const e = entryOf(cwd)
+      const root = e?.loop?.root ?? e?.openFailure?.root ?? cwd
+      return { cwd, archives: await listArchives(opts.appDataDir, repoKeyOf(root)) }
     },
 
     async closeAll() {
@@ -579,6 +861,30 @@ export function createLoopDriver(opts: LoopDriverOptions): LoopDriver {
         await closeEntry(e)
         entries.delete(e.key)
       }))
+    },
+
+    mainRead: (cwd) => mainViewOf(cwd),
+
+    graph: () => {
+      const given = opts.openExtras?.template
+      if (given) return { ok: true, graph: templateGraph(given.template) }
+      const t = loadBundledTemplate()
+      if (!t.ok) return { ok: false, reason: `번들 템플릿이 스키마에 맞지 않는다 — ${t.errors.map((x) => `${x.path} ${x.reason}`).join('; ')}` }
+      return { ok: true, graph: templateGraph(t.template) }
+    },
+
+    mainSend(cwd, text) {
+      const chat = entryOf(cwd)?.chat
+      if (!chat) return { ok: false, reason: NOT_OPEN, view: mainViewOf(cwd) }
+      const r = chat.send(text)
+      return { ok: r.ok, ...(r.reason !== undefined ? { reason: r.reason } : {}), view: chat.view(cwd) }
+    },
+
+    async mainNew(cwd) {
+      const chat = entryOf(cwd)?.chat
+      if (!chat) return { ok: false, reason: NOT_OPEN, view: mainViewOf(cwd) }
+      const r = await chat.newChat()
+      return { ok: r.ok, ...(r.reason !== undefined ? { reason: r.reason } : {}), view: mainViewOf(cwd) }
     },
   }
 }

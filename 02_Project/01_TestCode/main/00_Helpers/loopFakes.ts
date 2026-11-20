@@ -7,7 +7,7 @@ import type { FileChange } from '@main/05_Loop/grade'
 import type { LoopRunner, StepOutcome } from '@main/05_Loop/loopRunner'
 import { repoKeyOf, stateDigest } from '@main/05_Loop/digestStore'
 import type {
-  CommandPort, CommandResult, DigestStore, FsPort, GhPort, GitPort, LoopPorts, PrInfo, PrState, ReviewPort, SessionPort, WorkRequest,
+  CommandPort, CommandResult, DigestStore, FsPort, GhPort, GitPort, LoopPorts, PrInfo, PrState, ReviewPort, SessionPort, WorkRequest, WorkResult,
 } from '@main/05_Loop/ports'
 import type { RunState } from '@main/05_Loop/runState'
 import { DOCS } from '@main/05_Loop/survivalDocs'
@@ -107,6 +107,21 @@ export class FakeFs implements FsPort {
   async list(relDir: string): Promise<string[]> {
     const prefix = `${relDir}/`
     return [...this.files.keys()].filter((k) => k.startsWith(prefix) && !k.slice(prefix.length).includes('/')).map((k) => k.slice(prefix.length))
+  }
+  // M10 G6 — 이름 바꾸기 흉내. 대상이 있으면 덮어쓰지 않는다. failMove가 참이면 그 옮기기가 실패한다(보관 되돌리기 시험).
+  failMove: ((from: string, to: string) => boolean) | null = null
+  readonly moves: string[] = []
+  async exists(rel: string): Promise<boolean> {
+    return [...this.files.keys()].some((k) => k === rel || k.startsWith(`${rel}/`))
+  }
+  async move(from: string, to: string): Promise<void> {
+    if (this.failMove?.(from, to)) throw new Error(`시험: ${from} 옮기기 실패`)
+    if (await this.exists(to)) throw new Error(`${to}가 이미 있다`)
+    const text = this.files.get(from)
+    if (text === undefined) throw new Error(`${from}가 없다`)
+    this.files.delete(from)
+    this.files.set(to, text)
+    this.moves.push(`${from} -> ${to}`)
   }
 }
 
@@ -212,8 +227,11 @@ export class FakeGit implements GitPort {
   }
   // 시험이 diff 길이를 정하면 상한을 넘은 스냅숏을 흉내 낸다(G4 검수 I9)
   reviewTooLarge: number | null = null
+  // 시험이 켜면 diff 스냅숏을 만들지 못한 것을 흉내 낸다(G5 검수 4)
+  reviewMissing = false
   async reviewSnapshot(base: string): Promise<{ tree: string; diff: string; tooLarge?: boolean; chars?: number } | null> {
     this.calls.push(`reviewSnapshot ${base}`)
+    if (this.reviewMissing) return null
     if (this.reviewTooLarge !== null) return { tree: this.tree, diff: '', tooLarge: true, chars: this.reviewTooLarge }
     return { tree: this.tree, diff: this.reviewDiff, chars: this.reviewDiff.length }
   }
@@ -301,10 +319,10 @@ export class FakeSession implements SessionPort {
   readonly calls: string[] = []
   goals: { id: string; title: string; extra?: string }[] = GOALS.map((g) => ({ ...g }))
   onWork: ((req: WorkRequest) => Promise<void>) | null = null
-  // 다음 결과를 바꾼다(취소 흉내 등). 한 번 쓰고 비운다.
-  nextResult: { ok: boolean; summary: string; cancelled?: boolean } | null = null
+  // 다음 결과를 바꾼다(취소 흉내, M10 G2 메인 대화의 waiting·baseline 등). 한 번 쓰고 비운다.
+  nextResult: WorkResult | null = null
   constructor(private readonly files: FakeFs, private readonly git: FakeGit) {}
-  async runWork(req: WorkRequest): Promise<{ ok: boolean; summary: string; cancelled?: boolean }> {
+  async runWork(req: WorkRequest): Promise<WorkResult> {
     this.calls.push(req.goal ? `${req.goal.id}/${req.node.id}` : req.node.id)
     if (this.nextResult) { const r = this.nextResult; this.nextResult = null; return r }
     // 브레인스토밍은 스펙을 쓰고 받은 답을 결정 대장에 한 줄 남긴다(G5 — 실행기는 이번 세션에서 둘 중 하나라도 바뀌어야 끝난 것으로 본다)

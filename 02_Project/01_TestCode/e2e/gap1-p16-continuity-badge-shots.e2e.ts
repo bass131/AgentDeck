@@ -22,7 +22,7 @@ const CSS_FILES = [
   '05_Conversation/CmdResultCard.css',
   '05_Conversation/ToolGroup.css',
   '05_Conversation/ToolCallCard.css',
-  '12_Window/MultiWorkspace.css',
+  '03_Agent/panelCard.css',
   '03_Agent/SubAgentFullscreen.css',
   '03_Agent/AgentPanel.css',
   '03_Agent/HookTimeline.css',

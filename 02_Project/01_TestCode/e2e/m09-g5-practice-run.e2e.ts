@@ -3,14 +3,50 @@
 // 대화형이다: 화면 글자를 <ctl>/state.txt로 내보내고, 메인이 쓴 <ctl>/cmd.json(seq가 오른 것)을 읽어 동작을 돌린 뒤
 // 결과를 <ctl>/res.txt와 <ctl>/shot.png에 쓴다. 'restart'는 같은 userData로 앱을 껐다 켜 재개를 실측한다. 'quit'로 끝난다.
 // 창은 2번 모니터(주 모니터가 아닌 디스플레이)에 둔다 — 하나뿐이면 그대로 둔다.
+// 작업 모드의 가운데는 메인 대화(.main-chat)이고 오른쪽은 현황판(.status-board)이다. 질문·승인 카드는 메인 대화 안에서 답한다
+// (스펙 승인은 「스펙 승인」·「이어서 고치기」 — scope '.main-chat'). 「이어 가기」가 두 곳(멈춘 실행의 사람 판정 — scope '.status-board',
+// 일시 정지 깃발 내리기 — 메인 대화)에 있으니 click에 scope를 준다. 메인에게 말하기는 'say', 이름 붙인 캡처는 'shot',
+// 메인 대화에 글이 뜨기를 기다리기는 'waitMain'이다. state.txt에 [main] 절을 싣는다.
+// G5_TOKEN_FILE(연습 저장소 전용 fine-grained 토큰 파일)을 주면 앱 프로세스에만 GH_TOKEN을 넣는다(전역 로그인은 그대로).
+// G5_UDD를 주면 그 앱 데이터 폴더를 쓴다(실행 상태 다이제스트를 마일스톤 사이에 이어 쓰기).
 import { test, _electron as electron } from '@playwright/test'
 import type { ElectronApplication, Page } from '@playwright/test'
+import { execFileSync } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join, resolve, sep } from 'node:path'
 
 const RUN = process.env.M09_G5_RUN === '1'
 const CTL = process.env.G5_CTL ?? ''
 const REPO = process.env.G5_REPO ?? ''
+// M10 G6 [USER] 보관 방식: 연습 저장소 전용 토큰 파일(저장소 밖). 있으면 앱 프로세스에만 GH_TOKEN으로 넣는다.
+// git은 전역 설정의 github.com 도우미(`gh auth git-credential`, gh auth setup-git)가 GH_TOKEN을 쓴다. git 설정을 env로 더하면
+// 실행기의 설정 스냅숏 대조(configGuard)가 credential.helper 변경으로 열기를 거부한다(실측 2026-11-20).
+const TOKEN_FILE = process.env.G5_TOKEN_FILE ?? ''
+
+// GH_TOKEN은 github.com 도우미가 `gh auth git-credential`일 때만 git에 닿는다. 아니면 git이 다른 자격으로 push하니 시작하지 않는다.
+// 도우미 값 원문은 메시지에 싣지 않는다(인라인 자격이 들어 있을 수 있다).
+function checkGhCredentialHelper(): void {
+  let out = ''
+  try {
+    // 연습 저장소 안에서 읽는다 — 앱의 git이 그 저장소에서 push하므로 로컬 설정까지 본다
+    out = execFileSync('git', ['config', '--get-all', 'credential.https://github.com.helper'], { encoding: 'utf8', env: process.env, cwd: REPO || undefined })
+  } catch (e) {
+    if ((e as { status?: number }).status !== 1) throw new Error('G5_TOKEN_FILE: git 설정의 github.com 자격 도우미를 읽지 못해 시작하지 않는다')
+  }
+  const last = out.split(/\r?\n/).map((l) => l.trim()).filter((l) => l !== '').at(-1)
+  if (last === undefined) throw new Error('G5_TOKEN_FILE: git 설정에 github.com 자격 도우미가 없어 GH_TOKEN이 git에 닿지 않는다 — `gh auth setup-git` 뒤 다시 시작한다')
+  if (!/(^|[\s!'"\\/])gh(\.exe)?['"]?\s+auth\s+git-credential$/.test(last)) {
+    throw new Error('G5_TOKEN_FILE: github.com 자격 도우미의 마지막 값이 `gh auth git-credential`이 아니라 GH_TOKEN이 git에 닿지 않는다 — 시작하지 않는다')
+  }
+}
+
+function readPracticeToken(): string | null {
+  if (!TOKEN_FILE) return null
+  checkGhCredentialHelper()
+  const token = readFileSync(TOKEN_FILE, 'utf8').trim()
+  if (!/^github_pat_[A-Za-z0-9_]+$/.test(token)) throw new Error(`G5_TOKEN_FILE에 fine-grained 토큰(github_pat_) 한 줄이 아니다: ${TOKEN_FILE}`)
+  return token
+}
 
 type Action =
   | { op: 'click'; name: string; exact?: boolean; scope?: string; nth?: number }
@@ -21,8 +57,12 @@ type Action =
   | { op: 'qOther'; text: string }
   | { op: 'qSubmit' }
   | { op: 'openLoop' }
+  | { op: 'say'; text: string }
+  | { op: 'shot'; name: string }
+  | { op: 'waitMain'; text: string; ms?: number }
   | { op: 'wait'; ms: number }
   | { op: 'restart' }
+  | { op: 'notify' }
   | { op: 'quit' }
 
 const stamp = (): string => new Date().toISOString()
@@ -32,6 +72,11 @@ async function launch(userDataDir: string): Promise<{ app: ElectronApplication; 
     ...process.env,
     AGENTDECK_E2E_NO_ENGINE_UPDATE: '1',
     AGENTDECK_E2E_PICK_FOLDER: REPO,
+  }
+  const token = readPracticeToken()
+  if (token) {
+    delete env.GITHUB_TOKEN
+    env.GH_TOKEN = token
   }
   delete env.AGENTDECK_E2E
   delete env.ELECTRON_RUN_AS_NODE
@@ -68,24 +113,31 @@ async function launch(userDataDir: string): Promise<{ app: ElectronApplication; 
   return { app, page }
 }
 
-// 루프 화면을 열고 연습 저장소를 골라 연다(열기 버튼이 켜져 있을 때만)
+// 「열기」는 노드 세션 줄에도 있어서, 루프 열기는 「마일스톤」 칸 안에서 누른다
 async function openLoop(page: Page): Promise<void> {
-  if (!(await page.locator('.loop-modal').isVisible().catch(() => false))) {
-    await page.locator('.sb-loop').click({ timeout: 10_000 })
-    await page.locator('.loop-modal').waitFor({ state: 'visible', timeout: 10_000 })
+  if (!(await page.locator('.pane.work').isVisible().catch(() => false))) {
+    await page.locator('.sb-mode-btn', { hasText: '작업' }).click({ timeout: 10_000 })
+    await page.locator('.pane.work').waitFor({ state: 'visible', timeout: 10_000 })
   }
-  const modal = page.locator('.loop-modal')
-  await modal.getByRole('button', { name: '폴더 고르기', exact: true }).click({ timeout: 10_000 })
+  await page.getByRole('tablist', { name: '오른쪽 탭' }).getByRole('tab', { name: '현황판', exact: true }).click({ timeout: 10_000 })
+  await page.getByRole('tablist', { name: '가운데 탭' }).getByRole('tab', { name: '메인 대화', exact: true }).click({ timeout: 10_000 })
+  await page.locator('.status-board').waitFor({ state: 'visible', timeout: 10_000 })
+  await page.locator('.main-chat').waitFor({ state: 'visible', timeout: 10_000 })
+  const screen = page.getByRole('region', { name: '마일스톤', exact: true })
+  await screen.getByRole('button', { name: '폴더 고르기', exact: true }).click({ timeout: 10_000 })
   await page.waitForTimeout(800)
-  const openBtn = modal.getByRole('button', { name: '열기', exact: true })
+  const openBtn = screen.getByRole('button', { name: '열기', exact: true })
   if (await openBtn.isEnabled().catch(() => false)) await openBtn.click({ timeout: 10_000 })
 }
 
 async function snapshot(page: Page): Promise<string> {
   return page.evaluate(() => {
     const parts: string[] = []
-    const loop = document.querySelector('.loop-modal') as HTMLElement | null
-    parts.push(loop ? `[loop]\n${loop.innerText}` : '[loop] (닫힘)')
+    // 현황판 탭이 숨겨져 있으면 innerText가 비어 있다
+    const loop = document.querySelector('.status-board') as HTMLElement | null
+    parts.push(loop ? `[loop]\n${loop.innerText}` : '[loop] (작업 모드 아님)')
+    const main = document.querySelector('.main-chat') as HTMLElement | null
+    if (main) parts.push(`[main]\n${main.innerText}`)
     const q = document.querySelector('.q-modal') as HTMLElement | null
     if (q) parts.push(`[question]\n${q.innerText}`)
     const pill = document.querySelector('.q-mini-pill') as HTMLElement | null
@@ -94,12 +146,34 @@ async function snapshot(page: Page): Promise<string> {
   }).catch((e: unknown) => `[snapshot-error] ${String(e)}`)
 }
 
+// 앱 프로세스에서 Windows 알림 하나를 띄우고 show·failed 사건 중 먼저 온 것을 돌려준다
+async function probeNotification(app: ElectronApplication): Promise<string> {
+  return app.evaluate(({ Notification }) => new Promise<string>((done) => {
+    if (!Notification.isSupported()) { done('unsupported'); return }
+    const n = new Notification({ title: 'AgentDeck 알림 시험', body: 'G5 캡처 — 바로 알릴 사건의 실제 포트' })
+    const timer = setTimeout(() => done('timeout'), 8000)
+    n.once('show', () => { clearTimeout(timer); done('show') })
+    n.once('failed', (_e, err) => { clearTimeout(timer); done(`failed ${err}`) })
+    n.show()
+  }))
+}
+
 async function runAction(page: Page, a: Action): Promise<void> {
   const t = { timeout: 10_000 }
   switch (a.op) {
-    case 'click':
-      await page.locator(a.scope ?? 'body').getByRole('button', { name: a.name, exact: a.exact ?? true }).nth(a.nth ?? 0).click(t)
+    case 'click': {
+      const found = page.locator(a.scope ?? 'body').getByRole('button', { name: a.name, exact: a.exact ?? true })
+      // nth도 scope도 없으면 하나만 맞아야 한다 — 같은 이름의 버튼 둘(「이어 가기」: 루프 화면의 사람 판정 / 메인 대화의 깃발 내리기)을
+      // 첫째로 골라 누르지 않는다(G3 독립 검수 사소 7). 늦게 뜨는 버튼은 엄격 모드의 click이 여럿이면 던진다
+      if (a.nth === undefined && a.scope === undefined) {
+        const n = await found.count()
+        if (n > 1) throw new Error(`버튼 「${a.name}」이 ${n}개다 — scope나 nth를 준다`)
+        await found.click(t)
+        return
+      }
+      await found.nth(a.nth ?? 0).click(t)
       return
+    }
     case 'clickSel':
       await page.locator(a.sel).nth(a.nth ?? 0).click(t)
       return
@@ -123,6 +197,22 @@ async function runAction(page: Page, a: Action): Promise<void> {
     case 'openLoop':
       await openLoop(page)
       return
+    case 'say': {
+      // 메인에게 말하기 — 메인 대화의 입력칸에 쓰고 보낸다(브레인스토밍 답·지시)
+      const chat = page.locator('.main-chat')
+      await chat.getByLabel('메인에게 말하기', { exact: true }).fill(a.text, t)
+      await chat.getByRole('button', { name: '보내기', exact: true }).click(t)
+      return
+    }
+    case 'shot':
+      // 이름 붙인 캡처 — <ctl>/<name>.png. 이름은 글자·숫자·-·_만 받는다(제어 폴더 밖으로 쓰지 않게)
+      if (!/^[\w-]{1,64}$/.test(a.name)) throw new Error(`캡처 이름이 틀렸다 — ${a.name}`)
+      await page.screenshot({ path: join(CTL, `${a.name}.png`) })
+      return
+    case 'waitMain':
+      // 메인의 글만 본다 — 사람 글·사건 줄·알림에 같은 글자가 있어도 기다림이 끝나지 않는다(G3 독립 검수 사소 7)
+      await page.locator('.main-chat .mc-thread .mc-msg.assistant', { hasText: a.text }).first().waitFor({ state: 'visible', timeout: a.ms ?? 180_000 })
+      return
     case 'wait':
       await page.waitForTimeout(a.ms)
       return
@@ -142,7 +232,8 @@ test.describe('M09 G5 연습 저장소 실주행 구동기 (opt-in: M09_G5_RUN=1
     const here = resolve(process.cwd()).toLowerCase()
     if (repoAbs === here || repoAbs.startsWith(here + sep)) throw new Error(`G5_REPO가 이 저장소 안이다 — ${REPO}`)
     mkdirSync(CTL, { recursive: true })
-    const userDataDir = join(CTL, 'udd')
+    // G5_UDD — 앱 데이터 폴더(실행 상태 다이제스트가 있는 곳). 같은 연습 저장소를 마일스톤마다 이어 쓰려면 같은 폴더를 준다
+    const userDataDir = process.env.G5_UDD ? resolve(process.env.G5_UDD) : join(CTL, 'udd')
     // 마지막으로 돌린 명령 번호 — 파일이 있는데 읽지 못하면 옛 명령을 다시 돌리지 않게 시작하지 않는다(독립 검수 사소 6)
     const seqFile = join(CTL, 'last-seq')
     let lastSeq = 0
@@ -183,6 +274,10 @@ test.describe('M09 G5 연습 저장소 실주행 구동기 (opt-in: M09_G5_RUN=1
               restarts++
               await openLoop(page).catch((e: unknown) => log.push(`openLoop after restart: ${String(e)}`))
               log.push('ok restart')
+              continue
+            }
+            if (a.op === 'notify') {
+              log.push(`notify ${await probeNotification(app)}`)
               continue
             }
             await runAction(page, a)

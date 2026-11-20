@@ -80,6 +80,10 @@ export interface LoopLockScope {
   // 로컬에 내려받는 gh(pr checkout·repo clone·run download), 패키지 설치·npx를 거부한다. 인터프리터와 npm 스크립트의 안은 판독하지
   // 않는다(겹) — 검수 뒤 실행기가 작업 트리 해시를 다시 대조해 바뀌었으면 그 pass를 받지 않는다(loopRunner).
   readOnly?: boolean
+  // M10 G2 — 메인 대화의 꼴(05_Loop/mainChat.ts). 있으면 위 판정 대신 허용 목록으로 본다(fail-closed — mainChatToolReason).
+  //   셸은 모두 거부, 편집 도구는 `.agentdeck/milestone-spec.md`·`.agentdeck/decisions.md` 두 경로만 canWrite()가 참일 때(실행기 커서가
+  //   브레인스토밍 노드에 있고 그 방문이 열려 있을 때 — 구동자가 훅 시각에 다시 판정한다), MCP 도구는 toolServer(앱 안 도구 서버)의 것만.
+  mainChat?: { toolServer: string; canWrite: () => boolean | Promise<boolean> }
 }
 
 const READONLY = '검수 세션은 읽기 전용입니다 — 저장소 쓰기·git 쓰기 하위 명령·내려받기·패키지 설치는 막습니다. 읽고 판정만 합니다.'
@@ -1115,8 +1119,78 @@ function startCwd(tracked: Cwd, hookCwd: string | undefined, r: Resolved): Cwd {
   return union(tracked, [h])
 }
 
+// ── M10 G2 메인 대화의 꼴 ─────────────────────────────────────────────────
+// 허용 목록 밖은 모두 거부한다. 셸이 없으니 셸 위치를 따라가지 않는다 — 편집 도구의 상대 경로는 저장소 뿌리 기준이다.
+const MAIN_SHELL = '메인 대화에서는 셸(Bash·PowerShell)을 쓰지 않습니다 — 루프 일은 실행기가 하고, 메인은 읽기·질문·앱 안 도구(멈춤·이어 가기·Backlog)만 씁니다.'
+const MAIN_TOOL = '메인 대화에서 쓰지 않는 도구입니다 — 읽기 도구, 질문 도구(AskUserQuestion), 앱 안 도구(멈춤·이어 가기·Backlog)만 씁니다.'
+const MAIN_MCP = '메인 대화의 MCP 도구는 앱 안 도구(멈춤·이어 가기·Backlog)뿐입니다.'
+const MAIN_PATH = '메인 대화가 쓰는 파일은 .agentdeck/milestone-spec.md와 .agentdeck/decisions.md 둘뿐입니다 — 저장소 파일은 작업 노드가 고칩니다.'
+const MAIN_WINDOW = '스펙·결정 대장은 실행기가 브레인스토밍 노드에 있을 때만 씁니다 — 지금은 쓰기 창이 닫혀 있습니다(브레인스토밍 밖이거나 사람 판정을 기다립니다).'
+const MAIN_LINK = '.agentdeck 경로가 링크라 쓰지 않습니다 — 저장소 밖을 가리킬 수 있습니다.'
+const MAIN_SHELL_TOOLS = new Set(['Bash', 'PowerShell'])
+const MAIN_READ_TOOLS = new Set(['Read', 'Glob', 'Grep', 'LS', 'NotebookRead', 'WebFetch', 'WebSearch', 'AskUserQuestion', 'TodoWrite', 'ToolSearch'])
+const MAIN_WRITABLE = ['milestone-spec.md', 'decisions.md'] as const
+
+// `.agentdeck` 폴더나 그 파일이 링크(정션 포함)이거나, 실제 경로가 저장소 뿌리의 `.agentdeck` 아래가 아니면 참. 판정하지 못하면 참이다.
+function linkedAway(rootRaw: string, name: string): boolean {
+  try {
+    const dir = `${rootRaw}/.agentdeck`
+    const file = `${dir}/${name}`
+    const dirStat = fs.lstatSync(dir, { throwIfNoEntry: false })
+    if (!dirStat) return false
+    if (dirStat.isSymbolicLink() || !dirStat.isDirectory()) return true
+    const fileStat = fs.lstatSync(file, { throwIfNoEntry: false })
+    if (fileStat && (fileStat.isSymbolicLink() || !fileStat.isFile())) return true
+    const want = normalize(`${fs.realpathSync(rootRaw)}/.agentdeck${fileStat ? `/${name}` : ''}`, rootRaw)
+    return normalize(fs.realpathSync(fileStat ? file : dir), rootRaw) !== want
+  } catch {
+    return true
+  }
+}
+
+// 메인 대화의 도구 호출 하나의 판정. scope.mainChat이 없으면 거부한다.
+export async function mainChatToolReason(toolName: string | undefined, toolInput: unknown, scope: LoopLockScope): Promise<string | null> {
+  const main = scope.mainChat
+  if (!main || toolName === undefined) return MAIN_TOOL
+  const ti = toolInput && typeof toolInput === 'object' ? (toolInput as Record<string, unknown>) : {}
+  if (toolName.toLowerCase().startsWith('mcp__')) return toolName.startsWith(`mcp__${main.toolServer}__`) ? null : MAIN_MCP
+  if (EDIT_TOOLS.has(toolName)) {
+    if (toolName === 'NotebookEdit') return MAIN_PATH
+    const raw = ti['file_path']
+    if (typeof raw !== 'string' || raw.trim() === '') return MAIN_PATH
+    // G2 독립 검수 — 편집 도구는 경로를 글자 그대로 쓴다(셸이 아니다). 변수·물결표·명령 치환을 펼쳐 두 경로로 보면 실제로는
+    // 다른 파일(`$PWD/…` 글자 그대로의 폴더 등)을 쓰는 호출을 지나보낸다 — 펼치지 않고 거부한다
+    const p = raw.trim()
+    if (/[$%`]/.test(p) || p.startsWith('~')) return MAIN_PATH
+    const r = resolveScope(scope)
+    const target = normalize(p, r.rootRaw)
+    const name = MAIN_WRITABLE.find((n) => target === `${r.root}/.agentdeck/${n}`)
+    if (name === undefined) return MAIN_PATH
+    if (linkedAway(r.rootRaw, name)) return MAIN_LINK
+    let open = false
+    try { open = (await main.canWrite()) === true } catch { open = false }
+    return open ? null : MAIN_WINDOW
+  }
+  if (MAIN_SHELL_TOOLS.has(toolName) || typeof ti['command'] === 'string') return MAIN_SHELL
+  return MAIN_READ_TOOLS.has(toolName) ? null : MAIN_TOOL
+}
+
 // 훅 인스턴스 하나가 작업 노드 세션 하나의 셸 위치를 호출 사이로 넘긴다(workSession이 세션마다 새로 만든다).
+// M10 G2 — scope.mainChat이 있으면 메인 대화의 꼴(mainChatToolReason)로 판정한다.
 export function buildLoopLockHook(scope: LoopLockScope): LoopLockMatcher {
+  if (scope.mainChat) {
+    return {
+      hooks: [
+        async (input) => {
+          const reason = await mainChatToolReason(input.tool_name, input.tool_input, scope)
+          if (reason === null) return {}
+          return { hookSpecificOutput: { hookEventName: 'PreToolUse', permissionDecision: 'deny', permissionDecisionReason: reason } }
+        },
+      ],
+      timeout: LOOP_LOCK_TIMEOUT_S,
+      onFailure: 'block',
+    }
+  }
   const r = resolveScope(scope)
   let tracked: Cwd = [r.rootRaw]
   return {

@@ -25,8 +25,6 @@ const mockApi = {
   agentRun: vi.fn().mockResolvedValue({ runId: 'run-1' }),
   agentAbort: vi.fn().mockResolvedValue({ accepted: true }),
   agentInterrupt: vi.fn().mockResolvedValue({}),
-  multiSessionLoad: vi.fn().mockResolvedValue({ state: null }),
-  multiCmdUpsert: vi.fn().mockResolvedValue({ ok: true, state: { version: 2, activeSessionId: '', sessions: [] } }),
   pickFolder: vi.fn().mockResolvedValue({ path: null }),
   listFiles: vi.fn().mockResolvedValue({ files: [] }),
   getUsage: vi.fn().mockResolvedValue({ pct: null, resetsAt: null }),
@@ -38,8 +36,6 @@ beforeEach(() => {
   mockApi.conversationLoad.mockResolvedValue({ conversations: [] })
   mockApi.onAgentEvent.mockReturnValue(() => {})
   mockApi.agentRun.mockResolvedValue({ runId: 'run-1' })
-  mockApi.multiSessionLoad.mockResolvedValue({ state: null })
-  mockApi.multiCmdUpsert.mockResolvedValue({ ok: true, state: { version: 2, activeSessionId: '', sessions: [] } })
   mockApi.listFiles.mockResolvedValue({ files: [] })
   mockApi.getUsage.mockResolvedValue({ pct: null, resetsAt: null })
   __resetPanelSessionManagerForTests()
@@ -53,7 +49,6 @@ afterEach(async () => {
     workspaceMode: 'single',
     workspaceRoot: null,
     conversationId: null,
-    activeMultiSessionId: '',
   } as Parameters<typeof useAppStore.setState>[0])
 })
 
@@ -71,7 +66,8 @@ async function store() {
   return mod.useAppStore
 }
 
-describe('lr4-p06-A: 단일챗 왕복 보존 (single→multi→single OFF 유지)', () => {
+// M10 G1 — 멀티 에이전트 모드를 지워 대화가 화면에서 빠지는 배치는 「작업」 모드다. 왕복은 채팅→작업→채팅으로 본다.
+describe('lr4-p06-A: 단일챗 왕복 보존 (single→work→single OFF 유지)', () => {
   async function renderSingleShellHarness(): Promise<RenderResult> {
     const useAppStore = await store()
     const { selectWorkspaceMode } = await import('@renderer/00_App/appStore')
@@ -80,7 +76,7 @@ describe('lr4-p06-A: 단일챗 왕복 보존 (single→multi→single OFF 유지
     )
     function SingleShellHarness(): JSX.Element {
       const mode = useAppStore(selectWorkspaceMode)
-      return mode === 'multi' ? <div data-testid="multi-stub" /> : <Conversation />
+      return mode === 'work' ? <div data-testid="work-stub" /> : <Conversation />
     }
     let r!: RenderResult
     await act(async () => {
@@ -90,7 +86,7 @@ describe('lr4-p06-A: 단일챗 왕복 보존 (single→multi→single OFF 유지
     return r
   }
 
-  it('단일 뷰에서 토글 OFF → 멀티 진입(언마운트) → 단일 복귀 시 OFF가 유지된다', async () => {
+  it('단일 뷰에서 토글 OFF → 작업 진입(언마운트) → 단일 복귀 시 OFF가 유지된다', async () => {
     const useAppStore = await store()
     useAppStore.setState({
       workspaceRoot: '/test/workspace',
@@ -108,7 +104,7 @@ describe('lr4-p06-A: 단일챗 왕복 보존 (single→multi→single OFF 유지
     expect(badgeOf(ultraToggles(container)[0])).toBe('OFF')
 
     await act(async () => {
-      useAppStore.getState().setWorkspaceMode('multi')
+      useAppStore.getState().setWorkspaceMode('work')
       await new Promise((res) => setTimeout(res, 10))
     })
     expect(ultraToggles(container).length).toBe(0)
@@ -172,41 +168,36 @@ describe('lr4-p06-B: 단일챗 대화별 독립 (conversation A/B 격리)', () =
   })
 })
 
-describe('lr4-p06-C: 멀티 패널별 독립 + 리마운트 유지', () => {
-  async function renderMultiShellHarness(): Promise<RenderResult> {
+// M10 G1 — 멀티 화면을 지웠다. 패널 카드·패널 세션 기계는 남겼으므로 패널 하네스를 빼고 다시 그려 재마운트를 본다.
+describe('lr4-p06-C: 패널별 독립 + 리마운트 유지', () => {
+  async function renderPanelShellHarness(): Promise<RenderResult> {
     const useAppStore = await store()
-    const { selectWorkspaceMode, selectActiveMultiSessionId } = await import(
-      '@renderer/00_App/appStore'
-    )
-    const { MultiWorkspace } = await import(
-      '@renderer/12_Window/MultiWorkspace'
-    )
-    function MultiShellHarness(): JSX.Element {
+    const { selectWorkspaceMode } = await import('@renderer/00_App/appStore')
+    const { PanelHarness } = await import('../00_Helpers/panelHarness')
+    function PanelShellHarness(): JSX.Element {
       const mode = useAppStore(selectWorkspaceMode)
-      const activeId = useAppStore(selectActiveMultiSessionId)
-      return mode === 'multi' ? <MultiWorkspace key={activeId} /> : <div data-testid="single-stub" />
+      return mode === 'work' ? <PanelHarness sessionId="m-roundtrip" /> : <div data-testid="single-stub" />
     }
     let r!: RenderResult
     await act(async () => {
-      r = render(<MultiShellHarness />)
+      r = render(<PanelShellHarness />)
       await new Promise((res) => setTimeout(res, 30))
     })
     return r
   }
 
   function panels(container: ParentNode): HTMLElement[] {
-    return Array.from(container.querySelectorAll('.ma-panel:not(.ma-placeholder)')) as HTMLElement[]
+    return Array.from(container.querySelectorAll('.ma-panel')) as HTMLElement[]
   }
 
-  it('패널1 OFF → 멀티↔단일 왕복(재마운트) 후에도 패널1 OFF 유지, 패널2 ON 유지', async () => {
+  it('패널1 OFF → 패널 화면↔단일 왕복(재마운트) 후에도 패널1 OFF 유지, 패널2 ON 유지', async () => {
     const useAppStore = await store()
     useAppStore.setState({
       workspaceRoot: '/test/workspace',
-      workspaceMode: 'multi',
-      activeMultiSessionId: 'm-roundtrip',
+      workspaceMode: 'work',
     } as Parameters<typeof useAppStore.setState>[0])
 
-    const { container } = await renderMultiShellHarness()
+    const { container } = await renderPanelShellHarness()
 
     const p0 = panels(container)
     expect(p0.length).toBeGreaterThanOrEqual(2)
@@ -226,7 +217,7 @@ describe('lr4-p06-C: 멀티 패널별 독립 + 리마운트 유지', () => {
     expect(container.querySelector('[data-testid="single-stub"]')).toBeTruthy()
 
     await act(async () => {
-      useAppStore.getState().setWorkspaceMode('multi')
+      useAppStore.getState().setWorkspaceMode('work')
       await new Promise((res) => setTimeout(res, 30))
     })
 

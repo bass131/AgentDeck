@@ -18,7 +18,6 @@ import { LSP_CHANNELS } from './09_Lsp/lsp'
 import { ENGINE_CHANNELS } from './10_Engine/engine'
 import { SETTINGS_CHANNELS } from './11_Settings/settings'
 import { WINDOW_CHANNELS } from './12_Window/window'
-import { MULTI_CHANNELS } from './06_Sessions/multi'
 import { PERSONALIZATION_CHANNELS } from './11_Settings/personalization'
 import { LOOP_CHANNELS } from './13_Loop/loop'
 
@@ -32,9 +31,9 @@ export * from './09_Lsp/lsp'
 export * from './10_Engine/engine'
 export * from './11_Settings/settings'
 export * from './12_Window/window'
-export * from './06_Sessions/multi'
 export * from './11_Settings/personalization'
 export * from './13_Loop/loop'
+export * from './13_Loop/graph'
 export * from './01_Ipc/channelMap'
 
 export const IPC_CHANNELS = {
@@ -48,7 +47,6 @@ export const IPC_CHANNELS = {
   ...ENGINE_CHANNELS,
   ...SETTINGS_CHANNELS,
   ...WINDOW_CHANNELS,
-  ...MULTI_CHANNELS,
   ...PERSONALIZATION_CHANNELS,
   ...LOOP_CHANNELS,
 } as const

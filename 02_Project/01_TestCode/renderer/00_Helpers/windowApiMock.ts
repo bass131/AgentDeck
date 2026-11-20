@@ -46,12 +46,6 @@ export const FLAT_ROUTES = {
   conversationSave: { group: 'sessions', action: 'save' },
   conversationDelete: { group: 'sessions', action: 'delete' },
   conversationRename: { group: 'sessions', action: 'rename' },
-  multiSessionLoad: { group: 'sessions', action: 'multiLoad' },
-  multiCmdUpsert: { group: 'sessions', action: 'multiUpsert', args: (req: ReqOf<'multi.cmdUpsert'>) => [req.session] as const },
-  multiCmdCreate: { group: 'sessions', action: 'multiCreate' },
-  multiCmdDelete: { group: 'sessions', action: 'multiDelete', args: (req: ReqOf<'multi.cmdDelete'>) => [req.id] as const },
-  multiCmdRename: { group: 'sessions', action: 'multiRename', args: (req: ReqOf<'multi.cmdRename'>) => [req.id, req.title] as const },
-  multiCmdSelect: { group: 'sessions', action: 'multiSelect', args: (req: ReqOf<'multi.cmdSelect'>) => [req.id] as const },
 
   workspaceOpen: { group: 'workspace', action: 'open' },
   workspaceTree: { group: 'workspace', action: 'tree' },
@@ -110,6 +104,21 @@ export const FLAT_ROUTES = {
   loopReleaseLatch: { group: 'loop', action: 'releaseLatch' },
   loopClose: { group: 'loop', action: 'close' },
   onLoopState: { group: 'loop', action: 'onState' },
+  // M10 G2 — 메인 대화(화면은 G3)
+  loopMainRead: { group: 'loop', action: 'mainRead' },
+  loopMainSend: { group: 'loop', action: 'mainSend' },
+  loopMainNew: { group: 'loop', action: 'mainNew' },
+  onLoopMainState: { group: 'loop', action: 'onMainState' },
+  onLoopSessionEvent: { group: 'loop', action: 'onSessionEvent' },
+  // M10 G3 — 사람이 일시 정지 깃발을 내린다
+  loopLowerFlag: { group: 'loop', action: 'lowerFlag' },
+  loopSessionLog: { group: 'loop', action: 'sessionLog' },
+  loopMainArchives: { group: 'loop', action: 'mainArchives' },
+  // M10 G5 — 그래프 읽기와 알림
+  loopGraph: { group: 'loop', action: 'graph' },
+  loopAlerts: { group: 'loop', action: 'alerts' },
+  onLoopAlerts: { group: 'loop', action: 'onAlerts' },
+  onLoopAlertOpen: { group: 'loop', action: 'onAlertOpen' },
 } as const satisfies Record<string, FlatRoute>
 
 export type FlatKey = keyof typeof FLAT_ROUTES
@@ -221,7 +230,8 @@ const DEFAULT_RESULTS: { [C in InvokeChannel]?: ResOf<C> } = {
   'settings.controlsState': { status: 'none', fileReadable: false, nodes: [], engine: { seal: 'none', active: null } },
   'settings.setControlEnabled': { ok: true },
   'settings.confirmControls': { ok: true },
-  'multi.load': { state: null },
+  'loop.graph': { ok: false, reason: '시험 기본값 — 그래프 없음' },
+  'loop.alerts': { alerts: [] },
 }
 
 const SYNC_RESULTS: Partial<Record<FlatKey, unknown>> = {

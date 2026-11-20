@@ -271,6 +271,63 @@ try {
     r.judge('EP-32 스폰 게이트(판정부 공유)도 스펙과 합쳐 센다', spawn.verdict, 'allow/통과')
   }
 
+  // ---- 포인터 전환 — planPath를 다른 goal 문서로 바꾸는 편집은 지나가고, 뒤 편집은 새 계획을 따른다 (M11 G7) ----
+  // gate-config.json은 01_Milestones 밖이라 바꾸는 편집이 지금 계획으로 판정된다. goal을 닫은(상태: 종결) 뒤의
+  // 전환도 지나가야 한다 — 막히면 다음 goal로 넘어가는 길이 잠긴다.
+  {
+    const writeRel = (rel, text) => {
+      mkdirSync(dirname(H.path(...rel.split('/'))), { recursive: true })
+      writeFileSync(H.path(...rel.split('/')), text)
+    }
+    const goalDoc = (rel, status) => {
+      writeRel(rel, [
+        '# M99 — 포인터 전환 픽스처', '',
+        `- 마일스톤: M99 · 작성: 2026-11-21 · 상태: ${status}`, '',
+        '## 목표', '', '- 포인터 전환이 지나가는지 본다.', '',
+        '## Phase 1 — 픽스처 · 태그: `harness` · 의존: 없음', '',
+        '검증 기록', '', '- (기록 없음)', '',
+        '## 결정 대장', '', '- [USER] 프로브 (2026-11-21)', '',
+      ].join('\n'))
+      return rel
+    }
+    const A = goalDoc('01_Milestones/M99_Switch/10_Goal-A.md', '실행 중')
+    const B = goalDoc('01_Milestones/M99_Switch/20_Goal-B.md', '실행 중')
+    const A_DONE = goalDoc('01_Milestones/M99_Switch/30_Goal-A-done.md', '종결(goal PR 1, 로컬 병합 `0000000`, 2026-11-21)')
+    const FAIL3 = '.claude/hooks/fixtures/plan-fail3.md'
+    const cfgText = (planPath) => JSON.stringify({ planPath, workPinPath: PIN }, null, 2) + '\n'
+    const switchBy = (tool, from, to) => {
+      H.write(H.configFile, cfgText(from))
+      const input = tool === 'Write'
+        ? { file_path: H.configFile, content: cfgText(to) }
+        : { file_path: H.configFile, old_string: `"planPath": "${from}"`, new_string: `"planPath": "${to}"` }
+      const c = judgeRaw(() => {}, tool, input)
+      H.write(H.configFile, cfgText(to)) // 편집 도구가 적용한 뒤의 디스크
+      return c
+    }
+    const after = () => judgeRaw(() => {}, 'Edit', editAt(src))
+
+    for (const [id, tool, from, to, aim] of [
+      ['PS-01', 'Edit', A, B, '실행 중 goal → 다음 goal (Edit)'],
+      ['PS-02', 'Write', A, B, '실행 중 goal → 다음 goal (Write)'],
+      ['PS-03', 'Edit', A_DONE, B, '종결한 goal → 다음 goal (Edit)'],
+      ['PS-04', 'Write', A_DONE, B, '종결한 goal → 다음 goal (Write)'],
+    ]) {
+      const c = switchBy(tool, from, to)
+      r.check(`${id} ${aim} — 전환 편집이 지나간다`, c.verdict.startsWith('allow/'), `실측 ${c.verdict} · ${c.reason.slice(0, 90)}`)
+      r.judge(`${id}b 전환 뒤 01_Milestones 밖 편집은 새 계획(유효)을 따른다`, after().verdict, 'allow/통과')
+    }
+    {
+      const c = switchBy('Edit', A, FAIL3)
+      r.check('PS-05 실행 중 goal → FAIL 3회 계획 — 전환 편집은 지나간다', c.verdict.startsWith('allow/'), `실측 ${c.verdict}`)
+      r.judge('PS-05b 전환 뒤 01_Milestones 밖 편집은 새 계획의 거부를 따른다', after().verdict, 'deny/실패-카운터')
+    }
+    {
+      const c = switchBy('Edit', FAIL3, B)
+      r.judge('PS-06 FAIL 3회 계획에서의 전환은 풀리지 않는다', c.verdict, 'deny/실패-카운터',
+        { note: '전환 예외는 종결 판정에만 — 실패 카운터를 포인터 편집으로 피하지 못한다' })
+    }
+  }
+
   // ---- 격리 — 미러 밖으로 새지 않는다 --------------------------------------
   r.check('격리 — 미러가 실저장소 밖이다', !H.mirror.startsWith(REPO_ROOT), H.mirror)
   const liveLog = join(REPO_ROOT, '98_Management', '01_GateState', 'hook-log.jsonl')

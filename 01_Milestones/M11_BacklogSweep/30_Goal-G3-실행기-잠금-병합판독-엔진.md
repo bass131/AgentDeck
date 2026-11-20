@@ -1,6 +1,6 @@
 # M11 G3 — 앱 결함 · 실행기·잠금·병합 판독·엔진
 
-- 마일스톤: M11 (마일스톤 스펙 `01_Milestones/M11_BacklogSweep/00_마일스톤-스펙.md`) · 작성: 2026-11-20 · 상태: 실행 중 · 검증 강도: 강(실행기·잠금은 판정 노드이고 앱 소스 50줄 이상, `gate-config.json` 전환)
+- 마일스톤: M11 (마일스톤 스펙 `01_Milestones/M11_BacklogSweep/00_마일스톤-스펙.md`) · 작성: 2026-11-20 · 상태: 종결(goal PR 110, 로컬 병합 `9ba04fa8`, 2026-11-20) · 검증 강도: 강(실행기·잠금은 판정 노드이고 앱 소스 50줄 이상, `gate-config.json` 전환)
 - 작업 브랜치: `fix/m11-g3-executor` · 기준 브랜치: `milestone/m11-backlog-sweep`(`1de6e917`)
 
 ## 목표
@@ -33,7 +33,7 @@
 - [x] 5. 엔진 묶음(M07-7·9·11·12) 수리와 M07-13 판정 기록 칸
 - [x] 6. SDK 재실측 절차 문서(M06-9·M07-6)와 M07-7 실측 기록
 - [x] 7. 실제 앱 e2e(2번 모니터)와 캡처, 닫힘 표 갱신, 하드 게이트 다섯 종, `npm test` 차분
-- [>] 8. 독립 검수와 반영, goal PR, `hard-gates`, 로컬 goal 병합
+- [x] 8. 독립 검수와 반영, goal PR, `hard-gates`, 로컬 goal 병합
 
 실행 단계 일괄 승인 대상 (스펙에서 옮김)
 
@@ -48,6 +48,7 @@ DoD
 
 검증 기록
 
+- PASS 2026-11-20T21:28:58+09:00 — goal 병합: PR 110 `hard-gates` 통과(머리 `4f3609c6`) 뒤 정형 절차로 `milestone/m11-backlog-sweep`에 합쳤다(`9ba04fa8`, 둘째 부모가 CI 머리와 같음). GitHub가 PR을 병합됨으로 닫았다.
 - PASS 2026-11-20T20:50:56+09:00 — 구현: 작업 하위 에이전트가 커밋 일곱(`a6e7f88a`·`bc920e64` 실행기·잠금과 Backlog 17, `ae748e3e` Backlog 18~21, `2af8fd68` 룰셋 판독, `0c2fec37`·`ed5411ae` 엔진·판정 기록·색인 다시 짓기, `7b901703` SDK 재실측 절차 문서와 닫힘 표)으로 고쳤다. `[M11-G3 …]` `it.fails` 19건이 모두 `it`이고(`grep` 0건), 머리 `ed5411ae`에서 `npm test` Test Files 486 passed·6 skipped, Tests 9295 passed·10 skipped, 실패 0, 문서 최종본에서 하드 게이트 다섯 종 통과(lint 기존 경고 1). M07-7의 SDK 동작 꼴은 재지 않고 `00_Documents/00_Architecture/01_SDK-재실측-절차.md` 「아직 재지 않은 꼴」에 두었다. 범위 밖 발견은 M11 Backlog 26·27.
 - PASS 2026-11-20T20:50:56+09:00 — 실앱 e2e(`m11-g3-ruleset-card-live.e2e.ts`, `M11G3LIVE=1`, 두 번 통과): 룰셋 `main-protect`로 지키는 연습 저장소 `main`의 PR #6 카드가 「main 브랜치 룰셋에 필수 검사가 없어요」를 보이고 「보호가 없다」를 보이지 않음을 메인이 `ruleset-card.png`로 눈 확인했다. 2번 모니터는 이번에도 감지되지 않았다.
 - PASS 2026-11-20T21:23:16+09:00 — 독립 검수(구현 문맥 없는 reviewer, 수정 전 코드 대비 단언 판정과 우회 프로브)의 중요 2·사소 4를 `734e579e`로 반영했다: 작은따옴표 밖 `${CDPATH=…}`·`${CDPATH:=…}` 거부(M09-6 회귀), `source` 뒤 위치는 공개 `query()` 블랙박스 실측(훅 `cwd`가 셸 위치를 따라감, Temp 밖 저장소)으로 지금 판독 유지와 절차 문서 기록, 엔진 재설치를 임시 형제 폴더 뒤 바꿔 끼우기로, 판정을 못 보는 노드는 「최근 판정 기록 없음」, 실행기가 git을 못 찾을 때 별도 안내, mock 조건 복제 제거. PowerShell 꼴은 가드와 함께 통과하는 기존 틈이라 M11 Backlog 28(goal 8). 워커가 `734e579e`에서 하드 게이트 다섯 종 통과, `npm test` Tests 9301 passed·실패 0. 실측 임시 저장소 `%USERPROFILE%\.agentdeck-practice\cwdprobe\`는 가드가 지우기를 막아 남았다(사람 손 목록).

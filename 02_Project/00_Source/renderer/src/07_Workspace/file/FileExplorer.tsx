@@ -62,15 +62,20 @@ function expandedKey(root: string): string {
   return 'explorer.expanded:' + root.replace(/[\\/]+/g, '/').toLowerCase()
 }
 
+const DRIVE_PATH = /^[A-Za-z]:/
+
 export function normalizeToRel(saved: string[], root: string): string[] {
   const normRoot = root.replace(/\\/g, '/').replace(/\/$/, '')
+  // 드라이브 문자 경로는 대소문자를 가리지 않는다(Windows)
+  const fold = DRIVE_PATH.test(normRoot) ? (s: string) => s.toLowerCase() : (s: string) => s
+  const prefix = fold(normRoot + '/')
   return saved.map((p) => {
     const norm = p.replace(/\\/g, '/')
-    if (norm.startsWith(normRoot + '/')) {
-      return norm.slice(normRoot.length + 1)
+    if (fold(norm).startsWith(prefix)) {
+      return norm.slice(prefix.length)
     }
     return norm
-  }).filter((p) => !p.startsWith('/') && !p.startsWith('..'))
+  }).filter((p) => !p.startsWith('/') && !DRIVE_PATH.test(p) && p !== '..' && !p.startsWith('../'))
 }
 
 export function getAncestors(rel: string): string[] {

@@ -196,11 +196,6 @@ export const createRuntimeSlice: StateCreator<AppStore, [], [], RuntimeState & R
     // stale이 아니면 전경 배너를 끈다(대화 정책). 패널 종류는 이 포트가 없다.
     onFresh: () => set({ bannerStale: false }),
     handleEvent: handleConversationEvent,
-    // 활성 키의 저장 칸 = store 평탄화 필드(안 A).
-    active: {
-      key: () => convKey(get().conversationId),
-      read: () => get(),
-    },
   })
 
   return ({

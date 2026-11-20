@@ -391,6 +391,16 @@ describe('getVersionState()', () => {
     expect(getVersionState(ud).installed).toEqual(['1.10.0', '1.2.3', '0.9.9'])
   })
 
+  // M11 G2 — M05 Backlog 65. 정렬과 갱신 확인이 같은 비교 하나(cmpVer)를 쓴다 — pre-release는 같은 번호의 정식보다 앞이다.
+  it('설치 목록 정렬은 pre-release를 같은 번호 정식 아래에 둔다', async () => {
+    const { getVersionState } = await import('@main/10_Engine/engineVersions')
+    const ud = newUserData()
+    installFixture(ud, '0.3.201-rc.1')
+    installFixture(ud, '0.3.201')
+    installFixture(ud, '0.3.200')
+    expect(getVersionState(ud).installed).toEqual(['0.3.201', '0.3.201-rc.1', '0.3.200'])
+  })
+
   it('active 버전이 installed 목록에 없으면 null 폴백', async () => {
     const { getVersionState } = await import('@main/10_Engine/engineVersions')
     const ud = newUserData()

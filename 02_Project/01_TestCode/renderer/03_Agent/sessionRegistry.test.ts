@@ -61,7 +61,7 @@ describe('G9c 레지스트리 — 키별 상태 Map', () => {
     expect(sessionRegistry.runningKeys()).toBe(snap1)
     sessionRegistry.delete(k)
     expect(listener).toHaveBeenCalledTimes(2)
-    expect(sessionRegistry.isRunning(k)).toBe(false)
+    expect(sessionRegistry.runningKeys().has(k)).toBe(false)
     off()
   })
 })
@@ -174,13 +174,17 @@ describe('G9c 레지스트리 — 대화 어댑터(loopDisplay·runtime)도 같�
     expect(sessionRegistry.lookup('rp')).toBe(panelKey('s', 0))
   })
 
-  it('활성 대화 키의 실행 여부는 전경 저장 칸(store 평탄화 필드)에서 읽는다(안 A)', async () => {
-    const { useAppStore } = await import('@renderer/00_App/appStore')
-    useAppStore.setState({ conversationId: 'act', isRunning: true })
-    expect(sessionRegistry.isRunning(convKey('act'))).toBe(true)
-    expect(sessionRegistry.isRunning(convKey('other'))).toBe(false)
-    useAppStore.setState({ conversationId: null, isRunning: false })
-    expect(sessionRegistry.isRunning(convKey('act'))).toBe(false)
+  // M11 G2 — M05 Backlog 53. 프로덕션 호출부가 없던 실행 판정(isRunning)과 그것만 읽던 활성 키 포트(active)를 지웠다.
+  // 실행 표시는 Sidebar가 전경 store와 runningKeys로 판정한다(sessionRegistry.b1-sidebar-running 시험).
+  it('레지스트리에 죽은 실행 판정 isRunning과 active 포트가 없다', async () => {
+    expect('isRunning' in sessionRegistry).toBe(false)
+    const fs = await import('node:fs')
+    const path = await import('node:path')
+    const dir = path.resolve(__dirname, '../../../00_Source/renderer/src/03_Agent/state')
+    const src = fs.readFileSync(path.join(dir, 'sessionRegistry.ts'), 'utf8')
+    expect(src).not.toMatch(/\bactive\?:/)
+    const runtime = fs.readFileSync(path.join(dir, 'runtime.ts'), 'utf8')
+    expect(runtime).not.toMatch(/\bactive:\s*\{/)
   })
 
   it('전경 대화의 stale 타이머는 레지스트리의 대화 정책으로 만료되어 store 배너를 stale로 만든다', async () => {

@@ -8,6 +8,7 @@ import { controlsForRun } from '@main/04_Claude/permission/controlsStore'
 import { autoModeReasonOf, createLoopDriver, type LoopDriver } from '@main/05_Loop/loopDriver'
 import { createLoopNotifier } from '@main/05_Loop/loopNotifier'
 import { createNotifyPort } from '@main/05_Loop/realPorts/notifyPort'
+import { disposeLspManager } from '@main/09_Lsp/manager'
 import { applyDevAppUserModelId } from './appUserModel'
 import { getBackend } from './registry'
 import {
@@ -108,10 +109,11 @@ export function attachWindow(win: BrowserWindow): void {
   })
 }
 
-// 종료 정리 — 실행 중인 run을 닫고 대화 저장소를 닫는다. 루프 구동자는 닫기를 걸어 두고 기다리지 않는다(M09 G4 —
+// 종료 정리 — 실행 중인 run과 LSP 서버를 닫고 대화 저장소를 닫는다. 루프 구동자는 닫기를 걸어 두고 기다리지 않는다(M09 G4 —
 // 세션 취소·저장소 잠금 해제가 비동기다. 그 전에 프로세스가 끝나면 다음 열기가 죽은 잠금을 넘겨받고 저장본에서 이어 간다).
 export function stopApp(): void {
   if (_loopDriver) void _loopDriver.closeAll().catch((err) => console.error('[main] 루프 구동자 닫기 실패:', err))
   disposeAllRuns()
+  disposeLspManager()
   closeConversationStore()
 }

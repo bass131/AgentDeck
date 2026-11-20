@@ -261,7 +261,7 @@ describe('QuestionModal — 화면 층', () => {
   })
 
   // M10 G1 — 루프 화면이 모달에서 작업 모드 몸체로 바뀌어 z 60 루프 오버레이 층이 없어졌다. 층 값은 질문 창 CSS 하나와 대조한다.
-  it('층 값은 질문 창의 CSS z-index와 같다 — 대화·루프 질문 창(.q-overlay) 80, 루프 화면에는 겹침 맥락이 없다', async () => {
+  it('층 값은 질문 창의 CSS z-index와 같다 — 대화·루프 질문 창(.q-overlay) 320, 루프 화면에는 겹침 맥락이 없다', async () => {
     const fs = await import('node:fs')
     const path = await import('node:path')
     const { DIALOG_LAYER } = await import('@renderer/03_Agent/prompt')
@@ -276,6 +276,53 @@ describe('QuestionModal — 화면 층', () => {
     expect(DIALOG_LAYER).toEqual({ app: zOf('03_Agent/prompt/QuestionModal.css', '.q-overlay') })
     const loopCss = fs.readFileSync(path.join(src, '13_Loop/LoopScreen.css'), 'utf8')
     expect(loopCss).not.toMatch(/z-index|transform|filter|isolation|contain\s*:/)
+  })
+
+  // M11 G2 — M05 Backlog 49. 질문 창은 열리면 포커스와 숫자 키를 가져간다. 다른 모달 뒤에 깔리면 보이지 않는 질문에 답이 나간다.
+  // 그래서 질문 창은 앱의 다른 모달 겹침(전체 화면 이미지 보기 .fs-overlay 제외)보다 위에 그린다.
+  it('질문 창(.q-overlay)은 다른 모달 겹침보다 위다', async () => {
+    const fs = await import('node:fs')
+    const path = await import('node:path')
+    const src = path.resolve(__dirname, '../../../00_Source/renderer/src')
+    const zOf = (rel: string, selector: string): number => {
+      const css = fs.readFileSync(path.join(src, rel), 'utf8')
+      const at = css.indexOf(`${selector} {`)
+      expect(at).toBeGreaterThanOrEqual(0)
+      const block = css.slice(at, css.indexOf('}', at))
+      return Number(/z-index:\s*(\d+)/.exec(block)?.[1])
+    }
+    const question = zOf('03_Agent/prompt/QuestionModal.css', '.q-overlay')
+    const others: Array<[string, string]> = [
+      ['02_Common/Modal.css', '.modal-overlay'],
+      ['03_Agent/prompt/AskModal.css', '.ask-overlay'],
+      ['03_Agent/prompt/PromptModal.css', '.pr-overlay'],
+      ['12_Window/shell.css', '.pf-overlay'],
+      ['07_Workspace/ImageViewer.css', '.iv-overlay'],
+      ['08_Git/GitModal.css', '.gitm-overlay'],
+      ['07_Workspace/file/FileModal.css', '.fv-overlay'],
+      ['12_Window/Sidebar.css', '.set-dialog-overlay'],
+      ['03_Agent/AgentPanel.css', '.sa-overlay'],
+    ]
+    for (const [rel, sel] of others) expect({ sel, z: zOf(rel, sel) < question }).toEqual({ sel, z: true })
+  })
+
+  it('내려둔 질문은 다른 모달이 열려 있으면 Esc를 그 모달에 양보한다(건너뛰지 않는다)', async () => {
+    const { QuestionModal } = await import('@renderer/03_Agent/prompt')
+    const onDismiss = vi.fn()
+    render(<QuestionModal open={true} questions={SAMPLE_QS} onAnswer={vi.fn()} onDismiss={onDismiss} />)
+    await act(async () => { fireEvent.keyDown(window, { key: 'Escape' }) })
+    expect(document.querySelector('.q-mini-pill')).toBeTruthy()
+    const other = document.createElement('div')
+    other.className = 'pr-overlay'
+    document.body.appendChild(other)
+    try {
+      await act(async () => { fireEvent.keyDown(window, { key: 'Escape' }) })
+      expect(onDismiss).not.toHaveBeenCalled()
+    } finally {
+      other.remove()
+    }
+    await act(async () => { fireEvent.keyDown(window, { key: 'Escape' }) })
+    expect(onDismiss).toHaveBeenCalledTimes(1)
   })
 })
 

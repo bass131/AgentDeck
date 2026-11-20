@@ -8,6 +8,7 @@ import { buildConversationSavePayload, rebuildThreadWithSubagents, freezePersist
 import { getReplModeDefault } from '@renderer/05_Conversation/replModeDefault'
 import { DEFAULT_MODEL } from '@renderer/03_Agent/pickerOptions'
 import { deleteBackgroundRun } from '@renderer/03_Agent/state/backgroundRuns'
+import { sessionLoopDisplayRegistry, unregisterConversationRunsFor } from '@renderer/03_Agent/state/loopDisplay'
 import type { AppStore } from '@renderer/00_App/state/types'
 
 export interface ConversationState {
@@ -20,6 +21,7 @@ export interface ConversationActions {
   loadConversation: () => Promise<void>
   saveConversation: () => Promise<void>
   clearConversation: () => void
+  clearConversationSession: () => void
 }
 
 export const createConversationSlice: StateCreator<AppStore, [], [], ConversationState & ConversationActions> = (set, get) => ({
@@ -89,5 +91,17 @@ export const createConversationSlice: StateCreator<AppStore, [], [], Conversatio
       replMode: getReplModeDefault(),
     })
     get().refreshStaleWatchdog()
+  },
+
+  // /clear — 화면을 비우는 데 더해 이 대화의 REPL 세션을 main에서 끝낸다(M05 Backlog 51). REPL run의 runId는 세션키다.
+  // 새 대화 버튼(newConversation)은 떠나는 대화의 run을 배경으로 내리므로 이 길을 쓰지 않는다.
+  clearConversationSession: () => {
+    const { conversationId, currentSessionKey } = get()
+    void Promise.resolve(ipc.agent.abort({ runId: conversationId ?? currentSessionKey })).catch(() => {})
+    if (conversationId !== null) {
+      unregisterConversationRunsFor(conversationId)
+      sessionLoopDisplayRegistry.clear(conversationId)
+    }
+    get().clearConversation()
   },
 })

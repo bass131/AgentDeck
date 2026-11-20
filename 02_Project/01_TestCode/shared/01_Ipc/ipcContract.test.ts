@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { IPC_CHANNELS, WORKSPACE_ROOT_ID } from '../../../../02_Project/00_Source/shared/ipcContract'
+import { API_ROUTES } from '../../../../02_Project/00_Source/shared/01_Ipc/apiRoutes'
 import type { ResizeEdge, PermissionResponse, QuestionResponse, UsageWindow, UsageInfo } from '../../../../02_Project/00_Source/shared/ipcContract'
 import type { LspStatus, LspPos, LspHoverResult, LspLocation, LspSemanticTokens, LspDocReq, LspPosReq } from '../../../../02_Project/00_Source/shared/ipcContract'
 import type { UiPrefs, UiPrefsSetReq } from '../../../../02_Project/00_Source/shared/ipcContract'
@@ -22,12 +23,30 @@ describe('ipc-contract', () => {
       'agent.abort',
       'agent.event',
       'agent.listModels',
-      'fs.diff',
-      'conversation.load',
-      'conversation.save'
+      'workspace.diff',
+      'sessions.load',
+      'sessions.save'
     ]
     const values = Object.values(IPC_CHANNELS)
     for (const ch of expected) expect(values).toContain(ch)
+  })
+
+  // M11 G2 — M05 Backlog 54. 채널 이름은 `api.<묶음>.<동작>`과 같은 `<묶음>.<동작>`이다.
+  // 옛 conversation.*·fs.*·reference.* 11개가 묶음 이름(sessions·workspace)과 달랐다.
+  it('preload 라우트 표의 채널 이름은 `<묶음>.<동작>`이다', () => {
+    const mismatched: string[] = []
+    for (const [group, actions] of Object.entries(API_ROUTES)) {
+      for (const [action, route] of Object.entries(actions)) {
+        if (route.kind === 'push') continue
+        if (route.channel !== `${group}.${action}`) mismatched.push(`${group}.${action} → ${route.channel}`)
+      }
+    }
+    expect(mismatched).toEqual([])
+    expect(Object.values(IPC_CHANNELS).filter((ch) => /^(conversation|fs|reference)\./.test(ch))).toEqual([])
+    expect([IPC_CHANNELS.CONVERSATION_LOAD, IPC_CHANNELS.CONVERSATION_SAVE, IPC_CHANNELS.CONVERSATION_DELETE, IPC_CHANNELS.CONVERSATION_RENAME])
+      .toEqual(['sessions.load', 'sessions.save', 'sessions.delete', 'sessions.rename'])
+    expect([IPC_CHANNELS.FS_DIFF, IPC_CHANNELS.FS_READ, IPC_CHANNELS.LIST_FILES, IPC_CHANNELS.FS_LIST_DIR])
+      .toEqual(['workspace.diff', 'workspace.read', 'workspace.listFiles', 'workspace.listDir'])
   })
 
   it('채널명은 dot-namespaced 규칙을 따른다 (namespace.action, action은 camelCase 허용)', () => {
@@ -65,15 +84,15 @@ describe('window-control 채널 계약', () => {
 
 describe('reference-folder 채널 계약', () => {
   it('REFERENCE_ADD 채널이 정확한 문자열로 존재한다', () => {
-    expect(IPC_CHANNELS.REFERENCE_ADD).toBe('reference.add')
+    expect(IPC_CHANNELS.REFERENCE_ADD).toBe('workspace.referenceAdd')
   })
 
   it('REFERENCE_LIST 채널이 정확한 문자열로 존재한다', () => {
-    expect(IPC_CHANNELS.REFERENCE_LIST).toBe('reference.list')
+    expect(IPC_CHANNELS.REFERENCE_LIST).toBe('workspace.referenceList')
   })
 
   it('REFERENCE_TREE 채널이 정확한 문자열로 존재한다', () => {
-    expect(IPC_CHANNELS.REFERENCE_TREE).toBe('reference.tree')
+    expect(IPC_CHANNELS.REFERENCE_TREE).toBe('workspace.referenceTree')
   })
 
   it('WORKSPACE_ROOT_ID 는 "workspace" 고정 상수다', () => {
@@ -82,9 +101,9 @@ describe('reference-folder 채널 계약', () => {
 
   it('reference 채널명 3개가 전체 채널 목록에 포함된다', () => {
     const values = Object.values(IPC_CHANNELS)
-    expect(values).toContain('reference.add')
-    expect(values).toContain('reference.list')
-    expect(values).toContain('reference.tree')
+    expect(values).toContain('workspace.referenceAdd')
+    expect(values).toContain('workspace.referenceList')
+    expect(values).toContain('workspace.referenceTree')
   })
 
   it('채널명 유니크 불변식이 reference 채널 추가 후에도 유지된다', () => {

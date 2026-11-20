@@ -1,5 +1,7 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { useAppStore } from '@renderer/00_App/appStore'
+import type { ConversationRunState } from '@renderer/00_App/state/types'
+import { __resetBackgroundRunsForTests, __seedBackgroundRunsForTests } from '@renderer/03_Agent/state/backgroundRuns'
 import type { ConversationRecord } from '../../../../02_Project/00_Source/shared/ipcContract'
 import type { ThreadItem } from '@renderer/05_Conversation/state/threadTypes'
 import { adaptFlatApi } from '../00_Helpers/windowApiMock'
@@ -354,6 +356,77 @@ describe('session-crud — selectConversations 셀렉터', () => {
     const { selectConversations } = await import('@renderer/00_App/appStore')
     const result = selectConversations(useAppStore.getState())
     expect(result).toEqual([])
+  })
+})
+
+// M11 G2 — M05 Backlog 51·52. 대화를 바꾸거나 지우거나 /clear로 비울 때 남는 것이 없어야 한다.
+describe('session-crud — 전환·삭제·/clear 정리 (M05-51·52)', () => {
+  const aborts: string[] = []
+  const originalAbort = mockApi.agentAbort
+  beforeEach(() => {
+    resetStore()
+    __resetBackgroundRunsForTests()
+    aborts.length = 0
+    mockApi.agentAbort = async (req?: unknown) => {
+      aborts.push((req as { runId: string }).runId)
+      return { accepted: true }
+    }
+  })
+  afterEach(() => {
+    mockApi.agentAbort = originalAbort
+    __resetBackgroundRunsForTests()
+  })
+
+  it('다른 대화로 옮기면 떠나는 대화의 대기열을 비운다 — 예약분이 다른 대화로 가지 않는다', async () => {
+    useAppStore.setState({ conversationId: 'conv-1', queue: [{ id: 'q1', text: '예약', images: [] }] } as Parameters<typeof useAppStore.setState>[0])
+    await useAppStore.getState().selectConversation('conv-2')
+    expect(useAppStore.getState().conversationId).toBe('conv-2')
+    expect(useAppStore.getState().queue).toEqual([])
+  })
+
+  it('배경에 있던 대화로 옮겨도 대기열은 비어 있다', async () => {
+    __seedBackgroundRunsForTests({
+      'conv-3': { ...useAppStore.getState(), currentRunId: 'r-bg3', isRunning: true } as unknown as ConversationRunState,
+    })
+    useAppStore.setState({ conversationId: 'conv-1', queue: [{ id: 'q1', text: '예약', images: [] }] } as Parameters<typeof useAppStore.setState>[0])
+    await useAppStore.getState().selectConversation('conv-3')
+    expect(useAppStore.getState().conversationId).toBe('conv-3')
+    expect(useAppStore.getState().queue).toEqual([])
+  })
+
+  it('/clear는 그 대화의 REPL 세션(세션키 = 대화 id)을 main에서 끝내고, 새 대화는 끝내지 않는다', async () => {
+    useAppStore.setState({ conversationId: 'conv-1' } as Parameters<typeof useAppStore.setState>[0])
+    useAppStore.getState().newConversation()
+    await Promise.resolve()
+    expect(aborts).toEqual([])
+
+    useAppStore.setState({ conversationId: 'conv-1' } as Parameters<typeof useAppStore.setState>[0])
+    useAppStore.getState().clearConversationSession()
+    await Promise.resolve()
+    expect(aborts).toEqual(['conv-1'])
+    expect(useAppStore.getState().conversationId).toBeNull()
+  })
+
+  it('실행 중인 배경 대화를 지우면 그 run을 끊는다', async () => {
+    __seedBackgroundRunsForTests({
+      'conv-2': { ...useAppStore.getState(), currentRunId: 'r-bg', isRunning: true } as unknown as ConversationRunState,
+    })
+    await useAppStore.getState().deleteConversation('conv-2')
+    expect(aborts).toContain('r-bg')
+  })
+
+  it('실행 중인 전경 대화를 지우면 그 run을 끊는다', async () => {
+    useAppStore.setState({ conversationId: 'conv-1', currentRunId: 'r-fg', isRunning: true } as Parameters<typeof useAppStore.setState>[0])
+    await useAppStore.getState().deleteConversation('conv-1')
+    expect(aborts).toContain('r-fg')
+    expect(useAppStore.getState().conversationId).toBeNull()
+  })
+
+  it('실행 중이 아닌 대화를 지우면 아무 run도 끊지 않는다', async () => {
+    useAppStore.setState({ conversationId: 'conv-1', currentRunId: 'r-fg', isRunning: true } as Parameters<typeof useAppStore.setState>[0])
+    await useAppStore.getState().deleteConversation('conv-9')
+    expect(aborts).toEqual([])
+    expect(useAppStore.getState().conversationId).toBe('conv-1')
   })
 })
 

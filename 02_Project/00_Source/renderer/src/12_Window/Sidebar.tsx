@@ -59,8 +59,8 @@ function dotClass(status: SessionStatus): string {
 const MENU_W = 178
 const MENU_H = 127
 
-// 실행 표시(B1, G9c) — 세션 레지스트리 기준이다. 대화는 isRunning(convKey(id))와 같은 판정으로, 활성 대화면
-// 전경 저장 칸(store isRunning), 아니면 레지스트리의 배경 항목을 본다. runningKeys는 실행 중인 레지스트리 항목 키 집합이다.
+// 실행 표시(B1, G9c) — 활성 대화면 전경 저장 칸(store isRunning), 아니면 레지스트리의 배경 항목을 본다.
+// runningKeys는 실행 중인 레지스트리 항목 키 집합이다.
 function conversationRunning(
   id: string,
   activeId: string | null,

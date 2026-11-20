@@ -3,10 +3,10 @@ import type { BackendId } from '../02_Common/common'
 import type { ConversationMessage } from '../03_Agent/agent'
 
 export const CONVERSATION_CHANNELS = {
-  CONVERSATION_LOAD: 'conversation.load',
-  CONVERSATION_SAVE: 'conversation.save',
-  CONVERSATION_DELETE: 'conversation.delete',
-  CONVERSATION_RENAME: 'conversation.rename',
+  CONVERSATION_LOAD: 'sessions.load',
+  CONVERSATION_SAVE: 'sessions.save',
+  CONVERSATION_DELETE: 'sessions.delete',
+  CONVERSATION_RENAME: 'sessions.rename',
 } as const
 
 export interface PersistedSubAgent extends SubAgentInfo {

@@ -26,6 +26,7 @@ describe('prompt 캡슐 — 공개 표면 스모크', () => {
   it('DIALOG_LAYER가 캡슐 경로에서 export된다', async () => {
     const { DIALOG_LAYER } = await import('@renderer/03_Agent/prompt')
     // M10 G1: 루프 화면이 모달을 벗어나 겹침 맥락이 없어져 loop 층(60)을 뺐다.
-    expect(DIALOG_LAYER).toEqual({ app: 80 })
+    // M11 G2: 질문 창을 다른 모달(최고 300)보다 위로 올렸다(M05 Backlog 49).
+    expect(DIALOG_LAYER).toEqual({ app: 320 })
   })
 })

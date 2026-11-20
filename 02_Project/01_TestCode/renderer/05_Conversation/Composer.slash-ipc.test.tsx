@@ -305,6 +305,23 @@ describe('Composer 슬래시 팔레트 IPC 배선 (P10)', () => {
     }).not.toThrow()
   })
 
+  // M11 G2 — M05 Backlog 51. 후보가 0개인 팔레트가 Enter를 삼키면 「/clear」를 공백 없이 친 전송이 안 나간다.
+  it('후보 0개 팔레트에서 Enter는 전송한다(/clear 꼴)', async () => {
+    const onSend = vi.fn()
+    const { baseElement } = render(<Composer {...mkProps({ value: '/clear', onSend })} />)
+    const ta = baseElement.querySelector('textarea') as HTMLTextAreaElement
+    await waitFor(() => {
+      expect(mockListSlashCommands).toHaveBeenCalledTimes(1)
+    })
+    await new Promise((r) => setTimeout(r, 20))
+    expect(baseElement.querySelectorAll('.slash-opt').length).toBe(0)
+    fireEvent.keyDown(ta, { key: 'Tab' })
+    fireEvent.keyDown(ta, { key: 'Enter', shiftKey: true })
+    expect(onSend).not.toHaveBeenCalled()
+    fireEvent.keyDown(ta, { key: 'Enter' })
+    expect(onSend).toHaveBeenCalledTimes(1)
+  })
+
   it('🟡-B: 빈 결과에서 팔레트 열림 유지 + .slash-opt 0개 (graceful)', async () => {
     mockListSlashCommands.mockResolvedValue([])
     mockListSkills.mockResolvedValue([])

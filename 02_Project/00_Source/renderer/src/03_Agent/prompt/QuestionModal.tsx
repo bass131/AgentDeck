@@ -40,7 +40,10 @@ export interface QuestionModalProps {
 //   app: 대화(Conversation)·패널(PanelView)·루프 화면(LoopScreen)의 질문 창 — QuestionModal.css의 .q-overlay(80)
 // M10 G1 — 루프 화면이 모달을 벗어나 작업 모드의 가운데 칸에 그려지며 겹침 맥락(옛 .loop-overlay, 60)이 없어졌다.
 // 그래서 루프 질문 창도 app 층에 그려지고 loop 층을 뺐다. 층 prop은 다른 겹침 맥락이 생길 때를 위해 남긴다.
-export const DIALOG_LAYER = { app: 80 } as const
+export const DIALOG_LAYER = { app: 320 } as const
+
+const OTHER_MODALS =
+  '.modal-overlay, .ask-overlay, .pf-overlay, .iv-overlay, .gitm-overlay, .fv-overlay, .set-dialog-overlay, .sa-overlay, .pr-overlay, .ask-mini'
 
 export function QuestionModal({ open, questions, onAnswer, onDismiss, source, layer = DIALOG_LAYER.app }: QuestionModalProps): JSX.Element | null {
   if (!open) return null
@@ -193,7 +196,8 @@ function QuestionDialog({
     const onKey = (e: KeyboardEvent): void => {
       if (!isTopDialog(token)) return
       if (minimized) {
-        if (e.key === 'Escape') {
+        // 내려둔 질문은 다른 모달이 열려 있으면 Esc를 그 모달에 양보한다(M05 Backlog 49)
+        if (e.key === 'Escape' && document.querySelector(OTHER_MODALS) === null) {
           onDismiss()
         }
         return

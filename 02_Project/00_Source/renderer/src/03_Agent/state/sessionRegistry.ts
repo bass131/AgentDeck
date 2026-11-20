@@ -25,11 +25,6 @@ export interface KindPolicy {
   onFresh?: (key: string) => void
   // 이 종류가 맡을 이벤트면 적용한다. 같은 이벤트를 다른 종류도 받는다(종류마다 독립 구독이던 옛 동작).
   handleEvent: (payload: AgentEventPayload) => void
-  // 활성 키의 저장 칸(안 A) — 있으면 그 키의 상태는 Map이 아니라 여기서 읽는다.
-  active?: {
-    key: () => string
-    read: () => RegistryEntry
-  }
 }
 
 const KIND_ORDER: SessionKind[] = ['conv', 'panel']
@@ -122,12 +117,6 @@ export const sessionRegistry = {
     let n = 0
     for (const k of states.keys()) if (keyKind(k) === kind) n += 1
     return n
-  },
-  // 실행 중 판정 — 활성 키면 그 종류의 저장 칸, 아니면 Map 항목.
-  isRunning(key: string): boolean {
-    const active = policyOf(key)?.active
-    if (active && active.key() === key) return active.read().isRunning
-    return states.get(key)?.isRunning === true
   },
   runningKeys(): ReadonlySet<string> {
     return runningKeys

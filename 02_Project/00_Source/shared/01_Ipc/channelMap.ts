@@ -151,21 +151,21 @@ export interface IpcInvokeMap {
   'agent.permissionRespond': { req: PermissionResponse; res: Ack }
   'agent.questionRespond': { req: QuestionResponse; res: Ack }
 
-  'fs.diff': { req: FsDiffRequest; res: FsDiffResponse }
-  'fs.read': { req: FsReadRequest; res: FsReadResponse }
-  'fs.listFiles': { req: ListFilesRequest; res: ListFilesResponse }
-  'fs.listDir': { req: FsListDirRequest; res: FsListDirResponse }
+  'workspace.diff': { req: FsDiffRequest; res: FsDiffResponse }
+  'workspace.read': { req: FsReadRequest; res: FsReadResponse }
+  'workspace.listFiles': { req: ListFilesRequest; res: ListFilesResponse }
+  'workspace.listDir': { req: FsListDirRequest; res: FsListDirResponse }
   'workspace.saveImage': { req: SaveImageDataRequest; res: SaveImageDataResponse }
   'workspace.pickFolder': { req: void; res: PickFolderResponse }
 
-  'conversation.load': { req: ConversationLoadRequest; res: ConversationLoadResponse }
-  'conversation.save': { req: ConversationSaveRequest; res: ConversationSaveResponse }
-  'conversation.delete': { req: ConversationDeleteRequest; res: ConversationDeleteResponse }
-  'conversation.rename': { req: ConversationRenameRequest; res: ConversationRenameResponse }
+  'sessions.load': { req: ConversationLoadRequest; res: ConversationLoadResponse }
+  'sessions.save': { req: ConversationSaveRequest; res: ConversationSaveResponse }
+  'sessions.delete': { req: ConversationDeleteRequest; res: ConversationDeleteResponse }
+  'sessions.rename': { req: ConversationRenameRequest; res: ConversationRenameResponse }
 
-  'reference.add': { req: ReferenceAddRequest; res: ReferenceAddResponse }
-  'reference.list': { req: ReferenceListRequest; res: ReferenceListResponse }
-  'reference.tree': { req: ReferenceTreeRequest; res: ReferenceTreeResponse }
+  'workspace.referenceAdd': { req: ReferenceAddRequest; res: ReferenceAddResponse }
+  'workspace.referenceList': { req: ReferenceListRequest; res: ReferenceListResponse }
+  'workspace.referenceTree': { req: ReferenceTreeRequest; res: ReferenceTreeResponse }
 
   'git.root': { req: GitRootRequest; res: GitRootResponse }
   'git.status': { req: GitStatusRequest; res: GitStatusResponse }

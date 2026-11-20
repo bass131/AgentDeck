@@ -92,6 +92,7 @@ import {
   runManager,
 } from '@main/00_App/context'
 import { getBackend } from '@main/00_App/registry'
+import { getLspManager } from '@main/09_Lsp/manager'
 import { startApp, attachWindow, stopApp } from '@main/00_App/bootstrap'
 import { IPC_CHANNELS } from '../../../../02_Project/00_Source/shared/ipcContract'
 
@@ -260,13 +261,16 @@ describe('기동·종료 배선 — 00_App/bootstrap 한 곳 (M05 G11 4단계)',
     expect(fs.existsSync(path.join(h.userData, 'model-list.json'))).toBe(false)
   })
 
-  it('stopApp은 실행을 모두 닫고 쥔 대화 저장소를 닫는다', () => {
+  it('stopApp은 실행을 모두 닫고 LSP 서버를 끝내고 쥔 대화 저장소를 닫는다', () => {
     startApp()
     const s = h.conversationStores.at(-1)!
     const closeAll = vi.spyOn(runManager, 'closeAll')
+    // M05 Backlog 1 — 앞 사례의 attachWindow가 만든 LSP 관리자. 종료 때 자식 프로세스를 남기지 않는다
+    const disposeAll = vi.spyOn(getLspManager(), 'disposeAll')
     // 루프 구동자 닫기는 기다리지 않는다(앱 종료를 막지 않는다) — stopApp은 동기로 돌아온다
     expect(stopApp()).toBeUndefined()
     expect(closeAll).toHaveBeenCalledTimes(1)
+    expect(disposeAll).toHaveBeenCalledTimes(1)
     expect(s.close).toHaveBeenCalledTimes(1)
   })
 

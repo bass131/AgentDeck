@@ -241,7 +241,6 @@ export interface IpcInvokeMap {
   // M10 G5 — 그래프 읽기(보기 전용)와 알림 목록 읽기
   'loop.graph': { req: LoopCwdRequest; res: LoopGraphResponse }
   'loop.alerts': { req: void; res: LoopAlertList }
-  // M11 G4 — 작업 모드 탐색기가 열린 루프의 작업 폴더를 읽는다
   'loop.listDir': { req: LoopListDirRequest; res: LoopListDirResponse }
 }
 

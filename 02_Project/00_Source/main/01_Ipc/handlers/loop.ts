@@ -31,7 +31,6 @@ export interface LoopDriverApi {
   mainArchives(cwd: string): Promise<MainChatArchives>
   // M10 G5 — 그 작업 폴더의 템플릿을 화면용 그래프로(보기 전용)
   graph(cwd: string): LoopGraphResponse
-  // M11 G4 — 그 작업 폴더의 실행기가 열려 있을 때만 그 뿌리 아래를 읽는다
   listDir(cwd: string, relDir: string): Promise<LoopListDirResponse>
   open(req: LoopOpenRequest): Promise<LoopStatus>
   start(cwd: string, milestoneId: string): Promise<LoopStatus>

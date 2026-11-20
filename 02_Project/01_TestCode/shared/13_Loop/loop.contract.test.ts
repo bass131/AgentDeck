@@ -23,7 +23,7 @@ const STATUS: LoopStatus = {
 }
 
 describe('loop IPC 묶음 (M09 G4)', () => {
-  it('채널 이름 — invoke 열여섯과 push 다섯(M10 G2: 메인 대화 읽기·보내기·새로 열기, 메인 대화 push, 세션 사건 push. M10 G3: 깃발 내리기. M10 G4: 세션 기록 읽기·지난 메인 대화 읽기. M10 G5: 그래프 읽기·알림 읽기, 알림 push·알림 열기 push)', () => {
+  it('채널 이름 — invoke 열일곱과 push 다섯(M10 G2: 메인 대화 읽기·보내기·새로 열기, 메인 대화 push, 세션 사건 push. M10 G3: 깃발 내리기. M10 G4: 세션 기록 읽기·지난 메인 대화 읽기. M10 G5: 그래프 읽기·알림 읽기, 알림 push·알림 열기 push. M11 G4: 작업 폴더 목록)', () => {
     expect(Object.values(LOOP_CHANNELS).sort()).toEqual([
       'loop.alertOpen', 'loop.alerts', 'loop.alertsState',
       'loop.answerCard', 'loop.cancelSession', 'loop.close', 'loop.decide', 'loop.graph', 'loop.listDir', 'loop.lowerFlag', 'loop.mainArchives', 'loop.mainNew', 'loop.mainRead', 'loop.mainSend', 'loop.mainState',
@@ -34,7 +34,7 @@ describe('loop IPC 묶음 (M09 G4)', () => {
     expect(LOOP_CHANNELS.LOOP_STATE).toBe('loop.state')
   })
 
-  it('라우트 — loop 묶음에 요청 하나를 받는 invoke 여덟과 상태 구독 하나', () => {
+  it('라우트 — loop 묶음에 invoke 열일곱(요청 없는 알림 읽기 하나 포함)과 push 구독 다섯', () => {
     expect(API_ROUTES.loop).toEqual({
       open: { kind: 'call', channel: 'loop.open' },
       start: { kind: 'call', channel: 'loop.start' },
@@ -61,10 +61,18 @@ describe('loop IPC 묶음 (M09 G4)', () => {
     })
   })
 
-  it('[M11-G4 M10-16] 작업 폴더 목록은 cwd와 상대 경로를 받고, 열린 실행기가 있을 때만 ok다', () => {
-    const req: ReqOf<'loop.listDir'> = { cwd: 'C:/work/practice', relDir: 'src' }
-    const res: ResOf<'loop.listDir'> = { ok: true, entries: [{ name: 'a.ts', path: `${req.relDir}/a.ts`, kind: 'file' }] }
-    expect(res.entries[0].path).toBe('src/a.ts')
+  it('[M11-G4 M10-16] 작업 폴더 목록은 요청 하나를 받는 invoke이고, 요청은 cwd와 상대 경로만 싣는다', () => {
+    expect(LOOP_CHANNELS.LOOP_LIST_DIR).toBe(IPC_CHANNELS.LOOP_LIST_DIR)
+    expect(API_ROUTES.loop.listDir).toEqual({ kind: 'call', channel: LOOP_CHANNELS.LOOP_LIST_DIR })
+    // @ts-expect-error 상대 경로 없이는 물을 수 없다
+    const bare: ReqOf<'loop.listDir'> = { cwd: 'C:/work/practice' }
+    // @ts-expect-error 화면은 읽을 뿌리를 정하지 못한다(main이 열린 실행기의 뿌리를 쓴다)
+    const rooted: ReqOf<'loop.listDir'> = { cwd: 'C:/work/practice', relDir: '', root: 'C:/' }
+    // @ts-expect-error 응답은 ok를 싣는다(막힘과 빈 폴더를 가른다)
+    const noOk: ResOf<'loop.listDir'> = { entries: [] }
+    void bare
+    void rooted
+    void noOk
   })
 
   it('그래프 읽기와 알림 (M10 G5) — 그래프는 cwd만 받고, 알림 목록은 읽기 응답과 push가 같은 꼴이다', () => {

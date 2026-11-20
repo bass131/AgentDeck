@@ -25,7 +25,7 @@ describe('단일 인스턴스 (M11 G4)', () => {
   async function boot(lock: boolean) {
     vi.resetModules()
     const on = new Map<string, (...a: unknown[]) => void>()
-    const windows: { show: ReturnType<typeof vi.fn>; focus: ReturnType<typeof vi.fn>; restore: ReturnType<typeof vi.fn>; minimized: boolean }[] = []
+    const windows: { show: ReturnType<typeof vi.fn>; focus: ReturnType<typeof vi.fn>; restore: ReturnType<typeof vi.fn>; minimized: boolean; destroyed: boolean }[] = []
     const app = {
       requestSingleInstanceLock: vi.fn(() => lock),
       quit: vi.fn(),
@@ -36,10 +36,11 @@ describe('단일 인스턴스 (M11 G4)', () => {
       static getAllWindows = (): unknown[] => windows
       webContents = { on: vi.fn(), setZoomFactor: vi.fn() }
       minimized = false
+      destroyed = false
       on = vi.fn(); loadURL = vi.fn(); loadFile = vi.fn(); show = vi.fn(); focus = vi.fn(); restore = vi.fn()
       constructor() { windows.push(this) }
       isMinimized = (): boolean => this.minimized
-      isDestroyed = (): boolean => false
+      isDestroyed = (): boolean => this.destroyed
     }
     const startApp = vi.fn()
     const attachWindow = vi.fn()
@@ -78,5 +79,15 @@ describe('단일 인스턴스 (M11 G4)', () => {
     expect(windows[0].restore).toHaveBeenCalledTimes(1)
     expect(windows[0].show).toHaveBeenCalled()
     expect(windows[0].focus).toHaveBeenCalledTimes(1)
+  })
+
+  it('[M11-G4 M10-18] 둘째 실행이 왔을 때 창이 부서졌거나 없으면 아무것도 하지 않는다(던지지 않는다)', async () => {
+    const { on, windows } = await boot(true)
+    const first = windows[0]
+    first.destroyed = true
+    expect(() => on.get('second-instance')?.()).not.toThrow()
+    expect([first.restore.mock.calls.length, first.show.mock.calls.length, first.focus.mock.calls.length]).toEqual([0, 0, 0])
+    windows.splice(0)
+    expect(() => on.get('second-instance')?.()).not.toThrow()
   })
 })

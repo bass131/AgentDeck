@@ -36,7 +36,7 @@ export const LOOP_CHANNELS = {
   LOOP_LIST_DIR: 'loop.listDir',
 } as const
 
-// ok: 그 작업 폴더의 실행기가 열려 있다. 아니면 목록 없이 거짓이다
+// ok: 그 작업 폴더의 실행기가 열려 있고 경로가 작업 저장소 뿌리 아래다. 아니면 목록 없이 거짓이다(빈 폴더와 다르다)
 export interface LoopListDirRequest { cwd: string; relDir: string }
 export interface LoopListDirResponse { ok: boolean; entries: FileTreeNode[] }
 

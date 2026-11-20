@@ -24,6 +24,7 @@
 // (사용자 판정 2026-11-13). 그런 꼴은 expectNoPass로 두고 근거를 단다. 기준 판독이 읽는 강제 push 꼴은 반드시 expectDeny다.
 // `gh api`의 쓰기·보호 설정 호출과 `gh repo edit`·`delete`는 질의다 — 서버 보호를 푸는 경로이기 때문이다.
 // 「기준 대비 회귀 방지」 구획은 push 밖 규칙과 정상 heredoc 커밋·PR 본문의 판정이 기준 가드와 같음을 고정한다.
+// M11 goal 8부터 가드는 작업 폴더의 현재 브랜치를 읽는다 — `master`일 때만 push·병합을 더 묻는다(M08-2). 미러 저장소의 머리로 고정한다.
 import { readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { createRunner } from './_lib/runner.mjs'
@@ -242,13 +243,16 @@ try {
   }
 
   console.log('push 서버 보호 — 가드가 읽지 못해 서버 보호에 맡기는 꼴 (무출력이어도 된다, 명시적 통과는 아니다)')
+  // M11 goal 8(M08-2·M04-10) — 같은 명령 안에서 master로 옮긴 뒤의 push·병합은 질의, 강제 이름 바꾸기는 차단(M05-8)으로 좁혔다
   for (const cmd of [
-    // 목적지가 다른 세그먼트·저장소 상태·설정으로 정해진다 — master는 서버가 PR 필수로 거부한다
     'git checkout master && git merge --no-ff chore/m04-goal-loop && git push',
     'git switch master && git push origin',
     'git checkout master; git pull; git push origin HEAD',
     'git rebase chore/m04-goal-loop master && git push',
-    'git branch -M master && git push origin HEAD',
+  ]) expectAsk(cmd)
+  expectDeny('git branch -M master && git push origin HEAD')
+  for (const cmd of [
+    // 목적지가 다른 세그먼트의 설정·입력·셸 확장으로 정해진다 — master는 서버가 PR 필수로 거부한다
     'git config remote.origin.push HEAD:master && git push',
     'echo master | xargs git push origin',
     // 셸 확장 — 변수·명령 치환·중괄호 확장
@@ -319,8 +323,6 @@ try {
     'git push 2>&1 origin master',
     'git push origin 2>&1 HEAD:master',
     'git push origin >&2 master',
-    // 주석 속 아포스트로피가 인용을 연다
-    "# don't forget\ngit push --force origin chore/x",
     // 백슬래시 이스케이프·ANSI-C 인용 — 셸은 `\+`를 `+`로, `$'--force'`를 `--force`로 넘긴다
     'git push origin \\+chore/x',
     'git push \\--force origin chore/x',
@@ -329,16 +331,9 @@ try {
     "git push $'--force' origin chore/x",
     'git push origin \\:chore/x',
     'git push origin m\\aster',
-    // 제어 구문·래퍼 머리·eval — 명령 위치를 머리 토큰과 기준 래퍼 목록으로만 읽는다
-    'if true; then git push -f origin x; fi',
-    'for b in a b; do git push -f origin $b; done',
-    'while true; do git push --force; done',
-    '! git push -f',
-    'timeout 60 git push --force',
-    'nice -n 10 git push --force',
+    // git 전역 옵션의 값 — 판독이 옵션 값을 하위 명령으로 읽는다
     'git --config-env a=B push --force',
     'git --attr-source HEAD push --force',
-    'eval "git push --force origin x"',
     // `--f`·`--fo`는 `--follow-tags`와 겹치는 모호한 축약이라 git이 거부한다 — 강제 축약은 `--for`부터 센다
     'git push --f origin chore/x',
     'git push --fo origin chore/x',
@@ -348,6 +343,17 @@ try {
     // 인용이 닫히지 않는 명령 — bash가 구문 오류로 아무것도 실행하지 않는다 (`bash -n` 실측 exit 2)
     "echo it's\ngit push -f origin chore/x\necho 'ok'",
   ]) expectNoPass(cmd)
+  // M04-10 — 위 묶음에 있던 꼴 가운데 지금 판독(논리 줄 판독·셸 문법 낱말·래퍼 표·eval 다시 읽기)이 읽는 꼴은 정확히 차단으로 고정한다
+  for (const cmd of [
+    "# don't forget\ngit push --force origin chore/x",
+    'if true; then git push -f origin x; fi',
+    'for b in a b; do git push -f origin $b; done',
+    'while true; do git push --force; done',
+    '! git push -f',
+    'timeout 60 git push --force',
+    'nice -n 10 git push --force',
+    'eval "git push --force origin x"',
+  ]) expectDeny(cmd)
   // `-o`는 값을 먹는다 — `-ofoo`·`-odeploy`의 글자는 강제·삭제가 아니다
   for (const cmd of ['git push -ofoo origin x', 'git push -odeploy origin x', 'git push -o deploy origin x',
     'git push --fol origin chore/x', 'git push --follow-tags origin chore/x', 'git push --prune-tags origin',
@@ -445,20 +451,24 @@ try {
   for (const cmd of ['git push \\\n  -u origin feature/x']) expectSilent(cmd)
 
   console.log('push 규칙 — 가드가 읽지 못하는 꼴도 명시적 통과는 아니다 (작업 브랜치 격리로 감수 — 사용자 판정 2026-11-13, master는 서버 보호)')
+  // M04-10 — 지금 판독이 읽는 꼴은 정확히 질의로 고정한다
   for (const cmd of [
     "# don't forget\ngit push origin master",
     "echo ok # it's fine\ngit push origin master\necho 'done'",
+    '! git push origin master',
+    'eval "git push origin master"',
+    'timeout 60 git push origin master',
+    "cat > notes.txt <<EOF\ndon't\nEOF\ngit push origin master",
+    "cat <<'A B'\nx\nA B\ngit push origin master",
+    'gh api -X PUT 2>&1 repos/o/r/pulls/12/merge',
+  ]) expectAsk(cmd)
+  for (const cmd of [
     'git push>/dev/null origin master',
     'git push</dev/null origin master',
     'git pu\\sh origin master',
     'g\\it push origin master',
-    '! git push origin master',
     '>/dev/null git push origin master',
-    'eval "git push origin master"',
-    'timeout 60 git push origin master',
     'git push origin feature/x 2>&1 master',
-    "cat > notes.txt <<EOF\ndon't\nEOF\ngit push origin master",
-    "cat <<'A B'\nx\nA B\ngit push origin master",
     'f() { git push origin master; }; f',
     "bash -c 'bash -c \"bash -c \\\"bash -c git\\\\ push\\\"\"'",
     'git push origin feature/x | tail -5 master',
@@ -479,7 +489,7 @@ try {
     'git push\r\ngit push origin master',
   ]) expectAsk(cmd)
 
-  console.log('push 서버 보호 — 저장소 상태는 판정을 바꾸지 않는다 (작업 브랜치를 체크아웃한 진짜 저장소)')
+  console.log('push 서버 보호 — 작업 브랜치 머리의 저장소에서는 판정이 그대로다 (현재 브랜치가 master일 때만 더 묻는다, M08-2)')
   {
     h.initRepo(h.mirror, { head: WORK, branches: ['feature/x', 'master'] })
     r.judge('미러 저장소의 현재 브랜치', h.git(h.mirror, 'rev-parse', '--abbrev-ref', 'HEAD'), WORK)
@@ -646,8 +656,8 @@ try {
     'timeout 60 rm -rf dist',
   ]) expectDeny(cmd)
   for (const cmd of ['timeout 60 npm publish', 'timeout 60 git push origin master', 'sudo -u root git push origin master']) expectAsk(cmd)
-  // `2>&1` 뒤의 낱말은 기준 판독이 다른 세그먼트로 읽는다(위 「기준 판독이 못 읽는 꼴」) — 끝점을 못 읽어도 쓰기라 묻기로 남는다
-  expectNoPass('gh api -X PUT 2>&1 repos/o/r/pulls/12/merge')
+  // `2>&1` 뒤의 낱말은 기준 판독이 다른 세그먼트로 읽는다(위 「기준 판독이 못 읽는 꼴」) — 끝점을 못 읽어도 쓰기라 묻기로 남는다.
+  // 정확한 질의 고정은 위 「지금 판독이 읽는 꼴」 묶음에 있다(M04-10).
   // 값을 받는 래퍼 옵션의 값은 명령이 아니다 — `nice -n 10 ls`의 `10`, `sudo -u rm ls`의 `rm`
   for (const cmd of ['nice -n 10 ls', 'sudo -u rm ls -la', 'xargs -I rm echo rm', 'timeout -s rm 5 ls']) expectSilent(cmd)
   // 루프가 실제로 쓰는 커밋·PR 꼴 — `&&` 앞 단계가 있어도 heredoc 본문은 면제 소비자의 본문이다 (검수 중요 1)
@@ -836,8 +846,8 @@ try {
   for (const cmd of [
     'gh api repos/o/r/git/refs/heads/x 2>&1 -X DELETE',
     'gh api repos/o/r/issues 2>&1 -f title=x',
-    'gh pr merge>/dev/null 12',
   ]) expectNoPass(cmd)
+  expectDeny('gh pr merge>/dev/null 12') // M04-10 — 동사에 붙은 리다이렉트를 떼고 읽는다(병합 차단 구획과 같다)
   for (const cmd of [
     'gh api repos/x/y/pulls',
     'gh api -X GET repos/o/r/pulls',
@@ -1267,9 +1277,12 @@ try {
   ]) expectDeny(cmd)
   // 기준에서도 무출력이던 꼴 — 기존 한계이고 이번 goal 범위 밖이다. 판정이 기준과 같은지만 본다.
   // 줄 이음 꼴(`git reset \⏎ --hard`)은 M06 G5부터 읽어 「줄 이음」 구획이 deny로 고정한다.
-  for (const cmd of ['git reset --hard>/dev/null', '>out git reset --hard',
-    'if true; then git reset --hard; fi', 'timeout 5 git reset --hard', "bash <<'EOF'\n# don't\ngit reset --hard\nEOF"]) {
+  for (const cmd of ['git reset --hard>/dev/null', '>out git reset --hard']) {
     expectNoPass(cmd)
+  }
+  // M04-10 — 셸 문법 낱말·래퍼 표·논리 줄 판독이 읽게 된 꼴은 정확히 차단으로 고정한다
+  for (const cmd of ['if true; then git reset --hard; fi', 'timeout 5 git reset --hard', "bash <<'EOF'\n# don't\ngit reset --hard\nEOF"]) {
+    expectDeny(cmd)
   }
   for (const cmd of ['echo a\\ #b; echo SECOND', 'echo $(echo z)#x; echo SECOND', 'git checkout -b x 2>&1', 'git reset --soft HEAD~1 2>&1']) {
     expectSilent(cmd)
@@ -1299,11 +1312,12 @@ try {
   expectAsk("git commit -m \"$(cat <<'EOF'\nfix: \"PR #12\" wording\nEOF\n)\" && git push origin --delete chore/x")
   // 본문의 짝 없는 따옴표(`don't`·`5"`)가 기준 판독의 인용 상태를 어긋나게 해 뒤의 강제 push가 가려진다 —
   // 작업 브랜치 격리로 감수 (사용자 판정 2026-11-13, master는 서버 보호)
+  expectNoPass("git commit -m $'fix: don\\'t' && git push --force")
+  // M04-10 — 논리 줄 판독이 본문을 따로 읽어 뒤의 강제 push를 잡는 꼴은 정확히 차단으로 고정한다
   for (const cmd of [
     "git commit -m \"$(cat <<'EOF'\nfix: handle \"don't\" case\nEOF\n)\" && git push --force-with-lease",
     "git commit --amend -m \"$(cat <<'EOF'\nfix: 5\" display\nEOF\n)\" && git push -f",
-    "git commit -m $'fix: don\\'t' && git push --force",
-  ]) expectNoPass(cmd)
+  ]) expectDeny(cmd)
 
   console.log('통과해야 하는 명령 → allow (exit 0 + 무출력)')
   for (const cmd of [
@@ -1366,6 +1380,93 @@ try {
 
   console.log('판정 대상 없음 → 조용히 통과')
   r.judge('command 없는 payload', h.verdictPayload({ tool_name: 'Read', tool_input: { file_path: 'a.ts' } }), 'allow')
+
+  // ── M11 goal 8 가드 규칙 ─────────────────────────────────────────────────────────────
+  console.log('셸 -c 옵션 구간 — +c, 여러 o, 대시 하나 긴 옵션, .exe 셸 (M03-28)')
+  for (const cmd of [
+    'bash +c "rm -rf dist"',
+    'bash -coo pipefail errexit "rm -rf dist"',
+    'bash -login -ce "rm -rf dist"',
+    'bash -posix -c "rm -rf dist"',
+    'bash -noprofile -c "rm -rf dist"',
+    'dash.exe -c "rm -rf dist"',
+    'zsh.exe -c "rm -rf dist"',
+  ]) expectDeny(cmd)
+  for (const cmd of ['bash -login -c "npm test"', 'bash +x run.sh', 'zsh.exe run.sh']) expectSilent(cmd)
+
+  console.log('heredoc 면제 판독의 이스케이프 — 인용부 밖 `\\"`가 리다이렉트를 가리지 않는다 (M03-32)')
+  expectDeny("cat -\\\" -->run.sh <<'EOF'\nrm -rf dist\nEOF")
+  expectSilent("cat -\\\" <<'EOF'\nrm -rf dist\nEOF")
+
+  console.log('브랜치 포인터 강제 이동·이름 바꾸기, git --output (M04-8 · M05-8)')
+  for (const cmd of ['git branch -f master chore/x', 'git branch --force master chore/x', 'git branch -M master', 'git branch -fM x y',
+    'git branch -C chore/x master']) expectDeny(cmd)
+  for (const cmd of ['git branch -m chore/x master', 'git branch --move old new', 'git log --output=C:/tmp/x.txt', 'git diff --output x.patch',
+    'git show --output=../x HEAD']) expectAsk(cmd)
+  for (const cmd of ['git branch -vv', 'git branch -a', 'git branch --list', 'git branch -r --merged', 'git diff --output-indicator-new=+',
+    'git log --oneline -5', 'git branch chore/new']) expectSilent(cmd)
+
+  console.log('저장소·비밀·별칭 바꾸기와 원격 실행 옵션은 질의 (M05-9)')
+  for (const cmd of ['gh repo rename new-name', 'gh repo archive o/r --yes', 'gh repo sync --force', 'gh repo sync o/r --force --branch master',
+    'gh secret set TOKEN --body x', 'gh secret delete TOKEN', 'gh alias set co "pr merge"', 'gh alias import aliases.yml',
+    'git push --receive-pack="sh -c x" origin chore/x', 'git push --exec=x origin chore/x', 'git fetch --upload-pack=x origin',
+    'git ls-remote --upload-pack x origin', 'git clone --upload-pack=x https://example.invalid/r.git']) expectAsk(cmd)
+  for (const cmd of ['gh repo sync', 'gh repo view', 'gh secret list', 'gh alias list']) expectSilent(cmd)
+
+  console.log('앱 데이터 폴더(엔진·엔진 설정)를 건드리는 셸 명령은 질의 (M07-1)')
+  for (const cmd of [
+    'node -e "require(\'fs\').writeFileSync(\'C:/Users/u/AppData/Roaming/agentdeck/engine-config.json\', \'{}\')"',
+    'cp x.js ~/AppData/Roaming/agentdeck/engines/1.0.0/index.js',
+    'cd "$APPDATA/agentdeck" && node -e "x"',
+    'rm %APPDATA%\\agentdeck\\engine-config.json',
+    'python -c "open(r\'C:\\Users\\u\\AppData\\Roaming\\agentdeck\\engines\\x\', \'w\')"',
+    'echo {} > ~/AppData/Roaming/agentdeck/engine-config.json',
+    'pushd ~/AppData/Roaming/agentdeck; rm engine-config.json',
+  ]) expectAsk(cmd)
+  expectSilent('git commit -m "docs: AppData/Roaming/agentdeck 경로 설명" && npm test')
+  for (const cmd of ['ls ~/AppData/Roaming/agentdeck', 'cat C:/Users/u/AppData/Roaming/agentdeck/engine-config.json',
+    'grep -r version ~/AppData/Roaming/agentdeck/engines', 'git commit -m "docs: AppData/Roaming/agentdeck 경로 설명"',
+    'echo ~/AppData/Roaming/agentdeck', 'node scripts/read-engine-config.mjs']) expectSilent(cmd)
+
+  console.log('PowerShell 꼴로 감싼 병합 — iex·Invoke-Expression·Start-Process, 인용한 eval (Backlog 28·17)')
+  for (const cmd of [
+    'iex "gh pr merge 1"',
+    'Invoke-Expression "gh pr merge 1"',
+    'Invoke-Expression -Command "gh pr merge 1 --merge"',
+    "Start-Process gh -ArgumentList 'pr merge 1'",
+    'Start-Process -FilePath gh -ArgumentList "pr","merge","1"',
+    "saps gh 'pr merge 1'",
+    'eval "gh pr merge 1"',
+  ]) expectDenyRule(cmd, 'gh-pr-merge')
+  for (const cmd of ['iex "npm test"', 'Start-Process notepad', 'git commit -m "iex gh pr merge 1 은 막힌다"', 'echo Start-Process gh']) expectSilent(cmd)
+
+  console.log('병합 차단 안내가 새 뜻을 말한다 — master는 사람, goal은 로컬 git merge --no-ff (M08-5)')
+  {
+    const res = h.run('gh pr merge 12 --merge')
+    r.check('안내 — `master`로 가는 병합은 사람이 한다', res.code === 2 && res.stderr.includes('`master`로 가는 병합은 사람이 합니다'), String(res.stderr).slice(0, 160))
+    r.check('안내 — goal PR은 에이전트가 로컬 `git merge --no-ff`로 마일스톤 브랜치에 합친다',
+      res.stderr.includes('goal PR은 에이전트가 로컬 `git merge --no-ff`로 마일스톤 브랜치에 합치고'), String(res.stderr).slice(0, 400))
+    r.check('안내 — 대상 브랜치와 관계없이 병합 명령을 쓰지 않는다', res.stderr.includes('대상 브랜치와 관계없이'), '')
+  }
+
+  console.log('현재 브랜치가 master면 맨 push·병합은 질의 (M08-2)')
+  {
+    h.initRepo(h.mirror, { head: 'master', branches: ['chore/x'] })
+    for (const cmd of ['git push', 'git push origin', 'git push origin HEAD', 'git push -u origin chore/x', 'git merge --no-ff chore/x',
+      'git merge --ff-only origin/master', 'timeout 60 git push']) expectAsk(cmd)
+    for (const cmd of ['git status', 'git pull', 'git fetch origin', 'git switch -c chore/y', 'git log --oneline -3']) expectSilent(cmd)
+    // worktree — `.git`이 파일(gitdir: …)인 작업 폴더도 머리를 읽는다
+    const wt = join(h.mirror, 'wt')
+    h.git(h.mirror, 'worktree', 'add', '-q', '-b', 'chore/wt', wt)
+    r.judge('worktree 머리 chore/wt — 맨 push 무출력', decisionOf(h.runAt('git push', wt)), 'silent')
+    h.git(wt, 'switch', '-q', '--detach')
+    r.judge('worktree 분리 머리 — 맨 push 무출력', decisionOf(h.runAt('git push', wt)), 'silent')
+    h.git(h.mirror, 'switch', '-q', 'chore/x')
+    r.judge('같은 명령 안에서 master로 옮긴 뒤의 push·병합 — 질의', decision('git checkout master && git merge --no-ff chore/x && git push'), 'ask')
+    for (const cmd of ['git switch master && git push origin', 'git checkout master; git pull; git push origin HEAD',
+      'git rebase chore/m04-goal-loop master && git push']) expectAsk(cmd)
+    for (const cmd of ['git push', 'git merge --no-ff -m "Merge chore/y" chore/y', 'git checkout master', 'git pull origin master']) expectSilent(cmd)
+  }
 
   // ── 정형 절차 명령 (M11 goal 8) — 메인의 goal 병합·push·PR 사슬은 마일스톤 브랜치 머리에서 질문 없이 지나간다 ──
   // 설정 쪽 판정은 settings-matcher.test.mjs가 같은 목록으로 본다.

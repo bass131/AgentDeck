@@ -25,7 +25,7 @@ type Quote = '"' | "'" | null
 const isEscape = (quote: Quote, ch: string, next: string | undefined): boolean =>
   ch === '\\' && next !== undefined && (quote === '"' ? DQ_ESCAPABLE.has(next) : quote === null && BARE_ESCAPABLE.has(next))
 
-const SHELLS = new Set(['sh', 'bash', 'dash', 'zsh', 'ksh', 'ash', 'sh.exe', 'bash.exe'])
+const SHELLS = new Set(['sh', 'bash', 'dash', 'zsh', 'ksh', 'ash', 'sh.exe', 'bash.exe', 'dash.exe', 'zsh.exe', 'ksh.exe', 'ash.exe'])
 // heredoc 앞이 셸 실행(`bash <<EOF`, `sh -s <<EOF`)이면 본문이 명령이다.
 const SHELL_TAIL = /(?:^|[\s;&|(])(?:\S*[\\/])?(?:ba|da|z|k|a)?sh(?:\.exe)?(?:\s+-\S+)*\s*$/i
 
@@ -193,7 +193,9 @@ function takesValue(spec: WrapperSpec, t: string): boolean {
 // `sh [옵션…] -c [옵션…] [--] 스크립트`의 스크립트(가드 shellScriptsOf와 같다, M11 G3). 짧은 묶음 어디의 `c`든 -c 모드이고
 // (`-ce`·`-lc`), 스크립트는 옵션 구간 뒤 첫 낱말이다(`bash -c -x "…"`). `-o`·`-O` 묶음과 `--rcfile`·`--init-file`은 값을 먹는다.
 // `-c` 꼴 낱말 바로 뒤의 낱말도 합집합으로 본다. -c 모드가 아니면(`bash -x run.sh`) 파일 이름이라 없다.
+// M11 G8(M03-28): `+c`도 -c 모드이고, 묶음의 `o`·`O`마다 값을 하나씩 먹으며, 대시 하나짜리 긴 옵션(`-login`)은 값을 먹지 않는다.
 const SHELL_VALUE_LONG = new Set(['--rcfile', '--init-file'])
+const SHELL_LONG_WORDS = new Set(['login', 'noprofile', 'norc', 'posix', 'restricted', 'verbose', 'version', 'help', 'debugger', 'noediting', 'dump-strings', 'dump-po-strings', 'pretty-print'])
 function shellScriptsOf(args: string[]): string[] {
   const at = new Set<number>()
   let cMode = false
@@ -202,9 +204,10 @@ function shellScriptsOf(args: string[]): string[] {
     const t = args[i]
     if (t === '--' || t === '-') { i++; break }
     if (t.startsWith('--')) { i += SHELL_VALUE_LONG.has(t) ? 2 : 1; continue }
+    if (t[0] === '-' && SHELL_LONG_WORDS.has(t.slice(1))) { i++; continue }
     if (!/^[-+][A-Za-z]+$/.test(t)) break
-    if (t[0] === '-' && t.includes('c')) cMode = true
-    i += /[oO]/.test(t) ? 2 : 1
+    if (t.includes('c')) cMode = true
+    i += 1 + (t.match(/[oO]/g)?.length ?? 0)
   }
   if (cMode && i < args.length) at.add(i)
   const k = args.findIndex((t) => RE_SHELL_C.test(t))
@@ -297,8 +300,41 @@ const POWERSHELLS = new Set(['powershell', 'powershell.exe', 'pwsh', 'pwsh.exe']
 const PS_COMMAND = /^[-/](?:c|co|com|comm|comma|comman|command)$/i
 const PS_FILE = /^[-/](?:f|fi|fil|file)$/i
 
+// PowerShell이 인자를 스크립트로 돌리는 명령 (M11 G8 · Backlog 28) — `iex`·`Invoke-Expression`, `Start-Process`.
+// 가드(dangerous-cmd-guard.mjs)의 evaluatedScriptOf와 같은 판독이다.
+const PS_EVAL = new Set(['iex', 'invoke-expression'])
+const PS_START = new Set(['start-process', 'saps'])
+const PS_START_SWITCH = new Set(['nonewwindow', 'passthru', 'wait', 'loaduserprofile', 'usenewenvironment'])
+const PS_EVAL_COMMAND = /^-c(?:o(?:m(?:m(?:a(?:n(?:d)?)?)?)?)?)?(?::(.*))?$/i
+function startProcessScript(args: string[]): string | null {
+  let file: string | undefined
+  const list: string[] = []
+  const positional: string[] = []
+  for (let i = 0; i < args.length; i++) {
+    const t = args[i]
+    if (!t.startsWith('-')) { positional.push(t); continue }
+    const [rawName, ...attached] = t.slice(1).split(':')
+    const name = rawName.toLowerCase()
+    const value = (): string | undefined => (attached.length ? attached.join(':') : args[++i])
+    if (name === 'args' || (name.length > 0 && 'argumentlist'.startsWith(name))) { const v = value(); if (v !== undefined) list.push(v) }
+    else if (name === 'path' || name === 'pspath' || (name.length > 0 && 'filepath'.startsWith(name))) file = value()
+    else if (!PS_START_SWITCH.has(name)) value()
+  }
+  file ??= positional.shift()
+  if (!list.length && positional.length) list.push(positional.shift() as string)
+  if (!file) return null
+  return [file, ...list.flatMap((v) => v.split(','))].join(' ')
+}
+
 // Windows 셸이면 안쪽에서 실행될 스크립트 후보를, 아니면 null을 돌려준다.
 function windowsShellScripts(c: Cmd): string[] | null {
+  if (PS_EVAL.has(c.base)) {
+    return [c.args.flatMap((t) => { const m = PS_EVAL_COMMAND.exec(t); return !m ? [t] : m[1] ? [m[1]] : [] }).join(' ')]
+  }
+  if (PS_START.has(c.base)) {
+    const s = startProcessScript(c.args)
+    return s === null ? [] : [s]
+  }
   if (CMD_SHELLS.has(c.base)) {
     const k = c.args.findIndex((t) => /^\/[ck]$/i.test(t))
     return k >= 0 ? [c.args.slice(k + 1).join(' ')] : []

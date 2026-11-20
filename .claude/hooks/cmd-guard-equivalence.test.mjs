@@ -31,6 +31,7 @@
 // 선택 모드 — `--report`는 행별 실측을 표로 찍고, `--moodie`는 Moodie 원본 가드를 같은 미러에서
 //   교차 구동해 moodie 열을 실측 대조한다(원본 저장소가 없으면 건너뛴다). 둘 다 test:hooks 기본 경로 밖이다.
 import { existsSync, readFileSync } from 'node:fs'
+import { registerHooks } from 'node:module'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { createRunner } from './_lib/runner.mjs'
@@ -198,6 +199,45 @@ const ENV_SPLIT_ROWS = [
   { id: 'ES-21', cmd: 'env -S "x #" gh pr merge 1', expect: 'allow' },
   { id: 'ES-22', cmd: 'env -a x -S "gh pr merge 1"', expect: 'deny' },
 ]
+// 세 판정기의 같음 (M11 goal 8 · Backlog 17) — 가드·앱 병합 잠금(mergeDeny)·앱 루프 잠금(loopLock)을 한 표에 돌린다.
+//   가드 열은 병합 축이다 — 병합 규칙(MERGE_RULES)으로 차단했으면 deny다. 루프 잠금은 모든 원격 쓰기를 막으므로 push 꼴은 deny가 맞다.
+//   note가 있는 행은 의도한 차이다 — 판정기마다 맡은 범위가 달라서 생긴다.
+const MERGE_RULES = new Set(['gh-pr-merge', 'gh-api-병합', 'gh-graphql-병합'])
+const APP_LOOP_LOCK = join(REPO_ROOT, '02_Project', '00_Source', 'main', '04_Claude', 'permission', 'loopLock.ts')
+const LOOP_SCOPE = { repoRoot: 'C:\\work\\repo', appLoopDir: 'C:\\Users\\u\\AppData\\Roaming\\agentdeck\\loop', tempDirs: ['C:\\Users\\u\\AppData\\Local\\Temp'] }
+const merged = (id, cmd) => ({ id, cmd, guard: 'deny', merge: 'deny', loop: 'deny' })
+const clean = (id, cmd) => ({ id, cmd, guard: 'allow', merge: 'allow', loop: 'allow' })
+const THREE_WAY_ROWS = [
+  merged('TW-01', 'gh pr merge 1'),
+  merged('TW-02', 'timeout -vs KILL 5 gh pr merge 1'),
+  merged('TW-03', 'bash -ce "gh pr merge 1"'),
+  merged('TW-04', 'bash -c -x "gh pr merge 1"'),
+  merged('TW-05', 'eval gh pr merge 1'),
+  merged('TW-06', 'eval "gh pr merge 1"'),
+  merged('TW-07', 'find . -maxdepth 0 -exec gh pr merge 1 \\;'),
+  merged('TW-08', 'iex "gh pr merge 1"'),
+  merged('TW-09', 'Invoke-Expression -Command "gh pr merge 1"'),
+  merged('TW-10', "Start-Process gh -ArgumentList 'pr merge 1'"),
+  merged('TW-11', 'bash +c "gh pr merge 1"'),
+  merged('TW-12', 'bash -login -ce "gh pr merge 1"'),
+  merged('TW-13', 'zsh.exe -c "gh pr merge 1"'),
+  merged('TW-14', 'env -S "gh pr merge 1"'),
+  merged('TW-15', 'gh api -X PUT repos/o/r/pulls/1/merge'),
+  clean('TW-20', 'npm test'),
+  clean('TW-21', 'git status'),
+  clean('TW-22', 'iex "npm test"'),
+  clean('TW-23', 'Start-Process notepad'),
+  clean('TW-24', 'bash -login -c "npm test"'),
+  clean('TW-25', 'echo gh pr merge 1'),
+  clean('TW-26', 'git commit -m "gh pr merge 1 은 막힌다"'),
+  { id: 'TW-30', cmd: 'git push origin x', guard: 'allow', merge: 'allow', loop: 'deny', note: '루프 잠금은 모든 push를 막는다' },
+  { id: 'TW-31', cmd: 'timeout 5 git push origin x', guard: 'allow', merge: 'allow', loop: 'deny', note: '감싼 push — 루프 잠금만 막는다' },
+  { id: 'TW-32', cmd: 'bash -ce "git push origin x"', guard: 'allow', merge: 'allow', loop: 'deny', note: '셸 -c push — 루프 잠금만 막는다' },
+  { id: 'TW-33', cmd: 'iex "git push origin x"', guard: 'allow', merge: 'allow', loop: 'deny', note: 'iex push — 루프 잠금만 막는다' },
+  { id: 'TW-34', cmd: "Start-Process git -ArgumentList 'push origin x'", guard: 'allow', merge: 'allow', loop: 'deny', note: 'Start-Process push — 루프 잠금만 막는다' },
+  { id: 'TW-35', cmd: 'gh api repos/o/r/pulls/1/merge', guard: 'allow', merge: 'deny', loop: 'allow', note: '병합 끝점 읽기 — 가드·루프 잠금은 쓰기만 막고, 병합 잠금은 끝점이 보이면 막는다' },
+  { id: 'TW-36', cmd: 'powershell -Command "gh pr merge 1"', guard: 'allow', merge: 'deny', loop: 'deny', note: 'powershell -Command — 가드는 읽지 않는다(M03-24 v2, 설정이 PowerShell 도구를 막는다)' },
+]
 // 표의 행 — `['이름', { valueOpts: … }]` 꼴의 줄을 글 그대로 모은다
 const wrapperRows = (path) => readFileSync(path, 'utf8').split('\n').map((l) => l.trim()).filter((l) => /^\['[a-z]+', \{ valueOpts: /.test(l))
 
@@ -234,6 +274,28 @@ try {
       if (report) console.log(`${row.id}\t가드 ${guard}\t앱 ${app}\t기대 ${row.expect}`)
       r.judge(`${label(row)} 가드`, guard, row.expect)
       r.judge(`${label(row)} 앱`, app, row.expect)
+    }
+
+    // 세 판정기 (M11 goal 8 · Backlog 17) — loopLock.ts는 확장자 없는 './mergeDeny'를 import하므로 해석 훅으로 `.ts`를 붙인다
+    registerHooks({
+      resolve(spec, ctx, next) {
+        try { return next(spec, ctx) } catch (e) {
+          if (/^\.\.?\//.test(spec) && !/\.[cm]?[jt]s$/.test(spec)) return next(`${spec}.ts`, ctx)
+          throw e
+        }
+      },
+    })
+    const { loopCommandReason } = await import(pathToFileURL(APP_LOOP_LOCK).href)
+    for (const row of THREE_WAY_ROWS) {
+      const res = h.run(row.cmd)
+      const last = h.logLines().at(-1)
+      const guard = res.code === 2 && last?.verdict === 'deny' && MERGE_RULES.has(last?.rule) ? 'deny' : 'allow'
+      const merge = mergeDenyReason(row.cmd) === null ? 'allow' : 'deny'
+      const loop = loopCommandReason(row.cmd, LOOP_SCOPE) === null ? 'allow' : 'deny'
+      if (report) console.log(`${row.id}\t가드 ${guard}\t병합잠금 ${merge}\t루프잠금 ${loop}`)
+      r.judge(`${label(row)} 가드(병합 축)`, guard, row.guard, { note: row.note })
+      r.judge(`${label(row)} 병합 잠금`, merge, row.merge, { note: row.note })
+      r.judge(`${label(row)} 루프 잠금`, loop, row.loop, { note: row.note })
     }
   }
 

@@ -289,6 +289,42 @@ describe('merge-deny — 가드와 같은 판독 (M11 G3)', () => {
   }
 })
 
+describe('merge-deny — 가드와 같은 판독 (M11 G8)', () => {
+  const probes = [
+    // Backlog 28 — PowerShell이 인자를 스크립트로 돌리는 꼴
+    'iex "gh pr merge 1"',
+    'Invoke-Expression "gh pr merge 1"',
+    'Invoke-Expression -Command "gh pr merge 1 --merge"',
+    "Start-Process gh -ArgumentList 'pr merge 1'",
+    'Start-Process -FilePath gh -ArgumentList "pr","merge","1"',
+    "saps gh 'pr merge 1'",
+    "powershell -Command \"iex 'gh pr merge 1'\"",
+    // M03-28 — +c, 여러 o, 대시 하나 긴 옵션, .exe 셸
+    'bash +c "gh pr merge 1"',
+    'bash -coo pipefail errexit "gh pr merge 1"',
+    'bash -login -ce "gh pr merge 1"',
+    'dash.exe -c "gh pr merge 1"',
+    'zsh.exe -c "gh pr merge 1"',
+  ]
+  for (const cmd of probes) {
+    it(`[M11-G8 M11-28 M03-28] 거부: ${JSON.stringify(cmd)}`, () => {
+      expect(mergeDenyReason(cmd)).not.toBeNull()
+    })
+  }
+  const passed = [
+    'iex "npm test"',
+    'Start-Process notepad',
+    'Start-Process gh -ArgumentList "pr view 1"',
+    'git commit -m "iex gh pr merge 1 은 막힌다"',
+    'bash -login -c "npm test"',
+  ]
+  for (const cmd of passed) {
+    it(`통과: ${JSON.stringify(cmd)}`, () => {
+      expect(mergeDenyReason(cmd)).toBeNull()
+    })
+  }
+})
+
 describe('merge-deny 훅과 노드 정보 (M07 G8)', () => {
   it('훅은 command 입력의 병합 꼴을 거부 결정으로, 나머지는 빈 출력으로 돌려준다', async () => {
     const matcher = buildMergeDenyHook()

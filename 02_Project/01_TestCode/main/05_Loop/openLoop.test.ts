@@ -4,6 +4,7 @@
 // 상태 파일을 밖에서 고치면 멈추며, 저장소당 실행기는 하나다.
 // 재검수 반영: 실물 gh는 origin에서 정한 저장소로 고정하고(-R), PR 머리를 git replace로 바꿔치기해도 원격 병합 트리는 CI 머리의 트리다.
 import fs from 'node:fs'
+import os from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import type { AgentBackend, AgentRun, AgentRunInput } from '@main/03_Agent/AgentBackend'
@@ -217,6 +218,16 @@ describe('openLoop — 위조 방어와 저장소당 하나', () => {
     fs.mkdirSync(plain)
     const r = await openLoop({ cwd: plain, appDataDir: appData, session, review, gh, template: TEMPLATE, executorEnv: repos.env })
     expect(r.ok).toBe(false)
+  })
+
+  it('[M11-G3 M09-4 검수] 좁힌 PATH에서 git을 못 찾으면 「저장소가 아니다」가 아니라 사용자 프로필 밖 설치를 안내한다', async () => {
+    const env: NodeJS.ProcessEnv = {}
+    for (const [k, v] of Object.entries(repos.env)) if (k.toLowerCase() !== 'path') env[k] = v
+    env.PATH = path.join(os.homedir(), 'agentdeck-no-such-bin')
+    const r = await openLoop({ cwd: repos.work, appDataDir: appData, session, review, gh, template: TEMPLATE, executorEnv: env })
+    expect(r.ok).toBe(false)
+    expect(!r.ok && r.reason).toContain('사용자 프로필 밖')
+    expect(!r.ok && r.reason).not.toContain('git 작업 저장소가 아니다')
   })
 })
 

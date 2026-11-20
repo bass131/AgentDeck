@@ -35,6 +35,9 @@ SDK(`@anthropic-ai/claude-agent-sdk`)를 올리거나, 앱이 userData의 다른
 | 규칙 경로 꼴(M07-6) | SDK 0.3.325, M07 G3 1단계 | `Edit(//c/…)`와 `Edit(//C:/…)` 거부 규칙 아래의 Write | `//c/` 꼴이 Write를 막는다 |
 | 훅 실패 시 막힘(M07-6) | SDK 0.3.325, M07 G3 1단계 | 던지는 훅 콜백 + `onFailure: 'block'` 아래의 Bash | Bash가 거부되고 대상이 그대로다 |
 | 대문자 경로·Edit 도구(M07-7) | SDK 0.3.325, M07 G3 검수 | 대문자로 바꾼 경로의 Write, `engine-config.json`의 Edit | 둘 다 거부 |
+| `source` 뒤의 훅 cwd(M09-6) | SDK 0.3.325(CLI 2.1.325), `claude-haiku-4-5`, M11 G3 검수 2026-11-20 — 따라갔다 | 임시 저장소에서 `source x.sh`(`cd sub`) 한 호출, 다음 `pwd` 호출의 PreToolUse 훅 입력 `cwd`. 대조군은 `cd sub` | 다음 호출의 훅 `cwd`가 `…\repo\sub`이고 `pwd`가 `/c/…/repo/sub`(대조군도 같다). 따르지 않으면 `loopLock.ts`의 `source` 뒤 위치를 UNKNOWN으로 되돌린다 |
+
+`source` 실측의 덧붙임: 저장소를 `%LOCALAPPDATA%\Temp` 아래에 두면 셸 `pwd`가 `/tmp/…`로 나오고, `source`와 대조군 `cd sub` 둘 다 다음 호출에서 `…\repo`로 돌아갔다. 이때도 훅 `cwd`와 `pwd`가 같았다. 저장소는 Temp 밖에 두고 잽니다.
 
 ## 아직 재지 않은 꼴 — 다음 SDK 갱신 때 잴 것
 
@@ -50,7 +53,6 @@ M11 goal 3에서는 셸 잠금 글자로 재현되는 8.3 짧은 이름(`AGENTD~
 | 하위 에이전트 안 | `Agent` 도구로 하위 에이전트를 띄우고 그 안에서 Write·Bash | 부모의 거부 규칙과 훅이 하위 에이전트에도 걸린다 |
 | MCP 파일 쓰기 도구 | 파일 쓰기 도구가 있는 MCP 서버를 붙이고 엔진 경로에 쓰게 함 | 거부 규칙이 걸리지 않으면 훅 matcher나 MCP 거부로 막을 길을 Backlog로 |
 | 콜백 시간 초과 | 훅 콜백이 `timeout`보다 오래 걸리게 하고 Bash | 시간 초과가 실패로 치여 `onFailure: 'block'`에서 거부 |
-| `source` 뒤의 훅 cwd(M09-6) | `cd sub`가 든 스크립트를 `source`한 다음 Bash 호출의 훅 입력 `cwd` | 훅 `cwd`가 실제 셸 위치(`sub`)를 따른다. 따르지 않으면 `loopLock.ts`의 `source` 뒤 위치 판정을 닫힌 쪽(UNKNOWN)으로 되돌린다 |
 
 ## 기록
 

@@ -21,7 +21,10 @@ export function registerControlsHandlers(): void {
     }
     const state = controlsState(userData)
     const counts = verdictCounts()
-    return { ...state, nodes: state.nodes.map((n) => ({ ...n, recentVerdicts: counts[n.id] ?? 0 })), engine }
+    // 인라인 거부 규칙(permissionRules)은 SDK가 판정해 앱에 오지 않는다 — 0이 아니라 「기록 없음」(null)이다
+    const verdictsOf = (n: ControlsState['nodes'][number]): number | null =>
+      n.point === 'permissionRules' ? null : counts[n.id] ?? 0
+    return { ...state, nodes: state.nodes.map((n) => ({ ...n, recentVerdicts: verdictsOf(n) })), engine }
   })
 
   handle(IPC_CHANNELS.CONTROLS_SET_ENABLED, (_e, req: ControlSetEnabledReq): Ack => {

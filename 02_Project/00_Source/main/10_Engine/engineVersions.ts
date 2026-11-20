@@ -76,7 +76,7 @@ function listInstalled(userData: string): string[] {
   try {
     names = fs
       .readdirSync(enginesDir(userData), { withFileTypes: true })
-      .filter((d) => d.isDirectory())
+      .filter((d) => d.isDirectory() && !d.name.startsWith('.'))
       .map((d) => d.name)
   } catch {
     return []
@@ -159,11 +159,13 @@ export function setActive(version: string | null, overrideUserData?: string): vo
   sdkCache = null
 }
 
+type InstallResult = { ok: boolean; error?: string }
+
 export async function installVersion(
   version: string,
   onProgress: (p: EngineInstallProgress) => void,
   overrideUserData?: string
-): Promise<{ ok: boolean; error?: string }> {
+): Promise<InstallResult> {
   if (!SEMVER_RE.test(version)) {
     const error = `invalid version: "${version}" — strict semver(X.Y.Z) 형식만 허용됩니다.`
     return { ok: false, error }
@@ -179,12 +181,13 @@ export async function installVersion(
     return { ok: false, error }
   }
 
-  // 버전 폴더는 비우고 시작한다 — 미리 놓인 package-lock·node_modules를 npm이 그대로 쓰면 다른 코드가 설치된다(M11 G3, M07-9)
+  // 빈 임시 형제 폴더에 설치하고 성공하면 바꿔 끼운다 — 미리 놓인 package-lock·node_modules를 npm이 쓰지 않고(M07-9),
+  // 실패하면 기존 버전 폴더가 그대로 남는다(M11 G3 검수 — 활성 버전의 재설치 실패가 엔진을 지우지 않는다)
+  const work = path.join(eDir, `.${version}.tmp-${process.pid}-${Date.now()}`)
   try {
-    await fsp.rm(dir, { recursive: true, force: true })
-    await fsp.mkdir(dir, { recursive: true })
+    await fsp.mkdir(work, { recursive: true })
     await fsp.writeFile(
-      path.join(dir, 'package.json'),
+      path.join(work, 'package.json'),
       JSON.stringify(
         { name: `agentdeck-engine-${version}`, version: '0.0.0', private: true },
         null,
@@ -192,6 +195,7 @@ export async function installVersion(
       )
     )
   } catch (e) {
+    await fsp.rm(work, { recursive: true, force: true }).catch(() => {})
     return { ok: false, error: `폴더 생성 실패: ${(e as Error).message}` }
   }
 
@@ -217,7 +221,7 @@ export async function installVersion(
   const args = [
     'install',
     `${PACKAGE}@${version}`,
-    '--prefix', dir,
+    '--prefix', work,
     '--no-audit',
     '--no-fund',
     '--loglevel=http',
@@ -225,27 +229,48 @@ export async function installVersion(
 
   onProgress({ version, line: `$ npm install ${PACKAGE}@${version}` })
 
+  const fail = async (error: string): Promise<InstallResult> => {
+    await fsp.rm(work, { recursive: true, force: true }).catch(() => {})
+    onProgress({ version, done: true, ok: false, error })
+    return { ok: false, error }
+  }
+
+  // 새 설치본을 버전 폴더 자리에 끼운다 — 옛 폴더를 옆으로 옮긴 뒤 이름을 바꾸고, 끼우지 못하면 옛 폴더를 되돌린다
+  const swapIn = async (): Promise<string | null> => {
+    const old = path.join(eDir, `.${version}.old-${process.pid}-${Date.now()}`)
+    const hadOld = fs.existsSync(dir)
+    try {
+      if (hadOld) await fsp.rename(dir, old)
+    } catch (e) {
+      return `기존 버전 폴더를 옮기지 못했습니다(사용 중일 수 있습니다): ${(e as Error).message}`
+    }
+    try {
+      await fsp.rename(work, dir)
+    } catch (e) {
+      if (hadOld) await fsp.rename(old, dir).catch(() => {})
+      return `새 설치본을 끼우지 못했습니다: ${(e as Error).message}`
+    }
+    if (hadOld) await fsp.rm(old, { recursive: true, force: true }).catch(() => {})
+    return null
+  }
+
   return await new Promise((resolve) => {
     const spawnArgs = isWin ? args.map((a) => (/\s/.test(a) ? `"${a}"` : a)) : args
     let child: ReturnType<typeof spawn> | undefined
     try {
       child = spawn(npmCmd, spawnArgs, {
-        cwd: dir,
+        cwd: work,
         env,
         windowsHide: true,
         shell: isWin,
       })
     } catch (e) {
-      const error = `npm spawn 실패: ${(e as Error).message}`
-      onProgress({ version, done: true, ok: false, error })
-      resolve({ ok: false, error })
+      void fail(`npm spawn 실패: ${(e as Error).message}`).then(resolve)
       return
     }
 
     if (!child) {
-      const error = 'npm spawn 실패: 프로세스를 시작할 수 없습니다.'
-      onProgress({ version, done: true, ok: false, error })
-      resolve({ ok: false, error })
+      void fail('npm spawn 실패: 프로세스를 시작할 수 없습니다.').then(resolve)
       return
     }
 
@@ -258,19 +283,28 @@ export async function installVersion(
     child.stdout?.on('data', onData)
     child.stderr?.on('data', onData)
 
+    let settled = false
+    const settle = (p: Promise<InstallResult>): void => {
+      if (settled) return
+      settled = true
+      void p.then(resolve)
+    }
+
     child.on('error', (e) => {
-      const error = `npm 실행 실패: ${e.message}. npm(Node.js)이 설치돼 있고 PATH에 있는지 확인하세요.`
-      onProgress({ version, done: true, ok: false, error })
-      resolve({ ok: false, error })
+      settle(fail(`npm 실행 실패: ${e.message}. npm(Node.js)이 설치돼 있고 PATH에 있는지 확인하세요.`))
     })
 
     child.on('close', (code) => {
-      const installed = installedVersionAt(userData, version)
-      if (code === 0 && installed) {
+      const installed = installedVersionAt(userData, path.basename(work))
+      if (code !== 0 || !installed) {
+        settle(fail(`설치 실패 (npm 종료 코드 ${code})`))
+        return
+      }
+      settle((async (): Promise<InstallResult> => {
         try {
-          fs.writeFileSync(path.join(dir, '.installed'), installed)
+          fs.writeFileSync(path.join(work, '.installed'), installed)
           fs.writeFileSync(
-            path.join(dir, 'manifest.json'),
+            path.join(work, 'manifest.json'),
             JSON.stringify(
               { package: PACKAGE, version: installed, installedAt: new Date().toISOString() },
               null,
@@ -279,13 +313,11 @@ export async function installVersion(
           )
         } catch {
         }
+        const swapError = await swapIn()
+        if (swapError) return fail(swapError)
         onProgress({ version, done: true, ok: true })
-        resolve({ ok: true })
-      } else {
-        const error = `설치 실패 (npm 종료 코드 ${code})`
-        onProgress({ version, done: true, ok: false, error })
-        resolve({ ok: false, error })
-      }
+        return { ok: true }
+      })())
     })
   })
 }

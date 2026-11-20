@@ -646,6 +646,19 @@ describe('loop-lock 셸 위치 (M09 G2 재검수 중요 C)', () => {
     }
   })
 
+  it('[M11-G3 M09-6 검수] 작은따옴표 밖의 매개변수 펼치기 ${CDPATH=…}·${CDPATH:=…}도 CDPATH 설정이다', () => {
+    for (const cmd of [
+      ': ${CDPATH=.git}; cd hooks && echo x > pre-commit',
+      ': ${CDPATH=/c/Users/u}; cd .ssh && echo x >> config',
+      ': ${CDPATH:=.git}; cd hooks',
+      'echo "${CDPATH=.git}"; cd hooks',
+    ]) {
+      expect(loopCommandReason(cmd, SCOPE)).toContain('CDPATH')
+    }
+    expect(loopCommandReason("git commit -m 'fix: ${CDPATH=.git} 꼴을 막는다'", SCOPE)).toBeNull()
+    expect(loopCommandReason('echo ${CDPATH:-none}', SCOPE)).toBeNull()
+  })
+
   it('[M11-G3 M09-6] source 뒤의 「위치 모름」은 다음 호출로 넘어가지 않는다 — 훅이 준 cwd가 저장소 뿌리면 상대 쓰기가 지나간다', async () => {
     const call = session()
     expect(await call('source .venv/bin/activate', 'C:\\work\\repo')).toBeNull()

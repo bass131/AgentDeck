@@ -3,6 +3,7 @@
 - 범위 밖 발견을 한 줄로 남긴다(헌법 11조). 최신 번호가 위다.
 - M01~M10 Backlog의 닫힘은 각 파일의 「## 닫힘 (M11)」 표가 갖는다. 여기에는 M11 진행 중 새로 생긴 것과 해결됨 항목의 남은 갈래만 둔다.
 
+28. PowerShell 꼴 `` g`h pr merge 1 ``(백틱 이스케이프), `iex`·`Invoke-Expression "gh pr merge 1"`, `Start-Process gh -ArgumentList 'pr merge 1'`은 가드·`mergeDeny`·`loopLock` 셋 다 통과한다 — 셋의 판독은 같아(패리티) goal 3 몫은 없고, 가드와 함께 goal 8이 본다 (M11 G3 독립 검수).
 27. PR 카드의 룰셋 읽기는 고전 보호가 「Branch not protected」일 때만 돈다 — 고전 보호와 룰셋이 함께 걸려 룰셋에만 필수 검사가 있는 base는 고전 쪽만 읽는다(`main/08_Git/prMerge.ts:285`, 코드 판독). 두 목록을 합칠지 정한다 (M07-24, M11 G3).
 26. PR 카드는 하위 에이전트 대화 보기의 `gh pr create`와 「이미 있음」 오류로 끝난 `gh pr create`에는 아직 뜨지 않는다 — M07-24 뒷절, goal 3은 룰셋 판독(앞절)만 고쳤다 (M07-24, M11 G3).
 25. 모델 목록 다시 묻기는 5·15·60초 세 번이다. 셋 다 SDK 목록을 못 받으면 재시작 전까지 다시 묻지 않는다(`renderer/src/05_Conversation/state/composer.ts:11`) — 다시 묻기 버튼이나 화면 복귀 때 묻기 후보 (M06-13, M11 G2 검수 사소 11).

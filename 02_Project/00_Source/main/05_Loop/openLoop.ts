@@ -126,7 +126,12 @@ export async function openLoop(opts: OpenLoopOptions): Promise<OpenLoopResult> {
     return { ok: false, reason: '실물 gh로 CI를 판정하려면 필수 검사 이름(requiredChecks, 예: hard-gates)이 있어야 한다 — 비우면 머리의 아무 검사로 통과한다' }
   }
   const executorEnv = executorGitEnv(opts.executorEnv ?? process.env)
-  const top = await gitOut(opts.cwd, executorEnv, ['rev-parse', '--show-toplevel'])
+  const probe = await runProcess('git', ['rev-parse', '--show-toplevel'], { cwd: opts.cwd, env: executorEnv, timeoutMs: 30_000 })
+  // 실행기 PATH는 사용자 프로필 아래 폴더를 뺀다(M09-4) — git을 거기에만 두면 실행 파일을 찾지 못한다(code -1)
+  if (probe.code === -1) {
+    return { ok: false, reason: '실행기가 git을 찾지 못했다 — 실행기 PATH는 사용자 프로필 아래 폴더를 빼니, git·gh를 사용자 프로필 밖(예: C:\\Program Files)에 설치해야 한다' }
+  }
+  const top = probe.code === 0 ? probe.stdout.trim() : ''
   if (!top) return { ok: false, reason: `${opts.cwd}는 git 작업 저장소가 아니다` }
   const root = await fsp.realpath(path.resolve(top))
 

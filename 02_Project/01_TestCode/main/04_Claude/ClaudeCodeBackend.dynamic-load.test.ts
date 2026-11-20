@@ -164,7 +164,7 @@ describe('B. version() — getVersionState active 우선 → _resolvePackageVers
         seal: 'ok',
       }),
       // M11 G3: 보이는 버전은 실행이 실제로 쓰는 엔진(activeInUse)이다 — major·불러오기 판정은 engineSeal.test.ts
-      activeInUse: (s: { active: string | null; seal?: string }) => (s.seal === 'ok' ? s.active : null),
+      activeInUse: vi.fn().mockReturnValue('0.4.0'),
     }))
 
     const { ClaudeCodeBackend } = await import('@main/04_Claude/ClaudeCodeBackend')

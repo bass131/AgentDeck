@@ -92,7 +92,9 @@ describe('컨트롤 IPC (M07 G5)', () => {
     const s = call<ControlsState>(IPC_CHANNELS.CONTROLS_STATE)
     expect(s.nodes.find((n) => n.id === 'readonly-allow')?.recentVerdicts).toBe(2)
     expect(s.nodes.find((n) => n.id === 'merge-deny')?.recentVerdicts).toBe(0)
-    expect(s.nodes.every((n) => typeof n.recentVerdicts === 'number')).toBe(true)
+    // SDK의 인라인 거부 규칙(permissionRules) 노드는 앱이 판정을 보지 못한다 — 수 대신 null(기록 없음)이다
+    expect(s.nodes.find((n) => n.id === 'engine-path-file-deny')?.recentVerdicts).toBeNull()
+    expect(s.nodes.filter((n) => n.point !== 'permissionRules').every((n) => typeof n.recentVerdicts === 'number')).toBe(true)
     clearVerdicts()
   })
 

@@ -898,6 +898,27 @@ function pathVarReason(tokens: string[], cmds: Cmd[]): string | null {
 const CDPATH_PS_SET = /\$env:CDPATH\s*\+?=|(?:set-item|new-item|si|ni)\b[^;|\n]*env:[\\/]?CDPATH\b|SetEnvironmentVariable\s*\(\s*['"]CDPATH/i
 const CDPATH_SETTERS = new Set(['export', 'declare', 'typeset', 'readonly', 'local', 'read', 'mapfile', 'readarray', 'setx', 'set', 'env'])
 const isCdpath = (t: string): boolean => /^CDPATH(?:\+?=|$)/i.test(t)
+// `${CDPATH=…}`·`${CDPATH:=…}`는 어느 자리에서든 펼치는 순간 변수를 정한다 — 작은따옴표 안만 펼치지 않는다(독립 검수 중요)
+const CDPATH_EXPAND_SET = /\$\{CDPATH:?=/i
+
+function outsideSingleQuotes(s: string): string {
+  let out = ''
+  let dq = false
+  for (let i = 0; i < s.length; i++) {
+    const ch = s[i]
+    if (ch === '\\' && i + 1 < s.length) { out += ch + s[++i]; continue }
+    if (ch === '"') dq = !dq
+    else if (ch === "'" && !dq) {
+      const end = s.indexOf("'", i + 1)
+      if (end < 0) break
+      i = end
+      out += ' '
+      continue
+    }
+    out += ch
+  }
+  return out
+}
 
 const HEAD_WORDS = new Set(['{', '}', '!', 'then', 'do', 'else', 'elif', 'if', 'while', 'until'])
 
@@ -963,7 +984,7 @@ function scriptReason(script: string, r: Resolved, depth: number, start: Cwd, mu
   if (depth > 4) return deny(TOO_DEEP)
   if (PS_ENV_SET.test(script) || PS_ENV_REMOVE.test(script) || DOTNET_ENV.test(script)) return deny(CREDENTIAL)
   if (r.readOnly && PS_EXEC_ENV_SET.test(script)) return deny(READONLY)
-  if (CDPATH_PS_SET.test(script)) return deny(CDPATH)
+  if (CDPATH_PS_SET.test(script) || CDPATH_EXPAND_SET.test(outsideSingleQuotes(script))) return deny(CDPATH)
   if (PS_PATH_VAR_SET.test(script)) return deny(VAR_SET)
   const items = splitItems(stripHeredocBodies(script.replace(/\\\r?\n/g, ' ')))
   let cwd: Cwd = start

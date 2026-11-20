@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeAll, afterAll, beforeEach, afterEach } 
 import path from 'node:path'
 import os from 'node:os'
 import fs from 'node:fs'
+import { EventEmitter } from 'node:events'
 
 const h = vi.hoisted(() => {
   const base = (process.env.TMPDIR || process.env.TEMP || process.env.TMP || '/tmp').replace(
@@ -212,7 +213,8 @@ describe('installVersion() — semver 검증 (spawn 미호출 보장)', () => {
     expect(result.error).not.toMatch(/invalid version.*strict semver/i)
     expect(result.error).toMatch(/spawn 실패|프로세스/i)
     expect(h.spawn).toHaveBeenCalledTimes(1)
-    expect(fs.existsSync(path.join(ud, 'engines', '1.0.0-beta.1', 'package.json'))).toBe(true)
+    // 실패한 설치는 임시 형제 폴더째 치운다 — 버전 폴더가 생기지 않는다(M11 G3 검수)
+    expect(fs.existsSync(path.join(ud, 'engines', '1.0.0-beta.1'))).toBe(false)
   })
 })
 
@@ -242,6 +244,11 @@ describe('installVersion() — 유효 semver 경로', () => {
     const { installVersion } = await import('@main/10_Engine/engineVersions')
     const ud = newUserData()
     const progress = vi.fn()
+    let preparedAtSpawn = false
+    h.spawn.mockImplementation((_cmd: string, a: string[]) => {
+      preparedAtSpawn = fs.existsSync(path.join(a[a.indexOf('--prefix') + 1].replace(/^"|"$/g, ''), 'package.json'))
+      return undefined
+    })
     const result = await installVersion('0.3.186', progress, ud)
 
     expect(result.ok).toBe(false)
@@ -256,8 +263,9 @@ describe('installVersion() — 유효 semver 경로', () => {
     expect(progress).toHaveBeenCalled()
     expect(String((progress.mock.calls[0][0] as { line?: string }).line)).toContain('npm install')
 
-    const dir = path.join(ud, 'engines', '0.3.186')
-    expect(fs.existsSync(path.join(dir, 'package.json'))).toBe(true)
+    // 설치 폴더(임시 형제)는 spawn 전에 준비되고, 실패하면 치워져 버전 폴더가 생기지 않는다(M11 G3 검수)
+    expect(preparedAtSpawn).toBe(true)
+    expect(fs.existsSync(path.join(ud, 'engines', '0.3.186'))).toBe(false)
   })
 
   it('env 화이트리스트 — spawn env 에 ANTHROPIC_API_KEY 미주입 (ADR-008)', async () => {
@@ -496,5 +504,57 @@ describe('installVersion() — 미리 놓인 내용 (M11 G3)', () => {
     })
     await installVersion('0.3.186', vi.fn(), ud)
     expect(leftovers).toEqual([])
+  })
+
+  const fakeChild = (onSpawn: (prefix: string) => void, code: number) =>
+    (_cmd: string, args: string[]) => {
+      const prefix = args[args.indexOf('--prefix') + 1].replace(/^"|"$/g, '')
+      const child = new EventEmitter() as EventEmitter & { stdout: EventEmitter; stderr: EventEmitter }
+      child.stdout = new EventEmitter()
+      child.stderr = new EventEmitter()
+      setTimeout(() => { onSpawn(prefix); child.emit('close', code) }, 5)
+      return child
+    }
+
+  it('[M11-G3 M07-9 검수] npm이 실패하면 기존 버전 폴더가 그대로 남는다 — 임시 형제 폴더에 설치한다', async () => {
+    const { installVersion, getVersionState } = await import('@main/10_Engine/engineVersions')
+    const ud = newUserData()
+    const old = installFixture(ud, '0.3.186', { main: 'index.mjs' })
+    fs.writeFileSync(path.join(old, 'index.mjs'), 'export const query = () => "old"\n')
+    let prefixSeen = ''
+    h.spawn.mockImplementation(fakeChild((p) => { prefixSeen = p }, 1))
+    const result = await installVersion('0.3.186', vi.fn(), ud)
+    expect(result.ok).toBe(false)
+    expect(path.dirname(prefixSeen)).toBe(path.resolve(ud, 'engines'))
+    expect(path.basename(prefixSeen)).toMatch(/^\.0\.3\.186\.tmp-/)
+    expect(fs.readFileSync(path.join(old, 'index.mjs'), 'utf8')).toContain('"old"')
+    expect(fs.readdirSync(path.join(ud, 'engines'))).toEqual(['0.3.186'])
+    expect(getVersionState(ud).installed).toEqual(['0.3.186'])
+  })
+
+  it('[M11-G3 M07-9 검수] 남은 임시·옛 폴더(`.<버전>.tmp-…`)는 설치 목록에 들지 않는다', async () => {
+    const { getVersionState } = await import('@main/10_Engine/engineVersions')
+    const ud = newUserData()
+    installFixture(ud, '0.3.186')
+    installFixture(ud, '.0.3.186.tmp-1-2')
+    installFixture(ud, '.0.3.186.old-1-2')
+    expect(getVersionState(ud).installed).toEqual(['0.3.186'])
+  })
+
+  it('[M11-G3 M07-9 검수] npm이 성공하면 새 설치본으로 바꿔 끼우고 임시 폴더를 남기지 않는다', async () => {
+    const { installVersion } = await import('@main/10_Engine/engineVersions')
+    const ud = newUserData()
+    const old = installFixture(ud, '0.3.186')
+    fs.writeFileSync(path.join(old, 'stale.txt'), 'old')
+    h.spawn.mockImplementation(fakeChild((p) => {
+      const pkg = path.join(p, 'node_modules', '@anthropic-ai', 'claude-agent-sdk')
+      fs.mkdirSync(pkg, { recursive: true })
+      fs.writeFileSync(path.join(pkg, 'package.json'), JSON.stringify({ name: '@anthropic-ai/claude-agent-sdk', version: '0.3.186' }))
+    }, 0))
+    const result = await installVersion('0.3.186', vi.fn(), ud)
+    expect(result.ok).toBe(true)
+    expect(fs.readdirSync(path.join(ud, 'engines'))).toEqual(['0.3.186'])
+    expect(fs.existsSync(path.join(old, 'stale.txt'))).toBe(false)
+    expect(fs.readFileSync(path.join(ud, 'engines', '0.3.186', '.installed'), 'utf8')).toBe('0.3.186')
   })
 })

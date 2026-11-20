@@ -13,11 +13,11 @@ M11 Backlog 정리(`01_Milestones/M11_BacklogSweep/`)가 닫은 항목이다. �
 | 6 | 고침(M11 goal 3) | 엔진 경로 잠금의 재실측(규칙 경로 꼴 `//c/`, 훅 실패 시 `onFailure: 'block'`)을 SDK 재실측 절차에 뒀고, 다른 엔진 버전을 활성으로 삼을 때도 돌린다(`00_Documents/00_Architecture/01_SDK-재실측-절차.md` 「언제 돌리나」·「다시 잴 것」). |
 | 7 | 고침(M11 goal 3) | 셸 잠금이 8.3 짧은 이름(`AGENTD~1`, `ENGINE~1.JSO`)을 원래 이름으로 펴서 판정한다(`main/04_Claude/permission/enginePathLock.ts:88,97`, `0c2fec37`). SDK 동작에 달린 나머지 꼴(junction, `\\?\`·UNC, 괄호 든 경로, 하위 에이전트, MCP 쓰기 도구, 콜백 시간 초과)은 재실측 절차 「아직 재지 않은 꼴」에 다음 SDK 갱신 때 잴 것으로 올렸다. |
 | 8 | 해결됨 | 컨트롤 패널이 엔진 봉인 경고와 「이 엔진 다시 고르기」를 보인다(`renderer/src/11_Settings/ControlsView.tsx:3,141`, `8a0eddd4`). |
-| 9 | 고침(M11 goal 3) | `installVersion`이 버전 폴더를 비우고 npm을 부른다 — 미리 놓인 잠금 파일·패키지를 쓰지 않는다(`main/10_Engine/engineVersions.ts:184`, `0c2fec37`). |
+| 9 | 고침(M11 goal 3) | `installVersion`이 빈 임시 형제 폴더(`engines/.<v>.tmp-…`)에 npm을 부르고 성공하면 바꿔 끼운다 — 미리 놓인 잠금 파일·패키지를 쓰지 않고, 실패하면 기존 버전 폴더가 남는다(`main/10_Engine/engineVersions.ts` `swapIn`, `0c2fec37`·독립 검수). 점으로 시작하는 폴더는 설치 목록에 들지 않는다. |
 | 10 | 해결됨 | 3글자 이상 접두 뒤 와일드카드를 막는다(`main/04_Claude/permission/enginePathLock.ts:64-65`, G5). |
 | 11 | 고침(M11 goal 3) | 봉인 목록 행에 바뀜 시각(ctime)을 더했다 — utimes로 수정 시각을 되돌려도 걸린다(`main/10_Engine/engineSeal.ts:76`, `ed5411ae`). 내용 해시는 실측(설치본 7968개·402MB, 따뜻할 때 6.3초·차가울 때 16.6초, 목록만 0.15초)으로 거뒀다. `engines/node_modules`·`<userData>/node_modules`가 있으면 mismatch, 봉인 쓰기는 임시 파일+이름 바꾸기다(`engineSeal.ts:22,169,116`, `0c2fec37`). |
 | 12 | 고침(M11 goal 3) | `version()`은 실행이 실제로 쓰는 엔진(`activeInUse`)을 보인다 — major 불일치나 같은 봉인의 불러오기 실패면 번들 버전(`main/10_Engine/engineVersions.ts:352`, `main/04_Claude/ClaudeCodeBackend.ts:64`, `0c2fec37`). |
-| 13 | 고침(M11 goal 3) | 노드마다 메모리 고리(50줄, 파일 없음)에 시각·노드·도구·입력 요약(200자, 자격 가림)·결과·사유를 쌓는다(`main/04_Claude/permission/verdictLog.ts:6,56`). 권한 콜백은 `controlNodes.ts:201,205`, 훅 노드는 `sdkOptions.ts:88,91`이 감싼다. 패널에 「최근 판정 N」(`renderer/src/11_Settings/ControlsView.tsx:55`, `0c2fec37`). |
+| 13 | 고침(M11 goal 3) | 노드마다 메모리 고리(50줄, 파일 없음)에 시각·노드·도구·입력 요약(200자, 자격 가림)·결과·사유를 쌓는다(`main/04_Claude/permission/verdictLog.ts:6,56`). 권한 콜백은 `controlNodes.ts:201,205`, 훅 노드는 `sdkOptions.ts:88,91`이 감싼다. 패널에 「최근 판정 N」(`renderer/src/11_Settings/ControlsView.tsx:55`, `0c2fec37`). 인라인 거부 규칙 노드(`engine-path-file-deny`)는 SDK가 판정해 앱이 보지 못하므로 「최근 판정 기록 없음」이다(독립 검수). |
 | 14 | v2로 | 규칙 노드 GUI는 v2 그래프 편집기와 같은 화면이다(`00_Roadmap.md:33`). |
 | 15 | v2로 | G1 결정 대장 [USER·위임] — 노드 설정 내보내기·가져오기는 그래프 편집기의 일이다. |
 | 16 | 고침(M11 goal 2) | 응답 전에 도착한 실행 이벤트를 붙들었다가 실행 id가 정해지면 적용하고 요청 오류의 Electron 접두를 지운다(`renderer/src/03_Agent/state/runCore.ts:127,173-174,204`, `d95d7051`). |

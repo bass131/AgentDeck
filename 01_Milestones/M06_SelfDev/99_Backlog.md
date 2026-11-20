@@ -9,14 +9,29 @@ M11 Backlog 정리(`01_Milestones/M11_BacklogSweep/`)가 닫은 항목이다. �
 
 | 항목 | 닫힘 | 근거 |
 |---|---|---|
+| 1 | 고침(M11 goal 2) | 권한 모드를 대화마다 저장하고 불러온다(`renderer/src/06_Sessions/state/sessions.ts:183`, `main/06_Sessions/store.ts:49`, `d95d7051`). 실앱 e2e `m11-g2-app-session-live.e2e.ts` C에서 두 대화가 Bypass·플랜을 따로 기억했다. |
+| 2 | 고침(M11 goal 2) | 계기 usage가 턴 합계가 아니라 마지막 최상위 assistant 호출이다(`main/04_Claude/stream/eventNormalizer.ts:62,128,163`, `57c20790`). 실앱 e2e B에서 네 도구 턴 뒤 「40K / 1M 4%」. |
+| 3 | 고침(M11 goal 2) | 상태 줄 가지 칸이 git의 실제 가지를 읽는다(`renderer/src/12_Window/useStatusBranch.ts`, `Shell.tsx:53,273`, `57c20790`). 실앱 e2e A에서 `feat/m11-g2-probe`. |
+| 4 | 닫음(실측) | 캐시가 따뜻할 때 다시 열기의 캐시 생성 추가는 작고 훅 재부착은 약 500토큰, 기동 지연은 약 0.4~0.5초(표본 1)라 닫기 유예 3000ms를 둔다(`57c20790` 메시지). |
 | 6 | M13으로 | M11 스펙 「하지 않을 것」 — 버전 표시는 설치본 패키징과 함께 M13이 맡는다. |
 | 8 | 해결됨 | 가드가 논리 줄 판독과 이음 지운 원문 읽기로 줄 이음 꼴을 읽고(`dangerous-cmd-guard.mjs:6-8,15`, G5 `a9408c52`) 남은 꼴은 M06-20·21이 맡는다. |
 | 10 | 낡음 | M07 G4 봉인과 하한 뒤로 번들 이상 버전만 돈다(`main/10_Engine/engineSeal.ts:151`). |
+| 11 | 고침(M11 goal 2) | 숫자 키가 카드 종류와 상관없이 1 허용, 2 거부, 3 항상 허용이다(`renderer/src/03_Agent/PermissionCard.tsx:11`, `d95d7051`). |
+| 12 | 고침(M11 goal 2) | 펼친 긴 명령은 끝까지 스크롤해야 허용되고 두 번째 요청은 줄을 선다(`PermissionCard.tsx:61,253`, `05_Conversation/state/reducer/permission.ts:27`, `d95d7051`). 올라온 비Bash 카드의 입력 전문은 M11 Backlog 13. |
+| 13 | 고침(M11 goal 2) | SDK 목록을 못 받으면 main은 다음 요청에 다시 묻고 renderer는 5·15·60초 뒤 다시 묻는다(`main/04_Claude/modelListProvider.ts:121`, `05_Conversation/state/composer.ts:11`, `57c20790`). |
 | 14 | 해결됨 | `hookTimeout`이 30000이다(`vitest.config.ts:22`, G7). |
+| 15 | 고침(M11 goal 2) | `ContextStrip`이 쓰지 않던 `selectedModel`을 받지 않는다(`05_Conversation/ComposerContext.tsx`, `57c20790`). |
+| 16 | 고침(M11 goal 2) | 최소 목록이 SDK 별칭 행 꼴이고 목록에 없는 모델은 effort 메뉴를 끈다(`shared/03_Agent/models/knownModels.ts:8`, `renderer/src/03_Agent/pickerOptions.ts:111`, `57c20790`). |
+| 17 | 고침(M11 goal 2) | 새 대화 기본 모델이 SDK 목록 `default` 행의 정식 ID다(`knownModels.ts:17` `defaultModelOf`, `57c20790`). |
+| 18 | 고침(M11 goal 2) | 모델을 바꾸면 직전 창을 버려 보수 예산으로 돌아가고 행 값에 꼴·길이 제한을 둔다(`composer.ts:99`, `shared/03_Agent/models/modelList.ts:37`, `57c20790`). 패널 쪽은 M11 Backlog 14. |
+| 19 | 고침(M11 goal 2) | 폴백 버전을 `package.json` 의존 명세에서 파생하고 접미 벗기기는 한 벌이다(`main/10_Engine/sdkVersion.ts:9`, `main/04_Claude/stream/claudeStream.ts:4`, `57c20790`). PR 검사는 `hard-gates`가 한다. |
 | 20 | v2로 | M11 스펙 결정 대장 [USER] 2회차 — 가드 재설계 「이번엔 안 한다」. |
 | 21 | v2로 | M11 스펙 결정 대장 [USER] 2회차 — 셸 파서 도입도 가드 재설계와 함께 「이번엔 안 한다」. |
 | 22 | 해결됨 | 항목 본문대로 G8 결정 대장이 알려진 동작으로 닫았다. |
+| 24 | 고침(M11 goal 2) | 지속 세션의 effort를 공개 `Query.applyFlagSettings({ effortLevel })`로 바꾼다 — 재사용 턴과 실행 중 `agent.setEffort`(`main/04_Claude/run/claudeAgentRun.ts:223`, `main/03_Agent/agentRuns.ts:77`, `57c20790`). 실측으로 deny 규칙 유지를 봤다. 패널 쪽은 M11 Backlog 14. |
 | 25 | 해결됨 | 메인 대화 안에 질문·승인 카드가 뜬다(`renderer/src/13_Loop/MainChatView.tsx:6,81`, M10 G3 `547ab01b`). |
+| 26 | 고침(M11 goal 2) | M06-2와 같은 고침이다(`eventNormalizer.ts:163`, `57c20790`). |
+| 27 | 고침(M11 goal 2) | SDK 자동 압축은 이미 켜져 있었다(실측 `getContextUsage` `isAutoCompactEnabled` true). 첫 턴 뒤 한 번 물어 컨텍스트 칩에 보인다(`claudeAgentRun.ts:622`, `05_Conversation/ComposerContext.tsx:50`, `57c20790`). |
 | 30 | 해결됨 | 가드 훅에 `timeout: 30`과 `onFailure: "block"`이 있다(`.claude/settings.json:70`). |
 | 31 | 해결됨 | M07 G1 결정 대장 [USER] 「그대로 두고 닫기」가 닫았다(`M07_Controls/10_Goal-G1-판정-장치-정비.md:72`). |
 

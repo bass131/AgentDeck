@@ -59,7 +59,7 @@ test('app.js placement: the strip carries the hand line, the hand head carries t
   assert.match(body('handBlock'), /soundState\(\)/);
   assert.match(body('handBlock'), /soundChip\(\)/);
   assert.match(body('notesNow'), /kind: 'quiet'/);
-  assert.match(body('handBlock'), /n\.kind === 'quiet' \? CLOCK : G\.note/, '조용함 줄은 회색 시계, 나머지 사실 줄은 노랑 세모');
+  // 줄 종류마다의 모양(조용함 회색 시계 · 주의 노랑 세모 · 깨짐 빨강 네모)은 test/m11-g5-dom.test.mjs가 jsdom에서 본다(M11 G5, Backlog 71)
   assert.match(app, /const CLOCK = svg\(/);
   assert.doesNotMatch(body('notesNow'), /조용해요[^\n]*G\.note/, '조용함 줄은 노랑 세모(할 일·주의)를 쓰지 않는다');
 });

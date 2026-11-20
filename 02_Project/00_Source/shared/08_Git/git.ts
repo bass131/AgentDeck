@@ -35,8 +35,10 @@ export interface PrView {
   baseRef: string
   headRef: string
   headSha: string
-  // base 브랜치에 보호가 걸려 있는가(보호 API가 「Branch not protected」면 false)
+  // base 브랜치에 보호가 걸려 있는가(보호 API가 「Branch not protected」이고 룰셋 규칙도 없으면 false)
   protected: boolean
+  // 고전 보호 없이 룰셋으로만 지키는가 (M11 G3)
+  byRuleset?: boolean
   // 필수 검사 이름을 읽지 못한 사유 — 있으면 버튼이 꺼진다(닫힌 실패)
   requiredError?: string
   // 검사 결과를 읽지 못한 사유 — 있으면 버튼이 꺼진다

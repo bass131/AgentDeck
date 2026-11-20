@@ -114,7 +114,9 @@ export function mergeEligibility(pr: PrView): { canMerge: boolean; reasons: stri
     if (c.result !== 'success') reasons.push(`필수 검사 ${c.name}: ${CHECK_TEXT[c.result]}`)
   }
   if (!pr.protected && !pr.requiredError) notes.push(`${pr.baseRef} 브랜치에 보호가 없어 필수 검사가 없어요`)
-  else if (pr.protected && !pr.requiredError && pr.checks.length === 0) notes.push(`${pr.baseRef} 브랜치 보호에 필수 검사가 없어요`)
+  else if (pr.protected && !pr.requiredError && pr.checks.length === 0) {
+    notes.push(pr.byRuleset ? `${pr.baseRef} 브랜치 룰셋에 필수 검사가 없어요` : `${pr.baseRef} 브랜치 보호에 필수 검사가 없어요`)
+  }
   return { canMerge: reasons.length === 0, reasons, notes }
 }
 
@@ -152,6 +154,28 @@ function requiredOf(body: unknown): Required[] | null {
     if (!out.some((r) => r.name === c)) out.push({ name: c, appId: null })
   }
   return out
+}
+
+// `GET repos/{o}/{r}/rules/branches/{b}` 본문 — 그 브랜치에 걸린 룰셋 규칙 배열(M11 G3).
+// `required_status_checks` 규칙의 `parameters.required_status_checks[]`(context·integration_id)를 모은다. integration_id가 없으면 어느 앱이든.
+// 한 쪽이 가득 차면 다음 쪽에 규칙이 더 있을 수 있어 닫힌 실패(null)다.
+const RULES_PAGE = 100
+
+function rulesetRequiredOf(body: unknown): { ruleCount: number; required: Required[] } | null {
+  if (!Array.isArray(body) || body.length >= RULES_PAGE) return null
+  const required: Required[] = []
+  for (const rule of body) {
+    if (rec(rule)['type'] !== 'required_status_checks') continue
+    const list = rec(rec(rule)['parameters'])['required_status_checks']
+    if (!Array.isArray(list)) return null
+    for (const c of list) {
+      const name = str(rec(c)['context'])
+      if (!name) return null
+      const app = rec(c)['integration_id']
+      required.push({ name, appId: typeof app === 'number' ? app : null })
+    }
+  }
+  return { ruleCount: body.length, required }
 }
 
 // 한 필수 검사의 결과 — 여럿이 맞으면 닫힌 쪽으로: 실패 > 대기 > 성공 > 없음 (독립 검수 중요 2).
@@ -259,7 +283,18 @@ export function createPrService(deps: PrServiceDeps) {
       if (r) required = r
       else view.requiredError = '보호 설정의 필수 검사 목록 모양을 읽지 못했어요'
     } else if (prot.status === 404 && /branch not protected/i.test(prot.message)) {
-      view.protected = false
+      const rules = await api(cwd, `${base}/rules/branches/${encodeURIComponent(baseRef)}?per_page=${RULES_PAGE}`)
+      const r = rules.status === 200 ? rulesetRequiredOf(rules.body) : null
+      if (rules.status !== 200) {
+        view.requiredError = `룰셋 읽기 실패 (HTTP ${rules.status ?? '?'}) ${maskCredentials(rules.message)}`.trim()
+      } else if (!r) {
+        view.requiredError = '룰셋 규칙 목록 모양을 읽지 못했어요'
+      } else if (r.ruleCount === 0) {
+        view.protected = false
+      } else {
+        view.byRuleset = true
+        required = r.required
+      }
     } else if (prot.status === 404 && /required status checks not enabled/i.test(prot.message)) {
       required = []
     } else {

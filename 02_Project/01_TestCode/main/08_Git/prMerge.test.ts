@@ -147,8 +147,8 @@ describe('PR 읽기', () => {
     expect(f.calls).toHaveLength(0)
   })
 
-  it('보호가 없다는 404(Branch not protected)는 필수 검사 없음으로 읽고 메모를 단다', async () => {
-    const { svc } = setup({ protection: fail(404, 'Branch not protected') })
+  it('보호가 없다는 404(Branch not protected)에 룰셋 규칙도 없으면 필수 검사 없음으로 읽고 메모를 단다', async () => {
+    const { svc } = setup({ protection: fail(404, 'Branch not protected'), extra: [[/rules\/branches\//, ok([])]] })
     const r = await svc.readPr(CWD, { number: 12 })
     if (!r.ok) throw new Error('읽기 실패')
     expect(r.pr).toMatchObject({ protected: false, checks: [], canMerge: true })
@@ -489,15 +489,15 @@ describe('비동기 병합 API 호출', () => {
 
 // `GET repos/{o}/{r}/rules/branches/{b}` — 그 브랜치에 걸린 룰셋 규칙 목록
 describe('룰셋으로 지키는 base (M11 G3)', () => {
-  const RULES = /rules\/branches\/master$/
+  const RULES = /rules\/branches\/master(\?|$)/
   const notProtected = fail(404, 'Branch not protected')
 
-  it.fails('[M11-G3 M07-24 M09-11] 고전 보호가 없어도 룰셋의 필수 검사를 읽어 머리의 결과로 판정한다', async () => {
+  it('[M11-G3 M07-24 M09-11] 고전 보호가 없어도 룰셋의 필수 검사를 읽어 머리의 결과로 판정한다', async () => {
     const rules = ok([
       { type: 'deletion' },
       { type: 'required_status_checks', parameters: { strict_required_status_checks_policy: false, required_status_checks: [{ context: 'hard-gates', integration_id: APP }] } },
     ])
-    const { svc } = setup({
+    const { svc, f } = setup({
       protection: notProtected,
       extra: [[RULES, rules]],
       runs: [{ name: 'hard-gates', status: 'completed', conclusion: 'failure' }],
@@ -506,14 +506,44 @@ describe('룰셋으로 지키는 base (M11 G3)', () => {
     if (!r.ok) throw new Error('읽기 실패')
     expect(r.pr.checks).toEqual([{ name: 'hard-gates', result: 'failure' }])
     expect(r.pr.canMerge).toBe(false)
+    expect(r.pr).toMatchObject({ protected: true, byRuleset: true })
+    expect(f.calls.some((a) => a.join(' ') === 'api repos/bass131/AgentDeck/rules/branches/master?per_page=100')).toBe(true)
   })
 
-  it.fails('[M11-G3 M10-23] 룰셋으로만 지키고 필수 검사가 없으면 「보호가 없다」가 아니라 「필수 검사가 없다」고 안내한다', async () => {
+  it('[M11-G3 M10-23] 룰셋으로만 지키고 필수 검사가 없으면 「보호가 없다」가 아니라 「필수 검사가 없다」고 안내한다', async () => {
     const rules = ok([{ type: 'deletion' }, { type: 'non_fast_forward' }, { type: 'pull_request', parameters: { required_approving_review_count: 0 } }])
     const { svc } = setup({ protection: notProtected, extra: [[RULES, rules]] })
     const r = await svc.readPr(CWD, { number: 12 })
     if (!r.ok) throw new Error('읽기 실패')
     expect(r.pr.notes.join(' ')).not.toMatch(/보호가 없/)
-    expect(r.pr.notes.join(' ')).toMatch(/필수 검사/)
+    expect(r.pr.notes.join(' ')).toMatch(/룰셋에 필수 검사가 없/)
+    expect(r.pr).toMatchObject({ protected: true, byRuleset: true, checks: [], canMerge: true })
+  })
+
+  it('[M11-G3 M07-24] integration_id가 없는 룰셋 필수 검사는 어느 앱이든 받는다 — commit status도 본다', async () => {
+    const rules = ok([{ type: 'required_status_checks', parameters: { required_status_checks: [{ context: 'ci' }] } }])
+    const { svc } = setup({ protection: notProtected, extra: [[RULES, rules]], runs: [], statuses: [{ context: 'ci', state: 'success' }] })
+    const r = await svc.readPr(CWD, { number: 12 })
+    if (!r.ok) throw new Error('읽기 실패')
+    expect(r.pr.checks).toEqual([{ name: 'ci', result: 'success' }])
+    expect(r.pr.canMerge).toBe(true)
+  })
+
+  it('[M11-G3 M07-24] 룰셋 읽기의 실패와 이상한 모양은 닫힌 실패다 — 「보호 없음」으로 열지 않는다', async () => {
+    const bads = [
+      fail(403, 'Resource not accessible'),
+      fail(404, 'Not Found'),
+      ok({ rules: [] }),
+      ok([{ type: 'required_status_checks', parameters: { required_status_checks: 'x' } }]),
+      ok([{ type: 'required_status_checks', parameters: { required_status_checks: [{ integration_id: 1 }] } }]),
+      ok(Array.from({ length: 100 }, () => ({ type: 'deletion' }))),
+    ]
+    for (const bad of bads) {
+      const { svc } = setup({ protection: notProtected, extra: [[RULES, bad]] })
+      const r = await svc.readPr(CWD, { number: 12 })
+      if (!r.ok) throw new Error('읽기 실패')
+      expect(r.pr.requiredError, JSON.stringify(bad)).toBeTruthy()
+      expect(r.pr.canMerge).toBe(false)
+    }
   })
 })

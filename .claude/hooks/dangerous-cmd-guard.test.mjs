@@ -1423,7 +1423,13 @@ try {
     'echo {} > ~/AppData/Roaming/agentdeck/engine-config.json',
     'pushd ~/AppData/Roaming/agentdeck; rm engine-config.json',
   ]) expectAsk(cmd)
-  expectSilent('git commit -m "docs: AppData/Roaming/agentdeck 경로 설명" && npm test')
+  for (const cmd of [
+    'git commit -m "docs: AppData/Roaming/agentdeck 경로 설명" && npm test',
+    'gh pr create --base milestone/m --head chore/x --title t --body "엔진은 ~/AppData/Roaming/agentdeck/engines에 산다"',
+    'gh pr comment 12 --body "AppData/Roaming/agentdeck 확인"',
+    'ls ~/AppData/Roaming/agentdeck 2>/dev/null',
+    'cat C:/Users/u/AppData/Roaming/agentdeck/engine-config.json 2>&1',
+  ]) expectSilent(cmd)
   for (const cmd of ['ls ~/AppData/Roaming/agentdeck', 'cat C:/Users/u/AppData/Roaming/agentdeck/engine-config.json',
     'grep -r version ~/AppData/Roaming/agentdeck/engines', 'git commit -m "docs: AppData/Roaming/agentdeck 경로 설명"',
     'echo ~/AppData/Roaming/agentdeck', 'node scripts/read-engine-config.mjs']) expectSilent(cmd)
@@ -1452,9 +1458,11 @@ try {
   console.log('현재 브랜치가 master면 맨 push·병합은 질의 (M08-2)')
   {
     h.initRepo(h.mirror, { head: 'master', branches: ['chore/x'] })
-    for (const cmd of ['git push', 'git push origin', 'git push origin HEAD', 'git push -u origin chore/x', 'git merge --no-ff chore/x',
-      'git merge --ff-only origin/master', 'timeout 60 git push']) expectAsk(cmd)
-    for (const cmd of ['git status', 'git pull', 'git fetch origin', 'git switch -c chore/y', 'git log --oneline -3']) expectSilent(cmd)
+    for (const cmd of ['git push', 'git push origin', 'git push -u origin', 'git push origin HEAD', 'git push origin HEAD:refs/heads/x',
+      'git merge --no-ff chore/x', 'git merge --ff-only origin/master', 'timeout 60 git push']) expectAsk(cmd)
+    // 다른 브랜치를 이름으로 미는 push는 master 진입이 아니다
+    for (const cmd of ['git status', 'git pull', 'git fetch origin', 'git switch -c chore/y', 'git log --oneline -3',
+      'git push -u origin chore/x', 'git push origin chore/x']) expectSilent(cmd)
     // worktree — `.git`이 파일(gitdir: …)인 작업 폴더도 머리를 읽는다
     const wt = join(h.mirror, 'wt')
     h.git(h.mirror, 'worktree', 'add', '-q', '-b', 'chore/wt', wt)
@@ -1465,7 +1473,11 @@ try {
     r.judge('같은 명령 안에서 master로 옮긴 뒤의 push·병합 — 질의', decision('git checkout master && git merge --no-ff chore/x && git push'), 'ask')
     for (const cmd of ['git switch master && git push origin', 'git checkout master; git pull; git push origin HEAD',
       'git rebase chore/m04-goal-loop master && git push']) expectAsk(cmd)
-    for (const cmd of ['git push', 'git merge --no-ff -m "Merge chore/y" chore/y', 'git checkout master', 'git pull origin master']) expectSilent(cmd)
+    for (const cmd of ['git push', 'git merge --no-ff -m "Merge chore/y" chore/y', 'git checkout master', 'git pull origin master',
+      'git switch -c chore/y master && git push -u origin chore/y', 'git checkout -b chore/y master && git push -u origin chore/y',
+      'git rebase master && git push -u origin chore/y', 'git switch -c chore/y origin/master && git push -u origin chore/y']) expectSilent(cmd)
+    expectAsk('git checkout -B master origin/master && git push origin HEAD')
+    expectDeny('git switch -C master && git push') // switch -C는 브랜치를 덮어 원래 차단이다
   }
 
   // ── 정형 절차 명령 (M11 goal 8) — 메인의 goal 병합·push·PR 사슬은 마일스톤 브랜치 머리에서 질문 없이 지나간다 ──

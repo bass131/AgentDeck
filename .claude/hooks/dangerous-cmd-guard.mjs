@@ -1217,8 +1217,30 @@ function evaluatedScriptOf(c) {
 const RE_APP_DATA = /(?:appdata[\\/]+roaming|%appdata%|\$\{?appdata\}?|\$env:appdata)[\\/]+agentdeck(?=$|[\\/"'\s])/i
 const READ_ONLY_BASES = new Set(['cat', 'ls', 'dir', 'head', 'tail', 'grep', 'rg', 'wc', 'stat', 'file', 'echo', 'cd', 'pushd', 'type', 'get-content', 'gc', 'get-childitem', 'gci'])
 const READ_ONLY_GIT = new Set(['commit', 'log', 'show', 'diff', 'status', 'grep'])
-const readOnlyCtx = (c) => !hasOutputRedirect(c.segText ?? '')
-  && (READ_ONLY_BASES.has(c.base) || (READ_ONLY_GIT.has(c.git?.[0]) && !c.git.some((t) => t === '--output' || t.startsWith('--output='))))
+// gh의 글만 싣는 명령 — 본문·제목에 경로가 적혀도 파일을 쓰지 않는다
+const TEXT_ONLY_GH = new Set(['pr', 'issue'])
+// 인용부 밖 `>`가 파일로 쓰는가 — `2>&1`(fd 복제)·`/dev/null`·`nul`은 쓰기가 아니다
+function writesFile(stage) {
+  let quote = null
+  for (let i = 0; i < stage.length; i++) {
+    const ch = stage[i]
+    if (isEscape(quote, ch, stage[i + 1])) { i++; continue }
+    if (quote) { if (ch === quote) quote = null; continue }
+    if (ch === '"' || ch === "'") { quote = ch; continue }
+    if (ch !== '>') continue
+    let j = i + 1
+    if (stage[j] === '>' || stage[j] === '|') j++
+    while (stage[j] === ' ' || stage[j] === '\t') j++
+    if (stage[j] === '&') continue
+    const target = /^[^\s;|&<>]*/.exec(stage.slice(j))[0]
+    if (target && !/^(?:\/dev\/null|nul)$/i.test(target)) return true
+  }
+  return false
+}
+const readOnlyCtx = (c) => !writesFile(c.segText ?? '')
+  && (READ_ONLY_BASES.has(c.base)
+    || (READ_ONLY_GIT.has(c.git?.[0]) && !c.git.some((t) => t === '--output' || t.startsWith('--output=')))
+    || (isGh(c) && TEXT_ONLY_GH.has(ghWords(c)[0])))
 // 경로를 든 명령이 읽기 명령이 아니거나, 그 폴더로 옮긴(cd·pushd) 뒤 읽기 명령이 아닌 것이 돌면 묻는다
 const showsAppData = (c) => c.seg.some((t) => RE_APP_DATA.test(t))
 const appDataWrite = (contexts) => contexts.some((c) => showsAppData(c) && !readOnlyCtx(c))
@@ -1249,9 +1271,37 @@ function currentBranch(cwd) {
   return null
 }
 const MASTER = 'master'
-// 같은 명령 안에서 master로 옮기는 꼴 — `git switch master`, `git checkout master`, `git rebase <위> master`
-const movesToMaster = (c) => ['switch', 'checkout', 'rebase'].includes(c.git?.[0]) && c.git.slice(1).some((t) => !t.startsWith('-') && low(t) === MASTER)
-const isPushOrMerge = (c) => pushArgs(c) !== null || c.git?.[0] === 'merge'
+// 같은 명령 안에서 master로 옮기는 꼴 — `git switch master`, `git checkout -B master …`, `git rebase <위> master`.
+// `git switch -c chore/y master`는 새 브랜치로 옮기므로 아니다.
+const NEW_BRANCH_OPT = /^(?:-[cCbB]|--create|--force-create|--orphan)$/
+function movesToMaster(c) {
+  const sub = c.git?.[0]
+  if (sub !== 'switch' && sub !== 'checkout' && sub !== 'rebase') return false
+  const args = c.git.slice(1)
+  const operands = []
+  for (let i = 0; i < args.length; i++) {
+    const t = args[i]
+    if (t === '--') break
+    if (sub !== 'rebase' && NEW_BRANCH_OPT.test(t)) return low(args[i + 1] ?? '') === MASTER
+    if (sub !== 'rebase' && /^--(?:create|force-create|orphan)=/.test(t)) return low(t.slice(t.indexOf('=') + 1)) === MASTER
+    if (sub === 'rebase' && ['--onto', '-s', '--strategy', '-X', '--strategy-option', '-x', '--exec'].includes(t)) { i++; continue }
+    if (!t.startsWith('-')) operands.push(low(t))
+  }
+  return (sub === 'rebase' ? operands[1] : operands[0]) === MASTER
+}
+// master 위에서 묻는 꼴 — 병합 전부와 맨 push(refspec 없음, 원격만)·HEAD push. 다른 브랜치를 이름으로 밀면 master가 아니다.
+const PUSH_VALUE_OPTS = new Set(['-o', '--push-option', '--repo', '--receive-pack', '--exec'])
+function pushesCurrent(c) {
+  const args = pushArgs(c)
+  if (args === null) return false
+  const operands = []
+  for (let i = 0; i < args.length; i++) {
+    if (PUSH_VALUE_OPTS.has(args[i])) { i++; continue }
+    if (!args[i].startsWith('-')) operands.push(args[i])
+  }
+  return operands.length <= 1 || operands.slice(1).some((t) => /^\+?(?:HEAD|@)(?::|$)/i.test(t))
+}
+const isPushOrMerge = (c) => pushesCurrent(c) || c.git?.[0] === 'merge'
 
 // ── 본체 ─────────────────────────────────────────────────────────────────────
 function main() {

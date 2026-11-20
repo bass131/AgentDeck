@@ -69,45 +69,13 @@ function entryHash(userData: string, version: string): string {
   return fs.existsSync(entryPath) ? sha256(fs.readFileSync(entryPath)) : 'absent'
 }
 
-// 버전 폴더 전체의 파일 목록(상대 경로·크기·내용 해시) 해시 (M11 G3, M07-11 — 크기·수정 시각은 utimes로 되돌릴 수 있다).
-// 내용 해시는 (크기·수정 시각·바뀜 시각·inode)가 같으면 이 프로세스가 앞서 읽은 값을 쓴다. 바뀜 시각(ctime)은 utimes로 되돌리지 못한다.
-// 그래서 CLI 바이너리(수백 MB)도 프로세스마다 한 번만 읽는다.
-const contentCache = new Map<string, { key: string; hash: string }>()
-const statKey = (st: fs.Stats): string => `${st.size}|${st.mtimeMs}|${st.ctimeMs}|${st.ino}`
-
-function cachedHash(full: string, st: fs.Stats): string | null {
-  const c = contentCache.get(full)
-  return c && c.key === statKey(st) ? c.hash : null
+// 버전 폴더 전체의 파일 목록(상대 경로·크기·수정 시각·바뀜 시각) 해시.
+// CLI 바이너리(수백 MB)를 실행마다 해시하지 않으려고 목록으로 본다(G4 「하지 않을 것」). 실측(M11 G3): 실제 설치본 7968개·402MB의
+// 내용 해시는 따뜻할 때 6.3초·차가울 때 16.6초, 목록만은 0.15초였다. 수정 시각은 utimes로 되돌릴 수 있어 바뀜 시각(ctime)을 함께 싣는다
+// — utimes는 ctime을 되돌리지 못한다(M07-11). 봉인 파일까지 고치는 쪽은 원래 막지 못한다(L1, 위 머리 주석).
+function row(root: string, full: string, st: fs.Stats): string {
+  return `${path.relative(root, full).replace(/\\/g, '/')}|${st.size}|${Math.floor(st.mtimeMs)}|${st.ctimeMs}`
 }
-
-function contentHashSync(full: string, st: fs.Stats): string {
-  const hit = cachedHash(full, st)
-  if (hit) return hit
-  const h = createHash('sha256')
-  const fd = fs.openSync(full, 'r')
-  try {
-    const buf = Buffer.alloc(1 << 20)
-    for (let n = fs.readSync(fd, buf); n > 0; n = fs.readSync(fd, buf)) h.update(buf.subarray(0, n))
-  } finally {
-    fs.closeSync(fd)
-  }
-  const hash = h.digest('hex')
-  contentCache.set(full, { key: statKey(st), hash })
-  return hash
-}
-
-async function contentHashAsync(full: string, st: fs.Stats): Promise<string> {
-  const hit = cachedHash(full, st)
-  if (hit) return hit
-  const h = createHash('sha256')
-  for await (const chunk of fs.createReadStream(full)) h.update(chunk as Buffer)
-  const hash = h.digest('hex')
-  contentCache.set(full, { key: statKey(st), hash })
-  return hash
-}
-
-const row = (root: string, full: string, st: fs.Stats, hash: string): string =>
-  `${path.relative(root, full).replace(/\\/g, '/')}|${st.size}|${Math.floor(st.mtimeMs)}|${hash}`
 
 function manifestHashSync(root: string): string {
   const rows: string[] = []
@@ -115,40 +83,26 @@ function manifestHashSync(root: string): string {
     for (const d of fs.readdirSync(dir, { withFileTypes: true })) {
       const full = path.join(dir, d.name)
       if (d.isDirectory()) walk(full)
-      else {
-        const st = fs.statSync(full)
-        rows.push(row(root, full, st, contentHashSync(full, st)))
-      }
+      else rows.push(row(root, full, fs.statSync(full)))
     }
   }
   walk(root)
   return sha256(rows.sort().join('\n'))
 }
 
-const HASH_POOL = 8
-
 async function manifestHashAsync(root: string): Promise<string> {
-  const files: { full: string; st: fs.Stats }[] = []
+  const rows: string[] = []
   const walk = async (dir: string): Promise<void> => {
     const entries = await fsp.readdir(dir, { withFileTypes: true })
     await Promise.all(
       entries.map(async (d) => {
         const full = path.join(dir, d.name)
         if (d.isDirectory()) await walk(full)
-        else files.push({ full, st: await fsp.stat(full) })
+        else rows.push(row(root, full, await fsp.stat(full)))
       })
     )
   }
   await walk(root)
-  const rows: string[] = []
-  let next = 0
-  const worker = async (): Promise<void> => {
-    while (next < files.length) {
-      const { full, st } = files[next++]
-      rows.push(row(root, full, st, await contentHashAsync(full, st)))
-    }
-  }
-  await Promise.all(Array.from({ length: HASH_POOL }, worker))
   return sha256(rows.sort().join('\n'))
 }
 

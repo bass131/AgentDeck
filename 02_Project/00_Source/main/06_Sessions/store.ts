@@ -148,23 +148,26 @@ export function createConversationStore(dir: string): ConversationStore {
 
   const cache = new Map<string, string>()
 
-  // 깨진 색인은 덮어쓰지 않는다 — `.broken-<시각>`으로 옆에 두고 대화 파일들로 다시 짓는다(M11 G3, Backlog 20)
+  // 색인을 못 읽으면 빈 목록으로 두지 않는다 — 다음 저장이 한 건으로 덮는다(M11 G3, Backlog 20).
+  // 읽지 못하면(없음·잠김 포함) 대화 파일들로 다시 짓고, 깨졌으면 `.broken-<시각>`으로 옆에 둔 뒤 다시 짓는다.
   function readIndex(): IndexFile {
-    let raw: string
+    let raw: string | null = null
     try {
       raw = fs.readFileSync(indexPath, 'utf8')
     } catch {
-      return { version: 1, ids: [] }
     }
-    try {
-      const parsed = JSON.parse(raw) as IndexFile
-      if (parsed && Array.isArray(parsed.ids)) return { ...parsed, ids: parsed.ids.filter(safeId) }
-    } catch {
+    if (raw !== null) {
+      try {
+        const parsed = JSON.parse(raw) as IndexFile
+        if (parsed && Array.isArray(parsed.ids)) return { ...parsed, ids: parsed.ids.filter(safeId) }
+      } catch {
+      }
+      try { fs.renameSync(indexPath, `${indexPath}.broken-${Date.now()}`) } catch { /* 옆에 두지 못해도 다시 짓는다 */ }
     }
-    try { fs.renameSync(indexPath, `${indexPath}.broken-${Date.now()}`) } catch { /* 옆에 두지 못해도 다시 짓는다 */ }
     cache.delete('__index__')
-    const rebuilt = { version: 1, ids: rebuildIds() }
-    writeIndex(rebuilt)
+    const ids = rebuildIds()
+    const rebuilt = { version: 1, ids }
+    if (ids.length > 0 || raw !== null) writeIndex(rebuilt)
     return rebuilt
   }
 

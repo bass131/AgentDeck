@@ -60,6 +60,12 @@ test.describe('M11 G3 룰셋 base의 PR 카드 (opt-in: M11G3LIVE=1)', () => {
   })
 
   test.afterAll(async () => {
+    // 연습 앱 데이터를 연 모드(작업)로 되돌려 둔다 — 연습 구동기가 그 모드로 연다
+    if (page) {
+      if (await page.locator('.gitm-overlay').isVisible().catch(() => false)) await page.keyboard.press('Escape')
+      await page.getByRole('tab', { name: '작업' }).click({ force: true }).catch(() => {})
+      await page.waitForTimeout(500)
+    }
     await app?.close()
     if (workspace) rmSync(workspace, { recursive: true, force: true })
   })

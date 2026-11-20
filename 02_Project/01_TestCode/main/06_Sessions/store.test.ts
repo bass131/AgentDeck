@@ -526,6 +526,17 @@ describe('ConversationStore (JSON fan-out)', () => {
       store2.close()
     })
 
+    it('[M11-G3 M11-20] 대화 파일은 있는데 index.json을 읽지 못하면(없음 포함) 대화 파일로 다시 짓는다 — 다음 저장이 한 건으로 덮지 않는다', () => {
+      store.save(makeRecord({ id: 'lost-1' }))
+      store.save(makeRecord({ id: 'lost-2' }))
+      fs.rmSync(indexPath())
+      const store2 = createConversationStore(tmpDir)
+      store2.save(makeRecord({ id: 'lost-3' }))
+      expect(JSON.parse(fs.readFileSync(indexPath(), 'utf8')).ids).toEqual(['lost-1', 'lost-2', 'lost-3'])
+      expect(fs.readdirSync(tmpDir).filter((n) => n.startsWith('index.json.broken-'))).toEqual([])
+      store2.close()
+    })
+
     it('[M11-G3 M11-20] ids가 배열이 아닌 index.json도 깨진 장으로 보고 대화 파일로 다시 짓는다', () => {
       store.save(makeRecord({ id: 'keep-1' }))
       fs.writeFileSync(indexPath(), JSON.stringify({ version: 1, ids: 'x' }))

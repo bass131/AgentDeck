@@ -92,6 +92,9 @@ export interface FsPort {
   write(rel: string, text: string): Promise<void>
   // 폴더 바로 아래의 파일 이름들. 폴더가 없으면 빈 배열.
   list(relDir: string): Promise<string[]>
+  // M10 G6 — 끝난 실행의 보관이 쓴다. 파일이나 폴더가 있는가 / 이름 바꾸기(대상 폴더를 만들고, 대상이 있으면 덮어쓰지 않고 실패한다).
+  exists(rel: string): Promise<boolean>
+  move(fromRel: string, toRel: string): Promise<void>
 }
 
 // 작업 노드 하나의 의뢰. 세션에는 노드의 지시와 생존 문서만 준다(마일스톤 스펙).

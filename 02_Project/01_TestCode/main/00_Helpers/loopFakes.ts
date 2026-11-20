@@ -108,6 +108,21 @@ export class FakeFs implements FsPort {
     const prefix = `${relDir}/`
     return [...this.files.keys()].filter((k) => k.startsWith(prefix) && !k.slice(prefix.length).includes('/')).map((k) => k.slice(prefix.length))
   }
+  // M10 G6 — 이름 바꾸기 흉내. 대상이 있으면 덮어쓰지 않는다. failMove가 참이면 그 옮기기가 실패한다(보관 되돌리기 시험).
+  failMove: ((from: string, to: string) => boolean) | null = null
+  readonly moves: string[] = []
+  async exists(rel: string): Promise<boolean> {
+    return [...this.files.keys()].some((k) => k === rel || k.startsWith(`${rel}/`))
+  }
+  async move(from: string, to: string): Promise<void> {
+    if (this.failMove?.(from, to)) throw new Error(`시험: ${from} 옮기기 실패`)
+    if (await this.exists(to)) throw new Error(`${to}가 이미 있다`)
+    const text = this.files.get(from)
+    if (text === undefined) throw new Error(`${from}가 없다`)
+    this.files.delete(from)
+    this.files.set(to, text)
+    this.moves.push(`${from} -> ${to}`)
+  }
 }
 
 const last = (list: string[] | undefined): string | null => (list && list.length > 0 ? list[list.length - 1] : null)

@@ -11,16 +11,16 @@ import path from 'node:path'
 import { controlsForRun, setControlEnabled } from '@main/04_Claude/permission/controlsStore'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import type { AgentBackend, AgentRun, AgentRunInput, RunResponse } from '@main/03_Agent/AgentBackend'
-import { repoKeyOf } from '@main/05_Loop/digestStore'
+import { createFileDigestStore, repoKeyOf, stateDigest } from '@main/05_Loop/digestStore'
 import { autoModeReasonOf, contextText, createLoopDriver, stateSummary, type LoopDriver } from '@main/05_Loop/loopDriver'
 import { FAIL_LIMIT, createRunState, type RunState } from '@main/05_Loop/runState'
 import { createLoopNotifier } from '@main/05_Loop/loopNotifier'
 import { openLoop } from '@main/05_Loop/openLoop'
-import { DOCS } from '@main/05_Loop/survivalDocs'
+import { DOCS, runStateText } from '@main/05_Loop/survivalDocs'
 import type { AgentEvent } from '@shared/agentEvents'
 import type { LoopStatus } from '@shared/ipcContract'
 import { BareGh } from '../00_Helpers/bareGh'
-import { findRawNode, loaded, variantText } from '../00_Helpers/loopFakes'
+import { drive, findRawNode, loaded, variantText } from '../00_Helpers/loopFakes'
 import { makeTempRepos, type TempRepos } from '../00_Helpers/tempGit'
 
 const SLOW = { timeout: 300_000 }
@@ -105,7 +105,7 @@ let appData: string
 const drivers: LoopDriver[] = []
 let pushed: LoopStatus[] = []
 
-function driver(over: { autoModeCheck?: () => string | null } = {}): { d: LoopDriver; rec: Rec } {
+function driver(over: { autoModeCheck?: () => string | null; onState?: (s: LoopStatus) => void } = {}): { d: LoopDriver; rec: Rec } {
   const { backend, rec } = fakeBackend()
   const d = createLoopDriver({
     appDataDir: appData, backend, ciRetryMs: 20, humanPollMs: 20,
@@ -210,6 +210,12 @@ describe('구동자 — 마일스톤 하나를 사람과 함께 끝까지 (M09 G
     expect(reopened.milestonePr).toBe(waiting.milestonePr)
     gh.mergeByHuman(waiting.milestonePr as number)
     expect((await until((s) => s.phase === 'done', '마일스톤 끝')).phase).toBe('done')
+    // M10 G6 — 이 구동자에서 끝난 실행은 「끝남」이고, 다시 열면 시작 전과 안내 한 줄이다(시작하면 보관한다)
+    await again.closeAll()
+    pushed = []
+    const later = await driver().d.open({ cwd: CWD })
+    expect(later.phase).toBe('not-started')
+    expect(later.reason).toBe('끝난 실행(M1) — 새 마일스톤을 시작하면 보관해요')
   })
 })
 
@@ -710,6 +716,64 @@ describe('구동자 그래프 읽기 (M10 G5)', () => {
 
 // M10 G5 검수 1 — 자동 모드가 꺼진 채 다시 열면, 여는 쪽의 상태 계산과 구동(kick)의 읽기가 경쟁해도 running 한 장이 끼지 않는다.
 // running이 끼면 알림기가 열쇠를 지워 같은 blocked를 또 알린다
+// M10 G6 — 끝난 실행이 있는 폴더(G5 뒤의 옛 템플릿 해시 포함)를 열면 시작 전과 안내 한 줄이고, 새 마일스톤을 시작하면 보관하고 새 실행을 연다
+describe('두 번째 마일스톤 (M10 G6)', () => {
+  async function plant(status: 'done' | 'running'): Promise<string> {
+    const made = createRunState(TEMPLATE.template, 'a'.repeat(64), 'M01', 'master')
+    if (!made.ok) throw new Error(made.reason)
+    const state = status === 'done' ? drive(TEMPLATE.template, made.state).state : made.state
+    expect(state.status).toBe(status)
+    const text = runStateText(state)
+    const key = repoKeyOf(fs.realpathSync.native(repos.work))
+    const store = createFileDigestStore(path.join(appData, 'digests'))
+    fs.mkdirSync(path.join(repos.work, DOCS.goalsDir), { recursive: true })
+    fs.writeFileSync(path.join(repos.work, DOCS.runState), text)
+    fs.writeFileSync(path.join(repos.work, DOCS.milestoneSpec), '# M01 스펙\n')
+    fs.writeFileSync(path.join(repos.work, DOCS.goalsDir, 'G1.md'), '# 첫 목표\n')
+    await store.writeCopy(key, text)
+    await store.write(key, stateDigest(JSON.parse(text)))
+    return text
+  }
+
+  it('옛 해시의 끝난 실행은 시작 전과 안내 한 줄이고 알리지 않는다 — 시작하면 보관하고 새 실행을 연다', SLOW, async () => {
+    const text = await plant('done')
+    const shown: string[] = []
+    const notifier = createLoopNotifier({ appDataDir: path.join(appData, 'loop'), notify: { show: (n) => { shown.push(n.body) } } })
+    const { d } = driver({ onState: (s) => { pushed.push(s); void notifier.observe(s) } })
+    const opened = await d.open({ cwd: repos.work })
+    expect(opened.phase).toBe('not-started')
+    expect(opened.reason).toBe('끝난 실행(M01) — 새 마일스톤을 시작하면 보관해요')
+    expect(opened.milestoneId).toBeNull()
+    // 현황판·그래프가 끝난 실행을 지금 실행으로 그리지 않는다
+    expect([opened.node, opened.goals, opened.recentLines]).toEqual([null, [], []])
+    await new Promise((res) => setTimeout(res, 200))
+    expect(shown).toEqual([])
+    const started = await d.start(repos.work, 'M02')
+    expect(started.phase).not.toBe('blocked')
+    expect(started.milestoneId).toBe('M02')
+    expect(started.reason).toBeNull()
+    const archive = path.join(repos.work, '.agentdeck', 'archive', 'M01')
+    expect(fs.readFileSync(path.join(archive, 'run-state.json'), 'utf8')).toBe(text)
+    expect(fs.readFileSync(path.join(archive, 'milestone-spec.md'), 'utf8')).toBe('# M01 스펙\n')
+    expect(fs.readFileSync(path.join(archive, 'goals', 'G1.md'), 'utf8')).toBe('# 첫 목표\n')
+    expect(fs.readdirSync(path.join(repos.work, DOCS.goalsDir))).toEqual([])
+    expect((JSON.parse(fs.readFileSync(path.join(repos.work, DOCS.runState), 'utf8')) as RunState).milestoneId).toBe('M02')
+    const asked = await until((s) => s.cards.length === 1, '새 실행의 브레인스토밍 질문')
+    expect(asked.milestoneId).toBe('M02')
+  })
+
+  it('옛 해시의 끝나지 않은 실행은 그대로 막히고 시작해도 옮기지 않는다', SLOW, async () => {
+    await plant('running')
+    const { d } = driver()
+    const opened = await d.open({ cwd: repos.work })
+    expect(opened.phase).toBe('blocked')
+    expect(opened.reason).toContain('템플릿 해시')
+    await d.start(repos.work, 'M02')
+    expect(fs.existsSync(path.join(repos.work, '.agentdeck', 'archive'))).toBe(false)
+    expect(fs.existsSync(path.join(repos.work, DOCS.milestoneSpec))).toBe(true)
+  })
+})
+
 describe('자동 모드 꺼짐을 다시 열기 — 알림은 한 번 (M10 G5 검수 1)', () => {
   it('구동의 첫 읽기가 늦어도 상태는 처음부터 blocked이고, 다시 열기를 거듭해도 Windows 알림은 한 번이다', SLOW, async () => {
     const first = driver()

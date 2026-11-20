@@ -24,6 +24,7 @@ M11 Backlog 정리(`01_Milestones/M11_BacklogSweep/`)가 닫은 항목이다. �
 | 19 | 고침(M11 goal 4) | 알린 열쇠와 함께 앱 안 표시를 `alerts.json`에 남기고 판정자를 만들 때 되살린다(`main/05_Loop/loopNotifier.ts:62,83-85`, `abde4069`, `loopNotifier.test.ts`). 실앱 e2e D에서 재기동 직후 첫 `loop.alerts` 읽기에 래치 알림이 있었다 — 다만 그때 그 폴더는 이미 다시 열려 `latched`였다(제목 줄 0.8초), 되살림과 다시 열기를 실앱에서 가르지 못해 되살림 자체는 단위 시험이 근거다. |
 | 20 | 해결됨 | 끝난 실행은 막지 않고 안내하며 새 마일스톤 시작 때 보관한다(`main/05_Loop/loopRunner.ts:138-140`, `2e85b1fa`·`037f13a7`). |
 | 21 | 고침(M11 goal 1) | 연습 앱 데이터를 `%USERPROFILE%\.agentdeck-practice\udd`로 옮기고(loop 6파일 sha256 일치), 구동기 `m09-g5-practice-run.e2e.ts`가 `G5_UDD`가 없으면 그 자리를 쓴다. |
+| 24 | 고침(M11 goal 5) | 마지막 USER-INPUT 줄이 사용자의 답을 적은 줄(「사용자가 … 답했/골랐/확정했/승인했」, 「사용자 답:」, `[USER]`)이고 기다림 낱말이 없으면 `waitingUser`가 아니다(`99_Others/Dashboard/lib/markdown.mjs:180,198`, `03d25f64`). 시험 `[M11-G5 M10-24]`이 실제 줄 꼴 표로 본다. |
 | 23 | 고침(M11 goal 3) | 룰셋 규칙이 있으면 「보호가 없다」 대신 「룰셋에 필수 검사가 없어요」, 규칙이 없을 때만 「보호가 없어」다(`main/08_Git/prMerge.ts:118,286`, `2af8fd68`). 실앱 e2e `m11-g3-ruleset-card-live.e2e.ts`(연습 앱 데이터, 연습 토큰은 앱 프로세스 `GH_TOKEN`으로만)에서 PR 6 카드가 그 문구를 보였다. |
 | 22 | 고침(M11 goal 4) | 메인 대화가 세션 사건을 턴으로 나눠 채팅과 같은 `ThreadView`로 그린다 — 추론 중 표시·흘러나오는 글·도구 호출과 결과(`renderer/src/13_Loop/mainChatModel.ts:73`, `MainChatView.tsx:46`, `shared/13_Loop/mainTurn.ts:4`, `abde4069`). 실앱 e2e A에서 「사고 중」, Read·Write 도구 줄, 답 글이 차례로 캡처됐다(세션 대화 기록의 assistant 모델 `claude-haiku-5-5`). |
 

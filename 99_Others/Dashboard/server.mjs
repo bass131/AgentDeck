@@ -10,6 +10,7 @@ import { AnswerError, decisionSig, lineFor, validHandle } from './lib/decisions.
 import { findMainTerminal, typeIntoTerminal } from './lib/deliver.mjs';
 import { createPrService, ghRunner, gitOriginUrl } from './lib/merge.mjs';
 import { CONFIRM_TIMEOUT_MS, createConfirm } from './lib/confirm.mjs';
+import { readInbox, validInboxHandle } from './lib/inbox.mjs';
 
 export const HEADER = 'X-AgentDeck-Dashboard';
 export const TOKEN_HEADER = 'x-dashboard-token';
@@ -35,7 +36,8 @@ const types = { '/app.js': 'text/javascript; charset=utf-8', '/chime.js': 'text/
 // 주입 지점은 함수 인자뿐이다(환경변수·설정 스위치 없음). `type`은 넣는 함수, `prService`는 병합 모듈, `confirm`은 확인 창,
 // `confirmTimeoutMs`는 확인 창 시간 초과, `mergeFn`은 확인 뒤 보내는 함수(없으면 prService.sendMerge)다. 시험과 실측 서버는 가짜를 넘긴다.
 export async function createDashboard(config, { collectFn = collect, watchFn, debounceMs, maxWaitMs, pollMs, pingMs = 15000, now = () => new Date(), type = typeIntoTerminal, findMain = findMainTerminal,
-  prService = createPrService({ gh: ghRunner, originUrl: gitOriginUrl }), confirmTimeoutMs = CONFIRM_TIMEOUT_MS, confirm = createConfirm({ timeoutMs: confirmTimeoutMs }), mergeFn } = {}) {
+  prService = createPrService({ gh: ghRunner, originUrl: gitOriginUrl }), confirmTimeoutMs = CONFIRM_TIMEOUT_MS, confirm = createConfirm({ timeoutMs: confirmTimeoutMs }), mergeFn,
+  inboxFn = readInbox, inboxMs = 30000 } = {}) {
   const clients = new Set();
   const template = await readFile(new URL('./public/index.html', import.meta.url), 'utf8');
   // 서버를 시작할 때마다 새 페이지 토큰. 페이지 bootstrap에만 싣고 SSE 스냅샷에는 싣지 않는다.
@@ -47,6 +49,8 @@ export async function createDashboard(config, { collectFn = collect, watchFn, de
   // everTyped는 이 서버 수명 동안 무엇이든 넣었는지(들어갔을 수 있음 포함)다. 목록이 바뀌어도 지우지 않는다 —
   // 사용자가 Enter를 안 눌렀으면 입력창에 앞 문장이 남아 있어서, 다음 문장은 고쳐 고름 표지(CORRECTION)를 앞에 붙여 넣는다.
   let typed = null, typedSure = false, everTyped = false, sending = false;
+  const inboxHandle = validInboxHandle(config.inboxHandle);
+  let inbox = null, inboxTimer = null;
   function push() {
     const data = `event: snapshot\nid: ${vm.revision}\ndata: ${JSON.stringify(vm)}\n\n`;
     for (const client of clients) {
@@ -67,6 +71,7 @@ export async function createDashboard(config, { collectFn = collect, watchFn, de
           if (closed) break;
           // 넣기 버튼을 보일지만 알린다. handle 자체는 페이지에 싣지 않는다.
           next.answer = { canType: !!handle || !!findMain };
+          next.inbox = inbox;
           const before = currentList().sig;
           next.revision = ++revision; vm = next;
           // 목록이 바뀌면 같은 문장 표시를 지운다. 바뀐 목록에서 같은 문장은 다른 답일 수 있다.
@@ -83,6 +88,17 @@ export async function createDashboard(config, { collectFn = collect, watchFn, de
     try { await collecting; } finally { collecting = null; }
   }
   await refresh();
+  // Orca 워커 보고 소식(M05 Backlog 63, lib/inbox.mjs). 수집과 따로 inboxMs마다 읽고, 바뀌었을 때만 새 판을 민다. handle은 페이지에 싣지 않는다.
+  async function pollInbox() {
+    let r;
+    try { r = await inboxFn(inboxHandle); } catch { r = { status: 'failed' }; }
+    const nextInbox = r ? { status: r.status === 'ok' ? 'ok' : 'failed', items: r.status === 'ok' && Array.isArray(r.items) ? r.items : [] } : null;
+    if (closed || JSON.stringify(nextInbox) === JSON.stringify(inbox)) return;
+    inbox = nextInbox;
+    vm = { ...vm, inbox, revision: ++revision };
+    push();
+  }
+  if (inboxHandle) { await pollInbox(); inboxTimer = setInterval(() => { void pollInbox(); }, inboxMs); }
   const watcher = watchRepo(config.repoPath, () => { void refresh(); }, {
     watchFn, debounceMs, maxWaitMs, pollMs, onFailure: error => { watchError = error; }
   });
@@ -135,12 +151,13 @@ export async function createDashboard(config, { collectFn = collect, watchFn, de
     sending = true;
     // 넣기 직전에 메인 Claude 터미널을 찾는다(M07 G13, lib/deliver.mjs findMainTerminal). 못 찾으면 넣지 않고 복사를 안내한다 —
     // 아무것도 넣지 않았으니 같은 문장 표시는 건드리지 않는다. Orca에 닿지 못할 때만 설정 handle을 그대로 쓴다.
-    let target = handle;
+    let target = handle, terminal;
     if (findMain) {
       let found;
       try { found = await findMain(config.repoPath, handle); } catch { found = { handle: null, unreachable: true, reason: 'Orca에 닿지 못해 메인 터미널을 찾지 못했어요.' }; }
       target = found?.handle ? validHandle(found.handle) : found?.unreachable ? handle : null;
       if (!target) { sending = false; return json(response, 200, { ok: false, copy: true, line, reason: `${found?.reason || '메인 터미널을 찾지 못했어요.'} 문장을 복사해 메인 입력창에 붙여 넣어 주세요.` }); }
+      if (found?.handle && typeof found.title === 'string' && found.title) terminal = found.title;
       // 찾는 동안 결정 목록이 바뀌었으면 넣지 않는다 — 화면에서 확인한 문장이 지금 목록의 문장과 같을 때만 넣는다(PR 83 검수 중요 1)
       let now;
       try { now = lineFor(currentList(), body); } catch { now = null; }
@@ -161,8 +178,9 @@ export async function createDashboard(config, { collectFn = collect, watchFn, de
     }
     finally { sending = false; }
     if (typed === line) typedSure = true;
-    if (!corrected) return json(response, 200, { ok: true, via: 'input', line });
-    return json(response, 200, { ok: true, via: 'input', line, corrected: true,
+    const named = terminal ? { terminal } : {};
+    if (!corrected) return json(response, 200, { ok: true, via: 'input', line, ...named });
+    return json(response, 200, { ok: true, via: 'input', line, ...named, corrected: true,
       note: '앞에 넣은 문장이 메인 입력창에 남아 있을 수 있어, 「고쳐 고름」 표지를 붙여 뒤에 넣었어요. 메인은 마지막 문장을 답으로 읽어요. 앞 문장을 지우고 Enter를 눌러도 돼요.' });
   }
   // 병합: 토큰·출처 → 본문 → PR 번호(와 SHA) 꼴. read는 PR을 읽어 화면 값을 준다. run은 병합 모듈이 마지막으로 보인 SHA를 소비하고
@@ -244,9 +262,9 @@ export async function createDashboard(config, { collectFn = collect, watchFn, de
   try {
     await new Promise((resolve, reject) => { server.once('error', reject); server.listen(config.port, '127.0.0.1', resolve); });
     origin = `http://127.0.0.1:${server.address().port}`;
-  } catch (error) { clearInterval(ping); watcher.close(); throw error; }
+  } catch (error) { clearInterval(ping); clearInterval(inboxTimer); watcher.close(); throw error; }
   return { origin, server, refresh, get snapshot() { return vm; }, async close() {
-    closed = true; watcher.close(); clearInterval(ping);
+    closed = true; watcher.close(); clearInterval(ping); clearInterval(inboxTimer);
     for (const client of clients) client.end(); clients.clear();
     await new Promise(resolve => { server.close(resolve); server.closeAllConnections(); });
     await collecting;

@@ -30,6 +30,7 @@ M11 Backlog 정리(`01_Milestones/M11_BacklogSweep/`)가 닫은 항목이다. �
 | 35 | 해결됨 | 항목 본문에 H2의 닫힘(결정적 캡처와 digest 대조)이 적혀 있다. |
 | 38 | 해결됨 | 항목 본문에 닫힘이 적혀 있고 `tsconfig.web.json:28`이 e2e를 포함한다. |
 | 39 | 정함 → goal 6 | G1 결정 대장 [USER·위임] — M05-34와 같이 그 하네스와 로더를 지운다. |
+| 44 | 고침(M11 goal 5) | goal 한 장 형식의 진척 단계 읽기는 이미 됐다(`99_Others/Dashboard/lib/collector.mjs:149`, `test/goal.test.mjs`). 남은 마일스톤 목록은 첫머리 문서를 `_MilestonePreview.md` → `00_마일스톤-스펙.md` → `00_Goal.md` 순으로 읽고, 셋 다 없으면 goal 문서 수·종결 수를 보인다(`collector.mjs:15`, `03d25f64`). goal 「## 목표」는 이미 단계 영역 머리의 「이 goal의 목표 원문」으로 보인다(`lib/progress.mjs:63`, `public/app.js:540`). USER-INPUT 몫은 M10-24가 닫았다. Orca 탭 재사용의 흔들림은 재현하지 못해 M11 Backlog 39로 옮겼다. |
 | 45 | 해결됨 | 테스트·훅 타임아웃이 30000이고(`vitest.config.ts:20,22`) 콜드 import 근본 몫은 M11 Backlog로 옮겼다. |
 | 46 | 해결됨 | 폐기 포트가 지운 거처의 결과를 되살리지 않는다(`renderer/src/03_Agent/state/runCore.ts:99-100`, `2f78992a`). |
 | 48 | 닫음(판단) | G1 결정 대장 [USER·위임] — interrupt 때 대기열은 지금 동작을 둔다. |
@@ -42,9 +43,16 @@ M11 Backlog 정리(`01_Milestones/M11_BacklogSweep/`)가 닫은 항목이다. �
 | 57 | 해결됨 | `testTimeout`이 30000이다(`vitest.config.ts:20`). |
 | 58 | 해결됨 | 항목 본문대로 G11 2b(`7cb426cd`)에서 닫혔다. |
 | 59 | 해결됨 | 현황판 시험을 테스트 경로로 인정한다(`33_tdd-guard.cjs:225,233`, H4 2a `12b71046`). |
+| 61 | 고침(M11 goal 5) | 「내 손」의 병합 대기 줄이 병합 카드가 GitHub에서 읽은 같은 PR을 따른다 — 병합·닫힘이면 빠지고 「goal 문서 갱신만 남았어요」, `hard-gates` 실패면 빨강(`99_Others/Dashboard/public/chime.js:283`, `public/app.js:147`, `03d25f64`·`20329d6f`·`8e4116c0`). 시험 `[M11-G5 61]` 둘. |
+| 62 | 고침(M11 goal 5) | goal 문서의 마지막 커밋 뒤에 브랜치 커밋이 있는데 `[>]`가 그대로면 사실 줄 하나를 보인다(`99_Others/Dashboard/lib/collector.mjs:131`, `03d25f64`). 실기동에서 G5 문서에 「커밋이 2개 더」가 떴다. |
+| 63 | 고침(M11 goal 5) | 선택 설정 `inboxHandle`이 있을 때만 `orca orchestration inbox --full --json`(읽기 전용)을 30초마다 읽어 워커 완료·에스컬레이션·질문 최근 5개를 보인다(`99_Others/Dashboard/lib/inbox.mjs`, `server.mjs:92`, `03d25f64`). 칸이 없거나 orca가 없으면 절이 없다. |
+| 64 | 고침(M11 goal 5) | 「원문 N개를 읽지 못했어요」는 빨강 네모 깨짐 줄이고 `.mini-stop`·`.mini-todo`를 지웠다(`99_Others/Dashboard/public/app.js:186`, `styles.css:239`, `20329d6f`). 「알림음 없음」은 jsdom 화면 시험 `[M11-G5 64]`이 본다. |
 | 65 | 고침(M11 goal 2) | semver 비교 한 벌이 pre-release를 읽고 설치 목록 정렬도 그것을 쓴다(`main/10_Engine/engineCheckUpdate.ts:4`, `engineVersions.ts:84`, `63911dda`). |
 | 67 | 닫음(판단) | G1 결정 대장 [USER·위임] — lint 안전망으로 충분해 규범 줄을 두지 않는다. |
+| 68 | 고침(M11 goal 5) | 링 캡션의 「N단계 중 k개 완료」를 지워 단계 영역 머리 한 곳만 남기고(링 `aria-label`은 유지), 「미래 시각」 대신 5분까지 늦은 화면 시계는 지금으로, 더 앞서면 「시계보다 앞서요」라고 쓴다(`99_Others/Dashboard/public/app.js:143`, `20329d6f`). 「동작 줄이기」는 Edge e2e(`reducedMotion: 'reduce'`)에서 도는 애니메이션 0개로 확인(`test/m11-g5-e2e.test.mjs:45`). |
 | 70 | 해결됨 | 현황판이 넣기 직전 Orca 목록으로 메인 터미널을 찾고(`99_Others/Dashboard/lib/deliver.mjs:64`, `a112b4f4`) 결정 보드 도구와 전달 판정 몫은 M11 Backlog로 옮겼다. |
+| 71 | 고침(M11 goal 5) | `test/m11-g5-dom.test.mjs`가 `app.js`를 jsdom에서 돌려 결정 카드·병합 카드·「내 손」 배선을 동작으로 보고, 덮인 소스 정규식 시험(`decide-view`·`merge-view`·`answer`·`chime` 일부)을 지웠다(`99_Others/Dashboard/test/m11-g5-dom.test.mjs:59`, `c98b20a1`). 고쳐 고름 표지 실측은 항목 줄대로 이미 닫혔다. |
+| 72 | 고침(M11 goal 5) | 병합 카드가 같은 PR을 열린 채로 보이면 「내 손」은 카드를 가리키는 한 줄만 둔다(셈·알림음은 그대로)(`99_Others/Dashboard/public/app.js:153`, `20329d6f`). 영역 바로 가기의 「결정 요청」은 항목 줄대로 링크가 대신한다. |
 | 73 | 낡음 | 운영 메모라 할 일이 없다. |
 | 75 | M12로 | G1 결정 대장 [USER·위임] — 스펙 지정대로 M12 전역 Taste 「문서 말투」가 맡는다. |
 | 76 | 해결됨 | 코드맵이 `99_Others/CodeMap/`에 편입돼 있다(H9). |

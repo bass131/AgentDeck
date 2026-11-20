@@ -173,6 +173,13 @@ export function parseGoalSteps(entries) {
   return { phaseLine: sec.line, stepsLine: sec.body[hi].line, steps };
 }
 
+// USER-INPUT 줄은 질문을 적은 줄일 수도, 받은 답을 적은 줄일 수도 있다(M10 Backlog 24). 답을 적었다는 표지가 있고
+// 기다림 표지가 없을 때만 받은 답이다. 그 밖은 기다림으로 둔다 — 답을 놓치는 쪽보다 한 번 더 묻는 쪽이 싸다.
+const ANSWER_MARK = /사용자[가는]?\s[^.]*?(답했|골랐|확정했|승인했)|사용자\s*(답|결정|확정|판정|승인)\s*[:：「(]|\[USER\]/;
+// 질문 꼴(물음표·「무엇」·「어느」·「할지」)은 답 표지가 있어도 기다림이다 — 숨긴 질문이 오탐보다 비싸다
+const WAIT_MARK = /기다린다|기다리고|기다려|대기|묻는다|물어본다|[?？]|무엇|어느|할지/;
+export const userInputAnswered = text => ANSWER_MARK.test(String(text ?? '')) && !WAIT_MARK.test(String(text ?? ''));
+
 // goal 한 장의 흐름 판정. 값은 원문에서만 온다: 진척 단계 표시, 검증 기록 줄 수, 머리말 「상태:」.
 //  - 종결: 「상태: 종결」이면 멈춤·주의를 판정하지 않는다.
 //  - 멈춤: 마지막 USER-INPUT 이후 FAIL이 한도 이상이면 진행 단계(없으면 다음 단계)가 멈춤이다.
@@ -189,7 +196,7 @@ export function judgeGoal(steps, record, { status = null, failLimit = RULES.fail
     : done === items.length ? 'all-done' : done ? 'between' : 'not-started';
   return { items, current: cur?.num ?? null, next: next?.num ?? null,
     stage, closed, stopped, done, currentCount: items.filter(s => s.mark === '>').length,
-    waitingUser: !closed && !stopped && record?.last?.marker === 'USER-INPUT' };
+    waitingUser: !closed && !stopped && record?.last?.marker === 'USER-INPUT' && !userInputAnswered(record.last.text) };
 }
 
 const emptyTally = () => ({ USER: 0, 'USER·위임': 0, AI: 0, 'AI·비가역': 0 });

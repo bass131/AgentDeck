@@ -12,7 +12,7 @@
 - 마일스톤 스펙: `01_Milestones/M11_BacklogSweep/00_마일스톤-스펙.md`(분류표 `10_`~`13_분류-*.md`). 다음 `M12_CharterTaste/00_마일스톤-스펙.md`, `M13_Installer/00_마일스톤-스펙.md`.
 - 마일스톤 브랜치: `milestone/m11-backlog-sweep`(`5419b812`에서 가름 — `chore/m10-close` 머리, M10 종결 기록과 브레인스토밍 기록).
 - 사슬 PR: (아직 없음)
-- 현재 goal: G4 작업 모드 보강 + 설계 감사 결함 22~24 — `40_Goal-G4-작업모드-보강.md`, 브랜치 `feat/m11-g4-work-mode`(마일스톤 머리 `9ba04fa8`에서). G1 종결(PR 108, `1de6e917`), G2 종결(PR 109, `9a0a8efd`), G3 종결(PR 110, `9ba04fa8`).
+- 현재 goal: G5 로컬 현황판 — `50_Goal-G5-로컬-현황판.md`, 브랜치 `chore/m11-g5-dashboard`(마일스톤 머리 `98fc4151`에서). G1 종결(PR 108, `1de6e917`), G2 종결(PR 109, `9a0a8efd`), G3 종결(PR 110, `9ba04fa8`), G4 종결(PR 111, `98fc4151`).
 - 연습 저장소: `bass131/AgentDeck_Test`(공개, `main` 룰셋 `main-protect`). clone `C:\Dev\AgentDeck_Test`. 연습 토큰 `%USERPROFILE%\.agentdeck-practice\gh-token.txt`(만료 2026-11-27 03:20 UTC, 룰셋 읽기 확인). 연습 앱 데이터는 G1부터 `%USERPROFILE%\.agentdeck-practice\udd`.
 - goal 병합의 정형 절차: ① goal 브랜치를 push하고 독립 검수를 PR 전에 반영한다. ② `gh pr view <N> --json headRefOid,statusCheckRollup`으로 `hard-gates`와 머리 SHA를 읽는다. ③ `git fetch origin` 뒤 로컬 마일스톤 브랜치가 원격과 같은지 확인하고 `git switch milestone/m11-backlog-sweep`, `git merge --no-ff -m "<메시지>" origin/<goal 브랜치>`. ④ 병합한 SHA가 머리 SHA와 같은지 확인한 뒤 `git push -u origin milestone/m11-backlog-sweep`. 작업 트리는 병합 전에 깨끗해야 한다.
 - push는 항상 `-u origin <브랜치>`로 원격 브랜치를 명시합니다. `master`로 가는 병합은 사용자가 직접 합니다.
@@ -22,7 +22,7 @@
 
 ## 마감 요약 (최신 1건 — 3줄: 바뀐 것 / 내린 결정 / 봐야 할 것)
 
-- 스탬프: 2026-11-20T23:32:30+09:00
-- 바뀐 것: goal 3을 병합했고(`9ba04fa8`), goal 4 구현과 e2e가 끝나 검증 기록 두 줄을 남겼습니다(`c05fa8e1`, push됨). 독립 검수가 돌고 있습니다.
+- 스탬프: 2026-11-21T00:22:44+09:00
+- 바뀐 것: goal 4를 독립 검수 반영 뒤 병합했고(`98fc4151`), goal 5(현황판) 문서와 브랜치를 열었습니다.
 - 내린 결정: `AppUpdateGate`는 연결만 지우고 파일은 M13을 위해 남기며, 목록 밖 앱 소스 칸(모달 층, `loop.listDir`)은 범위 변경이 아닙니다. 사람 손 목록: `cwdprobe\`, 연습 `udd/loop`의 e2e 찌꺼기(Backlog 36), stash `pin-g3`, 옛 봉인 때문에 엔진 다시 고르기.
-- 봐야 할 것: 검수 반영 뒤 goal 4 PR·`hard-gates`·로컬 병합을 하고 goal 5(현황판)를 시작합니다.
+- 봐야 할 것: goal 5 구현 워커의 결과를 diff 실사하고 PR·`hard-gates`·로컬 병합 뒤 goal 6(시험·lint·문서)으로 갑니다.

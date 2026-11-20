@@ -277,5 +277,21 @@ function closedLine(view) {
   return `#${view.number} PR은 ${view.merged ? '병합됐어요' : '병합 없이 닫혔어요'}. 할 일이 없어 카드를 줄였어요.`;
 }
 
-globalThis.AgentDeckMerge = Object.freeze({ pendingPr, fileKey, mergeGate, patchRows, parsePrInput, shortSha, checkState, resultLine, LIST_SCROLL_AFTER, pickedPr, prListHtml, cardFate, closedLine });
+// 「내 손이 필요한 일」의 병합 대기 줄을 병합 카드가 GitHub에서 읽은 같은 PR에 맞춘다(M05 Backlog 61). goal 문서 머리말은 늦게 바뀐다.
+// 병합됐으면 줄을 빼고 note 한 줄만 남긴다(알림음·배지에서도 빠진다). 병합 없이 닫혔거나 필수 검사 hard-gates가 실패면 빨강의 새 사실로 바꾼다.
+const REQUIRED_CHECK = 'hard-gates';
+function mergeHand(hand, view) {
+  const list = (hand || []).filter(Boolean), pr = pendingPr(list);
+  if (!pr || !view || view.number !== pr) return { hand: list, note: null };
+  if (view.state !== 'open' && view.merged) return { hand: list.filter(h => h.id !== 'merge'), note: `PR ${pr}은 병합됐어요. goal 문서 갱신만 남았어요.` };
+  // 병합 없이 닫혔으면 사용자에게 알린다(헌법 11조) — 빨강의 새 사실로 셈에 남긴다
+  if (view.state !== 'open') return { hand: list.map(h => h.id !== 'merge' ? h : { ...h, level: 'stop', key: `${h.key}:closed`,
+    say: `PR ${pr}은 병합 없이 닫혔어요 — goal 문서의 「병합 대기」를 고치거나 PR을 다시 열어야 해요.` }), note: null };
+  const red = (view.checks || []).some(c => c && c.name === REQUIRED_CHECK && c.result === 'failure');
+  if (!red) return { hand: list, note: null };
+  return { hand: list.map(h => h.id !== 'merge' ? h : { ...h, level: 'stop', key: `${h.key}:ci-red`,
+    say: `PR ${pr}의 필수 검사 ${REQUIRED_CHECK}가 실패했어요 — 병합할 수 없어요. 고친 커밋을 올려야 해요.` }), note: null };
+}
+
+globalThis.AgentDeckMerge = Object.freeze({ pendingPr, fileKey, mergeGate, patchRows, parsePrInput, shortSha, checkState, resultLine, LIST_SCROLL_AFTER, pickedPr, prListHtml, cardFate, closedLine, mergeHand });
 })();

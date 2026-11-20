@@ -2,7 +2,7 @@
 
 AgentDeck 저장소에서 지금 어떤 작업이 어디까지 왔는지를 한 화면에서 보는 로컬 현황판이다. 저장소에는 쓰지 않는다. 바깥 쓰기는 결정 응답(메인 입력창에 글 넣기)과, 사람 확인 창을 거친 PR 병합(M07 G9) 둘뿐이다.
 Node 로컬 서버가 저장소 파일과 읽기 전용 git 명령을 읽고, 변경을 열린 화면에 SSE로 보낸다.
-npm 의존성은 없다. Node 내장 모듈만 쓰며 Windows의 Node 24.15.0에서 확인했다.
+서버와 화면은 Node 내장 모듈만 쓰며 Windows의 Node 24.15.0에서 확인했다. 시험 둘만 저장소 루트의 dev 의존성을 빌린다 — 화면 배선 시험의 `jsdom`, opt-in 브라우저 e2e의 `@playwright/test`(아래 「시험」).
 구조와 시각 언어는 `C:\Dev\Second_Brain_Dashboard`(본보기)를 따른다. 색의 뜻과 토큰은 본보기 `design/DESIGN.md` 3·4절과 같다.
 원래 별도 저장소(`C:\Dev\AgentDeck_Dashboard`)였고, 2026-11-15 M05 H3에서 커밋 이력째 이 폴더로 편입했다.
 
@@ -31,10 +31,10 @@ orca tab create --url http://127.0.0.1:4319 --worktree path:C:/Dev/AgentDeck --j
 |---|---|
 | `repoPath` | AgentDeck 저장소 절대경로. 현재 `C:/Dev/AgentDeck` |
 | `port` | 루프백 포트. 4319 (본보기 Second Brain 현황판은 4318) |
-| `mainTerminalHandle` | 보통 `null`. 현황판은 넣기 직전에 Orca 목록에서 이 저장소의 Claude 터미널을 찾아 정확히 하나면 거기에 넣는다(M07 G13). 이 값(`term_` + 소문자 UUID)을 적으면 자동 대신 그 터미널이 지금 목록에 있을 때만 넣고, 없으면 넣지 않는다. Orca에 닿지 못할 때(실행 실패·시간 초과)는 이 값을 그대로 쓴다 |
+| `mainTerminalHandle` | 보통 `null`. 현황판은 넣기 직전에 Orca 목록에서 이 저장소의 Claude 터미널을 찾아 정확히 하나면 거기에 넣는다(M07 G13). 이 값(`term_` + 소문자 UUID)을 적으면 자동 대신 그 터미널이 지금 목록에 있을 때만 넣고, 없으면 넣지 않는다. Orca에 닿지 못할 때(실행 실패·시간 초과)는 이 값을 그대로 쓴다. 찾을 때 `orca worktree ps`의 `agents[].parentPaneKey`가 있는 orchestration worker pane은 뺀다(M11 G5) |
+| `inboxHandle` | 선택. Orca 워커 보고를 받는 우편함(`term_` + UUID 또는 `run:run_…`). 적으면 30초마다 `orca orchestration inbox --full --json`(읽기 전용, 읽음 표시를 바꾸지 않음)으로 워커 완료·에스컬레이션·질문 최근 5개를 「내 손」 아래에 보인다. 비우거나 orca가 없으면 그 절을 그리지 않는다. 값은 페이지에 싣지 않는다 |
 
-설정을 바꾸면 서버를 다시 시작한다. `node server.mjs C:/경로/별도설정.json`도 된다.
-판정 기준(FAIL 한도 3, hook-log 꼬리 크기 등)은 `lib/markdown.mjs`의 `RULES` 코드 상수다.
+설정을 바꾸면 서버를 다시 시작한다. `node server.mjs C:/경로/별도설정.json`도 된다. 판정 기준(FAIL 한도 3, hook-log 꼬리 크기 등)은 `lib/markdown.mjs`의 `RULES` 코드 상수다.
 
 ## 화면 구성 (2026-11-14 개편, 2026-11-15 H6 시각 개편, 2026-11-16 H8 디자인 개편)
 
@@ -102,7 +102,7 @@ Phase 절 안의 「진척 단계」 목록에서 항목 하나가 단계 하나
 3. `[>]`가 없어도 읽기 실패가 아니다. 문서에 적힌 대로 「n단계 중 첫 단계 전」, 「n단계 중 k단계까지 완료」, 「모두 완료」로 말한다.
 4. 검증 기록은 goal 전체에 하나다. 「(기록 없음)」처럼 마커가 없는 줄은 세지 않고, 그러면 「검증 기록이 아직 없습니다」로 보인다.
 5. 마지막 USER-INPUT 이후 FAIL이 3 이상이면 지금 단계가 멈춤이다. 지금 단계가 없으면 다음 단계가 멈춤이다.
-6. 그 FAIL이 1이나 2면 주의다. 마지막 기록 줄이 USER-INPUT이어도 주의다. 이 줄은 질문을 적은 줄일 수도, 받은 답을 적은 줄일 수도 있어서, 그 줄의 글을 함께 보인다.
+6. 그 FAIL이 1이나 2면 주의다. 마지막 기록 줄이 USER-INPUT이면 답을 기다림이다. 다만 그 줄이 사용자의 답을 적은 줄(「사용자가 … 답했/골랐/확정했/승인했」, 「사용자 답:」, `[USER]`)이고 「기다린다·대기·묻는다」와 질문 꼴(물음표·「무엇」·「어느」·「할지」)이 없으면 기다림이 아니다(`userInputAnswered`, M11 G5).
 7. 머리말이 「상태: 종결」이면 종결로 보이고, 멈춤과 주의를 단계로 판정하지 않는다.
 
 ### 다중 파일의 단계 흐름 판정 (`judgeFlow`)
@@ -146,7 +146,7 @@ Phase 절 안의 「진척 단계」 목록에서 항목 하나가 단계 하나
    그 수가 3 이상이면 멈춤이다. 줄 수는 단계 아래 작은 보조 표시와 「원문 보기」에만 나온다.
 3. **결정 대장** — `- [USER]`·`- [USER·위임]`·`- [AI]`·`- [AI·비가역]` 줄 수, 주도권 게이트 판정, 남은 `[AI]` 줄 문면.
    plan-gate 판정 ③처럼 같은 폴더 `00_마일스톤-스펙.md`의 결정 대장을 goal 대장에 더한다. 그 파일이 없거나 대장 절이 없으면 goal 대장만 센다.
-4. **마일스톤 목록** — `01_Milestones` 아래 폴더마다 `_MilestonePreview.md`의 상태 줄을 해석 없이 보인다.
+4. **마일스톤 목록** — `01_Milestones` 아래 폴더마다 첫머리 문서(`_MilestonePreview.md` → `00_마일스톤-스펙.md` → `00_Goal.md`)의 상태 줄을 해석 없이 보인다. 셋 다 없으면 머리말 「상태:」가 있는 goal 문서 수와 종결 수다(M11 G5).
 5. **작업 사본** — 브랜치, HEAD 짧은 해시·제목, 미커밋·미추적 파일 목록, origin 대비 앞·뒤 커밋 수, 마지막 fetch 시각.
    비교 대상은 추적 브랜치 → 같은 이름의 `origin/<브랜치>` → `origin/HEAD`(기본 브랜치) 순서로 정하고, 어느 것인지 화면에 쓴다.
 6. **훅 활동** — `98_Management/01_GateState/hook-log.jsonl`의 끝 512 KB에서 마지막 400줄만 읽는다.
@@ -238,6 +238,7 @@ Orca 도우미(탭 재사용·생성·포트 충돌), plan-gate 정규식 일치
 `test/view.test.mjs`는 화면 모양의 판단(카드 상태 우선순위, 진척 링 비율, 등장 대상)과 그 배선·색 의미를 검사한다(H6).
 `test/decisions.test.mjs`·`test/answer.test.mjs`·`test/decide-view.test.mjs`는 결정 보드 판독, 문장 조립, 쓰기 두 경로의 검사, 넣기 모듈, 결정 카드 배선을 검사한다(H7). 넣기는 가짜 함수로만 본다.
 `test/merge.test.mjs`·`test/confirm.test.mjs`·`test/merge-server.test.mjs`·`test/merge-view.test.mjs`는 병합 모듈(앱 `prMerge.test.ts` 사례 표 이식), 열린 PR 목록 읽기, 확인 창, 병합 세 경로, 병합 카드와 목록 배선을 검사한다(G9·G11). gh·PowerShell은 가짜 함수로만 본다.
+`test/m11-g5-dom.test.mjs`는 `app.js`를 jsdom에서 실제로 돌려(가짜 fetch·EventSource) 결정 카드·병합 카드·「내 손」 배선을 동작으로 본다. 소스 정규식 시험 가운데 이것이 덮는 것은 지웠다(M11 G5). 이 시험들은 `npm test`와 CI가 아니라 이 폴더의 `node --test`로만 돈다. 병합 카드의 브라우저 e2e(`test/m11-g5-e2e.test.mjs`)는 opt-in이다 — `$env:DASHBOARD_E2E='1'; node --test test/m11-g5-e2e.test.mjs`. 설치된 Edge(`DASHBOARD_E2E_CHANNEL`로 `chrome`도 됨)를 창 없이 쓰고, 서버 쪽 병합은 가짜다.
 
 ## 본보기와 다른 점 · 남은 것
 

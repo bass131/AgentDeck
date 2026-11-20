@@ -46,17 +46,43 @@ export const findArgs = repoPath => ['terminal', 'list', '--worktree', `path:${n
 const isCandidate = (x, repoPath) => !!x && x.agentIdentity === 'claude' && x.connected === true && x.writable === true && x.orphaned !== true
   && typeof x.worktreePath === 'string' && samePath(x.worktreePath, repoPath) && !!validHandle(x.handle);
 
-export function pickMain(result, repoPath, configHandle) {
-  const list = Array.isArray(result?.terminals) ? result.terminals : [];
-  const found = [...new Set(list.filter(x => isCandidate(x, repoPath)).map(x => x.handle))];
+// orchestration worker는 `orca worktree ps --json`의 agents[]에서 parentPaneKey가 있는 pane이다(M07 Backlog 35). terminal list의 pane은 tabId:leafId다.
+// ps를 못 읽으면(null) 빼지 않고 terminal list만으로 고른다(G13까지의 동작).
+export const psArgs = () => ['worktree', 'ps', '--limit', '200', '--json'];
+function workerPanes(ps) {
+  const out = new Set();
+  for (const w of Array.isArray(ps?.worktrees) ? ps.worktrees : []) for (const a of Array.isArray(w?.agents) ? w.agents : [])
+    if (a && typeof a.paneKey === 'string' && a.parentPaneKey != null) out.add(a.paneKey);
+  return out;
+}
+const paneOf = x => typeof x.tabId === 'string' && typeof x.leafId === 'string' ? `${x.tabId}:${x.leafId}` : null;
+const CONTROL_ALL = new RegExp(CONTROL.source, 'g');
+const titleOf = x => { const t = typeof x?.title === 'string' ? Array.from(x.title.replace(CONTROL_ALL, ' ').trim()).slice(0, 80).join('') : ''; return t ? { title: t } : {}; };
+
+export function pickMain(result, repoPath, configHandle, ps = null) {
+  const list = Array.isArray(result?.terminals) ? result.terminals : [], workers = workerPanes(ps);
+  const live = list.filter(x => isCandidate(x, repoPath)), mains = live.filter(x => !workers.has(paneOf(x)));
+  const found = [...new Set(mains.map(x => x.handle))];
+  const pick = h => ({ handle: h, ...titleOf(mains.find(x => x.handle === h)) });
   if (result?.truncated === true) return { handle: null, reason: 'Orca 터미널 목록이 잘려 와서 메인 Claude 터미널을 하나로 정하지 못해 넣지 않았어요.' };
-  if (!found.length) return { handle: null, reason: '이 저장소에서 연결된 Claude 터미널을 찾지 못했어요.' };
+  if (!found.length) return { handle: null, reason: live.length ? '이 저장소의 Claude 터미널이 orchestration worker뿐이라 메인을 찾지 못했어요.' : '이 저장소에서 연결된 Claude 터미널을 찾지 못했어요.' };
   // 설정 handle이 있으면 그것이 후보 안에 있을 때만 넣는다 — 하나뿐이어도 설정을 넘어 고르지 않는다(PR 83 검수 중요 3)
   const cfg = validHandle(configHandle);
-  if (cfg) return found.includes(cfg) ? { handle: cfg }
+  if (cfg) return found.includes(cfg) ? pick(cfg)
     : { handle: null, reason: 'config.local.json의 mainTerminalHandle이 가리키는 터미널이 지금 이 저장소의 Claude 터미널 목록에 없어 넣지 않았어요. 값을 비우면 자동으로 찾아요.' };
-  if (found.length === 1) return { handle: found[0] };
+  if (found.length === 1) return pick(found[0]);
   return { handle: null, reason: `이 저장소에 Claude 터미널이 ${found.length}개라 어느 것이 메인인지 몰라 넣지 않았어요. config.local.json의 mainTerminalHandle로 메인을 지정할 수 있어요.` };
+}
+function readPs(execFileFn, timeoutMs) {
+  return new Promise(resolve => {
+    try {
+      execFileFn(ORCA, psArgs(), { encoding: 'utf8', timeout: timeoutMs, windowsHide: true, shell: false, maxBuffer: 8 * 1024 * 1024 }, (error, stdout) => {
+        let r = null;
+        try { r = error ? null : JSON.parse(stdout); } catch { r = null; }
+        resolve(r?.ok === true && r.result ? r.result : null);
+      });
+    } catch { resolve(null); }
+  });
 }
 
 // 없는 폴더(Orca 실측: exit 1, {"ok":false,"error":{"code":"selector_not_found"}})는 「찾지 못함」이고, 그 밖의 실패는 「닿지 못함」이다.
@@ -76,7 +102,9 @@ export function findMainTerminal(repoPath, configHandle, { execFileFn = execFile
         }
         if (parsed && !error && !(r?.ok === true && Array.isArray(r.result?.terminals))) return resolve({ handle: null, reason: 'Orca 터미널 목록의 모양이 예상과 달라 메인 Claude 터미널을 찾지 못했어요.' });
         if (error || !parsed) return resolve(unreachable);
-        resolve(pickMain(r.result, repoPath, configHandle));
+        const any = r.result.truncated !== true && r.result.terminals.some(x => isCandidate(x, repoPath));
+        if (!any) return resolve(pickMain(r.result, repoPath, configHandle));
+        readPs(execFileFn, timeoutMs).then(ps => resolve(pickMain(r.result, repoPath, configHandle, ps)));
       });
     } catch { resolve(unreachable); }
   });

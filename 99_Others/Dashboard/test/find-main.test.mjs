@@ -114,6 +114,15 @@ test('server: the send types once into the terminal found right before typing, n
   assert.ok(!JSON.stringify(app.boot.vm).includes('term_'), 'handle은 페이지에 싣지 않는다');
 });
 
+test('[M11-G5 M07-35] server: the success answer names the terminal it typed into (title only, never the handle)', async t => {
+  const app = await appFor(t, { findMain: async () => ({ handle: H(1), title: '메인 <세션>' }) });
+  const r = await post(app, 'send', await sendBody(app));
+  assert.deepEqual([r.json.ok, r.json.terminal], [true, '메인 <세션>']);
+  assert.ok(!JSON.stringify(r.json).includes('term_'));
+  const bare = await appFor(t, { findMain: async () => ({ handle: H(1) }) });
+  assert.equal((await post(bare, 'send', await sendBody(bare))).json.terminal, undefined, '제목이 없으면 싣지 않는다');
+});
+
 test('server: canType is true with no configured handle when finding is wired; preview never finds', async t => {
   const app = await appFor(t, { findMain: async () => ({ handle: H(1) }) });
   assert.equal(app.boot.vm.answer.canType, true);

@@ -217,8 +217,8 @@ export function createLoopRunner(deps: LoopRunnerDeps): LoopRunner {
 
   // expected: 이번 호출이 읽은 저장본의 다이제스트(새로 시작이면 null — 파일이 없어야 한다).
   // prepare: 대조 뒤 쓰기 전에 돈다(M10 G6 보관). 같은 persisting 안이라 그 틈에 읽는 load가 래치를 걸지 않는다.
-  // 상태 파일을 쓰기 전에 실패하면 prepare가 돌려준 되돌리기를 부른다.
-  async function persist(state: RunState, expected: string | null, prepare?: () => Promise<() => Promise<void>>): Promise<void> {
+  // 상태 파일을 쓰기 전에 실패하면 prepare가 돌려준 되돌리기를 부른다(되돌린 결과를 한 문장으로 돌려준다).
+  async function persist(state: RunState, expected: string | null, prepare?: () => Promise<() => Promise<string>>): Promise<void> {
     const run = (async () => {
       const now = await ports.fs.read(DOCS.runState)
       const nowDigest = now === null ? null : (() => { try { return stateDigest(JSON.parse(now)) } catch { return 'unreadable' } })()
@@ -231,9 +231,7 @@ export function createLoopRunner(deps: LoopRunnerDeps): LoopRunner {
         await ports.fs.write(DOCS.runState, text)
       } catch (e) {
         if (!undo) throw e
-        const why = `새 실행 상태를 쓰지 못했다(${errorText(e)})`
-        try { await undo() } catch (u) { throw new ArchiveFailed(`${why} — ${errorText(u)}`) }
-        throw new ArchiveFailed(`${why} — 옮긴 파일은 되돌렸다`)
+        throw new ArchiveFailed(`새 실행 상태를 쓰지 못했다(${errorText(e)}) — ${await undo()}`)
       }
       await ports.digest.write(repoKey, stateDigest(JSON.parse(text)))
       await writeVerification(ports.fs, state)
@@ -242,10 +240,13 @@ export function createLoopRunner(deps: LoopRunnerDeps): LoopRunner {
     try { await run } finally { if (persisting === run) persisting = null }
   }
 
-  // 보관본의 표지는 마지막에 옮기는 run-state.json이다 — 되돌린 뒤 남은 빈 폴더는 다시 쓴다.
+  // 파일이 든 자리는 쓰인 것으로 본다(보관이 옮겨 넣는 곳은 그 폴더와 goals/뿐이다) — 되돌린 뒤 남은 빈 폴더는 다시 쓴다.
   // 같은 이름이 있으면 시각 꼬리(숫자만 — Windows 이름에 쓸 수 없는 글자를 뺀다), 그것도 있으면 번호를 더 붙인다.
   async function archiveDirFor(milestoneId: string): Promise<string> {
-    const taken = (dir: string): Promise<boolean> => ports.fs.exists(`${dir}/run-state.json`)
+    const taken = async (dir: string): Promise<boolean> => {
+      if (!(await ports.fs.exists(dir))) return false
+      try { return (await ports.fs.list(dir)).length > 0 || (await ports.fs.list(`${dir}/goals`)).length > 0 } catch { return true }
+    }
     const first = `${ARCHIVE_DIR}/${milestoneId}`
     if (!(await taken(first))) return first
     const stamped = `${first}-${ports.clock.now().replace(/[^0-9]/g, '').slice(0, 14)}`
@@ -257,7 +258,7 @@ export function createLoopRunner(deps: LoopRunnerDeps): LoopRunner {
   }
 
   // M10 G6 — persist의 prepare. 돌려주는 함수는 새 상태를 쓰지 못했을 때의 되돌리기다(앱 영역 사본도 옛것으로 둔다).
-  async function archive(state: RunState): Promise<() => Promise<void>> {
+  async function archive(state: RunState): Promise<() => Promise<string>> {
     const moved: [string, string][] = []
     const back = async (): Promise<string[]> => {
       const left: string[] = []
@@ -266,9 +267,12 @@ export function createLoopRunner(deps: LoopRunnerDeps): LoopRunner {
       }
       return left
     }
+    const backText = (left: string[]): string => (left.length === 0 ? '옮긴 파일은 되돌렸다' : `되돌리지 못한 파일: ${left.join(', ')}`)
     let copy: string | null = null
+    let oldText: string | null = null
     try {
       copy = await ports.digest.readCopy(repoKey)
+      oldText = await ports.fs.read(DOCS.runState)
       const dir = await archiveDirFor(state.milestoneId)
       const plan: [string, string][] = (await ports.fs.list(DOCS.goalsDir)).map((n) => [`${DOCS.goalsDir}/${n}`, `${dir}/goals/${n}`])
       for (const doc of ARCHIVED_DOCS) if (await ports.fs.exists(doc)) plan.push([doc, `${dir}/${doc.slice(DOCS.dir.length + 1)}`])
@@ -278,13 +282,18 @@ export function createLoopRunner(deps: LoopRunnerDeps): LoopRunner {
         moved.push([from, to])
       }
     } catch (e) {
-      const left = await back()
-      throw new ArchiveFailed(`${errorText(e)} — ${left.length === 0 ? '옮긴 파일은 되돌렸다' : `되돌리지 못한 파일: ${left.join(', ')}`}`)
+      throw new ArchiveFailed(`${errorText(e)} — ${backText(await back())}`)
     }
+    // 사본이 없던 실행이면 옛 상태 본문을 사본으로 쓴다 — 디스크·다이제스트·사본이 옛 실행으로 맞는다
+    const restore = copy ?? oldText ?? runStateText(state)
     return async () => {
-      const left = await back()
-      if (copy !== null) await ports.digest.writeCopy(repoKey, copy).catch(() => undefined)
-      if (left.length > 0) throw new Error(`되돌리지 못한 파일: ${left.join(', ')}`)
+      const files = backText(await back())
+      try {
+        await ports.digest.writeCopy(repoKey, restore)
+        return files
+      } catch (e) {
+        return `${files} / 앱 영역 상태 사본을 맞추지 못했다(${errorText(e)})`
+      }
     }
   }
 

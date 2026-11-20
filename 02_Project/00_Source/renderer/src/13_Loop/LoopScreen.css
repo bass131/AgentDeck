@@ -114,6 +114,13 @@
   gap: 4px 10px;
   align-items: baseline;
 }
+.loop-notice {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  align-items: baseline;
+  color: var(--text-2);
+}
 .loop-exc-label { font-weight: 700; }
 .loop-exc-reason { white-space: pre-wrap; word-break: break-word; }
 .loop-exc-file { font-family: var(--font-mono); color: var(--text-2); word-break: break-all; }

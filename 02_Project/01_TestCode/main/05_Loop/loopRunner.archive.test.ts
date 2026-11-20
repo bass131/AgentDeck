@@ -231,6 +231,123 @@ describe('새 마일스톤을 시작하면 끝난 실행을 보관한다 (M10 G6
     expect(rig.digest.latches.size).toBe(0)
   })
 
+  it('사본이 없던 끝난 실행에서 새 상태를 쓰지 못하면, 되돌릴 때 사본을 옛 상태 본문으로 맞춘다', async () => {
+    const { rig, runner } = await finished()
+    rig.digest.copies.delete(KEY)
+    const before = snapshot(rig)
+    const write = rig.fs.write.bind(rig.fs)
+    rig.fs.write = async (rel, text) => {
+      if (rel === DOCS.runState) throw new Error('디스크가 찼다')
+      await write(rel, text)
+    }
+    const out = await runner.start('M02')
+    expect(out.kind === 'blocked' && out.reason).toContain('옮긴 파일은 되돌렸다')
+    expect(snapshot(rig)).toEqual(before)
+    expect(rig.digest.copies.get(KEY)).toBe(before.get(DOCS.runState))
+    expect(stateDigest(JSON.parse(rig.digest.copies.get(KEY) as string))).toBe(rig.digest.digests.get(KEY))
+  })
+
+  it('되돌리며 앱 영역 사본을 맞추지 못하면 그 사실을 「보관하지 못해」 사유에 싣는다', async () => {
+    const { rig, runner } = await finished()
+    const write = rig.fs.write.bind(rig.fs)
+    rig.fs.write = async (rel, text) => {
+      if (rel === DOCS.runState) throw new Error('디스크가 찼다')
+      await write(rel, text)
+    }
+    const writeCopy = rig.digest.writeCopy.bind(rig.digest)
+    let calls = 0
+    rig.digest.writeCopy = async (key, text) => {
+      if (++calls > 1) throw new Error('앱 영역이 잠겼다')
+      await writeCopy(key, text)
+    }
+    const out = await runner.start('M02')
+    expect(out.kind).toBe('blocked')
+    const reason = out.kind === 'blocked' ? out.reason : ''
+    expect(reason).toContain('끝난 실행(M01)을 보관하지 못해')
+    expect(reason).toContain('사본을 맞추지 못했다')
+    expect(reason).toContain('앱 영역이 잠겼다')
+  })
+
+  // 지키기 시험 — 수정 전에도 통과한다
+  it('되돌리기 자체가 실패하면 「되돌리지 못한 파일」을 사유에 싣는다 — 옮기는 도중과 새 상태를 쓰지 못한 뒤 모두', async () => {
+    const { rig, runner } = await finished()
+    rig.fs.failMove = (from) => from === DOCS.runState || from === `${ARCHIVE}/goals/G1.md`
+    const out = await runner.start('M02')
+    expect(out.kind === 'blocked' && out.reason).toContain(`되돌리지 못한 파일: ${ARCHIVE}/goals/G1.md → .agentdeck/goals/G1.md`)
+    expect(rig.fs.files.has(`${ARCHIVE}/goals/G1.md`)).toBe(true)
+
+    const other = await finished()
+    const write = other.rig.fs.write.bind(other.rig.fs)
+    other.rig.fs.write = async (rel, text) => {
+      if (rel === DOCS.runState) throw new Error('디스크가 찼다')
+      await write(rel, text)
+    }
+    other.rig.fs.failMove = (from) => from === `${ARCHIVE}/decisions.md`
+    const after = await other.runner.start('M02')
+    expect(after.kind === 'blocked' && after.reason).toContain('디스크가 찼다')
+    expect(after.kind === 'blocked' && after.reason).toContain(`되돌리지 못한 파일: ${ARCHIVE}/decisions.md → ${DOCS.decisions}`)
+  })
+
+  it('표지(run-state.json)가 없어도 파일이 든 보관 자리는 다시 쓰지 않고 시각 꼬리로 넘어간다', async () => {
+    const { rig } = await finished()
+    const oldState = rig.fs.files.get(DOCS.runState)
+    await rig.fs.write(`${ARCHIVE}/decisions.md`, '사람이 둔 결정 대장')
+    const runner = createLoopRunner({
+      ...loaded(), ports: { ...rig.ports, clock: { now: () => '2026-11-20T09:30:00+09:00' } }, cwd: CWD, base: 'master',
+    })
+    expect((await runner.start('M02')).kind).toBe('ok')
+    expect(rig.fs.files.get(`${ARCHIVE}/decisions.md`)).toBe('사람이 둔 결정 대장')
+    expect(rig.fs.files.get(`${ARCHIVE}-20261120093000/run-state.json`)).toBe(oldState)
+    expect(rig.fs.files.has(`${ARCHIVE}-20261120093000/decisions.md`)).toBe(true)
+  })
+
+  // 지키기 시험 — 수정 전에도 통과한다
+  it('load 없이 위조된 done에 바로 start를 부르면 보관하지 않고 래치를 건다', async () => {
+    const { rig } = await unfinished()
+    const forged = JSON.parse(rig.fs.files.get(DOCS.runState) as string) as RunState
+    forged.status = 'done'
+    rig.fs.files.set(DOCS.runState, `${JSON.stringify(forged, null, 2)}\n`)
+    const before = snapshot(rig)
+    const out = await runnerOf(rig, RETITLED).start('M02')
+    expect(out.kind).toBe('needs-user')
+    expect(rig.digest.latches.get(KEY)).toContain('상태 파일이 실행기 밖에서 바뀌었다')
+    expect(rig.fs.moves).toEqual([])
+    expect(snapshot(rig)).toEqual(before)
+  })
+
+  // 지키기 시험 — 수정 전에도 통과한다
+  it('멈춘(needs-user) 옛 해시 실행에서 start를 부르면 거부하고 아무것도 옮기지 않는다', async () => {
+    const { rig } = await unfinished()
+    const halted = JSON.parse(rig.fs.files.get(DOCS.runState) as string) as RunState
+    halted.status = 'needs-user'
+    halted.haltReason = '사람이 멈췄다'
+    rig.fs.files.set(DOCS.runState, `${JSON.stringify(halted, null, 2)}\n`)
+    rig.digest.adopt(CWD, rig.fs)
+    const before = snapshot(rig)
+    const runner = runnerOf(rig, RETITLED)
+    const load = await runner.load()
+    expect(load.kind === 'blocked' && load.reason).toContain('템플릿 해시')
+    const out = await runner.start('M02')
+    expect(out.kind === 'blocked' && out.reason).toContain('실행 상태가 이미 있다')
+    expect(rig.fs.moves).toEqual([])
+    expect(snapshot(rig)).toEqual(before)
+    expect(rig.digest.latches.size).toBe(0)
+  })
+
+  // 지키기 시험 — 수정 전에도 통과한다
+  it('끝난 실행의 기준 브랜치와 템플릿 id가 지금과 달라도 열리고 보관된다', async () => {
+    const { rig, state } = await finished()
+    expect([state.base, state.template.id]).toEqual(['master', 'program-dev'])
+    const { template, hash } = loaded(variantText((raw) => { raw.id = 'program-dev-2' }))
+    const runner = createLoopRunner({ template, hash, ports: rig.ports, cwd: CWD, base: 'main' })
+    const load = await runner.load()
+    expect(load.kind === 'ok' && load.state.status).toBe('done')
+    const r = await runner.start('M02')
+    expect(r.kind === 'ok' && [r.state.milestoneId, r.state.base, r.state.template.id]).toEqual(['M02', 'main', 'program-dev-2'])
+    expect(rig.fs.files.has(`${ARCHIVE}/run-state.json`)).toBe(true)
+    expect(rig.digest.latches.size).toBe(0)
+  })
+
   it('보관하는 동안 읽는 쪽(load)은 래치를 걸지 않고 새 실행을 본다', async () => {
     const { rig, runner } = await finished()
     const move = rig.fs.move.bind(rig.fs)

@@ -3,7 +3,7 @@
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createFsPort } from '@main/05_Loop/realPorts/fsPort'
 
 let base: string
@@ -83,6 +83,35 @@ describe('실물 fs 포트', () => {
     const { move, exists } = port
     await move('.agentdeck/run-state.json', '.agentdeck/archive/M02/run-state.json')
     expect(await exists('.agentdeck/archive/M02/run-state.json')).toBe(true)
+  })
+
+  it('옮기기는 Windows 일시 잠금(EPERM·EACCES·EBUSY)을 몇 번 다시 해 보고, 다른 오류는 바로 던진다', async () => {
+    const port = createFsPort(root)
+    await port.write('.agentdeck/run-state.json', '옛 상태')
+    const rename = fs.promises.rename
+    const locked = (code: string): Error => Object.assign(new Error(`시험: ${code}`), { code })
+    const codes = ['EPERM', 'EACCES', 'EBUSY']
+    const spy = vi.spyOn(fs.promises, 'rename').mockImplementation(async (from, to) => {
+      const code = codes.shift()
+      if (code) throw locked(code)
+      await rename(from, to)
+    })
+    try {
+      await port.move('.agentdeck/run-state.json', '.agentdeck/archive/M01/run-state.json')
+      expect(spy).toHaveBeenCalledTimes(4)
+      expect(await port.read('.agentdeck/archive/M01/run-state.json')).toBe('옛 상태')
+      spy.mockClear()
+      spy.mockImplementation(async () => { throw locked('ENOENT') })
+      await expect(port.move('.agentdeck/archive/M01/run-state.json', '.agentdeck/run-state.json')).rejects.toThrow(/ENOENT/)
+      expect(spy).toHaveBeenCalledTimes(1)
+      spy.mockClear()
+      spy.mockImplementation(async () => { throw locked('EBUSY') })
+      await expect(port.move('.agentdeck/archive/M01/run-state.json', '.agentdeck/run-state.json')).rejects.toThrow(/EBUSY/)
+      expect(spy.mock.calls.length).toBeGreaterThan(1)
+    } finally {
+      spy.mockRestore()
+    }
+    expect(await port.read('.agentdeck/archive/M01/run-state.json')).toBe('옛 상태')
   })
 
   it('옮기기와 있음도 뿌리 밖 경로를 거부한다', async () => {

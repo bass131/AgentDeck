@@ -470,7 +470,7 @@ export function createLoopDriver(opts: LoopDriverOptions): LoopDriver {
     if (r.kind === 'needs-user') return { ...v, phase: 'latched', reason: r.reason, latch: await liveLatch(e, loop, r.reason) }
     const { state, next } = r
     if (state.status === 'done' && !e.finishedHere) {
-      return e.blocked ? { ...v, phase: 'blocked', reason: e.blocked } : { ...v, phase: 'not-started', reason: e.note ?? finishedNotice(state.milestoneId) }
+      return e.blocked ? { ...v, phase: 'blocked', reason: e.blocked } : { ...v, phase: 'not-started', notice: finishedNotice(state.milestoneId) }
     }
     const filled: LoopStatus = {
       ...v,

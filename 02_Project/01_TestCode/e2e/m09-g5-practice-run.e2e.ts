@@ -11,6 +11,7 @@
 // G5_UDD를 주면 그 앱 데이터 폴더를 쓴다(실행 상태 다이제스트를 마일스톤 사이에 이어 쓰기).
 import { test, _electron as electron } from '@playwright/test'
 import type { ElectronApplication, Page } from '@playwright/test'
+import { execFileSync } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join, resolve, sep } from 'node:path'
 
@@ -22,8 +23,26 @@ const REPO = process.env.G5_REPO ?? ''
 // 실행기의 설정 스냅숏 대조(configGuard)가 credential.helper 변경으로 열기를 거부한다(실측 2026-11-20).
 const TOKEN_FILE = process.env.G5_TOKEN_FILE ?? ''
 
+// GH_TOKEN은 github.com 도우미가 `gh auth git-credential`일 때만 git에 닿는다. 아니면 git이 다른 자격으로 push하니 시작하지 않는다.
+// 도우미 값 원문은 메시지에 싣지 않는다(인라인 자격이 들어 있을 수 있다).
+function checkGhCredentialHelper(): void {
+  let out = ''
+  try {
+    // 연습 저장소 안에서 읽는다 — 앱의 git이 그 저장소에서 push하므로 로컬 설정까지 본다
+    out = execFileSync('git', ['config', '--get-all', 'credential.https://github.com.helper'], { encoding: 'utf8', env: process.env, cwd: REPO || undefined })
+  } catch (e) {
+    if ((e as { status?: number }).status !== 1) throw new Error('G5_TOKEN_FILE: git 설정의 github.com 자격 도우미를 읽지 못해 시작하지 않는다')
+  }
+  const last = out.split(/\r?\n/).map((l) => l.trim()).filter((l) => l !== '').at(-1)
+  if (last === undefined) throw new Error('G5_TOKEN_FILE: git 설정에 github.com 자격 도우미가 없어 GH_TOKEN이 git에 닿지 않는다 — `gh auth setup-git` 뒤 다시 시작한다')
+  if (!/(^|[\s!'"\\/])gh(\.exe)?['"]?\s+auth\s+git-credential$/.test(last)) {
+    throw new Error('G5_TOKEN_FILE: github.com 자격 도우미의 마지막 값이 `gh auth git-credential`이 아니라 GH_TOKEN이 git에 닿지 않는다 — 시작하지 않는다')
+  }
+}
+
 function readPracticeToken(): string | null {
   if (!TOKEN_FILE) return null
+  checkGhCredentialHelper()
   const token = readFileSync(TOKEN_FILE, 'utf8').trim()
   if (!/^github_pat_[A-Za-z0-9_]+$/.test(token)) throw new Error(`G5_TOKEN_FILE에 fine-grained 토큰(github_pat_) 한 줄이 아니다: ${TOKEN_FILE}`)
   return token

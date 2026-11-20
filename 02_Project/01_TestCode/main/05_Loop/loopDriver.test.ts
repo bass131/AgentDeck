@@ -215,7 +215,8 @@ describe('구동자 — 마일스톤 하나를 사람과 함께 끝까지 (M09 G
     pushed = []
     const later = await driver().d.open({ cwd: CWD })
     expect(later.phase).toBe('not-started')
-    expect(later.reason).toBe('끝난 실행(M1) — 새 마일스톤을 시작하면 보관해요')
+    expect(later.reason).toBeNull()
+    expect(later.notice).toBe('끝난 실행(M1) — 새 마일스톤을 시작하면 보관해요')
   })
 })
 
@@ -742,7 +743,9 @@ describe('두 번째 마일스톤 (M10 G6)', () => {
     const { d } = driver({ onState: (s) => { pushed.push(s); void notifier.observe(s) } })
     const opened = await d.open({ cwd: repos.work })
     expect(opened.phase).toBe('not-started')
-    expect(opened.reason).toBe('끝난 실행(M01) — 새 마일스톤을 시작하면 보관해요')
+    // 안내는 사람을 부르는 사유(reason)가 아니라 강조 없는 안내 칸이다
+    expect(opened.reason).toBeNull()
+    expect(opened.notice).toBe('끝난 실행(M01) — 새 마일스톤을 시작하면 보관해요')
     expect(opened.milestoneId).toBeNull()
     // 현황판·그래프가 끝난 실행을 지금 실행으로 그리지 않는다
     expect([opened.node, opened.goals, opened.recentLines]).toEqual([null, [], []])
@@ -760,6 +763,70 @@ describe('두 번째 마일스톤 (M10 G6)', () => {
     expect((JSON.parse(fs.readFileSync(path.join(repos.work, DOCS.runState), 'utf8')) as RunState).milestoneId).toBe('M02')
     const asked = await until((s) => s.cards.length === 1, '새 실행의 브레인스토밍 질문')
     expect(asked.milestoneId).toBe('M02')
+  })
+
+  // 보관 도중 꺼짐 — persist 순서(옮기기 → 사본 → 상태 파일 → 다이제스트)의 두 틈을 저장소에 그대로 놓는다.
+  // 위조 래치로 뜨는 것은 그대로다. 사람이 풀고 시작하면 새 실행 M02 하나로 수렴해야 한다
+  async function crashMidArchive(copyWritten: boolean): Promise<{ archive: string; old: string }> {
+    const old = await plant('done')
+    const archive = path.join(repos.work, '.agentdeck', 'archive', 'M01')
+    fs.mkdirSync(path.join(archive, 'goals'), { recursive: true })
+    fs.renameSync(path.join(repos.work, DOCS.goalsDir, 'G1.md'), path.join(archive, 'goals', 'G1.md'))
+    fs.renameSync(path.join(repos.work, DOCS.milestoneSpec), path.join(archive, 'milestone-spec.md'))
+    fs.renameSync(path.join(repos.work, DOCS.runState), path.join(archive, 'run-state.json'))
+    if (copyWritten) {
+      const made = createRunState(TEMPLATE.template, TEMPLATE.hash, 'M02', 'master')
+      if (!made.ok) throw new Error(made.reason)
+      await createFileDigestStore(path.join(appData, 'digests')).writeCopy(repoKeyOf(fs.realpathSync.native(repos.work)), runStateText(made.state))
+    }
+    return { archive, old }
+  }
+
+  async function reopenRelease(): Promise<{ d: LoopDriver; released: LoopStatus }> {
+    const { d } = driver()
+    const opened = await d.open({ cwd: repos.work })
+    expect(opened.phase).toBe('latched')
+    expect(opened.reason).toContain('상태 파일이 없다')
+    const r = await d.releaseLatch(repos.work, opened.latch?.token as string)
+    expect(r.ok).toBe(true)
+    return { d, released: r.status }
+  }
+
+  const stateNow = (): RunState => JSON.parse(fs.readFileSync(path.join(repos.work, DOCS.runState), 'utf8')) as RunState
+
+  it('상태 파일을 옮긴 뒤 새 상태를 쓰기 전에 꺼지면, 다시 열기 → 래치 → 풀기 → 시작이 새 실행으로 수렴한다', SLOW, async () => {
+    const { archive, old } = await crashMidArchive(false)
+    const { d, released } = await reopenRelease()
+    // 풀기는 옛 사본(끝난 M01)을 되돌린다 — 다시 끝난 실행의 안내다
+    expect(released.phase).toBe('not-started')
+    expect(released.notice).toBe('끝난 실행(M01) — 새 마일스톤을 시작하면 보관해요')
+    expect(fs.readFileSync(path.join(repos.work, DOCS.runState), 'utf8')).toBe(old)
+    const started = await d.start(repos.work, 'M02')
+    expect(started.phase).not.toBe('latched')
+    expect(started.milestoneId).toBe('M02')
+    expect(stateNow().milestoneId).toBe('M02')
+    // 먼저 옮긴 보관본은 그대로이고, 되돌린 상태 파일은 시각 꼬리 자리에 따로 보관된다
+    expect(fs.readFileSync(path.join(archive, 'run-state.json'), 'utf8')).toBe(old)
+    expect(fs.readFileSync(path.join(archive, 'milestone-spec.md'), 'utf8')).toBe('# M01 스펙\n')
+    const dirs = fs.readdirSync(path.dirname(archive)).sort()
+    expect(dirs).toHaveLength(2)
+    expect(dirs[0]).toBe('M01')
+    expect(fs.readFileSync(path.join(path.dirname(archive), dirs[1], 'run-state.json'), 'utf8')).toBe(old)
+    expect((await until((s) => s.cards.length === 1, '새 실행의 브레인스토밍 질문')).milestoneId).toBe('M02')
+  })
+
+  it('사본을 쓴 뒤 상태 파일을 쓰기 전에 꺼지면, 풀기가 새 실행을 되돌리고 이어지는 시작은 거부된다 — 새 실행 M02 하나로 수렴한다', SLOW, async () => {
+    const { archive, old } = await crashMidArchive(true)
+    const { d, released } = await reopenRelease()
+    expect(released.milestoneId).toBe('M02')
+    expect(released.phase).not.toBe('latched')
+    expect(stateNow().milestoneId).toBe('M02')
+    const started = await d.start(repos.work, 'M02')
+    expect(started.reason).toContain('실행 상태가 이미 있다')
+    expect(stateNow().milestoneId).toBe('M02')
+    expect(fs.readdirSync(path.dirname(archive))).toEqual(['M01'])
+    expect(fs.readFileSync(path.join(archive, 'run-state.json'), 'utf8')).toBe(old)
+    expect((await until((s) => s.cards.length === 1, '새 실행의 브레인스토밍 질문')).milestoneId).toBe('M02')
   })
 
   it('옛 해시의 끝나지 않은 실행은 그대로 막히고 시작해도 옮기지 않는다', SLOW, async () => {

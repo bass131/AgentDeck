@@ -4,7 +4,7 @@
 import { promises as fsp } from 'node:fs'
 import path from 'node:path'
 import type { FsPort } from '../ports'
-import { writeFileAtomic } from './atomicWrite'
+import { renameRetrying, writeFileAtomic } from './atomicWrite'
 
 function outside(rel: string): Error {
   return new Error(`작업 저장소 뿌리 밖의 경로는 쓰지 않는다 — ${JSON.stringify(rel)}`)
@@ -80,7 +80,7 @@ export function createFsPort(root: string): FsPort {
       if (await exists(toRel)) throw new Error(`옮길 자리 ${JSON.stringify(toRel)}가 이미 있어 덮어쓰지 않는다`)
       await fsp.mkdir(path.dirname(to), { recursive: true })
       await checkReal(await getRealRoot(), path.dirname(to), toRel)
-      await fsp.rename(from, to)
+      await renameRetrying(from, to)
     },
     async list(relDir) {
       const full = await resolveChecked(relDir)

@@ -6,6 +6,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { repoKeyOf } from '@main/05_Loop/digestStore'
 import { blankStatus } from '@main/05_Loop/loopDriver'
 import { createLoopNotifier, type LoopNotifier } from '@main/05_Loop/loopNotifier'
 import type { NotifyRequest } from '@main/05_Loop/ports'
@@ -136,5 +137,56 @@ describe('알림 판정자 (M10 G5)', () => {
     const n = make()
     await n.observe(halted())
     expect(shown).toHaveLength(1)
+  })
+})
+
+describe('재기동 직후 알림 목록 (M11 G4)', () => {
+  const settled = async (n: LoopNotifier): Promise<void> => {
+    for (let i = 0; i < 100 && n.list().length === 0; i++) await new Promise((r) => setTimeout(r, 10))
+  }
+
+  it('[M11-G4 M10-19] 풀리지 않은 알림은 재기동 직후(그 폴더를 관찰하기 전) 목록과 onChange에 되살아나고 다시 알리지 않는다', async () => {
+    await make().observe(halted())
+    expect(shown).toHaveLength(1)
+    const stored = JSON.parse(fs.readFileSync(path.join(dir, 'alerts.json'), 'utf8')) as { keys: string[]; alerts: unknown[] }
+    expect([stored.keys.length, stored.alerts.length]).toEqual([1, 1])
+    changes = []
+    const again = make()
+    await settled(again)
+    expect(again.list()).toHaveLength(1)
+    expect(again.list()[0]).toMatchObject({ cwd: CWD, phase: 'halted', node: 'G1/checks', level: 'now' })
+    expect(changes.at(-1)?.alerts).toEqual(again.list())
+    expect(shown).toHaveLength(1)
+  })
+
+  it('[M11-G4 M10-19] 되살린 표시는 그 폴더의 첫 상태가 오면 지금 판정대로 바뀐다', async () => {
+    await make().observe(halted())
+    const again = make()
+    await settled(again)
+    await again.observe(st({ phase: 'running', node: 'G1/checks' }))
+    expect(again.list()).toEqual([])
+    expect(changes.at(-1)?.alerts).toEqual([])
+  })
+
+  it('[M11-G4 M10-19] 사람이 루프를 닫아 내린 표시는 재기동해도 되살리지 않지만, 다시 연 같은 멈춤은 여전히 알리지 않는다', async () => {
+    const n = make()
+    await n.observe(halted())
+    await n.observe(blankStatus(CWD))
+    const again = make()
+    await new Promise((r) => setTimeout(r, 50))
+    expect(again.list()).toEqual([])
+    await again.observe(halted())
+    expect(shown).toHaveLength(1)
+    expect(again.list()).toHaveLength(1)
+  })
+
+  it('[M11-G4 M10-19] 열쇠만 있는 옛 저장본도 읽는다 — 표시는 없고 다시 알리지도 않는다', async () => {
+    fs.writeFileSync(path.join(dir, 'alerts.json'), `${JSON.stringify({ keys: [`${repoKeyOf(CWD)}:halted:G1/checks`] })}\n`)
+    const n = make()
+    await n.observe(st({ phase: 'running' }, OTHER))
+    expect(n.list()).toEqual([])
+    await n.observe(halted())
+    expect(shown).toEqual([])
+    expect(n.list()).toHaveLength(1)
   })
 })

@@ -32,6 +32,20 @@ describe('FullscreenOverlay', () => {
     expect(onClose).toHaveBeenCalledTimes(1)
   })
 
+  it('[M11-G4 22] 다른 모달이 위에 오르면 Esc는 위 모달만 닫고 전체 화면 보기는 남는다', async () => {
+    const { pushModalLayer } = await import('@renderer/02_Common/modalStack')
+    const onClose = vi.fn()
+    const over = vi.fn()
+    render(<FullscreenOverlay onClose={onClose}><div>내용</div></FullscreenOverlay>)
+    const close = pushModalLayer({ onEscape: over })
+    try {
+      fireEvent.keyDown(document, { key: 'Escape' })
+    } finally {
+      close()
+    }
+    expect([over.mock.calls.length, onClose.mock.calls.length]).toEqual([1, 0])
+  })
+
   it('FO3: 오버레이 바깥 영역(backdrop) 클릭 → onClose 호출', () => {
     const onClose = vi.fn()
     render(

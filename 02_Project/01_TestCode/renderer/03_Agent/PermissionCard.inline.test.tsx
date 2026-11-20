@@ -20,6 +20,17 @@ describe('PermissionCard — pending=null', () => {
   })
 })
 
+describe('PermissionCard — 모달 층 (M11 G4 22)', () => {
+  it('[M11-G4 22] 권한 카드는 곁 층이다 — 열린 것으로 세지만(Shell 중단을 막는다) 맨 위 모달이 되지 않는다', async () => {
+    const { PermissionCard } = await import('@renderer/10_Engine')
+    const { isAnyModalOpen, isBlockingModalOpen } = await import('@renderer/02_Common/modalStack')
+    const { rerender } = render(<PermissionCard pending={SAMPLE_PENDING} onRespond={vi.fn()} />)
+    expect([isAnyModalOpen(), isBlockingModalOpen()]).toEqual([true, false])
+    rerender(<PermissionCard pending={null} onRespond={vi.fn()} />)
+    expect(isAnyModalOpen()).toBe(false)
+  })
+})
+
 describe('PermissionCard — pending 있음: 렌더 계약', () => {
   it('.perm-card[role=group][aria-label] 렌더, role="dialog" 아님', async () => {
     const { PermissionCard } = await import('@renderer/10_Engine')
@@ -152,6 +163,22 @@ describe('PermissionCard — 카드 컨테이너 keydown(전역 리스너 아님
       fireEvent.keyDown(card, { key: 'Escape' })
     })
     expect(onRespond).toHaveBeenCalledWith('deny')
+  })
+
+  it('[M11-G4 22] 위에 모달이 떠 있으면 카드의 Esc는 그 모달에 양보한다(거부하지 않는다)', async () => {
+    const { PermissionCard } = await import('@renderer/10_Engine')
+    const { pushModalLayer } = await import('@renderer/02_Common/modalStack')
+    const onRespond = vi.fn()
+    const { container } = render(<PermissionCard pending={SAMPLE_PENDING} onRespond={onRespond} />)
+    const over = vi.fn()
+    const close = pushModalLayer({ onEscape: over })
+    try {
+      await act(async () => { fireEvent.keyDown(container.querySelector('.perm-card') as HTMLElement, { key: 'Escape' }) })
+    } finally {
+      close()
+    }
+    expect(over).toHaveBeenCalledTimes(1)
+    expect(onRespond).not.toHaveBeenCalled()
   })
 
   it('마운트 시 다른 입력 미포커스면 카드가 자동 포커스된다(클릭 없이 숫자키 가능)', async () => {

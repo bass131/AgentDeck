@@ -283,6 +283,8 @@ describe('기동·종료 배선 — 00_App/bootstrap 한 곳 (M05 G11 4단계)',
     expect(callersOf(/\bcreateLoopDriver\(/).filter((r) => r !== '05_Loop/loopDriver.ts')).toEqual(['00_App/bootstrap.ts'])
     const boot = mainSources().find((f) => f.rel === '00_App/bootstrap.ts')!.src
     expect(boot).toMatch(/closeAll\(\)/)
+    // M11 G4 — 부팅 때 앱을 끌 때 열려 있던 작업 폴더를 다시 연다(M09-10)
+    expect(boot).toMatch(/void _loopDriver\.reopenLast\(\)/)
     expect(boot).toMatch(/join\(getUserDataDir\(\), 'loop'\)/)
     // M10 G2 — 메인 대화 보기와 루프 세션 사건도 조립 지점이 창으로 push한다
     expect(boot).toMatch(/onMainState: \(v\) => pushMainState\(ipcState, v\)/)

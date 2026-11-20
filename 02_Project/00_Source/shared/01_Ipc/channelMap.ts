@@ -127,6 +127,8 @@ import type {
   MainChatView,
   LoopAlertList,
   LoopAlertOpen,
+  LoopListDirRequest,
+  LoopListDirResponse,
 } from '../13_Loop/loop'
 import type { LoopGraphResponse } from '../13_Loop/graph'
 import type { Ack } from '../02_Common/common'
@@ -239,6 +241,7 @@ export interface IpcInvokeMap {
   // M10 G5 — 그래프 읽기(보기 전용)와 알림 목록 읽기
   'loop.graph': { req: LoopCwdRequest; res: LoopGraphResponse }
   'loop.alerts': { req: void; res: LoopAlertList }
+  'loop.listDir': { req: LoopListDirRequest; res: LoopListDirResponse }
 }
 
 // main → renderer push 채널. 값은 payload 타입이다.

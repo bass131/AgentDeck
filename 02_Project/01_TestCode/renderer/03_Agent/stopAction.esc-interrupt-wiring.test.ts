@@ -1,6 +1,8 @@
 // 작업 ID: cp1-p06 · 옛 이름 cp1-p06-esc-interrupt-wiring.test.ts
-import { describe, it, expect, vi } from 'vitest'
-import { decideStopAction } from '@renderer/03_Agent/stopAction'
+// M11 G4(설계 감사 24) — 옛 시험은 Shell의 Esc 처리를 사본(makeOnEscape)으로 다시 만들어 모달·작업 모드 가드가 빠져 있었다.
+// 이제 Shell이 부르는 그 함수(shellEscape)를 직접 부른다 — Shell에서 가드를 지우면 이 시험이 실패한다.
+import { describe, it, expect, vi, afterEach } from 'vitest'
+import { pushModalLayer, shellEscape, type EscapeContext } from '@renderer/12_Window/useGlobalShortcuts'
 import type { LoopInfo } from '../../../../02_Project/00_Source/shared/agentEvents'
 import type { GoalPendingLike } from '@renderer/03_Agent/loopStatus'
 
@@ -8,115 +10,100 @@ function mkLoop(id = 'wakeup'): LoopInfo {
   return { id, summary: '주기 작업' }
 }
 
-function makeOnEscape(
-  isRunning: boolean,
-  replMode: boolean,
-  activeLoops: LoopInfo[],
-  pendingCommand: GoalPendingLike | null | undefined,
-  interruptRun: () => Promise<void>,
-  abortRun: () => Promise<void>
-): () => void {
-  return () => {
-    if (!isRunning) return
-    const action = decideStopAction(replMode, activeLoops, pendingCommand)
-    if (action === 'interrupt') void interruptRun()
-    else void abortRun()
-  }
+function ctx(over: {
+  isRunning?: boolean
+  workspaceMode?: EscapeContext['workspaceMode']
+  replMode?: boolean
+  activeLoops?: LoopInfo[]
+  pendingCommand?: GoalPendingLike | null
+} = {}) {
+  const interruptRun = vi.fn().mockResolvedValue(undefined)
+  const abortRun = vi.fn().mockResolvedValue(undefined)
+  const getState = vi.fn(() => ({
+    replMode: over.replMode ?? true,
+    activeLoops: over.activeLoops ?? [],
+    pendingCommand: over.pendingCommand ?? null,
+    interruptRun,
+    abortRun,
+  }))
+  const c: EscapeContext = { isRunning: over.isRunning ?? true, workspaceMode: over.workspaceMode ?? 'single', getState }
+  return { c, interruptRun, abortRun, getState }
 }
 
-describe('CP1 P06 ① — Shell onEscape가 decideStopAction을 경유', () => {
-  it('거동 변화: repl 일반 턴(activeLoops 없음·goal 아님) → interruptRun 호출(abortRun 미호출)', () => {
-    const interruptRun = vi.fn().mockResolvedValue(undefined)
-    const abortRun = vi.fn().mockResolvedValue(undefined)
-    const onEscape = makeOnEscape(true, true, [], null, interruptRun, abortRun)
-    onEscape()
+let closeLayer: (() => void) | null = null
+afterEach(() => { closeLayer?.(); closeLayer = null })
+
+describe('CP1 P06 ① — Shell의 Esc가 decideStopAction을 경유 (M11 G4 24: 실제 처리 함수)', () => {
+  it('[M11-G4 24] repl 일반 턴(activeLoops 없음·goal 아님) → interruptRun 호출(abortRun 미호출)', () => {
+    const { c, interruptRun, abortRun } = ctx()
+    shellEscape(undefined, c)
     expect(interruptRun).toHaveBeenCalledOnce()
     expect(abortRun).not.toHaveBeenCalled()
   })
 
-  it('replMode=false(비-REPL) → 기존 계약대로 abortRun 호출(BF1 P03 불변)', () => {
-    const interruptRun = vi.fn().mockResolvedValue(undefined)
-    const abortRun = vi.fn().mockResolvedValue(undefined)
-    const onEscape = makeOnEscape(true, false, [], null, interruptRun, abortRun)
-    onEscape()
+  it('[M11-G4 24] replMode=false(비-REPL) → 기존 계약대로 abortRun 호출(BF1 P03 불변)', () => {
+    const { c, interruptRun, abortRun } = ctx({ replMode: false })
+    shellEscape(undefined, c)
     expect(abortRun).toHaveBeenCalledOnce()
     expect(interruptRun).not.toHaveBeenCalled()
   })
 
-  it('activeLoops 활성(SDK 크론) → replMode 무관 abortRun(정지 버튼과 동일 승격)', () => {
-    const interruptRun = vi.fn().mockResolvedValue(undefined)
-    const abortRun = vi.fn().mockResolvedValue(undefined)
-    const onEscape = makeOnEscape(true, true, [mkLoop()], null, interruptRun, abortRun)
-    onEscape()
+  it('[M11-G4 24] activeLoops 활성(SDK 크론) → replMode 무관 abortRun(정지 버튼과 동일 승격)', () => {
+    const { c, interruptRun, abortRun } = ctx({ activeLoops: [mkLoop()] })
+    shellEscape(undefined, c)
     expect(abortRun).toHaveBeenCalledOnce()
     expect(interruptRun).not.toHaveBeenCalled()
   })
 
-  it("pendingCommand.name==='goal' → replMode 무관 abortRun(정지 버튼과 동일 승격)", () => {
-    const interruptRun = vi.fn().mockResolvedValue(undefined)
-    const abortRun = vi.fn().mockResolvedValue(undefined)
-    const onEscape = makeOnEscape(true, true, [], { name: 'goal' }, interruptRun, abortRun)
-    onEscape()
+  it("[M11-G4 24] pendingCommand.name==='goal' → replMode 무관 abortRun(정지 버튼과 동일 승격)", () => {
+    const { c, interruptRun, abortRun } = ctx({ pendingCommand: { name: 'goal' } })
+    shellEscape(undefined, c)
     expect(abortRun).toHaveBeenCalledOnce()
     expect(interruptRun).not.toHaveBeenCalled()
   })
 
-  it('isRunning=false → 둘 다 미호출(정지할 실행이 없음)', () => {
-    const interruptRun = vi.fn().mockResolvedValue(undefined)
-    const abortRun = vi.fn().mockResolvedValue(undefined)
-    const onEscape = makeOnEscape(false, true, [], null, interruptRun, abortRun)
-    onEscape()
+  it('[M11-G4 24] isRunning=false → 둘 다 미호출(정지할 실행이 없음)', () => {
+    const { c, interruptRun, abortRun } = ctx({ isRunning: false })
+    shellEscape(undefined, c)
     expect(interruptRun).not.toHaveBeenCalled()
     expect(abortRun).not.toHaveBeenCalled()
   })
-})
 
-describe('CP1 렌더러 후속(reviewer 🟡 봉합) — Shell onEscape 단일 원자 스냅샷', () => {
-  interface Snapshot {
-    replMode: boolean
-    activeLoops: LoopInfo[]
-    pendingCommand: GoalPendingLike | null
-    interruptRun: () => Promise<void>
-    abortRun: () => Promise<void>
-  }
-
-  function makeAtomicOnEscape(isRunning: boolean, getState: () => Snapshot): () => void {
-    return () => {
-      if (!isRunning) return
-      const state = getState()
-      const action = decideStopAction(state.replMode, state.activeLoops, state.pendingCommand)
-      if (action === 'interrupt') void state.interruptRun()
-      else void state.abortRun()
-    }
-  }
-
-  it('replMode를 단일 스냅샷에서 읽는다 — 스냅샷이 false면 abort(다른 소스의 stale true는 무관)', () => {
-    const interruptRun = vi.fn().mockResolvedValue(undefined)
-    const abortRun = vi.fn().mockResolvedValue(undefined)
-    const onEscape = makeAtomicOnEscape(true, () => ({
-      replMode: false,
-      activeLoops: [],
-      pendingCommand: null,
-      interruptRun,
-      abortRun,
-    }))
-    onEscape()
-    expect(abortRun).toHaveBeenCalledOnce()
+  it('[M11-G4 24] 모달이 열려 있으면 실행을 끊지 않는다', () => {
+    const { c, interruptRun, abortRun, getState } = ctx()
+    closeLayer = pushModalLayer()
+    shellEscape(undefined, c)
     expect(interruptRun).not.toHaveBeenCalled()
+    expect(abortRun).not.toHaveBeenCalled()
+    expect(getState).not.toHaveBeenCalled()
   })
 
-  it('스냅샷이 replMode:true면 interrupt(단일 소스 일관성 확인)', () => {
+  it('[M11-G4 24] 곁 층(권한 카드·질문 알약)만 있어도 실행을 끊지 않는다', () => {
+    const { c, interruptRun, abortRun } = ctx()
+    closeLayer = pushModalLayer({ kind: 'aside' })
+    shellEscape(undefined, c)
+    expect(interruptRun).not.toHaveBeenCalled()
+    expect(abortRun).not.toHaveBeenCalled()
+  })
+
+  it('[M11-G4 24] 작업 모드에서는 채팅 실행을 끊지 않는다', () => {
+    const { c, interruptRun, abortRun } = ctx({ workspaceMode: 'work' })
+    shellEscape(undefined, c)
+    expect(interruptRun).not.toHaveBeenCalled()
+    expect(abortRun).not.toHaveBeenCalled()
+  })
+
+  it('[M11-G4 24] 스냅숏에 대기 명령 칸이 없으면(앱 상태의 선택 칸) 일반 턴처럼 interruptRun', () => {
     const interruptRun = vi.fn().mockResolvedValue(undefined)
     const abortRun = vi.fn().mockResolvedValue(undefined)
-    const onEscape = makeAtomicOnEscape(true, () => ({
-      replMode: true,
-      activeLoops: [],
-      pendingCommand: null,
-      interruptRun,
-      abortRun,
-    }))
-    onEscape()
+    shellEscape(undefined, { isRunning: true, workspaceMode: 'single', getState: () => ({ replMode: true, activeLoops: [], interruptRun, abortRun }) })
     expect(interruptRun).toHaveBeenCalledOnce()
     expect(abortRun).not.toHaveBeenCalled()
+  })
+
+  it('[M11-G4 24] 실행 상태는 Esc 때 한 번 읽은 스냅숏에서 고른다', () => {
+    const { c, getState } = ctx({ replMode: false })
+    shellEscape(undefined, c)
+    expect(getState).toHaveBeenCalledTimes(1)
   })
 })

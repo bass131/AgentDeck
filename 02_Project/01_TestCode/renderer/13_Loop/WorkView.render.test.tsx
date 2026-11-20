@@ -68,7 +68,8 @@ const emit = async (session: LoopSessionTag, seq: number, event: AgentEvent): Pr
 const snapshotOf = (): { main: number; board: number; thread: number; panel: number } => ({ ...counts })
 
 describe('세션 push의 다시 그리기 범위 (M10 G4 검수 1)', () => {
-  it('노드 세션 글 조각은 메인 대화·현황판·파일 칸을 다시 그리지 않고, 메인의 글 조각은 할 일·서브에이전트를 다시 접지 않는다', async () => {
+  // M11 G4 — 메인 대화가 메인 세션의 사건을 그리므로(M10-22) 메인의 글 조각은 메인 대화만 다시 그린다
+  it('노드 세션 글 조각은 메인 대화·현황판·파일 칸을 다시 그리지 않고, 메인의 글 조각은 메인 대화만 다시 그리고 할 일·서브에이전트를 다시 접지 않는다', async () => {
     const { WorkView, useWorkStore } = await import('@renderer/13_Loop')
     useWorkStore.setState({ hydrated: true, cwd: CWD, projects: [CWD], center: 'main', extraTabs: [], right: 'files', archives: [] })
     render(<WorkView />)
@@ -80,10 +81,10 @@ describe('세션 push의 다시 그리기 범위 (M10 G4 검수 1)', () => {
     expect(snapshotOf()).toEqual(before)
     await emit(main, 1, { type: 'text', delta: '정리할게', messageId: 'b1' })
     await emit(main, 2, { type: 'text', delta: '요', messageId: 'b1' })
-    expect(snapshotOf()).toEqual(before)
+    expect(snapshotOf()).toEqual({ ...before, main: before.main + 2 })
     await emit(main, 3, { type: 'todos', todos: [{ id: '2', label: '스펙 초안', status: 'running' }] })
     expect(counts.panel).toBe(before.panel + 1)
-    expect([counts.main, counts.board]).toEqual([before.main, before.board])
+    expect([counts.main, counts.board]).toEqual([before.main + 3, before.board])
     expect(within(screen.getByRole('region', { name: '파일·변경' })).getByText('스펙 초안')).toBeTruthy()
   })
 

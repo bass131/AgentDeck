@@ -49,6 +49,7 @@ function fakeDriver(): { driver: LoopDriverApi; calls: unknown[][] } {
       sessionLog: rec('sessionLog', { cwd: CWD, sessions: [] }),
       mainArchives: rec('mainArchives', Promise.resolve({ cwd: CWD, archives: [] })),
       graph: rec('graph', { ok: false, reason: '없음' }),
+      listDir: rec('listDir', Promise.resolve({ ok: true, entries: [] })),
     },
   }
 }
@@ -77,11 +78,11 @@ describe('loop IPC 핸들러 (M09 G4)', () => {
     expect(await bare(IPC_CHANNELS.LOOP_ALERTS, undefined)).toEqual({ alerts: [] })
   })
 
-  it('열여섯 채널을 등록하고 구동자로 넘긴다(M10 G2 — 메인 대화 읽기·보내기·새로 열기, M10 G3 — 깃발 내리기, M10 G4 — 세션 기록·지난 메인 대화 읽기, M10 G5 — 그래프·알림 읽기)', async () => {
+  it('열일곱 채널을 등록하고 구동자로 넘긴다(M10 G2 — 메인 대화 읽기·보내기·새로 열기, M10 G3 — 깃발 내리기, M10 G4 — 세션 기록·지난 메인 대화 읽기, M10 G5 — 그래프·알림 읽기, M11 G4 — 작업 폴더 목록)', async () => {
     const { driver, calls } = fakeDriver()
     const call = register(driver)
     expect([...h.handlers.keys()].sort()).toEqual([
-      'loop.alerts', 'loop.answerCard', 'loop.cancelSession', 'loop.close', 'loop.decide', 'loop.graph', 'loop.lowerFlag', 'loop.mainArchives', 'loop.mainNew', 'loop.mainRead', 'loop.mainSend',
+      'loop.alerts', 'loop.answerCard', 'loop.cancelSession', 'loop.close', 'loop.decide', 'loop.graph', 'loop.listDir', 'loop.lowerFlag', 'loop.mainArchives', 'loop.mainNew', 'loop.mainRead', 'loop.mainSend',
       'loop.open', 'loop.releaseLatch', 'loop.sessionLog', 'loop.start', 'loop.status',
     ])
     expect(await call(IPC_CHANNELS.LOOP_SESSION_LOG, { cwd: CWD, verdict: 'pass' })).toEqual({ cwd: CWD, sessions: [] })
@@ -162,6 +163,29 @@ describe('loop IPC 핸들러 (M09 G4)', () => {
     const call = register(driver)
     await call(IPC_CHANNELS.LOOP_MAIN_SEND, { cwd: CWD, text: '승인한다', verdict: 'pass', specSha256: 'a'.repeat(64) })
     expect(calls).toEqual([['mainSend', CWD, '승인한다']])
+  })
+
+  it('[M11-G4 M10-16] 작업 폴더 목록은 cwd와 상대 경로 글자만 구동자로 넘긴다', async () => {
+    const { driver, calls } = fakeDriver()
+    const call = register(driver)
+    expect(await call(IPC_CHANNELS.LOOP_LIST_DIR, { cwd: CWD, relDir: 'src', rootId: 'ref-1' })).toEqual({ ok: true, entries: [] })
+    await expect(call(IPC_CHANNELS.LOOP_LIST_DIR, { cwd: 'rel', relDir: '' })).rejects.toThrow(/loop\.listDir/)
+    await expect(call(IPC_CHANNELS.LOOP_LIST_DIR, { cwd: CWD, relDir: 3 })).rejects.toThrow(/loop\.listDir/)
+    expect(calls).toEqual([['listDir', CWD, 'src']])
+  })
+
+  it('[M11-G4 M10-16] 구동자가 막힘(ok 거짓)으로 답하면 그대로 화면에 넘긴다(빈 목록으로 바꾸지 않는다)', async () => {
+    const { driver } = fakeDriver()
+    const call = register({ ...driver, listDir: async () => ({ ok: false, entries: [] }) })
+    expect(await call(IPC_CHANNELS.LOOP_LIST_DIR, { cwd: CWD, relDir: '..' })).toEqual({ ok: false, entries: [] })
+  })
+
+  it('[M11-G4 M06-29] 대리 입력 표지는 proxy가 참일 때만 구동자로 간다', async () => {
+    const { driver, calls } = fakeDriver()
+    const call = register(driver)
+    await call(IPC_CHANNELS.LOOP_MAIN_SEND, { cwd: CWD, text: '합의', proxy: true })
+    await call(IPC_CHANNELS.LOOP_MAIN_SEND, { cwd: CWD, text: '합의', proxy: 'yes' })
+    expect(calls).toEqual([['mainSend', CWD, '합의', { proxy: true }], ['mainSend', CWD, '합의']])
   })
 
   it('카드 응답은 허용·거부와 질문 답만 받는다 — 「항상 허용」과 꼴이 틀린 답은 ok:false로 넘기지 않는다', async () => {

@@ -123,17 +123,37 @@ function basename(p: string): string {
   return parts.length ? parts[parts.length - 1] : p
 }
 
+// 채팅 모드 밖(작업 모드)의 탐색기는 받은 폴더만 그리고 채팅 모드의 폴더·참조 폴더·연 파일을 건드리지 않는다
+export interface ExplorerSource {
+  root: string
+  list(relDir: string): Promise<{ ok: boolean; entries: FileTreeNode[] }>
+  unavailable: string
+}
+
 export interface FileExplorerProps {
   onOpenGit?: () => void
   onCollapse?: () => void
+  source?: ExplorerSource
 }
 
-export function FileExplorer({ onOpenGit, onCollapse }: FileExplorerProps = {}): JSX.Element {
-  const fileTree = useAppStore(selectFileTree)
-  const workspaceRoot = useAppStore(selectWorkspaceRoot)
-  const changedFiles = useAppStore(selectChangedFiles)
-  const selectedPath = useAppStore(selectOpenedFile)
-  const references = useAppStore(selectReferences)
+const NO_CHANGES: Set<string> = new Set()
+const NO_REFERENCES: ReferenceEntry[] = []
+
+export function FileExplorer({ onOpenGit, onCollapse, source }: FileExplorerProps = {}): JSX.Element {
+  const chatTree = useAppStore(selectFileTree)
+  const chatRoot = useAppStore(selectWorkspaceRoot)
+  const chatChanged = useAppStore(selectChangedFiles)
+  const chatSelected = useAppStore(selectOpenedFile)
+  const chatReferences = useAppStore(selectReferences)
+  const sourced = source !== undefined
+  const fileTree = sourced ? null : chatTree
+  const workspaceRoot = sourced ? source.root : chatRoot
+  const changedFiles = sourced ? NO_CHANGES : chatChanged
+  const selectedPath = sourced ? null : chatSelected
+  const references = sourced ? NO_REFERENCES : chatReferences
+  const sourceRef = useRef(source)
+  sourceRef.current = source
+  const [unavailable, setUnavailable] = useState(false)
 
   const openWorkspace = useAppStore((s) => s.openWorkspace)
   const openFile = useAppStore((s) => s.openFile)
@@ -153,7 +173,8 @@ export function FileExplorer({ onOpenGit, onCollapse }: FileExplorerProps = {}):
     [viewing, references]
   )
 
-  const [childrenCache, setChildrenCache] = useState<Map<string, FileTreeNode[]>>(new Map())
+  // null은 목록이 막힌 폴더다(받은 목록이 ok가 아니다) — 빈 폴더와 다르게 그린다
+  const [childrenCache, setChildrenCache] = useState<Map<string, FileTreeNode[] | null>>(new Map())
 
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
 
@@ -172,13 +193,17 @@ export function FileExplorer({ onOpenGit, onCollapse }: FileExplorerProps = {}):
     (relDir: string, rootId?: string): void => {
       const gen = genRef.current
       const req = rootId ? { rootId, relDir } : { relDir }
-      ipc.workspace
-        .listDir(req)
-        .then(({ entries }) => {
+      const src = sourceRef.current
+      const read = src
+        ? src.list(relDir)
+        : ipc.workspace.listDir(req).then(({ entries }) => ({ ok: true, entries }))
+      read
+        .then(({ ok, entries }) => {
           if (gen !== genRef.current) return
+          if (relDir === '') setUnavailable(!ok)
           setChildrenCache((m) => {
             const next = new Map(m)
-            next.set(relDir, entries)
+            next.set(relDir, ok ? entries : null)
             return next
           })
         })
@@ -273,6 +298,7 @@ export function FileExplorer({ onOpenGit, onCollapse }: FileExplorerProps = {}):
 
   const handleFileClick = useCallback(
     (path: string) => {
+      if (sourceRef.current) return
       void openFile(path)
       selectDiffFile(path)
     },
@@ -315,14 +341,14 @@ export function FileExplorer({ onOpenGit, onCollapse }: FileExplorerProps = {}):
       )
     }
 
-    if (list.length === 0) {
+    if (list === null || list.length === 0) {
       return (
         <div
           className="fe-note"
           style={{ paddingLeft: indent(depth) + 18 }}
-          key={base + '/empty'}
+          key={base + (list === null ? '/blocked' : '/empty')}
         >
-          비어 있음
+          {list === null ? '열 수 없는 폴더예요' : '비어 있음'}
         </div>
       )
     }
@@ -412,6 +438,17 @@ export function FileExplorer({ onOpenGit, onCollapse }: FileExplorerProps = {}):
       )}
     </div>
   )
+
+  if (sourced) {
+    return (
+      <div className="file-explorer">
+        {header}
+        <div className="fe-tree" role="tree">
+          {unavailable ? <div className="fe-note">{source.unavailable}</div> : renderRows('', 0)}
+        </div>
+      </div>
+    )
+  }
 
   if (!fileTree && !workspaceRoot) {
     return (

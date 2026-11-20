@@ -1,5 +1,6 @@
 import { useEffect, useState, type JSX } from 'react'
 import { WN_SLIDES } from './whatsNewSampleData'
+import { useModalLayer } from '@renderer/02_Common/modalStack'
 import './WhatsNew.css'
 
 export interface WhatsNewProps {
@@ -14,13 +15,12 @@ export function WhatsNew({ open, onClose }: WhatsNewProps): JSX.Element | null {
     if (open) setSlide(0)
   }, [open])
 
+  useModalLayer(open, onClose)
+
   useEffect(() => {
     if (!open) return
     const onKey = (e: KeyboardEvent): void => {
-      if (e.key === 'Escape') {
-        e.preventDefault()
-        onClose()
-      } else if (e.key === 'ArrowRight') {
+      if (e.key === 'ArrowRight') {
         setSlide((s) => Math.min(s + 1, WN_SLIDES.length - 1))
       } else if (e.key === 'ArrowLeft') {
         setSlide((s) => Math.max(s - 1, 0))

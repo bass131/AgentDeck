@@ -111,7 +111,8 @@ const SKIP_DIRS = new Set(['node_modules', 'dist', 'out', 'coverage', '.git'])
 // M11 G2: 489 → 490. SDK 자동 압축 상태를 첫 턴 뒤 알리는지 보는 main/04_Claude/ClaudeCodeBackend.auto-compact.test.ts를 더했다.
 // M11 G3: 490 → 491. git IPC 핸들러가 `-` 머리 hash를 git에 넘기지 않는지 보는 main/01_Ipc/git.hash-guard.test.ts를 더했다.
 // M11 G3: 491 → 492. 노드마다 메모리 안의 최근 판정 고리(상한·입력 가림·훅 감싸기)를 보는 main/04_Claude/verdictLog.test.ts를 더했다.
-const BASELINE_TEST_FILES = 492
+// M11 G4: 492 → 493. 메인 대화 답 글 모으기(메인 턴과 화면이 같은 규칙을 쓴다)를 보는 shared/13_Loop/mainTurn.test.ts를 더했다.
+const BASELINE_TEST_FILES = 493
 
 function collectTestFiles(dir: string, acc: string[] = []): string[] {
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {

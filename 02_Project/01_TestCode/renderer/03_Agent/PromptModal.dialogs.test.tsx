@@ -141,6 +141,14 @@ describe('F11-02: PromptModal', () => {
     })
   })
 
+  it('[M11-G4 22] 열려 있는 동안 모달 층에 오른다(Shell의 Esc가 실행을 끊지 않는다)', async () => {
+    const { isAnyModalOpen } = await import('@renderer/02_Common/modalStack')
+    await renderPromptModal()
+    expect(isAnyModalOpen()).toBe(true)
+    cleanup()
+    expect(isAnyModalOpen()).toBe(false)
+  })
+
   it('backdrop(pr-overlay) 클릭 → onClose 호출', async () => {
     const { container, onClose } = await renderPromptModal()
     const overlay = container.querySelector('.pr-overlay') as HTMLElement
@@ -258,6 +266,12 @@ describe('F11-02: FolderSwitchDialog', () => {
     await waitFor(() => {
       expect(onCancel).toHaveBeenCalledOnce()
     })
+  })
+
+  it('[M11-G4 22] 폴더 바꾸기 확인 창도 모달 층에 오른다', async () => {
+    const { isAnyModalOpen } = await import('@renderer/02_Common/modalStack')
+    await renderFolderSwitch()
+    expect(isAnyModalOpen()).toBe(true)
   })
 
   it('window.api 실 호출 0 (scope 검증)', async () => {
@@ -451,6 +465,35 @@ describe('F11-03: AskModal', () => {
     await waitFor(() => {
       expect(onClose).toHaveBeenCalledOnce()
     })
+  })
+
+  it('[M11-G4 22] 최소화된 질문 창은 곁 층이다 — 다른 모달이 열려 있으면 Esc를 그 모달에 양보한다', async () => {
+    const { isAnyModalOpen, isBlockingModalOpen, pushModalLayer } = await import('@renderer/02_Common/modalStack')
+    const { onClose } = await renderAskModal({ minimized: true })
+    expect([isAnyModalOpen(), isBlockingModalOpen()]).toEqual([true, false])
+    const over = vi.fn()
+    const close = pushModalLayer({ onEscape: over })
+    try {
+      fireEvent.keyDown(window, { key: 'Escape' })
+    } finally {
+      close()
+    }
+    expect(over).toHaveBeenCalledTimes(1)
+    expect(onClose).not.toHaveBeenCalled()
+  })
+
+  it('[M11-G4 22] 펼친 질문 창 위에 다른 모달이 열려 있으면 Esc는 그 모달만 닫는다', async () => {
+    const { pushModalLayer } = await import('@renderer/02_Common/modalStack')
+    const { onMinimizedChange } = await renderAskModal({ minimized: false })
+    const over = vi.fn()
+    const close = pushModalLayer({ onEscape: over })
+    try {
+      fireEvent.keyDown(window, { key: 'Escape' })
+    } finally {
+      close()
+    }
+    expect(over).toHaveBeenCalledTimes(1)
+    expect(onMinimizedChange).not.toHaveBeenCalled()
   })
 
   it('window.api ask 실 호출 0 (scope 검증)', async () => {

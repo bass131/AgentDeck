@@ -132,15 +132,15 @@ describe('P5 — 멀티의 Shift+Tab은 입력창이 포커스된 패널의 모�
   })
 
   // G9b 검수 중요 2 — 단일 전역 처리기처럼 모달·권한 카드·질문 pill이 떠 있으면 손을 뗀다.
+  // M11 G4(설계 감사 22) — 떠 있음은 클래스가 아니라 모달 층으로 안다. 권한 카드·알약은 곁 층, 질문 창은 모달 층이다.
   it.each([
-    ['권한 카드(.perm-card)', 'perm-card'],
-    ['내려둔 질문 pill(.q-mini-pill)', 'q-mini-pill'],
-    ['질문 창(.q-overlay)', 'q-overlay'],
-  ])('%s가 떠 있으면 패널 Shift+Tab은 모드를 돌리지 않고 기본 포커스 이동에 맡긴다', async (_name, cls) => {
+    ['권한 카드(곁 층)', 'aside'],
+    ['내려둔 질문 pill(곁 층)', 'aside'],
+    ['질문 창(모달 층)', 'modal'],
+  ] as const)('%s가 떠 있으면 패널 Shift+Tab은 모드를 돌리지 않고 기본 포커스 이동에 맡긴다', async (_name, kind) => {
     const setPicker = vi.fn()
-    const blocker = document.createElement('div')
-    blocker.className = cls
-    document.body.appendChild(blocker)
+    const { pushModalLayer } = await import('@renderer/02_Common/modalStack')
+    const blocker = { remove: pushModalLayer({ kind }) }
     try {
       const { container } = await renderPanelWithPicker(setPicker)
       const ta = container.querySelector('textarea') as HTMLTextAreaElement

@@ -170,6 +170,21 @@ describe('ImageViewer — Esc / 백드롭 닫기', () => {
     expect(onClose).toHaveBeenCalledOnce()
   })
 
+  it('[M11-G4 22] 열려 있는 동안 모달 층에 오르고, 위에 다른 모달이 있으면 Esc는 그 모달만 닫는다', async () => {
+    const { isAnyModalOpen, pushModalLayer } = await import('@renderer/02_Common/modalStack')
+    const onClose = vi.fn()
+    render(<ImageViewer {...mkViewerProps([IMG1], 0, { onClose })} />)
+    expect(isAnyModalOpen()).toBe(true)
+    const over = vi.fn()
+    const close = pushModalLayer({ onEscape: over })
+    try {
+      fireEvent.keyDown(window, { key: 'Escape' })
+    } finally {
+      close()
+    }
+    expect([over.mock.calls.length, onClose.mock.calls.length]).toEqual([1, 0])
+  })
+
   it('iv-overlay 백드롭 mousedown+click → onClose 호출', () => {
     const onClose = vi.fn()
     const { container } = render(<ImageViewer {...mkViewerProps([IMG1], 0, { onClose })} />)

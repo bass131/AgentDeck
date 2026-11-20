@@ -244,7 +244,7 @@ describe('루프 화면 — 껍데기 (M09 G4)', () => {
   // M10 G1 — 루프 화면은 「작업」 모드의 가운데 칸이라 모달이 아니다. 전역 단축키가 모달로 보면 작업 모드의 단축키가 막힌다.
   // Esc가 뒤 대화의 실행을 멈추지 않는 것은 Shell의 Esc 처리가 채팅 배치에서만 도는 것으로 지킨다(panelSession.difference-pins B2).
   it('화면이 떠 있어도 전역 단축키는 모달로 보지 않는다(모달 아님)', async () => {
-    const { isAnyModalOpen } = await import('@renderer/12_Window/useGlobalShortcuts')
+    const { isAnyModalOpen } = await import('@renderer/02_Common/modalStack')
     await renderScreen()
     expect(isAnyModalOpen()).toBe(false)
   })

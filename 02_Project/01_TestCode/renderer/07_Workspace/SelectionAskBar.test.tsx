@@ -234,6 +234,9 @@ describe('W6b — SelectionAskBar', () => {
       container = result.container
     })
     expect(container.querySelector('[data-testid="sel-bar"]')).toBeTruthy()
+    // M11 G4(설계 감사 22) — 선택 막대는 곁 층이다(열린 것으로 세되 맨 위 모달이 되지 않는다)
+    const { isAnyModalOpen, isBlockingModalOpen } = await import('@renderer/02_Common/modalStack')
+    expect([isAnyModalOpen(), isBlockingModalOpen()]).toEqual([true, false])
   })
 
   it('선택이 비어있으면 sel-bar를 미표시한다', async () => {

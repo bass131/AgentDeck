@@ -232,6 +232,20 @@ describe('FileModal — 닫기 (F15-02)', () => {
     expect(container.querySelector('.fv-overlay')).toBeNull()
   })
 
+  it('[M11-G4 22] Git 창 위에 연 파일 창은 Esc 한 번에 파일 창만 닫힌다(아래 Git 창은 남는다)', async () => {
+    const { pushModalLayer } = await import('@renderer/02_Common/modalStack')
+    const closeGit = vi.fn()
+    const gitLayer = pushModalLayer({ onEscape: closeGit })
+    try {
+      const { container } = await renderOpenModal()
+      await act(async () => { fireEvent.keyDown(document, { key: 'Escape' }) })
+      expect(container.querySelector('.fv-overlay')).toBeNull()
+      expect(closeGit).not.toHaveBeenCalled()
+    } finally {
+      gitLayer()
+    }
+  })
+
   it('Esc가 다른 모달이 없을 때만 작동 (전역 preventDefault 호출 안 함)', async () => {
     const { container } = await renderOpenModal()
 

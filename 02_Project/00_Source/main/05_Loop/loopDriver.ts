@@ -52,9 +52,10 @@ import type {
 } from '@shared/ipcContract'
 import type { AgentEvent } from '@shared/agentEvents'
 import type {
-  LoopCancelTarget, LoopEventItem, LoopMainResponse, LoopSessionEventPayload, LoopSessionLog, LoopSessionTag, LoopVerificationLine, MainChatArchives, MainChatView,
+  LoopCancelTarget, LoopEventItem, LoopListDirResponse, LoopMainResponse, LoopSessionEventPayload, LoopSessionLog, LoopSessionTag, LoopVerificationLine, MainChatArchives, MainChatView,
 } from '@shared/13_Loop/loop'
 import type { LoopGraphResponse } from '@shared/13_Loop/graph'
+import { listDir as listWorkDir, resolveSafe } from '@main/07_Workspace/workspace'
 import { loadBundledTemplate } from './bundledTemplate'
 import type { NextStep } from './executor'
 import { templateGraph } from './templateGraph'
@@ -67,12 +68,14 @@ import { appendBacklogLine, buildMainTools } from './mainChatTools'
 import { openLoop, type OpenedLoop, type OpenLoopOptions, type OpenLoopResult } from './openLoop'
 import type { DigestStore, WorkRequest, WorkResult } from './ports'
 import { createFsPort } from './realPorts/fsPort'
+import { writeFileAtomic } from './realPorts/atomicWrite'
 import { validateRunState, type RunState } from './runState'
 import { DOCS } from './survivalDocs'
 import { denyCards, oneLine, type CardEvent, type CardResponder } from './workSession'
 
 export const AUTO_MODE_NODE = 'mode-auto-bypass-allow'
 const REOPEN_HINT = '켠 뒤 루프 화면의 「다시 열기」로 이어 간다'
+const OPEN_STORE = 'open.json'
 
 // 조립 지점이 controlsForRun(getUserDataDir())의 결과를 넘긴다. 노드 실행은 claudeAgentRun이 같은 컨트롤을 다시 읽는다.
 export function autoModeReasonOf(c: ControlsForRun): string | null {
@@ -120,14 +123,18 @@ export interface LoopDriver {
   releaseLatch(cwd: string, token: string): Promise<LoopReleaseLatchResponse>
   close(cwd: string): Promise<void>
   closeAll(): Promise<void>
+  // M11 G4 — 앱을 끌 때 열려 있던 작업 폴더를 다시 연다(사람이 닫은 폴더는 빠진다). 부팅 때 한 번 부른다
+  reopenLast(): Promise<void>
   // M10 G2 메인 대화 — 읽기(닫힌 저장소는 앱 영역 파일), 사용자 글 보내기, 새 메인 대화
   mainRead(cwd: string): MainChatView
-  mainSend(cwd: string, text: string): LoopMainResponse
+  mainSend(cwd: string, text: string, opts?: { proxy?: boolean }): LoopMainResponse
   mainNew(cwd: string): Promise<LoopMainResponse>
   // M10 G3 — 사람이 일시 정지 깃발을 내린다(판정 칸 없음 — 실행 상태·검증 기록을 쓰지 않는다)
   lowerFlag(cwd: string): LoopMainResponse
   sessionLog(cwd: string): LoopSessionLog
   mainArchives(cwd: string): Promise<MainChatArchives>
+  // M11 G4 — 열린 실행기의 작업 저장소 뿌리 아래만 읽는다(작업 모드 탐색기)
+  listDir(cwd: string, relDir: string): Promise<LoopListDirResponse>
   // M10 G5 — 열 때 쓰는 템플릿(openExtras.template, 없으면 번들)의 화면용 그래프. 실행기를 열지 않아도 답한다
   graph(cwd: string): LoopGraphResponse
 }
@@ -263,6 +270,37 @@ export function createLoopDriver(opts: LoopDriverOptions): LoopDriver {
   }
 
   function entryOf(cwd: string): Entry | undefined { return entries.get(repoKeyOf(cwd)) }
+
+  // 열린 작업 폴더 목록(앱 영역 open.json) — 열기가 더하고 사람의 닫기만 뺀다. 앱 종료(closeAll)는 그대로 둔다
+  const openStore = path.join(opts.appDataDir, OPEN_STORE)
+  const openSet: Promise<Map<string, string>> = fsp.readFile(openStore, 'utf8')
+    .then((raw) => {
+      const folders = (JSON.parse(raw) as { folders?: unknown } | null)?.folders
+      const list = Array.isArray(folders) ? folders.filter((f): f is string => typeof f === 'string' && path.isAbsolute(f)) : []
+      return new Map(list.map((f) => [repoKeyOf(f), f]))
+    })
+    .catch(() => new Map<string, string>())
+  let openWrites: Promise<void> = Promise.resolve()
+  function rememberOpen(cwd: string, on: boolean): void {
+    openWrites = openWrites.then(async () => {
+      const m = await openSet
+      const key = repoKeyOf(cwd)
+      if (on ? m.get(key) === cwd : !m.has(key)) return
+      if (on) m.set(key, cwd)
+      else m.delete(key)
+      await fsp.mkdir(opts.appDataDir, { recursive: true })
+      await writeFileAtomic(openStore, `${JSON.stringify({ folders: [...m.values()] })}\n`)
+    }).catch(() => undefined)
+  }
+  // 같은 폴더의 열기는 한 줄로 선다 — 부팅의 다시 열기와 화면의 열기가 겹쳐도 실행기를 둘 열지 않는다
+  const opening = new Map<string, Promise<unknown>>()
+  function serialOpen(cwd: string, run: () => Promise<LoopStatus>): Promise<LoopStatus> {
+    const key = repoKeyOf(cwd)
+    const next = (opening.get(key) ?? Promise.resolve()).catch(() => undefined).then(run)
+    const tail: Promise<unknown> = next.catch(() => undefined).finally(() => { if (opening.get(key) === tail) opening.delete(key) })
+    opening.set(key, tail)
+    return next
+  }
 
   function newEntry(cwd: string): Entry {
     const e: Entry = {
@@ -655,22 +693,42 @@ export function createLoopDriver(opts: LoopDriverOptions): LoopDriver {
     return readMainChatView(opts.appDataDir, e?.loop?.root ?? e?.openFailure?.root ?? cwd)
   }
 
+  async function openNow(req: LoopOpenRequest): Promise<LoopStatus> {
+    const e = entryOf(req.cwd) ?? newEntry(req.cwd)
+    e.closed = false
+    if (!e.loop) {
+      const gen = e.gen
+      const r = await openFor(e)
+      // G4 검수 I4 — 여는 동안 닫혔으면 새 실행기를 닫고(잠금을 푼다) 그 결과를 쓰지 않는다
+      if (superseded(e, gen)) {
+        if (r.ok) await r.loop.close()
+        return entryOf(req.cwd)?.status ?? { ...blankStatus(req.cwd), reason: CLOSED_MEANWHILE }
+      }
+      if (r.ok) { e.loop = r.loop; e.openFailure = null; attachChat(e, r.loop) } else e.openFailure = { reason: r.reason, changed: r.changed, root: r.root }
+    }
+    if (e.loop) void kick(e)
+    return publish(e)
+  }
+
   return {
     async open(req) {
-      const e = entryOf(req.cwd) ?? newEntry(req.cwd)
-      e.closed = false
-      if (!e.loop) {
-        const gen = e.gen
-        const r = await openFor(e)
-        // G4 검수 I4 — 여는 동안 닫혔으면 새 실행기를 닫고(잠금을 푼다) 그 결과를 쓰지 않는다
-        if (superseded(e, gen)) {
-          if (r.ok) await r.loop.close()
-          return entryOf(req.cwd)?.status ?? { ...blankStatus(req.cwd), reason: CLOSED_MEANWHILE }
-        }
-        if (r.ok) { e.loop = r.loop; e.openFailure = null; attachChat(e, r.loop) } else e.openFailure = { reason: r.reason, changed: r.changed, root: r.root }
-      }
-      if (e.loop) void kick(e)
-      return publish(e)
+      const s = await serialOpen(req.cwd, () => openNow(req))
+      // 다시 열 목록에는 열린 실행기만 남긴다(열다 실패했거나 그사이 닫혔으면 넣지 않는다)
+      const e = entryOf(req.cwd)
+      if (e?.loop && !e.closed) rememberOpen(req.cwd, true)
+      return s
+    },
+
+    async reopenLast() {
+      const folders = [...(await openSet).values()]
+      // 줄을 서 있는 동안 사람이 닫았으면(목록에서 빠졌으면) 열지 않는다
+      const reopen = (cwd: string) => serialOpen(cwd, async () => {
+        await openWrites
+        const e = entryOf(cwd)
+        if ((await openSet).get(repoKeyOf(cwd)) !== cwd || e?.loop) return e?.status ?? blankStatus(cwd)
+        return openNow({ cwd })
+      })
+      await Promise.all(folders.map((cwd) => (entryOf(cwd)?.loop ? undefined : reopen(cwd))))
     },
 
     async start(cwd, milestoneId) {
@@ -837,12 +895,14 @@ export function createLoopDriver(opts: LoopDriverOptions): LoopDriver {
     },
 
     async close(cwd) {
+      rememberOpen(cwd, false)
       const e = entryOf(cwd)
-      if (!e) return
+      if (!e) { await openWrites; return }
       e.closed = true
       await closeEntry(e)
       entries.delete(e.key)
       opts.onState?.(blank(e.cwd))
+      await openWrites
     },
 
     sessionLog: (cwd) => log.read(cwd),
@@ -861,9 +921,17 @@ export function createLoopDriver(opts: LoopDriverOptions): LoopDriver {
         await closeEntry(e)
         entries.delete(e.key)
       }))
+      await openWrites
     },
 
     mainRead: (cwd) => mainViewOf(cwd),
+
+    async listDir(cwd, relDir) {
+      const root = entryOf(cwd)?.loop?.root
+      // 실행기가 없거나 작업 저장소 밖으로 나가는 경로는 빈 폴더가 아니라 막힘으로 답한다
+      if (!root || !resolveSafe(root, relDir || '.')) return { ok: false, entries: [] }
+      return { ok: true, entries: await listWorkDir(root, relDir) }
+    },
 
     graph: () => {
       const given = opts.openExtras?.template
@@ -873,10 +941,10 @@ export function createLoopDriver(opts: LoopDriverOptions): LoopDriver {
       return { ok: true, graph: templateGraph(t.template) }
     },
 
-    mainSend(cwd, text) {
+    mainSend(cwd, text, opts) {
       const chat = entryOf(cwd)?.chat
       if (!chat) return { ok: false, reason: NOT_OPEN, view: mainViewOf(cwd) }
-      const r = chat.send(text)
+      const r = chat.send(text, opts)
       return { ok: r.ok, ...(r.reason !== undefined ? { reason: r.reason } : {}), view: chat.view(cwd) }
     },
 

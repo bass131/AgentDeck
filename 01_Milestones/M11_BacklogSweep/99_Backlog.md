@@ -3,13 +3,22 @@
 - 범위 밖 발견을 한 줄로 남긴다(헌법 11조). 최신 번호가 위다.
 - M01~M10 Backlog의 닫힘은 각 파일의 「## 닫힘 (M11)」 표가 갖는다. 여기에는 M11 진행 중 새로 생긴 것과 해결됨 항목의 남은 갈래만 둔다.
 
+37. 권한 카드는 Esc 처리를 카드 요소에서 받고 곁 층 알약은 window capture에서 받아, 카드에 포커스가 있고 내려둔 알약이 함께 떠 있으면 Esc 한 번에 카드 거부와 알약 닫기가 같이 일어날 수 있다(코드 판독) — 카드 Esc도 모달 층으로 옮길지 본다 (M11 G4 검수 반영 관찰).
+36. 실앱 e2e가 연습 앱 데이터 `loop/`에 임시 저장소 두 벌의 메인 대화 저장본(`1be55c4c….main.json`, `78fd994e….main.json`)과 래치 파일(`digests/` 같은 이름 `.latch`)을 남겼다 — 가드가 지우기를 막아 사람 손으로 지운다. 같은 자리에 원자 쓰기 임시 파일(`*.main.json.<pid>.<hex>.tmp`)도 앱 종료 때마다 쌓인다(기존 15:13분 것 포함) (M11 G4).
+35. 재기동 뒤 메인 대화의 지난 턴은 답 글만 남고 도구 줄·추론 표시가 사라진다 — 세션 사건이 메모리에만 있어서다(e2e D 캡처). 저장할지 정한다 (M10-22, M11 G4).
+34. 사고 글이 없는 사고 조각은 턴이 끝난 뒤에도 「사고 중… ~N 토큰」으로 남는다(`renderer/src/05_Conversation/ThreadView.tsx:32,357`, 실행 중 여부를 보지 않는다. `thinking_clear`는 진행 글만 지우고 조각은 두며(`05_Conversation/state/reducer/text.ts:172`) 메인 대화도 같은 리듀서로 접는다(`13_Loop/sessionLogModel.ts:35`)) — 채팅과 메인 대화 공통, e2e A 캡처 (M11 G4).
+33. Playwright로 띄운 앱 창은 `ready-to-show`가 오지 않아 숨은 채로 그리지 않는다(requestAnimationFrame 0회) — 캡처 한 장을 찍어야 보인다(`main/index.ts:18,31`, 투명·테두리 없는 창). 실제 사용자 기동에서도 늦는지는 재지 않았다 (M09-10, M11 G4).
+32. 모달 층(`02_Common/modalStack.ts`)은 Esc만 맨 위 하나에 준다 — `ImageViewer`·`WhatsNew`의 화살표, `QuestionModal`의 숫자 키는 위에 다른 모달이 떠도 반응한다 (M11 G4).
+31. 옛 모달 선택자 목록의 `.sa-overlay`는 그리는 컴포넌트가 없어 모달 층으로 옮기지 않고 뺐다 (M11 G4 설계 감사 22).
+30. 작업 모드 탐색기는 첫 읽기가 실패하면(실행기가 아직 안 열림) 「열면 파일이 보여요」로 남고, 루프가 열려도 폴더를 다시 고르기 전까지 다시 읽지 않는다(`renderer/src/07_Workspace/file/FileExplorer.tsx`의 `unavailable`, 코드 판독) — 상태가 열림으로 바뀔 때 다시 읽는다 (M10-16, M11 G4).
+29. 작업 모드 탐색기에서 파일을 눌러도 열리지 않는다 — 원천 모드는 트리만 보인다(`FileExplorer.tsx` source 모드). 파일 보기를 작업 폴더 기준으로 열지 정한다 (M10-16, M11 G4).
 28. PowerShell 꼴 `` g`h pr merge 1 ``(백틱 이스케이프), `iex`·`Invoke-Expression "gh pr merge 1"`, `Start-Process gh -ArgumentList 'pr merge 1'`은 가드·`mergeDeny`·`loopLock` 셋 다 통과한다 — 셋의 판독은 같아(패리티) goal 3 몫은 없고, 가드와 함께 goal 8이 본다 (M11 G3 독립 검수).
 27. PR 카드의 룰셋 읽기는 고전 보호가 「Branch not protected」일 때만 돈다 — 고전 보호와 룰셋이 함께 걸려 룰셋에만 필수 검사가 있는 base는 고전 쪽만 읽는다(`main/08_Git/prMerge.ts:285`, 코드 판독). 두 목록을 합칠지 정한다 (M07-24, M11 G3).
 26. PR 카드는 하위 에이전트 대화 보기의 `gh pr create`와 「이미 있음」 오류로 끝난 `gh pr create`에는 아직 뜨지 않는다 — M07-24 뒷절, goal 3은 룰셋 판독(앞절)만 고쳤다 (M07-24, M11 G3).
 25. 모델 목록 다시 묻기는 5·15·60초 세 번이다. 셋 다 SDK 목록을 못 받으면 재시작 전까지 다시 묻지 않는다(`renderer/src/05_Conversation/state/composer.ts:11`) — 다시 묻기 버튼이나 화면 복귀 때 묻기 후보 (M06-13, M11 G2 검수 사소 11).
-24. 시험 사본 `stopAction.esc-interrupt-wiring.test.ts:11-25`의 `makeOnEscape`가 `Shell.tsx:160-169`를 재구현하면서 `isAnyModalOpen()`·`workspaceMode` 가드가 빠져, Shell에서 그 가드를 지워도 시험이 통과한다(M10 Backlog 8과 같은 꼴) (M11 설계 감사).
-23. `Shell.tsx:81,353` — `appUpdateOpen`이 true로 바뀌는 곳이 없어 `AppUpdateGate`가 열리지 않는다(코드 판독) (M11 설계 감사).
-22. 모달 판정이 CSS 클래스 목록(`useGlobalShortcuts.ts:4-11`)에 묶여 `.fs-overlay`가 빠져 있다 — 실행 중 서브에이전트 전체 화면을 Esc로 닫으면 Shell이 모달 없음으로 보고 실행을 중단할 수 있고, Git 창 위 파일 창에서 Esc 한 번에 둘 다 닫힐 수 있다(코드 추론) (M11 설계 감사).
+24. 시험 사본 `stopAction.esc-interrupt-wiring.test.ts:11-25`의 `makeOnEscape`가 `Shell.tsx:160-169`를 재구현하면서 `isAnyModalOpen()`·`workspaceMode` 가드가 빠져, Shell에서 그 가드를 지워도 시험이 통과한다(M10 Backlog 8과 같은 꼴) (M11 설계 감사). → 고침(M11 goal 4, `a29fd8d5`)
+23. `Shell.tsx:81,353` — `appUpdateOpen`이 true로 바뀌는 곳이 없어 `AppUpdateGate`가 열리지 않는다(코드 판독) (M11 설계 감사). → 고침(M11 goal 4, `a29fd8d5`)
+22. 모달 판정이 CSS 클래스 목록(`useGlobalShortcuts.ts:4-11`)에 묶여 `.fs-overlay`가 빠져 있다 — 실행 중 서브에이전트 전체 화면을 Esc로 닫으면 Shell이 모달 없음으로 보고 실행을 중단할 수 있고, Git 창 위 파일 창에서 Esc 한 번에 둘 다 닫힐 수 있다(코드 추론) (M11 설계 감사). → 고침(M11 goal 4, `a29fd8d5`)
 21. `08_Git/diff.ts:7` LCS 표가 (m+1)×(n+1) 전체 할당이라 3만 줄 파일 둘이면 main 프로세스가 멎을 수 있다(호출부는 글자 150만만 봄, 산술 추론) (M11 설계 감사). → 고침(M11 goal 3, `ae748e3e`)
 20. `06_Sessions/store.ts:148-159,260-264` — `index.json`이 깨지면 `readIndex`가 빈 목록을 돌려주고 다음 `save`가 목록을 id 하나로 덮어써 옛 대화가 목록에서 사라진다(파일은 남음). 쓰기가 원자적이지 않고, `safeId`가 `index`를 통과시켜 `chatFile('index')`가 색인 파일과 같아진다(코드 판독) (M11 설계 감사). → 고침(M11 goal 3, `ae748e3e`·`ed5411ae`)
 19. `01_Ipc/handlers/git.ts:58-62` → `08_Git/git.ts:203-207` — renderer가 보낸 `hash`를 문자열인지만 보고 `git show`에 넘겨, `--output=<경로>`를 보내면 그 경로에 파일이 써진다(임시 저장소 실측). `gitPort.ts:61-64` `safeName`처럼 `-` 머리 값을 막아야 한다 (M11 설계 감사). → 고침(M11 goal 3, `ae748e3e`)

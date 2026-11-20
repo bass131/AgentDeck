@@ -1,5 +1,6 @@
-import { useEffect, type JSX, type ReactNode } from 'react'
+import { type JSX, type ReactNode } from 'react'
 import { IconFolder } from '@renderer/02_Common/icons'
+import { useModalLayer } from '@renderer/02_Common/modalStack'
 
 function basename(p: string): string {
   const parts = p.split(/[\\/]+/).filter(Boolean)
@@ -31,16 +32,7 @@ export function FolderSwitchDialog({
   onCancel: () => void
   onConfirm: () => void
 }): JSX.Element {
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent): void => {
-      if (e.key === 'Escape') {
-        e.preventDefault()
-        onCancel()
-      }
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [onCancel])
+  useModalLayer(true, onCancel)
 
   return (
     <div className="set-dialog-overlay" onMouseDown={onCancel}>

@@ -93,7 +93,7 @@ try {
   // 대상 경로가 없는 편집 입력은 판정할 수 없다 — 허용이 아니라 거부다 (M03 Phase 4 Step 11 · Backlog 20).
   // 내려간 역할 게이트도 대상 없음을 거부했다. 정상 입력은 위 대상 필드를 반드시 갖는다.
   if (!target) deny('대상-없음', '편집 대상 경로가 없다 — 판정할 수 없는 편집 입력은 열지 않고 거부한다 (fail-closed)');
-  const rel = repoRel(ROOT, target);
+  const rel = repoRel(ROOT, target, input.cwd);
   if (!rel) allow('저장소-밖', '편집 대상이 저장소 밖이다 — 계획 게이트의 관할이 아니다');
   if (rel.startsWith(PLAN_SURFACE)) {
     allow('계획-표면', `계획·기록 표면(${rel})의 편집 — 계획 상태와 무관하게 연다 (계획을 쓰는 편집을 막으면 교착)`, { file: rel });

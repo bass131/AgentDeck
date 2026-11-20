@@ -39,7 +39,7 @@ renderer의 jsdom App 마운트 테스트는 transform 부하가 크면 타임�
   단독에서도 깨지면 실 회귀다. 시간 한도는 시험·훅 모두 30초다(`vitest.config.ts`의
   `testTimeout`·`hookTimeout`).
 
-## e2e — 하드 게이트가 아니고, 알려진 실패가 있다
+## e2e — 하드 게이트가 아니고, 알려진 실패는 없다
 
 ```
 npm run test:e2e

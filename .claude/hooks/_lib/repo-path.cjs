@@ -31,13 +31,20 @@ function realish(abs) {
   }
 }
 
-// 저장소 상대 경로(소문자 슬래시). 뿌리 자신은 '', 경계 밖이면 null. 상대 경로는 뿌리 기준이다.
-function repoRel(root, p) {
+// 접두를 벗긴 절대 경로 — 상대 경로는 base 기준이다. 파일을 읽는 자리가 범위 판정과 같은 경로를 보게 한다.
+function toAbs(base, p) {
+  return path.resolve(unprefix(base), unprefix(p));
+}
+
+// 저장소 상대 경로(소문자 슬래시). 뿌리 자신은 '', 경계 밖이면 null.
+// 상대 경로는 base(훅 입력의 cwd) 기준이고, base가 없으면 뿌리 기준이다.
+function repoRel(root, p, base) {
   const rootAbs = realish(path.resolve(unprefix(root)));
-  const abs = realish(path.resolve(rootAbs, unprefix(p)));
+  const from = typeof base === 'string' && base.trim() ? base : rootAbs;
+  const abs = realish(toAbs(from, p));
   const rel = path.relative(rootAbs, abs);
   if (rel === '..' || rel.startsWith('..' + path.sep) || path.isAbsolute(rel)) return null;
   return rel.split(path.sep).join('/').toLowerCase();
 }
 
-module.exports = { repoRel };
+module.exports = { repoRel, toAbs };

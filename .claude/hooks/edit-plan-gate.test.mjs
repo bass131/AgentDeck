@@ -357,6 +357,18 @@ try {
         switchBy('Write', A_DONE, outsidePlan).verdict, 'deny/포인터-전환-범위')
       r.check('PS-11 종결한 goal → 같은 저장소 01_Milestones의 절대 경로 — 지나간다',
         switchBy('Write', A_DONE, H.path(...B.split('/')).split('\\').join('/')).verdict.startsWith('allow/'), '')
+      if (process.platform === 'win32') {
+        // 범위 판정과 계획 읽기가 같은 정규화 경로를 본다 — `/c/…`를 `C:\c\…`로 읽으면 저장소 밖 문서가 판정한다
+        const msysOf = (rel) => { const a = H.path(...rel.split('/')); return `/${a[0].toLowerCase()}/${a.slice(3).split('\\').join('/')}` }
+        const c12 = switchBy('Write', A_DONE, msysOf(B))
+        r.judge('PS-12 종결한 goal → `/c/…` 꼴의 다음 goal — 저장소 안 실문서로 판정해 지나간다', c12.verdict, 'allow/포인터-전환', { note: c12.reason.slice(0, 90) })
+        r.judge('PS-12b `/c/…` 포인터 뒤의 01_Milestones 밖 편집은 그 실문서를 따른다', after().verdict, 'allow/통과')
+        const F3_IN = '01_Milestones/M99_Switch/70_Goal-fail3.md'
+        writeRel(F3_IN, readFileSync(H.path(...FAIL3.split('/')), 'utf8'))
+        r.judge('PS-13 `/c/…` 꼴의 FAIL 3회 실문서 — 그 문서의 거부를 따른다', switchBy('Write', A_DONE, msysOf(F3_IN)).verdict, 'deny/실패-카운터')
+        const c14 = switchBy('Write', A_DONE, msysOf('01_Milestones/M99_Switch/80_absent.md'))
+        r.judge('PS-14 `/c/…` 꼴의 없는 문서 — 저장소 밖 동명 사본으로 열지 않는다', c14.verdict, 'deny/계획-문서-부재')
+      }
       rmSync(H.configFile, { force: true })
       const broken = judgeRaw(() => {}, 'Write', { file_path: H.configFile, content: cfgText(B) })
       r.judge('PS-08 포인터 결손 중 gate-config 쓰기 — 사용자 복구(M03-26 닫음 판단)', broken.verdict, 'deny/계획-포인터-결손')
@@ -404,6 +416,9 @@ try {
     r.judge('EP-37 `..`으로 시작하는 파일 이름은 저장소 안이다', dotted.verdict, 'deny/실패-카운터')
     const rel = judge(FAIL3, SOURCE_TARGET.join('/'))
     r.judge('EP-38 상대 경로는 저장소 뿌리 기준이다', rel.verdict, 'deny/실패-카운터')
+    const fromSub = judge(FAIL3, join('..', '.claude', 'settings.json'), { cwd: H.path('02_Project') })
+    r.judge('EP-38b 상대 경로는 훅 입력의 cwd 기준이다', fromSub.verdict, 'deny/실패-카운터', { note: '02_Project에서 ..\\.claude\\settings.json' })
+    r.check('EP-38c 그 대상은 .claude/settings.json으로 읽힌다', fromSub.evidence?.file === '.claude/settings.json', JSON.stringify(fromSub.evidence?.file))
     if (process.platform === 'win32') {
       r.judge('EP-39 `\\\\?\\` 접두 경로', judge(FAIL3, `\\\\?\\${src}`).verdict, 'deny/실패-카운터')
       const msys = `/${src[0].toLowerCase()}/${src.slice(3).split('\\').join('/')}`

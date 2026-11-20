@@ -126,6 +126,40 @@ try {
     r.check('GE-13b 현황판 통과도 카운터를 푼다', streakOf() === 0, `streak ${streakOf()}`)
     r.judge('GE-13c 현황판 `node --test` 실패', narrow('node --test', NODE_RED), '무기록/node-test-red')
     r.judge('GE-13d 훅 시험(`node .claude/hooks/x.test.mjs`)은 채집 대상이 아니다', narrow('node .claude/hooks/smoke.test.mjs', NODE_GREEN), '무발화')
+    // `--test`는 스크립트 앞의 node 옵션일 때만 시험 실행이다 — 요약 줄을 찍는 스크립트로 카운터를 풀지 못한다
+    const FAKE = '# pass 1\n# fail 0\n'
+    for (const [id, cmd, aim] of [
+      ['GE-13e', 'node C:/scratch/fake.mjs --test', '스크립트 뒤의 --test'],
+      ['GE-13f', 'node -e "x" --test', '-e 뒤의 --test'],
+      ['GE-13g', 'node --test -e "x"', '--test 뒤의 -e'],
+      ['GE-13h', 'node --test -p "x"', '--test 뒤의 -p'],
+    ]) {
+      const v = narrow(cmd, FAKE)
+      r.check(`${id} ${aim}(\`${cmd}\`)은 카운터를 풀지 않는다`, !v.startsWith('리셋') && streakOf() === 2, `실측 ${v} · streak ${streakOf()}`)
+    }
+    r.judge('GE-13i 옵션이 앞선 `node --test-reporter=dot --test <경로>`는 시험 실행이다',
+      narrow('node --test-reporter=dot --test 99_Others/Dashboard/test/chime.test.mjs', NODE_GREEN), '리셋/node-test-green-좁힘')
+  }
+
+  // ---- 상대 경로의 기준과 PASS 추기 대상의 표기 (M03-19) ----------------------
+  {
+    H.write(STATE, JSON.stringify({ schema: 2, global: null, sessions: {} }, null, 2) + '\n')
+    const sub = H.run(HOOK, {
+      session_id: 'cw', hook_event_name: 'PostToolUse', tool_name: 'Edit', cwd: H.path('02_Project'),
+      tool_input: { file_path: join('..', '.claude', 'hooks', 'probe.cjs'), old_string: 'a', new_string: 'b' },
+    })
+    r.judge('CW-01 cwd 기준 상대 경로의 소스 편집을 센다', sub.seen('tdd-guard'), '통과/연속-미달', { note: '02_Project에서 ..\\.claude\\hooks\\probe.cjs' })
+    const file = sub.of('tdd-guard')[0]?.evidence?.file ?? null
+    r.check('CW-01b 그 대상은 .claude/hooks/probe.cjs로 읽힌다', file === '.claude/hooks/probe.cjs', JSON.stringify(file))
+    if (process.platform === 'win32') {
+      const fx = H.path('.claude', 'hooks', 'fixtures', 'tdd-phase-source.md')
+      const msys = `/${fx[0].toLowerCase()}/${fx.slice(3).split('\\').join('/')}`
+      const res = H.run(HOOK, {
+        session_id: 'vg', hook_event_name: 'PreToolUse', tool_name: 'Edit', cwd: H.mirror,
+        tool_input: { file_path: msys, old_string: '- (기록 없음)', new_string: '- (기록 없음)\n- PASS 2026-11-21T00:00 — 프로브' },
+      })
+      r.judge('VG-01 `/c/…` 꼴의 source Phase PASS 추기 — Green 없이는 막힌다', res.seen('tdd-guard'), 'deny/green-증거-부재', { note: msys })
+    }
   }
 
   // ---- 하위 에이전트·작업 폴더·확장자 (M11 Backlog 8 · M07-33) --------------------

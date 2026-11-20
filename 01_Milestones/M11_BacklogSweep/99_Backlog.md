@@ -3,6 +3,10 @@
 - 범위 밖 발견을 한 줄로 남긴다(헌법 11조). 최신 번호가 위다.
 - M01~M10 Backlog의 닫힘은 각 파일의 「## 닫힘 (M11)」 표가 갖는다. 여기에는 M11 진행 중 새로 생긴 것과 해결됨 항목의 남은 갈래만 둔다.
 
+71. (M11 G7 검수) tdd-guard `classifyRun`은 `--reporter`로 시작하는 인자를 출력 형태로만 보고 넘겨(`t.startsWith('--reporter')`), `npm test -- --reporter=<사용자 파일>` 실행도 전체 Green(`lastGreen`)으로 채집한다. 직접 짠 reporter가 요약 줄을 지어 내면 PASS 추기 증거를 위조할 수 있다 — goal 7 이전부터 있던 꼴이다.
+70. (M11 G7 검수) UNC 경로(`\\localhost\c$\Dev\AgentDeck\…`)는 편집 게이트와 tdd-guard 모두에서 저장소 밖으로 읽힌다 — `gate-config.json` 자신도 그렇다. `repo-path.cjs`가 `\\?\UNC\`만 벗기고 관리 공유를 드라이브 경로로 펴지 않기 때문이며, goal 7 이전부터 있던 M03-19 갈래다.
+69. (M11 G7 검수) tdd-guard `AGENT_CAP = 8`(`33_tdd-guard.cjs:34`, 적용 `:84`)은 한 세션에서 하위 에이전트가 9개 이상 돌면 가장 오래된 워커의 카운터를 말없이 지운다. 지워진 워커는 카운터 0에서 다시 센다.
+68. (M11 G7 검수) 편집 게이트 `proposedPlanPath`(`31_edit-plan-gate.cjs:75,79`)는 `tool_name`을 보지 않고 `content`·`edits` 키가 있는지로 Write·MultiEdit 꼴을 고른다. 도구와 맞지 않는 키가 섞인 입력이면 적용되지 않을 내용으로 포인터 전환을 판정한다.
 67. 현황판 `lib/phrases.mjs`가 tdd-guard `리셋`을 모두 「테스트 파일을 고쳐서…」로 읽어, goal 7의 좁힌 실행 리셋(`vitest-green-좁힘`·`node-test-green-좁힘`)을 잘못 말한다. `node-test-red`와 편집 게이트의 새 규칙(`계획-종결`·`포인터-전환`·`포인터-전환-범위`·`계획-포인터-충돌`·`계획-충돌-표지`)에는 문구가 없다 — 현황판은 goal 7 「건드릴 곳」 밖이다 (M11 G7 관찰).
 66. `10_start-brief.cjs:31`과 `50_stop-gate.cjs:102`는 `gate-config.json`을 BOM을 벗기지 않고 읽는다. goal 7 뒤로 BOM 붙은 포인터는 편집을 열지만, 이 두 훅은 그 포인터를 부재로 읽는다(결손 경고, pin 경로 없음) (M03 Backlog 29 남은 몫, M11 G7 관찰).
 65. `npm run test:hooks`의 초록은 tdd-guard 카운터를 풀지 않는다(vitest·`node --test` 요약만 읽는다). 훅 소스를 연달아 고치는 동안에는 훅 시험 파일을 손대거나 다른 시험을 돌려야 풀린다 (M11 G7 실측).

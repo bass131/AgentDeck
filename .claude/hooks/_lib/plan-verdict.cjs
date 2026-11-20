@@ -11,6 +11,7 @@
 'use strict';
 const fs = require('fs');
 const path = require('path');
+const { toAbs } = require('./repo-path.cjs');
 
 const FAIL_LIMIT = 3;  // 집행 사본 — 값의 소유자는 노션 02. Project Rules 검증 4
 const PHASE_LIMIT = 8; // 집행 사본 — 값의 소유자는 노션 01장 「각 구역의 역할」 01_Milestones 해설
@@ -88,7 +89,7 @@ function evaluatePlan(opts = {}) {
     }
     planRel = ptr.planRel;
   }
-  const planAbs = path.isAbsolute(planRel) ? planRel : path.join(root, planRel);
+  const planAbs = toAbs(root, planRel); // `/c/…`도 범위 판정과 같은 실경로로 읽는다
 
   let text = null;
   let planFiles = null; // 파일 구획일 때 병합된 파일 목록 — 판정 evidence에 실린다

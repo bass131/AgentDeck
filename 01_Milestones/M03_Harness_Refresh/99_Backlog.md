@@ -29,7 +29,7 @@ M11 Backlog 정리(`01_Milestones/M11_BacklogSweep/`)가 닫은 항목이다. �
 | 16 | 해결됨 | `20_plan-gate.cjs`는 판정부를 공유하고 훅 시험이 직접 구동해 배선 없이 둔다(M07 G1 결정 대장 [USER], `10_Goal-G1-판정-장치-정비.md:72`). |
 | 17 | 해결됨 | `shellScriptsOf`가 세 갈래를 읽고(`dangerous-cmd-guard.mjs:669`, `cmd-guard-equivalence.test.mjs:92-97` WR-04~09) 남은 꼴은 M03-28이 맡는다. |
 | 18 | 해결됨 | 래퍼의 값 옵션과 맨 앞 할당을 건너뛴다(`dangerous-cmd-guard.mjs:135` `WRAPPER_SPECS`, `:237`, M07 G12). |
-| 19 | 고침(M11 goal 7) | 경로 판정을 `_lib/repo-path.cjs`로 모았다 — `\\?\`·`/c/` 접두를 벗기고 실존 조상을 실경로로 펴 8.3 짧은 이름을 원래 이름으로 읽고, `..`으로 시작하는 파일 이름은 저장소 안이다. 편집 게이트와 tdd-guard가 함께 쓴다(EP-37~42, `303876ee`). |
+| 19 | 고침(M11 goal 7) | 경로 판정을 `_lib/repo-path.cjs`로 모았다 — `\\?\`·`/c/` 접두를 벗기고 실존 조상을 실경로로 펴 8.3 짧은 이름을 원래 이름으로 읽고, `..`으로 시작하는 파일 이름은 저장소 안이다. 편집 게이트와 tdd-guard가 함께 쓴다(EP-37~42, `303876ee`). 독립 검수 반영으로 상대 경로는 훅 입력의 `cwd` 기준이 되고, 포인터의 planPath와 PASS 추기 대상 문서도 같은 정규화로 읽는다(EP-38b·c, PS-12~14, CW-01, VG-01). UNC 꼴은 M11 Backlog 70. |
 | 20 | 해결됨 | 포인터 결손·형식 오류를 거부하고(`_lib/plan-verdict.cjs:22-38`) 대상 없는 편집도 거부한다(`31_edit-plan-gate.cjs:78`). |
 | 21 | 고침(M11 goal 7) | EP-06은 미러에 만든 유효한 파일 구획을 쓰고(실계획 M03은 종결), EP-10b는 판정 줄 자체와 evidence 양쪽의 역할 키를 본다. Write·상대 경로·`\\?\`·`/c/`·8.3 경우를 더했고(PS-02·04, EP-37~42), `cmd-guard-equivalence.test.mjs` 머리 주석의 flag 뜻을 바로잡았다(`303876ee`). |
 | 22 | 고침(M11 goal 7) | 편집 거부 문구 「계획 없는 스폰은 반려」를 「읽을 수 없는 계획으로는 열지 않는다」로(EP-05d), Phase-Steps 템플릿의 스폰 게이트·「Phase별 새 세션」 서술을 편집 계획 게이트·헌법 2조로 고쳤다(`303876ee`). 유지 대장 AD-02와 `04_Phase_4.md:38`은 M03 역사 기록이라 두었다. |

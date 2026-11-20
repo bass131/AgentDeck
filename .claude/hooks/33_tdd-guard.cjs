@@ -19,7 +19,7 @@
 'use strict';
 const fs = require('fs');
 const path = require('path');
-const { repoRel } = require('./_lib/repo-path.cjs');
+const { repoRel, toAbs } = require('./_lib/repo-path.cjs');
 
 const ROOT = process.env.CLAUDE_PROJECT_DIR || process.cwd();
 const GATE_DIR = path.join(ROOT, '98_Management', '01_GateState');
@@ -115,8 +115,8 @@ function latestSourceEditAcross(st) {
   }
   return best;
 }
-// 저장소 상대 경로 (소문자 슬래시) — 경계 밖이면 null. 판독용은 작업 폴더 접두를 벗긴 꼴이다.
-const adRel = (p) => repoRel(ROOT, p);
+// 저장소 상대 경로 (소문자 슬래시) — 경계 밖이면 null. 상대 경로는 훅 입력의 cwd 기준이다. 판독용은 작업 폴더 접두를 벗긴 꼴이다.
+const adRel = (p) => repoRel(ROOT, p, input.cwd);
 const kindRel = (rel) => rel.replace(WORKTREE_PREFIX, '');
 // 「검증 기록」 절 내부의 PASS·FAIL 줄 집계 — 20_plan-gate·40_pass-watcher의 countRecord와 동일 로직 (정합)
 // 절 헤더의 허용 형태는 제목 단독 줄 하나다 (M03 Phase 2 Step 4 · M02 Backlog 5).
@@ -155,7 +155,7 @@ process.exit(0);
 function verifyGate() {
   const target = ti.file_path || null;
   if (!target || !/\.md$/i.test(target)) return;
-  const abs = path.isAbsolute(target) ? target : path.join(ROOT, target);
+  const abs = toAbs(input.cwd || ROOT, target); // 범위 판정(adRel)과 같은 정규화
   let curText = '';
   try { curText = fs.readFileSync(abs, 'utf8'); } catch (e) { /* 신규 파일 — 사전 텍스트 빈 것 */ }
 
@@ -283,7 +283,14 @@ function classifyRun(cmd) {
   let i = 0;
   if (toks[i] === 'npx') i++;
   const head = toks[i];
-  if (head === 'node' && toks.includes('--test')) return { kind: 'narrow', runner: 'node-test', reason: '`node --test` 실행 — 현황판 시험 표면' };
+  if (head === 'node') {
+    const args = toks.slice(i + 1);
+    const opts = [];
+    for (const t of args) { if (!t.startsWith('-')) break; opts.push(t); }
+    const evals = args.some(t => /^--(?:eval|print)(?:=|$)/.test(t) || /^-[a-z]*[ep][a-z]*$/i.test(t));
+    if (opts.includes('--test') && !evals) return { kind: 'narrow', runner: 'node-test', reason: '`node --test` 실행 — 현황판 시험 표면' };
+    return { kind: 'unknown', runner: null, reason: '`--test`가 스크립트 앞의 node 옵션이 아니거나 -e·-p가 붙었다 — 시험 실행이 아니다' };
+  }
   if (head === 'npm') {
     i++;
     if (toks[i] === 'run') i++;

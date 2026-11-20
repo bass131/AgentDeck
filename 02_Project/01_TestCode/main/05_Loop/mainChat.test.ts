@@ -167,6 +167,16 @@ describe('턴 대기열 (M10 G2)', () => {
 })
 
 describe('여러 턴 브레인스토밍 (M10 G2)', () => {
+  it('[M11-G3 M09-12] 방문이 직전 FAIL 문장을 실으면 시작 턴이 그 문장을 싣는다', async () => {
+    const fake = scriptedBackend(textOnly('범위는?'))
+    const chat = open(fake)
+    await chat.brainstorm({ ...req('M1#1'), visit: { key: 'M1#1', rejected: null, failed: '스펙을 쓰지 않고 끝났다' } })
+    await chat.idle()
+    expect(fake.prompts[0]).toContain('직전 시도의 FAIL')
+    expect(fake.prompts[0]).toContain('스펙을 쓰지 않고 끝났다')
+    await closeAll()
+  })
+
   it('시작 턴을 한 번 넣고, 스펙이 그대로면 기다림·스펙이 바뀌면 방문 처음 해시와 함께 통과한다', async () => {
     let writeSpec = false
     const fake = scriptedBackend(async function* (t) {

@@ -95,6 +95,7 @@ export const MAIN_NODE_RULE = [
 
 // 노드가 고른 문서 종(node.docs)의 순서로만 싣는다 — req.docs에 다른 종이 있어도 넣지 않는다.
 // M10 G2 — 메인 대화(mainChat.ts)의 브레인스토밍 여는 턴도 이 꼴을 쓴다(규칙은 그쪽이 붙인다).
+// M11 G3(M09-12) — 직전 FAIL 문장(visit.failed)이 있으면 끝에 싣는다.
 export function buildNodePrompt(req: WorkRequest): string {
   const parts = [req.node.instruction.trim()]
   for (const kind of req.node.docs) {
@@ -102,13 +103,17 @@ export function buildNodePrompt(req: WorkRequest): string {
     const body = req.docs[kind]
     parts.push(`## ${DOC_LABEL[kind]}${p ? ` (${p})` : ''}\n\n${body ?? '(아직 없음)'}`)
   }
+  if (req.visit?.failed) parts.push(`## 직전 시도의 FAIL\n\n이 노드의 앞 세션이 FAIL로 끝났다 — ${req.visit.failed}\n같은 이유로 끝나지 않게 한다.`)
   return parts.join('\n\n')
 }
 
-// 메인 노드(role main)에는 끝에 MAIN_NODE_RULE을 붙인다(메인 대화 없이 한 세션으로 도는 길).
-export function buildWorkPrompt(req: WorkRequest): string {
+// 사람과 이야기하는 세션인가 — 메인 노드이고 화면 응답자(mainCard)가 있다. 질문 도구 규칙과 카드 응답자가 이 술어 하나를 쓴다(M11 G3, M09-12).
+export const talksToHuman = (req: WorkRequest, mainCard: CardResponder | undefined): boolean => req.node.role === 'main' && mainCard !== undefined
+
+// 사람과 이야기하는 세션에는 끝에 MAIN_NODE_RULE을 붙인다(메인 대화 없이 한 세션으로 도는 길).
+export function buildWorkPrompt(req: WorkRequest, asksHuman: boolean): string {
   const body = buildNodePrompt(req)
-  return req.node.role === 'main' ? `${body}\n\n${MAIN_NODE_RULE}` : body
+  return asksHuman ? `${body}\n\n${MAIN_NODE_RULE}` : body
 }
 
 export const oneLine = (s: string): string => {
@@ -215,11 +220,11 @@ export function createWorkSessionPort(opts: WorkSessionOptions): SessionPort {
       }
       if (opts.signal?.aborted) return { ok: false, summary: '취소됐다 — 세션을 열지 않았다', cancelled: true }
       if (req.node.role === 'main' && opts.mainWork) return opts.mainWork(req)
-      const main = req.node.role === 'main' && opts.mainCard !== undefined
+      const main = talksToHuman(req, opts.mainCard)
       const session = runNodeSession({
         backend: opts.backend,
         input: {
-          messages: [{ role: 'user', content: buildWorkPrompt(req) }],
+          messages: [{ role: 'user', content: buildWorkPrompt(req, main) }],
           workspaceRoot: opts.cwd,
           mode: 'auto',
           ...(opts.model !== undefined ? { model: opts.model } : {}),

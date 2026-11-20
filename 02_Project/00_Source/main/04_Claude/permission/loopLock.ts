@@ -18,7 +18,8 @@
 //      거부한다. 경로는 `.git`·`.claude`·`.agentdeck`가 어디에 있든 그 이름으로 본다(어느 저장소의 것이든).
 //      G2 3차 검수 중요 E·F — `builtin cd`·`command cd`도 셸의 cd로 따라가고, 그 밖의 래퍼(env·nohup·sudo …) 뒤의 cd는 옛 위치를
 //      남긴다. `env -C`·`env --chdir`·`sudo -D`는 그 뒤 명령의 위치로 판정한다(cd와 같은 보호 폴더 거부). eval의 인자는 다시 판독하고
-//      안쪽 cd를 밖으로 내며(판독 못 한 글이면 「모름」을 더한다), source·`.` 뒤는 「모름」이다. CDPATH를 정하는 꼴은 거부한다.
+//      안쪽 cd를 밖으로 내며(판독 못 한 글이면 「모름」을 더한다), source·`.` 뒤는 「모름」이다(다음 호출에서는 훅이 준 cwd로 바뀐다).
+//      CDPATH를 정하는 꼴은 거부한다.
 //      env·sudo 옵션은 getopt처럼 읽고(묶은 짧은 옵션·줄인 긴 옵션), env -S의 문자열은 명령으로 다시 판독한다.
 //      G2 4차 검수 — trap 몸통은 모르는 위치에서 다시 판독하고, 위치를 바꾸거나(cd 류) 모르는 스크립트를 부르는(eval·source·`.`)
 //      몸통은 거부한다. trap 뒤 위치에는 「모름」을 더한다. BASH_ENV·ENV를 셸에 남기는 꼴은 거부하고, 명령 앞 할당이면 그 셸 -c의
@@ -43,8 +44,8 @@
 //   - 판정과 실행 사이의 틈 — 앞에 아무 명령 없는 cd는 판정 때의 폴더를 믿는다(그 사이 다른 프로세스가 지우면 틀린다).
 //   - 경로 변수 — PWD·TEMP·TMP·TMPDIR를 혼자 선 할당·export류·$env:로 다시 정하는 꼴은 거부한다. 홈·APPDATA 재지정은 판정이 실제
 //     값(저장소 밖)으로 펼쳐 거부 쪽으로 틀어진다. 명령 앞 할당은 그 명령 환경만 바꾼다.
-//   - 상속된 CDPATH — 자식 환경에 CDPATH가 있으면 상대 cd가 옮겨 간다(자식 환경은 05_Loop/childEnv.ts가 정한다). 정하는 꼴만 거부하며,
-//     그 판정은 글자 어디서나(커밋 메시지·heredoc 본문 포함) 맞춰 오탐이 있다.
+//   - 상속된 CDPATH — 자식 환경에 CDPATH가 있으면 상대 cd가 옮겨 간다(자식 환경은 05_Loop/childEnv.ts가 정한다). 정하는 꼴만 거부한다.
+//   - source·`.`가 위치를 바꿨는지는 다음 호출의 훅 cwd를 믿는다 — 훅 cwd가 셸의 진짜 위치가 아니면 틀린다.
 //   - 변수 간접 참조(판독 못 한 변수는 쓰기 대상이면 거부), git apply·worktree·clone 같은 간접 쓰기.
 //   - 전역 쓰기의 다른 길(npm config set prefix, corepack enable, PATH 변수 바꾸기).
 //   - 호출 사이 위치 — 훅 입력 cwd의 의미는 G4 실주행에서 실측한다. 한 세션의 Bash·PowerShell·하위 에이전트 호출이 위치 하나를 같이 쓴다.
@@ -55,9 +56,9 @@ import fs from 'node:fs'
 import os from 'node:os'
 import type { ControlNodeInfo } from './controlNodes'
 import {
-  RE_SHELL_C,
   SHELLS,
   commandsOf,
+  shellScriptsOf,
   ghWords,
   stripHeredocBodies,
   tokenize,
@@ -108,6 +109,9 @@ const GLOBAL_PKG = '전역 패키지 설치(npm -g·pnpm add -g·yarn global 등
 // 셸 위치 후보. 경로는 canon 꼴(대소문자 그대로), UNKNOWN은 「모름」이다.
 type Cwd = readonly string[]
 const UNKNOWN = '\u0000?'
+// source·`.` 뒤의 「모름」(M11 G3, M09-6) — 호출 안에서는 UNKNOWN과 같고, 다음 호출에서는 훅이 준 cwd로 바뀐다(startCwd)
+const SOURCED = '\u0000?source'
+const isUnknown = (base: string): boolean => base === UNKNOWN || base === SOURCED
 
 interface Resolved {
   root: string; rootRaw: string; app: string; temps: string[]; vars: Record<string, string>; isDir: (p: string) => boolean; readOnly: boolean
@@ -152,7 +156,7 @@ function expandVars(raw: string, vars: Record<string, string>): string | null {
 
 // $PWD는 그 후보 위치다. 모르는 위치면 펼치지 않는다(판독 못 함).
 function varsAt(r: Resolved, base: string): Record<string, string> {
-  if (base !== UNKNOWN) return { ...r.vars, PWD: base }
+  if (!isUnknown(base)) return { ...r.vars, PWD: base }
   const rest = { ...r.vars }
   delete rest.PWD
   return rest
@@ -240,8 +244,8 @@ function pathKind(raw: string, r: Resolved, destructive: boolean, cwd: Cwd): Pat
     if (ex === null) return 'unreadable'
     // 셸 위치와 관계없이 맨 이름의 실행기 몫 파일은 거부한다
     if (!/[\\/]/.test(ex) && BARE_EXECUTOR.test(ex)) return 'executor'
-    if (!isAbsolute(ex) && base === UNKNOWN) return 'unreadable'
-    const c = normalize(ex, base === UNKNOWN ? r.rootRaw : base)
+    if (!isAbsolute(ex) && isUnknown(base)) return 'unreadable'
+    const c = normalize(ex, isUnknown(base) ? r.rootRaw : base)
     const k = GLOB.test(c) ? globKind(c, r, destructive) : kindOf(c, r, destructive)
     if (k) return k
   }
@@ -279,7 +283,10 @@ const assignName = (t: string): string | null => /^([A-Za-z_][A-Za-z0-9_]*)=/.ex
 const protectedAssign = (t: string): boolean => { const n = assignName(t); return n !== null && PROTECTED_ENV.test(n) }
 // G4 검수 사소 1 — git(과 그 페이저·편집기)이 명령으로 돌리는 환경 변수. 읽기 전용 꼴에서 정하는 꼴을 거부한다(`X=… git diff`, env·export 류).
 // 설정 주입(GIT_CONFIG_*)도 같은 부류다 — -c처럼 명령 키를 넣을 수 있다.
-const EXEC_ENV = /^(?:GIT_EXTERNAL_DIFF|GIT_PAGER|PAGER|GIT_EDITOR|EDITOR|VISUAL|GIT_SEQUENCE_EDITOR|GIT_SSH|GIT_SSH_COMMAND|GIT_PROXY_COMMAND|GIT_ASKPASS|SSH_ASKPASS|LESSOPEN|LESSCLOSE|GIT_CONFIG|GIT_CONFIG_PARAMETERS|GIT_CONFIG_COUNT|GIT_CONFIG_KEY_\d+|GIT_CONFIG_VALUE_\d+|GIT_CONFIG_GLOBAL|GIT_CONFIG_SYSTEM)$/i
+const EXEC_ENV_NAMES = 'GIT_EXTERNAL_DIFF|GIT_PAGER|PAGER|GIT_EDITOR|EDITOR|VISUAL|GIT_SEQUENCE_EDITOR|GIT_SSH|GIT_SSH_COMMAND|GIT_PROXY_COMMAND|GIT_ASKPASS|SSH_ASKPASS|LESSOPEN|LESSCLOSE|GIT_CONFIG|GIT_CONFIG_PARAMETERS|GIT_CONFIG_COUNT|GIT_CONFIG_KEY_\\d+|GIT_CONFIG_VALUE_\\d+|GIT_CONFIG_GLOBAL|GIT_CONFIG_SYSTEM'
+const EXEC_ENV = new RegExp(`^(?:${EXEC_ENV_NAMES})$`, 'i')
+// M11 G3(M09-8) — PowerShell 꼴(`$env:GIT_PAGER = …`)과 .NET 꼴로 정하는 것도 읽기 전용 꼴에서 거부한다
+const PS_EXEC_ENV_SET = new RegExp(`\\$env:(?:${EXEC_ENV_NAMES})\\s*[+]?=|SetEnvironmentVariable\\s*\\(\\s*['"](?:${EXEC_ENV_NAMES})['"]`, 'i')
 const execEnvAssign = (t: string): boolean => { const n = assignName(t); return n !== null && EXEC_ENV.test(n) }
 const ENV_SETTERS = new Set(['env', 'export', 'declare', 'typeset', 'local', 'readonly', 'set'])
 
@@ -443,16 +450,31 @@ const GH_READ: Readonly<Record<string, readonly string[] | '*'>> = {
   help: '*',
   version: '*',
 }
-const WRITE_METHOD = /^(?:POST|PUT|PATCH|DELETE)$/i
-const API_BODY_OPTS = new Set(['-f', '-F', '--field', '--raw-field', '--input'])
+// gh api 쓰기 판정 — 가드 ghApiWrites와 같다(M11 G3). GET 밖 메서드는 쓰기다: `-X`·`--method` 값, `--method=X`, `-XPUT`·`-X=PUT`,
+// `-iX PUT` 묶음. 본문 옵션(-f·-F·--field·--raw-field·--input)은 기본 메서드를 POST로 바꾼다. 짧은 묶음은 값을 먹는 글자(H·p·q·t)에서 멈춘다.
+const API_FIELD_LONG = ['--field', '--raw-field', '--input']
+const API_VALUE_SHORT = 'Hpqt'
+const notGet = (v: string | undefined): boolean => v === undefined || v.toUpperCase() !== 'GET'
 
 function apiIsWrite(args: string[]): boolean {
   for (let i = 0; i < args.length; i++) {
     const t = args[i]
-    if (t === '-X' || t === '--method') { if (WRITE_METHOD.test(args[i + 1] ?? '')) return true; i++; continue }
-    if (/^-X./.test(t) && WRITE_METHOD.test(t.slice(2))) return true
-    if (t.startsWith('--method=') && WRITE_METHOD.test(t.slice(9))) return true
-    if (API_BODY_OPTS.has(t) || /^-[fF]./.test(t) || /^--(?:field|raw-field|input)=/.test(t)) return true
+    if (t === '--') break
+    if (t === '--method') { if (notGet(args[i + 1])) return true; i++; continue }
+    if (t.startsWith('--method=')) { if (notGet(t.slice(9))) return true; continue }
+    if (API_FIELD_LONG.some((o) => t === o || t.startsWith(`${o}=`))) return true
+    if (t.startsWith('--') || !/^-[A-Za-z]/.test(t)) continue
+    for (let j = 1; j < t.length; j++) {
+      const ch = t[j]
+      if (ch === 'f' || ch === 'F') return true
+      if (ch === 'X') {
+        const rest = t.slice(j + 1).replace(/^=/, '')
+        if (notGet(rest || args[i + 1])) return true
+        if (!rest) i++
+        break
+      }
+      if (API_VALUE_SHORT.includes(ch)) break
+    }
   }
   return false
 }
@@ -755,7 +777,7 @@ function cdEffect(c: Cmd, b: string, r: Resolved, cwd: Cwd): CdEffect {
   for (const base of cwd) {
     const ex = expandVars(target, varsAt(r, base))
     if (ex === null) return { reason: CWD }
-    if (!isAbsolute(ex) && base === UNKNOWN) {
+    if (!isAbsolute(ex) && isUnknown(base)) {
       // 모르는 위치에서의 상대 cd — 보호 이름은 뿌리 기준으로라도 본다(저장소 밖 판정은 못 한다)
       const k = cdKind(normalize(ex, r.rootRaw), r)
       if (k !== null && k !== 'outside') return { reason: CWD }
@@ -763,7 +785,7 @@ function cdEffect(c: Cmd, b: string, r: Resolved, cwd: Cwd): CdEffect {
       canFail = true
       continue
     }
-    const raw = canon(ex, base === UNKNOWN ? r.rootRaw : base)
+    const raw = canon(ex, isUnknown(base) ? r.rootRaw : base)
     if (cdKind(raw.toLowerCase(), r) !== null) return { reason: CWD }
     dirs.push(raw)
     if (!r.isDir(raw)) canFail = true
@@ -866,8 +888,24 @@ function pathVarReason(tokens: string[], cmds: Cmd[]): string | null {
   return null
 }
 
-// CDPATH를 정하면 상대 cd가 어디로 갈지 판독할 수 없다 — 정하는 꼴을 거부한다(셸 변수는 호출 사이에 남는다)
-const CDPATH_SET = /\bCDPATH\s*\+?=|\b(?:export|declare|typeset|readonly|local|read|mapfile|readarray|setx|set)\b[^;&|\n]*\bCDPATH\b|\bprintf\s+-v\s*CDPATH\b|(?:set-item|new-item|si|ni)\b[^;|\n]*env:[\\/]?CDPATH\b|SetEnvironmentVariable\s*\(\s*['"]CDPATH/i
+// CDPATH를 정하면 상대 cd가 어디로 갈지 판독할 수 없다 — 정하는 꼴을 거부한다(셸 변수는 호출 사이에 남는다).
+// M11 G3(M09-6) — 셸 꼴은 마디의 낱말로 본다(명령 머리의 할당, 변수를 정하는 명령의 인자). 커밋 메시지 같은 따옴표 안 글자는 보지 않는다.
+// PowerShell·.NET 꼴은 스크립트 글자로 본다.
+const CDPATH_PS_SET = /\$env:CDPATH\s*\+?=|(?:set-item|new-item|si|ni)\b[^;|\n]*env:[\\/]?CDPATH\b|SetEnvironmentVariable\s*\(\s*['"]CDPATH/i
+const CDPATH_SETTERS = new Set(['export', 'declare', 'typeset', 'readonly', 'local', 'read', 'mapfile', 'readarray', 'setx', 'set', 'env'])
+const isCdpath = (t: string): boolean => /^CDPATH(?:\+?=|$)/i.test(t)
+
+function cdpathSet(tokens: string[], cmds: Cmd[]): boolean {
+  for (const t of tokens) {
+    if (!/^[A-Za-z_][A-Za-z0-9_]*\+?=/.test(t)) break
+    if (isCdpath(t)) return true
+  }
+  return cmds.some((c) => {
+    const b = baseOfCmd(c)
+    if (CDPATH_SETTERS.has(b)) return c.args.some(isCdpath)
+    return b === 'printf' && c.args.some((t, i) => t === '-vCDPATH' || (t === '-v' && c.args[i + 1] === 'CDPATH'))
+  })
+}
 
 // ── 앞에 돈 명령 (G2 3차 검수 중요 F) ───────────────────────────────────────
 // 판정 때 폴더가 있어도, 앞의 명령이 지우거나 옮기면(rm·mv·Remove-Item·git checkout·npm run …) 뒤의 cd는 실패한다. 앞 호출이 남긴
@@ -917,7 +955,8 @@ function scriptReason(script: string, r: Resolved, depth: number, start: Cwd, mu
   const deny = (reason: string): Walk => ({ reason, end: start, mutated: true })
   if (depth > 4) return deny(TOO_DEEP)
   if (PS_ENV_SET.test(script) || PS_ENV_REMOVE.test(script) || DOTNET_ENV.test(script)) return deny(CREDENTIAL)
-  if (CDPATH_SET.test(script)) return deny(CDPATH)
+  if (r.readOnly && PS_EXEC_ENV_SET.test(script)) return deny(READONLY)
+  if (CDPATH_PS_SET.test(script)) return deny(CDPATH)
   if (PS_PATH_VAR_SET.test(script)) return deny(VAR_SET)
   const items = splitItems(stripHeredocBodies(script.replace(/\\\r?\n/g, ' ')))
   let cwd: Cwd = start
@@ -964,6 +1003,7 @@ function scriptReason(script: string, r: Resolved, depth: number, start: Cwd, mu
       if (r.readOnly && execEnvAssign(t)) return deny(READONLY)
     }
     const cmds = withBuiltins(commandsOf(tokens))
+    if (cdpathSet(tokens, cmds)) return deny(CDPATH)
     const varSet = pathVarReason(tokens, cmds)
     if (varSet) return deny(varSet)
     // 명령마다의 위치 — env -C·sudo -D가 그 뒤 명령의 위치를 바꾼다(셸 위치는 그대로다)
@@ -1002,14 +1042,15 @@ function scriptReason(script: string, r: Resolved, depth: number, start: Cwd, mu
         continue
       }
       if (SHELLS.has(c.base)) {
-        const k = c.args.findIndex((t) => RE_SHELL_C.test(t))
-        if (k >= 0 && k + 1 < c.args.length) {
-          // BASH_ENV·ENV 앞 할당이면 셸이 그 파일을 먼저 돈다 — 시작 위치를 「모름」으로 본다
-          const start = tokens.some((t) => STARTUP_ASSIGN.test(t)) ? union(cmdCwd, [UNKNOWN]) : cmdCwd
-          const inner = scriptReason(c.args[k + 1], r, depth + 1, start, mutated)
+        const scripts = shellScriptsOf(c.args)
+        // BASH_ENV·ENV 앞 할당이면 셸이 그 파일을 먼저 돈다 — 시작 위치를 「모름」으로 본다
+        const start = tokens.some((t) => STARTUP_ASSIGN.test(t)) ? union(cmdCwd, [UNKNOWN]) : cmdCwd
+        for (const s of scripts) {
+          const inner = scriptReason(s, r, depth + 1, start, mutated)
           if (inner.reason) return deny(inner.reason)
           pieceMutates ||= inner.mutated
-        } else pieceMutates = true
+        }
+        if (scripts.length === 0) pieceMutates = true
         continue
       }
       for (const s of windowsShellScripts(c) ?? []) {
@@ -1026,7 +1067,7 @@ function scriptReason(script: string, r: Resolved, depth: number, start: Cwd, mu
         continue
       }
       // source·`.`는 파일의 스크립트를 이 셸에서 돌린다 — 안을 모르니 위치를 「모름」으로 둔다
-      if ((b === 'source' || b === '.') && shellPos && c.args.length > 0) { evalEnd = [UNKNOWN]; pieceMutates = true; continue }
+      if ((b === 'source' || b === '.') && shellPos && c.args.length > 0) { evalEnd = [SOURCED]; pieceMutates = true; continue }
       const reason = cmdReason(c, { r, depth, cwd: cmdCwd })
       if (reason) return deny(reason)
       if ((CD.has(b) || POP.has(b)) && cd === null) cd = { c, external: !shellPos }
@@ -1112,11 +1153,14 @@ const LOOP_LOCK_TIMEOUT_S = 10
 
 // 호출의 시작 위치 — 훅 입력의 cwd가 따라간 후보 가운데 하나면(모름이 없을 때) 그 위치로 좁히고, 아니면 후보에 더한다.
 // 그 cwd가 셸의 진짜 위치인지는 공개 문서가 말하지 않아(CwdChanged 훅이 있어 위치를 따라가는 것으로 보인다) 좁히기에만 쓴다.
+// 앞 호출의 source·`.`가 남긴 「모름」(SOURCED)은 훅이 준 cwd로 바꾼다 — 훅 cwd가 없으면 그대로 「모름」이다.
 function startCwd(tracked: Cwd, hookCwd: string | undefined, r: Resolved): Cwd {
   if (typeof hookCwd !== 'string' || hookCwd.trim() === '') return tracked
   const h = canon(hookCwd, r.rootRaw)
-  if (!tracked.includes(UNKNOWN) && tracked.some((t) => t.toLowerCase() === h.toLowerCase())) return [h]
-  return union(tracked, [h])
+  const known = tracked.filter((t) => t !== SOURCED)
+  if (known.length === 0) return [h]
+  if (!known.includes(UNKNOWN) && known.some((t) => t.toLowerCase() === h.toLowerCase())) return [h]
+  return union(known, [h])
 }
 
 // ── M10 G2 메인 대화의 꼴 ─────────────────────────────────────────────────

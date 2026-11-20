@@ -6,7 +6,9 @@
 import { describe, it, expect } from 'vitest'
 import { nextStep } from '@main/05_Loop/executor'
 import { createLoopRunner, type LoopRunner, type StepOutcome } from '@main/05_Loop/loopRunner'
+import type { WorkRequest } from '@main/05_Loop/ports'
 import type { RunState } from '@main/05_Loop/runState'
+import { buildNodePrompt } from '@main/05_Loop/workSession'
 import { DOCS, goalDocPath } from '@main/05_Loop/survivalDocs'
 import type { Template } from '@main/05_Loop/template'
 import { labelOf, loaded, makeRig, runLoop, variantText, type Rig } from '../00_Helpers/loopFakes'
@@ -537,7 +539,7 @@ describe('템플릿 해시와 상태 스키마', () => {
 })
 
 describe('실행기 브랜치와 재시도 (M11 G3)', () => {
-  it.fails('[M11-G3 M09-9] 마일스톤 브랜치 push는 이름이 아니라 확인한 머리 SHA로 보낸다', async () => {
+  it('[M11-G3 M09-9] 마일스톤 브랜치 push는 이름이 아니라 확인한 머리 SHA로 보낸다', async () => {
     const ctx = setup()
     await until(ctx, 'milestone-branch')
     const pushes: [string, string | undefined][] = []
@@ -547,7 +549,7 @@ describe('실행기 브랜치와 재시도 (M11 G3)', () => {
     expect(pushes).toEqual([['milestone/M1', await ctx.rig.git.headSha('milestone/M1')]])
   })
 
-  it.fails('[M11-G3 M09-8] 시작 SHA 없이 이미 있는 브랜치는 로컬 ref가 아니라 원격 머리로 계보를 본다 — 로컬 base를 옮긴 커밋은 push하지 않는다', async () => {
+  it('[M11-G3 M09-8] 시작 SHA 없이 이미 있는 브랜치는 로컬 ref가 아니라 원격 머리로 계보를 본다 — 로컬 base를 옮긴 커밋은 push하지 않는다', async () => {
     const ctx = setup()
     await until(ctx, 'milestone-branch')
     ctx.rig.git.local.set('master', ['m0', 'x1'])
@@ -557,15 +559,16 @@ describe('실행기 브랜치와 재시도 (M11 G3)', () => {
     expect(ctx.rig.git.remote.get('milestone/M1') ?? []).not.toContain('x1')
   })
 
-  it.fails('[M11-G3 M09-12] 메인 노드가 FAIL한 뒤 같은 노드의 다음 요청은 직전 FAIL 사유를 싣는다', async () => {
+  it('[M11-G3 M09-12] 메인 노드가 FAIL한 뒤 같은 노드의 다음 요청은 직전 FAIL 사유를 싣는다', async () => {
     const ctx = setup()
     await ensureStarted(ctx)
     ctx.rig.session.nextResult = { ok: false, summary: '질문 도구 없이 글로 묻고 끝났다' }
     expect((await ctx.runner.step()).kind).toBe('failed')
-    let seen: unknown = null
+    let seen: WorkRequest | null = null
     ctx.rig.session.onWork = async (req) => { seen = req }
     await ctx.runner.step()
     expect(ctx.rig.session.calls).toEqual(['brainstorm', 'brainstorm'])
     expect(JSON.stringify(seen)).toContain('질문 도구 없이 글로 묻고 끝났다')
+    expect(buildNodePrompt(seen as unknown as WorkRequest)).toContain('질문 도구 없이 글로 묻고 끝났다')
   })
 })

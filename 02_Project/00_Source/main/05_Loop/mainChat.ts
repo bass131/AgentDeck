@@ -124,6 +124,7 @@ interface Turn {
   node?: WorkNode
   goal?: GoalState | null
   milestoneId?: string
+  visit?: WorkRequest['visit']
 }
 interface LiveCard { card: LoopCard; turnId: string; resolve: (r: RunResponse) => void }
 
@@ -235,7 +236,7 @@ export function openMainChat(deps: MainChatDeps): MainChat {
     if (v === null || queue.some((t) => t.kind === 'start' || t.kind === 'rejected')) return
     openTried = v.key
     const kind: MainTurnKind = rec.sessionId !== null && v.rejected !== null ? 'rejected' : 'start'
-    const turn: Turn = { kind, text: '', itemId: null, node: req.node, goal: req.goal, milestoneId: req.milestoneId }
+    const turn: Turn = { kind, text: '', itemId: null, node: req.node, goal: req.goal, milestoneId: req.milestoneId, visit: req.visit }
     if (front) queue.unshift(turn)
     else queue.push(turn)
   }
@@ -255,7 +256,7 @@ export function openMainChat(deps: MainChatDeps): MainChat {
       case 'start': {
         const node = t.node as WorkNode
         const docs = await readNodeDocs(deps.fs, node.docs, t.goal?.id ?? null)
-        const parts = [buildNodePrompt({ milestoneId: t.milestoneId ?? '', node, goal: t.goal ?? null, docs }), BRAINSTORM_RULE]
+        const parts = [buildNodePrompt({ milestoneId: t.milestoneId ?? '', node, goal: t.goal ?? null, docs, visit: t.visit }), BRAINSTORM_RULE]
         if (rec.visit?.rejected) parts.push(`## 스펙 반려\n\n사람이 앞 스펙을 반려했다 — ${rec.visit.rejected}`)
         return parts.join('\n\n')
       }

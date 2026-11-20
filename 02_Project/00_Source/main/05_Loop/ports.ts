@@ -100,12 +100,13 @@ export interface FsPort {
 // 작업 노드 하나의 의뢰. 세션에는 노드의 지시와 생존 문서만 준다(마일스톤 스펙).
 // M10 G2 — visit: 이 노드 방문의 키(마일스톤 id와 검증 줄 수 — 기다리는 동안은 줄이 늘지 않아 같다)와, 사람 반려가 이 노드로 되돌렸으면
 // 그 줄의 문장(rejected). 메인 대화 포트가 시작 턴을 한 번만 넣고 반려 사유 턴을 고르는 데 쓴다. 실행기가 상태에서 만든다.
+// M11 G3(M09-12) — failed: 메인 노드의 마지막 줄이 그 노드의 FAIL이면 그 문장. 다시 도는 세션의 프롬프트에 싣는다.
 export interface WorkRequest {
   milestoneId: string
   node: WorkNode
   goal: GoalState | null
   docs: Partial<Record<DocKind, string | null>>
-  visit?: { key: string; rejected: string | null }
+  visit?: { key: string; rejected: string | null; failed?: string | null }
 }
 // cancelled: 실행기 닫기나 화면의 취소로 끝났다(G4 — FAIL로 세지 않고 멈춘다).
 // M10 G2 — waiting: 메인 노드(role main)의 여러 턴 대화가 아직 끝나지 않았다(사람을 기다린다). 실행기는 판정도 줄도 남기지 않는다 —

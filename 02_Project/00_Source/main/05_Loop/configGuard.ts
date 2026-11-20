@@ -62,8 +62,24 @@ const DEFAULT_RETRY_DELAY_MS = 200
 
 // 실행기 git·gh 환경 — 자격 묻는 창을 띄우지 않는다(무인 루프가 멈추지 않게, 세션이 심은 프롬프트가 뜨지 않게).
 // 교체 객체(refs/replace)도 따르지 않는다 — gh가 부르는 git과 설정 읽기도 같다(G2 재검수 차단 A, gitPort.NO_REPLACE_ENV와 같은 값).
+// M11 G3(M09-4) — PATH에서 사용자 프로필 아래 폴더(USERPROFILE·HOME·APPDATA·LOCALAPPDATA, %APPDATA%\npm 등)를 뺀다. 작업 노드 세션이
+// 그곳에 심은 shim이 git이 sh로 부르는 설정 명령(lfs filter 등)을 실행기 자격으로 가로챈다. git·gh가 그 아래 깔렸으면 실행기가 닫혀 실패한다.
 export function executorGitEnv(base: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
-  return { ...base, GIT_TERMINAL_PROMPT: '0', GCM_INTERACTIVE: 'never', GIT_NO_REPLACE_OBJECTS: '1' }
+  const env: NodeJS.ProcessEnv = { ...base, GIT_TERMINAL_PROMPT: '0', GCM_INTERACTIVE: 'never', GIT_NO_REPLACE_OBJECTS: '1' }
+  const key = Object.keys(env).find((k) => k.toUpperCase() === 'PATH')
+  if (key !== undefined) env[key] = withoutUserDirs(env[key] ?? '', env)
+  return env
+}
+
+function withoutUserDirs(value: string, env: NodeJS.ProcessEnv): string {
+  const sep = process.platform === 'win32' ? ';' : ':'
+  const norm = (p: string): string => path.resolve(p).replace(/[\\/]+$/, '').toLowerCase()
+  const roots = ['USERPROFILE', 'HOME', 'APPDATA', 'LOCALAPPDATA'].map((n) => lookup(env, n)).filter((v): v is string => !!v).map(norm)
+  const userOwned = (dir: string): boolean => {
+    const d = norm(dir)
+    return roots.some((r) => d === r || d.startsWith(r + path.sep) || d.startsWith(r + '/'))
+  }
+  return value.split(sep).filter((d) => d.trim() === '' || !userOwned(d)).join(sep)
 }
 
 // ── 위험 키 (G2 재검수 중요 D) ──────────────────────────────────────────────
@@ -414,7 +430,9 @@ const REMOTE_URL = /^remote\..+\.(?:url|pushurl)$/
 //   http.extraHeader·http.<주소>.extraHeader   push·fetch 요청에 머리(인증 머리 포함)를 더한다.
 //   http.cookieFile·http.<주소>.cookieFile   요청에 쿠키 파일을 싣는다(그 파일이 쓰기 가능하면 받은 쿠키도 적는다).
 //   http.proxy·http.<주소>.proxy   요청이 지나는 프록시다. 빈 값 아닌 값은 위험 키이기도 하다(isDangerous) — 여기서는 빈 값으로 바꾼 것까지 본다.
-const REMOTE_REQUEST = /^(?:core\.(?:worktree|bare)|http\.(?:.+\.)?(?:extraheader|cookiefile|proxy))$/
+//   remote.<이름>.proxy   그 원격의 프록시다 — http.proxy와 같다(M11 G3, M09-9).
+//   http.curloptResolve·http.<주소>.curloptResolve   호스트를 다른 IP로 돌린다(M11 G3, M09-9).
+const REMOTE_REQUEST = /^(?:core\.(?:worktree|bare)|http\.(?:.+\.)?(?:extraheader|cookiefile|proxy|curloptresolve)|remote\..+\.proxy)$/
 
 // G4 검수 차단 B1 — 화면의 풀기(받기)로 받지 않는 차이. 사람이 직접 되돌린 뒤 다시 연다.
 //   - 바뀐 키 가운데 지금 값이 위험 키인 것 — 범위(로컬·전역·시스템·include)와 관계없이. 그대로 있는 전역·시스템의 위험 키
@@ -422,16 +440,18 @@ const REMOTE_REQUEST = /^(?:core\.(?:worktree|bare)|http\.(?:.+\.)?(?:extraheade
 //   - remote.<이름>.url·pushurl의 변경 — 실행기 push(자격 있음)가 가는 곳이다.
 //   - 작업 위치나 원격 요청을 바꾸는 키(REMOTE_REQUEST)의 변경 — G4 확인 검수.
 //   - git 전역 설정 파일 밖의 파일(ssh 설정과 Include, gh config.yml·hosts.yml)의 변경.
-function unacceptable(d: Diff, now: Snapshot, gitFiles: ReadonlySet<string>): string | null {
+// M11 G3(M09-5) — 안내에 그 키·파일의 `옛 값 → 새 값`(파일은 해시)과 복구 절차를 싣는다.
+function unacceptable(d: Diff, now: Snapshot, gitFiles: ReadonlySet<string>, snapshotFile: string): string | null {
   const danger: string[] = []
   const remotes: string[] = []
   const requests: string[] = []
+  const refusedKeys = new Set<string>()
   for (const k of d.keys) {
     for (const e of now.entries.map(entryOf).filter((x) => x.key === k)) {
-      if (isDangerous(k, e.value)) danger.push(`${k}(${e.origin.replace(/^file:/, '')})`)
+      if (isDangerous(k, e.value)) { danger.push(`${k}(${e.origin.replace(/^file:/, '')})`); refusedKeys.add(k) }
     }
-    if (REMOTE_URL.test(k)) remotes.push(k)
-    if (REMOTE_REQUEST.test(k)) requests.push(k)
+    if (REMOTE_URL.test(k)) { remotes.push(k); refusedKeys.add(k) }
+    if (REMOTE_REQUEST.test(k)) { requests.push(k); refusedKeys.add(k) }
   }
   const files = d.files.filter((f) => !gitFiles.has(f))
   const parts = [
@@ -440,7 +460,14 @@ function unacceptable(d: Diff, now: Snapshot, gitFiles: ReadonlySet<string>): st
     ...(requests.length > 0 ? [`실행기 git의 작업 위치나 원격 요청을 바꾸는 키가 바뀌었다 — ${list(requests)}`] : []),
     ...(files.length > 0 ? [`ssh·gh 설정 파일이 바뀌었다 — ${list(files)}`] : []),
   ]
-  return parts.length === 0 ? null : `${parts.join('. ')}. 이 차이는 화면의 풀기로 받지 않는다 — 사람이 직접 되돌린 뒤 다시 연다`
+  if (parts.length === 0) return null
+  const names = [...refusedKeys, ...files]
+  const shown = d.details.filter((line) => names.some((n) => line.startsWith(`${n}: `)))
+  return [
+    `${parts.join('. ')}. 바뀐 값: ${list(shown)}.`,
+    '이 차이는 화면의 풀기로 받지 않는다 — 사람이 직접 되돌린 뒤 다시 연다.',
+    `사람이 스스로 바꾼 것(gh auth login 등)이면 스냅숏 파일 ${snapshotFile}을 지운 뒤 다시 연다 — 지금 설정이 새 기준선이 된다`,
+  ].join(' ')
 }
 
 const list = (keys: string[]): string => (keys.length > 6 ? `${keys.slice(0, 6).join(', ')} 외 ${keys.length - 6}개` : keys.join(', '))
@@ -501,7 +528,7 @@ export async function createConfigGuard(opts: ConfigGuardOptions): Promise<Confi
     const d = diff(stored, base)
     if (d.details.length > 0) {
       // 받을 수 없는 차이면 받기 목록(changed)을 주지 않는다 — 화면이 풀기 카드를 보이지 않고, 사람이 직접 되돌린다
-      const refused = unacceptable(d, base, new Set(await gitConfigFiles(opts, run)))
+      const refused = unacceptable(d, base, new Set(await gitConfigFiles(opts, run)), opts.snapshotFile)
       if (refused) return { ok: false, reason: `실행기 git 설정이 지난 실행이 적은 스냅숏(${opts.snapshotFile})과 다르다 — ${refused}` }
       // 받기는 사람이 본 줄(키·값·출처, 파일 해시)과 정확히 같을 때만이다 — 본 뒤 값이 또 바뀌면 받지 않는다
       const accepted = opts.acceptChanged !== undefined && [...opts.acceptChanged].sort().join('\n') === d.details.join('\n')

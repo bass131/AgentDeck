@@ -15,7 +15,9 @@ M11 Backlog 정리(`01_Milestones/M11_BacklogSweep/`)가 닫은 항목이다. �
 | 5 | v2로 | G1 결정 대장 [USER·위임] — `node -e` 꼴은 M07-34와 같은 자리라 가드 판독 재설계와 함께 다룬다(AD-01의 수락은 파일 쓰기 위험이라 이 길을 덮지 않는다). |
 | 6 | 해결됨 | 앱 경로는 모드 노드보다 앞의 노드가 가드 ask를 카드로 올리고(`permissionCoordinator.ts:120-121`, M06 G3 `c635ef75`) 권한 모드에 기대는 CLI 세션 몫은 M11 Backlog로 옮겼다. |
 | 7 | 해결됨 | 작업 브랜치 push는 allow(`.claude/settings.json:28`)로 묻지 않고 `master`는 서버 브랜치 보호가 지킨다(ADR-004, 헌법 10조). |
+| 8 | 고침(M11 goal 8) | `375c1e37` — 가드가 git의 `--output`·`--output=`을 묻고(`git-출력파일`), `git branch -f`·`--force`·`-M`·`-C`를 막는다(`git-branch-강제이동`). `--output-indicator-*`는 묻지 않는다. 시험: `dangerous-cmd-guard.test.mjs` 「브랜치 포인터 강제 이동·이름 바꾸기, git --output」. |
 | 9 | 해결됨 | 동시 rename `EPERM` 쪽 임계구간을 `writeAt`까지로 읽게 고쳤다(`7cb426cd`). |
+| 10 | 고침(M11 goal 8) | `375c1e37` — 「명시적 통과가 아니다」 단정 가운데 실측이 질의·차단인 27건을 `expectAsk`·`expectDeny`로 좁혔다(같은 명령 안의 master 전환 4건은 M08-2 질의). 남은 단정은 판독이 못 읽어 판정이 우연에 기대는 꼴이다. |
 | 11 | 낡음 | 지금 pin 이름이 다시 `01_Work_Pin.md`라 헌법 4조 문면과 맞는다(`gate-config.json`의 `workPinPath`). |
 | 12 | 닫음(판단) | G1 결정 대장 [USER·위임] — 이미 있는 [USER] 한계 인정을 다시 열지 않는다. |
 

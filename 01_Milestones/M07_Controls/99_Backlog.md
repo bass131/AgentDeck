@@ -8,7 +8,9 @@ M11 Backlog 정리(`01_Milestones/M11_BacklogSweep/`)가 닫은 항목이다. �
 
 | 항목 | 닫힘 | 근거 |
 |---|---|---|
+| 1 | 고침(M11 goal 8) | `375c1e37`·`48a9baef` — 가드가 앱 데이터 폴더 경로(`…AppData/Roaming/agentdeck`, `%APPDATA%`·`$APPDATA`·`$env:APPDATA` 꼴)를 든 명령을 묻는다(`앱-데이터-폴더`). 그 명령이 읽기 명령(`cat`·`ls`·`grep` 등, `git commit` 본문, `gh pr`·`issue` 본문)이면 묻지 않고, 그 폴더로 `cd`·`pushd`한 뒤 읽기 아닌 명령이 돌면 묻는다. fd 리다이렉트(`2>&1`, `/dev/null`)는 쓰기로 보지 않는다. 남는 꼴은 M11 Backlog 77. |
 | 2 | M13으로 | M11 스펙 「하지 않을 것」 — `productName`은 설치본 패키징과 함께 M13이 맡는다. |
+| 3 | 고침(M11 goal 8) | `ac73f0ac` — 가드 밖 훅(편집 계획 게이트, TDD 가드 셋, 250줄, 자동 장전, 기동)에 `onFailure: "continue"`를 적고, Stop 훅(마감 게이트·표피 검사)에는 두지 않는다 — 공식 hooks 문서 「The field has no effect on these hooks」의 첫 줄이 `Stop`이다. `block`을 고르지 않은 것은 편집 훅이 깨지면 그 훅을 고칠 Edit·Write까지 막히기 때문이다(헌법 8조, M03-25의 내부 fail-open과 같은 결정). 시험: `settings-matcher.test.mjs` ⑧. |
 | 4 | 고침(M11 goal 7) | Green 채집이 `persistedOutputPath` 파일 전문까지 읽어 요약 줄과 실패 표기를 본다(`33_tdd-guard.cjs` `responseText`, GE-09~09c, `3aa38815`). |
 | 5 | v2로 | G1 결정 대장 [USER·위임] — 끈 노드의 토글은 그래프 편집기의 일이다. |
 | 6 | 고침(M11 goal 3) | 엔진 경로 잠금의 재실측(규칙 경로 꼴 `//c/`, 훅 실패 시 `onFailure: 'block'`)을 SDK 재실측 절차에 뒀고, 다른 엔진 버전을 활성으로 삼을 때도 돌린다(`00_Documents/00_Architecture/01_SDK-재실측-절차.md` 「언제 돌리나」·「다시 잴 것」). |
@@ -25,7 +27,8 @@ M11 Backlog 정리(`01_Milestones/M11_BacklogSweep/`)가 닫은 항목이다. �
 | 17 | 고침(M11 goal 2) | 실측(Bypass·허용 규칙·SDK 자체 승인·auto 분류기 승인은 콜백이 오지 않음) 뒤 노드 이름을 「자동 모드는 허용」으로 좁히고 패널 머리말에 적었다(`main/04_Claude/permission/controlNodes.ts:138`, `renderer/src/11_Settings/ControlsView.tsx:156`, `d95d7051`). |
 | 18 | 고침(M11 goal 2) | userData 경로를 못 얻으면 닫힌 실패이고 앱 조립 지점이 검사를 주입한다(`main/04_Claude/permission/controlsStore.ts:205`, `main/00_App/registry.ts:30`, `d95d7051`). |
 | 19 | 해결됨 | 「처음 설정함」 표시를 두 파일과 따로 둔다(`main/04_Claude/permission/controlsStore.ts:8`, PR 73 `aaaef0e4`). |
-| 20 | 정함 → goal 8 | M11 스펙 결정 대장 [USER] 2회차 — 헌법 3조 보호 표면 「넣는다」. |
+| 20 | 고침(M11 goal 8) | `f49098a1` — M11 스펙 결정 대장 [USER] 2회차대로 헌법 3조 보호 표면 목록에 `.github/workflows/`와 `package.json`의 `scripts`를 더했다. `CLAUDE.md`·`AGENTS.md` 45줄이 같은 글이다. |
+| 21 | 고침(M11 goal 8, 고정 몫) | `f49098a1` — `hard-gates.yml`의 `actions/checkout`·`actions/setup-node`를 v4.4.0 커밋 SHA(`11d5960a…`·`49933ea5…`, 오늘의 `v4`와 같은 커밋)로 고정하고 태그를 주석으로 달았다. `dependabot.yml`에 `github-actions` 생태계를 더해 Node 24 대상 메이저는 그 PR로 받는다. 시험: `settings-matcher.test.mjs` ⑨. `npm test` 전체·`master` push 트리거·빨간 검사 실측·`state-race` 흔들림은 이 goal 밖이다. |
 | 22 | 고침(M11 goal 6) | ADR-004 23행 아래에 대체 표시를 달았다 — 병합의 사람 판정은 현황판·앱의 「병합」 버튼과 사용자가 직접 실행하는 `gh pr merge`이고, 에이전트의 병합은 가드가 거부한다(`cf6359ba`). ADR-003 80~81행의 옛 경로는 M08 G2가 ADR-005 대체 표시를 이미 달았다(`72623936`). |
 | 23 | 해결됨 | 가드가 `gh pr merge`와 병합 API·GraphQL 병합을 차단 목록으로 막고(`dangerous-cmd-guard.mjs:512-516`, M07 G12) 설정 `deny`의 넓은 꼴은 M11 Backlog로 옮겼다. |
 | 24 | 고침(M11 goal 3, 앞절) | 고전 보호가 「Branch not protected」면 `rules/branches/<b>`의 `required_status_checks`를 필수 검사로 읽는다(`main/08_Git/prMerge.ts:164,286`, `2af8fd68`). 실앱 e2e `m11-g3-ruleset-card-live.e2e.ts`에서 연습 저장소 PR 6 카드가 「main 브랜치 룰셋에 필수 검사가 없어요」. 뒷절(하위 에이전트 대화·「이미 있음」 오류의 `gh pr create`)은 M11 Backlog 26. |

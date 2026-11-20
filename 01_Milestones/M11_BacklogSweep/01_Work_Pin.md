@@ -12,7 +12,7 @@
 - 마일스톤 스펙: `01_Milestones/M11_BacklogSweep/00_마일스톤-스펙.md`(분류표 `10_`~`13_분류-*.md`). 다음 `M12_CharterTaste/00_마일스톤-스펙.md`, `M13_Installer/00_마일스톤-스펙.md`.
 - 마일스톤 브랜치: `milestone/m11-backlog-sweep`(`5419b812`에서 가름 — `chore/m10-close` 머리, M10 종결 기록과 브레인스토밍 기록).
 - 사슬 PR: (아직 없음)
-- 현재 goal: G1 연습 데이터 자리와 Backlog 닫기 — `10_Goal-G1-연습-데이터와-Backlog-닫기.md`, 브랜치 `chore/m11-g1-backlog-close`.
+- 현재 goal: G2 앱 결함 — 세션·대화·계기·모델·권한 — `20_Goal-G2-앱-결함-세션-대화-계기-모델-권한.md`, 브랜치 `fix/m11-g2-app-session`. G1은 종결(PR 108, `1de6e917`).
 - 연습 저장소: `bass131/AgentDeck_Test`(공개, `main` 룰셋 `main-protect`). clone `C:\Dev\AgentDeck_Test`. 연습 토큰 `%USERPROFILE%\.agentdeck-practice\gh-token.txt`(만료 2026-11-27 03:20 UTC, 룰셋 읽기 확인). 연습 앱 데이터는 G1부터 `%USERPROFILE%\.agentdeck-practice\udd`.
 - goal 병합의 정형 절차: ① goal 브랜치를 push하고 독립 검수를 PR 전에 반영한다. ② `gh pr view <N> --json headRefOid,statusCheckRollup`으로 `hard-gates`와 머리 SHA를 읽는다. ③ `git fetch origin` 뒤 로컬 마일스톤 브랜치가 원격과 같은지 확인하고 `git switch milestone/m11-backlog-sweep`, `git merge --no-ff -m "<메시지>" origin/<goal 브랜치>`. ④ 병합한 SHA가 머리 SHA와 같은지 확인한 뒤 `git push -u origin milestone/m11-backlog-sweep`. 작업 트리는 병합 전에 깨끗해야 한다.
 - push는 항상 `-u origin <브랜치>`로 원격 브랜치를 명시합니다. `master`로 가는 병합은 사용자가 직접 합니다.
@@ -22,7 +22,7 @@
 
 ## 마감 요약 (최신 1건 — 3줄: 바뀐 것 / 내린 결정 / 봐야 할 것)
 
-- 스탬프: 2026-11-20T15:57:06+09:00
-- 바뀐 것: G1의 닫힘 표와 판단 결정에 독립 검수 반영을 마치고 goal PR 108을 마일스톤 브랜치로 열었습니다.
+- 스탬프: 2026-11-20T15:57:34+09:00
+- 바뀐 것: G1의 닫힘 표와 판단 결정에 독립 검수 반영을 마치고 goal PR 108을 마일스톤 브랜치로 열었습니다. 검증 기록의 어림 시각을 정정했습니다.
 - 내린 결정: 검수 반영으로 M05-3을 goal 2, M05-61을 다시 열기, M05-9를 규칙 추가와 v2로 나눴습니다.
 - 봐야 할 것: PR 108의 `hard-gates`를 기다립니다. 통과하면 정형 절차로 로컬 병합하고 goal 2(앱 결함 29건)를 엽니다.

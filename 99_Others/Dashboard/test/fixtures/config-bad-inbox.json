@@ -1,0 +1,6 @@
+{
+  "repoPath": "C:/Dev/AgentDeck",
+  "port": 4319,
+  "mainTerminalHandle": null,
+  "inboxHandle": "run:run_; rm -rf"
+}

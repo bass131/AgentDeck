@@ -1,9 +1,9 @@
 import * as fsp from 'node:fs/promises';
 import path from 'node:path';
 import { gitRunner, readWorktree } from './git.mjs';
-import { GOAL_STATUS, RULES, SCHEMA, isoKst, judgeFlow, judgeGoal, parseGoalSteps, planLines, stripBom, parseBacklog, parseHookTail, parseLedger, parsePhaseFlow, parsePhaseRecords, parsePin, parsePlanHeader } from './markdown.mjs';
+import { GOAL_STATUS, RULES, SCHEMA, SECTION_RE, isoKst, judgeFlow, judgeGoal, lines, parseGoalSteps, planLines, stripBom, parseBacklog, parseHookTail, parseLedger, parsePhaseFlow, parsePhaseRecords, parsePin, parsePlanHeader } from './markdown.mjs';
 import { VOICE_FILE, hookPhrase, parseOverview, parseVoice } from './phrases.mjs';
-import { buildGoalList, doingLine, shortName, goalTitle, judgeHand, milestoneName, parseGoalAim, parsePlannedGoals, summarizeActivity, userChores } from './progress.mjs';
+import { buildGoalList, doingLine, shortName, goalState, goalTitle, judgeHand, milestoneName, parseGoalAim, parsePlannedGoals, summarizeActivity, userChores } from './progress.mjs';
 import { BOARD, decisionSig, parseBoard } from './decisions.mjs';
 
 export const GATE_CONFIG = '98_Management/01_GateState/gate-config.json';
@@ -11,6 +11,21 @@ export const HOOK_LOG = '98_Management/01_GateState/hook-log.jsonl';
 export const MILESTONES = '01_Milestones';
 const SPEC_NAME = '00_마일스톤-스펙.md';
 export const BACKLOG = '99_Backlog.md';
+// 마일스톤 폴더의 첫머리 문서: 다중 파일 형식(M01~M03) → 마일스톤 스펙(M08~) → goal 한 장이 곧 마일스톤인 폴더(M04)
+export const HEAD_FILES = Object.freeze(['_MilestonePreview.md', SPEC_NAME, '00_Goal.md']);
+
+// 첫머리의 「상태:」. 마일스톤 스펙은 「- 마일스톤:」 줄 대신 「- 작성: … · 상태: …」 줄에 상태를 둔다.
+export function milestoneHead(text) {
+  const h = parsePlanHeader(text);
+  if (h.status != null) return { title: h.title, status: h.status, line: h.statusLineNo || h.titleLine };
+  const all = lines(text), end = all.findIndex(l => SECTION_RE.test(l)), head = end < 0 ? all : all.slice(0, end);
+  for (let i = 0; i < head.length; i++) {
+    if (!/^-\s/.test(head[i])) continue;
+    const parts = head[i].replace(/^-\s*/, '').trim().split(/\s+·\s+/), k = parts.findIndex(s => /^상태\s*:/.test(s));
+    if (k >= 0) return { title: h.title, status: parts.slice(k).join(' · ').replace(/^상태\s*:\s*/, '').trim(), line: i + 1 };
+  }
+  return { title: h.title, status: null, line: h.titleLine };
+}
 
 export async function readTail(file, bytes) {
   const handle = await fsp.open(file, 'r');
@@ -112,6 +127,17 @@ export async function collect(repoPath, { revision = 1, now = new Date(), io = d
     catch (e) { if (e.code === 'ENOENT') return { status: 'absent', path: voicePath, milestone: null, phases: {}, overview, note: `현재 마일스톤 폴더에 ${VOICE_FILE}가 없어요. 원문을 그대로 보여 줘요.` }; throw e; }
   });
 
+  // 진척 표시 낡음(M05 Backlog 62): goal 문서의 마지막 커밋 뒤에 그 브랜치 커밋이 더 있으면 그 수. 문서를 고치는 중(커밋 전)이거나 git을 못 읽으면 null이다.
+  async function staleMark(file) {
+    if (worktree.status !== 'ok' || (worktree.changes || []).some(c => c.path === file)) return null;
+    try {
+      const commit = (await git(['log', '-1', '--format=%h', '--', file])).trim();
+      if (!/^[0-9a-f]{4,40}$/.test(commit)) return null;
+      const after = Number((await git(['rev-list', '--count', `${commit}..HEAD`])).trim());
+      return Number.isInteger(after) && after > 0 ? { after, commit } : null;
+    } catch { return null; }
+  }
+
   // 2. Phase 흐름: 표의 이름·목표 + Phase 절의 검증 기록 집계
   const pinItem = label => pin.status === 'ok' ? pin.coord?.items.find(it => it.label === label) || null : null;
   const pinState = pinItem('상태'), pinPhaseMatch = pinState && /Phase\s*(\d+)/.exec(pinState.text);
@@ -129,11 +155,12 @@ export async function collect(repoPath, { revision = 1, now = new Date(), io = d
       const { phaseLine, stepsLine, steps } = parseGoalSteps(entries);
       const r = parsePhaseRecords(entries)[0] || null, rec = r?.record || null;
       const g = judgeGoal(steps, rec, { status });
+      const stale = g.currentCount && !g.closed ? await staleMark(planPath) : null;
       const items = g.items.map(s => ({ num: s.num, label: s.label, name: s.name, short: shortName(s.name), mark: s.mark, odd: s.odd, flow: s.flow, state: s.flow,
         tags: [], goal: null, inTable: true, tableRef: null, ref: { path: s.file, line: s.line }, record: null, commit: null, duplicate: false }));
       return { planPath, format: 'goal', files: [planPath], items, current: g.current, next: g.next, basis: 'steps', milestoneId, pinPhase: null, pinDisagrees: false,
         record: rec && { ...rec, ref: rec.line ? { path: r.file, line: rec.line } : null },
-        goal: { stage: g.stage, closed: g.closed, stopped: g.stopped, waitingUser: g.waitingUser, done: g.done, currentCount: g.currentCount,
+        goal: { stage: g.stage, closed: g.closed, stopped: g.stopped, waitingUser: g.waitingUser, done: g.done, currentCount: g.currentCount, stale,
           status: statusHead, statusWord: GOAL_STATUS.exec(status || '')?.[1] ?? null, phaseName: r?.name ?? null,
           ref: { path: planPath, line: stepsLine ?? phaseLine } } };
     }
@@ -171,17 +198,31 @@ export async function collect(repoPath, { revision = 1, now = new Date(), io = d
     return { ...l, ref: { path: l.file, line: l.line } };
   });
 
-  // 4. 마일스톤 목록
+  // 4. 마일스톤 목록: 폴더마다 첫머리 문서 하나(HEAD_FILES 순서). 셋 다 없으면 머리말 「상태:」가 있는 goal 문서를 센다(M05 Backlog 44).
   const milestones = await block('milestones', '마일스톤 목록', MILESTONES + '/', { items: [] }, async () => {
     let entries;
     try { entries = await io.readdir(abs(MILESTONES), { withFileTypes: true }); } catch (e) { e.target = MILESTONES; throw e; }
     const dirs = entries.filter(e => e.isDirectory() && !e.isSymbolicLink()).map(e => e.name).sort((a, b) => a.localeCompare(b));
     const items = [];
     for (const name of dirs) {
-      const file = `${MILESTONES}/${name}/_MilestonePreview.md`;
-      const item = { name, path: file, current: planDir === `${MILESTONES}/${name}`, state: 'ok', title: null, statusText: null, error: null };
-      try { const h = parsePlanHeader(await read(file)); Object.assign(item, { title: h.title, statusText: h.status, line: h.statusLineNo || h.titleLine }); }
-      catch (e) { item.state = e.code === 'ENOENT' ? 'missing' : 'failed'; item.error = e.code ? readError(file, e) : e.message; }
+      const dir = `${MILESTONES}/${name}`;
+      let names = null;
+      try { names = await io.readdir(abs(dir)); } catch { names = null; }
+      const headFile = names ? HEAD_FILES.find(f => names.includes(f)) : HEAD_FILES[0];
+      const item = { name, path: `${dir}/${headFile ?? HEAD_FILES[0]}`, current: planDir === dir, state: 'ok', title: null, statusText: null, error: null };
+      try {
+        if (headFile) { const h = milestoneHead(await read(item.path)); Object.assign(item, { title: h.title, statusText: h.status, line: h.line }); }
+        else {
+          const goals = { total: 0, closed: 0 };
+          for (const n of names.filter(n => /\.md$/i.test(n))) {
+            let h = null;
+            try { h = parsePlanHeader(await read(`${dir}/${n}`)); } catch { /* 제목 없는 문서는 goal이 아니다 */ }
+            if (h && goalTitle(h.title) && h.status) { goals.total++; if (goalState(h.status).state === 'done') goals.closed++; }
+          }
+          if (goals.total) Object.assign(item, { state: 'goals', path: dir, goals });
+          else Object.assign(item, { state: 'missing', error: readError(item.path, { code: 'ENOENT' }) });
+        }
+      } catch (e) { item.state = e.code === 'ENOENT' ? 'missing' : 'failed'; item.error = e.code ? readError(item.path, e) : e.message; }
       items.push(item);
     }
     return { items };

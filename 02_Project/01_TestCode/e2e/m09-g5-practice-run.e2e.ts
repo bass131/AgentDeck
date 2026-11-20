@@ -8,12 +8,15 @@
 // 일시 정지 깃발 내리기 — 메인 대화)에 있으니 click에 scope를 준다. 메인에게 말하기는 'say', 이름 붙인 캡처는 'shot',
 // 메인 대화에 글이 뜨기를 기다리기는 'waitMain'이다. state.txt에 [main] 절을 싣는다.
 // G5_TOKEN_FILE(연습 저장소 전용 fine-grained 토큰 파일)을 주면 앱 프로세스에만 GH_TOKEN을 넣는다(전역 로그인은 그대로).
-// G5_UDD를 주면 그 앱 데이터 폴더를 쓴다(실행 상태 다이제스트를 마일스톤 사이에 이어 쓰기).
+// 앱 데이터 폴더는 연습 저장소의 실행 상태 다이제스트를 마일스톤 사이에 이어 쓰는 고정 자리가 기본이고, G5_UDD로 바꾼다(M11 G1).
 import { test, _electron as electron } from '@playwright/test'
 import type { ElectronApplication, Page } from '@playwright/test'
 import { execFileSync } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { homedir } from 'node:os'
 import { join, resolve, sep } from 'node:path'
+
+const PRACTICE_UDD = join(homedir(), '.agentdeck-practice', 'udd')
 
 const RUN = process.env.M09_G5_RUN === '1'
 const CTL = process.env.G5_CTL ?? ''
@@ -232,8 +235,7 @@ test.describe('M09 G5 연습 저장소 실주행 구동기 (opt-in: M09_G5_RUN=1
     const here = resolve(process.cwd()).toLowerCase()
     if (repoAbs === here || repoAbs.startsWith(here + sep)) throw new Error(`G5_REPO가 이 저장소 안이다 — ${REPO}`)
     mkdirSync(CTL, { recursive: true })
-    // G5_UDD — 앱 데이터 폴더(실행 상태 다이제스트가 있는 곳). 같은 연습 저장소를 마일스톤마다 이어 쓰려면 같은 폴더를 준다
-    const userDataDir = process.env.G5_UDD ? resolve(process.env.G5_UDD) : join(CTL, 'udd')
+    const userDataDir = process.env.G5_UDD ? resolve(process.env.G5_UDD) : PRACTICE_UDD
     // 마지막으로 돌린 명령 번호 — 파일이 있는데 읽지 못하면 옛 명령을 다시 돌리지 않게 시작하지 않는다(독립 검수 사소 6)
     const seqFile = join(CTL, 'last-seq')
     let lastSeq = 0

@@ -13,6 +13,7 @@ M11 Backlog 정리(`01_Milestones/M11_BacklogSweep/`)가 닫은 항목이다. �
 | 2 | 고침(M11 goal 2) | 계기 usage가 턴 합계가 아니라 마지막 최상위 assistant 호출이다(`main/04_Claude/stream/eventNormalizer.ts:62,128,163`, `57c20790`). 실앱 e2e B에서 네 도구 턴 뒤 「40K / 1M 4%」. |
 | 3 | 고침(M11 goal 2) | 상태 줄 가지 칸이 git의 실제 가지를 읽는다(`renderer/src/12_Window/useStatusBranch.ts:11`, `Shell.tsx:53,273`, `57c20790`, `932c80e9`). 실앱 e2e A에서 `feat/m11-g2-probe`. |
 | 4 | 닫음(실측) | 캐시가 따뜻할 때 다시 열기의 캐시 생성 추가는 작고 훅 재부착은 약 500토큰, 기동 지연은 약 0.4~0.5초(표본 1)라 닫기 유예 3000ms를 둔다(`57c20790` 메시지). |
+| 5 | 고침(M11 goal 7) | `50_stop-gate.cjs`의 두 지시문이 스탬프를 「장전 시각(그 값) 이후의 지금 시각」으로 찍으라고 하고, 세션 시작 시각은 장전보다 이를 수 있다고 적는다(smoke 「block 사유가 스탬프를 장전 시각 이후로…」, `88394dac`). |
 | 6 | M13으로 | M11 스펙 「하지 않을 것」 — 버전 표시는 설치본 패키징과 함께 M13이 맡는다. |
 | 7 | 고침(M11 goal 6) | 두 컴포넌트 파일이 컴포넌트만 내보낸다. `nextInject`는 `renderer/src/12_Window/inject.ts`로 옮겼다. `Conversation.tsx`의 `ThreadView` 재수출은 지웠고, 배럴이 `ThreadView`에서 직접 내보낸다(`05_Conversation/index.ts`). `ThreadView.test.tsx`가 `Conversation.tsx`의 export 목록을 고정한다(`a55db0e9`). |
 | 8 | 해결됨 | 가드가 논리 줄 판독과 이음 지운 원문 읽기로 줄 이음 꼴을 읽고(`dangerous-cmd-guard.mjs:6-8,15`, G5 `a9408c52`) 남은 꼴은 M06-20·21이 맡는다. |
@@ -30,6 +31,7 @@ M11 Backlog 정리(`01_Milestones/M11_BacklogSweep/`)가 닫은 항목이다. �
 | 20 | v2로 | M11 스펙 결정 대장 [USER] 2회차 — 가드 재설계 「이번엔 안 한다」. |
 | 21 | v2로 | M11 스펙 결정 대장 [USER] 2회차 — 셸 파서 도입도 가드 재설계와 함께 「이번엔 안 한다」. |
 | 22 | 해결됨 | 항목 본문대로 G8 결정 대장이 알려진 동작으로 닫았다. |
+| 23 | 고침(M11 goal 7) | `gate.md` 기준선을 다시 쟀다 — 468파일 통과·6 스킵·실패 0, 9117 시험, 약 204초. `phase18-audit-fix` 메모를 빼고 시간 한도 30초를 적었다(`88394dac`). |
 | 24 | 고침(M11 goal 2) | 지속 세션의 effort를 공개 `Query.applyFlagSettings({ effortLevel })`로 바꾼다 — 재사용 턴과 실행 중 `agent.setEffort`(`main/04_Claude/run/claudeAgentRun.ts:224`, `main/03_Agent/agentRuns.ts:77`, `57c20790`). 실측으로 deny 규칙 유지를 봤다. 패널 쪽은 M11 Backlog 14. |
 | 25 | 해결됨 | 메인 대화 안에 질문·승인 카드가 뜬다(`renderer/src/13_Loop/MainChatView.tsx:6,81`, M10 G3 `547ab01b`). |
 | 26 | 고침(M11 goal 2) | M06-2와 같은 고침이다(`eventNormalizer.ts:163`, `57c20790`). |

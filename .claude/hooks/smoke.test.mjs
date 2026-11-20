@@ -140,6 +140,8 @@ try {
     check('감시 줄이 GitHub에서 다시 읽고 종결 기록을 한 뒤 다음 걸음을 말한다', (w1.watch[0] ?? '').includes('다시 읽') && (w1.watch[0] ?? '').includes('다음 goal'), w1.watch[0] ?? '')
     // M08 G2(헌법 11조 마일스톤 단위): 「다음 goal」만으로는 옛 뜻(goal마다 다음으로)과 새 뜻을 가리지 못한다 — 마일스톤 PR이면 멈추고 다음 마일스톤을 열지 않는다.
     check('감시 줄이 마일스톤 PR이면 멈추고 다음 마일스톤을 열지 않는다고 말한다', /goal PR이면[^.]*다음 goal로 가/.test(w1.watch[0] ?? '') && /마일스톤 PR이면[^.]*멈춘다/.test(w1.watch[0] ?? '') && (w1.watch[0] ?? '').includes('다음 마일스톤은 열지 않는다'), w1.watch[0] ?? '')
+    // M08 Backlog 4 — SessionStart는 마일스톤 스펙을 읽지 않아 PR 종류를 모른다. 감시 줄이 PR을 goal이라 단정하지 않는다
+    check('감시 줄이 PR을 「현재 goal」의 것으로 단정하지 않고 goal·마일스톤 PR 둘 다를 말한다', !(w1.watch[0] ?? '').includes('현재 goal이 PR') && (w1.watch[0] ?? '').includes('goal PR이든 마일스톤 PR이든'), w1.watch[0] ?? '')
     check('판정 기록에 감시 PR 번호가 남는다', w1.res.added.some(l => l.hook === 'start-brief' && l.mergeWatchPr === 77), JSON.stringify(w1.res.added.at(-1)))
     const w2 = briefWith('G9 현황판 병합 버튼 · 상태: 병합 대기 (PR 75)', 'w2')
     check('「병합 대기 (PR 75)」 꼴도 읽는다', (w2.watch[0] ?? '').includes('wait-merge.mjs 75'), w2.watch.join(' | '))
@@ -305,6 +307,22 @@ try {
     r = run(H, edit('smoke-40s', 'PostToolUse', SINGLE, S_BASE, S_ADD))
     expectLine('단일 파일 계획도 감지한다 (하위 호환)', r, 'pass-watcher', '장전', 'PASS-추기-감지')
     writeFileSync(SINGLE, sOriginal)
+
+    // M03 Backlog 30 · M04 Backlog 1 — 포인터가 없을 때 종결된 M01 계획을 기본값으로 감시하지 않는다
+    const M01_PHASE = join(MIRROR, '01_Milestones', 'M01_Bootstrap', '01_Phase_1.md')
+    const m01 = readFileSync(M01_PHASE, 'utf8')
+    const RECORD_AT = m01.match(/^검증 기록\s*$/m)
+    if (RECORD_AT) {
+      const ADD = '검증 기록\n\n- PASS 2026-11-21T00:00 — 포인터 없는 추기'
+      rmSync(CONFIG_FILE, { force: true })
+      writeFileSync(M01_PHASE, m01.replace(RECORD_AT[0], ADD))
+      r = run(H, edit('smoke-40n', 'PostToolUse', M01_PHASE, RECORD_AT[0], ADD))
+      expectSilent('포인터 부재 — M01 계획 PASS 추기에 장전하지 않는다', r, 'pass-watcher')
+      writeFileSync(M01_PHASE, m01)
+      setConfig({ planPath: REAL_PLAN, workPinPath: REAL_PIN })
+    } else {
+      check('M01 Phase 1에 검증 기록 절이 있다 (픽스처 전제)', false)
+    }
   }
 
   // ---- 41_line-limit -------------------------------------------------------
@@ -338,6 +356,8 @@ try {
     r = run(H, { session_id: 'smoke-50', hook_event_name: 'Stop' })
     expectLine('장전 + 낡은 스탬프 → block', r, 'stop-gate', 'block', '마감-요약-미실측')
     check('block 사유가 3줄 작성을 지시한다', /마감 요약/.test(blockReason(r) || ''), (blockReason(r) || '').slice(0, 100))
+    // M06 Backlog 5 — 세션 시작 시각은 장전보다 이를 수 있다. 스탬프는 장전 시각 이후여야 한다고 말한다
+    check('block 사유가 스탬프를 장전 시각 이후로 찍으라고 말한다', /장전 시각\([^)]+\) 이후/.test(blockReason(r) || '') && /세션 시작 시각/.test(blockReason(r) || ''), (blockReason(r) || '').slice(0, 300))
 
     setConfig({ planPath: REAL_PLAN, workPinPath: '.claude/hooks/fixtures/work-pin-fresh.md' })
     r = run(H, { session_id: 'smoke-50', hook_event_name: 'Stop' })

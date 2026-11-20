@@ -10,6 +10,7 @@ M11 Backlog 정리(`01_Milestones/M11_BacklogSweep/`)가 닫은 항목이다. �
 |---|---|---|
 | 1 | v2로 | M11 스펙 결정 대장 [USER] 2회차 — 규칙 파일 넣기는 가드 재설계와 함께 「이번엔 안 한다」. |
 | 3 | 정함 → goal 8 | G1 결정 대장 [USER·위임] — 전략 옵션 꼴을 ask로 묻게 하고, ask가 allow를 이기는지 공식 문서로 먼저 확인한다. |
+| 4 | 고침(M11 goal 7) | SessionStart 감시 줄이 「pin의 현재 goal 줄이 PR N의 병합 대기를 말한다(goal PR이든 마일스톤 PR이든 — 종류는 gh pr view로 읽는다)」로 시작한다(`10_start-brief.cjs`, smoke 감시 줄 검사, `88394dac`). |
 | 6 | 정함 → goal 8 | G1 결정 대장 [USER·위임] — `git merge --ff-only origin/milestone/*` 한 꼴을 allow에 더한다. |
 
 6. 정형 절차 ③에서 로컬 마일스톤 브랜치를 원격에 맞추려고 `git merge --ff-only origin/milestone/…`을 한 번 썼다. 이 꼴은 allow `Bash(git merge --no-ff *)` 밖이다. 이 세션은 자동 모드라 질문 없이 지나갔고, 기본 모드였다면 질문이 떴을 것이다(추정). 길은 둘이다 — `git switch --detach origin/milestone/…`에서 `git merge --no-ff`하고 `git push origin HEAD:milestone/…`로 보내 로컬 브랜치 맞추기를 없애거나, `git merge --ff-only origin/milestone/*` 한 꼴을 allow에 더한다(설정은 판정 장치) (G2 후속 병합에서 발견).

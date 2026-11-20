@@ -176,7 +176,7 @@ if (fresh && scope === 'session') {
     log({ ...base, verdict: 'block', rule: 'pin-타세션-갱신', reason: `장전(${entry.since}) 이후의 pin 갱신이 다른 세션(${w.others.join(', ')})의 것뿐이다 — 남의 마감 요약은 이 세션의 장전을 풀지 못한다`, evidence: { others: w.others } });
     process.stdout.write(JSON.stringify({
       decision: 'block',
-      reason: `[마감 요약 게이트] work-pin의 마감 요약이 다른 세션(${w.others.join(', ')})의 갱신이다 — 이 세션의 마감 요약 3줄을 직접 갱신하고 스탬프를 현재 시각으로 찍어라.`,
+      reason: `[마감 요약 게이트] work-pin의 마감 요약이 다른 세션(${w.others.join(', ')})의 갱신이다 — 이 세션의 마감 요약 3줄을 직접 갱신하고 스탬프를 장전 시각(${entry.since}) 이후의 지금 시각으로 찍어라 — 세션 시작 시각은 장전보다 이를 수 있다.`,
     }));
     process.exit(0);
   }
@@ -198,6 +198,6 @@ putEntry({ ...entry, blocks: (entry.blocks || 0) + 1 });
 log({ ...base, verdict: 'block', rule: '마감-요약-미실측', reason: `마감 요약 스탬프(${m ? m[1] : '부재'})가 장전(${entry.since}) 이후가 아님 — 3줄 작성 지시 (${(entry.blocks || 0) + 1}/${MAX_BLOCKS})` });
 process.stdout.write(JSON.stringify({
   decision: 'block',
-  reason: `[마감 요약 게이트] 세션 마감이 장전됐다 (${entry.since}${entry.note ? ' · ' + entry.note : ''}). work-pin(${cfg.workPinPath || '(포인터 부재)'})의 「마감 요약」 절에 3줄(바뀐 것 / 내린 결정 / 봐야 할 것)을 이번 세션 내용으로 갱신하고 스탬프를 현재 시각으로 찍어라. 갱신 후 정지하면 통과된다.`,
+  reason: `[마감 요약 게이트] 세션 마감이 장전됐다 (${entry.since}${entry.note ? ' · ' + entry.note : ''}). work-pin(${cfg.workPinPath || '(포인터 부재)'})의 「마감 요약」 절에 3줄(바뀐 것 / 내린 결정 / 봐야 할 것)을 이번 세션 내용으로 갱신하고 스탬프를 장전 시각(${entry.since}) 이후의 지금 시각으로 찍어라 — 세션 시작 시각은 장전보다 이를 수 있다. 갱신 후 정지하면 통과된다.`,
 }));
 process.exit(0);

@@ -89,17 +89,18 @@ if (input.agent_id) {
 
 // ---- 계획 구획 멤버십 — plan-gate의 planPath 병합 규칙과 동일 (정합) ----
 // planPath가 _MilestonePreview.md면 멤버 = 그 파일 + 같은 폴더의 NN_Phase_N.md 전부.
-// 단일 파일 planPath면 멤버 = 그 파일 하나 (하위 호환).
-let planRel = '01_Milestones/M01_Bootstrap/_MilestonePreview.md';
+// 단일 파일 planPath면 멤버 = 그 파일 하나 (하위 호환). 포인터가 없으면 감시할 계획이 없다 — 기본값은 두지 않는다
+// (판정부와 같은 fail-closed, M03 Backlog 30 · M04 Backlog 1). pin 증인은 workPinPath만 있으면 남긴다.
+let planRel = null;
 let pinRel = null;
 try {
-  const c = JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8'));
-  if (c.planPath) planRel = c.planPath;
+  const c = JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8').trim());
+  if (typeof c.planPath === 'string' && c.planPath.trim()) planRel = c.planPath;
   if (c.workPinPath) pinRel = c.workPinPath;
-} catch (e) { /* 포인터 부재 시 기본값 — plan-gate와 동일 */ }
-const planAbs = path.isAbsolute(planRel) ? planRel : path.join(ROOT, planRel);
-let members = [planAbs];
-if (path.basename(planAbs) === '_MilestonePreview.md') {
+} catch (e) { /* 포인터 부재·파손 — 계획 감시 없음 */ }
+const planAbs = planRel === null ? null : (path.isAbsolute(planRel) ? planRel : path.join(ROOT, planRel));
+let members = planAbs === null ? [] : [planAbs];
+if (planAbs !== null && path.basename(planAbs) === '_MilestonePreview.md') {
   const dir = path.dirname(planAbs);
   try {
     members = members.concat(fs.readdirSync(dir).filter(n => /^\d+_Phase_\d+\.md$/.test(n)).map(n => path.join(dir, n)));

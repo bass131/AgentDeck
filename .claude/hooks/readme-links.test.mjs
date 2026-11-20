@@ -87,5 +87,12 @@ r.judge('RL-25 `%20` 인코딩 타깃', check('- [문서](00_Docs/내%20문서.m
 r.judge('RL-26 README 부재 → exit 2', check(null, {}).code, 2)
 r.judge('RL-27 깨진 링크 있으면 exit 1', check('- [문서](00_Docs/없다.md)\n').code, 1)
 
+// ── 실물 표면 (M07 Backlog 28) — 루트 README와 현황판 README의 지금 링크 ─────────
+// 현황판 README는 그 폴더를 뿌리로 읽는다 — 폴더 밖을 가리키는 링크는 「저장소 밖」으로 걸린다.
+for (const [id, dir] of [['RL-28', REPO_ROOT], ['RL-29', join(REPO_ROOT, '99_Others', 'Dashboard')]]) {
+  const out = spawnSync(process.execPath, [SCRIPT], { cwd: dir, encoding: 'utf8', env: { ...process.env, CLAUDE_PROJECT_DIR: dir } })
+  r.judge(`${id} 실물 README(${dir.slice(REPO_ROOT.length) || '/'})의 내부 링크가 전부 실존한다`, out.status, 0, { note: `${out.stdout || ''}${out.stderr || ''}`.trim().slice(0, 200) })
+}
+
 for (const box of trash) { try { rmSync(box, { recursive: true, force: true }) } catch { /* 임시 폴더 잔재는 무해 */ } }
 process.exit(r.summary())

@@ -15,9 +15,9 @@ M11 Backlog 정리(`01_Milestones/M11_BacklogSweep/`)가 닫은 항목이다. �
 | 3 | 해결됨 | 래퍼 뒤 `VAR=값` 할당을 건너뛰고 판정한다(`cmd-guard-equivalence.test.mjs:88` WR-02). |
 | 4 | 낡음 | 할 일 없는 관찰이고 sink 판별의 단독 증거는 HD-15가 맡는다(`cmd-guard-surface.test.mjs:75`). |
 | 5 | 해결됨 | tdd-guard와 pass-watcher도 제목 단독 줄 헤더만 인정한다(`33_tdd-guard.cjs:110`, `40_pass-watcher.cjs:141`). |
-| 6 | 정함 → goal 7 | G1 결정 대장 [USER·위임] — 파이프 판정 불능은 두고 차단 문구에 `npm test -- --no-color --reporter=dot` 꼴 안내를 넣는다. |
+| 6 | 고침(M11 goal 7) | 파이프·`&&` 판정 불능은 두고, tdd-guard 차단 문구가 채집되는 단독 꼴(전체 `npm test -- --no-color --reporter=dot`, 좁힌 `npx vitest run <경로>`, 현황판 `node --test`)을 알려 준다(`33_tdd-guard.cjs` `RESUME_HINT`, `tdd-green-evidence.test.mjs` MS-01~06, `3aa38815`). 좁힌 실행의 초록도 카운터를 풀어 빠져나갈 길이 시험 손질 하나가 아니다(GE-10). |
 | 7 | 낡음 | 코디네이터·워커 운영이 폐지돼 워커 실행 중에 공용 pin을 고치는 주체가 없다(헌법 2조 현행). |
-| 8 | 낡음 | 대상 `multi-agent-ops.e2e.ts`가 M10 G1 `95125a05`에서 지워졌고, `gate.md`의 기준선 줄은 goal 7이 고친다. |
+| 8 | 낡음 | 대상 `multi-agent-ops.e2e.ts`가 M10 G1 `95125a05`에서 지워졌다. `gate.md`의 e2e 기준선은 goal 7이 다시 적었다 — 알려진 실패 없음, 수집 47파일 129테스트(`--list` 실측, `88394dac`). |
 | 9 | 고침(M11 goal 6) | G1 결정 대장 [USER·위임]대로 설계 노트 `00_쟁점-목록.md`·`08_Clear-게이트.md` 머리에 「역사 기록 — 정본은 헌법·템플릿」 한 줄을 달았다(`cf6359ba`). |
 | 10 | 해결됨 | `bash -c`와 `env FOO=1` 뒤의 명령을 판정한다(`cmd-guard-equivalence.test.mjs:87-89` WR-01~03). |
 

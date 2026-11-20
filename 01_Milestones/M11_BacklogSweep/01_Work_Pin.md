@@ -12,7 +12,7 @@
 - 마일스톤 스펙: `01_Milestones/M11_BacklogSweep/00_마일스톤-스펙.md`(분류표 `10_`~`13_분류-*.md`). 다음 `M12_CharterTaste/00_마일스톤-스펙.md`, `M13_Installer/00_마일스톤-스펙.md`.
 - 마일스톤 브랜치: `milestone/m11-backlog-sweep`(`5419b812`에서 가름 — `chore/m10-close` 머리, M10 종결 기록과 브레인스토밍 기록).
 - 사슬 PR: (아직 없음)
-- 현재 goal: G6 시험·lint·문서 정리 — `60_Goal-G6-시험-lint-문서-정리.md`, 브랜치 `chore/m11-g6-tests-docs`(마일스톤 머리 `74ac0922`에서). G1~G5 종결(PR 108~112, 마지막 병합 `74ac0922`).
+- 현재 goal: G7 계획 게이트와 훅 정비 — `70_Goal-G7-계획게이트와-훅-정비.md`, 브랜치 `chore/m11-g7-plan-gate-hooks`(마일스톤 머리 `f634eacc`에서). G1~G6 종결(PR 108~113, 마지막 병합 `f634eacc`).
 - 연습 저장소: `bass131/AgentDeck_Test`(공개, `main` 룰셋 `main-protect`). clone `C:\Dev\AgentDeck_Test`. 연습 토큰 `%USERPROFILE%\.agentdeck-practice\gh-token.txt`(만료 2026-11-27 03:20 UTC, 룰셋 읽기 확인). 연습 앱 데이터는 G1부터 `%USERPROFILE%\.agentdeck-practice\udd`.
 - goal 병합의 정형 절차: ① goal 브랜치를 push하고 독립 검수를 PR 전에 반영한다. ② `gh pr view <N> --json headRefOid,statusCheckRollup`으로 `hard-gates`와 머리 SHA를 읽는다. ③ `git fetch origin` 뒤 로컬 마일스톤 브랜치가 원격과 같은지 확인하고 `git switch milestone/m11-backlog-sweep`, `git merge --no-ff -m "<메시지>" origin/<goal 브랜치>`. ④ 병합한 SHA가 머리 SHA와 같은지 확인한 뒤 `git push -u origin milestone/m11-backlog-sweep`. 작업 트리는 병합 전에 깨끗해야 한다.
 - push는 항상 `-u origin <브랜치>`로 원격 브랜치를 명시합니다. `master`로 가는 병합은 사용자가 직접 합니다.
@@ -22,7 +22,7 @@
 
 ## 마감 요약 (최신 1건 — 3줄: 바뀐 것 / 내린 결정 / 봐야 할 것)
 
-- 스탬프: 2026-11-21T04:35:46+09:00
-- 바뀐 것: goal 6 구현을 마치고(커밋 열넷, 머리 `1fe5c4cc`) push했습니다. 패널 코드 삭제, 미사용 export 243개 정리, 별칭 치환, 문서 갱신이 들어갔습니다.
-- 내린 결정: M05-42의 스토어 허브는 큰 재배치라 엔진 배럴 재수출만 끊고 Backlog 53으로 남기며, 패널 삭제로 닿지 않게 된 M11 Backlog 10·11·14는 해결됨으로 닫았습니다. 사람 손 목록: `cwdprobe\`, 연습 `udd/loop`의 e2e 찌꺼기(Backlog 36), stash `pin-g3`, 옛 봉인 때문에 엔진 다시 고르기.
-- 봐야 할 것: goal 6 독립 검수가 도는 중입니다. 반영 뒤 PR·`hard-gates`·로컬 병합을 하고 goal 7(계획 게이트와 훅, tdd-guard 작업 폴더 판독 포함)로 갑니다. 스토어 허브 순환은 Backlog 53으로 남겼습니다.
+- 스탬프: 2026-11-21T06:36:04+09:00
+- 바뀐 것: goal 7 구현(G2 묶음 26항목, tdd-guard 하위 에이전트 계수와 좁힌 초록)을 마치고 push했습니다(머리 `ac55755b`).
+- 내린 결정: 종결된 goal 문서를 가리키는 동안은 `01_Milestones` 밖 편집을 막고 포인터 전환만 통과시키며, 하위 에이전트 구분은 공식 훅 문서와 로그로 확인한 `agent_id`로 합니다. 사람 손 목록: `cwdprobe\`, 연습 `udd/loop`의 e2e 찌꺼기(Backlog 36), stash `pin-g3`, 옛 봉인 때문에 엔진 다시 고르기.
+- 봐야 할 것: goal 7 독립 검수(막는 결함 0)를 반영했습니다. PR·`hard-gates`(8.3 경로 시험의 첫 CI 확인)·로컬 병합 뒤 goal 8(가드·설정·CI·헌법 3조)로 갑니다.

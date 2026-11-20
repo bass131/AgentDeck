@@ -12,10 +12,6 @@
 
 *AgentDeck으로 AgentDeck 저장소를 분석하는 모습. 할 일 추적, general-purpose 서브에이전트 2개 병렬 실행, 도구 트레이스, 컨텍스트·사용량 게이지를 확인할 수 있습니다. 화면은 Playwright 스펙 [`readme-shots.e2e.ts`](./02_Project/01_TestCode/e2e/readme-shots.e2e.ts)로 재현할 수 있습니다.*
 
-![멀티 에이전트 — 3패널 동시 실작동](99_Others/assets/readme-shot-multiagent.png)
-
-*같은 저장소에서 서로 다른 분석을 동시에 실행하는 멀티 에이전트 화면. 세 패널의 진행 상태와 컨텍스트 사용량을 각각 확인할 수 있습니다.*
-
 ![Git 통합 — 실제 커밋 히스토리](99_Others/assets/readme-shot-git.png)
 
 *앱 안에서 커밋 이력과 상세 내용을 확인하고 push·pull을 실행할 수 있습니다. 별도 Git 라이브러리 없이 `execFile`을 직접 사용합니다.*
@@ -30,7 +26,8 @@
 - **핵심 루프**: 폴더 열기 → 대화 → Claude Code 스트리밍 실행 → 변경 파일 표시와 diff 확인 → 앱 재시작 후 대화 복구
 - **코드 인텔리전스**: CodeMirror 6 코드 뷰어 · LSP 호버/정의 이동/시맨틱 토큰(ts·pyright 번들) · 마크다운 렌더링(XSS·원격 차단, CSP) · 이미지 미리보기 · 읽기 전용 레퍼런스 폴더
 - **Git 통합**: 커밋 이력 시각화 · 브랜치/태그 · 에이전트에게 커밋 생성을 위임하는 AI 커밋 — 별도 Git 라이브러리 없이 `execFile` 직접 사용
-- **멀티 에이전트**: 6개 패널 동시 실행 · 세션 CRUD · 서브에이전트 카드 · 권한 요청과 질문 응답 · 슬래시 커맨드 · 이미지 첨부 · 토큰 게이지 · 라이브 모델 스위치
+- **대화**: 세션 CRUD · 서브에이전트 카드 · 권한 요청과 질문 응답 · 슬래시 커맨드 · 이미지 첨부 · 토큰 게이지 · 라이브 모델 스위치
+- **작업 모드**: 메인 대화의 브레인스토밍으로 마일스톤을 합의하면, 앱이 마일스톤 하나를 작업 그래프로 끝까지 돌립니다 · 노드 세션 탭 · 그래프 캔버스(보기 전용) · 앱 안 현황판 · PC 알림
 
 ## 아키텍처 하이라이트
 
@@ -60,18 +57,19 @@ npm run typecheck  # 타입검사 (main+renderer)
 ## 개발 방식 — 하네스 엔지니어링
 
 코드 생성을 AI에 맡기는 데서 그치지 않고, 계획·실행·검증 과정을 저장소 규칙으로
-관리합니다. `00_Documents/`(문서)와 `CLAUDE.md`(규칙), `.claude/`(멀티 에이전트·hooks),
-`/work:plan`(Phase 정의와 실행), `/review`(규칙 기반 점검)를 사용합니다.
+관리합니다. `CLAUDE.md`·`AGENTS.md`(헌법), `00_Documents/02_Rules/`(템플릿과 정책),
+`.claude/`(하위 에이전트 정의·hooks), `/gate`(커밋 전 하드 게이트)를 사용합니다.
 
-1. `00_Documents/02_Rules/`에 계획 템플릿·모델 라우팅 정책·보고서 표준을 보강하고, 주요 결정을 `98_Management/00_ADR/`에 기록
-2. `/work-plan` → 관련 문서를 읽고 Phase 분해 → `/work:plan` → 순차 실행
-3. `/review` → 규칙에 따라 점검 → 관련 문서 보강 → 재실행
+1. 사람과 메인 세션이 브레인스토밍으로 마일스톤 스펙 한 장을 합의합니다(`01_Milestones/`)
+2. 에이전트가 스펙을 goal로 나눠 구현·검증·커밋·PR·goal 병합까지 이어 갑니다. 검증은 goal 문서의 검증 기록 줄로만 유효합니다
+3. 마일스톤 PR의 `master` 병합은 사용자가 직접 하고, 되돌리기 어려운 결정은 `98_Management/00_ADR/`에 남깁니다
 
 ## 문서
 
 - [00_Documents/](./00_Documents/) — 프로젝트 문서 · [02_Rules](./00_Documents/02_Rules/) — 계획 템플릿·모델 라우팅·보고서 표준
 - [98_Management/00_ADR/](./98_Management/00_ADR/) — 주요 의사결정 기록
-- PRD · ARCHITECTURE · UI · FEATURE_MAP — 문서 재편 과정에서 제외되었으며, 복원 후 다시 연결할 예정입니다.
+- [01_Milestones/00_Vision/](./01_Milestones/00_Vision/) — 무엇이 되려는지 · [00_Roadmap.md](./01_Milestones/00_Roadmap.md) — 마일스톤 순서
+- PRD·아키텍처·디자인 문서는 `00_Documents/`에 자리만 있고 아직 실물이 없습니다.
 - [CLAUDE.md](./CLAUDE.md) — 헌법(절대 규칙)
 
 ## 로드맵
@@ -80,7 +78,7 @@ npm run typecheck  # 타입검사 (main+renderer)
 - ✅ **M1 핵심 루프** — 폴더 열기 → 대화 → 스트리밍 실행 → 파일변경/diff + 영속화
 - ✅ **M2 코드 인텔리전스** (+ M2-LSP) — 코드뷰어·LSP·마크다운·이미지·레퍼런스 폴더
 - ✅ **M3 Git 통합** — 비주얼 히스토리·브랜치/태그·AI 커밋
-- ✅ **M4 멀티에이전트 & 대화 고도화** — 동시 6패널·서브에이전트·슬래시·토큰 게이지
+- ✅ **M4 멀티에이전트 & 대화 고도화** — 동시 6패널·서브에이전트·슬래시·토큰 게이지 (멀티 패널은 뒤에 작업 모드로 바뀌며 지웠다)
 - 🔄 **GAP1 — Claude Code 코어 패리티 게이트** (진행 중)
 - ⬜ **M5 배포 & 플랫폼** — NSIS 설치·electron-updater·라이트 테마 → Track 1 완성
 

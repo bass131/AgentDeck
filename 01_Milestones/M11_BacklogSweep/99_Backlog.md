@@ -3,7 +3,18 @@
 - 범위 밖 발견을 한 줄로 남긴다(헌법 11조). 최신 번호가 위다.
 - M01~M10 Backlog의 닫힘은 각 파일의 「## 닫힘 (M11)」 표가 갖는다. 여기에는 M11 진행 중 새로 생긴 것과 해결됨 항목의 남은 갈래만 둔다.
 
-41. 현황판 시험에 `app.js` 소스 정규식 시험이 남았다 — `view.test.mjs` 5건(등장 동작·띠 읽은 시각·빗금 링·어디쯤 띠·검증 기록 숫자 카드)과 `chime.test.mjs` 3건(알림 배선·소리 상태 표지·띠 손 줄)은 jsdom 시험이 덮지 않아 그대로 뒀다. 같은 jsdom 틀(`test/m11-g5-dom.test.mjs`의 `page`)로 옮길 후보다 (M11 G5, M05-71).
+52. `99_Others/Dashboard/README.md:238,241`의 시험 설명이 낡았다. 238은 `view.test.mjs`가 배선을 본다고 쓰지만, 배선은 이제 jsdom 시험에 있다. 241의 `m11-g5-dom.test.mjs` 설명에는 등장 동작·띠·링·어디쯤·검증 기록·알림·소리 상태가 빠졌다 (M11-41, M11 G6 시험 담당 관찰).
+51. README 잔여: `99_Others/assets/readme-shot-multiagent.png`는 README가 더 쓰지 않는 고아 그림이다. `README.md`의 「현재 상태 (2026-07)」 줄과 로드맵 절(Track 1·2)은 지금 로드맵(`01_Milestones/00_Roadmap.md`)과 다르다 (M10-7, M11 G6).
+50. `*SampleData` 파일 셋의 이름 바꾸기(`11_Settings/settingsSampleData.ts`, `10_Engine/updateNotesSampleData.ts`, `10_Engine/whats-new/whatsNewSampleData.ts`)는 파일 이동이다. 헌법 8조가 계획에 명시된 `git mv`만 허용해서 하지 않았다. 이동을 계획에 적는 goal이 맡을 후보다 (M05-43, M11 G6).
+49. `10_Engine/index.ts`가 `03_Agent`의 `HookTimeline`·`LoopStatusBanner`·`PermissionCard`를 재수출한다. 이것이 `10_Engine`이 도메인 SCC에 드는 원인이다. 배럴을 쪼개면 CSS 순서가 바뀌므로 화면 판정과 함께 다룬다. 남은 SCC(`03_Agent⇄05_Conversation`, 스토어 허브)는 스토어 조립 방향을 바꿔야 한다 (M05-42, M11 G6).
+48. 자기 파일 밖에서 이름이 안 나오는 export가 237개다(값 52, 타입 185). 셈은 이름을 단어로 grep한 근사여서 원문 164와 셈법이 다르다. 값 목록에는 `loopDriver.ts`의 `DEFAULT_*`, `survivalDocs.ts`의 `readRunState`·`writeRunState`·`appendDecision`, `ComposerPicker.tsx`의 `ModeIc` 등이 있다. 앱 소스 수십 파일을 건드리는 정리라 lint 규칙이나 별도 묶음의 후보다 (M05-18, M11 G6).
+47. M05 `13_G1-이동-맵.md:50`은 중복 공통 구현의 거처를 `02_Common`으로 적는다. 그런데 `sdkVersion`은 도메인을 아는 엔진 코드라 `10_Engine`에 있다. 이동 맵을 고칠지는 사용자 확인 사항이다 (M05-66, M11 G6).
+46. 상수 이름 `USAGE_GET`이 채널 문자열 `engine.usage`와 다르다(`shared/10_Engine/engine.ts:13`). 이름을 바꾸면 `apiRoutes.ts:96`과 시험이 함께 바뀐다 (M05-55, M11 G6).
+45. 코드맵을 돌리면 안내 tour 6에 앵커 경고가 둘 난다. 하나는 `claudeAgentRun` 앵커 중복이고, 다른 하나는 `claudeStream`의 `mapClaudeStreamLine` 앵커가 없는 것이다. `guide.json`을 지금 코드에 맞출 후보다 (M05-78, M11 G6).
+44. 시작 경로의 모드 조회가 일반 객체라 `mode: 'constructor'`가 프로토타입 함수로 매핑된다. `permissionModes.test.ts`가 이 기존 동작을 고정한다. 바꾸면 앱 동작이 바뀌므로 goal 6은 두었다 (M05-69, M11 G6).
+43. 경계 lint의 남은 오탐 꼴: `**/../main` glob이 경로를 풀지 못해 renderer의 `../main`(= `renderer/src/main.tsx`)과 트리 안의 `main`·`preload` 이름 폴더를 잡는다. 대소문자 오탐은 고쳤고 지금 소스에는 0건이다 (M05-15, M11 G6).
+42. 앱 진입점에서 닿지 않는 패널 코드가 남았다. 셋은 `renderer/src/05_Conversation/PanelView.tsx`(499줄), `03_Agent/state/panelSession.ts`(502줄), `03_Agent/multiAgentDefaults.ts`(32줄)이고, 시험 약 60파일이 이 셋을 부른다. 셋을 지우면 함께 갈 것이 있다. 하나는 `PanelView` 소스 문자열 시험이다(`panelSession.run-core-alignment.test.tsx:239,358`, `ThreadView.test.tsx`의 「단일 대화와 멀티 패널」). M05-47의 「패널 정지 클릭」 동작 시험과 Backlog 10·11도 같이 간다. 큰 삭제라 따로 다룬다 (M10-3, M11 G6).
+41. 현황판 시험에 `app.js` 소스 정규식 시험이 남았다 — `view.test.mjs` 5건(등장 동작·띠 읽은 시각·빗금 링·어디쯤 띠·검증 기록 숫자 카드)과 `chime.test.mjs` 3건(알림 배선·소리 상태 표지·띠 손 줄)은 jsdom 시험이 덮지 않아 그대로 뒀다. 같은 jsdom 틀(`test/m11-g5-dom.test.mjs`의 `page`)로 옮길 후보다 (M11 G5, M05-71). → 고침(M11 goal 6, `e2c6a432`): 8건을 지우고 jsdom 동작 시험 11건으로 옮겼다. 동작으로 안 보이는 소스 구조 둘만 정규식 시험 한 건으로 남겼다(`chime.test.mjs`). `node --test` 결과는 292개 중 통과 291, 실패 0, 건너뜀 1.
 40. tdd-guard의 초록 증거는 파이프 없는 `npm test` 출력의 「Test Files … passed」 줄인데, 전체 `npm test`가 약 203초라 Bash 도구가 180초에 뒤로 돌려 출력이 훅에 닿지 않는다 — 그래서 소스 편집 연속 셈은 시험 파일 편집으로만 풀린다. 현황판(`99_Others/Dashboard/`)은 `npm test`에 없어서 그 초록도 셈을 풀지 못한다 (M11 G5 구현 중).
 39. `open-in-orca.mjs`의 탭 재사용이 가끔 실패해 새 탭을 연다는 M05-44의 남은 갈래는 이번에 재현하지 못했다. 재현 조건(같은 URL 탭이 다른 작업 공간에 있을 때 등)을 실측할 후보다 (M05-44, M11 G5).
 38. 현황판 「전체 중 어디쯤」이 M11을 「goal 5개 중 4개 완료, 남은 goal 0개」로 읽는다 — 계획 goal 판독(`lib/progress.mjs:77` `parsePlannedGoals`)은 「## … goal 목록」 아래 `### G10 — 이름` 머리를 읽는데, M11 스펙은 「## goal 후보」 표라서 G6~G9가 빠진다(실기동 캡처 `05-full.png`). 스펙 템플릿 꼴과 판독 중 어느 쪽을 맞출지 정한다 (M11 G5).
@@ -35,7 +46,7 @@
 12. 세션 레지스트리 남은 갈래 — 대화 쪽 실행 포트에 `life`가 없어(`03_Agent/state/runtime.ts:94`) `agent.run` 응답 전에 다른 대화로 넘어가면 뒤늦은 `SET_RUN_ID`가 새 전경 대화에 붙을 수 있다(`runCore.ts:138,202`, 코드 읽기). `forget`의 키 구독자 제거, 시험의 `defineKind` 덮기 미복원, `00_App`·`main.tsx`의 CSS 직접 import도 남았다 (M05-53, M11 G2).
 11. `preservePanelLocalFields`(`03_Agent/state/panelSession.ts:103-111`)는 여전히 사실상 아무 일도 안 한다. 지운 대화의 run 끊기만 고쳤다 (M05-52, M11 G2).
 10. 패널 쪽 남은 갈래 — `07_Workspace/file/index.ts:2` 주석의 낡은 PanelComposer, 패널 `/clear`의 REPL 토글 유지, 패널 입력창의 모드 뒤 꼬리 구분선 (M05-51, M11 G2).
-9. `mainChat.test.ts` 「재개 (M10 G2) > 줄 서 있던 사용자 글은 다시 열면 다시 줄을 선다」가 두 워커가 동시에 전체 시험을 돌릴 때 한 번 30초 timeout으로 실패했고 다시 돌리면 통과했다 — 부하 의존 flaky 후보, goal 6이 본다 (M11 G3 시험 담당 관찰).
+9. `mainChat.test.ts` 「재개 (M10 G2) > 줄 서 있던 사용자 글은 다시 열면 다시 줄을 선다」가 두 워커가 동시에 전체 시험을 돌릴 때 한 번 30초 timeout으로 실패했고 다시 돌리면 통과했다 — 부하 의존 flaky 후보, goal 6이 본다 (M11 G3 시험 담당 관찰). → 고침(M11 goal 6, `42cdd5f9`): 원인은 고정 30ms 대기다. 대기가 첫 시작보다 먼저 끝나면, 다시 열 때 첫 시작이 n===1 대본을 받아 `idle()`이 끝나지 않는다. 대기를 0으로 두면 결정적으로 재현된다. 대기 셋을 시작 수를 기다리는 `untilStarted`(`mainChat.test.ts:80`)로 바꿨고, 네 벌을 동시에 돌려 모두 38/38 통과했다.
 8. tdd-guard(`33_tdd-guard.cjs`)가 ROOT를 `CLAUDE_PROJECT_DIR`로 잡아 `.claude/worktrees/` 아래의 시험 파일 편집을 소스 편집으로 세고, 같은 세션 id의 하위 에이전트들이 streak 카운터를 나눠 써 한 워커의 초록 실행이 다른 워커의 카운터를 리셋한다 — 병렬 파이프라인에서 판정이 섞인다, goal 7이 본다 (M11 G3 시험 담당 관찰).
 7. `README.md:62-64`가 `/work:plan`·`/review`와 멀티 에이전트를 소개하고, `:74`의 「복원 후 다시 연결할 예정」 문구도 낡았을 수 있다 — goal 6이 README를 고칠 때 함께 본다 (M01-8, M11 G1 검수).
 6. 실행기에 goal을 다시 나누는 길을 넣으면 앞 goal의 FAIL 계수를 새 goal로 잇는다(헌법 11조). M09 G1 독립 검수의 G3 메모이고 아직 맡은 곳이 없다 (M09-1, M11 G1).

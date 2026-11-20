@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { buildAgentRunArgs } from '@renderer/03_Agent/state/panelSession'
+import { buildAgentRunArgs } from '@renderer/03_Agent/state/runCore'
 import type { ConversationMessage } from '@shared/ipcContract'
 
 const baseHistory: ConversationMessage[] = [

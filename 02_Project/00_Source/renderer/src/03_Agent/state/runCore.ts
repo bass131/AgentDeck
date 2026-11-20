@@ -16,8 +16,8 @@ import { createStaleTimer, isStaleNow, remainingStaleMs } from './staleWatchdog'
 import type { StaleTimerHandle } from './staleWatchdog'
 import type { RunAction, RunCoreState } from './runReducer'
 
-// 단일·멀티 공용 실행 코어 — 전송·중단·interrupt·권한 응답·질문 응답·stale 감시를 한 구현으로 둔다.
-// 상태의 거처는 모른다. 어댑터(runtime.ts, panelSession.ts)가 readState·dispatch 포트와 부수효과 콜백을 넘긴다.
+// 실행 코어 — 전송·중단·interrupt·권한 응답·질문 응답·stale 감시를 한 구현으로 둔다.
+// 상태의 거처는 모른다. 어댑터(runtime.ts)가 readState·dispatch 포트와 부수효과 콜백을 넘긴다.
 
 export interface SendOptions {
   picker?: { model: string; effort: string; mode: string }

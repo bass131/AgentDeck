@@ -42,9 +42,9 @@ describe('reducer — session 이벤트 (S1/S2)', () => {
   })
 })
 
-describe('panelSession — buildAgentRunArgs resumeSessionId (S3)', () => {
+describe('runCore — buildAgentRunArgs resumeSessionId (S3)', () => {
   it('S3: opts.resumeSessionId 운반', async () => {
-    const { buildAgentRunArgs } = await import('@renderer/03_Agent/state/panelSession')
+    const { buildAgentRunArgs } = await import('@renderer/03_Agent/state/runCore')
     const args = buildAgentRunArgs(
       [{ role: 'user', content: 'hi' }],
       { resumeSessionId: 'sess-panel-1' },
@@ -54,7 +54,7 @@ describe('panelSession — buildAgentRunArgs resumeSessionId (S3)', () => {
 
   // M06 G4: 마지막으로 잰 컨텍스트 창을 실어 main이 기록 재적재 예산을 정하게 한다.
   it('S3c: opts.contextWindow 운반, 미전달이면 키 없음', async () => {
-    const { buildAgentRunArgs } = await import('@renderer/03_Agent/state/panelSession')
+    const { buildAgentRunArgs } = await import('@renderer/03_Agent/state/runCore')
     const withWindow = buildAgentRunArgs([{ role: 'user', content: 'hi' }], { contextWindow: 200_000 })
     expect(withWindow.contextWindow).toBe(200_000)
     const without = buildAgentRunArgs([{ role: 'user', content: 'hi' }])
@@ -62,7 +62,7 @@ describe('panelSession — buildAgentRunArgs resumeSessionId (S3)', () => {
   })
 
   it('S3b: resumeSessionId 미전달 → undefined (회귀 0)', async () => {
-    const { buildAgentRunArgs } = await import('@renderer/03_Agent/state/panelSession')
+    const { buildAgentRunArgs } = await import('@renderer/03_Agent/state/runCore')
     const args = buildAgentRunArgs([{ role: 'user', content: 'hi' }])
     expect(args.resumeSessionId).toBeUndefined()
   })

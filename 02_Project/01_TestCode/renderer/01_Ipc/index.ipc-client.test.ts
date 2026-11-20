@@ -9,13 +9,12 @@ import { installFlatWindowApi, installWindowApi } from '../00_Helpers/windowApiM
 
 const SRC_ROOT = fileURLToPath(new URL('../../../00_Source/renderer/src/', import.meta.url))
 
-// G10에서 클라이언트로 옮긴 파일(32개, M10 G1에 지운 셋을 빼 29개) — 전수 검사가 이 파일들을 실제로 훑는지 함께 본다.
+// G10에서 클라이언트로 옮긴 파일(32개, M10 G1·M11 G6에 지운 넷을 빼 28개) — 전수 검사가 이 파일들을 실제로 훑는지 함께 본다.
 const MIGRATED: string[] = [
   '00_App/AppGate.tsx',
   'main.tsx',
   '00_App/state/system.ts',
   '03_Agent/state/runCore.ts',
-  '03_Agent/state/panelSession.ts',
   '03_Agent/state/runtime.ts',
   '03_Agent/state/sessionRegistry.ts',
   '05_Conversation/BackgroundTaskView.tsx',
@@ -74,8 +73,9 @@ describe('M05 G10 — window.api 직접 호출 0', () => {
   })
 
   // M10 G1: 32 → 29. 멀티 에이전트 모드를 지우며 그 세 파일(멀티 세션 상태·멀티 저장 훅·멀티 화면)이 없어졌다.
-  it('전수 검사는 옮긴 파일(G10의 32에서 M10 G1에 지운 셋을 뺀 29)을 모두 훑는다', () => {
-    expect(MIGRATED).toHaveLength(29)
+  // M11 G6: 29 → 28. 그리는 곳이 없던 패널 세션(panelSession.ts)을 지웠다(M10 Backlog 3).
+  it('전수 검사는 옮긴 파일(G10의 32에서 지운 넷을 뺀 28)을 모두 훑는다', () => {
+    expect(MIGRATED).toHaveLength(28)
     for (const rel of MIGRATED) expect(files).toContain(rel)
   })
 

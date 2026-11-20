@@ -82,10 +82,8 @@ export const DEFAULT_MODEL: string = DEFAULT_MODEL_ID
 
 export const DEFAULT_EFFORT: EffortLevel = DEFAULT_EFFORT_LEVEL
 
-// 기본 실행 모드(P4) — 대화는 auto, 멀티 패널은 bypass. 제품 기본값이라 G9 내내 값을 바꾸지 않는다.
-// 이름만 단일·멀티에서 세션 종류(대화·패널)로 바꿨다(G9c).
+// 대화 기본 실행 모드(P4).
 export const DEFAULT_MODE_CONVERSATION = 'auto'
-export const DEFAULT_MODE_PANEL = 'bypass'
 
 // 저장된 대화의 모드 — 선택기에 없는 값이면 대화 기본값(M06 Backlog 1)
 export function conversationModeOf(saved: string | undefined): string {

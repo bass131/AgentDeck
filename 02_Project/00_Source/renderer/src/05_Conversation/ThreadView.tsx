@@ -14,7 +14,7 @@ import { StatusLine } from './StatusLine'
 import { IconSpark, IconAlert, IconClaude, IconInfo, IconChevDown } from '@renderer/02_Common/icons'
 import { OrchestrationCard, SubAgentInline } from '@renderer/03_Agent'
 
-// 스레드 렌더 하나(M05 G9b) — 단일 대화(Conversation)와 멀티 패널(PanelView)이 같은 렌더를 쓴다.
+// 스레드 렌더 하나(M05 G9b) — 대화(Conversation)가 쓴다.
 // 복원 배지·Welcome·빈 화면·줌·스크롤 같은 장식과 배치는 호출부가 맡는다(R6).
 
 export interface ThinkingItemProps {

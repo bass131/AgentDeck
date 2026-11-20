@@ -1,7 +1,6 @@
 // 작업 ID: fb · 옛 이름 fb-run-failed-cleanup.test.tsx
 // @vitest-environment jsdom
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { renderHook, act, cleanup } from '@testing-library/react'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { makeInitialState } from '@renderer/05_Conversation/state/reducer'
 import { adaptFlatApi } from '../00_Helpers/windowApiMock'
 
@@ -84,44 +83,3 @@ describe('단일챗 sendMessage — agentRun reject 시 isRunning 롤백 + 에�
   })
 })
 
-describe('패널 usePanelSlot — agentRun reject 시 isRunning 롤백 + 에러 가시화 (reviewer 🟡)', () => {
-  beforeEach(async () => {
-    agentRunShouldFail = false
-    mockApi.agentRun.mockClear()
-    mockApi.agentAbort.mockClear()
-    const { __resetPanelSessionManagerForTests } = await import('@renderer/03_Agent/state/panelSession')
-    __resetPanelSessionManagerForTests()
-  })
-
-  afterEach(() => cleanup())
-
-  it('usePanelSlot().send() — agentRun reject → isRunning false + currentRunId null + errorMessage(ma-p-error 배너 재사용)', async () => {
-    agentRunShouldFail = true
-    const { usePanelSlot } = await import('@renderer/03_Agent/state/panelSession')
-    const { result } = renderHook(() => usePanelSlot('sess-run-failed-banner', 0))
-
-    await act(async () => {
-      await result.current.send('안녕')
-    })
-
-    expect(result.current.state.isRunning).toBe(false)
-    expect(result.current.state.currentRunId).toBeNull()
-    expect(result.current.state.errorMessage).toBeTruthy()
-  })
-
-  it('usePanelSlot().send() reject 후 abort() 재호출도 no-op(agentAbort IPC 미호출) — 고착 재현 X', async () => {
-    agentRunShouldFail = true
-    const { usePanelSlot } = await import('@renderer/03_Agent/state/panelSession')
-    const { result } = renderHook(() => usePanelSlot('sess-run-failed-abort', 0))
-
-    await act(async () => {
-      await result.current.send('안녕')
-    })
-    await act(async () => {
-      await result.current.abort()
-    })
-
-    expect(result.current.state.isRunning).toBe(false)
-    expect(mockApi.agentAbort).not.toHaveBeenCalled()
-  })
-})

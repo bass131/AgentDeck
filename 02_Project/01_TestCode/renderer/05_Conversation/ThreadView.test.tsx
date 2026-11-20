@@ -1,7 +1,6 @@
 // 작업 ID: g9b · 옛 이름 g9b-thread-view.test.tsx
 // @vitest-environment jsdom
-// M05 G9b — 스레드 렌더 하나(ThreadView). 단일 Conversation과 멀티 PanelView가 같은 렌더를 쓴다.
-// 이 파일은 공용 렌더 자체를 고정한다. 패널 쪽 정렬(R1~R7)은 03_Agent/panelSession.thread.test.tsx가 맡는다.
+// M05 G9b — 스레드 렌더 하나(ThreadView). 이 파일은 그 렌더 자체를 고정한다.
 import { describe, it, expect, afterEach } from 'vitest'
 import { render, cleanup } from '@testing-library/react'
 import type { ThreadItem } from '@renderer/05_Conversation/state/threadTypes'
@@ -122,13 +121,11 @@ describe('ThreadView — 작업 폴더 공급 (M07 G8)', () => {
     expect(getByText('작업 폴더가 없어 PR을 불러오지 않았어요')).toBeTruthy()
   })
 
-  it('단일 대화와 멀티 패널은 각자의 작업 폴더를 ThreadView에 넘긴다', async () => {
+  it('단일 대화는 작업 폴더를 ThreadView에 넘긴다', async () => {
     const { readFileSync } = await import('node:fs')
     const { resolve } = await import('node:path')
-    for (const f of ['Conversation.tsx', 'PanelView.tsx']) {
-      const src = readFileSync(resolve(__dirname, '../../../../02_Project/00_Source/renderer/src/05_Conversation', f), 'utf-8')
-      expect(src, f).toMatch(/<ThreadView[\s\S]*?cwd=\{workspaceRoot\}[\s\S]*?\/>/)
-    }
+    const src = readFileSync(resolve(__dirname, '../../../../02_Project/00_Source/renderer/src/05_Conversation/Conversation.tsx'), 'utf-8')
+    expect(src).toMatch(/<ThreadView[\s\S]*?cwd=\{workspaceRoot\}[\s\S]*?\/>/)
   })
 })
 

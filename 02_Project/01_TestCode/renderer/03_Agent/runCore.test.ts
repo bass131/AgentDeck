@@ -4,10 +4,13 @@ import { makeInitialState } from '@renderer/05_Conversation/state/reducer'
 import { createRunCore, createStaleWatchdogs, enginePromptFor, isRunningRetained, pickEvictions } from '@renderer/03_Agent/state/runCore'
 import { closeDeadRunState, runReducer } from '@renderer/03_Agent/state/runReducer'
 import type { RunCoreState } from '@renderer/03_Agent/state/runReducer'
+import type { RunCorePorts } from '@renderer/03_Agent/state/runCore'
+import type { AgentEventPayload } from '@shared/ipcContract'
+import type { ThreadItem } from '@renderer/05_Conversation/state/threadTypes'
 import { GOAL_BANNER_STALE_THRESHOLD_MS } from '@renderer/03_Agent/state/staleWatchdog'
 import { adaptFlatApi } from '../00_Helpers/windowApiMock'
 
-// M05 G9a — 단일·멀티 공용 실행 코어의 구조 단위 테스트. 동작 정렬(E 항목)은 panelSession.run-core-alignment가 고정한다.
+// M05 G9a — 공용 실행 코어의 구조 단위 테스트. 코어의 동작 규칙(E 항목)도 여기서 본다.
 
 function base(over: Partial<RunCoreState> = {}): RunCoreState {
   return { ...makeInitialState(), replMode: false, queue: [], ...over }
@@ -231,6 +234,170 @@ describe('createRunCore.handleEvent — permission_mode는 모드 포트로만 �
     expect(core.handleEvent({ runId: 'r0', event: { type: 'permission_mode', mode: 'auto' } })).toBe(false)
     expect(modes).toEqual(['plan'])
     expect(dispatched).toEqual([])
+  })
+})
+
+// M11 G6 — 패널 어댑터를 거쳐 코어를 보던 시험(panelSession.run-core-alignment·backlog46-dispose, M10 Backlog 3로 지움)을 코어에서 직접 본다.
+describe('createRunCore — 전송·중단·질문 규칙(E1·E2·E3·E8·E11·E13, Backlog 46)', () => {
+  type Api = Record<string, ReturnType<typeof vi.fn>>
+  function deferred<T>(): { promise: Promise<T>; resolve: (v: T) => void; reject: (e: unknown) => void } {
+    let resolve!: (v: T) => void
+    let reject!: (e: unknown) => void
+    const promise = new Promise<T>((res, rej) => { resolve = res; reject = rej })
+    return { promise, resolve, reject }
+  }
+  function rig(over: Partial<RunCorePorts<RunCoreState>> = {}) {
+    const api: Api = {
+      agentRun: vi.fn(async () => ({ runId: 'run-1' })),
+      agentAbort: vi.fn(async () => ({ ok: true })),
+      agentInterrupt: vi.fn(async () => ({ ok: true })),
+      questionRespond: vi.fn(async () => undefined),
+    }
+    Object.defineProperty(globalThis, 'window', { value: { api: adaptFlatApi(api) }, writable: true, configurable: true })
+    const box = { state: base() }
+    const core = createRunCore<RunCoreState>({
+      readState: () => box.state,
+      dispatch: (a) => { box.state = runReducer(box.state, a) },
+      refreshStale: () => {},
+      resolveRunTarget: () => ({}),
+      onPermissionMode: () => {},
+      ...over,
+    })
+    const emit = (event: AgentEventPayload['event'], runId = 'run-1'): boolean => core.handleEvent({ runId, event } as AgentEventPayload)
+    const msgs = () => box.state.thread.filter((t): t is Extract<ThreadItem, { kind: 'msg' }> => t.kind === 'msg')
+    return { api, box, core, emit, msgs }
+  }
+
+  it('E1: 실행 중이면 두 번째 send는 메시지도 agentRun도 만들지 않는다', async () => {
+    const { api, box, core, msgs } = rig()
+    await core.send({ text: '첫 요청' })
+    expect(box.state.isRunning).toBe(true)
+    await core.send({ text: '실행 중 두 번째' })
+    expect(api.agentRun).toHaveBeenCalledTimes(1)
+    expect(msgs().map((m) => m.text)).toEqual(['첫 요청'])
+  })
+
+  it('E3: agentRun 실패로 남은 errorMessage가 다음 전송 시작과 함께 사라진다', async () => {
+    const { api, box, core } = rig()
+    api.agentRun.mockImplementationOnce(async () => { throw new Error('연결 실패') })
+    await core.send({ text: '실패할 요청' })
+    expect(box.state.errorMessage).toBe('연결 실패')
+    const gate = deferred<{ runId: string }>()
+    api.agentRun.mockImplementationOnce(() => gate.promise)
+    const pending = core.send({ text: '다시 요청' })
+    expect(box.state.errorMessage).toBeUndefined()
+    gate.resolve({ runId: 'run-e3' })
+    await pending
+  })
+
+  it('E2: 대기 창의 중단은 IPC를 보내지 않고, agentRun이 실패하면 이전 세대로 돌아간다', async () => {
+    const { api, box, core, emit } = rig()
+    await core.send({ text: '첫 run' })
+    emit({ type: 'done' })
+    const first = box.state.runGeneration
+    expect(typeof first).toBe('string')
+    const gate = deferred<{ runId: string }>()
+    api.agentRun.mockImplementationOnce(() => gate.promise)
+    const pending = core.send({ text: '두 번째 run' })
+    expect(box.state.runGeneration).not.toBe(first)
+    await core.abort()
+    expect(api.agentAbort).not.toHaveBeenCalled()
+    expect(box.state.isRunning).toBe(true)
+    gate.reject(new Error('agentRun 거절'))
+    await pending
+    expect(box.state.runGeneration).toBe(first)
+    expect(box.state.errorMessage).toBe('agentRun 거절')
+  })
+
+  it('E2·E8: 수립된 run의 중단은 agentAbort를 보내고 세대를 지우며, 열린 응답에 「중단됨」을 단다', async () => {
+    const { api, box, core, emit, msgs } = rig()
+    await core.send({ text: '질문' })
+    emit({ type: 'text', delta: '답하는 중', messageId: 'a-1' })
+    expect(box.state.openMsgId).toBe('a-1')
+    await core.abort()
+    expect(api.agentAbort).toHaveBeenCalledWith({ runId: 'run-1' })
+    expect(box.state.runGeneration).toBeNull()
+    expect(box.state.isRunning).toBe(false)
+    expect(msgs().find((m) => m.role === 'assistant')?.interrupted).toBe(true)
+  })
+
+  it('E8: 열린 메시지가 없으면(대기 중) 사용자 메시지는 건드리지 않는다', async () => {
+    const { core, msgs } = rig()
+    await core.send({ text: '질문' })
+    await core.abort()
+    expect(msgs().every((m) => m.interrupted === undefined)).toBe(true)
+  })
+
+  it('E11: interrupt가 ok:true면 run은 계속되고 열린 메시지에 「중단됨」만 단다', async () => {
+    const { api, box, core, emit, msgs } = rig()
+    await core.send({ text: '질문' })
+    emit({ type: 'text', delta: '답', messageId: 'a-1' })
+    await core.interrupt()
+    expect(api.agentInterrupt).toHaveBeenCalledWith({ runId: 'run-1' })
+    expect(box.state.isRunning).toBe(true)
+    expect(msgs().find((m) => m.role === 'assistant')?.interrupted).toBe(true)
+  })
+
+  it('E11: interrupt가 ok:false면 죽은 run으로 보고 실행 표시·세대를 정리한다', async () => {
+    const { api, box, core } = rig()
+    await core.send({ text: '질문' })
+    api.agentInterrupt.mockResolvedValueOnce({ ok: false })
+    await core.interrupt()
+    expect(box.state.isRunning).toBe(false)
+    expect(box.state.currentRunId).toBeNull()
+    expect(box.state.runGeneration).toBeNull()
+  })
+
+  it('E11: agentRun 대기 창이나 run이 없을 때는 interrupt IPC를 보내지 않는다', async () => {
+    const idle = rig()
+    await idle.core.interrupt()
+    expect(idle.api.agentInterrupt).not.toHaveBeenCalled()
+    const { api, core, emit } = rig()
+    await core.send({ text: '첫 run' })
+    emit({ type: 'done' })
+    const gate = deferred<{ runId: string }>()
+    api.agentRun.mockImplementationOnce(() => gate.promise)
+    const pending = core.send({ text: '두 번째' })
+    await core.interrupt()
+    expect(api.agentInterrupt).not.toHaveBeenCalled()
+    gate.resolve({ runId: 'run-2' })
+    await pending
+  })
+
+  it('E13: question_request가 오면 pendingQuestion이 서고, 답과 취소(null)가 questionRespond로 간다', async () => {
+    const question = { question: '어느 쪽으로 할까요?', options: [{ label: 'A' }, { label: 'B' }] }
+    const { api, box, core, emit } = rig()
+    await core.respondQuestion([['A']])
+    expect(api.questionRespond).not.toHaveBeenCalled()
+    await core.send({ text: '질문해 줘' })
+    emit({ type: 'question_request', requestId: 'q-1', questions: [question] })
+    expect(box.state.pendingQuestion).toMatchObject({ runId: 'run-1', requestId: 'q-1' })
+    await core.respondQuestion([['A']])
+    expect(api.questionRespond).toHaveBeenCalledWith({ runId: 'run-1', requestId: 'q-1', answers: [['A']] })
+    expect(box.state.pendingQuestion).toBeNull()
+    emit({ type: 'question_request', requestId: 'q-2', questions: [question] })
+    await core.respondQuestion(null)
+    expect(api.questionRespond).toHaveBeenLastCalledWith({ runId: 'run-1', requestId: 'q-2', answers: null })
+  })
+
+  it('Backlog 46: 전송 중 life가 바뀌면 SET_RUN_ID·onRunStarted 없이 도착한 run을 agentAbort로 끊는다', async () => {
+    let life = 0
+    const actions: string[] = []
+    const onRunStarted = vi.fn()
+    const gate = deferred<{ runId: string }>()
+    const { api, box, core } = rig({
+      dispatch: (a) => { actions.push(a.type); box.state = runReducer(box.state, a) },
+      onRunStarted,
+      life: () => life,
+    })
+    api.agentRun.mockReturnValueOnce(gate.promise)
+    const sending = core.send({ text: 'x' })
+    life += 1
+    gate.resolve({ runId: 'r-core' })
+    await sending
+    expect(actions).toEqual(['ADD_USER_MESSAGE'])
+    expect(onRunStarted).not.toHaveBeenCalled()
+    expect(api.agentAbort).toHaveBeenCalledWith({ runId: 'r-core' })
   })
 })
 

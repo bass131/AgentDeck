@@ -1,6 +1,6 @@
 // agent 기능 캡슐 — 공개 표면 배럴.
-// 캡슐 밖 앱 소비처(Conversation.tsx, PanelView.tsx, SettingsModal.tsx,
-// Shell.tsx)는 이 파일을 통해서만 import한다. 캡슐 내부 파일을 직접
+// 캡슐 밖 앱 소비처(Conversation.tsx, SettingsModal.tsx, Shell.tsx,
+// FilesPanel.tsx)는 이 파일을 통해서만 import한다. 캡슐 내부 파일을 직접
 // 가리키는 import는 캡슐 경계를 우회하므로 지양한다.
 // 예외 1건 — 배럴로 덮을 수 없는 소비 형태:
 //   테스트는 모듈 파일을 직접 import한다 — 동적 import로 vi.mock 타이밍을
@@ -13,7 +13,7 @@
 // 않는다 — Shell.tsx의 SubAgentSplitView default import도 배럴 named로 전환했다.
 // 미등재 근거: AgentPanel 본체·SubAgentCell·SubAgentChatStream·
 // SubAgentModelBadge는 캡슐 밖 앱 소비가 없다(테스트·캡슐 내부 전용).
-// TodosSection은 AgentPanel.tsx가 선언하는 부속 export로 PanelView가 소비한다.
+// TodosSection은 AgentPanel.tsx가 선언하는 부속 export로 FilesPanel이 소비한다.
 export { OrchestrationCard } from './OrchestrationCard'
 export { SubAgentInline } from './SubAgentInline'
 export { SubAgentFullscreen } from './SubAgentFullscreen'

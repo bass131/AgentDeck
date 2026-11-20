@@ -13,7 +13,6 @@ import {
   __seedBackgroundRunsForTests,
   deleteBackgroundRun,
 } from '@renderer/03_Agent/state/backgroundRuns'
-import { __resetPanelSessionManagerForTests } from '@renderer/03_Agent/state/panelSession'
 import { adaptFlatApi } from '../00_Helpers/windowApiMock'
 
 // G9c B1 — Sidebar 실행 표시는 활성 대화만이 아니라 세션 레지스트리 기준이다(차이 목록 「S 의미」).
@@ -69,7 +68,7 @@ const rowRunning = (container: HTMLElement, index: number): boolean =>
 
 beforeEach(() => {
   __resetBackgroundRunsForTests()
-  __resetPanelSessionManagerForTests()
+  sessionRegistry.__resetKindForTests('panel')
   useAppStore.setState({
     workspaceMode: 'single',
     conversations: [rec('active'), rec('bg-run'), rec('bg-done'), rec('cold')],
@@ -82,7 +81,7 @@ beforeEach(() => {
 afterEach(() => {
   cleanup()
   __resetBackgroundRunsForTests()
-  __resetPanelSessionManagerForTests()
+  sessionRegistry.__resetKindForTests('panel')
 })
 
 describe('B1 — 대화 행은 레지스트리 기준으로 실행 중을 보인다', () => {

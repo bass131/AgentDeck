@@ -4,12 +4,7 @@ import { applyAgentEvent, makeInitialState } from '@renderer/05_Conversation/sta
 import type { AppState } from '@renderer/05_Conversation/state/reducer'
 import type { ThreadItem } from '@renderer/05_Conversation/state/threadTypes'
 import type { AgentEventPayload } from '@shared/ipcContract'
-import {
-  makePanelInitialState,
-  snapshotForPersist,
-  panelReducerFn,
-} from '@renderer/03_Agent/state/panelSession'
-import type { PanelSessionState } from '@renderer/03_Agent/state/panelSession'
+import { runReducer } from '@renderer/03_Agent/state/runReducer'
 
 function payload(event: AgentEventPayload['event']): AgentEventPayload {
   return { runId: 'run-cmd', event }
@@ -236,41 +231,13 @@ describe('인터리브 무회귀', () => {
   })
 })
 
-describe('panelReducer begin (멀티)', () => {
+describe('runReducer begin', () => {
   it('ADD_COMMAND_CARD 액션 → thread에 cmdresult 카드 push + pendingCommand 설정', () => {
-    const s0 = makePanelInitialState()
-    const s1 = panelReducerFn(s0, { type: 'ADD_COMMAND_CARD', name: 'compact', cardId: 'pcmd1', time: '오전 10:00' })
+    const s0 = { ...makeInitialState(), replMode: false, queue: [] }
+    const s1 = runReducer(s0, { type: 'ADD_COMMAND_CARD', name: 'compact', cardId: 'pcmd1', time: '오전 10:00' })
     const cards = s1.thread.filter((i) => i.kind === 'cmdresult')
     expect(cards).toHaveLength(1)
     expect((cards[0] as Extract<ThreadItem, { kind: 'cmdresult' }>).running).toBe(true)
     expect((cards[0] as Extract<ThreadItem, { kind: 'cmdresult' }>).title).toBe('대화를 요약하는 중…')
-  })
-})
-
-describe('미영속 (B4)', () => {
-  it('snapshotForPersist → cmdresult 제외 (msg-only)', () => {
-    const s0 = makePanelInitialState()
-    const stateWithCmdresult: PanelSessionState = {
-      ...s0,
-      thread: [
-        { kind: 'msg', id: 'u1', role: 'user', text: '안녕' },
-        { kind: 'cmdresult' as const, id: 'cmd1', name: 'compact', title: '대화를 요약하는 중…', running: true, sub: null, time: '오전 10:00' } as unknown as Extract<ThreadItem, { kind: 'cmdresult' }>,
-      ] as ThreadItem[],
-    }
-    const snapshot = snapshotForPersist(stateWithCmdresult)
-    expect(snapshot.messages).toHaveLength(1)
-    expect(snapshot.messages[0].role).toBe('user')
-  })
-
-  it('snapshotForPersist → running cmdresult 제외 (영구 스피너 차단)', () => {
-    const s0 = makePanelInitialState()
-    const stateRunning: PanelSessionState = {
-      ...s0,
-      thread: [
-        { kind: 'cmdresult' as const, id: 'cmd1', name: 'compact', title: '대화를 요약하는 중…', running: true, sub: null } as unknown as Extract<ThreadItem, { kind: 'cmdresult' }>,
-      ] as ThreadItem[],
-    }
-    const snapshot = snapshotForPersist(stateRunning)
-    expect(snapshot.messages).toHaveLength(0)
   })
 })

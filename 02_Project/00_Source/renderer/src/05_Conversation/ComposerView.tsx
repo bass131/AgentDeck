@@ -20,8 +20,7 @@ import { useComposerKeywordMirror } from './hooks/useComposerKeywordMirror'
 
 import './Composer.css'
 
-// 입력창 본체 하나(M05 G9b) — store를 모른다. 선택기 값과 setter는 호출부(단일 store 어댑터 Composer,
-// 멀티 PanelView)가 넘긴다.
+// 입력창 본체 하나(M05 G9b) — store를 모른다. 선택기 값과 setter는 호출부(store 어댑터 Composer)가 넘긴다.
 
 export interface QueuedMessageView {
   id: string

@@ -81,6 +81,17 @@ describe('reducer — compact(settings) → autoCompact', () => {
   })
 })
 
+// M11 G2 — M06 Backlog 18. 모델을 바꾼 뒤 턴이 끝나면 새로 잰 창이 다시 재적재 예산이 된다.
+describe('reducer — done은 창을 새로 재고 contextWindowStale을 내린다', () => {
+  it('done의 contextWindow로 창을 바꾸고 stale을 끈다', () => {
+    expect(makeInitialState().contextWindowStale).toBe(false)
+    const base = { ...makeInitialState(), lastContextWindow: 1_000_000, contextWindowStale: true, isRunning: true }
+    const next = applyAgentEvent(base, payload({ type: 'done', contextWindow: 200_000 }))
+    expect(next.lastContextWindow).toBe(200_000)
+    expect(next.contextWindowStale).toBe(false)
+  })
+})
+
 describe('gap1-p04 reducer — session_state → sdkSessionState 세팅', () => {
   it("session_state 'running' → sdkSessionState = 'running'", () => {
     const base = makeInitialState()

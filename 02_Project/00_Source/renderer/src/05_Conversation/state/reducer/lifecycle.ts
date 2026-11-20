@@ -66,6 +66,7 @@ export function handleDone(state: AppState, event: DoneEvent): AppState {
     isRunning: false,
     lastUsage: event.usage,
     lastContextWindow: event.contextWindow,
+    contextWindowStale: false,
     thinkingText: null,
     thinkingStartedAt: null,
     pendingPermission: null,

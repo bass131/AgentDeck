@@ -38,6 +38,7 @@ export function makeInitialState(): AppState {
     isRunning: false,
     lastUsage: undefined,
     lastContextWindow: undefined,
+    contextWindowStale: false,
     sessionId: undefined,
     activeLoops: [],
     loopsStoppedNotice: false,

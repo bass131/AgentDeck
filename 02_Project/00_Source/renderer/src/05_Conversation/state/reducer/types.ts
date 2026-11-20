@@ -61,6 +61,7 @@ export interface AppState {
   isRunning: boolean
   lastUsage?: TokenUsage
   lastContextWindow?: number
+  contextWindowStale: boolean
   sessionId?: string
   activeLoops: LoopInfo[]
   loopsStoppedNotice: boolean

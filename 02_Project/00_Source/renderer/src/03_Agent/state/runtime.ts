@@ -99,7 +99,7 @@ export const createRuntimeSlice: StateCreator<AppStore, [], [], RuntimeState & R
         return {
           workspaceRoot: get().workspaceRoot ?? undefined,
           resumeSessionId: get().sessionId,
-          ...(get().lastContextWindow !== undefined ? { contextWindow: get().lastContextWindow } : {}),
+          ...(get().lastContextWindow !== undefined && !get().contextWindowStale ? { contextWindow: get().lastContextWindow } : {}),
           ...(replMode ? { persistent: true, sessionKey: resolvedSessionKey } : {}),
         }
       }

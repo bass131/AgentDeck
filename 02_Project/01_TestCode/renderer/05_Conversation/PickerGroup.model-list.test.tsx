@@ -265,14 +265,15 @@ describe('store — main에서 목록 받기', () => {
   })
 
   // M11 G2 — M06 Backlog 18. 직전 턴이 잰 창은 그 모델의 창이다 — 모델을 바꾸면 버려서 재적재 예산이 보수 기본값으로 간다.
-  it('모델을 바꾸면 직전 턴이 잰 창(lastContextWindow)을 버린다', () => {
-    useAppStore.setState({ selectedModel: 'claude-opus-5-5', lastContextWindow: 1_000_000, currentRunId: null } as never)
+  it('모델을 바꾸면 직전 턴이 잰 창을 예산에서 뺀다 — 계기 창은 그대로 둔다', () => {
+    useAppStore.setState({ selectedModel: 'claude-opus-5-5', lastContextWindow: 1_000_000, contextWindowStale: false, currentRunId: null } as never)
     useAppStore.getState().setSelectedModel('claude-haiku-4-5-20251001')
-    expect(useAppStore.getState().lastContextWindow).toBeUndefined()
+    expect(useAppStore.getState().contextWindowStale).toBe(true)
+    expect(useAppStore.getState().lastContextWindow).toBe(1_000_000)
     // 같은 모델을 다시 고르면 그대로 둔다
-    useAppStore.setState({ lastContextWindow: 200_000 } as never)
+    useAppStore.setState({ contextWindowStale: false } as never)
     useAppStore.getState().setSelectedModel('claude-haiku-4-5-20251001')
-    expect(useAppStore.getState().lastContextWindow).toBe(200_000)
+    expect(useAppStore.getState().contextWindowStale).toBe(false)
   })
 
   it('IPC가 실패하면 지금 목록을 그대로 둔다', async () => {

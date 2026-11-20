@@ -400,6 +400,13 @@ describe('session-crud — 대화마다 권한 모드 (M06-1)', () => {
     expect(useAppStore.getState().pickerMode).toBe('auto')
   })
 
+  // M06 Backlog 18 — 모델을 바꾼 표시(contextWindowStale)는 그 대화의 것이다. 저장된 대화를 열면 내린다.
+  it('저장된 대화를 열면 contextWindowStale을 내린다', async () => {
+    useAppStore.setState({ contextWindowStale: true } as Parameters<typeof useAppStore.setState>[0])
+    await useAppStore.getState().selectConversation('m-plan')
+    expect(useAppStore.getState().contextWindowStale).toBe(false)
+  })
+
   it('conversationModeOf는 선택기에 있는 id만 받는다', async () => {
     const { conversationModeOf } = await import('@renderer/03_Agent/pickerOptions')
     expect(conversationModeOf('bypass')).toBe('bypass')

@@ -95,8 +95,8 @@ export const createComposerSlice: StateCreator<AppStore, [], [], ComposerState &
 
   setSelectedModel: (modelId) => {
     if (modelId === get().selectedModel) return
-    // 직전 턴이 잰 창은 옛 모델의 창이다 — 버려서 세션 없는 재적재가 보수 기본값을 쓰게 한다(M06 Backlog 18)
-    set({ selectedModel: modelId, modelChosen: true, lastContextWindow: undefined })
+    // 직전 턴이 잰 창은 옛 모델의 창이다 — 다음 턴이 새로 잴 때까지 재적재 예산에서 빼고(M06 Backlog 18) 계기는 그대로 둔다
+    set({ selectedModel: modelId, modelChosen: true, contextWindowStale: true })
     const { replMode, currentRunId, modelRows } = get()
     requestLiveModelSwitch(currentRunId, replMode, modelId, modelRows)
   },

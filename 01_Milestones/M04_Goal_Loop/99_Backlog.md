@@ -8,6 +8,9 @@ M11 Backlog 정리(`01_Milestones/M11_BacklogSweep/`)가 닫은 항목이다. �
 
 | 항목 | 닫힘 | 근거 |
 |---|---|---|
+| 1 | 고침(M11 goal 7) | M03-30과 같은 수리 — 포인터 없을 때 M01 기본값으로 감시하지 않는다(`40_pass-watcher.cjs`, `88394dac`). |
+| 2 | 고침(M11 goal 7) | M03-13과 같은 수리 — 머리 주석이 개정된 2조를 말한다(`10_start-brief.cjs`, `88394dac`). |
+| 3 | 고침(M11 goal 7) | 판정부가 머리말의 「상태: 종결」을 거부(`계획-종결`)한다 — ②③ 뒤에 본다. 마일스톤 사이에는 `01_Milestones` 안 편집만 열리고, goal을 닫은 뒤 `gate-config.json`의 `planPath`를 바꾸는 편집은 바뀐 뒤의 계획으로 판정해 지나간다(`_lib/plan-verdict.cjs` `isClosed`, `31_edit-plan-gate.cjs` 포인터 전환, EP-33·PS-01~08, `5a43d39c`·`303876ee`). |
 | 4 | 고침(M11 goal 6) | G1 결정 대장 [USER·위임]대로 라우팅 정책을 v3로 올리고 옛 서술에 「역사」 표시, 지금 ID·effort 값·앱 모델 목록과의 경계를 적었다(`cf6359ba`). |
 | 5 | v2로 | G1 결정 대장 [USER·위임] — `node -e` 꼴은 M07-34와 같은 자리라 가드 판독 재설계와 함께 다룬다(AD-01의 수락은 파일 쓰기 위험이라 이 길을 덮지 않는다). |
 | 6 | 해결됨 | 앱 경로는 모드 노드보다 앞의 노드가 가드 ask를 카드로 올리고(`permissionCoordinator.ts:120-121`, M06 G3 `c635ef75`) 권한 모드에 기대는 CLI 세션 몫은 M11 Backlog로 옮겼다. |

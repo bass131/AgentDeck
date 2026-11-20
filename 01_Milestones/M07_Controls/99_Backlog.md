@@ -9,6 +9,7 @@ M11 Backlog 정리(`01_Milestones/M11_BacklogSweep/`)가 닫은 항목이다. �
 | 항목 | 닫힘 | 근거 |
 |---|---|---|
 | 2 | M13으로 | M11 스펙 「하지 않을 것」 — `productName`은 설치본 패키징과 함께 M13이 맡는다. |
+| 4 | 고침(M11 goal 7) | Green 채집이 `persistedOutputPath` 파일 전문까지 읽어 요약 줄과 실패 표기를 본다(`33_tdd-guard.cjs` `responseText`, GE-09~09c, `3aa38815`). |
 | 5 | v2로 | G1 결정 대장 [USER·위임] — 끈 노드의 토글은 그래프 편집기의 일이다. |
 | 6 | 고침(M11 goal 3) | 엔진 경로 잠금의 재실측(규칙 경로 꼴 `//c/`, 훅 실패 시 `onFailure: 'block'`)을 SDK 재실측 절차에 뒀고, 다른 엔진 버전을 활성으로 삼을 때도 돌린다(`00_Documents/00_Architecture/01_SDK-재실측-절차.md` 「언제 돌리나」·「다시 잴 것」). |
 | 7 | 고침(M11 goal 3) | 셸 잠금이 8.3 짧은 이름(`AGENTD~1`, `ENGINE~1.JSO`)을 원래 이름으로 펴서 판정한다(`main/04_Claude/permission/enginePathLock.ts:88,97`, `0c2fec37`). SDK 동작에 달린 나머지 꼴(junction, `\\?\`·UNC, 괄호 든 경로, 하위 에이전트, MCP 쓰기 도구, 콜백 시간 초과)은 재실측 절차 「아직 재지 않은 꼴」에 다음 SDK 갱신 때 잴 것으로 올렸다. |
@@ -31,10 +32,12 @@ M11 Backlog 정리(`01_Milestones/M11_BacklogSweep/`)가 닫은 항목이다. �
 | 25 | v2로 | G1 결정 대장 [USER·위임] — 루프 노드 세션은 원격 자격이 없는 환경이라 `mergeDeny`는 겹의 하나이고, 남은 꼴은 판독 재설계와 함께 다룬다. |
 | 26 | 고침(M11 goal 5) | 병합 카드의 브라우저 e2e를 더했다 — `DASHBOARD_E2E=1`일 때 설치된 Edge(창 없음)로 펼친 diff가 새 스냅샷·시계 다시 칠하기에도 남는지, GitHub diff 링크를 누르면 본 것으로 세는지, 게이트가 그때만 열리는지 본다. 서버 쪽 병합(`prService`·`confirm`·`mergeFn`)은 가짜다(`99_Others/Dashboard/test/m11-g5-e2e.test.mjs:45`, `c98b20a1`). |
 | 27 | 고침(M11 goal 5) | 보낸 뒤 결과 줄이 있으면 「이미 병합을 요청했어요」 이유 줄을 빼 한 줄만 남긴다(`99_Others/Dashboard/public/app.js:896`, `20329d6f`). 시험 `[M11-G5 M07-27]`. |
+| 28 | 일부 고침(M11 goal 7) | `readme-links.test.mjs`가 루트 README와 현황판 README(그 폴더를 뿌리로)의 실물 링크를 검사한다(RL-28·29, `88394dac`). 현황판 `docs/*.md`는 검사 스크립트가 `README.md`만 읽어 그 스크립트를 고쳐야 본다 — M11 Backlog 62. AMSI 관찰은 할 일 없는 기록이다. |
 | 29 | 해결됨 | PR을 만든 세션이 병합을 뒤에서 감시한다(`99_Others/Dashboard/wait-merge.mjs`, `da219603`). |
 | 30 | 해결됨 | 현황판이 열린 PR 목록을 보인다(`4c49a98b`). |
 | 31 | 해결됨 | 넣기 직전 Orca 목록으로 메인 터미널을 찾는다(`99_Others/Dashboard/lib/deliver.mjs:64`, `53f5c91b`). |
 | 32 | 고침(M11 goal 5) | goal의 병합 대기 PR 번호가 바뀌면 PR 목록을 다시 읽고, 「목록 새로 읽기」·「다시 읽기」는 읽는 동안 끄지 않고 `aria-disabled`로 알려 키보드 초점이 남는다(`99_Others/Dashboard/public/app.js:911,988`, `20329d6f`). 시험 `[M11-G5 M07-32]`. |
+| 33 | 고침(M11 goal 7) | `SOURCE_EXTS`에서 `.css`를 뺐다 — 스타일 편집은 시험이 이끄는 편집이 아니다(CS-01). 현황판 `public/*.js`는 소스로 두고, 현황판 `node --test`의 실패 0 요약이 카운터를 푼다(GE-13, `3aa38815`). |
 | 34 | v2로 | M11 스펙 결정 대장 [USER] 2회차 — 두 표 일원화는 가드 재설계와 함께 「이번엔 안 한다」. |
 | 35 | 고침(M11 goal 5) | 후보가 있을 때 `orca worktree ps --json`(읽기 전용)을 한 번 더 읽어 `agents[].parentPaneKey`가 있는 pane(`tabId:leafId`)을 빼고, ps를 못 읽으면 예전대로 고른다. 성공 응답에 넣은 터미널 제목(`terminal`)을 싣고 화면의 「넣었어요」 줄이 그 제목을 보인다(`99_Others/Dashboard/lib/deliver.mjs:52,62`, `server.mjs:160`, `public/app.js:745`, `03d25f64`·`8e4116c0`). `answer.test.mjs`의 `canType` 소스 정규식은 지웠다(`c98b20a1`). worker·셸 pane의 실제 목록 모양은 실측하지 못했다. |
 | 36 | 해결됨 | ADR-005와 바뀐 거부 사유(가드 `MERGE_HINT`, 앱 `mergeDeny.ts:17` `REASON`)와 `smoke.test.mjs:141-142` 단언이 있고 SessionStart 몫은 M08-4가 맡는다. |

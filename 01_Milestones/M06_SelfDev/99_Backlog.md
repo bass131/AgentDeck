@@ -33,6 +33,7 @@ M11 Backlog 정리(`01_Milestones/M11_BacklogSweep/`)가 닫은 항목이다. �
 | 25 | 해결됨 | 메인 대화 안에 질문·승인 카드가 뜬다(`renderer/src/13_Loop/MainChatView.tsx:6,81`, M10 G3 `547ab01b`). |
 | 26 | 고침(M11 goal 2) | M06-2와 같은 고침이다(`eventNormalizer.ts:163`, `57c20790`). |
 | 27 | 고침(M11 goal 2) | SDK 자동 압축은 이미 켜져 있었다(실측 `getContextUsage` `isAutoCompactEnabled` true, 문턱은 사용자 설정 `autoCompactWindow`를 따른다 — 실앱에서 「자동 압축 217K」). 지속 세션은 턴 뒤, 한 턴짜리는 첫 메시지에서 모델마다 한 번 물어 컨텍스트 칩에 보인다(`claudeAgentRun.ts:210,415,622,642`, `05_Conversation/ComposerContext.tsx:50`, `57c20790`, `932c80e9`). |
+| 29 | 고침(M11 goal 4) | 메인 대화로 보내는 요청의 선택 칸 `proxy: true`가 대리 입력 표지다 — 기록의 사람 글이 표지를 갖고 화면에 「대리 입력」으로 보이며, 그 턴의 글에 결정 대장에 `[USER·위임]`으로 적으라는 줄이 붙는다(`main/05_Loop/mainChat.ts:65,145`, `main/01_Ipc/handlers/loop.ts:157`, `renderer/src/13_Loop/MainChatView.tsx:55`, `abde4069`). 화면 토글은 만들지 않는다(G4 결정 대장). 실앱 e2e `m11-g4-work-mode-live.e2e.ts` A에서 표지가 보였고 메인이 `[USER·위임]` 기록을 시도했다(브레인스토밍 밖이라 쓰기 창이 막았다). |
 | 30 | 해결됨 | 가드 훅에 `timeout: 30`과 `onFailure: "block"`이 있다(`.claude/settings.json:70`). |
 | 31 | 해결됨 | M07 G1 결정 대장 [USER] 「그대로 두고 닫기」가 닫았다(`M07_Controls/10_Goal-G1-판정-장치-정비.md:72`). |
 

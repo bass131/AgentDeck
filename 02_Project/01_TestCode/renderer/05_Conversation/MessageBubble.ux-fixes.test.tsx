@@ -1,4 +1,3 @@
-// 작업 ID: bcd-e · 옛 이름 ux-fixes-bcd-e.test.tsx
 // @vitest-environment jsdom
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, cleanup, act, fireEvent } from '@testing-library/react'

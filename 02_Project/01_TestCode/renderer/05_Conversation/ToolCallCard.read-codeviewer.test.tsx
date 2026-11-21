@@ -1,4 +1,3 @@
-// 작업 ID: gap1-p01 · 옛 이름 gap1-p01-read-codeviewer.test.tsx
 // @vitest-environment jsdom
 import { describe, it, expect, afterEach } from 'vitest'
 import { render, cleanup, fireEvent } from '@testing-library/react'

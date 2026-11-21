@@ -1,6 +1,4 @@
-// 작업 ID: g9b · 옛 이름 g9b-picker-group.test.tsx
 // @vitest-environment jsdom
-// M05 G9b — 선택기 하나(P1·P2). 단일 입력창 바(ComposerBar)가 PickerGroup을 쓴다.
 // P1: 옵션에 현재 값이 없어도 깨지지 않는다, P2: 문구는 aria 「모드 선택」.
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, cleanup, fireEvent } from '@testing-library/react'
@@ -25,9 +23,8 @@ function groupProps(over: Record<string, unknown> = {}) {
   }
 }
 
-// M11 G6 — 패널 선택기·패널 Shift+Tab 사례는 그리는 곳이 없던 PanelView와 함께 지웠다(M10 Backlog 3).
 describe('P5 — 전역 Shift+Tab은 채팅의 단일 선택기만 돌린다', () => {
-  // M10 G1 — 멀티 모드를 지웠다. 작업 모드에도 화면에 단일 선택기가 없으니 전역 처리기가 없다.
+  // 작업 모드에는 화면에 단일 선택기가 없으니 전역 처리기가 없다.
   it('전역 Shift+Tab 처리기는 작업 모드에서 없다 — 채팅에서만 단일 선택기를 돌린다', async () => {
     const { globalModeSwitchFor } = await import('@renderer/12_Window/useGlobalShortcuts')
     const cycle = vi.fn()
@@ -35,7 +32,7 @@ describe('P5 — 전역 Shift+Tab은 채팅의 단일 선택기만 돌린다', (
     expect(globalModeSwitchFor('single', cycle)).toBe(cycle)
   })
 
-  // G9b 검수 경미 — Shell이 전역 Shift+Tab 대상을 globalModeSwitchFor로 고르는지 실제 Shell로 고정한다.
+  // Shell이 전역 Shift+Tab 대상을 globalModeSwitchFor로 고르는지 실제 Shell로 고정한다.
   it('Shell: 채팅에서 document Shift+Tab은 단일 모드를 돌리고, 작업 모드에서는 돌리지 않는다(globalModeSwitchFor 배선)', async () => {
     const { act } = await import('@testing-library/react')
     const api: Record<string, unknown> = {

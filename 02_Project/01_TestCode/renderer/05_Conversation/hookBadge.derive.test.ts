@@ -1,4 +1,3 @@
-// 작업 ID: gap1-p16-s1 · 옛 이름 gap1-p16-s1-hook-badge-derive.test.ts
 import { describe, it, expect } from 'vitest'
 import type { ThreadItem } from '@renderer/05_Conversation/state/threadTypes'
 

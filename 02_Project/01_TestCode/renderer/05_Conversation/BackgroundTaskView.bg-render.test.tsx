@@ -1,4 +1,3 @@
-// 작업 ID: gap1-p09 · 옛 이름 gap1-p09-bg-task-render.test.tsx
 // @vitest-environment jsdom
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, cleanup, fireEvent } from '@testing-library/react'

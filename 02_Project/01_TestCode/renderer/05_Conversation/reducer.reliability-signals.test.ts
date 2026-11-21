@@ -1,4 +1,3 @@
-// 작업 ID: gap1-p04 · 옛 이름 gap1-p04-reliability-signals-reducer.test.ts
 import { describe, it, expect } from 'vitest'
 import { applyAgentEvent, makeInitialState } from '@renderer/05_Conversation/state/reducer'
 import type { AppState } from '@renderer/05_Conversation/state/reducer'
@@ -63,7 +62,7 @@ describe('gap1-p04 reducer — compact(status) → compacting 세팅·null clear
   })
 })
 
-// M11 G2 — M06 Backlog 27. SDK 자동 압축의 켜짐·문턱을 상태에 둔다. 진행 표시(compacting)는 건드리지 않는다.
+// SDK 자동 압축의 켜짐·문턱을 상태에 둔다. 진행 표시(compacting)는 건드리지 않는다.
 describe('reducer — compact(settings) → autoCompact', () => {
   it('settings 사건은 autoCompact를 채우고 compacting은 그대로 둔다', () => {
     const base = { ...makeInitialState(), compacting: 'compacting' } as P04State
@@ -81,7 +80,7 @@ describe('reducer — compact(settings) → autoCompact', () => {
   })
 })
 
-// M11 G2 — M06 Backlog 18. 모델을 바꾼 뒤 턴이 끝나면 새로 잰 창이 다시 재적재 예산이 된다.
+// 모델을 바꾼 뒤 턴이 끝나면 새로 잰 창이 다시 재적재 예산이 된다.
 describe('reducer — done은 창을 새로 재고 contextWindowStale을 내린다', () => {
   it('done의 contextWindow로 창을 바꾸고 stale을 끈다', () => {
     expect(makeInitialState().contextWindowStale).toBe(false)

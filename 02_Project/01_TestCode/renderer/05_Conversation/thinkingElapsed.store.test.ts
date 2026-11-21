@@ -1,4 +1,3 @@
-// 작업 ID: tg1-p02 · 옛 이름 tg1-p02-thinking-elapsed-store.test.ts
 import { describe, it, expect } from 'vitest'
 import { applyAgentEvent, makeInitialState } from '@renderer/05_Conversation/state/reducer'
 import type { AgentEvent } from '@shared/agentEvents'

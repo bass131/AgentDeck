@@ -1,4 +1,3 @@
-// 작업 ID: fb2-p0 · 옛 이름 fb2-p0-abort-stream-cleanup.test.ts
 import { describe, it, expect, beforeEach } from 'vitest'
 import { useAppStore } from '@renderer/00_App/appStore'
 import {

@@ -1,4 +1,3 @@
-// 작업 ID: tg1-p03 · 옛 이름 tg1-p03-turn-blocks.test.ts
 import { describe, it, expect } from 'vitest'
 import type { ThreadItem } from '@renderer/05_Conversation/state/threadTypes'
 

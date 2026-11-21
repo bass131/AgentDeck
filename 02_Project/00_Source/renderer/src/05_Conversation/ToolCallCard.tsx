@@ -111,7 +111,7 @@ function ToolCallCardInner({ card, fileDiffs = {}, targetOverride, runId }: Tool
   const isBash = kind === 'bash'
   const hasBashOutput = isBash && !hasBgTask && card.status !== 'running' && typeof card.result === 'string' && card.result.length > 0
 
-  // `gh pr create` 결과에 PR URL이 보이면 그 아래에 PR 카드를 띄운다 (M07 G8). URL은 번호를 찾는 데만 쓴다.
+  // `gh pr create` 결과에 PR URL이 보이면 그 아래에 PR 카드를 띄운다. URL은 번호를 찾는 데만 쓴다.
   const threadCwd = useContext(ThreadCwdContext)
   const prUrl = isBash && card.status === 'done' ? prUrlFromToolCall(card.input, card.result) : null
 

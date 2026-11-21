@@ -1,4 +1,3 @@
-// 작업 ID: b8 · 옛 이름 b8-context-strip.test.ts
 // @vitest-environment node
 import { describe, it, expect, vi, beforeEach, afterEach, afterAll } from 'vitest'
 import { adaptFlatApi } from '../00_Helpers/windowApiMock'

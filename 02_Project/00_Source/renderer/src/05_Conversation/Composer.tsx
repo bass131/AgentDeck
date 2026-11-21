@@ -25,7 +25,7 @@ function ComposerInner(props: ComposerProps): JSX.Element {
   const mode = useAppStore(selectPickerMode)
   const setMode = useAppStore.getState().setPickerMode
 
-  // UltraCode 범위 = 이 대화의 세션 레지스트리 키(G9c). 새 대화(초안)는 convKey(null)이고 id가 생기면 옮긴다.
+  // UltraCode 범위 = 이 대화의 세션 레지스트리 키. 새 대화(초안)는 convKey(null)이고 id가 생기면 옮긴다.
   const conversationId = useAppStore(selectConversationId)
   const [orchestration, setOrchestration] = useUltracodeToggle(convKey(conversationId))
 

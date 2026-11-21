@@ -72,7 +72,7 @@ export function useSlashPalette({
     }
 
     let cancelled = false
-    // L1(멀티 규칙) — 작업 폴더가 있으면 그 폴더 기준 목록을 받는다. 없으면 main이 현재 workspace로 대체한다.
+    // 작업 폴더가 있으면 그 폴더 기준 목록을 받는다. 없으면 main이 현재 workspace로 대체한다.
     const rootReq = workspaceRoot ? { root: workspaceRoot } : undefined
     Promise.all([
       hasListCmds

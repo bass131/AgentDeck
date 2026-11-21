@@ -1,4 +1,3 @@
-// 작업 ID: tg1-p04 · 옛 이름 tg1-p04-status-line-format.test.ts
 import { describe, it, expect } from 'vitest'
 import {
   formatElapsedLabel,

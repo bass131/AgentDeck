@@ -15,7 +15,7 @@ export function handlePermissionRequest(state: AppState, event: PermissionReques
     ...(event.askReason !== undefined ? { askReason: event.askReason } : {}),
   }
   const shown = state.pendingPermission
-  // 보이는 카드가 있으면 덮지 않고 줄을 세운다(M06 Backlog 12) — 같은 요청이 다시 오면 그대로 둔다
+  // 보이는 카드가 있으면 덮지 않고 줄을 세운다 — 같은 요청이 다시 오면 그대로 둔다
   if (shown === null || shown.requestId === event.requestId) {
     return { ...state, pendingPermission: shown === null ? next : { ...next, behind: shown.behind } }
   }

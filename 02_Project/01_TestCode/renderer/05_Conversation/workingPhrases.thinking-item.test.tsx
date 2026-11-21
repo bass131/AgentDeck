@@ -1,4 +1,3 @@
-// 작업 ID: p14a · 옛 이름 p14a-working-phrases.test.tsx
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, cleanup, act, fireEvent } from '@testing-library/react'

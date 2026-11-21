@@ -1,4 +1,3 @@
-// 작업 ID: w7 · 옛 이름 w7-bash-dom.test.tsx
 // @vitest-environment jsdom
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
 import { render, screen, fireEvent, cleanup, act } from '@testing-library/react'

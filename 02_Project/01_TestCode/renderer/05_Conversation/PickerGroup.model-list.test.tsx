@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// M06 G4 — 선택기와 effort 메뉴는 main이 준 SDK 모델 목록(displayName, supportedEffortLevels)으로 그린다.
+// 선택기와 effort 메뉴는 main이 준 SDK 모델 목록(displayName, supportedEffortLevels)으로 그린다.
 import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest'
 import { createElement } from 'react'
 import { render, cleanup, fireEvent } from '@testing-library/react'
@@ -106,7 +106,7 @@ describe('effort 메뉴 — supportedEffortLevels로 그린다', () => {
     expect(openOptions(container, 'Effort 선택')).not.toContain('최소')
   })
 
-  // G4 검수 1-2: 옛 「최소」는 가장 싼 설정이었으므로 「낮음」으로 읽는다.
+  // 옛 「최소」는 가장 싼 설정이었으므로 「낮음」으로 읽는다.
   it("옛 저장값 'minimal'은 「낮음」으로 보인다", () => {
     const { container } = render(createElement(PickerGroup, props({ effort: 'minimal' }) as never))
     expect(valueOf(container, 'Effort 선택')).toBe('낮음')
@@ -127,13 +127,12 @@ describe('실행 중 모델 전환 — 받는 목록 기준', () => {
     expect(setModel).not.toHaveBeenCalled()
     requestLiveModelSwitch('run-1', true, 'sonnet', SDK_MODEL_ROWS)
     expect(setModel).toHaveBeenCalledWith({ runId: 'run-1', model: 'sonnet' })
-    // 최소 목록도 별칭 행을 가진다(M11 G2, M06 Backlog 16)
+    // 최소 목록도 별칭 행을 가진다
     requestLiveModelSwitch('run-2', true, 'sonnet', FALLBACK_MODELS)
     expect(setModel).toHaveBeenCalledWith({ runId: 'run-2', model: 'sonnet' })
   })
 })
 
-// M11 G2 — M06 Backlog 24. effort는 세션을 만들 때 정해져 대화 중에 바뀌지 않았다.
 describe('실행 중 effort 전환', () => {
   it('REPL 실행이 있으면 agent.setEffort로 보내고, 없거나 단계가 아니면 보내지 않는다', async () => {
     const setEffort = vi.fn(async () => ({ ok: true }))
@@ -179,7 +178,6 @@ describe('store — main에서 목록 받기', () => {
     expect(useAppStore.getState().modelRows).toEqual(SDK_MODEL_ROWS)
   })
 
-  // M11 G2 — M06 Backlog 13. main이 SDK 목록을 못 받아 최소 목록·캐시를 주면, 재시작 전까지 다시 묻지 않았다.
   it('SDK 목록이 아니면(builtin·cache) 조금 뒤 다시 묻고, sdk를 받으면 멈춘다', async () => {
     vi.useFakeTimers()
     try {
@@ -234,7 +232,6 @@ describe('store — main에서 목록 받기', () => {
     }
   })
 
-  // M11 G2 — M06 Backlog 17. 기본 모델이 손으로 적은 값에 묶여 있었다.
   it('SDK 목록이 오면 손대지 않은 새 대화의 모델이 default 행의 정식 ID가 된다', async () => {
     const rows = SDK_MODEL_ROWS.map((r) => (r.value === 'default' ? { ...r, resolvedModel: 'claude-fable-5-2' } : r))
     useAppStore.setState({ modelRows: [...FALLBACK_MODELS], selectedModel: DEFAULT_MODEL, modelChosen: false, conversationId: null, thread: [] } as never)
@@ -264,7 +261,7 @@ describe('store — main에서 목록 받기', () => {
     expect(useAppStore.getState().selectedModel).toBe(DEFAULT_MODEL)
   })
 
-  // M11 G2 — M06 Backlog 18. 직전 턴이 잰 창은 그 모델의 창이다 — 모델을 바꾸면 버려서 재적재 예산이 보수 기본값으로 간다.
+  // 직전 턴이 잰 창은 그 모델의 창이다 — 모델을 바꾸면 버려서 재적재 예산이 보수 기본값으로 간다.
   it('모델을 바꾸면 직전 턴이 잰 창을 예산에서 뺀다 — 계기 창은 그대로 둔다', () => {
     useAppStore.setState({ selectedModel: 'claude-opus-5-5', lastContextWindow: 1_000_000, contextWindowStale: false, currentRunId: null } as never)
     useAppStore.getState().setSelectedModel('claude-haiku-4-5-20251001')

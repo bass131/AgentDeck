@@ -32,7 +32,7 @@ function ModeIc({ iconKey, size = 14 }: { iconKey?: ModeIconKey; size?: number }
   return <C size={size} />
 }
 
-type PickOption =ModelOption | EffortOption | ModeOption
+type PickOption = ModelOption | EffortOption | ModeOption
 
 function isModeOption(o: PickOption): o is ModeOption {
   return 'icon' in o

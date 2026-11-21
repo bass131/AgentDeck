@@ -1,4 +1,3 @@
-// 작업 ID: tg1-p04 · 옛 이름 tg1-p04-status-line.test.tsx
 // @vitest-environment jsdom
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, cleanup, act } from '@testing-library/react'

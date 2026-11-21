@@ -75,7 +75,7 @@ describe('MessageBubble — streaming=false → 기존 MarkdownView (회귀 0)',
   })
 })
 
-// M10 G1 — 멀티 에이전트 화면을 지우며 패널 카드 스타일(.ma-*)을 03_Agent/panelCard.css로 옮겼다(서브에이전트 보기가 쓴다).
+// 패널 카드 스타일(.ma-*)은 서브에이전트 보기가 쓴다.
 describe('패널 카드 CSS — .ma-p-messages 가로 패딩', () => {
   const CSS_PATH = '02_Project/00_Source/renderer/src/03_Agent/panelCard.css'
 

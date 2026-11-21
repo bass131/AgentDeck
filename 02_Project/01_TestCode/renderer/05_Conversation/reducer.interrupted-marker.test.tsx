@@ -1,4 +1,3 @@
-// 작업 ID: gap1-p15-r1-s3 · 옛 이름 gap1-p15-r1-s3-interrupted-marker.test.tsx
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, act, cleanup } from '@testing-library/react'

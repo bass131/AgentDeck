@@ -1,6 +1,5 @@
-// 작업 ID: g9b · 옛 이름 g9b-composer-view.test.tsx
 // @vitest-environment jsdom
-// M05 G9b — 입력창 하나. 이름 Composer는 단일 store 어댑터로 남고, 순수 본체는 ComposerView다.
+// 이름 Composer는 단일 store 어댑터로 남고, 순수 본체는 ComposerView다.
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
 import { render, cleanup, fireEvent, act } from '@testing-library/react'
 import { adaptFlatApi } from '../00_Helpers/windowApiMock'
@@ -138,8 +137,7 @@ describe('Composer — 단일 store 어댑터', () => {
   })
 })
 
-// G9b 독립 검수 차단 1 — 질문 창은 창 전역 keydown으로 답을 받는다.
-// M11 G6 — 패널 입력창·질문 창 사례는 그리는 곳이 없던 PanelView와 함께 지웠다(M10 Backlog 3). 질문 창 자체의 동작만 남긴다.
+// 질문 창은 창 전역 keydown으로 답을 받는다.
 describe('질문 창 — 출처 표시와 반복 입력', () => {
   const Q = (question: string) => [
     {
@@ -164,7 +162,7 @@ describe('질문 창 — 출처 표시와 반복 입력', () => {
     expect(onAnswer).toHaveBeenCalledWith([['b.ts']])
   })
 
-  // 재검수 경미 3 — 답하자마자 다음 패널 창이 같은 자리에 뜨므로, 길게 누른 키의 반복 입력은 답으로 받지 않는다.
+  // 답하자마자 다음 패널 창이 같은 자리에 뜨므로, 길게 누른 키의 반복 입력은 답으로 받지 않는다.
   it('숫자·Enter 답 키는 반복 입력(e.repeat)이면 무시하고, 새로 누른 키만 답한다', async () => {
     const { QuestionModal } = await import('@renderer/03_Agent/prompt')
     const onAnswer = vi.fn()

@@ -2,7 +2,7 @@
 // 암호화를 쓸 수 없으면 쓰지 않는다. electron은 부르는 쪽이 넣는다.
 import fs, { promises as fsp } from 'node:fs'
 import path from 'node:path'
-import { writeFileAtomic } from '../05_Loop/realPorts/atomicWrite'
+import { rmRetrying, writeFileAtomic } from '../05_Loop/realPorts/atomicWrite'
 
 export interface SafeStorageLike {
   isEncryptionAvailable(): boolean
@@ -52,7 +52,7 @@ export function createTokenStore(opts: { file: string; safeStorage: SafeStorageL
       return { ok: true }
     },
     async clear() {
-      await fsp.rm(opts.file, { force: true })
+      await rmRetrying(opts.file)
     },
   }
 }

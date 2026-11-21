@@ -3,6 +3,8 @@ import type { GithubAuthStatus } from '@shared/ipcContract'
 import { IconCopy, IconGitBranch } from '@renderer/02_Common/icons'
 import { ipc } from '@renderer/01_Ipc'
 
+const REQUEST_FAILED = '요청을 처리하지 못했어요 — 다시 시도해 주세요'
+
 function expiryText(iso: string): string {
   const d = new Date(iso)
   if (Number.isNaN(d.getTime())) return ''
@@ -44,6 +46,9 @@ export function GitHubAccountView(): JSX.Element {
     setNote(null)
     try {
       apply(await fn())
+    } catch {
+      setNote(REQUEST_FAILED)
+      await ipc.github.status().then(apply, () => undefined)
     } finally {
       setBusy(false)
     }

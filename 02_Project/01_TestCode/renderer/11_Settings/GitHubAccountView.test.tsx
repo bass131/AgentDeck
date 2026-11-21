@@ -77,4 +77,16 @@ describe('GitHub 계정 칸', () => {
     await act(async () => { push?.({ phase: 'disconnected', error: 'GitHub 연결 준비가 안 됐어요' }) })
     expect(screen.getByRole('alert').textContent).toContain('GitHub 연결 준비가 안 됐어요')
   })
+
+  it('요청이 실패하면 오류 문구를 보이고 상태를 다시 읽으며, 버튼이 다시 눌린다', async () => {
+    api.githubDisconnect.mockRejectedValueOnce(new Error('ipc down'))
+    api.githubStatus.mockResolvedValue({ phase: 'connected', login: 'octocat' })
+    await renderView()
+    const reads = api.githubStatus.mock.calls.length
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: '연결 해제' })) })
+    expect(screen.getByText('요청을 처리하지 못했어요 — 다시 시도해 주세요')).toBeTruthy()
+    expect(api.githubStatus.mock.calls.length).toBe(reads + 1)
+    expect((screen.getByRole('button', { name: '연결 해제' }) as HTMLButtonElement).disabled).toBe(false)
+    expect(screen.getByLabelText('연결된 계정').textContent).toBe('octocat')
+  })
 })

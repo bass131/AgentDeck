@@ -17,6 +17,18 @@ export async function renameRetrying(from: string, to: string): Promise<void> {
   }
 }
 
+export async function rmRetrying(file: string): Promise<void> {
+  for (let i = 0; ; i++) {
+    try {
+      await fsp.rm(file, { force: true })
+      return
+    } catch (e) {
+      if (i >= 5 || !RETRY.has((e as NodeJS.ErrnoException).code ?? '')) throw e
+      await new Promise((r) => setTimeout(r, 20 * (i + 1)))
+    }
+  }
+}
+
 // 동기 쓰기만 하는 저장소(대화 색인)가 쓰는 같은 꼴
 export function writeFileAtomicSync(file: string, text: string): void {
   const tmp = `${file}.${process.pid}.${randomBytes(4).toString('hex')}.tmp`

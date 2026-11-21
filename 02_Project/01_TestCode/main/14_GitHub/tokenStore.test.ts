@@ -1,8 +1,8 @@
 // 토큰 저장 — safeStorage 가짜로 본다. 파일에는 평문이 없고, 암호화를 쓸 수 없으면 저장하지 않는다.
-import fs from 'node:fs'
+import fs, { promises as fsp } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { GITHUB_AUTH_FILE, NO_SAFE_STORAGE, createTokenStore, storedToken, type SafeStorageLike } from '@main/14_GitHub/tokenStore'
 
 const TOKEN = 'gho_plainTokenMustNotLeak42'
@@ -59,6 +59,36 @@ describe('토큰 저장', () => {
     expect(fs.existsSync(file)).toBe(false)
     await store.clear()
     expect(store.read()).toEqual({ kind: 'none' })
+  })
+
+  it('지우기가 EPERM·EBUSY로 잠깐 막히면 다시 시도해 지운다', async () => {
+    const store = createTokenStore({ file, safeStorage: fakeSafeStorage() })
+    await store.write({ token: TOKEN, login: 'octocat' })
+    const realRm = fsp.rm.bind(fsp)
+    const codes = ['EPERM', 'EBUSY']
+    const rm = vi.spyOn(fsp, 'rm').mockImplementation(async (...a: Parameters<typeof fsp.rm>) => {
+      const code = codes.shift()
+      if (code) throw Object.assign(new Error(code), { code })
+      return realRm(...a)
+    })
+    try {
+      await store.clear()
+    } finally {
+      rm.mockRestore()
+    }
+    expect(fs.existsSync(file)).toBe(false)
+    expect(codes).toEqual([])
+  })
+
+  it('지우기가 다른 오류로 실패하면 그대로 던진다', async () => {
+    const store = createTokenStore({ file, safeStorage: fakeSafeStorage() })
+    const rm = vi.spyOn(fsp, 'rm').mockRejectedValue(Object.assign(new Error('EIO'), { code: 'EIO' }))
+    try {
+      await expect(store.clear()).rejects.toThrow('EIO')
+      expect(rm).toHaveBeenCalledTimes(1)
+    } finally {
+      rm.mockRestore()
+    }
   })
 
   it('풀리지 않는 파일은 읽지 못함이고 토큰을 내지 않는다', async () => {

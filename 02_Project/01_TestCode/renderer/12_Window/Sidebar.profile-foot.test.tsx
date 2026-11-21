@@ -48,7 +48,7 @@ function patchStore(overrides: Record<string, unknown> = {}): void {
 }
 
 async function renderSidebar(
-  props: { onCollapse?: () => void; onOpenSettings?: () => void } = {},
+  props: { onCollapse?: () => void; onOpenSettings?: () => void; onOpenOnboarding?: () => void } = {},
 ) {
   const { Sidebar } = await import('@renderer/12_Window/Sidebar')
   let container!: HTMLElement
@@ -57,6 +57,7 @@ async function renderSidebar(
       <Sidebar
         onCollapse={props.onCollapse ?? (() => {})}
         onOpenSettings={props.onOpenSettings ?? (() => {})}
+        {...(props.onOpenOnboarding ? { onOpenOnboarding: props.onOpenOnboarding } : {})}
       />,
     )
     container = result.container
@@ -147,6 +148,19 @@ describe('sb-foot 구조·동작 보존', () => {
     const footBtn = screen.getByLabelText('설정 열기')
     fireEvent.click(footBtn)
     expect(onOpenSettings).toHaveBeenCalledOnce()
+  })
+
+  it('「시작하기 열기」는 여는 함수를 받았을 때만 설정 열기 위에 있고, 누르면 그 함수를 부른다', async () => {
+    patchStore()
+    const none = await renderSidebar()
+    expect(none.querySelector('.sb-guide')).toBeNull()
+    cleanup()
+    const onOpenOnboarding = vi.fn()
+    const container = await renderSidebar({ onOpenOnboarding })
+    const btn = screen.getByRole('button', { name: '시작하기 열기' })
+    expect(btn.nextElementSibling).toBe(container.querySelector('.sb-foot'))
+    fireEvent.click(btn)
+    expect(onOpenOnboarding).toHaveBeenCalledOnce()
   })
 
   it('.sb-foot 내부에 .ava와 .who .n 구조가 있다', async () => {

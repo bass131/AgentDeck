@@ -515,6 +515,22 @@
   filter: brightness(0.95);
 }
 
+.sb-guide {
+  margin: auto 12px 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: none;
+  color: var(--text-2);
+  font-family: inherit;
+  font-size: 12.5px;
+  cursor: pointer;
+}
+.sb-guide:hover { background: var(--surface-2); color: var(--text); }
+
 .sb-foot {
   border-top: 1px solid var(--line);
   padding: 10px 12px;

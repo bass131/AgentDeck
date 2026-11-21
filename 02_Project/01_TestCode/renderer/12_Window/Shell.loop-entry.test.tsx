@@ -73,7 +73,7 @@ describe('루프 화면 진입점 — 작업 모드 (M10 G1)', () => {
       loopMainRead: vi.fn().mockResolvedValue(blankView),
       onLoopMainState: vi.fn(() => () => {}),
       pickFolder: vi.fn().mockResolvedValue({ path: CWD }),
-      getUiPrefs: vi.fn().mockResolvedValue({ 'whatsnew.seenVersion': '0.0.0-test' }),
+      getUiPrefs: vi.fn().mockResolvedValue({ 'whatsnew.seenVersion': '0.0.0-test', 'onboarding.closed': 'later' }),
       checkEngineUpdate: vi.fn().mockResolvedValue({ current: null, latest: null, updateAvailable: false }),
     }
     const installed = installWindowApi(overrides)
@@ -151,7 +151,7 @@ describe('루프 화면 진입점 — 작업 모드 (M10 G1)', () => {
       loopAlerts: vi.fn().mockResolvedValue({ alerts: [] }),
       onLoopAlerts: vi.fn(() => () => {}),
       onLoopAlertOpen: vi.fn((cb: (o: { cwd: string }) => void) => { opens.add(cb); return () => opens.delete(cb) }),
-      getUiPrefs: vi.fn().mockResolvedValue({ 'whatsnew.seenVersion': '0.0.0-test' }),
+      getUiPrefs: vi.fn().mockResolvedValue({ 'whatsnew.seenVersion': '0.0.0-test', 'onboarding.closed': 'later' }),
       checkEngineUpdate: vi.fn().mockResolvedValue({ current: null, latest: null, updateAvailable: false }),
     }
     const installed = installWindowApi(overrides)
@@ -199,7 +199,7 @@ describe('루프 화면 진입점 — 작업 모드 (M10 G1)', () => {
     const { Shell } = await import('@renderer/12_Window/Shell')
 
     // 첫 실행 — 작업 모드에서 폴더를 고르면 설정에 남긴다
-    let installed = installWindowApi({ ...base, getUiPrefs: vi.fn().mockResolvedValue({ 'whatsnew.seenVersion': '0.0.0-test' }) })
+    let installed = installWindowApi({ ...base, getUiPrefs: vi.fn().mockResolvedValue({ 'whatsnew.seenVersion': '0.0.0-test', 'onboarding.closed': 'later' }) })
     try {
       await loadPrefs()
       useAppStore.getState().setWorkspaceMode('work')
@@ -220,7 +220,7 @@ describe('루프 화면 진입점 — 작업 모드 (M10 G1)', () => {
     loopMainRead.mockClear()
     const { useWorkStore } = await import('@renderer/13_Loop')
     useWorkStore.setState({ hydrated: false, cwd: null, projects: [], center: 'main', extraTabs: [], right: 'board', archives: [] })
-    installed = installWindowApi({ ...base, getUiPrefs: vi.fn().mockResolvedValue({ 'whatsnew.seenVersion': '0.0.0-test', 'workspace.mode': 'work', 'work.cwd': CWD }) })
+    installed = installWindowApi({ ...base, getUiPrefs: vi.fn().mockResolvedValue({ 'whatsnew.seenVersion': '0.0.0-test', 'onboarding.closed': 'later', 'workspace.mode': 'work', 'work.cwd': CWD }) })
     try {
       await loadPrefs()
       useAppStore.getState().setWorkspaceMode('work')

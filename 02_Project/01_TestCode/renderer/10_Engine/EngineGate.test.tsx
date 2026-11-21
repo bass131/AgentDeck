@@ -87,6 +87,10 @@ describe('AppGate engine 체크 — authed true', () => {
 
   it('profile 있음 + authed true → getEngineState 1회 호출', async () => {
     vi.resetModules()
+    // 시작하기 안내도 엔진 상태를 읽는다 — 이 시험은 부트 게이트의 한 번만 센다
+    baseApi.getUiPrefs.mockResolvedValueOnce({ 'onboarding.closed': 'later' })
+    const { loadPrefs } = await import('@renderer/11_Settings/prefs')
+    await loadPrefs()
     const { AppGate } = await import('@renderer/00_App/AppGate')
 
     await act(async () => {

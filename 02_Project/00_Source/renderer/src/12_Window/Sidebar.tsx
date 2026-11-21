@@ -22,6 +22,7 @@ import {
   IconPencil,
   IconSpark,
   IconTrash,
+  IconInfo,
 } from '@renderer/02_Common/icons'
 import {
   SAMPLE_USER,
@@ -37,6 +38,7 @@ import './Sidebar.css'
 interface SidebarProps {
   onCollapse: () => void
   onOpenSettings: () => void
+  onOpenOnboarding?: () => void
 }
 
 const isMac = typeof navigator !== 'undefined' && navigator.platform.toLowerCase().includes('mac')
@@ -329,7 +331,7 @@ const MODES: ReadonlyArray<{ mode: WorkspaceMode; label: string; Icon: typeof Ic
   { mode: 'work', label: '작업', Icon: IconGrid },
 ]
 
-function SidebarInner({ onCollapse, onOpenSettings }: SidebarProps): JSX.Element {
+function SidebarInner({ onCollapse, onOpenSettings, onOpenOnboarding }: SidebarProps): JSX.Element {
   const [appVersion, setAppVersion] = useState('')
   const cancelledRef = useRef(false)
   useEffect(() => {
@@ -483,6 +485,13 @@ function SidebarInner({ onCollapse, onOpenSettings }: SidebarProps): JSX.Element
         />
       </div>
       </>)}
+
+      {onOpenOnboarding && (
+        <button type="button" className="sb-guide" aria-label="시작하기 열기" onClick={onOpenOnboarding}>
+          <IconInfo size={13} />
+          <span>시작하기</span>
+        </button>
+      )}
 
       <button
         type="button"

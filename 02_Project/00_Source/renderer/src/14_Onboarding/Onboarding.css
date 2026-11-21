@@ -1,0 +1,93 @@
+.ob-intro {
+  padding: 14px 22px 4px;
+  color: var(--text-2);
+  font-size: 12.5px;
+  line-height: 1.55;
+}
+
+.ob-steps {
+  list-style: none;
+  margin: 0;
+  padding: 8px 14px 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ob-step {
+  display: grid;
+  grid-template-columns: 22px 1fr auto;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+}
+
+.ob-mark {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 1.5px solid var(--line-strong);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  color: var(--text-3);
+}
+.ob-step[data-state='done'] .ob-mark { background: var(--ok); border-color: var(--ok); color: var(--on-accent); }
+.ob-step[data-state='todo'] .ob-mark { border-color: var(--accent); color: var(--accent); }
+.ob-step[data-state='checking'] .ob-mark { border-style: dashed; }
+.ob-step[data-state='blocked'] .ob-mark { border-color: var(--warn); color: var(--warn); }
+
+.ob-text { min-width: 0; }
+.ob-title {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+.ob-badge {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-3);
+}
+.ob-step[data-state='done'] .ob-badge { color: var(--ok); }
+.ob-step[data-state='blocked'] .ob-badge { color: var(--warn); }
+.ob-detail {
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--text-2);
+  overflow-wrap: anywhere;
+}
+
+.ob-btn {
+  padding: 5px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--line-2);
+  background: var(--bg);
+  color: var(--text);
+  font-size: 12.5px;
+  white-space: nowrap;
+}
+.ob-btn:hover:not(:disabled) { background: var(--surface-2); }
+.ob-btn.pri { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+.ob-btn.pri:hover:not(:disabled) { background: var(--accent-2); }
+.ob-btn:disabled { opacity: 0.5; cursor: default; }
+.ob-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+.ob-note {
+  padding: 4px 22px 0;
+  font-size: 12px;
+  color: var(--text-2);
+}
+
+.ob-foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 14px 16px;
+}

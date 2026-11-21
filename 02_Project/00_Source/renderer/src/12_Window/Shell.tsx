@@ -11,7 +11,8 @@ import { FileModal } from '@renderer/07_Workspace/file'
 import type { AskSelectionArgs } from '@renderer/07_Workspace'
 import { buildAskPayload } from '@renderer/07_Workspace'
 import { ImageViewer } from '@renderer/07_Workspace'
-import { UpdateNotes } from '@renderer/10_Engine'
+import { UpdateNotes, EngineGate } from '@renderer/10_Engine'
+import { Onboarding, ONBOARDING_KEY, autoOpenWanted, type OnboardingTarget } from '@renderer/14_Onboarding'
 import { useWindowState } from './useWindowState'
 import { useStatusBranch } from './useStatusBranch'
 import { ipc } from '@renderer/01_Ipc'
@@ -23,7 +24,7 @@ import { loadPaneWidth } from './paneResize'
 import { WhatsNew, SEEN_KEY, decideStartupModal } from '@renderer/10_Engine/whats-new'
 import { ENGINE_SEEN_KEY, decideEngineNotice } from '@renderer/10_Engine/engineUpdateTrigger'
 import { EngineUpdateNotice } from '@renderer/10_Engine'
-import type { EngineUpdateInfo } from '@shared/ipcContract'
+import type { EngineState, EngineUpdateInfo } from '@shared/ipcContract'
 import { ZOOM_FACTOR_STEP } from '@shared/ipcContract'
 import {
   useAppStore,
@@ -36,6 +37,11 @@ import {
 } from '@renderer/00_App/appStore'
 import { nextInject } from './inject'
 import './shell.css'
+
+// away: 안내의 단계 버튼이 연 모달(엔진 로그인 안내·설정) 동안 — 그 모달을 닫으면 안내로 돌아온다
+type GuidePhase = 'closed' | 'open' | 'away'
+
+const UNREAD_ENGINE: EngineState = { available: true, authed: false, version: null }
 
 export function Shell(): JSX.Element {
   const workspaceRoot = useAppStore(selectWorkspaceRoot)
@@ -61,6 +67,7 @@ export function Shell(): JSX.Element {
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [explorerOpen, setExplorerOpen] = useState(true)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [settingsNav, setSettingsNav] = useState<'version' | 'github'>('version')
   const [gitOpen, setGitOpen] = useState(false)
   const [gitRoot, setGitRoot] = useState<string | null>(null)
   const [inject, setInject] = useState<InjectedInput>({ text: '', nonce: 0 })
@@ -73,6 +80,8 @@ export function Shell(): JSX.Element {
   const [engineNoticeOpen, setEngineNoticeOpen] = useState(false)
   const [engineUpdate, setEngineUpdate] = useState<EngineUpdateInfo | null>(null)
   const [profileOpen, setProfileOpen] = useState(false)
+  const [guide, setGuide] = useState<GuidePhase>('closed')
+  const [engineGate, setEngineGate] = useState<EngineState | null>(null)
   // 프로필 창은 Esc로 닫지 않는다 — 층에만 올라 그동안 Esc가 채팅 실행을 끊지 않게 한다
   useModalLayer(profileOpen)
   // 첫 그리기 전에 저장된 작업 폴더를 읽어, 작업 모드가 빈 폴더로 한 번 그려지지 않게 한다
@@ -90,17 +99,25 @@ export function Shell(): JSX.Element {
   const cancelledRef = useRef(false)
   useEffect(() => {
     cancelledRef.current = false
+    // 버전 판정이 끝난 뒤에 연다 — 그리기는 새 버전 소개·엔진 알림이 닫힐 때까지 미룬다
+    const autoGuide = (): void => {
+      if (autoOpenWanted(getPref<unknown>(ONBOARDING_KEY, null))) setGuide((g) => (g === 'closed' ? 'open' : g))
+    }
     ipc.engine
       .appVersion()
       .then((v) => {
-        if (cancelledRef.current || !v) return
-        setAppVersion(v)
-        const seen = getPref<string>(SEEN_KEY, '')
-        const which = decideStartupModal(v, seen)
-        if (which === 'whatsnew') setWhatsNewOpen(true)
-        else if (which === 'updatenotes') setUpdateNotesOpen(true)
+        if (cancelledRef.current) return
+        if (v) {
+          setAppVersion(v)
+          const seen = getPref<string>(SEEN_KEY, '')
+          const which = decideStartupModal(v, seen)
+          if (which === 'whatsnew') setWhatsNewOpen(true)
+          else if (which === 'updatenotes') setUpdateNotesOpen(true)
+        }
+        autoGuide()
       })
       .catch(() => {
+        if (!cancelledRef.current) autoGuide()
       })
     return () => {
       cancelledRef.current = true
@@ -137,11 +154,38 @@ export function Shell(): JSX.Element {
       if (detail === 'whatsnew') setWhatsNewOpen(true)
       else if (detail === 'updatenotes') setUpdateNotesOpen(true)
       else if (detail === 'profile') setProfileOpen(true)
+      else if (detail === 'onboarding') setGuide('open')
     }
 
     window.addEventListener('agentdeck:test-open', handler)
     return () => window.removeEventListener('agentdeck:test-open', handler)
   }, [])
+
+  const backToGuide = (): void => setGuide((g) => (g === 'away' ? 'open' : g))
+  const closeEngineGate = (): void => {
+    setEngineGate(null)
+    backToGuide()
+  }
+  const goFromGuide = (target: OnboardingTarget): void => {
+    const work = useWorkStore.getState()
+    const toWork = (): void => useAppStore.getState().setWorkspaceMode('work')
+    if (target === 'claude') {
+      setGuide('away')
+      ipc.engine.state().then(setEngineGate, () => setEngineGate(UNREAD_ENGINE))
+    } else if (target === 'github') {
+      setGuide('away')
+      setSettingsNav('github')
+      setSettingsOpen(true)
+    } else if (target === 'project') {
+      toWork()
+      work.pickProject().catch(() => undefined)
+    } else {
+      toWork()
+      work.setRight(target === 'taste' ? 'taste' : 'board')
+      setGuide('closed')
+    }
+  }
+  const startupModalOpen = whatsNewOpen || updateNotesOpen || engineNoticeOpen || profileOpen
 
   useGlobalShortcuts({
     toggleSidebar: () => setSidebarOpen((v) => !v),
@@ -172,7 +216,11 @@ export function Shell(): JSX.Element {
         {sidebarOpen ? (
           <Sidebar
             onCollapse={() => setSidebarOpen(false)}
-            onOpenSettings={() => setSettingsOpen(true)}
+            onOpenSettings={() => {
+              setSettingsNav('version')
+              setSettingsOpen(true)
+            }}
+            onOpenOnboarding={() => setGuide('open')}
           />
         ) : (
           <div className="col-rail">
@@ -269,7 +317,15 @@ export function Shell(): JSX.Element {
         }}
       />
 
-      {settingsOpen && <SettingsModal onClose={() => setSettingsOpen(false)} />}
+      {settingsOpen && (
+        <SettingsModal
+          initialNav={settingsNav}
+          onClose={() => {
+            setSettingsOpen(false)
+            backToGuide()
+          }}
+        />
+      )}
 
       {gitOpen && gitRoot != null && (
         <GitModal
@@ -332,6 +388,26 @@ export function Shell(): JSX.Element {
           setEngineNoticeOpen(false)
         }}
       />
+
+      {guide === 'open' && !startupModalOpen && (
+        <Onboarding onClose={() => setGuide('closed')} onGo={goFromGuide} />
+      )}
+
+      {engineGate && (
+        <EngineGate
+          open
+          available={engineGate.available}
+          authed={engineGate.authed}
+          version={engineGate.version}
+          onRetry={() => {
+            ipc.engine.state().then((s) => {
+              if (s.available && s.authed) closeEngineGate()
+              else setEngineGate(s)
+            }, () => undefined)
+          }}
+          onSkip={closeEngineGate}
+        />
+      )}
 
       {profileOpen && (
         <div className="pf-overlay">

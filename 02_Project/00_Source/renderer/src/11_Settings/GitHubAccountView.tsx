@@ -13,6 +13,7 @@ function expiryText(iso: string): string {
 
 function statusText(s: GithubAuthStatus | null): string {
   if (s === null) return '상태를 읽고 있어요…'
+  if (s.phase === 'requesting') return 'GitHub에서 코드를 받고 있어요…'
   if (s.phase === 'pending') return '아래 코드를 GitHub에 입력해 주세요. 승인을 기다리고 있어요…'
   if (s.phase === 'connected') return 'GitHub 계정에 연결돼 있어요.'
   return 'GitHub에 연결되지 않았어요.'
@@ -90,6 +91,10 @@ export function GitHubAccountView(): JSX.Element {
               {status?.phase === 'connected' ? (
                 <button type="button" className="inst-btn ghost" aria-label="연결 해제" disabled={busy} onClick={() => void run(() => ipc.github.disconnect())}>
                   연결 해제
+                </button>
+              ) : status?.phase === 'requesting' ? (
+                <button type="button" className="inst-btn ghost" aria-label="연결 취소" onClick={() => void ipc.github.cancel().then(apply, () => setNote(REQUEST_FAILED))}>
+                  취소
                 </button>
               ) : status?.phase === 'pending' ? (
                 <button type="button" className="inst-btn ghost" aria-label="연결 취소" disabled={busy} onClick={() => void run(() => ipc.github.cancel())}>

@@ -75,6 +75,7 @@ export function createGithubAuth(deps: GithubAuthDeps): GithubAuth {
 
   const status = (): GithubAuthStatus => {
     if (pending) return { phase: 'pending', userCode: pending.code.userCode, verificationUri: pending.code.verificationUri, expiresAt: pending.expiresAt }
+    if (requesting) return { phase: 'requesting' }
     const r = deps.store.read()
     if (r.kind === 'ok') return { phase: 'connected', login: r.auth.login }
     const error = lastError ?? (r.kind === 'unreadable' ? UNREADABLE : null)
@@ -115,6 +116,7 @@ export function createGithubAuth(deps: GithubAuthDeps): GithubAuth {
     if (!deps.store.available()) return settle(NO_SAFE_STORAGE)
     const abort = new AbortController()
     requesting = abort
+    deps.onChange?.(status())
     const r = await requestDeviceCode(deps.http, { webBase: deps.bases.web, clientId, signal: abort.signal })
       .finally(() => { if (requesting === abort) requesting = null })
     if (abort.signal.aborted) return settle(CANCELLED)
@@ -137,6 +139,7 @@ export function createGithubAuth(deps: GithubAuthDeps): GithubAuth {
     cancel() {
       if (requesting) {
         requesting.abort()
+        requesting = null
         return settle(CANCELLED)
       }
       if (!pending) return status()
@@ -146,6 +149,7 @@ export function createGithubAuth(deps: GithubAuthDeps): GithubAuth {
     },
     async disconnect() {
       requesting?.abort()
+      requesting = null
       pending?.abort.abort()
       pending = null
       await deps.store.clear()

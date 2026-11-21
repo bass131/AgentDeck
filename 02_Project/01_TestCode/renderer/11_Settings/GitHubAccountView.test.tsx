@@ -78,6 +78,26 @@ describe('GitHub 계정 칸', () => {
     expect(screen.getByRole('alert').textContent).toContain('GitHub 연결 준비가 안 됐어요')
   })
 
+  it('기기 코드를 요청하는 동안에도 취소를 보이고, 누르면 main에 취소를 보낸다', async () => {
+    let finish: (s: GithubAuthStatus) => void = () => undefined
+    api.githubConnect.mockImplementationOnce(() => new Promise<GithubAuthStatus>((r) => { finish = r }))
+    api.githubCancel.mockImplementationOnce(async () => {
+      const s: GithubAuthStatus = { phase: 'disconnected', error: '연결을 취소했어요' }
+      finish(s)
+      return s
+    })
+    await renderView()
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'GitHub 연결' })) })
+    await act(async () => { push?.({ phase: 'requesting' }) })
+    expect(screen.getByRole('status').textContent).toContain('코드를 받고 있어요')
+    const cancel = screen.getByRole('button', { name: '연결 취소' }) as HTMLButtonElement
+    expect(cancel.disabled).toBe(false)
+    await act(async () => { fireEvent.click(cancel) })
+    expect(api.githubCancel).toHaveBeenCalledTimes(1)
+    expect(screen.getByRole('alert').textContent).toContain('연결을 취소했어요')
+    expect(screen.getByRole('button', { name: 'GitHub 연결' })).toBeTruthy()
+  })
+
   it('요청이 실패하면 오류 문구를 보이고 상태를 다시 읽으며, 버튼이 다시 눌린다', async () => {
     api.githubDisconnect.mockRejectedValueOnce(new Error('ipc down'))
     api.githubStatus.mockResolvedValue({ phase: 'connected', login: 'octocat' })

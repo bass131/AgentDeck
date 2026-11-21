@@ -17,6 +17,8 @@ vi.mock('electron', () => ({
   ipcMain: { handle: (ch: string, fn: (...a: unknown[]) => unknown): void => { h.handleCalls++; h.handlers.set(ch, fn) } },
   dialog: {},
   powerMonitor: { on: (ev: string): void => { h.powerEvents.push(ev) } },
+  safeStorage: { isEncryptionAvailable: () => false, encryptString: () => Buffer.alloc(0), decryptString: () => '' },
+  shell: { openExternal: async (): Promise<void> => {} },
 }))
 
 vi.mock('@main/06_Sessions/store', async (importOriginal) => {
@@ -226,7 +228,7 @@ describe('기동·종료 배선 — 00_App/bootstrap 한 곳 (M05 G11 4단계)',
     attachWindow(win1)
     expect(ipcState.win).toBe(win1)
     expect(calls(createSkillsStore) - skills0).toBe(1)
-    for (const ch of [IPC_CHANNELS.WORKSPACE_OPEN, IPC_CHANNELS.AGENT_RUN, IPC_CHANNELS.CONVERSATION_LOAD, IPC_CHANNELS.SKILL_LIST, IPC_CHANNELS.LSP_STATUS, IPC_CHANNELS.LOOP_OPEN, IPC_CHANNELS.LOOP_CLOSE]) {
+    for (const ch of [IPC_CHANNELS.WORKSPACE_OPEN, IPC_CHANNELS.AGENT_RUN, IPC_CHANNELS.CONVERSATION_LOAD, IPC_CHANNELS.SKILL_LIST, IPC_CHANNELS.LSP_STATUS, IPC_CHANNELS.LOOP_OPEN, IPC_CHANNELS.LOOP_CLOSE, IPC_CHANNELS.GITHUB_STATUS, IPC_CHANNELS.GITHUB_CONNECT]) {
       expect(h.handlers.has(ch)).toBe(true)
     }
     // 잠에서 깨면 한도 멈춤의 벽시계를 다시 본다

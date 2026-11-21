@@ -131,6 +131,7 @@ import type {
 } from '../13_Loop/loop'
 import type { LoopGraphResponse } from '../13_Loop/graph'
 import type { TasteDocsRead, TasteReadRequest } from '../14_Taste/taste'
+import type { GithubAuthStatus } from '../15_GitHub/github'
 import type { Ack } from '../02_Common/common'
 import type {
   WindowMaximizedResponse,
@@ -238,9 +239,16 @@ interface IpcInvokeMap {
   'loop.tasteOpen': { req: LoopTasteOpenRequest; res: LoopMainResponse }
 
   'taste.read': { req: TasteReadRequest; res: TasteDocsRead }
+
+  'github.status': { req: void; res: GithubAuthStatus }
+  'github.connect': { req: void; res: GithubAuthStatus }
+  'github.cancel': { req: void; res: GithubAuthStatus }
+  'github.disconnect': { req: void; res: GithubAuthStatus }
+  'github.openVerification': { req: void; res: Ack }
 }
 
 interface IpcPushMap {
+  'github.state': GithubAuthStatus
   'agent.event': AgentEventPayload
   'engine.installProgress': EngineInstallProgress
   'window.state': WindowStatePayload

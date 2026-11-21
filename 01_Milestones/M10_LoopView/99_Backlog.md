@@ -18,7 +18,7 @@ M11 Backlog 정리(`01_Milestones/M11_BacklogSweep/`)가 닫은 항목이다. �
 | 8 | 고침(M11 goal 4) | 사본 대신 Shell의 실제 Esc 처리 `shellEscape()`(`useGlobalShortcuts.ts`)를 부르는 시험으로 바꿨다 — 모달·작업 모드 가드를 지우면 3건 실패(M11 Backlog 24, `a29fd8d5`). G1의 「goal 6에서 사본 시험 지우기」 결정을 대신한다. |
 | 9 | 해결됨 | 깃발 내리기 IPC `loop.lowerFlag`가 있다(`main/01_Ipc/handlers/loop.ts:161`, `547ab01b`). |
 | 10 | M13으로 | M11 스펙 「하지 않을 것」 — zod 의존성은 설치본 패키징과 함께 M13이 맡는다. |
-| 11 | M12로 | G1 결정 대장 [USER·위임] — 스펙 지정대로 노드 세션의 설정 원천은 M12가 정한다. |
+| 11 | 고침(M12 goal 1) | 루프 세션(`loopLock`이 있는 실행)은 `settingSources`가 `project`·`local`뿐이고(`main/04_Claude/sdkOptions.ts:133`), 사용자 전역 설정 대신 Taste·헌장 원문을 덧붙임에 싣는다(`sdkOptions.ts:110`, 읽기는 `run/claudeAgentRun.ts:360`). 채팅 세션은 세 원천 그대로다(`sdkOptions.taste.test.ts`·`claudeAgentRun.taste.test.ts`, `94328d64`). |
 | 12 | 해결됨 | 취소 대상을 고르는 `LoopCancelTarget`이 IPC에 있다(`main/01_Ipc/handlers/loop.ts:39`, `547ab01b`). |
 | 13 | 고침(M11 goal 4) | 메인 대화 저장본을 읽을 때 `queue[].events`의 사건과 `cards[]`의 칸을 항목 검사와 같은 꼴로 본다 — 깨진 턴은 버리고 깨진 카드는 거른다(`main/05_Loop/mainChatStore.ts:73,89,101,111`, `abde4069`, `mainChat.test.ts` 「[M11-G4 M10-13]」). |
 | 14 | 해결됨 | `LoopStatus`가 `mainNode`를 싣는다(`shared/13_Loop/loop.ts:104`, `e7b26d16`). |

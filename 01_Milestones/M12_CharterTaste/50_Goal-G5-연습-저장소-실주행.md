@@ -43,8 +43,8 @@
 진척 단계
 
 - [x] 1. goal 준비 — 이 문서, goal 4 종결 기록, pin, `gate-config.json` `planPath` 전환(판정 장치)
-- [ ] 2. 실주행 준비 — 구동기의 한도 주입 길, clone 맞추기, 자격 확인, 앱 빌드본 기동(2번 모니터)
-- [ ] 3. 헌장·Taste 문답과 승인 카드 확정, 장면 캡처
+- [x] 2. 실주행 준비 — 구동기의 한도 주입 길, clone 맞추기, 자격 확인, 앱 빌드본 기동(2번 모니터)
+- [x] 3. 헌장·Taste 문답과 승인 카드 확정, 장면 캡처
 - [ ] 4. M03 완주와 한도 주입 관찰, 장면 캡처
 - [ ] 5. 완주 기록, 하드 게이트 다섯 종, `npm test`
 - [ ] 6. 독립 검수와 반영, goal PR, `hard-gates`, 로컬 goal 병합
@@ -62,7 +62,7 @@ DoD
 
 검증 기록
 
-- (기록 없음)
+- PASS 2026-11-21T20:56:34+09:00 — 2·3단계(실측): 구동기(`G5_RATE_LIMIT`, `injectLimit`, 채팅 모드 폴더 env `AGENTDECK_E2E_WORKSPACE`)로 앱 빌드본을 2번 모니터에 띄우고 연습 clone을 `main` `7ff4f9e`로 맞췄다. 작업 모드 「헌장·Taste」의 「전역 Taste 문답 열기」로 메인 대화 문답 3턴(답 2, 성향 1·4·13·28·38·27·17·25·37, M05 Backlog 75) 뒤 승인 카드 확정 → 앱 데이터 `udd\taste\global-taste.md`(T1–T9). 「헌장·Taste 문답 열기」로 2턴(답 1, 성향 3·11·20·23·37) 뒤 카드 둘을 확정 → 헌장 PR #7, 프로젝트 Taste PR #8(`agentdeck/charter-*` → `main`). 두 PR은 채팅 모드 Git 창의 PR 카드 「병합」·「확인」으로 병합했다(`76da22de`, `6aaac269`, `main` 머리 `6aaac26`에 `docs/agentdeck/헌장.md`·`Taste.md`). 장면: `scene1-taste-dialog`, `scene2-approval-global`, `scene2-approval-charter`, `charter-pr-merge-confirm`, `scene3-charter-view`. 예외 2: 작업 모드에는 문서 PR의 병합 버튼이 없어 채팅 모드 Git 창으로 갔고, 그 때문에 구동기 재기동 1번.
 
 ## 결정 대장
 

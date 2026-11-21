@@ -95,6 +95,8 @@ async function launch(userDataDir: string): Promise<{ app: ElectronApplication; 
     ...process.env,
     AGENTDECK_E2E_NO_ENGINE_UPDATE: '1',
     AGENTDECK_E2E_PICK_FOLDER: REPO,
+    // 채팅 모드의 「폴더 선택」 — 문서 확정 PR을 앱 Git 창의 PR 카드로 병합할 때 쓴다
+    AGENTDECK_E2E_WORKSPACE: REPO,
   }
   const token = readPracticeToken()
   if (token) {

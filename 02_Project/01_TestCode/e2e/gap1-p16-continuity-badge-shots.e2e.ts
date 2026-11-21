@@ -227,7 +227,7 @@ ${cssBlocks}
 <script>
 // 하네스 스텁 — store 마운트 액션(listFiles/getUsage) 방어(신뢰경계 실 IPC 없음).
 // listFiles는 {files:[]}로 안전 shape 반환(projectFiles 배열 계약 유지), 그 외는 async no-op.
-// M05 G10: preload가 api.<묶음>.<동작>으로 묶였다 — listFiles → workspace.listFiles, getUsage → engine.usage,
+// preload는 api.<묶음>.<동작>으로 묶였다 — listFiles → workspace.listFiles, getUsage → engine.usage,
 // onAgentEvent → agent.onEvent. 묶음·동작마다 없으면 async no-op을 돌려주는 중첩 Proxy(옛 평면 Proxy와 같은 거동).
 window.api = new Proxy({
   workspace: { listFiles: function () { return Promise.resolve({ files: [] }) } },

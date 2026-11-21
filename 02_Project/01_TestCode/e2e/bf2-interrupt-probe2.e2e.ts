@@ -337,5 +337,4 @@ test.describe('BF2 interrupt 재실측 probe (LIVE_SDK=1 BF2INT2=1, --user-data-
       await teardown()
     }
   })
-  // M10 G1 — 멀티 에이전트 모드를 지워 S3'(멀티패널 정지 버튼 원인 분리) 두 회차를 뺐다.
 })

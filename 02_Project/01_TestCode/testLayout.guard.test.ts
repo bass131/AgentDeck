@@ -1,7 +1,6 @@
-// M05 G12 — 테스트 배치 가드. 수집 테스트가 소스와 같은 `<프로세스>/NN_Domain/` 폴더에 놓이고,
+// 수집 테스트가 소스와 같은 `<프로세스>/NN_Domain/` 폴더에 놓이고,
 // 이름이 작업 ID가 아니라 `<대상모듈>.<관점-kebab>.test.ts(x)`로 읽히는지 고정한다.
-// 근거: 01_Milestones/M05_Structure/99c_Goal-G12-테스트-미러-배치.md(완료조건), 99d_G12-재실측.md(정규식·이름 규칙).
-// 이 파일 이름도 새 이름 규칙의 꼴을 따른다(대상 = 테스트 배치, 관점 = guard). 자리는 루트의 「제자리」 항목이다.
+// 정규식·이름 규칙의 근거: 01_Milestones/M05_Structure/99d_G12-재실측.md.
 import { describe, it, expect } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -22,7 +21,7 @@ const STAY_ROOT_FILES = new Set(['smoke.test.ts', 'collection-baseline.test.ts',
 const TASK_ID_PREFIX = /^(?:[a-z]{1,5}\d+[a-z]?|fb|phase-b)-/
 // 끝에 붙은 작업 ID 13개(`-f14`·`-p5c`·`-fb2-p02`·`-bcd-e` 등). 옛 이름 13개에 맞고 새 이름에는 0개 맞는다.
 const TASK_ID_SUFFIX = /-(?:[a-z]{1,3}\d+[a-z]?)(?:-[a-z]{1,3}\d+[a-z]?)*\.test\.tsx?$|-bcd-e\.test\.tsx?$/
-// 이름 가운데의 작업 ID(`gap1.foo`, `Foo.p13-x`, `x.b1-y`) — `.`·`-`로 나눈 조각 하나가 ID 꼴이면 걸린다 (M05 Backlog 77).
+// 이름 가운데의 작업 ID(`gap1.foo`, `Foo.p13-x`, `x.b1-y`) — `.`·`-`로 나눈 조각 하나가 ID 꼴이면 걸린다.
 const TASK_ID_SEGMENT = /^[a-z]{1,5}\d+[a-z]?$/
 const hasTaskIdSegment = (name: string): boolean =>
   name.replace(/\.test\.tsx?$/, '').split(/[.-]/).some((s) => TASK_ID_SEGMENT.test(s))

@@ -27,7 +27,6 @@ import { GitHubAccountView } from './GitHubAccountView'
 import './SettingsModal.css'
 
 type NavId = 'version' | 'github' | 'controls' | 'mcp' | 'skill' | 'lsp' | 'appearance'
-export type SettingsNav = NavId
 
 const NAV: { id: NavId; label: string; Icon: (p: IconProps) => JSX.Element }[] = [
   { id: 'version', label: 'Claude Code', Icon: ProviderBrandIcon },
@@ -452,7 +451,7 @@ function AppearanceView(): JSX.Element {
   )
 }
 
-export function SettingsModal({ onClose, initialNav = 'version' }: { onClose: () => void; initialNav?: SettingsNav }): JSX.Element {
+export function SettingsModal({ onClose, initialNav = 'version' }: { onClose: () => void; initialNav?: NavId }): JSX.Element {
   const [nav, setNav] = useState<NavId>(initialNav)
 
   return (

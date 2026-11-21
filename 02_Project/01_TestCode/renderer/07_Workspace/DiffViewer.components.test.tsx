@@ -106,7 +106,7 @@ const mockApi = {
   windowResizeStart: vi.fn().mockResolvedValue(undefined),
   windowResizeEnd: vi.fn().mockResolvedValue(undefined),
   onWindowState: vi.fn().mockReturnValue(mockUnsubscribe),
-  getUiPrefs: vi.fn().mockResolvedValue({}),
+  getUiPrefs: vi.fn().mockResolvedValue({ 'onboarding.closed': 'later' }),
   setUiPref: vi.fn().mockResolvedValue({ ok: true }),
   getAppVersion: vi.fn().mockResolvedValue(''),
   checkEngineUpdate: vi.fn().mockResolvedValue({ current: null, latest: null, updateAvailable: false }),
@@ -271,6 +271,11 @@ describe('Conversation', () => {
 })
 
 describe('Shell', () => {
+  beforeEach(async () => {
+    const { loadPrefs } = await import('@renderer/11_Settings/prefs')
+    await loadPrefs()
+  })
+
   it('플로팅 카드(.win) + 타이틀바(워크스페이스명) + 3-pane를 렌더한다', async () => {
     const { useAppStore } = await import('@renderer/00_App/appStore')
     useAppStore.setState({

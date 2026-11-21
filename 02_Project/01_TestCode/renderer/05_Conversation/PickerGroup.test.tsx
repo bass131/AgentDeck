@@ -59,7 +59,7 @@ describe('P5 — 전역 Shift+Tab은 채팅의 단일 선택기만 돌린다', (
       gitLog: vi.fn().mockResolvedValue({ commits: [] }),
       gitDiff: vi.fn().mockResolvedValue({ diff: '' }),
       onGitChange: vi.fn().mockReturnValue(() => {}),
-      getUiPrefs: vi.fn().mockResolvedValue({ 'whatsnew.seenVersion': '1.0.0' }),
+      getUiPrefs: vi.fn().mockResolvedValue({ 'whatsnew.seenVersion': '1.0.0', 'onboarding.closed': 'later' }),
       setUiPref: vi.fn().mockResolvedValue({ ok: true }),
       getAppVersion: vi.fn().mockResolvedValue('1.0.0'),
       checkEngineUpdate: vi.fn().mockResolvedValue({ current: null, latest: null, updateAvailable: false }),

@@ -2,7 +2,7 @@
 import { execFile } from 'node:child_process'
 import { GH_CHECK_TIMEOUT_MS, type GhCheckResult } from '@shared/16_Onboarding/onboarding'
 
-export type GhRunOutcome =
+type GhRunOutcome =
   | { kind: 'exited'; code: number; stdout: string }
   | { kind: 'missing' }
   | { kind: 'timeout' }
@@ -12,7 +12,7 @@ const VERSION_RE = /gh version (\d+\.\d+\.\d+[\w.-]*)/
 // execFile의 시간 제한이 프로세스를 못 끊어도 이만큼 뒤에는 돌아온다
 const RACE_SLACK_MS = 1000
 
-export const runGhVersion: GhRun = (timeoutMs) =>
+const runGhVersion: GhRun = (timeoutMs) =>
   new Promise((resolve) => {
     execFile(
       'gh',

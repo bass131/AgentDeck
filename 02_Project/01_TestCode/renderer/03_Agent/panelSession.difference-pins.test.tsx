@@ -35,7 +35,7 @@ const mockApi = {
   git: { root: vi.fn().mockResolvedValue(null) },
   conversationRename: vi.fn().mockResolvedValue({ ok: true }),
   conversationDelete: vi.fn().mockResolvedValue({ ok: true }),
-  getUiPrefs: vi.fn().mockResolvedValue({}),
+  getUiPrefs: vi.fn().mockResolvedValue({ 'onboarding.closed': 'later' }),
   setUiPref: vi.fn().mockResolvedValue({ ok: true }),
   getAppVersion: vi.fn().mockResolvedValue(''),
   checkEngineUpdate: vi.fn().mockResolvedValue({ current: null, latest: null, updateAvailable: false }),
@@ -171,6 +171,8 @@ describe('B2 현 동작 — Esc 중단은 채팅 배치에서만 한다(작업 �
     const abortRun = vi.fn(async () => {})
     const interruptRun = vi.fn(async () => {})
     useAppStore.setState({ workspaceMode: mode, isRunning: true, replMode: false, abortRun, interruptRun } as never)
+    const { loadPrefs } = await import('@renderer/11_Settings/prefs')
+    await loadPrefs()
     const { Shell } = await import('@renderer/12_Window/Shell')
     await act(async () => { render(<Shell />) })
     return { abortRun, interruptRun }

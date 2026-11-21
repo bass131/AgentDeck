@@ -25,7 +25,7 @@ interface GitPortOptions {
   hooksPath?: string
   // 모든 git 호출 직전의 설정 대조. 던지면 그 호출을 돌리지 않는다.
   guard?: { assert(): Promise<void> }
-  // 앱 토큰(14_GitHub). 원격 호출(push·ls-remote·fetch)마다 읽고, 있고 원격 주소가 그 주소(스킴·호스트)일 때만 자격으로 쓴다. 없으면 사용자 자격 그대로다.
+  // 앱 토큰(14_GitHub). 원격 호출(push·ls-remote·fetch)마다 읽고, 있고 원격 주소(push는 push 주소)가 모두 그 주소(스킴·호스트)일 때만 자격으로 쓴다. 없으면 사용자 자격 그대로다.
   credential?: { url: string; token: () => string | null }
 }
 
@@ -122,8 +122,10 @@ export function createGitPort(opts: GitPortOptions): GitPort {
   const remoteGit: Git = async (args) => {
     const token = opts.credential?.token() ?? null
     if (!opts.credential || !token) return git(args)
-    const url = await git(['remote', 'get-url', remote])
-    if (url.code !== 0 || !tokenRemoteMatches(url.stdout, opts.credential.url)) return git(args)
+    const credentialUrl = opts.credential.url
+    const got = await git(['remote', 'get-url', ...(args[0] === 'push' ? ['--push'] : []), '--all', remote])
+    const urls = got.stdout.split(/\r?\n/).filter((u) => u.trim() !== '')
+    if (got.code !== 0 || urls.length === 0 || !urls.every((u) => tokenRemoteMatches(u, credentialUrl))) return git(args)
     return git([...tokenCredentialArgs(opts.credential.url), ...args], { GH_TOKEN: token })
   }
 

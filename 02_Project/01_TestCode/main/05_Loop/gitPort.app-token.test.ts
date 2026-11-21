@@ -83,6 +83,31 @@ describe('실행기 git 원격 동작의 자격', () => {
     expect(auths.every((a) => a === basic('env', 'user-env'))).toBe(true)
   })
 
+  const envHelperPort = (extraConfig = '') => {
+    fs.writeFileSync(repos.env.GIT_CONFIG_GLOBAL as string, `[credential]\n\thelper = "!f() { echo username=env; echo password=$GH_TOKEN; }; f"\n${extraConfig}`)
+    return createGitPort({ cwd: repos.work, env: { ...repos.env, GH_TOKEN: 'user-env' }, credential: { url: `http://127.0.0.1:${port}`, token: () => TOKEN } })
+  }
+
+  it('전역 pushInsteadOf로 push 대상이 다른 호스트가 되면 push에는 토큰을 싣지 않고, 원격 읽기는 그대로 토큰을 낸다', async () => {
+    const p = envHelperPort(`[url "http://localhost:${port}/"]\n\tpushInsteadOf = http://127.0.0.1:${port}/\n`)
+    await p.push('master').catch(() => null)
+    expect(auths.length).toBeGreaterThan(0)
+    expect(auths.every((a) => a === basic('env', 'user-env'))).toBe(true)
+    auths = []
+    await p.remoteSha('master').catch(() => null)
+    expect(auths.length).toBeGreaterThan(0)
+    expect(auths.every((a) => a === basic('x-access-token', TOKEN))).toBe(true)
+  })
+
+  it('origin에 주소가 여럿이고 하나라도 다른 호스트면 push·원격 읽기 모두 토큰을 싣지 않는다', async () => {
+    const p = envHelperPort()
+    repos.git(['remote', 'set-url', '--add', 'origin', `http://localhost:${port}/acme/widgets.git`])
+    await p.push('master').catch(() => null)
+    await p.remoteSha('master').catch(() => null)
+    expect(auths.length).toBeGreaterThan(0)
+    expect(auths.every((a) => a === basic('env', 'user-env'))).toBe(true)
+  })
+
   it('토큰을 거는 원격은 준 주소와 스킴·호스트가 같은 것뿐이다', () => {
     const gh = 'https://github.com'
     expect(tokenRemoteMatches('https://github.com/acme/widgets.git', gh)).toBe(true)

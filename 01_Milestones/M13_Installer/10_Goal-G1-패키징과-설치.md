@@ -35,7 +35,7 @@ electron-builder로 Windows NSIS 설치 파일 하나를 만들고, 그 설치 �
 - [x] 2. 구현 — electron-builder 설정, 의존성, `dist:win`, 앱 데이터 폴더 고정, 버전 표시, 시험
 - [x] 3. 설치 실측 — 빌드, 조용히 설치, 띄우기·확인·캡처, 제거
 - [x] 4. 하드 게이트 다섯 종, `npm test`
-- [>] 5. 독립 검수와 반영
+- [x] 5. 독립 검수와 반영
 - [ ] 6. goal PR, `hard-gates`, 로컬 goal 병합
 
 실행 단계 일괄 승인 대상 (스펙에서 옮김)
@@ -58,7 +58,8 @@ DoD
 - USER-INPUT 2026-11-21T23:30:56+09:00 — 마지막 USER-INPUT 뒤 FAIL이 세 번이라 헌법 7조로 멈춘다. 앞 둘은 빌드 환경(저장소 안 `.asar` 잠김)이고 출력 폴더 이동으로 풀렸다. 셋째는 설치본에서 SDK 실행 파일 경로가 asar 안을 가리키는 앱 결함과 소개 화면 클릭 시험 결함이다. 사용자 판단을 기다린다: 이 goal 안에서 `pathToClaudeCodeExecutable` 경로 수정과 시험 수정으로 이어 갈지.
 - FAIL 2026-11-21T23:55:21+09:00 — 경로 수정(`queryFn.ts` `bundledClaudeExecutable`·`withClaudeExecutable`, 시험 3) 뒤 `npm run dist:win`(23:53)·조용한 설치·확인 e2e: B(실제 엔진 턴)는 통과했다 — 설치본이 Haiku 5.5로 `ok`를 답했다. A는 소개 화면 「건너뛰기」를 `force` 클릭했지만 등장 애니메이션 중 좌표가 빗나가 버튼이 사라지지 않았다(10초 시간 초과, 시험 결함). 시도: 클릭 이벤트를 버튼에 직접 보낸다(`dispatchEvent('click')`, React `onClick`=`onClose`).
 - PASS 2026-11-21T23:56:11+09:00 — 완료조건 1·2 실측: `npm run dist:win`이 저장소 밖 `C:\Dev\AgentDeck-release\AgentDeck-Setup-0.1.0.exe`(250,176,417바이트, 23:53)를 만들었고 재빌드도 통과했다(23:26·23:28·23:53). `MSYS_NO_PATHCONV=1`로 조용히 설치하니 앱이 저절로 뜨지 않았다. 확인 e2e A가 통과 — `isPackaged` true, 앱 이름 `agentdeck`, 앱 데이터 `%APPDATA%\agentdeck`, 화면 사이드바 버전 `AgentDeck 0.1.0`(캡처 `m13-g1-out\installed-window.png`, 소개 화면을 닫은 뒤), 실행 경로 `%LOCALAPPDATA%\Programs\agentdeck\AgentDeck.exe`(작업 트리 밖), 화면 주소 `file:///...app.asar/out/renderer/index.html`. e2e B가 통과(23:55) — 격리 앱 데이터의 설치본이 실제 엔진 턴에서 Haiku 5.5로 `ok`를 답했다(캡처 `installed-turn.png`). 조용히 제거하니 설치 폴더와 제거 등록 항목이 사라졌다.
-- PASS 2026-11-22T00:03:16+09:00 — 경로 수정과 시험 보강 뒤 하드 게이트 다섯 종이 모두 0이고 `npm test`가 490 passed·6 skipped(496 파일), 9406 passed·10 skipped·실패 0이다. 시험 — `queryFn.test.ts`(패키징본 실행 파일 경로, 호출자 값 보존), `userDataPin.test.ts`(`package.json` `build` 키·`dist:win`의 `extraMetadata` 없음까지), `appVersion.test.ts`.
+- PASS 2026-11-22T00:03:16+09:00 — 경로 수정과 시험 보강 뒤 하드 게이트 다섯 종이 모두 0이고 `npm test`가 490 passed·6 skipped(496 파일), 9406 passed·10 skipped·실패 0이다. 시험 — `queryFn.test.ts`(패키징본 실행 파일 경로, 호출자 값 보존), `userDataPin.test.ts`(`package.json` `build` 키·`dist:win`의 `extraMetadata` 없음까지), `appVersion.test.ts`. (게이트를 돈 트리는 커밋 `88c7dfcb`의 내용이다.)
+- PASS 2026-11-22T00:15:08+09:00 — 반영분 재검수(다른 검수자, `854b2850..88c7dfcb`): 막음 0, 고침 권장 1, 사소 7, 앞 막음 1 닫힘. 반영 — e2e B는 보낸 프롬프트 뒤 「Claude」 말풍선의 `ok`만 받고 실패 문구(`claude.exe`·`failed to launch`·`Failed to load`·`오류:`)를 넓혀 거르며, 소개 화면은 8초까지 기다린다. `queryFn.test.ts`에 패키징본 번들 폴백이 실행 파일을 넣고 핸들을 그대로 돌려주는 배선 시험을 더했다. 같은 설치 파일로 다시 조용히 설치해 B를 돌려 통과했다(00:14, Haiku `ok`), 그 뒤 제거했다. 넘긴 것 — 워크트리 빌드·연속 빌드의 출력 겹침(Backlog 10), 설치 폴더의 실행 파일 쓰기 보호(Backlog 9). 기록 — e2e A는 실제 앱 데이터로 돌아 소개 화면 「본 버전」(`whatsnew.seenVersion`)을 적는다. 캡처는 세션 임시 폴더 `C:\Users\bass1\AppData\Local\Temp\claude\09203b92aa1d0186\95eb3854-a6b8-4778-8fa2-76bc3687de2f\scratchpad\m13-g1-out\`에 있고 마일스톤 결과 보고 때 저장소로 옮긴다. `[USER]` 「이어 가줘」는 이 세션에서 사용자가 직접 답한 것이다. 반영 뒤 하드 게이트 다섯 종이 모두 0이고 `npm test`가 490 passed·6 skipped(496 파일), 9407 passed·10 skipped·실패 0이다.
 
 ## 결정 대장
 

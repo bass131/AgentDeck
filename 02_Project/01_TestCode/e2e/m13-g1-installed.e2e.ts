@@ -13,6 +13,7 @@ const RUN = process.env.M13G1LIVE === '1'
 const EXE = process.env.M13G1_EXE ?? ''
 const OUT = process.env.M13G1_OUT ?? join(tmpdir(), 'agentdeck-m13-g1-out')
 const REPO = resolve(process.cwd())
+const PROMPT = 'Reply with only the word ok.'
 const PKG_VERSION = (JSON.parse(readFileSync(join(REPO, 'package.json'), 'utf8')) as { version: string }).version
 
 function launchEnv(extra: Record<string, string> = {}): Record<string, string> {
@@ -24,7 +25,8 @@ function launchEnv(extra: Record<string, string> = {}): Record<string, string> {
 
 async function skipIntro(page: Page): Promise<void> {
   const skip = page.getByRole('button', { name: '건너뛰기' })
-  if (!(await skip.isVisible({ timeout: 5000 }).catch(() => false))) return
+  const shown = await skip.waitFor({ state: 'visible', timeout: 8000 }).then(() => true, () => false)
+  if (!shown) return
   await skip.dispatchEvent('click')
   await skip.waitFor({ state: 'hidden', timeout: 10_000 })
 }
@@ -91,15 +93,16 @@ test.describe('M13 G1 설치본 확인 (opt-in: M13G1LIVE=1)', () => {
       await chat.locator('.po-main', { hasText: 'Haiku 5.5' }).first().click()
       const input = chat.getByLabel('메시지 입력')
       await input.click()
-      await input.fill('Reply with only the word ok.')
+      await input.fill(PROMPT)
       await input.press('Enter')
       await page.waitForTimeout(1500)
       await settleTurn(page, { timeoutMs: 180_000 })
       const text = await chat.innerText()
       await page.screenshot({ path: join(OUT, 'installed-turn.png') })
       writeFileSync(join(OUT, 'turn.txt'), text)
-      expect(text).not.toMatch(/ENOENT|spawn .*claude|app\.asar[\\/]node_modules/i)
-      expect(text.toLowerCase()).toMatch(/\bok\b/)
+      const afterPrompt = text.split(PROMPT).slice(1).join(PROMPT)
+      expect(afterPrompt).not.toMatch(/ENOENT|claude\.exe|failed to launch|Failed to load|오류:/i)
+      expect(afterPrompt).toMatch(/\nClaude\n[^\n]*\n+\s*ok\s*(\n|$)/i)
     } finally {
       await app?.close()
       rmSync(workspace, { recursive: true, force: true })

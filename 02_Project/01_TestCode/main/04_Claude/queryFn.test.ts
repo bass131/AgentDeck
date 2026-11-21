@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { join } from 'node:path'
 import { bundledClaudeExecutable, captureSupportedCommands, withClaudeExecutable } from '@main/04_Claude/queryFn'
 import type { QueryFn } from '@main/04_Claude/queryFn'
@@ -31,6 +31,31 @@ describe('설치본의 번들 SDK 실행 파일 경로 (M13 G1)', () => {
       { pathToClaudeCodeExecutable: 'Y:/own.exe' },
     ])
     expect(withClaudeExecutable(query, null)).toBe(query)
+  })
+
+  it('getDefaultQueryFn은 패키징본의 번들 폴백에 asar 밖 실행 파일을 넣고 핸들을 그대로 돌려준다', async () => {
+    vi.resetModules()
+    const handle = { async *[Symbol.asyncIterator]() { }, interrupt: async () => {} }
+    const seen: unknown[] = []
+    vi.doMock('@main/10_Engine/engineVersions', () => ({ loadActiveQuery: vi.fn().mockResolvedValue(null) }))
+    vi.doMock('@anthropic-ai/claude-agent-sdk', () => ({ query: (p: { options?: unknown }) => { seen.push(p.options); return handle } }))
+    vi.doMock('electron', () => ({ app: { isPackaged: true } }))
+    const original = process.resourcesPath
+    Object.defineProperty(process, 'resourcesPath', { value: 'C:/Apps/agentdeck/resources', configurable: true })
+    try {
+      const { getDefaultQueryFn } = await import('@main/04_Claude/queryFn')
+      const q = await getDefaultQueryFn()
+      expect(q({ prompt: 'x', options: {} })).toBe(handle)
+      expect(seen[0]).toEqual({
+        pathToClaudeCodeExecutable: join('C:/Apps/agentdeck/resources', 'app.asar.unpacked', 'node_modules', '@anthropic-ai', `claude-agent-sdk-${process.platform}-${process.arch}`, process.platform === 'win32' ? 'claude.exe' : 'claude'),
+      })
+    } finally {
+      Object.defineProperty(process, 'resourcesPath', { value: original, configurable: true })
+      vi.doUnmock('@main/10_Engine/engineVersions')
+      vi.doUnmock('@anthropic-ai/claude-agent-sdk')
+      vi.doUnmock('electron')
+      vi.resetModules()
+    }
   })
 })
 

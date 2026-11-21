@@ -12,7 +12,7 @@
 - 마일스톤 스펙: `01_Milestones/M12_CharterTaste/00_마일스톤-스펙.md`. 다음 `M13_Installer/00_마일스톤-스펙.md`.
 - 마일스톤 브랜치: `milestone/m12-charter-taste`(`6c31c299`에서 가름 — M11 마일스톤 PR 118 머리).
 - 사슬 PR: M11 118(`master`로, 사용자 병합 대기 — 감시는 사슬 끝에서 건다).
-- 현재 goal: G2 문답 엔진과 화면 — `20_Goal-G2-문답-엔진과-화면.md`, 브랜치 `feat/m12-g2-taste-dialog`(마일스톤 머리 `e544d797`에서). G1 종결(PR 119).
+- 현재 goal: G3 Taste 판정 — `30_Goal-G3-Taste-판정.md`, 브랜치 `feat/m12-g3-taste-verdict`(마일스톤 머리 `8c456887`에서). G1 종결(PR 119), G2 종결(PR 120).
 - 연습 저장소: `bass131/AgentDeck_Test`(공개, `main` 룰셋 `main-protect`). clone `C:\Dev\AgentDeck_Test`. 연습 토큰 `%USERPROFILE%\.agentdeck-practice\gh-token.txt`(만료 2026-11-27 03:20 UTC). 연습 앱 데이터 `%USERPROFILE%\.agentdeck-practice\udd`.
 - goal 병합의 정형 절차: ① goal 브랜치를 push하고 독립 검수를 PR 전에 반영한다. ② `gh pr view <N> --json headRefOid,statusCheckRollup`으로 `hard-gates`와 머리 SHA를 읽는다. ③ `git fetch origin` 뒤 로컬 마일스톤 브랜치가 원격과 같은지 확인하고 `git switch milestone/m12-charter-taste`, `git merge --no-ff -m "<메시지>" origin/<goal 브랜치>`. ④ 병합한 SHA가 머리 SHA와 같은지 확인한 뒤 `git push -u origin milestone/m12-charter-taste`. 작업 트리는 병합 전에 깨끗해야 한다.
 - push는 항상 `-u origin <브랜치>`로 원격 브랜치를 명시합니다. `master`로 가는 병합은 사용자가 직접 합니다.
@@ -22,7 +22,7 @@
 
 ## 마감 요약 (최신 1건 — 3줄: 바뀐 것 / 내린 결정 / 봐야 할 것)
 
-- 스탬프: 2026-11-21T15:11:55+09:00
-- 바뀐 것: M11 마일스톤 PR 118을 열고 그 머리에서 `milestone/m12-charter-taste`를 갈랐습니다. M12 goal 1 문서를 썼습니다.
-- 내린 결정: Taste·헌장은 사람이 읽는 마크다운에 고정된 꼴(항목 머리 + 원칙·레퍼런스·금지 줄)로 쓰고, 공유 파서가 읽고 씁니다. 루프 세션은 사용자 전역 설정을 싣지 않고 Taste·헌장을 시스템 프롬프트에 싣습니다.
-- 봐야 할 것: goal 1 구현이 끝났습니다(`npm test` 9190 passed, 실패 0). 실앱 e2e에서 `user` 원천 없이 메인 대화가 실제 모델 턴을 끝냈고, 독립 검수 지적(쓰기 검사·덮어쓰기 거절·덧붙임 상한 등)을 반영했습니다(`npm test` 9204 passed). goal 1을 병합했습니다(PR 119, `e544d797`). goal 2(문답 엔진과 화면) 독립 검수의 막는 결함(확정 커밋이 관계없는 파일을 쓸어 담음)과 지적을 반영했고, 재검수 지적(무시 경로·PR 중복·`.env` 손실)까지 반영했습니다(`npm test` 9282 passed, 실패 0). PR·병합 뒤 goal 3입니다 — 프로젝트 문서는 기본 브랜치로 가는 별도 PR로 커밋합니다.
+- 스탬프: 2026-11-21T15:28:00+09:00
+- 바뀐 것: goal 2를 병합했습니다(PR 120, `8c456887`). goal 3(Taste 판정) 브랜치를 가르고 `planPath`를 goal 3 문서로 옮겼습니다.
+- 내린 결정: 판정의 판은 goal 시작점 커밋의 프로젝트 Taste와 검수 시작 때의 전역 Taste이고, 검수 한 번에 검증 기록 줄 하나를 두고 근거에 항목 판정을 싣습니다.
+- 봐야 할 것: goal 3 구현 2~4단계가 남았습니다. 셸 오류(`syntax error … line 82`)는 이번 세션에서 재현되지 않았고, 낡은 pin 변경 한 건이 stash `pin-wip-g2`에 남아 있습니다(폐기는 가드가 막아 사람 몫).

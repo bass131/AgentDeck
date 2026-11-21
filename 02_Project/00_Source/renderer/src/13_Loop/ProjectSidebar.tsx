@@ -86,8 +86,7 @@ export function ProjectSidebar(): JSX.Element {
   const openProject = async (): Promise<void> => {
     setError(null)
     try {
-      const r = await ipc.workspace.pickFolder()
-      if (r.path !== null) useWorkStore.getState().choose(r.path)
+      await useWorkStore.getState().pickProject()
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
     }

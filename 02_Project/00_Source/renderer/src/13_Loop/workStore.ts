@@ -23,6 +23,8 @@ interface WorkStore {
   selectedNode: string | null
   hydrate: () => void
   choose: (cwd: string) => void
+  // 폴더 고르기 창을 띄워 고른 폴더를 작업 폴더로 한다. 취소하면 그대로다
+  pickProject: () => Promise<void>
   setCenter: (tab: CenterTab) => void
   openTab: (tab: CenterTab) => void
   closeTab: (tab: CenterTab) => void
@@ -82,6 +84,11 @@ export const useWorkStore = create<WorkStore>((set, get) => ({
   },
   setRight: (tab) => set({ right: rightFor(get().center, tab) }),
   selectNode: (id) => set({ selectedNode: id, right: 'node' }),
+
+  pickProject: async () => {
+    const r = await ipc.workspace.pickFolder()
+    if (r.path !== null) get().choose(r.path)
+  },
 
   loadArchives: async (cwd) => {
     try {

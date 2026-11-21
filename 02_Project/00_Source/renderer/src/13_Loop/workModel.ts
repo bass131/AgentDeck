@@ -1,4 +1,4 @@
-import type { LoopPhase, LoopStatus } from '@shared/ipcContract'
+import type { LoopPhase, LoopStatus, TasteDocsRead, TastePrNote } from '@shared/ipcContract'
 import { cwdKey } from './loopModel'
 
 type TagTone = 'brain' | 'run' | 'stop' | 'merge' | 'idle'
@@ -45,6 +45,14 @@ export function goalProgress(s: LoopStatus): { done: number; total: number } | n
 export function addProject(list: readonly string[], p: string): string[] {
   if (list.some((x) => cwdKey(x) === cwdKey(p))) return [...list]
   return [...list, p]
+}
+
+// 「헌장·Taste 칸」과 시작하기 안내가 같은 기준으로 본다. 열린 확정 PR이 그 문서를 쓰고 있으면 빠진 것으로 치지 않는다
+export function missingTasteDocs(docs: TasteDocsRead, prDoc: TastePrNote['doc'] | null): string[] {
+  return [
+    docs.global.absent && '전역 Taste',
+    docs.charter.absent && prDoc !== 'charter' && '프로젝트 헌장',
+  ].filter((x): x is string => typeof x === 'string')
 }
 
 export function folderName(p: string): string {

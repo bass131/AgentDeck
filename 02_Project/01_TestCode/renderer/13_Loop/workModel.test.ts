@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import type { LoopStatus } from '@shared/ipcContract'
-import { addProject, decisionsOf, folderName, goalProgress, projectTag } from '@renderer/13_Loop/workModel'
+import type { LoopStatus, TasteDocsRead } from '@shared/ipcContract'
+import { addProject, decisionsOf, folderName, goalProgress, missingTasteDocs, projectTag } from '@renderer/13_Loop/workModel'
 
 const CWD = 'C:\\work\\practice'
 const st = (over: Partial<LoopStatus> = {}): LoopStatus => ({
@@ -77,5 +77,27 @@ describe('goal 진척과 작업 폴더 목록 (M10 G4)', () => {
   it('폴더 이름은 경로의 끝 이름이다', () => {
     expect(folderName('C:\\work\\practice\\')).toBe('practice')
     expect(folderName('/home/me/repo')).toBe('repo')
+  })
+})
+
+describe('빠진 헌장·Taste 문서', () => {
+  const present = { absent: false as const, path: 'p', raw: 'r', problems: [] }
+  const docs: TasteDocsRead = {
+    global: { absent: true, path: 'g' },
+    charter: { absent: true, path: 'c' },
+    project: { absent: true, path: 't' },
+  }
+  it('전역 Taste와 프로젝트 헌장만 센다 — 프로젝트 Taste는 빠져도 세지 않는다', () => {
+    expect(missingTasteDocs(docs, null)).toEqual(['전역 Taste', '프로젝트 헌장'])
+    expect(missingTasteDocs({ ...docs, global: { ...present, doc: { scope: 'global', items: [] } } }, null)).toEqual(['프로젝트 헌장'])
+    expect(missingTasteDocs({
+      global: { ...present, doc: { scope: 'global', items: [] } },
+      charter: { ...present, doc: { goal: ['g'], nonGoals: null } },
+      project: { absent: true, path: 't' },
+    }, null)).toEqual([])
+  })
+  it('열린 확정 PR이 헌장을 쓰고 있으면 헌장은 빠진 것으로 치지 않는다', () => {
+    expect(missingTasteDocs(docs, 'charter')).toEqual(['전역 Taste'])
+    expect(missingTasteDocs(docs, 'project-taste')).toEqual(['전역 Taste', '프로젝트 헌장'])
   })
 })

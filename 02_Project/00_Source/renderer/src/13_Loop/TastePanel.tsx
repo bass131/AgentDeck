@@ -4,6 +4,7 @@ import { sameDocText, TASTE_DOC_LABEL, type DocRead, type MainChatView, type Tas
 import type { CharterDoc, TasteDoc } from '@shared/14_Taste/tasteDoc'
 import { ipc } from '@renderer/01_Ipc'
 import { errText, sameCwd } from './loopModel'
+import { missingTasteDocs } from './workModel'
 
 function TasteBody({ doc }: { doc: TasteDoc }): JSX.Element {
   if (doc.items.length === 0) return <div className="board-empty">항목이 없어요</div>
@@ -127,10 +128,7 @@ export function TastePanel({ cwd, onOpened }: { cwd: string | null; onOpened: ()
   }
 
   const pr = pendingPr(docs, prNote)
-  const missing = docs === null ? [] : [
-    docs.global.absent && '전역 Taste',
-    docs.charter.absent && pr?.doc !== 'charter' && '프로젝트 헌장',
-  ].filter((x): x is string => typeof x === 'string')
+  const missing = docs === null ? [] : missingTasteDocs(docs, pr?.doc ?? null)
 
   return (
     <section className="files-panel" aria-label="헌장·Taste">

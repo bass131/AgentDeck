@@ -1,3 +1,4 @@
+import { join } from 'node:path'
 import { sanitizeDescription } from './stream/descriptionUtils'
 import type { SlashCommandInfo } from '../../shared/ipcContract'
 
@@ -11,6 +12,27 @@ export type PersistentQueryFn = (params: {
   options?: unknown
 }) => AsyncIterable<unknown> & { interrupt?: () => Promise<void> }
 
+// 설치본에서 번들 SDK의 실행 파일은 asar 밖(app.asar.unpacked)에 있어야 띄울 수 있다
+export function bundledClaudeExecutable(env: {
+  isPackaged: boolean
+  resourcesPath: string
+  platform: string
+  arch: string
+}): string | null {
+  if (!env.isPackaged) return null
+  const exe = env.platform === 'win32' ? 'claude.exe' : 'claude'
+  return join(env.resourcesPath, 'app.asar.unpacked', 'node_modules', '@anthropic-ai', `claude-agent-sdk-${env.platform}-${env.arch}`, exe)
+}
+
+export function withClaudeExecutable(query: QueryFn, executable: string | null): QueryFn {
+  if (executable === null) return query
+  return (params) => {
+    const options = (params.options ?? {}) as Record<string, unknown>
+    if (options.pathToClaudeCodeExecutable !== undefined) return query(params)
+    return query({ ...params, options: { ...options, pathToClaudeCodeExecutable: executable } })
+  }
+}
+
 export async function getDefaultQueryFn(): Promise<QueryFn> {
   try {
     const { loadActiveQuery } = await import('@main/10_Engine/engineVersions')
@@ -20,7 +42,14 @@ export async function getDefaultQueryFn(): Promise<QueryFn> {
   }
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const sdk = await import('@anthropic-ai/claude-agent-sdk') as any
-  return sdk.query as QueryFn
+  const electron = (await import('electron')) as { app?: { isPackaged?: boolean } }
+  const executable = bundledClaudeExecutable({
+    isPackaged: electron.app?.isPackaged === true,
+    resourcesPath: process.resourcesPath,
+    platform: process.platform,
+    arch: process.arch,
+  })
+  return withClaudeExecutable(sdk.query as QueryFn, executable)
 }
 
 export function captureSupportedCommands(

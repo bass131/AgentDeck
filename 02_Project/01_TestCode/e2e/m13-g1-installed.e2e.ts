@@ -24,7 +24,9 @@ function launchEnv(extra: Record<string, string> = {}): Record<string, string> {
 
 async function skipIntro(page: Page): Promise<void> {
   const skip = page.getByRole('button', { name: '건너뛰기' })
-  if (await skip.isVisible({ timeout: 5000 }).catch(() => false)) await skip.click()
+  if (!(await skip.isVisible({ timeout: 5000 }).catch(() => false))) return
+  await skip.dispatchEvent('click')
+  await skip.waitFor({ state: 'hidden', timeout: 10_000 })
 }
 
 test.describe('M13 G1 설치본 확인 (opt-in: M13G1LIVE=1)', () => {

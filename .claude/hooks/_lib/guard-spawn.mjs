@@ -56,8 +56,8 @@ export function createGuardHarness(hook) {
   const cleanEnv = Object.fromEntries(Object.entries(process.env)
     .filter(([k]) => !/^GIT_/i.test(k) && !/^XDG_CONFIG_HOME$/i.test(k)))
   function spawn(input, extraEnv = {}) {
-    // HOME·USERPROFILE도 미러로 돌린다. 가드는 지금 저장소·git 설정을 읽지 않지만 (M04 · 사용자 판정
-    // 2026-11-13), 러너를 돌리는 사람의 `~/.gitconfig`에 판정이 기대는 일이 다시 생기지 않게 격리를 유지한다.
+    // HOME·USERPROFILE도 미러로 돌린다. 가드는 git 설정을 읽지 않고 저장소에서는 현재 브랜치만 읽지만 (M11 goal 8),
+    // 러너를 돌리는 사람의 `~/.gitconfig`에 판정이 기대는 일이 다시 생기지 않게 격리를 유지한다.
     const env = { ...cleanEnv, CLAUDE_PROJECT_DIR: mirror, HOME: mirror, USERPROFILE: mirror, ...extraEnv }
     const p = spawnSync(process.execPath, [script], { input, cwd: mirror, env, encoding: 'utf8' })
     return { code: p.status, stdout: p.stdout ?? '', stderr: p.stderr ?? '' }
@@ -101,6 +101,8 @@ export function createGuardHarness(hook) {
     git,
     initRepo,
     run: (command) => spawn(JSON.stringify(basePayload(command))),
+    // payload의 cwd만 바꾼다 — 가드가 현재 브랜치를 읽는 작업 폴더(M11 goal 8, M08-2). 미러 안 경로만 쓴다.
+    runAt: (command, cwd) => spawn(JSON.stringify({ ...basePayload(command), cwd })),
     verdict: (command) => toVerdict(spawn(JSON.stringify(basePayload(command)))),
     verdictPayload: (patch) => toVerdict(spawn(JSON.stringify({ ...basePayload(''), ...patch }))),
     verdictRaw: (raw) => toVerdict(spawn(raw)),

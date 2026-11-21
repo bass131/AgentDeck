@@ -23,6 +23,8 @@ import { readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { createRunner } from './_lib/runner.mjs'
 import { REPO_ROOT } from './_lib/guard-spawn.mjs'
+import { settingsVerdict } from './_lib/settings-rules.mjs'
+import { CANONICAL_COMMANDS } from './_lib/canonical-commands.mjs'
 
 const SETTINGS = join(REPO_ROOT, '.claude', 'settings.json')
 const GUARD = 'dangerous-cmd-guard.mjs'
@@ -116,13 +118,27 @@ if (settings) {
     'Bash(gh pr -R * merge*)',
     'Bash(gh pr --repo * merge*)',
     'Bash(timeout * gh pr merge*)',
-    'Bash(gh api *pulls/*/merge*)',
+    // M11 goal 8(M11 Backlog 5): 끝점 뒤가 끝·공백·`/`·`-async`일 때만 — 본문 글자 끝에 `…/merge"`가 붙은 댓글 호출은 막지 않는다.
+    //   설정이 놓치는 실제 병합 호출(인용한 끝점, `?`, 리다이렉트)은 가드가 막는다(dangerous-cmd-guard.test.mjs).
+    'Bash(gh api *pulls/*/merge)',
+    'Bash(gh api *pulls/*/merge *)',
+    'Bash(gh api *pulls/*/merge/*)',
+    'Bash(gh api *pulls/*/merge-async*)',
     'Bash(gh api *graphql*mergePullRequest*)',
     'Bash(gh api *graphql*enablePullRequestAutoMerge*)',
   ]
   const lostDeny = MERGE_DENY.filter((rule) => !denyList.includes(rule))
-  r.check('병합 명령 거부 아홉이 deny에 있다', lostDeny.length === 0, lostDeny.join(', ') || '누락 0건')
-  r.check('병합 명령이 ask에 남지 않았다 (deny와 겹치면 의도가 흐려진다)', !askList.some((x) => x.includes('merge')), askList.filter((x) => x.includes('merge')).join(', ') || '0건')
+  r.check('병합 명령 거부 열둘이 deny에 있다', lostDeny.length === 0, lostDeny.join(', ') || '누락 0건')
+  r.check('넓은 `Bash(gh api *pulls/*/merge*)`가 deny에 없다 (댓글 본문까지 막는다)', !denyList.includes('Bash(gh api *pulls/*/merge*)'), '')
+  const perms0 = settings.permissions ?? {}
+  r.judge('댓글 본문 끝의 `…/merge"`는 설정이 막지 않는다', settingsVerdict(perms0, 'gh api repos/o/r/issues/12/comments -f body="see pulls/12/merge"'), 'prompt')
+  for (const cmd of ['gh api -X PUT repos/o/r/pulls/1/merge', 'gh api repos/o/r/pulls/1/merge -X PUT', 'gh api -X PUT repos/o/r/pulls/1/merge-async']) {
+    r.judge(`병합 끝점 호출은 설정이 막는다 \`${cmd}\``, settingsVerdict(perms0, cmd), 'deny')
+  }
+  // ask에 병합 축 규칙을 둘 때(M08-3 전략 옵션) 정형 goal 병합과 `gh pr merge`에는 걸리지 않아야 한다
+  const askHit = [...CANONICAL_COMMANDS.filter((c) => c.startsWith('git merge')), 'gh pr merge 1']
+    .filter((cmd) => settingsVerdict({ ask: askList }, cmd) === 'ask')
+  r.check('ask 규칙이 정형 goal 병합과 `gh pr merge`에 걸리지 않는다', askHit.length === 0, askHit.join(', ') || '0건')
   const leaked = [...APPROVAL, ...MERGE_DENY].filter((rule) => allowList.includes(rule))
   r.check('승인·거부 항목이 allow로 새지 않았다', leaked.length === 0, leaked.join(', ') || '0건')
   r.check('`git checkout -b*`가 allow에 없다 (-f가 미커밋 편집을 버린다)', !allowList.some((rule) => /git checkout/.test(rule)), '')
@@ -139,7 +155,8 @@ if (settings) {
     // M08 G1(헌법 10조 goal 병합의 길): goal 작업 브랜치를 마일스톤 브랜치에 합치는 `git merge --no-ff`만 묻지 않는다.
     //   넓은 `Bash(git merge*)`는 `--abort` 같은 꼴까지 연다. 이 꼴도 `--no-ff` 뒤의 `-s`·`-X`는 연다(M08 Backlog 3).
     //   글자에 `master`가 보이는 push는 가드가 묻고 서버가 막는다. 현재 브랜치가 `master`인 맨 push는 묻지 않는다(M08 Backlog 2).
-    { re: /^Bash\(\s*git\s+merge/, exact: ['Bash(git merge --no-ff *)'] },
+    // M11 goal 8(M08-6): 로컬 마일스톤 브랜치를 원격에 맞추는 `--ff-only origin/milestone/*` 한 꼴을 더 연다.
+    { re: /^Bash\(\s*git\s+merge/, exact: ['Bash(git merge --no-ff *)', 'Bash(git merge --ff-only origin/milestone/*)'] },
   ]
   for (const { re, exact } of FAMILIES) {
     const got = allowList.filter((rule) => re.test(rule))
@@ -177,6 +194,56 @@ if (settings) {
   const renames = readdirSync(mainSrc, { recursive: true }).filter((f) => /\.ts$/.test(String(f)))
     .filter((f) => /app\.setName\(|setPath\(\s*['"]userData['"]/.test(readFileSync(join(mainSrc, String(f)), 'utf8')))
   r.check('main 소스가 앱 이름·userData 경로를 바꾸지 않는다', renames.length === 0, renames.join(', ') || '0건')
+
+  // ---- ⑥ 정형 절차 명령 (M11 goal 8) — 메인의 goal 병합·push·PR 사슬이 설정에서 질문 없이 지나간다 ----
+  // 판정기는 공식 문서의 규칙을 옮긴 _lib/settings-rules.mjs다. 먼저 문서 표의 행으로 판정기 자체를 맞춰 본다.
+  for (const [rule, cmd, want] of [
+    ['Bash(ls *)', 'ls', true], ['Bash(ls *)', 'lsof', false], ['Bash(ls*)', 'lsof', true],
+    ['Bash(git log * main)', 'git log --oneline main', true], ['Bash(git log * main)', 'git log main', false],
+    ['Bash(* --help *)', 'npm --help', false], ['Bash(npm run build)', 'npm run build --watch', false],
+  ]) {
+    r.judge(`판정기 — ${rule} 이 \`${cmd}\`에 맞는가`, settingsVerdict({ allow: [rule] }, cmd) === 'allow', want)
+  }
+  r.judge('판정기 — 복합 명령은 하위 명령 전부가 allow여야 한다', settingsVerdict({ allow: ['Bash(git status)'] }, 'git status && rm x'), 'prompt')
+  r.judge('판정기 — ask가 allow를 이긴다', settingsVerdict({ allow: ['Bash(git push*)'], ask: ['Bash(git push *)'] }, 'git push origin x'), 'ask')
+  r.judge('판정기 — deny는 머리 할당을 건너뛴다', settingsVerdict({ deny: ['Bash(rm *)'] }, 'FOO=bar rm -rf tmp/'), 'deny')
+  const perms = settings.permissions ?? {}
+  for (const cmd of CANONICAL_COMMANDS) {
+    r.judge(`정형 절차 명령 — 설정 allow \`${cmd}\``, settingsVerdict(perms, cmd), 'allow')
+  }
+
+  // ---- ⑦ 병합 전략 옵션 (M11 goal 8 · M08-3 · M08-6) ----
+  // 공식 permissions 문서: 「Rules are evaluated in order: deny, then ask, then allow.」 「a matching ask rule prompts even when
+  // a more specific allow rule also matches the same call.」 — ask 규칙이 `Bash(git merge --no-ff *)` allow를 이긴다.
+  for (const cmd of ['git merge --no-ff -s ours chore/x', 'git merge -s ours chore/x', 'git merge --no-ff -X theirs chore/x',
+    'git merge --no-ff --strategy=ours chore/x', 'git merge --no-ff --strategy ours chore/x', 'git merge --no-ff --strategy-option=theirs chore/x',
+    'git merge --no-ff --allow-unrelated-histories chore/x', 'git merge -Xtheirs chore/x', 'git merge --no-ff -m "x" -s ours chore/x']) {
+    r.judge(`전략 옵션 병합은 설정이 묻는다 \`${cmd}\``, settingsVerdict(perms, cmd), 'ask')
+  }
+  r.judge('`--ff-only origin/milestone/*` 한 꼴은 설정 allow', settingsVerdict(perms, 'git merge --ff-only origin/milestone/m11-backlog-sweep'), 'allow')
+  for (const cmd of ['git merge --ff-only origin/master', 'git merge --ff-only chore/x', 'git merge --abort']) {
+    r.judge(`그 밖의 병합 꼴은 열지 않는다 \`${cmd}\``, settingsVerdict(perms, cmd), 'prompt')
+  }
+
+  // ---- ⑧ 가드 밖 훅의 실패 처리 (M11 goal 8 · M07-3) ----
+  // 공식 hooks 문서: 「On most events, when a hook fails or times out, Claude Code still carries out the action.」 Stop 훅에는
+  // 「The field has no effect」. 편집 게이트·TDD 가드에 block을 걸면 훅이 깨졌을 때 그 훅을 고칠 Edit·Write까지 막힌다(헌법 8조,
+  // M03-25의 내부 fail-open과 같은 결정). 그래서 가드 밖 훅은 continue를 글로 적고, Stop 훅에는 두지 않는다.
+  const otherHooks = entries.filter(({ event }) => event !== 'Stop').flatMap(({ event, entry }) => (entry.hooks ?? [])
+    .filter((x) => x.type === 'command' && !String(x.command ?? '').includes(GUARD)).map((x) => ({ event, x })))
+  const notContinue = otherHooks.filter(({ x }) => x.onFailure !== 'continue').map(({ event, x }) => `${event} ${x.command}`)
+  r.check('가드 밖 훅은 실패해도 지나간다 (onFailure: continue)', otherHooks.length >= 6 && notContinue.length === 0,
+    notContinue.join(', ') || `${otherHooks.length}건`)
+  const stopWithField = entries.filter(({ event }) => event === 'Stop').flatMap(({ entry }) => entry.hooks ?? []).filter((x) => 'onFailure' in x)
+  r.check('Stop 훅에는 onFailure를 두지 않는다 (효과 없음)', stopWithField.length === 0, `${stopWithField.length}건`)
+
+  // ---- ⑨ CI 액션 고정 (M11 goal 8 · M07-21) ----
+  const workflow = readFileSync(join(REPO_ROOT, '.github', 'workflows', 'hard-gates.yml'), 'utf8')
+  const uses = [...workflow.matchAll(/^\s*-?\s*uses:\s*(\S+)(.*)$/gm)].map((m) => ({ ref: m[1], rest: m[2] }))
+  const unpinned = uses.filter(({ ref, rest }) => !/@[0-9a-f]{40}$/.test(ref) || !/#\s*v\d+\.\d+\.\d+/.test(rest)).map(({ ref }) => ref)
+  r.check('hard-gates.yml의 액션이 전부 커밋 SHA와 태그 주석으로 고정돼 있다', uses.length >= 2 && unpinned.length === 0, unpinned.join(', ') || `${uses.length}건`)
+  const dependabot = readFileSync(join(REPO_ROOT, '.github', 'dependabot.yml'), 'utf8')
+  r.check('dependabot에 github-actions 생태계가 있다', /package-ecosystem:\s*github-actions/.test(dependabot), '')
 }
 
 process.exit(r.summary())

@@ -1070,7 +1070,7 @@ function scriptReason(script: string, r: Resolved, depth: number, start: Cwd, mu
         continue
       }
       if (SHELLS.has(c.base)) {
-        const scripts = shellScriptsOf(c.args)
+        const scripts = shellScriptsOf(c.args, c.base)
         // BASH_ENV·ENV 앞 할당이면 셸이 그 파일을 먼저 돈다 — 시작 위치를 「모름」으로 본다
         const start = tokens.some((t) => STARTUP_ASSIGN.test(t)) ? union(cmdCwd, [UNKNOWN]) : cmdCwd
         for (const s of scripts) {

@@ -3,6 +3,15 @@
 - 범위 밖 발견을 한 줄로 남긴다(헌법 11조). 최신 번호가 위다.
 - M01~M10 Backlog의 닫힘은 각 파일의 「## 닫힘 (M11)」 표가 갖는다. 여기에는 M11 진행 중 새로 생긴 것과 해결됨 항목의 남은 갈래만 둔다.
 
+82. (M11 G8 검수) 현재 브랜치 읽기(`currentBranch`)는 작업 폴더가 저장소의 하위 폴더일 때 위로 올라가 `.git`을 찾는 길을 시험하지 않는다 — 시험은 저장소 뿌리와 worktree 뿌리만 본다.
+81. (M11 G8 검수) `_lib/settings-rules.mjs:8,21`의 근사가 더 어긋난다 — `SEPARATORS`의 `&`가 `2>&1`을 끊고, 인용 추적이 `"$(cat <<'EOF' … EOF)"` 안에서 닫힌다. 정형 목록의 `gh pr create`는 `--body "…"` 꼴만 보고 메인이 실제로 쓰는 heredoc 본문 꼴은 보지 않는다(79의 연장).
+80. (M11 G8 검수) `Start-Process -FilePath '<공백 든 경로>'`는 가드 `evaluatedScriptOf`와 `mergeDeny.startProcessScript`가 `[file, ...list].join(' ')`로 이으며 인용을 잃어, `Start-Process -FilePath 'C:\Program Files\GitHub CLI\gh.exe' -ArgumentList 'pr merge 1'`이 둘 다 지나간다. goal 8 전부터 있던 꼴이고 셋의 판독은 같다.
+79. (M11 G8) 설정 판정 시험(`_lib/settings-rules.mjs`)은 공식 permissions 문서의 규칙을 옮긴 근사다 — 실제 Claude Code의 인용부·래퍼 처리와 다를 수 있어, 정형 절차 명령이 실제 세션에서 질의 없이 지나가는지는 메인의 다음 goal 병합 사슬이 실물로 확인한다.
+78. (M11 G8) M06-28의 증상(설정 ask와 가드 ask가 겹치면 앱 승인 카드에 가드 사유가 빠진다)은 겹침을 유지하기로 닫았고, 사유 표시는 앱 카드 몫으로 남는다 — 릴리스·배포 셋(`gh release`·`npm publish`·`npm run package`)이 지금 겹친다.
+77. (M11 G8) 앱 데이터 폴더 질의(M07-1)는 경로가 글로 보일 때만 문다 — 변수로 조립한 경로, 다른 곳으로 `cd`한 뒤의 상대 경로(`../agentdeck`), 스크립트 파일 안의 경로는 판독 밖이고, 훅 ask가 창이 아닌 모드에서는 규범에 기댄다(M04-6).
+76. (M11 G8) 전략 옵션 ask(M08-3)는 낱말 머리의 `-s`·`-X`·`--strategy*`·`--allow-unrelated-histories`만 본다 — 묶은 짧은 옵션(`git merge --no-ff -qs ours x`, `-nX theirs`)은 allow `Bash(git merge --no-ff *)`로 지나간다.
+75. (M11 G8) master 위 질의(M08-2)가 읽지 못하는 꼴 — 명령 안의 `cd`·`git -C`로 옮긴 다른 저장소의 현재 브랜치, `remote.origin.push` 설정이 정한 목적지, `xargs` 입력, 변수·`$()`·중괄호로 만든 `master`. 모두 서버 보호가 받는다.
+74. (M11 G8) 하위 에이전트의 가드 질의가 권한 모드마다 실제 창이 되는지(M05-10)는 실측하지 않았다 — 결정 대장 [USER·위임]대로 문서와 hook-log 줄로 닫았고, 사람이 있을 때 기본·auto 모드에서 한 번 띄워 본다.
 73. (M11 G7 검수 반영 중) tdd-guard의 `node --test` 판별이 `--require=<파일>`·`--import=<파일>` 선적재를 거르지 않는다 — 선적재가 `# pass 1 / # fail 0`을 찍으면 시험 없이 계수가 풀린다(코드 읽기, 실행 확인 안 함).
 72. (M11 G7 검수 반영 중) `40_pass-watcher.cjs:101`과 `10_start-brief.cjs:32`는 포인터를 아직 날 경로로 읽어 `/c/` 꼴 `planPath`를 `C:\c\…`로 연다. 편집 게이트는 `_lib/repo-path.cjs`의 `toAbs`로 바르게 읽으므로 둘도 같은 함수를 쓰면 된다.
 71. (M11 G7 검수) tdd-guard `classifyRun`은 `--reporter`로 시작하는 인자를 출력 형태로만 보고 넘겨(`t.startsWith('--reporter')`), `npm test -- --reporter=<사용자 파일>` 실행도 전체 Green(`lastGreen`)으로 채집한다. 직접 짠 reporter가 요약 줄을 지어 내면 PASS 추기 증거를 위조할 수 있다 — goal 7 이전부터 있던 꼴이다.
@@ -48,7 +57,7 @@
 31. 옛 모달 선택자 목록의 `.sa-overlay`는 그리는 컴포넌트가 없어 모달 층으로 옮기지 않고 뺐다 (M11 G4 설계 감사 22).
 30. 작업 모드 탐색기는 첫 읽기가 실패하면(실행기가 아직 안 열림) 「열면 파일이 보여요」로 남고, 루프가 열려도 폴더를 다시 고르기 전까지 다시 읽지 않는다(`renderer/src/07_Workspace/file/FileExplorer.tsx`의 `unavailable`, 코드 판독) — 상태가 열림으로 바뀔 때 다시 읽는다 (M10-16, M11 G4).
 29. 작업 모드 탐색기에서 파일을 눌러도 열리지 않는다 — 원천 모드는 트리만 보인다(`FileExplorer.tsx` source 모드). 파일 보기를 작업 폴더 기준으로 열지 정한다 (M10-16, M11 G4).
-28. PowerShell 꼴 `` g`h pr merge 1 ``(백틱 이스케이프), `iex`·`Invoke-Expression "gh pr merge 1"`, `Start-Process gh -ArgumentList 'pr merge 1'`은 가드·`mergeDeny`·`loopLock` 셋 다 통과한다 — 셋의 판독은 같아(패리티) goal 3 몫은 없고, 가드와 함께 goal 8이 본다 (M11 G3 독립 검수).
+28. PowerShell 꼴 `` g`h pr merge 1 ``(백틱 이스케이프), `iex`·`Invoke-Expression "gh pr merge 1"`, `Start-Process gh -ArgumentList 'pr merge 1'`은 가드·`mergeDeny`·`loopLock` 셋 다 통과한다 — 셋의 판독은 같아(패리티) goal 3 몫은 없고, 가드와 함께 goal 8이 본다 (M11 G3 독립 검수). → 고침(M11 goal 8, `375c1e37`·`8f1a490f`): `iex`·`Invoke-Expression`(`-Command` 포함)·`Start-Process`·`saps`(`-FilePath`·`-ArgumentList`, 쉼표 목록과 `@(…)` 배열)를 가드와 `mergeDeny.windowsShellScripts`가 다시 읽고 `loopLock`이 물려받는다. 백틱 이스케이프는 v2(결정 대장 [USER·위임]).
 27. PR 카드의 룰셋 읽기는 고전 보호가 「Branch not protected」일 때만 돈다 — 고전 보호와 룰셋이 함께 걸려 룰셋에만 필수 검사가 있는 base는 고전 쪽만 읽는다(`main/08_Git/prMerge.ts:285`, 코드 판독). 두 목록을 합칠지 정한다 (M07-24, M11 G3).
 26. PR 카드는 하위 에이전트 대화 보기의 `gh pr create`와 「이미 있음」 오류로 끝난 `gh pr create`에는 아직 뜨지 않는다 — M07-24 뒷절, goal 3은 룰셋 판독(앞절)만 고쳤다 (M07-24, M11 G3).
 25. 모델 목록 다시 묻기는 5·15·60초 세 번이다. 셋 다 SDK 목록을 못 받으면 재시작 전까지 다시 묻지 않는다(`renderer/src/05_Conversation/state/composer.ts:11`) — 다시 묻기 버튼이나 화면 복귀 때 묻기 후보 (M06-13, M11 G2 검수 사소 11).
@@ -59,7 +68,7 @@
 20. `06_Sessions/store.ts:148-159,260-264` — `index.json`이 깨지면 `readIndex`가 빈 목록을 돌려주고 다음 `save`가 목록을 id 하나로 덮어써 옛 대화가 목록에서 사라진다(파일은 남음). 쓰기가 원자적이지 않고, `safeId`가 `index`를 통과시켜 `chatFile('index')`가 색인 파일과 같아진다(코드 판독) (M11 설계 감사). → 고침(M11 goal 3, `ae748e3e`·`ed5411ae`)
 19. `01_Ipc/handlers/git.ts:58-62` → `08_Git/git.ts:203-207` — renderer가 보낸 `hash`를 문자열인지만 보고 `git show`에 넘겨, `--output=<경로>`를 보내면 그 경로에 파일이 써진다(임시 저장소 실측). `gitPort.ts:61-64` `safeName`처럼 `-` 머리 값을 막아야 한다 (M11 설계 감사). → 고침(M11 goal 3, `ae748e3e`)
 18. `claudeAgentRun.ts:28-35` `userDataForLock`은 `getUserDataDir()`가 던지면 엔진 경로 잠금 없이 세션을 연다(로그만) — M07-18의 형제 fail-open이고 주입되지 않는다. `enginePathLock.ts:63` `TARGET_WORD`가 `TARGETS` 이름을 손으로 다시 적어 새 보호 파일이 `cd <userData> && rm` 꼴에서 빠질 수 있다 — goal 3(잠금)이 본다 (M11 설계 감사). → 고침(M11 goal 3, `ae748e3e`)
-17. 가드와 앱 잠금의 판독 어긋남 10꼴 실측 — `timeout -vs KILL 5 gh pr merge 1`, `bash -ce "…"`, `bash -c -x "…"`, `eval gh pr merge 1`, `find … -exec gh pr merge 1 \;`를 가드는 막고 `mergeDeny`는 통과시키며, `loopLock`이 그 판독을 물려받아 같은 꼴의 `git push`도 통과한다. `gh api -iX DELETE …`·`-X=PUT`은 가드 ask, `loopLock.apiIsWrite` 통과. 같음 시험(`cmd-guard-equivalence.test.mjs:176-237`)이 래퍼 표 글자만 비교해 판독 함수를 지키지 않는다 — M09-7을 넓혀 goal 3이 고치고 같음 시험을 판독 결과 말뭉치로 넓힌다(판정 장치 몫은 goal 8) (M11 설계 감사, 프로브 `scratchpad/guardprobe`). → 고침(M11 goal 3, `a6e7f88a`·`bc920e64`)
+17. 가드와 앱 잠금의 판독 어긋남 10꼴 실측 — `timeout -vs KILL 5 gh pr merge 1`, `bash -ce "…"`, `bash -c -x "…"`, `eval gh pr merge 1`, `find … -exec gh pr merge 1 \;`를 가드는 막고 `mergeDeny`는 통과시키며, `loopLock`이 그 판독을 물려받아 같은 꼴의 `git push`도 통과한다. `gh api -iX DELETE …`·`-X=PUT`은 가드 ask, `loopLock.apiIsWrite` 통과. 같음 시험(`cmd-guard-equivalence.test.mjs:176-237`)이 래퍼 표 글자만 비교해 판독 함수를 지키지 않는다 — M09-7을 넓혀 goal 3이 고치고 같음 시험을 판독 결과 말뭉치로 넓힌다(판정 장치 몫은 goal 8) (M11 설계 감사, 프로브 `scratchpad/guardprobe`). → 고침(M11 goal 3, `a6e7f88a`·`bc920e64`) → 판정 장치 몫 고침(M11 goal 8, `375c1e37`·`8f1a490f`): `cmd-guard-equivalence.test.mjs`의 세 판정기 표(TW-01~44, 감싼 push는 가드 날 판정까지)가 가드(병합 규칙 로그)·`mergeDeny`·`loopLock`의 실제 판정을 같은 말뭉치로 비교한다. 의도한 차이(병합 끝점 읽기, `powershell -Command`, 루프 잠금의 push)는 note가 단 행이다.
 16. G2 실앱 캡처(`c-conversation-b-mode.png`)에서 답 「hi」가 끝나고 에이전트 패널이 「대기 중」인데도 그 턴 머리에 「사고 중... ~564 토큰 •••」이 남아 보였다 — 끝난 턴의 사고 표시가 닫히지 않는지 확인이 필요하다 (M11 G2 메인 관찰).
 15. e2e `engine-update.e2e.ts:12`가 `cmpVer`를 따로 복사해 쓴다. 앱의 비교는 pre-release를 읽는 한 벌(`engineCheckUpdate.ts:4`)이 됐는데 e2e 사본은 옛 `Number` 쪼개기다 (M05-65, M11 G2).
 14. 패널(`05_Conversation/PanelView.tsx`)은 실행 중 effort 전환, 모델을 바꿀 때 직전 창 버리기, 자동 압축 표시를 아직 잇지 않았다. 단일 대화 입력창만 고쳤다. M10 G1 뒤로 `PanelView`를 그리는 곳(`<PanelView`)이 없어 지금은 화면에 닿지 않는다 — 패널 코드를 지울지와 함께 본다 (M06-18·24·27, M11 G2). → 해결됨(M11 goal 6, `506681b8`): `PanelView`를 지웠다.
@@ -71,7 +80,7 @@
 8. tdd-guard(`33_tdd-guard.cjs`)가 ROOT를 `CLAUDE_PROJECT_DIR`로 잡아 `.claude/worktrees/` 아래의 시험 파일 편집을 소스 편집으로 세고, 같은 세션 id의 하위 에이전트들이 streak 카운터를 나눠 써 한 워커의 초록 실행이 다른 워커의 카운터를 리셋한다 — 병렬 파이프라인에서 판정이 섞인다, goal 7이 본다 (M11 G3 시험 담당 관찰). → 고침(M11 goal 7, `3aa38815`) — `.claude/worktrees/<이름>/` 아래 경로는 그 안의 상대 경로로 판독하고, 카운터는 훅 입력 `agent_id`(공식 훅 문서 공통 입력 칸, hook-log 실측)로 하위 에이전트마다 가른다.
 7. `README.md:62-64`가 `/work:plan`·`/review`와 멀티 에이전트를 소개하고, `:74`의 「복원 후 다시 연결할 예정」 문구도 낡았을 수 있다 — goal 6이 README를 고칠 때 함께 본다 (M01-8, M11 G1 검수). → 고침(M11 goal 6, `cf6359ba`): 개발 방식 절이 헌법·템플릿·`/gate`와 마일스톤 흐름을 소개하고, 문서 절의 「복원 후 다시 연결할 예정」을 지금 상태로 바꿨다.
 6. 실행기에 goal을 다시 나누는 길을 넣으면 앞 goal의 FAIL 계수를 새 goal로 잇는다(헌법 11조). M09 G1 독립 검수의 G3 메모이고 아직 맡은 곳이 없다 (M09-1, M11 G1).
-5. 설정 `deny`의 `Bash(gh api *pulls/*/merge*)`는 본문에 `pulls/12/merge` 글자가 든 댓글 호출도 막는다. 가드 차단이 들어온 뒤에도 넓은 꼴을 그대로 뒀다 (M07-23, M11 G1).
+5. 설정 `deny`의 `Bash(gh api *pulls/*/merge*)`는 본문에 `pulls/12/merge` 글자가 든 댓글 호출도 막는다. 가드 차단이 들어온 뒤에도 넓은 꼴을 그대로 뒀다 (M07-23, M11 G1). → 고침(M11 goal 8, `ac73f0ac`): deny를 끝점 뒤가 끝·공백·`/`·`-async`인 네 꼴로 좁혔다. 설정이 놓치는 실제 병합 호출(인용한 끝점, `?`, 리다이렉트, `;`·`|`)은 가드 `gh-api-병합`이 막음을 시험이 묶는다. 남는 오탐: 본문 가운데 `pulls/12/merge ` 뒤에 글이 더 오는 댓글은 `merge *` 꼴에 여전히 걸린다.
 4. 현황판에 결정 보드를 고치는 명령 도구와 「답이 전달됨」 판정이 없다. 메인이 Edit로 보드를 고치고 답을 받으면 손으로 지운다 (M05-70, M11 G1).
 3. renderer 콜드 import의 근본 수리(공용 import 준비를 `beforeAll`로 올리기)는 하지 않았다. 지금은 `testTimeout`·`hookTimeout` 30000이 가린다 (M05-45, M11 G1).
 2. CLI 세션에서는 가드의 질의가 권한 창을 생략하는 권한 모드에서 창이 되지 않는다. 앱 경로만 카드로 올린다 (M04-6, M11 G1).

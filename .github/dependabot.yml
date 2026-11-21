@@ -12,3 +12,11 @@ updates:
     open-pull-requests-limit: 2
     commit-message:
       prefix: "chore(deps)"
+  # CI 액션 (M11 G8, M07-21) — hard-gates.yml이 커밋 SHA로 고정한 액션의 새 버전을 PR로 알린다.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 2
+    commit-message:
+      prefix: "chore(ci)"

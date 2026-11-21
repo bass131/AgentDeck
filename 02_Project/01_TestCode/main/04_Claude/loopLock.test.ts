@@ -722,6 +722,30 @@ describe('loop-lock — 가드와 같은 판독 (M11 G3)', () => {
   }
 })
 
+describe('loop-lock — 가드와 같은 판독 (M11 G8)', () => {
+  const probes = [
+    'iex "gh pr merge 1"',
+    'Invoke-Expression "git push origin x"',
+    "Start-Process gh -ArgumentList 'pr merge 1'",
+    'Start-Process -FilePath git -ArgumentList "push","origin","x"',
+    'bash +c "git push origin x"',
+    'bash -login -ce "git push origin x"',
+    'zsh.exe -c "gh pr merge 1"',
+    'zsh -restricted "git push origin x"',
+    'ksh -restricted "gh pr merge 1"',
+  ]
+  for (const cmd of probes) {
+    it(`[M11-G8 M11-28 M03-28] 거부: ${JSON.stringify(cmd)}`, () => {
+      expect(loopCommandReason(cmd, SCOPE)).not.toBeNull()
+    })
+  }
+  for (const cmd of ['iex "npm test"', 'Start-Process notepad', 'bash -login -c "npm test"']) {
+    it(`통과: ${JSON.stringify(cmd)}`, () => {
+      expect(loopCommandReason(cmd, SCOPE)).toBeNull()
+    })
+  }
+})
+
 describe('loop-lock MCP 도구 (M09 G2 검수 중요 5)', () => {
   it('루프 세션에서 mcp__ 도구는 이름과 입력에 관계없이 거부한다', () => {
     expect(loopLockReason('mcp__github__create_pull_request', { title: 'x' }, SCOPE)).toContain('MCP')

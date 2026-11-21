@@ -19,8 +19,8 @@
 // fail-closed: payload가 없거나 파싱 불가면 통과가 아니라 차단이다 (Moodie 원본과 갈리는 축).
 // 로그는 fail-open이다 — 기록에 실패해도 판정을 막지 않는다.
 
-import { appendFileSync, mkdirSync, readFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { appendFileSync, existsSync, mkdirSync, readFileSync, statSync } from 'node:fs'
+import { dirname, join, resolve } from 'node:path'
 
 const ROOT = process.env.CLAUDE_PROJECT_DIR || process.cwd()
 const GATE_DIR = join(ROOT, '98_Management', '01_GateState')
@@ -128,7 +128,7 @@ function tokenize(segment) {
 // 각 토큰의 판정 이름은 둘이다 — `name`은 토큰 원형(소문자), `base`는 경로 접두를 벗긴 basename이다.
 // basename 판정은 git 계열과 셸 계열에만 쓴다 (M02 Backlog 2) — 규칙의 다른 이름 판정은 원형 그대로다.
 const WRAPPERS = new Set(['sudo', 'doas', 'env', 'nohup', 'time', 'nice', 'ionice', 'xargs', 'command', 'busybox'])
-const SHELLS = new Set(['sh', 'bash', 'dash', 'zsh', 'ksh', 'ash', 'sh.exe', 'bash.exe'])
+const SHELLS = new Set(['sh', 'bash', 'dash', 'zsh', 'ksh', 'ash', 'sh.exe', 'bash.exe', 'dash.exe', 'zsh.exe', 'ksh.exe', 'ash.exe'])
 const FIND_EXEC = new Set(['-exec', '-execdir', '-ok', '-okdir'])
 // 래퍼 — 뒤의 낱말을 명령으로 실행한다. 값을 다음 낱말로 받는 옵션과 명령 앞의 위치 인자 수(`timeout <시간>`)를 적는다 (M07 G12).
 // 앱 잠금 노드 `02_Project/00_Source/main/04_Claude/permission/mergeDeny.ts`의 표와 같다. 위 WRAPPERS 집합은 heredoc 소비자 판독(stageHead)용으로 그대로 둔다.
@@ -374,6 +374,12 @@ const DESTRUCTIVE = [
       || (c.git.slice(1).some(isBranchDelete) && c.git.slice(1).some(isForce))),
   },
   {
+    // `switch -C`와 같은 종류다 — 기존 브랜치 포인터를 강제로 옮기거나 이름·사본으로 덮는다 (M04-8 · M05-8)
+    id: 'git-branch-강제이동',
+    why: 'git branch -f / --force / -M / -C (브랜치 포인터 강제 이동·덮어쓰기)',
+    match: (c) => c.git?.[0] === 'branch' && c.git.slice(1).some((t) => t === '--force' || (!t.startsWith('--') && /^-[A-Za-z]*[fMC]/.test(t))),
+  },
+  {
     id: 'git-checkout-경로복원',
     why: 'git checkout -- <path> / . (로컬 편집 폐기)',
     match: (c) => c.git?.[0] === 'checkout' && (c.git.includes('--') || c.git.includes('.')),
@@ -528,7 +534,20 @@ const IRREVERSIBLE = [
   { id: 'fetch-ref덮어쓰기', why: 'git fetch +refspec / src:dst / --prune refspec (로컬 ref 덮어쓰기·삭제)', match: fetchRewritesRefs },
   { id: 'gh-api-보호설정', why: 'gh api 보호 설정 경로 (branch protection·rulesets)', match: (c) => ghApi(c) && c.args.some((t) => RE_GH_PROTECTION.test(t)) },
   { id: 'gh-api-쓰기', why: 'gh api 쓰기 호출 (GitHub 상태 변경)', match: (c) => ghApi(c) && ghApiWrites(c.args) },
-  { id: 'gh-repo-변경', why: 'gh repo edit / delete (저장소 설정 변경·삭제)', match: (c) => ghIs(c, 'repo', ['edit', 'delete']) },
+  { id: 'gh-repo-변경', why: 'gh repo edit / delete / rename / archive (저장소 설정 변경·삭제)', match: (c) => ghIs(c, 'repo', ['edit', 'delete', 'rename', 'archive']) },
+  // M11 goal 8(M05-9) — 규칙이 없던 꼴. 판독이 못 읽는 꼴(영속 별칭·셸 확장·다른 세그먼트의 설정)은 v2다
+  { id: 'gh-repo-sync-강제', why: 'gh repo sync --force (원격 브랜치 덮어쓰기)', match: (c) => ghIs(c, 'repo', ['sync']) && c.args.some((t) => t === '--force') },
+  { id: 'gh-secret', why: 'gh secret set / delete (저장소 비밀 변경)', match: (c) => ghIs(c, 'secret', ['set', 'delete', 'remove']) },
+  { id: 'gh-alias', why: 'gh alias set / import (명령을 감추는 별칭 심기)', match: (c) => ghIs(c, 'alias', ['set', 'import']) },
+  {
+    id: 'git-원격-실행옵션',
+    why: 'git --receive-pack / --upload-pack / push --exec (원격 쪽 임의 명령)',
+    match: (c) => (c.git?.slice(1).some((t) => isLongOpt(t, ['receive-pack', 'upload-pack'], 3)) ?? false)
+      || (pushArgs(c)?.some((t) => t === '--exec' || t.startsWith('--exec=')) ?? false),
+  },
+  { id: 'git-branch-이름바꾸기', why: 'git branch -m / --move (브랜치 이름 바꾸기)', match: (c) => c.git?.[0] === 'branch' && c.git.slice(1).some((t) => t === '--move' || (!t.startsWith('--') && /^-[A-Za-z]*m/.test(t))) },
+  // M04-8 — 설정의 `git log*`·`git diff*`·`git show*` 허용이 임의 경로 쓰기를 연다
+  { id: 'git-출력파일', why: 'git --output (임의 경로에 파일 쓰기)', match: (c) => c.git?.slice(1).some((t) => t === '--output' || t.startsWith('--output=')) ?? false },
   {
     id: 'gh-pr-브랜치삭제',
     why: 'gh pr close --delete-branch (브랜치 삭제)',
@@ -574,9 +593,12 @@ function heredocDelims(line) {
 
 const stripHeredocMarkers = (stage) => stage.replace(/<<-?\s*(?:'[^']*'|"[^"]*"|[A-Za-z0-9_.-]+)/g, ' ')
 
+// 이스케이프는 세그먼트 분할과 같게 읽는다(M03-32) — 인용부 밖 `\"`가 연 가짜 인용이 뒤의 `>`를 가리지 않게.
 function hasOutputRedirect(stage) {
   let quote = null
-  for (const ch of stage) {
+  for (let i = 0; i < stage.length; i++) {
+    const ch = stage[i]
+    if (isEscape(quote, ch, stage[i + 1])) { i++; continue }
     if (quote) { if (ch === quote) quote = null; continue }
     if (ch === '"' || ch === "'") { quote = ch; continue }
     if (ch === '>') return true
@@ -663,22 +685,33 @@ const SHELL_DEPTH_LIMIT = 3
 //   `-o`·`-O` 묶음과 `--rcfile`·`--init-file`은 다음 토큰을 값으로 먹는다 (`bash -o pipefail -c "…"`).
 // 종전 판독(`-c` 꼴 토큰 바로 뒤의 토큰)은 합집합으로 남긴다 — 수리가 기존 재판정 표면을 줄이지 않게 한다.
 // -c 모드가 아닌 operand(`bash -x run.sh`)는 파일 이름이라 다시 판정하지 않는다.
+// M11 goal 8(M03-28): bash는 `+c`도 -c 모드로 읽고, 묶음의 `o`·`O`마다 값을 하나씩 먹으며(`-coo a b`),
+//   대시 하나짜리 긴 옵션(`-login`·`-posix`·`-noprofile`)은 값을 먹지 않는다. 앱 mergeDeny.ts의 사본과 같다.
 const SHELL_VALUE_LONG = new Set(['--rcfile', '--init-file'])
+const SHELL_LONG_WORDS = new Set(['login', 'noprofile', 'norc', 'posix', 'restricted', 'verbose', 'version', 'help', 'debugger', 'noediting', 'dump-strings', 'dump-po-strings', 'pretty-print'])
 const RE_SHELL_BUNDLE = /^[-+][A-Za-z]+$/
 
-function shellScriptsOf(args) {
-  const at = new Set()
+// 대시 하나 긴 옵션은 bash만 읽는다 — zsh·ksh·dash·ash에서 `-restricted`는 `c`가 든 짧은 묶음이다(독립 검수 1).
+// sh는 bash일 수도 dash일 수도 있어 두 판독의 합집합이다. 셸을 모르면 합집합이다.
+const LONG_WORD_SHELLS = new Set(['bash', 'bash.exe'])
+const EITHER_SHELLS = new Set(['sh', 'sh.exe'])
+function shellScriptStart(args, longWords) {
   let cMode = false
   let i = 0
   while (i < args.length) {
     const t = args[i]
     if (t === '--' || t === '-') { i++; break }
     if (t.startsWith('--')) { i += SHELL_VALUE_LONG.has(t) ? 2 : 1; continue }
+    if (longWords && t[0] === '-' && SHELL_LONG_WORDS.has(t.slice(1))) { i++; continue }
     if (!RE_SHELL_BUNDLE.test(t)) break
-    if (t[0] === '-' && t.includes('c')) cMode = true
-    i += /[oO]/.test(t) ? 2 : 1
+    if (t.includes('c')) cMode = true
+    i += 1 + (t.match(/[oO]/g)?.length ?? 0)
   }
-  if (cMode && i < args.length) at.add(i)
+  return cMode && i < args.length ? i : -1
+}
+function shellScriptsOf(args, shell) {
+  const readings = LONG_WORD_SHELLS.has(shell) ? [true] : shell === undefined || EITHER_SHELLS.has(shell) ? [true, false] : [false]
+  const at = new Set(readings.map((lw) => shellScriptStart(args, lw)).filter((j) => j >= 0))
   const k = args.findIndex((t) => RE_SHELL_C.test(t))
   if (k >= 0 && k + 1 < args.length) at.add(k + 1)
   return [...at].map((j) => args[j])
@@ -1128,21 +1161,165 @@ function contextsOf(command, depth = 0) {
   const out = []
   for (const seg of segs) {
     const toks = tokenize(seg)
+    // 명령 자리의 `eval`은 인자를 이어 스크립트로 돌린다 — 인용한 꼴(`eval "gh pr merge 1"`)도 다시 읽는다 (Backlog 17)
+    const ev = toks.indexOf('eval')
+    if (depth < SHELL_DEPTH_LIMIT && ev >= 0 && toks.slice(0, ev).every((t) => RE_ASSIGN.test(t) || SHELL_HEAD_WORDS.has(t))) {
+      out.push(...contextsOf(toks.slice(ev + 1).join(' '), depth + 1))
+    }
     for (const c of commandsOf(toks)) {
       // seg — 세그먼트의 토큰 전부다 (M05 H1). `master` 글자 판정이 머리의 할당(`GIT_CONFIG_VALUE_0=HEAD:master git push`)까지 보게 한다
-      out.push({ ...c, seg: toks, git: isGit(c.base) ? gitSub(c.args) : null })
+      out.push({ ...c, seg: toks, segText: seg, git: isGit(c.base) ? gitSub(c.args) : null })
       if (depth >= SHELL_DEPTH_LIMIT) continue
       // `env -S` 문자열은 셸 `-c` 스크립트처럼 같은 파이프라인으로 다시 판정한다 (M09 G3)
       const split = splitScriptOf(c)
       if (split !== null) out.push(...contextsOf(split, depth + 1))
+      const evaluated = evaluatedScriptOf(c)
+      if (evaluated) out.push(...contextsOf(evaluated, depth + 1))
       if (!SHELLS.has(c.base)) continue
-      for (const script of shellScriptsOf(c.args)) {
+      for (const script of shellScriptsOf(c.args, c.base)) {
         if (typeof script === 'string' && script.trim()) out.push(...contextsOf(script, depth + 1))
       }
     }
   }
   return out
 }
+
+// 인자를 스크립트로 돌리는 PowerShell 명령 (M11 goal 8 · Backlog 28) — `iex`·`Invoke-Expression`, `Start-Process`.
+// 다시 읽을 글을 돌려준다. 앱 잠금 노드 mergeDeny.ts의 windowsShellScripts와 같다. 없으면 null.
+const PS_EVAL = new Set(['iex', 'invoke-expression'])
+const PS_START = new Set(['start-process', 'saps'])
+const PS_START_SWITCH = new Set(['nonewwindow', 'passthru', 'wait', 'loaduserprofile', 'usenewenvironment'])
+function evaluatedScriptOf(c) {
+  if (PS_EVAL.has(c.base)) {
+    const out = []
+    for (let i = 0; i < c.args.length; i++) {
+      const m = /^-c(?:o(?:m(?:m(?:a(?:n(?:d)?)?)?)?)?)?(?::(.*))?$/i.exec(c.args[i])
+      if (!m) out.push(c.args[i])
+      else if (m[1]) out.push(m[1])
+    }
+    return out.join(' ')
+  }
+  if (!PS_START.has(c.base)) return null
+  let file
+  const list = []
+  const positional = []
+  for (let i = 0; i < c.args.length; i++) {
+    const t = c.args[i]
+    if (!t.startsWith('-')) { positional.push(t); continue }
+    const [rawName, ...attached] = t.slice(1).split(':')
+    const name = low(rawName)
+    const value = () => (attached.length ? attached.join(':') : c.args[++i])
+    if (name === 'args' || (name.length > 0 && 'argumentlist'.startsWith(name))) {
+      // 배열 꼴 — `"pr", "merge"`는 쉼표로 끝난 낱말이 이어지고, `@(…)`는 괄호로 감싼다
+      let v = value()
+      while (typeof v === 'string' && v.endsWith(',') && i + 1 < c.args.length) v += c.args[++i]
+      list.push(v)
+    }
+    else if (name === 'path' || name === 'pspath' || (name.length > 0 && 'filepath'.startsWith(name))) file = value()
+    else if (!PS_START_SWITCH.has(name)) value()
+  }
+  file ??= positional.shift()
+  if (!list.length && positional.length) list.push(positional.shift())
+  if (!file) return null
+  return [file, ...list.filter((v) => typeof v === 'string').flatMap((v) => v.replace(/^@\(/, '').replace(/\)$/, '').split(','))].join(' ')
+}
+
+// 앱 데이터 폴더(Electron userData `agentdeck` — 엔진 코드 `engines/`·`engine-config.json`) (M11 goal 8 · M07-1).
+// 설정 deny `Edit(~/AppData/Roaming/agentdeck/**)`는 파일 도구에만 걸린다. 명령이 그 경로를 글로 들고 있고 읽기 명령만이 아니면 묻는다.
+const RE_APP_DATA = /(?:appdata[\\/]+roaming|%appdata%|\$\{?appdata\}?|\$env:appdata)[\\/]+agentdeck(?=$|[\\/"'\s])/i
+const READ_ONLY_BASES = new Set(['cat', 'ls', 'dir', 'head', 'tail', 'grep', 'rg', 'wc', 'stat', 'file', 'echo', 'cd', 'pushd', 'type', 'get-content', 'gc', 'get-childitem', 'gci'])
+const READ_ONLY_GIT = new Set(['commit', 'log', 'show', 'diff', 'status', 'grep'])
+// gh의 글만 싣는 명령 — 본문·제목에 경로가 적혀도 파일을 쓰지 않는다
+const TEXT_ONLY_GH = new Set(['pr', 'issue'])
+// 인용부 밖 `>`가 파일로 쓰는가 — `2>&1`(fd 복제)·`/dev/null`·`nul`은 쓰기가 아니다
+function writesFile(stage) {
+  let quote = null
+  for (let i = 0; i < stage.length; i++) {
+    const ch = stage[i]
+    if (isEscape(quote, ch, stage[i + 1])) { i++; continue }
+    if (quote) { if (ch === quote) quote = null; continue }
+    if (ch === '"' || ch === "'") { quote = ch; continue }
+    if (ch !== '>') continue
+    let j = i + 1
+    if (stage[j] === '>' || stage[j] === '|') j++
+    while (stage[j] === ' ' || stage[j] === '\t') j++
+    if (stage[j] === '&') continue
+    const target = /^[^\s;|&<>]*/.exec(stage.slice(j))[0]
+    if (target && !/^(?:\/dev\/null|nul)$/i.test(target)) return true
+  }
+  return false
+}
+const readOnlyCtx = (c) => !writesFile(c.segText ?? '')
+  && (READ_ONLY_BASES.has(c.base)
+    || (READ_ONLY_GIT.has(c.git?.[0]) && !c.git.some((t) => t === '--output' || t.startsWith('--output=')))
+    || (isGh(c) && TEXT_ONLY_GH.has(ghWords(c)[0])))
+// 경로를 든 명령이 읽기 명령이 아니거나, 그 폴더로 옮긴(cd·pushd) 뒤 읽기 명령이 아닌 것이 돌면 묻는다
+const showsAppData = (c) => c.seg.some((t) => RE_APP_DATA.test(t))
+const appDataWrite = (contexts) => contexts.some((c) => showsAppData(c) && !readOnlyCtx(c))
+  || (contexts.some((c) => showsAppData(c) && (c.base === 'cd' || c.base === 'pushd')) && contexts.some((c) => !readOnlyCtx(c)))
+
+// 현재 브랜치 (M11 goal 8 · M08-2) — 작업 폴더에서 위로 `.git`을 찾아 HEAD를 읽는다(worktree의 `.git` 파일은 gitdir를 따른다).
+// 이 읽기는 질의를 더할 뿐 빼지 않는다 — 못 읽으면(저장소 밖·분리 머리·읽기 실패) 지금과 같은 판정이다. ADR-003의 상태 판독은
+// 통과를 내는 설계라 상태가 틀리면 새었다. 여기서는 틀려도 질의 하나가 덜 뜰 뿐이고, `master`는 서버 보호가 받는다.
+function currentBranch(cwd) {
+  try {
+    let dir = resolve(cwd)
+    for (let n = 0; n < 64; n++) {
+      const dotGit = join(dir, '.git')
+      if (existsSync(dotGit)) {
+        let gitDir = dotGit
+        if (statSync(dotGit).isFile()) {
+          const m = /^gitdir:\s*(.+?)\s*$/m.exec(readFileSync(dotGit, 'utf8'))
+          if (!m) return null
+          gitDir = resolve(dir, m[1])
+        }
+        return /^ref:\s*refs\/heads\/(.+?)\s*$/.exec(readFileSync(join(gitDir, 'HEAD'), 'utf8'))?.[1] ?? null
+      }
+      const up = dirname(dir)
+      if (up === dir) return null
+      dir = up
+    }
+  } catch { /* 못 읽으면 판정을 바꾸지 않는다 */ }
+  return null
+}
+const MASTER = 'master'
+// 같은 명령 안에서 master로 옮기는 꼴 — `git switch master`, `git checkout -B master …`, `git rebase <위> master`.
+// `git switch -c chore/y master`는 새 브랜치로 옮기므로 아니다.
+const NEW_BRANCH_OPT = /^(?:-[cCbB]|--create|--force-create|--orphan)$/
+function movesToMaster(c) {
+  const sub = c.git?.[0]
+  if (sub !== 'switch' && sub !== 'checkout' && sub !== 'rebase') return false
+  const args = c.git.slice(1)
+  const operands = []
+  let track = false
+  for (let i = 0; i < args.length; i++) {
+    const t = args[i]
+    if (t === '--') break
+    if (sub !== 'rebase' && NEW_BRANCH_OPT.test(t)) return low(args[i + 1] ?? '') === MASTER
+    if (sub !== 'rebase' && /^--(?:create|force-create|orphan)=/.test(t)) return low(t.slice(t.indexOf('=') + 1)) === MASTER
+    // 이전 브랜치(`-`·`@{-N}`)는 대상을 못 읽는다 — 묻는 쪽으로 본다(독립 검수 2). 끝 `}`는 묶음 닫기로 떨어져 올 수 있다
+    if (sub !== 'rebase' && (t === '-' || /^@\{-\d+\}?$/.test(t))) return true
+    if (sub !== 'rebase' && (t === '--track' || t === '-t' || t.startsWith('--track='))) { track = true; continue }
+    if (sub === 'rebase' && ['--onto', '-s', '--strategy', '-X', '--strategy-option', '-x', '--exec'].includes(t)) { i++; continue }
+    if (!t.startsWith('-')) operands.push(low(t))
+  }
+  const target = sub === 'rebase' ? operands[1] : operands[0]
+  // `--track <원격>/master`는 원격 이름을 뗀 로컬 master를 만들어 옮긴다
+  return target === MASTER || (track && target?.slice(target.indexOf('/') + 1) === MASTER)
+}
+// master 위에서 묻는 꼴 — 병합 전부와 맨 push(refspec 없음, 원격만)·HEAD push. 다른 브랜치를 이름으로 밀면 master가 아니다.
+const PUSH_VALUE_OPTS = new Set(['-o', '--push-option', '--repo', '--receive-pack', '--exec'])
+function pushesCurrent(c) {
+  const args = pushArgs(c)
+  if (args === null) return false
+  const operands = []
+  for (let i = 0; i < args.length; i++) {
+    if (PUSH_VALUE_OPTS.has(args[i])) { i++; continue }
+    if (!args[i].startsWith('-')) operands.push(args[i])
+  }
+  return operands.length <= 1 || operands.slice(1).some((t) => /^\+?(?:HEAD|@)(?::|$)/i.test(t))
+}
+const isPushOrMerge = (c) => pushesCurrent(c) || c.git?.[0] === 'merge'
 
 // ── 본체 ─────────────────────────────────────────────────────────────────────
 function main() {
@@ -1180,6 +1357,11 @@ function main() {
     for (const { id, match, why } of IRREVERSIBLE) {
       if (match(c)) ask(id, why)
     }
+  }
+  if (appDataWrite(contexts)) ask('앱-데이터-폴더', '앱 데이터 폴더(엔진·engine-config) 경로를 든 명령 (앱이 import하는 코드·설정)')
+  if (contexts.some(isPushOrMerge)
+    && (contexts.some(movesToMaster) || currentBranch(typeof payload?.cwd === 'string' && payload.cwd ? payload.cwd : process.cwd()) === MASTER)) {
+    ask('master-위-push·병합', '현재 브랜치가 master인 push·병합 (master 진입 시도)')
   }
 
   allow('차단 규칙 미발동')

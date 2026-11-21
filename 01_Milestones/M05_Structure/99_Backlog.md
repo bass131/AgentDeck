@@ -16,7 +16,9 @@ M11 Backlog 정리(`01_Milestones/M11_BacklogSweep/`)가 닫은 항목이다. �
 | 5 | 고침(M11 goal 2) | `selectTaskScope`가 입력이 같으면 같은 객체를 돌려준다(`renderer/src/00_App/state/selector.ts:28`, `63911dda`). |
 | 6 | v2로 | Codex 실행기는 v1 범위 밖으로 미뤘다(`00_Vision/50_v1-범위.md:34`). |
 | 7 | 닫음(판단) | G1 결정 대장 [USER·위임] — 영속 기록 호환 때문에 `'model-fallback'` 이름을 둔다. |
-| 9 | 정함 → goal 8 | G1 결정 대장 [USER·위임] — 규칙이 없는 꼴(`gh repo rename·archive·sync --force`, `gh secret set`, `gh alias set`, `--receive-pack`)은 goal 8이 규칙을 더하고, 판독이 못 읽는 꼴은 v2로. |
+| 8 | 고침(M11 goal 8) | `375c1e37` — 가드가 `git branch -f`·`--force`·`-M`·`-C`를 막고(`switch -C`와 같은 차단), `-m`·`--move`를 묻는다. 시험: `dangerous-cmd-guard.test.mjs` 「브랜치 포인터 강제 이동·이름 바꾸기」. |
+| 9 | 고침(M11 goal 8) | `375c1e37` — G1 결정대로 규칙이 없던 꼴을 묻는다: `gh repo rename`·`archive`, `gh repo sync --force`(짧은 force 옵션은 없다, `gh repo sync --help`), `gh secret set`·`delete`·`remove`, `gh alias set`·`import`, git `--receive-pack`·`--upload-pack`과 push `--exec`. 판독이 못 읽는 꼴(다른 세그먼트의 push 설정, 영속 별칭, 셸 확장, 줄 이음·`2>&1` 뒤 옵션)은 v2다. |
+| 10 | 닫음(근거) | 결정 대장 [USER·위임]대로 실제 질의는 띄우지 않았다. 공식 hooks 문서 「When a subagent calls a tool, tool events such as `PreToolUse` and `PostToolUse` fire the same configured hooks as in the main conversation」, sub-agents 문서 「Permission prompts are passed through to you as they come up.」(전경)·「Claude Code surfaces the prompt in your main session and names the subagent that is asking.」(배경). hook-log에 하위 에이전트(`agent_id` 있음)의 가드 질의 줄이 있다 — 2026-11-16T12:30:54 `git-update-ref-삭제`, 2026-11-18T04:49:33 `gh-api-보호설정`. 모드별 창 실측은 M11 Backlog 74. |
 | 11 | 고침(M11 goal 6) | 경계 규칙이 `ImportExpression`·`TSImportType`도 본다(`.eslintrc.cjs:18-19`). 위반 꼴 고정물 `integration/eslintBoundary.test.ts`가 동적 import·`typeof import()`·`import().T`를 잡는다(`0245db82`). |
 | 12 | 고침(M11 goal 7) | Green 채집이 `persistedOutputPath` 파일 전문까지 읽는다(`33_tdd-guard.cjs` `responseText`, GE-09~09c, `3aa38815`). |
 | 13 | 낡음 | 대상 시험(뒤 이름 `MultiWorkspace.session-persist-2.test.tsx`)이 M10 G1 `95125a05`에서 지워졌다. |

@@ -1,7 +1,7 @@
 // Taste·헌장 문답의 글. 메인 대화의 여는 턴과, 제안 검사의 결과 글을 만든다.
 import type { DocRead, TasteDialogScope, TasteDocsRead, TasteDraft } from '@shared/14_Taste/taste'
 import type { DocProblem } from '@shared/14_Taste/tasteDoc'
-import { checkTasteDraft, TasteWriteError, type TasteDirs } from './tasteStore'
+import { checkTasteDraft, LOOP_DOC_MAX_BYTES, TasteWriteError, type TasteDirs } from './tasteStore'
 
 const PROBLEMS_MAX = 20
 
@@ -44,6 +44,10 @@ const JUDGEABLE_RULE = [
 
 function rawOf<T>(label: string, d: DocRead<T>): string {
   if (d.absent) return `### ${label}\n\n(없음)`
+  const size = Buffer.byteLength(d.raw, 'utf8')
+  if (size > LOOP_DOC_MAX_BYTES) {
+    return `### ${label} (${d.path})\n\n(크기 ${size}바이트가 상한 ${LOOP_DOC_MAX_BYTES}바이트를 넘어 싣지 않았다 — 사람이 줄인 뒤 문답을 다시 연다)`
+  }
   const problems = d.problems.length > 0 ? `\n\n검사 문제:\n${problemLines(d.problems).join('\n')}` : ''
   return `### ${label} (${d.path})\n\n${d.raw.trim() === '' ? '(빈 파일)' : d.raw.trim()}${problems}`
 }

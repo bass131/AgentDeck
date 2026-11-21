@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { OPEN_LINE, openingPrompt, tasteProblemText } from '@main/13_Taste/tasteDialog'
-import { TasteWriteError } from '@main/13_Taste/tasteStore'
+import { LOOP_DOC_MAX_BYTES, TasteWriteError } from '@main/13_Taste/tasteStore'
 import type { TasteDocsRead } from '@shared/14_Taste/taste'
 
 const NONE: TasteDocsRead = {
@@ -22,6 +22,14 @@ describe('Taste·헌장 문답의 여는 턴', () => {
     const raw = '# 전역 Taste\n\n## T1 밀도\n- 원칙: 높게\n'
     const some = openingPrompt('global', { ...NONE, global: { absent: false, path: 'C:/ud/g.md', raw, doc: { scope: 'global', items: [] }, problems: [] } })
     expect(some).toContain('### 전역 Taste (C:/ud/g.md)\n\n# 전역 Taste\n\n## T1 밀도\n- 원칙: 높게')
+  })
+
+  it('상한을 넘는 원문은 싣지 않고 크기와 함께 그 사실만 알린다', () => {
+    const raw = `# 전역 Taste\n\n## T1 큼\n- 원칙: ${'가'.repeat(LOOP_DOC_MAX_BYTES)}\n`
+    const p = openingPrompt('global', { ...NONE, global: { absent: false, path: 'C:/ud/g.md', raw, doc: { scope: 'global', items: [] }, problems: [] } })
+    expect(p).toContain(`상한 ${LOOP_DOC_MAX_BYTES}바이트를 넘어 싣지 않았다`)
+    expect(p).not.toContain('가'.repeat(100))
+    expect(Buffer.byteLength(p, 'utf8')).toBeLessThan(LOOP_DOC_MAX_BYTES)
   })
 
   it('프로젝트 문답은 헌장과 프로젝트 Taste를 싣고, 검사 문제가 있으면 줄과 함께 붙인다', () => {

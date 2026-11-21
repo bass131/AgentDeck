@@ -136,7 +136,17 @@ export const writeProjectCharter = async (root: string, doc: CharterDoc): Promis
 
 export interface TasteDirs { userDataDir: string | null; root: string }
 
+// 루프 세션이 싣지 않을 크기의 문서는 쓰지 않는다
 function planOf(draft: TasteDraft, dirs: TasteDirs): Plan {
+  const p = planOfDoc(draft, dirs)
+  const size = Buffer.byteLength(p.text, 'utf8')
+  if (size > LOOP_DOC_MAX_BYTES) {
+    throw new TasteWriteError('bad-input', `쓸 글이 ${size}바이트로 루프 세션이 싣는 상한 ${LOOP_DOC_MAX_BYTES}바이트를 넘는다 — 항목을 줄인다`)
+  }
+  return p
+}
+
+function planOfDoc(draft: TasteDraft, dirs: TasteDirs): Plan {
   switch (draft.doc) {
     case 'global-taste':
       if (dirs.userDataDir === null) throw new Error('전역 Taste의 거처(앱 데이터 폴더)를 모른다')

@@ -228,6 +228,15 @@ describe('쓰기는 구조를 지키지 못하는 입력과 문제 있는 기존
     await expect(checkTasteDraft({ doc: 'global-taste', items: ITEMS }, { userDataDir: null, root: ws })).rejects.toThrow('전역 Taste')
   })
 
+  it('루프 세션이 싣는 크기 상한을 넘는 초안은 검사에서도 쓰기에서도 거절한다', async () => {
+    const dirs = { userDataDir: ud, root: ws }
+    const big = [{ id: 'T1', title: '큰 항목', fields: [{ name: '원칙', text: '가'.repeat(LOOP_DOC_MAX_BYTES / 3 + 10) }] }]
+    expect(await reason(checkTasteDraft({ doc: 'global-taste', items: big }, dirs))).toBe('bad-input')
+    await expect(checkTasteDraft({ doc: 'project-taste', items: big }, dirs)).rejects.toThrow(String(LOOP_DOC_MAX_BYTES))
+    expect(await reason(writeTasteDraft({ doc: 'project-taste', items: big }, dirs))).toBe('bad-input')
+    expect(atomic.files).toEqual([])
+  })
+
   it('초안 쓰기는 종류에 맞는 거처에 쓰고 그 경로를 돌려준다', async () => {
     const dirs = { userDataDir: ud, root: ws }
     expect(await writeTasteDraft({ doc: 'global-taste', items: ITEMS }, dirs)).toBe(globalTastePath(ud))

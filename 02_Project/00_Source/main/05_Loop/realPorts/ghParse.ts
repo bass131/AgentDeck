@@ -36,6 +36,18 @@ export function pickLatestPr(raw: unknown): PrInfo | null {
   return best?.pr ?? null
 }
 
+export function parsePrHeads(raw: unknown): { number: number; head: string }[] {
+  if (!Array.isArray(raw)) throw new Error('gh PR 목록이 배열이 아니다')
+  return raw.map((item) => {
+    const number = isObj(item) ? item.number : undefined
+    const head = isObj(item) ? item.headRefName : undefined
+    if (typeof number !== 'number' || !Number.isInteger(number) || number <= 0 || typeof head !== 'string' || head === '') {
+      throw new Error('gh PR 목록의 항목에 번호나 머리 브랜치가 없다')
+    }
+    return { number, head }
+  })
+}
+
 type CheckResult = 'success' | 'failure' | 'pending'
 interface Check { name: string; result: CheckResult; label: string }
 

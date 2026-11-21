@@ -169,7 +169,29 @@ export function createGitPort(opts: GitPortOptions): GitPort {
       await must(git, ['reset', '--quiet', '--', ...ps])
       const tracked = (await must(git, ['ls-tree', '-z', '--name-only', 'HEAD', '--', ...ps])).split('\0').filter((p) => p !== '')
       if (tracked.length > 0) await must(git, ['checkout', '--quiet', 'HEAD', '--', ...tracked])
-      await must(git, ['clean', '--quiet', '--force', '--', ...ps])
+      await must(git, ['clean', '--quiet', '--force', '-x', '--', ...ps])
+    },
+    async ignoredPaths(paths) {
+      const hit: string[] = []
+      for (const p of pathArgs(paths)) {
+        const r = await git(['check-ignore', '--quiet', '--', p])
+        if (r.code === 0) hit.push(p)
+        else if (r.code !== 1) throw failure(['check-ignore'], r)
+      }
+      return hit
+    },
+    // 무시된 폴더는 한 줄(끝 /)로 받는다 — node_modules를 파일마다 나열하지 않게. 그 아래 추적 파일은 디스크에 있는지로 본다
+    async ignoredTrackedIn(ref) {
+      const listed = (await must(git, ['ls-files', '-z', '--others', '--ignored', '--exclude-standard', '--directory'])).split('\0').filter((p) => p !== '')
+      const files = new Set(listed.filter((p) => !p.endsWith('/')))
+      const dirs = listed.filter((p) => p.endsWith('/'))
+      const tracked = (await must(git, ['ls-tree', '-r', '-z', '--name-only', qualifyRef(ref), '--'])).split('\0').filter((p) => p !== '')
+      const hit: string[] = []
+      for (const f of tracked) {
+        if (files.has(f)) hit.push(f)
+        else if (dirs.some((d) => f.startsWith(d)) && (await fsp.lstat(path.join(opts.cwd, f)).then(() => true, () => false))) hit.push(f)
+      }
+      return hit.sort()
     },
     // sha를 주면 그 커밋만 push한다(트리를 대조한 바로 그 커밋. 사이에 로컬 브랜치가 옮겨져도 따라가지 않는다).
     async push(branch, sha) {

@@ -46,7 +46,12 @@ export interface GitPort {
   // 실행기 밖의 문서 확정 길만 쓴다 — 바뀐 경로(untracked 포함), 준 경로만의 커밋, 준 경로만 머리 상태로 되돌리기
   changedPaths?(): Promise<string[]>
   commitPaths?(paths: string[], message: string): Promise<string>
+  // 무시된 채 쓴 경로도 지운다
   discardPaths?(paths: string[]): Promise<void>
+  // 준 경로 가운데 무시 목록(.gitignore·info/exclude·전역 excludes)에 걸리는 것
+  ignoredPaths?(paths: string[]): Promise<string[]>
+  // 지금 작업 트리에 무시된 채 있는 파일 가운데 ref가 추적하는 것 — ref로 옮기면 덮어쓰이고 돌아오면 지워진다
+  ignoredTrackedIn?(ref: string): Promise<string[]>
   // sha를 주면 그 커밋을 원격 branch로 push한다(`<sha>:refs/heads/<branch>` — 트리를 본 그 커밋만 나간다).
   push(branch: string, sha?: string): Promise<void>
   // 원격의 그 브랜치 머리(ls-remote). 원격에 없으면 null.
@@ -82,6 +87,8 @@ export interface GhPort {
   findPr(head: string, base: string): Promise<PrInfo | null>
   getPr(number: number): Promise<PrInfo | null>
   createPr(req: { head: string; base: string; title: string; body: string }): Promise<PrInfo>
+  // base로 가는 열린 PR의 번호와 머리 브랜치 이름. 시험의 가짜에는 없을 수 있다.
+  openPrHeads?(base: string): Promise<{ number: number; head: string }[]>
   // PR 머리 커밋의 필수 검사 상태와 그 머리 SHA. 새 머리의 검사가 아직 시작되지 않았으면 pending이다 —
   // 옛 머리의 결과를 돌려주면 안 된다(실행기는 headSha가 push한 머리와 다르면 기다린다).
   ciStatus(number: number): Promise<CiStatus>

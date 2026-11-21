@@ -25,6 +25,16 @@ interface GitPortOptions {
   hooksPath?: string
   // 모든 git 호출 직전의 설정 대조. 던지면 그 호출을 돌리지 않는다.
   guard?: { assert(): Promise<void> }
+  // 앱 토큰(14_GitHub). 원격 호출(push·ls-remote·fetch)마다 읽고, 있으면 그 주소의 자격으로만 쓴다. 없으면 사용자 자격 그대로다.
+  credential?: { url: string; token: () => string | null }
+}
+
+// 그 주소의 자격 도우미 목록을 비우고(빈 값 리셋 — 명령줄 설정이 마지막에 읽힌다) GH_TOKEN을 내는 도우미 하나를 둔다.
+// 토큰 값은 명령줄에 싣지 않고 그 호출의 환경으로만 넘긴다. store·erase는 무시한다(사용자 자격 저장소에 남기지 않는다).
+const TOKEN_HELPER = '!f() { test "$1" = get || exit 0; echo username=x-access-token; echo "password=$GH_TOKEN"; }; f'
+export function tokenCredentialArgs(url: string): string[] {
+  const key = `credential.${url}.helper`
+  return ['-c', `${key}=`, '-c', `${key}=${TOKEN_HELPER}`]
 }
 
 const AGENTDECK_EXCLUDE = '.agentdeck/'
@@ -99,6 +109,10 @@ export function createGitPort(opts: GitPortOptions): GitPort {
   const remote = opts.remote ?? 'origin'
   const env = opts.env ?? process.env
   const git = makeGit(opts.cwd, env, opts.timeoutMs ?? 120_000, opts.hooksPath, opts.guard)
+  const remoteGit: Git = (args) => {
+    const token = opts.credential?.token() ?? null
+    return opts.credential && token ? git([...tokenCredentialArgs(opts.credential.url), ...args], { GH_TOKEN: token }) : git(args)
+  }
 
   const resolve = async (ref: string): Promise<string | null> => {
     const r = await git(['rev-parse', '--verify', '--quiet', `${qualifyRef(ref)}^{commit}`])
@@ -208,11 +222,11 @@ export function createGitPort(opts: GitPortOptions): GitPort {
     async push(branch, sha) {
       const b = safeName(branch)
       if (sha !== undefined && !SHA_HEX.test(sha)) throw new Error(`push할 커밋 ${JSON.stringify(sha)}이 SHA 꼴이 아니다`)
-      await must(git, ['push', '--quiet', '--no-verify', remote, `${sha ?? `refs/heads/${b}`}:refs/heads/${b}`])
+      await must(remoteGit, ['push', '--quiet', '--no-verify', remote, `${sha ?? `refs/heads/${b}`}:refs/heads/${b}`])
     },
     async remoteSha(branch) {
       const b = safeName(branch)
-      const ls = await git(['ls-remote', '--exit-code', '--heads', remote, `refs/heads/${b}`])
+      const ls = await remoteGit(['ls-remote', '--exit-code', '--heads', remote, `refs/heads/${b}`])
       if (ls.code === 2) return null
       if (ls.code !== 0) throw failure(['ls-remote'], ls)
       return ls.stdout.trim().split(/\s+/)[0] || null
@@ -225,11 +239,11 @@ export function createGitPort(opts: GitPortOptions): GitPort {
       const b = safeName(branch)
       const local = await resolve(`refs/heads/${b}`)
       if (!local) throw new Error(`로컬에 ${b} 브랜치가 없다`)
-      const ls = await git(['ls-remote', '--exit-code', '--heads', remote, `refs/heads/${b}`])
+      const ls = await remoteGit(['ls-remote', '--exit-code', '--heads', remote, `refs/heads/${b}`])
       if (ls.code === 2) return local
       if (ls.code !== 0) throw failure(['ls-remote'], ls)
       const tracking = `refs/remotes/${remote}/${b}`
-      await must(git, ['fetch', '--quiet', '--no-tags', remote, `+refs/heads/${b}:${tracking}`])
+      await must(remoteGit, ['fetch', '--quiet', '--no-tags', remote, `+refs/heads/${b}:${tracking}`])
       const remoteSha = await resolve(tracking)
       if (!remoteSha || remoteSha === local) return local
       if (await isAncestor(local, remoteSha)) {

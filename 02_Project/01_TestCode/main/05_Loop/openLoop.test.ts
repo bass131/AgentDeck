@@ -472,6 +472,25 @@ describe('openLoop — 기준 브랜치·설정 받기·검수 포트 (M09 G4)',
     expect(await loop.git.headSha('master')).toBe(repos.git(['rev-parse', 'master']))
   })
 
+  it('앱 토큰을 줘도 자식 환경에 그 값이 없고, 연결·해제가 설정 대조를 흔들지 않는다(M13 G2)', async () => {
+    const TOKEN = 'gho_openLoopAppToken8'
+    let token: string | null = TOKEN
+    const first = await openLoop({ cwd: repos.work, appDataDir: appData, session, review, gh, template: TEMPLATE, executorEnv: repos.env, githubToken: () => token })
+    if (!first.ok) throw new Error(first.reason)
+    opened.push(first.loop)
+    expect(JSON.stringify(first.loop.childEnv.env)).not.toContain(TOKEN)
+    expect(first.loop.childEnv.env.GH_TOKEN).toBe('agentdeck-no-credential')
+    expect(await first.loop.git.headSha('master')).toBe(repos.git(['rev-parse', 'master']))
+    expect(first.loop.configChanges()).toEqual([])
+    expect(process.env.GH_TOKEN).not.toBe(TOKEN)
+    await close(first.loop)
+    token = null
+    const again = await openLoop({ cwd: repos.work, appDataDir: appData, session, review, gh, template: TEMPLATE, executorEnv: repos.env, githubToken: () => token })
+    if (!again.ok) throw new Error(again.reason)
+    opened.push(again.loop)
+    expect(again.loop.configChanges()).toEqual([])
+  })
+
   it('지난 스냅숏과 설정이 다르면 바뀐 키를 구조로 돌려주고, 그 목록을 받으면 연다', async () => {
     await close(await open())
     repos.git(['config', 'user.name', 'Someone Else'])

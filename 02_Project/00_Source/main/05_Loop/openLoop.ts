@@ -9,7 +9,8 @@
 //      읽는다. 둘 다 못 읽으면 열지 않는다. 부르는 쪽이 base를 주면 그것을 쓴다.
 //   5. `.agentdeck/`를 작업 저장소의 .git/info/exclude에 더한다(확인 뒤 실행, 저장소 파일은 안 바꾼다).
 //   6. 자격 없는 자식 환경을 만든다 — 커밋 신원은 실행기 환경의 git config user.name·user.email을 넘겨받는다.
-//   7. 포트: 명령(자격 없는 환경), git·gh(실행기 환경 — 자격 있음, 묻는 창 없음, 작업 저장소 훅은 끄고 호출마다 설정 대조),
+//   7. 포트: 명령(자격 없는 환경), git·gh(실행기 환경 — 자격 있음, 묻는 창 없음, 작업 저장소 훅은 끄고 호출마다 설정 대조,
+//      앱 토큰이 있으면 gh는 GH_TOKEN, git은 github.com 원격 호출의 자격 도우미로 그 토큰을 쓴다),
 //      fs(뿌리 밖 거부), 다이제스트·위조 래치(앱 영역).
 //   8. 세션: 부르는 쪽이 백엔드를 주면 실물 작업 노드 세션 포트(workSession.ts)와 실물 검수 세션 포트(reviewSession.ts)를 붙인다 —
 //      자격 없는 환경, 자동 모드, 루프 잠금(앱 영역 포함, 검수는 읽기 전용 꼴). 시험은 세션·검수 포트를 직접 줄 수 있다(주면 그것이 이긴다).
@@ -83,7 +84,11 @@ export interface OpenLoopOptions {
   tasteDataDir?: string
   // 사용량 한도 주입 파일(limitInjection — 켜는 곳은 main 조립 지점뿐). 작업·검수 세션의 백엔드만 감싼다
   limitInjectFile?: string
+  // 앱 토큰(14_GitHub/appToken). 실행기 gh·git 포트만 호출마다 읽는다 — executorEnv와 자식 환경에는 넣지 않는다
+  githubToken?: () => string | null
 }
+
+const GITHUB_GIT_URL = 'https://github.com'
 
 export interface OpenedLoop {
   runner: LoopRunner
@@ -174,7 +179,10 @@ export async function openLoop(opts: OpenLoopOptions): Promise<OpenLoopResult> {
     })
     if (!guarded.ok) throw new OpenRefused(guarded.reason, guarded.changed)
     const guard = guarded.guard
-    const gh = opts.gh ?? createGhPort(createGhExec({ cwd: root, repo: ghRepo as string, env: executorEnv, guard }), { requiredChecks: opts.requiredChecks })
+    const gh = opts.gh ?? createGhPort(
+      createGhExec({ cwd: root, repo: ghRepo as string, env: executorEnv, guard, ...(opts.githubToken ? { token: opts.githubToken } : {}) }),
+      { requiredChecks: opts.requiredChecks },
+    )
     // 기준 브랜치 — 설정 대조가 위험 키를 거른 뒤에 읽는다
     const base = opts.base ?? (await readOriginDefaultBranch(root, executorEnv)) ?? (await gh.defaultBranch?.()) ?? null
     if (base === null) {
@@ -212,7 +220,10 @@ export async function openLoop(opts: OpenLoopOptions): Promise<OpenLoopResult> {
       ...(opts.onSessionEvent ? { onEvent: opts.onSessionEvent } : {}),
     })
     const digest = createFileDigestStore(path.join(opts.appDataDir, 'digests'))
-    const git = createGitPort({ cwd: root, env: executorEnv, hooksPath: hooksDir, guard })
+    const git = createGitPort({
+      cwd: root, env: executorEnv, hooksPath: hooksDir, guard,
+      ...(opts.githubToken ? { credential: { url: GITHUB_GIT_URL, token: opts.githubToken } } : {}),
+    })
     const runner = createLoopRunner({
       template: template.template,
       hash: template.hash,

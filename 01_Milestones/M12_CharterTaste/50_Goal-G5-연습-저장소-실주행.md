@@ -45,7 +45,7 @@
 - [x] 1. goal 준비 — 이 문서, goal 4 종결 기록, pin, `gate-config.json` `planPath` 전환(판정 장치)
 - [x] 2. 실주행 준비 — 구동기의 한도 주입 길, clone 맞추기, 자격 확인, 앱 빌드본 기동(2번 모니터)
 - [x] 3. 헌장·Taste 문답과 승인 카드 확정, 장면 캡처
-- [ ] 4. M03 완주와 한도 주입 관찰, 장면 캡처
+- [x] 4. M03 완주와 한도 주입 관찰, 장면 캡처
 - [ ] 5. 완주 기록, 하드 게이트 다섯 종, `npm test`
 - [ ] 6. 독립 검수와 반영, goal PR, `hard-gates`, 로컬 goal 병합
 
@@ -64,6 +64,7 @@ DoD
 
 - PASS 2026-11-21T20:56:34+09:00 — 2·3단계(실측): 구동기(`G5_RATE_LIMIT`, `injectLimit`, 채팅 모드 폴더 env `AGENTDECK_E2E_WORKSPACE`)로 앱 빌드본을 2번 모니터에 띄우고 연습 clone을 `main` `7ff4f9e`로 맞췄다. 작업 모드 「헌장·Taste」의 「전역 Taste 문답 열기」로 메인 대화 문답 3턴(답 2, 성향 1·4·13·28·38·27·17·25·37, M05 Backlog 75) 뒤 승인 카드 확정 → 앱 데이터 `udd\taste\global-taste.md`(T1–T9). 「헌장·Taste 문답 열기」로 2턴(답 1, 성향 3·11·20·23·37) 뒤 카드 둘을 확정 → 헌장 PR #7, 프로젝트 Taste PR #8(`agentdeck/charter-*` → `main`). 두 PR은 채팅 모드 Git 창의 PR 카드 「병합」·「확인」으로 병합했다(`76da22de`, `6aaac269`, `main` 머리 `6aaac26`에 `docs/agentdeck/헌장.md`·`Taste.md`). 장면: `scene1-taste-dialog`, `scene2-approval-global`, `scene2-approval-charter`, `charter-pr-merge-confirm`, `scene3-charter-view`. 예외 2: 작업 모드에는 문서 PR의 병합 버튼이 없어 채팅 모드 Git 창으로 갔고, 그 때문에 구동기 재기동 1번.
 - PASS 2026-11-21T21:13:33+09:00 — 한도 주입 관찰(실측): M03 시작(M02 보관), 브레인스토밍 답 2·스펙 승인 1 뒤 분해가 G1(옵션·`--exclude`)·G2(`--format json`)를 냈다. G1 구현이 막 시작된 뒤(21:05:56) 거부 사건(`five_hour`, `resetsAt` 1795263056 = 21:10:56)을 `session: work`, `promptIncludes: .agentdeck/goals/G1.md`로 넣었다. G1은 그 전에 띄운 세션이라 지나쳤고(PR #9 병합), 다음으로 그 문자열을 담은 G2 구현 세션이 가져가 21:10:27에 멈췄다. 상태는 `usage-limit`, `failCount` 0, 검증 줄 추가 없음, `halt` {G2/implement, rejected, resumeAt 21:12:56, utilization null}, 현황판 「한도 멈춤」과 「풀리는 시각 11월 21일 21:10 · 21:12 뒤 스스로 이어 간다 · 사용률 모름 · 지금 이어 가기」, 알림은 「나중에 봐도 돼」(Windows 알림 없음), `.agentdeck/verification.md` 꼬리 한 줄. 사람 손 없이 21:13:30에 「사용량 한도가 풀릴 시각이 지나 G2/implement를 처음부터 다시 돈다」로 이어 갔고 `failCount` 0, `halt` null이다. 장면 `scene4-limit-halt`.
+- PASS 2026-11-21T21:41:37+09:00 — M03 완주(실측): G1 PR #9(강, 검수 통과, `hard-gates` 통과, 병합 `b6004982`), G2 PR #10(강, 검수 통과, 통과, 병합 `a2f0c3b3`), 마일스톤 PR #11을 현황판 PR 칸의 「병합」·「확인」으로 `main`에 병합(`39d5d97f`)했고 실행기가 「끝남」이다. 두 검수 줄(`verification.md` 17·27행)이 `Taste P-T1 pass … G-T8 pass, G-T9 n/a`로 프로젝트·전역 Taste 항목을 근거로 들었다. 예외: G2 구현이 빌드 뒤 실행 확인을 `.github/workflows/ci.yml`에 넣었는데 연습 토큰에 Workflows 권한이 없어 push가 거부돼 연습 실행이 FAIL 3으로 멈췄다(연습 실행의 줄 — 실행 환경 원인, 이 goal의 FAIL 아님). 사용자가 토큰 권한을 넓혔고(두 번째 확인 뒤 반영), 메인이 사용자의 「다시 이어 가줘」에 따라 「이어 가기」를 두 번 눌렀다. 사람 몫 대행: 문답 답 3, 승인 카드 3, 문서 PR 병합 2, 브레인스토밍 답 2, 스펙 승인 1, 마일스톤 PR 병합 1. 전역 gh 로그인은 손대지 않았다.
 
 ## 결정 대장
 

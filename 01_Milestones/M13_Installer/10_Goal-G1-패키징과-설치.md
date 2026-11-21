@@ -32,10 +32,10 @@ electron-builder로 Windows NSIS 설치 파일 하나를 만들고, 그 설치 �
 진척 단계
 
 - [x] 1. goal 준비 — 이 문서, M13 pin, `gate-config.json` `planPath`·`workPinPath` 전환(판정 장치)
-- [ ] 2. 구현 — electron-builder 설정, 의존성, `dist:win`, 앱 데이터 폴더 고정, 버전 표시, 시험
-- [ ] 3. 설치 실측 — 빌드, 조용히 설치, 띄우기·확인·캡처, 제거
-- [ ] 4. 하드 게이트 다섯 종, `npm test`
-- [ ] 5. 독립 검수와 반영
+- [x] 2. 구현 — electron-builder 설정, 의존성, `dist:win`, 앱 데이터 폴더 고정, 버전 표시, 시험
+- [x] 3. 설치 실측 — 빌드, 조용히 설치, 띄우기·확인·캡처, 제거
+- [x] 4. 하드 게이트 다섯 종, `npm test`
+- [>] 5. 독립 검수와 반영
 - [ ] 6. goal PR, `hard-gates`, 로컬 goal 병합
 
 실행 단계 일괄 승인 대상 (스펙에서 옮김)
@@ -50,7 +50,8 @@ DoD
 
 검증 기록
 
-- (기록 없음)
+- PASS 2026-11-21T23:08:36+09:00 — 설치 실측: `electron-builder --win nsis`가 NSIS `AgentDeck-Setup-0.1.0.exe`(250,175,950바이트)를 만들었다(저장소 안 `release/` 출력은 `.asar` 잠김 EBUSY로 두 번 실패, 저장소 밖 출력 폴더로 통과 — Backlog 4). 이 PC에 설치하니 `%LOCALAPPDATA%\Programs\agentdeck`에 깔렸다. 설치본을 앱 데이터 인자 없이 띄운 확인 e2e(`m13-g1-installed.e2e.ts`, 2번 모니터)가 `isPackaged` true, 앱 이름 `agentdeck`, `app.getVersion()` 0.1.0, 화면 버전 표시 0.1.0, 실행 경로 `...\Programs\agentdeck\AgentDeck.exe`(작업 트리 밖), 앱 데이터 `%APPDATA%\agentdeck`, 화면 주소 `file:///...app.asar/out/renderer/index.html`(개발 서버 없음)을 읽었다. 캡처는 세션 임시 폴더 `m13-g1-out\installed-window.png`. 제거 프로그램을 조용히 돌려 설치 폴더와 제거 등록 항목이 사라졌다. 예외: Git Bash가 `/S`를 `S:/`로 바꿔 첫 설치는 보통 설치로 돌아 앱이 저절로 떴고(단일 인스턴스 잠금으로 확인 e2e가 처음 두 번 꺼짐, 그 인스턴스를 강제 종료), 첫 제거는 확인 창에서 기다렸다(그 창을 닫고 `MSYS_NO_PATHCONV=1`로 다시 — Backlog 5).
+- PASS 2026-11-21T23:08:36+09:00 — 구현 뒤(`a30f502b`) 하드 게이트 다섯 종이 모두 0이고 `npm test`가 490 passed·6 skipped(496 파일), 9403 passed·10 skipped·실패 0이다. 시험 — `appVersion.test.ts`(버전 표시가 `package.json` 버전이고 Electron 버전이 아님), `userDataPin.test.ts`(`productName` 없음, 표시 이름은 빌드 설정에만).
 
 ## 결정 대장
 

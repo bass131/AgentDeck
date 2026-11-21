@@ -9,11 +9,13 @@ export interface CharterGit extends Pick<GitPort, 'syncToRemote' | 'headSha' | '
   changedPaths(): Promise<string[]>
   commitPaths(paths: string[], message: string): Promise<string>
   discardPaths(paths: string[]): Promise<void>
+  ignoredPaths(paths: string[]): Promise<string[]>
+  ignoredTrackedIn(ref: string): Promise<string[]>
 }
 
 interface CharterPrRequest {
   git: CharterGit
-  gh: Pick<GhPort, 'createPr'>
+  gh: Pick<GhPort, 'createPr' | 'findPr'>
   // 원격의 기본 브랜치 이름
   base: string
   now: Date
@@ -21,6 +23,10 @@ interface CharterPrRequest {
   paths: string[]
   // 돌고 있으면 사유
   executorBusy(): Promise<string | null>
+  // 가르기 직전의 마지막 거절(열린 문서 PR 같은 것). 사유를 돌려주면 가르지 않는다
+  blocked?(): Promise<string | null>
+  // PR이 생긴 것을 안 즉시 부른다 — 뒤에서 앱이 꺼져도 둘째 PR을 열지 않게
+  onPr?(pr: number, branch: string): void
   // 브랜치를 가른 직후, 옮겨 가기 전에 부른다(앱이 꺼져도 사람에게 알릴 수 있게)
   onCut?(cut: TasteCut): void
   // 지금 체크아웃된 작업 트리에 문서를 쓴다. 거절하면 쓰기 전에 던진다
@@ -34,7 +40,9 @@ type CharterPrResult = { ok: true; pr: number; branch: string; warning?: string 
 const CHARTER_BRANCH_PREFIX = 'agentdeck/charter-'
 const errText = (e: unknown): string => (e instanceof Error ? e.message : String(e))
 const refuse = (reason: string): CharterPrResult => ({ ok: false, reason })
-const listed = (ps: string[]): string => ps.slice(0, 5).join(', ') + (ps.length > 5 ? ` 외 ${ps.length - 5}개` : '')
+const listed = (ps: string[], n = 5): string => ps.slice(0, n).join(', ') + (ps.length > n ? ` 외 ${ps.length - n}개` : '')
+
+export const isCharterBranch = (name: string): boolean => name.startsWith(CHARTER_BRANCH_PREFIX)
 
 export function charterBranchName(now: Date): string {
   return `${CHARTER_BRANCH_PREFIX}${now.toISOString().replace(/[-:]/g, '').slice(0, 15)}`
@@ -55,12 +63,16 @@ async function onBranch(req: CharterPrRequest, name: string): Promise<CharterPrR
     if (exposed.length > 0) {
       return refuse(`${base}로 옮기자 추적 밖이 아닌 파일이 드러났다(${listed(exposed)}) — 지금 브랜치에서만 무시되는 파일이 PR에 섞이지 않게 쓰지 않았다. 그 파일을 치우거나 ${base}의 .gitignore에 더한 뒤 다시 확정한다`)
     }
+    const ignored = await git.ignoredPaths(paths)
+    if (ignored.length > 0) {
+      return refuse(`${listed(ignored)}가 ${base}에서 무시된다(.gitignore·info/exclude·전역 excludes) — 커밋할 수 없어 쓰지 않았다. 그 무시 줄을 고친 뒤 다시 확정한다`)
+    }
     written = true
     try { await req.write() } catch (e) { return await discard(`문서를 쓰지 않았다 — ${errText(e)}`) }
     const changed = await git.changedPaths()
     const extra = outside(changed)
     if (extra.length > 0) return await discard(`문서 밖의 경로가 바뀌어 커밋하지 않았다(${listed(extra)})`)
-    if (changed.length === 0) return refuse(`${base}의 문서와 같아 바뀐 것이 없다 — PR을 열지 않았다`)
+    if (changed.length === 0) return await discard(`${base}의 문서와 같아 바뀐 것이 없다 — PR을 열지 않았다`)
     let sha: string
     try { sha = await git.commitPaths(changed, req.title) } catch (e) { return await discard(`커밋하지 못했다 — ${errText(e)}`) }
     written = false
@@ -69,8 +81,15 @@ async function onBranch(req: CharterPrRequest, name: string): Promise<CharterPrR
     }
     try {
       const pr = await req.gh.createPr({ head: name, base, title: req.title, body: req.body })
+      req.onPr?.(pr.number, name)
       return { ok: true, pr: pr.number, branch: name }
     } catch (e) {
+      // 실패로 끝났어도 GitHub에는 만들어졌을 수 있다(시간 초과·응답 읽기 실패) — 한 번 찾아본다
+      const found = await req.gh.findPr(name, base).catch(() => null)
+      if (found !== null) {
+        req.onPr?.(found.number, name)
+        return { ok: true, pr: found.number, branch: name, warning: `PR 생성이 실패로 끝났지만 GitHub에 PR #${found.number}이 있다: ${errText(e)}` }
+      }
       return refuse(`PR을 열지 못했다 — 원격 ${name}에 push는 됐다: ${errText(e)}`)
     }
   } catch (e) {
@@ -95,6 +114,12 @@ export async function openCharterPr(req: CharterPrRequest): Promise<CharterPrRes
     const remote = await git.remoteSha(base)
     if (remote === null) return refuse(`원격에 ${base} 브랜치가 없다`)
     if (local !== remote) return refuse(`로컬 ${base}가 원격 머리와 다르다 — push하지 않은 커밋을 정리한 뒤 다시 확정한다`)
+    const clobbered = await git.ignoredTrackedIn(base)
+    if (clobbered.length > 0) {
+      return refuse(`지금 브랜치에서 무시된 채 있는 파일을 ${base}가 추적한다(${listed(clobbered, 3)}) — 옮기면 덮어쓰이고 돌아오면 지워져 잃는다. 그 파일을 작업 트리 밖으로 옮겨 둔 뒤 다시 확정한다`)
+    }
+    const blocked = (await req.blocked?.()) ?? null
+    if (blocked !== null) return refuse(blocked)
     if (await git.branchExists(name)) return refuse(`${name} 브랜치가 이미 있다 — 잠시 뒤 다시 확정한다`)
     await git.createBranch(name, base)
   } catch (e) {
@@ -106,7 +131,7 @@ export async function openCharterPr(req: CharterPrRequest): Promise<CharterPrRes
     await git.checkout(original)
   } catch (e) {
     const back = `${original}로 돌아오지 못했다 — 지금 ${name}에 있을 수 있다: ${errText(e)}`
-    return out.ok ? { ...out, warning: back } : refuse(`${out.reason} / ${back}`)
+    return out.ok ? { ...out, warning: out.warning ? `${out.warning} / ${back}` : back } : refuse(`${out.reason} / ${back}`)
   }
   return out
 }

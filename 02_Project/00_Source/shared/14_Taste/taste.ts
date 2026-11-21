@@ -12,8 +12,16 @@ export type TasteDraft =
   | { doc: 'global-taste' | 'project-taste'; items: TasteItem[] }
   | { doc: 'charter'; charter: CharterDoc }
 
-// 프로젝트 문서 확정이 연 PR. text는 PR이 쓴 원문 — 로컬 문서가 같아지면 병합이 들어온 것이다
-export interface TastePrNote { pr: number; branch: string; doc: 'charter' | 'project-taste'; text: string }
+// 열려 있는 프로젝트 문서 PR. text는 PR이 쓴 원문 — 로컬 문서가 같아지면 병합이 들어온 것이다.
+// GitHub에서 찾기만 한 PR은 문서와 원문을 모른다(번호와 브랜치만)
+export interface TastePrNote { pr: number; branch: string; doc?: 'charter' | 'project-taste'; text?: string }
+
+// 줄바꿈(CRLF)·BOM·줄 끝 공백이 달라도 같은 문서로 본다 — core.autocrlf 체크아웃이 원문을 바꾼다
+const BOM = String.fromCharCode(0xfeff)
+export function sameDocText(a: string, b: string): boolean {
+  const norm = (s: string): string => (s.startsWith(BOM) ? s.slice(1) : s).replace(/\r\n?/g, '\n').split('\n').map((l) => l.trimEnd()).join('\n').trimEnd()
+  return norm(a) === norm(b)
+}
 // 확정이 가른 브랜치와 돌아갈 브랜치
 export interface TasteCut { original: string; branch: string }
 

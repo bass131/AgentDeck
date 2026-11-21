@@ -80,11 +80,13 @@ export interface MainActions {
 }
 
 type TasteOutcome<T> = ({ ok: true } & T) | { ok: false; reason: string }
-// 확정 중의 기록 — cut은 가른 브랜치를 카드에, openPr·prGone은 마지막으로 연 프로젝트 문서 PR을 다룬다
+// 확정 중의 기록 — cut은 가른 브랜치를 카드에, openPr·prGone·recordPr은 열려 있는 프로젝트 문서 PR을 다룬다.
+// recordPr은 확정의 결과를 기다리지 않고 바로 저장한다(거절로 끝나도, 뒤에서 앱이 꺼져도 남는다)
 export interface TasteConfirmCtx {
   cut(cut: TasteCut): void
   openPr: TastePrNote | null
   prGone(): void
+  recordPr(note: TastePrNote): void
 }
 // 문서 초안 — check는 쓰지 않는 쓰기 검사(통과하면 쓸 원문), confirm은 사람 확정 뒤의 쓰기다
 interface TasteDeps {
@@ -128,6 +130,8 @@ export interface MainChat {
   send(text: string, opts?: { proxy?: boolean; prompt?: string }): { ok: boolean; reason?: string }
   // 쓰기 검사를 통과한 초안만 승인 카드로 띄운다. 돌려주는 글은 도구 결과다
   proposeTasteDoc(draft: TasteDraft): Promise<string>
+  // 기록한 문서 PR이 더는 열려 있지 않다 — 그 번호일 때만 지운다
+  dropTastePr(pr: number): void
   recordEvent(event: LoopEventItem, speak?: boolean): void
   brainstorm(req: WorkRequest): Promise<WorkResult>
   cards(): LoopCard[]
@@ -491,6 +495,7 @@ export function openMainChat(deps: MainChatDeps): MainChat {
       },
       openPr: rec.tastePr ? { ...rec.tastePr } : null,
       prGone: () => { delete rec.tastePr; persist() },
+      recordPr: (note) => { rec.tastePr = { ...note }; persist() },
     }
     const job = (async () => {
       const r = await taste.confirm(draft, ctx).catch((e: unknown) => ({ ok: false as const, reason: errText(e) }))
@@ -514,6 +519,11 @@ export function openMainChat(deps: MainChatDeps): MainChat {
   pump()
 
   const api: MainChat = {
+    dropTastePr(pr) {
+      if (rec.tastePr?.pr !== pr) return
+      delete rec.tastePr
+      persist()
+    },
     send(text, opts) {
       const body = text.trim()
       if (closing) return { ok: false, reason: '메인 대화가 닫혔다' }

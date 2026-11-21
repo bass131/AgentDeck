@@ -320,4 +320,26 @@ describe('문서 초안 카드의 확정과 반려', () => {
     expect(seen).toEqual([null, expect.objectContaining({ pr: 7 })])
     expect(again.view(root).tastePr).toBeUndefined()
   })
+
+  it('거절로 끝난 확정도 찾은 PR을 바로 기록하고(번호와 브랜치만이어도), 바깥에서 닫혔다고 하면 그 번호일 때만 지운다', async () => {
+    const chat = open(scriptedBackend(textOnly('')), {
+      taste: {
+        check: (d) => tasteCheck(d, { userDataDir: ud, root }),
+        confirm: async (_d, ctx) => { ctx.recordPr({ pr: 9, branch: 'agentdeck/charter-y' }); return { ok: false, reason: 'PR #9가 열려 있다' } },
+      },
+    })
+    await chat.proposeTasteDoc(CHARTER)
+    chat.answerCard(tasteCards(chat)[0].requestId, { kind: 'taste', decision: 'confirm' })
+    await chat.idle()
+    expect(chat.view(root).tastePr).toEqual({ pr: 9, branch: 'agentdeck/charter-y' })
+    await closeAll()
+    expect(readMainChatView(app, root).tastePr).toEqual({ pr: 9, branch: 'agentdeck/charter-y' })
+    const again = open(scriptedBackend(textOnly('')))
+    again.dropTastePr(8)
+    expect(again.view(root).tastePr?.pr).toBe(9)
+    again.dropTastePr(9)
+    expect(again.view(root).tastePr).toBeUndefined()
+    await closeAll()
+    expect(readMainChatView(app, root).tastePr).toBeUndefined()
+  })
 })

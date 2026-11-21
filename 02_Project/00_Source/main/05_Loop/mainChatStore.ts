@@ -101,7 +101,8 @@ function validDraft(d: unknown): boolean {
 // 문서 초안 카드는 확정에 쓰는 구조(draft)와 사람이 본 원문(preview)이 함께 있어야 받는다
 const validCut = (v: unknown): boolean => isObj(v) && str(v['original']) && str(v['branch'])
 const validPrNote = (v: unknown): v is TastePrNote =>
-  isObj(v) && Number.isInteger(v['pr']) && str(v['branch']) && (v['doc'] === 'charter' || v['doc'] === 'project-taste') && str(v['text'])
+  isObj(v) && Number.isInteger(v['pr']) && str(v['branch'])
+  && (v['doc'] === undefined || v['doc'] === 'charter' || v['doc'] === 'project-taste') && (v['text'] === undefined || str(v['text']))
 const validTasteCard = (c: Record<string, unknown>): boolean =>
   str(c['preview']) && validDraft(c['draft'])
   && (c['confirming'] === undefined || typeof c['confirming'] === 'boolean') && (c['refused'] === undefined || str(c['refused']))

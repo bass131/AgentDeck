@@ -71,7 +71,7 @@ import { createFsPort } from './realPorts/fsPort'
 import { writeFileAtomic } from './realPorts/atomicWrite'
 import { validateRunState, type RunState } from './runState'
 import { DOCS } from './survivalDocs'
-import { openCharterPr, type CharterGit } from '@main/13_Taste/charterPr'
+import { isCharterBranch, openCharterPr, type CharterGit } from '@main/13_Taste/charterPr'
 import { OPEN_LINE, openingPrompt, tasteCheck, tasteProblemText } from '@main/13_Taste/tasteDialog'
 import { projectDraftFile, readTasteDocs, writeTasteDraft, type TasteDirs } from '@main/13_Taste/tasteStore'
 import { TASTE_DOC_LABEL, type TasteDialogScope, type TasteDraft, type TastePrNote } from '@shared/14_Taste/taste'
@@ -486,22 +486,50 @@ export function createLoopDriver(opts: LoopDriverOptions): LoopDriver {
   type Confirmed = { ok: true; summary: string; pr?: TastePrNote } | { ok: false; reason: string }
 
   function charterGitOf(g: GitPort): CharterGit | null {
-    const { currentBranch, changedPaths, commitPaths, discardPaths } = g
-    if (!currentBranch || !changedPaths || !commitPaths || !discardPaths) return null
-    return { ...g, currentBranch, changedPaths, commitPaths, discardPaths }
+    const { currentBranch, changedPaths, commitPaths, discardPaths, ignoredPaths, ignoredTrackedIn } = g
+    if (!currentBranch || !changedPaths || !commitPaths || !discardPaths || !ignoredPaths || !ignoredTrackedIn) return null
+    return { ...g, currentBranch, changedPaths, commitPaths, discardPaths, ignoredPaths, ignoredTrackedIn }
   }
 
-  // 열려 있는 문서 PR이 있으면 둘째 PR을 열지 않는다. 닫혔거나 병합됐으면 기록을 지운다
-  async function openPrReason(loop: OpenedLoop, ctx: TasteConfirmCtx): Promise<string | null> {
+  // 문서 PR은 한 번에 하나다 — 헌장 PR이 열려 있으면 프로젝트 Taste도 확정하지 않는다(같은 문서 폴더를 고친다)
+  const onePrAtATime = (note: TastePrNote, label: string): string =>
+    `문서 확정 PR은 한 번에 하나만 연다 — ${note.doc ? TASTE_DOC_LABEL[note.doc] : '문서 확정'} PR #${note.pr}(${note.branch})이 열려 있어 ${label}을 확정하지 않았다. 그 PR을 병합하거나 닫은 뒤 다시 확정한다`
+
+  // 기록한 PR이 열려 있거나, 기록에 없어도(만든 뒤 꺼짐) GitHub에 열린 확정 PR이 있으면 막는다. 찾은 PR은 기록한다
+  async function docPrBlock(loop: OpenedLoop, ctx: TasteConfirmCtx, label: string): Promise<string | null> {
     const note = ctx.openPr
-    if (note === null) return null
-    let state: string | null
-    try { state = (await loop.gh.getPr(note.pr))?.state ?? null } catch (err) {
-      return `PR #${note.pr}의 상태를 읽지 못했다 — ${err instanceof Error ? err.message : String(err)}`
+    if (note !== null) {
+      let state: string | null
+      try { state = (await loop.gh.getPr(note.pr))?.state ?? null } catch (err) {
+        return `PR #${note.pr}의 상태를 읽지 못했다 — ${errText(err)}`
+      }
+      if (state === 'open') return onePrAtATime(note, label)
+      ctx.prGone()
     }
-    if (state === 'open') return `${TASTE_DOC_LABEL[note.doc]} PR #${note.pr}(${note.branch})이 아직 열려 있다 — 병합하거나 닫은 뒤 다시 확정한다`
-    ctx.prGone()
-    return null
+    if (!loop.gh.openPrHeads) return null
+    let heads: { number: number; head: string }[]
+    try { heads = await loop.gh.openPrHeads(loop.base) } catch (err) {
+      return `열린 문서 확정 PR을 GitHub에서 읽지 못했다 — ${errText(err)}`
+    }
+    const open = heads.find((h) => isCharterBranch(h.head))
+    if (!open) return null
+    const found = { pr: open.number, branch: open.head }
+    ctx.recordPr(found)
+    return onePrAtATime(found, label)
+  }
+
+  // 보기를 읽을 때 기록한 PR이 아직 열려 있는지 GitHub에 묻는다. 닫혔거나 병합됐으면 지운다(오류면 그대로 둔다)
+  const prChecking = new WeakSet<Entry>()
+  function refreshTastePr(e: Entry): void {
+    const chat = e.chat
+    const loop = e.loop
+    const pr = chat?.view(e.cwd).tastePr?.pr
+    if (!chat || !loop || pr === undefined || prChecking.has(e)) return
+    prChecking.add(e)
+    void loop.gh.getPr(pr)
+      .then((info) => { if (info?.state !== 'open' && e.chat === chat) chat.dropTastePr(pr) })
+      .catch(() => undefined)
+      .finally(() => { prChecking.delete(e) })
   }
 
   async function confirmDraft(e: Entry, loop: OpenedLoop, draft: TasteDraft, dirs: TasteDirs, ctx: TasteConfirmCtx): Promise<Confirmed> {
@@ -517,13 +545,13 @@ export function createLoopDriver(opts: LoopDriverOptions): LoopDriver {
     try { file = projectDraftFile(draft) } catch (err) { return { ok: false, reason: tasteProblemText(err) } }
     e.tasteBusy = true
     try {
-      const why = ctx.openPr === null ? null : await openPrReason(loop, ctx)
-      if (why !== null) return { ok: false, reason: why }
       const label = TASTE_DOC_LABEL[doc]
       const title = `docs(agentdeck): ${label} 확정`
       const out = await openCharterPr({
         git, gh: loop.gh, base: loop.base, now: new Date(), paths: [file.rel],
         executorBusy: () => executorBusy(e, loop),
+        blocked: () => docPrBlock(loop, ctx, label),
+        onPr: (pr, branch) => ctx.recordPr({ pr, branch, doc, text: file.text }),
         onCut: (cut) => ctx.cut(cut),
         write: async () => { await writeTasteDraft(draft, dirs).catch((err: unknown) => { throw new Error(tasteProblemText(err)) }) },
         title,
@@ -778,7 +806,10 @@ export function createLoopDriver(opts: LoopDriverOptions): LoopDriver {
 
   function mainViewOf(cwd: string): MainChatView {
     const e = entryOf(cwd)
-    if (e?.chat) return e.chat.view(cwd)
+    if (e?.chat) {
+      refreshTastePr(e)
+      return e.chat.view(cwd)
+    }
     return readMainChatView(opts.appDataDir, e?.loop?.root ?? e?.openFailure?.root ?? cwd)
   }
 

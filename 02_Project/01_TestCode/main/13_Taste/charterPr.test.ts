@@ -1,13 +1,17 @@
 // 가짜 git·gh 포트로 프로덕션 openCharterPr를 돈다.
 import { describe, expect, it } from 'vitest'
-import { charterBranchName, openCharterPr, type CharterGit } from '@main/13_Taste/charterPr'
+import { charterBranchName, isCharterBranch, openCharterPr, type CharterGit } from '@main/13_Taste/charterPr'
 import { FakeGh, FakeGit } from '../00_Helpers/loopFakes'
 
 const NOW = new Date('2026-11-21T01:30:05.123Z')
 const BRANCH = 'agentdeck/charter-20261121T013005'
 const DOC = 'docs/agentdeck/헌장.md'
 
-interface Rig { git: FakeGit; gh: FakeGh; order: string[]; changed: string[]; onCheckout: Map<string, string[]>; recorded: CharterGit }
+interface Rig {
+  git: FakeGit; gh: FakeGh; order: string[]; changed: string[]; onCheckout: Map<string, string[]>; recorded: CharterGit
+  // 갈라 옮긴 브랜치에서 무시되는 경로, 지금 브랜치에서 무시된 채 있는데 기본 브랜치가 추적하는 파일
+  ignored: string[]; clobbered: string[]
+}
 
 function rig(): Rig {
   const git = new FakeGit()
@@ -16,6 +20,8 @@ function rig(): Rig {
   const gh = new FakeGh(git)
   const order: string[] = []
   const changed: string[] = []
+  const ignored: string[] = []
+  const clobbered: string[] = []
   // 그 브랜치로 옮기면 드러나는 경로(다른 브랜치에서만 무시되던 파일)
   const onCheckout = new Map<string, string[]>()
   const log = <A extends unknown[], R>(name: string, fn: (...a: A) => Promise<R>) => async (...a: A): Promise<R> => {
@@ -45,18 +51,25 @@ function rig(): Rig {
       for (const p of paths) if (changed.includes(p)) changed.splice(changed.indexOf(p), 1)
     }),
     push: log('push', (b: string, s?: string) => git.push(b, s)),
+    ignoredPaths: log('ignored?', async (ps: string[]) => ps.filter((p) => ignored.includes(p))),
+    ignoredTrackedIn: log('clobbered?', async () => [...clobbered]),
   }
-  return { git, gh, order, changed, onCheckout, recorded }
+  return { git, gh, order, changed, onCheckout, recorded, ignored, clobbered }
 }
 
-function request(r: Rig, over: { busy?: string | null; write?: () => Promise<void>; cuts?: string[] } = {}) {
+function request(r: Rig, over: { busy?: string | null; write?: () => Promise<void>; cuts?: string[]; blocked?: string | null } = {}) {
   return {
     git: r.recorded,
-    gh: { createPr: async (q: { head: string; base: string; title: string; body: string }) => { r.order.push(`createPr ${q.head} ${q.base}`); return r.gh.createPr(q) } },
+    gh: {
+      createPr: async (q: { head: string; base: string; title: string; body: string }) => { r.order.push(`createPr ${q.head} ${q.base}`); return r.gh.createPr(q) },
+      findPr: (head: string, base: string) => r.gh.findPr(head, base),
+    },
     base: 'master',
     now: NOW,
     paths: [DOC],
     executorBusy: async () => { r.order.push('busy?'); return over.busy ?? null },
+    blocked: async () => { r.order.push('blocked?'); return over.blocked ?? null },
+    onPr: (pr: number, branch: string) => { r.order.push(`pr ${pr} ${branch}`) },
     write: over.write ?? (async () => { r.order.push('write'); r.changed.push(DOC) }),
     onCut: (c: { original: string; branch: string }) => { r.order.push(`cut ${c.original} ${c.branch}`); over.cuts?.push(c.branch) },
     title: 'docs(agentdeck): 프로젝트 헌장 확정',
@@ -68,6 +81,8 @@ const reasonOf = (out: Awaited<ReturnType<typeof openCharterPr>>): string => (ou
 describe('프로젝트 문서 확정의 PR 길', () => {
   it('브랜치 이름은 agentdeck/charter-<짧은 시각>이다', () => {
     expect(charterBranchName(NOW)).toBe(BRANCH)
+    expect(isCharterBranch(BRANCH)).toBe(true)
+    expect(isCharterBranch('feat/agentdeck/charter-x')).toBe(false)
   })
 
   it('원격 기본 머리에서 가름 → 쓰기 → 문서 경로만 커밋 → push → PR → 원래 브랜치로', async () => {
@@ -76,10 +91,10 @@ describe('프로젝트 문서 확정의 PR 길', () => {
     expect(out).toEqual({ ok: true, pr: 100, branch: BRANCH })
     expect(r.order).toEqual([
       'busy?', 'changedPaths', 'currentBranch',
-      'sync master', 'headSha master', 'remoteSha master', `branchExists ${BRANCH}`,
-      `createBranch ${BRANCH} master`, `cut feat/work ${BRANCH}`, `checkout ${BRANCH}`, 'changedPaths',
+      'sync master', 'headSha master', 'remoteSha master', 'clobbered? master', 'blocked?', `branchExists ${BRANCH}`,
+      `createBranch ${BRANCH} master`, `cut feat/work ${BRANCH}`, `checkout ${BRANCH}`, 'changedPaths', 'ignored?',
       'write', 'changedPaths', 'commit docs(agentdeck): 프로젝트 헌장 확정', `  paths ${DOC}`, `push ${BRANCH}`, `createPr ${BRANCH} master`,
-      'checkout feat/work',
+      `pr 100 ${BRANCH}`, 'checkout feat/work',
     ])
     expect(r.git.current).toBe('feat/work')
     expect(r.git.remote.get(BRANCH)?.slice(0, 1)).toEqual(['m0'])
@@ -146,8 +161,47 @@ describe('프로젝트 문서 확정의 PR 길', () => {
     const same = rig()
     const b = await openCharterPr(request(same, { write: async () => {} }))
     expect(reasonOf(b)).toContain('바뀐 것이 없다')
-    expect(same.order.at(-1)).toBe('checkout feat/work')
+    expect(same.order.slice(-3)).toEqual(['discard', `  paths ${DOC}`, 'checkout feat/work'])
     expect(same.gh.prs).toEqual([])
+  })
+
+  it('문서 경로가 기본 브랜치에서 무시되면 쓰지 않고, 그 이유를 따로 알린다', async () => {
+    const r = rig()
+    r.ignored.push(DOC)
+    const out = await openCharterPr(request(r))
+    expect(reasonOf(out)).toContain(`${DOC}가 master에서 무시된다`)
+    expect(r.order).not.toContain('write')
+    expect(r.order).not.toContain('discard')
+    expect(r.order.some((l) => l.startsWith('commit'))).toBe(false)
+    expect(r.order.at(-1)).toBe('checkout feat/work')
+  })
+
+  it('지금 브랜치에서 무시된 채 있는 파일을 기본 브랜치가 추적하면 가르지 않는다 — 옮기면 덮어쓰이고 돌아오면 지워진다', async () => {
+    const r = rig()
+    r.clobbered.push('.env', 'config/a.json', 'config/b.json', 'config/c.json')
+    const out = await openCharterPr(request(r))
+    expect(reasonOf(out)).toContain('.env, config/a.json, config/b.json 외 1개')
+    expect(r.order.some((l) => l.startsWith('createBranch') || l.startsWith('checkout'))).toBe(false)
+  })
+
+  it('열린 문서 PR이 있으면(blocked) 가르지 않는다', async () => {
+    const r = rig()
+    const out = await openCharterPr(request(r, { blocked: '프로젝트 헌장 PR #7이 열려 있다' }))
+    expect(out).toEqual({ ok: false, reason: '프로젝트 헌장 PR #7이 열려 있다' })
+    expect(r.order.some((l) => l.startsWith('createBranch'))).toBe(false)
+  })
+
+  it('PR 생성이 실패로 끝나도 GitHub에 PR이 만들어져 있으면 그 PR을 기록하고 성공으로 돌려준다', async () => {
+    const r = rig()
+    const req = request(r)
+    const out = await openCharterPr({
+      ...req,
+      gh: { ...req.gh, createPr: async (q) => { await r.gh.createPr(q); throw new Error('응답 시간 초과') } },
+    })
+    expect(out).toMatchObject({ ok: true, pr: 100, branch: BRANCH })
+    expect(out.ok && out.warning).toContain('응답 시간 초과')
+    expect(r.order).toContain(`pr 100 ${BRANCH}`)
+    expect(r.order.at(-1)).toBe('checkout feat/work')
   })
 
   it('쓴 뒤 커밋이 실패하면 쓴 문서를 되돌린 다음 원래 브랜치로 돌아온다 — 사람의 브랜치에 문서가 따라가지 않는다', async () => {
@@ -170,7 +224,7 @@ describe('프로젝트 문서 확정의 PR 길', () => {
     expect(r.gh.prs).toEqual([])
     const p = rig()
     const preq = request(p)
-    const noPr = await openCharterPr({ ...preq, gh: { createPr: async () => { throw new Error('HTTP 403') } } })
+    const noPr = await openCharterPr({ ...preq, gh: { ...preq.gh, createPr: async () => { throw new Error('HTTP 403') } } })
     expect(reasonOf(noPr)).toContain('HTTP 403')
     expect(reasonOf(noPr)).toContain(`원격 ${BRANCH}`)
     expect(p.git.current).toBe('feat/work')

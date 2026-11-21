@@ -165,6 +165,81 @@ describe('구동자의 문서 초안 길', () => {
     }
   })
 
+  it('문서 경로가 기본 브랜치에서 무시되면 쓰지 않고 그 이유를 알린다 — 작업 트리에 문서가 남지 않는다', SLOW, async () => {
+    fs.writeFileSync(path.join(repos.work, '.gitignore'), 'docs/\n')
+    repos.git(['add', '.gitignore'])
+    repos.git(['commit', '--quiet', '-m', 'ignore docs'])
+    repos.git(['push', '--quiet', 'origin', 'master'])
+    const rig = await opened()
+    await rig.actions().proposeTasteDoc(CHARTER)
+    const [card] = tasteCards(rig)
+    rig.d.answerCard(repos.work, card.requestId, { kind: 'taste', decision: 'confirm' })
+    expect((await settled(rig, card.requestId))?.refused).toContain('docs/agentdeck/헌장.md가 master에서 무시된다')
+    expect(remoteBranches()).toEqual(['master'])
+    expect(gh.prs).toEqual([])
+    expect(branch()).toBe('master')
+    expect(fs.existsSync(path.join(repos.work, 'docs', 'agentdeck', '헌장.md'))).toBe(false)
+  })
+
+  it('지금 브랜치에서 무시된 채 있는 파일을 기본 브랜치가 추적하면 가르지 않고 그 파일을 그대로 둔다', SLOW, async () => {
+    fs.writeFileSync(path.join(repos.work, '.env'), 'BASE=1\n')
+    repos.git(['add', '.env'])
+    repos.git(['commit', '--quiet', '-m', 'track env'])
+    repos.git(['push', '--quiet', 'origin', 'master'])
+    repos.git(['checkout', '--quiet', '-b', 'feat/side'])
+    repos.git(['rm', '--quiet', '--cached', '.env'])
+    fs.writeFileSync(path.join(repos.work, '.gitignore'), '.env\n')
+    repos.git(['add', '.gitignore'])
+    repos.git(['commit', '--quiet', '-m', 'ignore env'])
+    fs.writeFileSync(path.join(repos.work, '.env'), 'MINE=1\n')
+    const rig = await opened()
+    await rig.actions().proposeTasteDoc(CHARTER)
+    const [card] = tasteCards(rig)
+    rig.d.answerCard(repos.work, card.requestId, { kind: 'taste', decision: 'confirm' })
+    const refused = (await settled(rig, card.requestId))?.refused ?? ''
+    expect(refused).toContain('master가 추적한다(.env)')
+    expect(fs.readFileSync(path.join(repos.work, '.env'), 'utf8')).toBe('MINE=1\n')
+    expect(branch()).toBe('feat/side')
+    expect(repos.git(['for-each-ref', '--format=%(refname:short)', 'refs/heads/agentdeck/'])).toBe('')
+  })
+
+  it('기록에 없는 열린 문서 PR이 GitHub에 있으면 가르지 않고, 막은 PR을 이름으로 알리며 기록한다', SLOW, async () => {
+    const old = 'agentdeck/charter-20990101T000000'
+    repos.git(['checkout', '--quiet', '-b', old])
+    fs.mkdirSync(path.join(repos.work, 'docs', 'agentdeck'), { recursive: true })
+    fs.writeFileSync(path.join(repos.work, 'docs', 'agentdeck', 'Taste.md'), '# 프로젝트 Taste\n')
+    repos.git(['add', 'docs'])
+    repos.git(['commit', '--quiet', '-m', 'docs'])
+    repos.git(['push', '--quiet', 'origin', old])
+    repos.git(['checkout', '--quiet', 'master'])
+    await gh.createPr({ head: old, base: 'master', body: '' })
+    const rig = await opened()
+    await rig.actions().proposeTasteDoc(CHARTER)
+    const [card] = tasteCards(rig)
+    rig.d.answerCard(repos.work, card.requestId, { kind: 'taste', decision: 'confirm' })
+    const refused = (await settled(rig, card.requestId))?.refused ?? ''
+    expect(refused).toContain('한 번에 하나')
+    expect(refused).toContain(`PR #1(${old})`)
+    expect(refused).toContain('프로젝트 헌장을 확정하지 않았다')
+    expect(gh.prs).toHaveLength(1)
+    expect(remoteBranches().filter((b) => b !== old && b !== 'master')).toEqual([])
+    expect(rig.d.mainRead(repos.work).tastePr).toEqual({ pr: 1, branch: old })
+  })
+
+  it('기록한 문서 PR이 병합 없이 닫히면 보기를 읽을 때 기록을 지운다', SLOW, async () => {
+    const rig = await opened()
+    await rig.actions().proposeTasteDoc(CHARTER)
+    const [card] = tasteCards(rig)
+    rig.d.answerCard(repos.work, card.requestId, { kind: 'taste', decision: 'confirm' })
+    expect(await settled(rig, card.requestId)).toBeUndefined()
+    expect(rig.d.mainRead(repos.work).tastePr?.pr).toBe(1)
+    for (let i = 0; i < 20; i++) { rig.d.mainRead(repos.work); await sleep(10) }
+    expect(rig.d.mainRead(repos.work).tastePr?.pr).toBe(1)
+    gh.prs[0].state = 'closed'
+    for (let i = 0; i < 500 && rig.d.mainRead(repos.work).tastePr !== undefined; i++) await sleep(10)
+    expect(rig.d.mainRead(repos.work).tastePr).toBeUndefined()
+  })
+
   it('실행을 시작하는 중에 온 확정은 쓰지 않는다', SLOW, async () => {
     const rig = await opened()
     await rig.actions().proposeTasteDoc(CHARTER)

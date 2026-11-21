@@ -1,6 +1,6 @@
 // 읽기 전용 — 고치는 길은 메인 대화의 문답과 초안 카드의 확정뿐이다. 이 칸은 턴을 스스로 보내지 않는다.
 import { useEffect, useRef, useState, type JSX } from 'react'
-import { TASTE_DOC_LABEL, type DocRead, type MainChatView, type TasteDialogScope, type TasteDocsRead, type TastePrNote } from '@shared/ipcContract'
+import { sameDocText, TASTE_DOC_LABEL, type DocRead, type MainChatView, type TasteDialogScope, type TasteDocsRead, type TastePrNote } from '@shared/ipcContract'
 import type { CharterDoc, TasteDoc } from '@shared/14_Taste/tasteDoc'
 import { ipc } from '@renderer/01_Ipc'
 import { errText, sameCwd } from './loopModel'
@@ -54,11 +54,12 @@ function DocSection<T>({ title, read, body }: { title: string; read: DocRead<T>;
 const tasteIds = (cards: readonly { kind: string; requestId: string }[]): string =>
   cards.filter((c) => c.kind === 'taste').map((c) => c.requestId).sort().join('\n')
 
-// PR이 쓴 원문이 아직 로컬 문서와 다르면(병합 전이거나 받기 전) 그 PR을 보인다
+// 기록은 main이 PR이 열려 있는 동안만 둔다. 그래도 PR이 쓴 원문이 이미 로컬에 있으면 보이지 않는다
 function pendingPr(docs: TasteDocsRead | null, note: TastePrNote | undefined): TastePrNote | null {
   if (docs === null || note === undefined) return null
+  if (note.doc === undefined || note.text === undefined) return note
   const local = note.doc === 'charter' ? docs.charter : docs.project
-  return !local.absent && local.raw === note.text ? null : note
+  return !local.absent && sameDocText(local.raw, note.text) ? null : note
 }
 
 export function TastePanel({ cwd, onOpened }: { cwd: string | null; onOpened: () => void }): JSX.Element {
@@ -137,7 +138,7 @@ export function TastePanel({ cwd, onOpened }: { cwd: string | null; onOpened: ()
         <div className="loop-notice" role="note">{`${missing.join('·')}이 아직 없어요 — 아래 「문답 열기」로 메인과 같이 써요`}</div>
       )}
       {pr !== null && (
-        <div className="loop-notice" role="status">{`${TASTE_DOC_LABEL[pr.doc]} 확정 PR #${pr.pr}(${pr.branch})이 열려 있어요 — 병합해 이 브랜치로 받으면 아래에 보여요`}</div>
+        <div className="loop-notice" role="status">{`${pr.doc ? `${TASTE_DOC_LABEL[pr.doc]} 확정` : '문서 확정'} PR #${pr.pr}(${pr.branch})이 열려 있어요 — 병합해 이 브랜치로 받으면 아래에 보여요`}</div>
       )}
       <div className="loop-actions">
         <button type="button" className="loop-btn" disabled={cwd === null || opening} onClick={() => void open('global')}>전역 Taste 문답 열기</button>

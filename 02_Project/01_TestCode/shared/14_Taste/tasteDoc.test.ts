@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest'
+import { sameDocText } from '@shared/14_Taste/taste'
 import {
   parseTaste,
   serializeTaste,
@@ -220,5 +221,12 @@ describe('헌장 문서 읽기·쓰기', () => {
   it('한 번 훑어 구조와 문제를 함께 돌려준다', () => {
     expect(scanCharter(CHARTER)).toEqual({ doc: parseCharter(CHARTER), problems: [] })
     expect(scanTaste(GLOBAL, 'global')).toEqual({ doc: parseTaste(GLOBAL, 'global'), problems: [] })
+  })
+
+  it('같은 원문 비교는 BOM·CRLF·줄 끝 공백을 가리지 않고, 글이 다르면 다르다', () => {
+    expect(sameDocText(`${String.fromCharCode(0xfeff)}# 헌장\r\n\r\n- 목표  \r\n`, '# 헌장\n\n- 목표\n')).toBe(true)
+    expect(sameDocText('# 헌장\r- 목표\n\n\n', '# 헌장\n- 목표')).toBe(true)
+    expect(sameDocText('# 헌장\n- 목표\n', '# 헌장\n- 다른 목표\n')).toBe(false)
+    expect(sameDocText('# 헌장\n  - 목표\n', '# 헌장\n- 목표\n')).toBe(false)
   })
 })

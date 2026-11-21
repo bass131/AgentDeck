@@ -130,6 +130,29 @@ describe('「헌장·Taste」 보기', () => {
     expect(within(panel()).queryByText(/PR #4/)).toBeNull()
   })
 
+  it('CRLF로 체크아웃된 같은 원문(BOM·줄 끝 공백 포함)도 들어온 것으로 본다', async () => {
+    const text = '# 프로젝트 헌장\n\n## 목표\n\n에이전트가 끝까지 맡는다.\n'
+    const pr = { pr: 4, branch: 'agentdeck/charter-20261121T050000', doc: 'charter' as const, text }
+    const crlf: TasteDocsRead = { ...OK, charter: { ...OK.charter, raw: `${String.fromCharCode(0xfeff)}${text.replace(/\n/g, '  \r\n')}` } as TasteDocsRead['charter'] }
+    await renderPanel(crlf, vi.fn(), mv({ tastePr: pr }))
+    expect(within(panel()).queryByText(/PR #4/)).toBeNull()
+  })
+
+  it('PR 기록이 사라지면(병합 없이 닫힘) 배너를 걷고 헌장 재촉을 다시 보인다. 문서를 모르는 PR은 문서 이름 없이 보인다', async () => {
+    const pr = { pr: 4, branch: 'agentdeck/charter-20261121T050000', doc: 'charter' as const, text: '# 프로젝트 헌장\n' }
+    await renderPanel(ABSENT, vi.fn(), mv({ tastePr: pr }))
+    expect(within(panel()).getByText(/PR #4/)).toBeTruthy()
+    expect(within(panel()).getByRole('note').textContent).not.toContain('프로젝트 헌장')
+    await act(async () => { for (const h of [...mainHandlers]) h(mv()) })
+    await flush()
+    expect(within(panel()).queryByText(/PR #4/)).toBeNull()
+    expect(within(panel()).getByRole('note').textContent).toContain('프로젝트 헌장')
+    await act(async () => { for (const h of [...mainHandlers]) h(mv({ tastePr: { pr: 5, branch: 'agentdeck/charter-x' } })) })
+    await flush()
+    expect(within(panel()).getByText(/PR #5/).textContent).toContain('문서 확정 PR #5(agentdeck/charter-x)')
+    expect(within(panel()).getByRole('note').textContent).toContain('프로젝트 헌장')
+  })
+
   it('읽기 오류는 다시 읽어 성공하면 걷히고, 문답 열기 오류와 따로 보인다', async () => {
     install(ABSENT)
     api.tasteRead.mockRejectedValueOnce(new Error('읽기 실패'))

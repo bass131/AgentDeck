@@ -1,4 +1,4 @@
-// M11 G3 — M11 Backlog 19. git IPC 핸들러는 renderer가 보낸 hash가 `-`로 시작하면 git 함수를 부르지 않는다.
+// `-`로 시작하는 hash는 git이 옵션으로 읽는다(`--output=<경로>`면 파일을 쓴다)
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 const h = vi.hoisted(() => ({

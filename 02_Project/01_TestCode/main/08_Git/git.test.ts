@@ -354,7 +354,7 @@ describe('gitFileAt', () => {
   })
 })
 
-// M11 G3 — M11 Backlog 19. renderer가 보낸 hash가 `-`로 시작하면 git show의 옵션(`--output=<경로>`)이 된다 — 부르지 않는다
+// renderer가 보낸 hash가 `-`로 시작하면 git show의 옵션(`--output=<경로>`)이 된다
 describe('git show의 hash 옵션 주입 (M11 G3)', () => {
   it('[M11-G3 M11-19] `-` 머리 hash는 git을 부르지 않는다 — --output 경로에 파일이 생기지 않는다', async () => {
     const root = await gitRoot(repoDir)

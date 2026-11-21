@@ -213,7 +213,7 @@ describe('installVersion() — semver 검증 (spawn 미호출 보장)', () => {
     expect(result.error).not.toMatch(/invalid version.*strict semver/i)
     expect(result.error).toMatch(/spawn 실패|프로세스/i)
     expect(h.spawn).toHaveBeenCalledTimes(1)
-    // 실패한 설치는 임시 형제 폴더째 치운다 — 버전 폴더가 생기지 않는다(M11 G3 검수)
+    // 실패한 설치는 임시 형제 폴더째 치운다 — 버전 폴더가 생기지 않는다
     expect(fs.existsSync(path.join(ud, 'engines', '1.0.0-beta.1'))).toBe(false)
   })
 })
@@ -263,7 +263,7 @@ describe('installVersion() — 유효 semver 경로', () => {
     expect(progress).toHaveBeenCalled()
     expect(String((progress.mock.calls[0][0] as { line?: string }).line)).toContain('npm install')
 
-    // 설치 폴더(임시 형제)는 spawn 전에 준비되고, 실패하면 치워져 버전 폴더가 생기지 않는다(M11 G3 검수)
+    // 설치 폴더(임시 형제)는 spawn 전에 준비되고, 실패하면 치워져 버전 폴더가 생기지 않는다
     expect(preparedAtSpawn).toBe(true)
     expect(fs.existsSync(path.join(ud, 'engines', '0.3.186'))).toBe(false)
   })
@@ -358,7 +358,7 @@ describe('loadActiveQuery()', () => {
     const { setActive, loadActiveQuery } = await import('@main/10_Engine/engineVersions')
     const ud = newUserData()
     installFixture(ud, '1.2.3', { main: 'index.js' })
-    // M07 G4: 앱 경로(setActive)로 골라 봉인을 남긴다 — 봉인이 맞아도 진입 파일이 없으면 번들로 물러난다
+    // 봉인이 맞아도 진입 파일이 없으면 번들로 물러난다
     setActive('1.2.3', ud)
 
     expect(await loadActiveQuery(ud)).toBeNull()
@@ -399,7 +399,7 @@ describe('getVersionState()', () => {
     expect(getVersionState(ud).installed).toEqual(['1.10.0', '1.2.3', '0.9.9'])
   })
 
-  // M11 G2 — M05 Backlog 65. 정렬과 갱신 확인이 같은 비교 하나(cmpVer)를 쓴다 — pre-release는 같은 번호의 정식보다 앞이다.
+  // pre-release는 같은 번호의 정식보다 앞이다
   it('설치 목록 정렬은 pre-release를 같은 번호 정식 아래에 둔다', async () => {
     const { getVersionState } = await import('@main/10_Engine/engineVersions')
     const ud = newUserData()
@@ -422,7 +422,7 @@ describe('getVersionState()', () => {
     installFixture(ud, '1.2.3')
     writeConfigFixture(ud, '1.2.3')
     const state = getVersionState(ud)
-    // M07 G4: 봉인 상태 칸(seal)이 더해졌다 — 해시 값 자체는 싣지 않는다
+    // 해시 값 자체는 싣지 않는다
     expect(Object.keys(state).sort()).toEqual(['active', 'bundled', 'installed', 'package', 'seal'])
     expect(state.seal).toBe('missing')
   })

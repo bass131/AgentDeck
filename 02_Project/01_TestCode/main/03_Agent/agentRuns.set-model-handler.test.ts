@@ -1,4 +1,3 @@
-// 작업 ID: lm1 · 옛 이름 lm1-set-model-handler.test.ts
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 
 const h = vi.hoisted(() => ({ handlers: new Map<string, (...args: unknown[]) => unknown>() }))
@@ -18,7 +17,7 @@ import { setCurrentModelRows } from '@main/04_Claude/modelListProvider'
 import { FALLBACK_MODELS } from '@shared/03_Agent/models/knownModels'
 import { SDK_MODEL_ROWS } from '../../shared/00_Helpers/sdkModelRows'
 
-// M06 G4: 모델 값은 꼴 검사로 통과하고, 짧은 별칭은 main의 현재 SDK 목록에 있을 때만 받는다(옛 세대 매핑 없음).
+// 짧은 별칭은 main의 현재 SDK 목록에 있을 때만 받는다(옛 세대 매핑 없음)
 beforeEach(() => {
   setCurrentModelRows(SDK_MODEL_ROWS)
 })

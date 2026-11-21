@@ -2,7 +2,6 @@ import { describe, it, expect } from 'vitest'
 import { getBackend, listBackends } from '@main/00_App/registry'
 import type { AgentBackend } from '@main/03_Agent/AgentBackend'
 
-// M11 G2 — M07 Backlog 18. userData 경로를 못 얻으면(Electron 밖) 실행을 열지 않는다(닫힌 실패).
 describe('registry — 컨트롤 검사는 닫힌 실패', () => {
   it('userData 경로를 못 얻으면 claude-code 실행은 SDK를 부르지 않고 오류와 done으로 끝난다', async () => {
     const run = getBackend('claude-code').start({ messages: [{ role: 'user', content: 'hi' }] })
@@ -16,7 +15,7 @@ describe('registry — 컨트롤 검사는 닫힌 실패', () => {
     expect(message).toContain('앱 데이터 폴더를 얻지 못해 실행을 열지 않았습니다')
   })
 
-  // M11 G3 — M11 Backlog 18. 엔진 경로 잠금의 경로도 조립 지점이 넣는다 — 기본(잠금 없이 열기)으로 두지 않는다
+  // 기본값(잠금 없이 열기)으로 두지 않는다
   it('[M11-G3 M11-18] claude-code 백엔드에 엔진 경로 잠금 경로 읽기를 넣고, 그 읽기는 Electron 밖에서 던진다', () => {
     const backend = getBackend('claude-code') as unknown as { _engineLockDir?: () => string; _controlsAtRunStart?: unknown }
     expect(typeof backend._controlsAtRunStart).toBe('function')

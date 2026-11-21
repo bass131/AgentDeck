@@ -3,9 +3,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 
-// M05 G11: main 여덟 자리의 `app.getPath('userData')` 식을 한 곳으로 모은다. 각 자리의 해석 시점은 그대로 둔다.
-// 즉시 해석(스토어 생성 때): prefs·profile. 호출마다 해석: skills·mcp·engineVersions·fs(SAVE_IMAGE_DATA).
-// index.ts의 두 자리(chats 폴더, multi 저장 경로)는 whenReady 부수효과라 grep으로만 대조한다.
+// 해석 시점은 자리마다 다르다 — 즉시(스토어 생성 때): prefs·profile, 호출마다: skills·mcp·engineVersions·fs(SAVE_IMAGE_DATA).
 const h = vi.hoisted(() => ({
   ud: '',
   throws: false,
@@ -55,7 +53,6 @@ describe('getUserDataDir() — 한 곳으로 모은 해석 (M05 G11)', () => {
     expect(() => getUserDataDir()).toThrow('app not ready')
   })
 
-  // 옮기기 전에는 8곳·7파일이었다(재실측 1절). 파일 위치가 바뀌어도(G11 4단계 조립 정리) 이 판정은 그대로 선다.
   it('app.getPath("userData")는 main 전체에서 02_Common/userData.ts 한 곳에만 있다', () => {
     const hits = mainSources().filter((rel) => USERDATA_CALL.test(read(rel)))
     expect(hits).toEqual(['02_Common/userData.ts'])

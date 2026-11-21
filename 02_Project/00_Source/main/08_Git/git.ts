@@ -200,7 +200,7 @@ export async function gitLog(root: string, limit = 80): Promise<GitCommit[]> {
   return commits
 }
 
-// renderer가 보낸 커밋 이름 — `-` 머리는 git show의 옵션(`--output=<경로>` 등)으로 읽혀 받지 않는다(M11 G3, Backlog 19)
+// renderer가 보낸 커밋 이름 — `-` 머리는 git show의 옵션(`--output=<경로>` 등)으로 읽혀 받지 않는다
 export const isSafeRev = (rev: string): boolean => rev.trim() !== '' && !rev.startsWith('-')
 
 export async function gitCommitDetail(root: string, hash: string): Promise<GitChange[]> {

@@ -607,7 +607,7 @@ describe('LspManager — hoverMarkdown 정규화', () => {
   })
 })
 
-// M11 G2 — M05 Backlog 1. 앱 종료 정리(stopApp)가 부르는 단일 인스턴스 정리. 창을 붙이기 전(미초기화)에도 던지지 않는다.
+// 창을 붙이기 전(미초기화)에도 던지지 않는다
 describe('disposeLspManager — 앱 종료 정리', () => {
   it('미초기화 상태에서도 던지지 않는다', async () => {
     vi.resetModules()

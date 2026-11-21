@@ -1,6 +1,3 @@
-// M09 G4 — loop IPC 핸들러. ipcMain.handle을 가로채 registerLoopHandlers가 등록한 채널을 직접 부른다.
-// 고정하는 것: 여덟 채널이 등록되고 구동자로 그대로 넘어간다, 입력 꼴이 틀리면 구동자를 부르지 않는다(cwd·verdict·카드 응답·token),
-// 카드 응답에 「항상 허용」은 받지 않는다, 구동자가 내는 상태 변화는 창이 있을 때만 loop.state로 push한다.
 import { describe, expect, it, vi } from 'vitest'
 import type { LoopStatus } from '@shared/ipcContract'
 import type { LoopAlert, LoopSessionEventPayload, MainChatView } from '@shared/13_Loop/loop'
@@ -110,7 +107,6 @@ describe('loop IPC 핸들러 (M09 G4)', () => {
     expect(calls[5]).toEqual(['cancelSession', CWD, 'worker'])
   })
 
-  // M10 G3 — 사람이 깃발을 내리는 길과 대상을 고른 취소. 둘 다 판정 칸을 읽지 않는다 — 구동자는 cwd(취소는 대상)만 받는다
   it('깃발 내리기는 cwd만 구동자로 넘긴다 — 판정 칸(verdict·evidence·specSha256·expectNode)을 실어도 읽지 않는다', async () => {
     const { driver, calls } = fakeDriver()
     const call = register(driver)
@@ -139,7 +135,7 @@ describe('loop IPC 핸들러 (M09 G4)', () => {
     const call = register(driver)
     await expect(call(IPC_CHANNELS.LOOP_OPEN, { cwd: '' })).rejects.toThrow()
     await expect(call(IPC_CHANNELS.LOOP_OPEN, { cwd: 'relative/path' })).rejects.toThrow()
-    // G4 검수 중요 I5 — CI 정책(필수 검사 이름)은 화면 입력으로 바꾸지 못한다. 그 칸이 오면 거부한다(빈 목록으로 아무 검사 통과를 여는 길)
+    // 화면이 필수 검사를 빈 목록으로 보내면 아무 검사나 통과하게 된다
     await expect(call(IPC_CHANNELS.LOOP_OPEN, { cwd: CWD, requiredChecks: [] })).rejects.toThrow(/requiredChecks/)
     await expect(call(IPC_CHANNELS.LOOP_OPEN, { cwd: CWD, requiredChecks: ['hard-gates'] })).rejects.toThrow(/requiredChecks/)
     await expect(call(IPC_CHANNELS.LOOP_START, { cwd: CWD })).rejects.toThrow()
@@ -149,7 +145,6 @@ describe('loop IPC 핸들러 (M09 G4)', () => {
     await expect(call(IPC_CHANNELS.LOOP_STATUS, null)).rejects.toThrow()
     // 스펙 해시는 sha256 16진수 꼴만 — 화면이 본 해시가 아닌 값은 구동자에 닿지 않는다
     await expect(call(IPC_CHANNELS.LOOP_DECIDE, { cwd: CWD, verdict: 'pass', evidence: 'x', specSha256: 'abc' })).rejects.toThrow()
-    // M10 G2 — 메인 대화에 보내는 글은 비지 않은 문자열, 상한 이하. 판정 칸을 실어도 구동자는 글만 받는다
     await expect(call(IPC_CHANNELS.LOOP_MAIN_SEND, { cwd: CWD, text: '   ' })).rejects.toThrow()
     await expect(call(IPC_CHANNELS.LOOP_MAIN_SEND, { cwd: CWD, text: 'x'.repeat(20_001) })).rejects.toThrow()
     await expect(call(IPC_CHANNELS.LOOP_MAIN_SEND, { cwd: CWD })).rejects.toThrow()

@@ -2,7 +2,6 @@ import { describe, it, expect } from 'vitest'
 
 const { cmpVer, checkEngineUpdate } = await import('@main/10_Engine/engineCheckUpdate')
 
-// M11 G2 — M05 Backlog 65. pre-release 버전이 NaN이 돼 갱신 알림이 꺼지던 틈, 정렬 쪽 두 번째 비교 함수.
 describe('cmpVer() — pre-release와 비교 함수 한 벌', () => {
   it('pre-release는 같은 번호의 정식보다 작고, 더 낮은 정식보다는 크다', () => {
     expect(cmpVer('0.3.201-rc.1', '0.3.201')).toBeLessThan(0)

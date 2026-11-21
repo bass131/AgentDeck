@@ -1,5 +1,3 @@
-// M07 G5 — 컨트롤 패널의 IPC 핸들러. ipcMain.handle을 가로채 등록된 핸들러를 직접 부른다.
-// 상태는 노드 목록·controls.json 봉인 상태에 엔진 봉인 상태를 함께 싣는다(패널의 바뀜 경고 두 갈래).
 import { describe, it, expect, vi, beforeEach, afterAll } from 'vitest'
 import fs from 'node:fs'
 import os from 'node:os'

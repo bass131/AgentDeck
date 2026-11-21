@@ -21,8 +21,7 @@ import { getUserDataDir } from '@main/02_Common/userData'
 import { getDefaultQueryFn } from '@main/04_Claude/queryFn'
 import { ModelListProvider, fetchModelRowsWithoutTurn } from '@main/04_Claude/modelListProvider'
 
-// 모델 목록 공급자 (M06 G4) — 조립 지점이 하나를 쥔다. 첫 요청(앱 시작 때 renderer의 agent.listModels)에서
-// 실제 턴을 도는 엔진(getDefaultQueryFn)에 프롬프트 없이 목록만 묻고, userData의 캐시에 남긴다.
+// 실제 턴을 도는 엔진에 프롬프트 없이 목록만 묻고, userData의 캐시에 남긴다
 const MODEL_LIST_CACHE_FILE = 'model-list.json'
 const MODEL_LIST_TIMEOUT_MS = 20_000
 let _modelList: ModelListProvider | null = null
@@ -60,7 +59,7 @@ let _skillsStore: SkillsStore | null = null
 let _mcpStore: McpStore | null = null
 let _commandsStore: CommandsStore | null = null
 
-// 대화 저장소의 유일한 소유자 — 생성이 throw하면 쥔 값을 바꾸지 않고 호출부로 던진다 (M05 G11)
+// 생성이 throw하면 쥔 값을 바꾸지 않고 호출부로 던진다
 export function initConversationStore(chatsDir: string): void {
   _store = createConversationStore(chatsDir)
 }

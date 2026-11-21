@@ -12,7 +12,6 @@ import {
   startResize,
 } from '@main/12_Window/controls'
 
-// 창 채널 등록 (M05 G10) — 12_Window/controls.ts에서 옮겼다. 동작은 controls.ts의 함수가 맡는다.
 export function registerWindowHandlers(): void {
   handle(IPC_CHANNELS.WINDOW_MINIMIZE, (e: IpcMainInvokeEvent): void => {
     windowFromEvent(e)?.minimize()

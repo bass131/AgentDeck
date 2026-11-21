@@ -1,4 +1,3 @@
-// 작업 ID: gap1-p09 · 옛 이름 gap1-p09-task-stop-handler.test.ts
 import { describe, it, expect, vi } from 'vitest'
 
 const h = vi.hoisted(() => ({ handlers: new Map<string, (...args: unknown[]) => unknown>() }))

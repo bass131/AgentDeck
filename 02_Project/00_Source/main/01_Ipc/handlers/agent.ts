@@ -33,7 +33,6 @@ import { getUserDataDir } from '@main/02_Common/userData'
 interface AgentHandlerDeps {
   state: { win: BrowserWindow | null }
   runManager: RunManager
-  // 모델 목록 공급자 (M06 G4) — 없으면 최소 목록을 builtin으로 준다.
   getModelList?: () => Promise<ModelListResponse>
 }
 
@@ -63,8 +62,8 @@ export function registerAgentHandlers(deps: AgentHandlerDeps): void {
 
     const backend = getBackend(req.backendId)
 
-    // 컨트롤 설정 검사 (M07 G5) — 실행 안의 검사(claudeAgentRun._prepareQuery)도 있지만, 거기서 낸 오류 이벤트는
-    // 화면이 실행 id를 받기 전에 도착해 버려진다(앱 리허설 실측). 요청 단계에서 먼저 거절해 RUN_FAILED로 보인다.
+    // 실행 안의 컨트롤 검사가 낸 오류 이벤트는 화면이 실행 id를 받기 전에 도착해 버려진다(앱 리허설 실측).
+    // 그래서 요청 단계에서 먼저 거절해 RUN_FAILED로 보인다.
     if (backend.id === 'claude-code') {
       const controls = controlsForRun(getUserDataDir())
       if (!controls.ok) throw new Error(controls.message)
@@ -105,7 +104,6 @@ export function registerAgentHandlers(deps: AgentHandlerDeps): void {
     return { runId }
   })
 
-  // M05 G10 ack 통일: 아래 5채널은 옛 { accepted } 대신 { ok }를 돌려준다 (값의 뜻은 같다 — 위임이 받아들였는가)
   handle(IPC_CHANNELS.AGENT_ABORT, (_e, req: AgentAbortRequest): AgentAbortResponse => {
     if (!req?.runId || typeof req.runId !== 'string') {
       return { ok: false }
@@ -148,7 +146,7 @@ export function registerAgentHandlers(deps: AgentHandlerDeps): void {
     return { ok: runManager.setModel(resolved.runId, resolved.model) }
   })
 
-  // 지속 세션의 effort 전환 (M06 Backlog 24) — 단계 이름만 받는다. 모델에 맞춰 내리는 것은 실행이 한다.
+  // 단계 이름만 받는다. 모델에 맞춰 단계를 내리는 것은 실행이 한다
   handle(IPC_CHANNELS.AGENT_SET_EFFORT, (_e, req: { runId?: unknown; effort?: unknown } | null): { ok: boolean } => {
     if (typeof req?.runId !== 'string' || req.runId.trim() === '' || !isEffortLevel(req.effort)) return { ok: false }
     return { ok: runManager.setEffort(req.runId, req.effort) }

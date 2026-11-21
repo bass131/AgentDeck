@@ -1,4 +1,3 @@
-// 작업 ID: lr4-p01 · 옛 이름 lr4-p01-teardown-window-repro.test.ts
 import { describe, it, expect } from 'vitest'
 import { createRunManager } from '@main/03_Agent/agentRuns'
 import { ClaudeCodeBackend } from '@main/04_Claude/ClaudeCodeBackend'

@@ -3,9 +3,7 @@ import { createSkillsStore } from '@main/11_Settings/skills'
 import { createMcpStore } from '@main/11_Settings/mcp'
 import { createDisabledOverlay } from '@main/11_Settings/disabledOverlay'
 
-// M05 G11: skills와 mcp가 각자 갖던 비활성 목록 처리(readDisabled·set*Enabled)를 한 곳으로 모은다.
-// 두 스토어를 같은 가짜 fs로 실제로 돌려 지금 동작을 고정한다 — 오버레이 파일 이름, 쓰기 모양,
-// userData 해석 횟수와 위치(경로 해석은 try 밖이라 throw가 그대로 나간다), 입력 검증 순서.
+// 두 스토어를 같은 가짜 fs로 실제로 돌린다
 const norm = (p: string): string => p.replace(/\\/g, '/')
 
 interface Rig {

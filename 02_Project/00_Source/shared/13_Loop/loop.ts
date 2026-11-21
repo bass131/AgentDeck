@@ -29,6 +29,7 @@ export const LOOP_CHANNELS = {
   LOOP_ALERT_OPEN: 'loop.alertOpen',
   // 열린 루프의 작업 폴더를 읽는다(채팅 모드의 폴더와 따로)
   LOOP_LIST_DIR: 'loop.listDir',
+  LOOP_TASTE_OPEN: 'loop.tasteOpen',
 } as const
 
 // ok: 그 작업 폴더의 실행기가 열려 있고 경로가 작업 저장소 뿌리 아래다. 아니면 목록 없이 거짓이다(빈 폴더와 다르다)

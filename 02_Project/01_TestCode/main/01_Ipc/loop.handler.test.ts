@@ -47,6 +47,7 @@ function fakeDriver(): { driver: LoopDriverApi; calls: unknown[][] } {
       mainArchives: rec('mainArchives', Promise.resolve({ cwd: CWD, archives: [] })),
       graph: rec('graph', { ok: false, reason: '없음' }),
       listDir: rec('listDir', Promise.resolve({ ok: true, entries: [] })),
+      tasteOpen: rec('tasteOpen', Promise.resolve({ ok: true, view: view() })),
     },
   }
 }
@@ -80,7 +81,7 @@ describe('loop IPC 핸들러 (M09 G4)', () => {
     const call = register(driver)
     expect([...h.handlers.keys()].sort()).toEqual([
       'loop.alerts', 'loop.answerCard', 'loop.cancelSession', 'loop.close', 'loop.decide', 'loop.graph', 'loop.listDir', 'loop.lowerFlag', 'loop.mainArchives', 'loop.mainNew', 'loop.mainRead', 'loop.mainSend',
-      'loop.open', 'loop.releaseLatch', 'loop.sessionLog', 'loop.start', 'loop.status',
+      'loop.open', 'loop.releaseLatch', 'loop.sessionLog', 'loop.start', 'loop.status', 'loop.tasteOpen',
     ])
     expect(await call(IPC_CHANNELS.LOOP_SESSION_LOG, { cwd: CWD, verdict: 'pass' })).toEqual({ cwd: CWD, sessions: [] })
     expect(await call(IPC_CHANNELS.LOOP_MAIN_ARCHIVES, { cwd: CWD })).toEqual({ cwd: CWD, archives: [] })
@@ -193,6 +194,32 @@ describe('loop IPC 핸들러 (M09 G4)', () => {
     expect(await call(IPC_CHANNELS.LOOP_ANSWER_CARD, { cwd: CWD, requestId: '', response: { kind: 'permission', behavior: 'deny' } })).toEqual({ ok: false })
     expect(calls).toEqual([])
     expect(await call(IPC_CHANNELS.LOOP_ANSWER_CARD, { cwd: CWD, requestId: 'p1', response: { kind: 'question', answers: null } })).toEqual({ ok: true })
+  })
+
+  it('문서 초안 카드는 확정과 이유 한 줄의 반려만 받는다', async () => {
+    const { driver, calls } = fakeDriver()
+    const call = register(driver)
+    for (const response of [
+      { kind: 'taste', decision: 'approve' }, { kind: 'taste', decision: 'reject' }, { kind: 'taste', decision: 'reject', reason: '  ' },
+      { kind: 'taste', decision: 'reject', reason: '두\n줄' }, { kind: 'taste', decision: 'reject', reason: 'x'.repeat(501) },
+    ]) expect(await call(IPC_CHANNELS.LOOP_ANSWER_CARD, { cwd: CWD, requestId: 'taste-1', response })).toEqual({ ok: false })
+    expect(calls).toEqual([])
+    await call(IPC_CHANNELS.LOOP_ANSWER_CARD, { cwd: CWD, requestId: 'taste-1', response: { kind: 'taste', decision: 'confirm', draft: { doc: 'charter' } } })
+    await call(IPC_CHANNELS.LOOP_ANSWER_CARD, { cwd: CWD, requestId: 'taste-1', response: { kind: 'taste', decision: 'reject', reason: '금지 칸이 없다' } })
+    expect(calls).toEqual([
+      ['answerCard', CWD, 'taste-1', { kind: 'taste', decision: 'confirm' }],
+      ['answerCard', CWD, 'taste-1', { kind: 'taste', decision: 'reject', reason: '금지 칸이 없다' }],
+    ])
+  })
+
+  it('문답 열기는 cwd와 범위(global·project)만 구동자로 넘긴다', async () => {
+    const { driver, calls } = fakeDriver()
+    const call = register(driver)
+    expect(await call(IPC_CHANNELS.LOOP_TASTE_OPEN, { cwd: CWD, scope: 'project', text: '몰래 보낼 글' })).toMatchObject({ ok: true })
+    for (const bad of [{ cwd: CWD }, { cwd: CWD, scope: 'charter' }, { cwd: 'rel', scope: 'global' }]) {
+      await expect(call(IPC_CHANNELS.LOOP_TASTE_OPEN, bad)).rejects.toThrow(/loop\.tasteOpen/)
+    }
+    expect(calls).toEqual([['tasteOpen', CWD, 'project']])
   })
 })
 

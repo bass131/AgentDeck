@@ -1,0 +1,20 @@
+appId: com.bass131.agentdeck
+productName: AgentDeck
+directories:
+  output: release
+files:
+  - out/**/*
+asar: true
+asarUnpack:
+  - node_modules/@anthropic-ai/claude-agent-sdk-win32-x64/**
+  - node_modules/typescript-language-server/**
+  - node_modules/pyright/**
+npmRebuild: false
+publish: null
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+nsis:
+  artifactName: ${productName}-Setup-${version}.${ext}

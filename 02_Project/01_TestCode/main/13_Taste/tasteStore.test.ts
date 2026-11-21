@@ -27,6 +27,8 @@ import {
   loadLoopDocsAppend,
   TasteWriteError,
   LOOP_DOC_MAX_BYTES,
+  checkTasteDraft,
+  writeTasteDraft,
 } from '@main/13_Taste/tasteStore'
 import { serializeTaste, serializeCharter, type TasteItem } from '@shared/14_Taste/tasteDoc'
 import type { TasteDocsRead } from '@shared/14_Taste/taste'
@@ -181,6 +183,12 @@ describe('쓰기는 구조를 지키지 못하는 입력과 문제 있는 기존
     expect(atomic.files).toEqual([])
   })
 
+  it('거절은 그 자리에서 던지지 않고 거절된 약속으로 온다', async () => {
+    const p = writeGlobalTaste(ud, [{ id: 'T1', title: 'a', fields: [] }])
+    expect(p).toBeInstanceOf(Promise)
+    await expect(p).rejects.toBeInstanceOf(TasteWriteError)
+  })
+
   it('다시 읽으면 문제가 생길 글(칸 없는 항목·빈 목표)도 bad-input이다 — 쓰고 나면 다음 쓰기가 막히는 글을 만들지 않는다', async () => {
     expect(await reason(writeGlobalTaste(ud, [{ id: 'T1', title: 'a', fields: [] }]))).toBe('bad-input')
     expect(await reason(writeProjectCharter(ws, { goal: [], nonGoals: null }))).toBe('bad-input')
@@ -203,6 +211,29 @@ describe('쓰기는 구조를 지키지 못하는 입력과 문제 있는 기존
       expect(fs.readFileSync(file, 'utf8')).toBe(before)
     }
     expect(atomic.files).toEqual([])
+  })
+
+  it('초안 검사는 쓰기와 같은 검사를 돌리고 쓰지 않는다 — 통과하면 쓸 글을 돌려준다', async () => {
+    const dirs = { userDataDir: ud, root: ws }
+    expect(await checkTasteDraft({ doc: 'global-taste', items: ITEMS }, dirs)).toBe(serializeTaste({ scope: 'global', items: ITEMS }))
+    expect(await checkTasteDraft({ doc: 'project-taste', items: ITEMS }, dirs)).toBe(serializeTaste({ scope: 'project', items: ITEMS }))
+    expect(await checkTasteDraft({ doc: 'charter', charter: CHARTER }, dirs)).toBe(serializeCharter(CHARTER))
+    expect(await reason(checkTasteDraft({ doc: 'global-taste', items: [{ id: 'T1', title: 'a', fields: [] }] }, dirs))).toBe('bad-input')
+    fs.mkdirSync(path.dirname(projectCharterPath(ws)), { recursive: true })
+    fs.writeFileSync(projectCharterPath(ws), '# 프로젝트 헌장\n\n## 소개\nx\n')
+    expect(await reason(checkTasteDraft({ doc: 'charter', charter: CHARTER }, dirs))).toBe('existing-problems')
+    expect(fs.existsSync(globalTastePath(ud))).toBe(false)
+    expect(fs.existsSync(projectTastePath(ws))).toBe(false)
+    expect(atomic.files).toEqual([])
+    await expect(checkTasteDraft({ doc: 'global-taste', items: ITEMS }, { userDataDir: null, root: ws })).rejects.toThrow('전역 Taste')
+  })
+
+  it('초안 쓰기는 종류에 맞는 거처에 쓰고 그 경로를 돌려준다', async () => {
+    const dirs = { userDataDir: ud, root: ws }
+    expect(await writeTasteDraft({ doc: 'global-taste', items: ITEMS }, dirs)).toBe(globalTastePath(ud))
+    expect(await writeTasteDraft({ doc: 'charter', charter: CHARTER }, dirs)).toBe(projectCharterPath(ws))
+    expect(await writeTasteDraft({ doc: 'project-taste', items: ITEMS }, dirs)).toBe(projectTastePath(ws))
+    expect(atomic.files).toEqual([globalTastePath(ud), projectCharterPath(ws), projectTastePath(ws)])
   })
 
   it('문제 없는 기존 문서와 빈 파일은 덮어쓴다', async () => {

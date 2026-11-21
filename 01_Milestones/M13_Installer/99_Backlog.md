@@ -2,6 +2,7 @@
 
 M13 진행 중 범위 밖으로 발견한 것을 한 줄씩 남긴다. 새 줄은 위에 쌓는다.
 
+16. (M13 G2 재검수) PR 카드의 gh(`prMerge.ts` `ghRunner`)는 `gh api <path>`를 `--hostname`·`-R` 없이 `process.env`로 부른다 — 사용자 환경에 `GH_HOST=acme.ghe.com`이 있으면 앱 토큰이 그 호스트로 갈 수 있다(미실측). 호출에 `--hostname github.com`을 고정할 후보.
 15. (M13 G2 검수) 앱 토큰을 무조건 우선하므로, 조직이 「OAuth App 접근 제한」을 켜 두면 개발 PC에서 앱을 연결하는 순간 그 조직 저장소의 PR 카드와 실행기 gh가 막힐 수 있다(예전에는 승인된 gh 로그인으로 돌았다). 미실측 추정 — goal 6 실측 때 본다.
 14. (M13 G2) OAuth App 클라이언트 ID를 넣는 화면이 없다 — 지금은 `ui-prefs.json`의 `githubClientId`(렌더러의 `settings.setUiPref`로도 쓸 수 있다)뿐이다. 등록(goal 6) 뒤 설치본에 기본값을 싣는 길을 첫 실행 안내(goal 3)나 릴리스 후보(goal 5)에서 정할 후보.
 13. (M13 G2) 앱 토큰 파일(`userData/github-auth.bin`)은 루프 잠금이 쓰기만 막고(저장소 밖 쓰기) 읽기는 막지 않는다 — `loopLock.ts`에 읽기 차단 규칙이 없다. 내용은 safeStorage(DPAPI) 암호문이지만 같은 OS 사용자 프로세스는 `Local State`의 키로 풀 수 있다(미실측 추정, childEnv 한계와 같은 부류).

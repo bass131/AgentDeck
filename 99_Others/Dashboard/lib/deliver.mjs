@@ -1,7 +1,6 @@
 // 현황판의 바깥 쓰기는 둘뿐이다. 하나가 이것 — 결정 응답 문장을 메인 Claude 입력창에 넣는다. Enter는 누르지 않는다.
 // 다른 하나는 사람 확인 창을 거친 PR 병합(lib/merge.mjs·lib/confirm.mjs, docs/병합.md)이다.
 // 사용자가 메인 pane에서 Enter를 눌러야 메인 세션이 사용자의 직접 입력으로 받는다. 현황판이 대신 제출하지 않는다.
-// 본보기는 C:\Dev\DawnHolder_Dashboard 의 lib/deliver.mjs typeIntoMain이다.
 //
 // `orca terminal send`를 execFile 인자 배열로, 셸 없이, --enter 없이 한 번 부른다. 실패해도 다시 시도하지 않는다.
 // 다시 시도하면 입력창에 같은 줄이 두 번 쌓일 수 있다. 서버가 실패를 받아 복사를 안내한다.

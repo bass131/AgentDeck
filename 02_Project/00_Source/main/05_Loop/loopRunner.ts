@@ -525,7 +525,7 @@ export function createLoopRunner(deps: LoopRunnerDeps): LoopRunner {
     const plate = await plateAt(start)
     if (plate.ok) return null
     const how = existing
-      ? `판은 이미 있는 ${names.milestone}의 시작점 ${short(start)}의 ${PROJECT_TASTE_REL}다 — 사람 판단이 필요하다`
+      ? `판은 이미 있는 ${names.milestone}의 시작점 ${short(start)}의 ${PROJECT_TASTE_REL}라 이어 가기만으로는 같은 판을 다시 본다. 사람이 ${names.milestone} 브랜치를 지우고(원격에도 있으면 원격도) ${names.base}의 ${PROJECT_TASTE_REL}를 고친 뒤 이어 가기를 누르면 고친 원격 머리에서 다시 가른다`
       : `판은 ${names.base}의 원격 머리 ${short(start)}의 ${PROJECT_TASTE_REL}다. 기본 브랜치의 ${PROJECT_TASTE_REL}를 고치고 이어 가기를 누르면 원격 머리를 다시 읽는다`
     return `프로젝트 Taste를 판으로 쓸 수 없어 ${names.milestone}을 ${existing ? '옮겨 가지' : '가르지'} 않았다 — ${how} — ${plate.reason}`
   }

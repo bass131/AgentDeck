@@ -154,8 +154,18 @@ describe('판의 고정', () => {
     const run = await runLoop(ctx.runner, ctx.rig)
     expect(run.state.cursor).toEqual({ goal: null, node: 'milestone-branch' })
     expect(run.state.haltReason).toContain('이미 있는 milestone/M1의 시작점 m0')
+    expect(run.state.haltReason).toContain('사람이 milestone/M1 브랜치를 지우고')
+    expect(run.state.haltReason).toContain('master의 docs/agentdeck/Taste.md를 고친 뒤 이어 가기')
+    expect(run.state.haltReason).not.toContain('사람 판단이 필요하다')
     expect(ctx.rig.git.calls.filter((c) => c.startsWith('push'))).toEqual([])
     expect(ctx.rig.git.current).toBe('master')
+
+    ctx.rig.git.local.delete('milestone/M1')
+    ctx.rig.git.remote.set('master', ['m0', 'mfix'])
+    ctx.rig.git.committed.set(`mfix:${TASTE_REL}`, PROJECT)
+    expect((await ctx.runner.submit({ node: 'milestone-branch', judge: 'human', verdict: 'pass', evidence: '브랜치를 지우고 Taste를 고쳤다' })).kind).toBe('resumed')
+    const again = await runLoop(ctx.runner, ctx.rig, { until: 'decompose' })
+    expect(again.state.milestoneBase).toBe('mfix')
   })
 
   it('판이 마일스톤 브랜치에 고정된 뒤 goal 브랜치에서 문제가 보이면 방어로 멈추고 판정 장치 이상이라고 적는다', async () => {
@@ -309,8 +319,21 @@ describe('충돌 안건', () => {
       const got = section(ctx.rig.gh.bodies.get('milestone/M1') ?? '')
       for (const s of has) expect(got, name).toContain(s)
       for (const s of hasNot) expect(got, name).not.toContain(s)
-      expect(ctx.rig.git.calls.some((c) => c.startsWith(`pathsBetween ${done.state.milestoneBase} `)), name).toBe(true)
+      const remoteHead = ctx.rig.git.remote.get('milestone/M1')?.at(-1)
+      expect(ctx.rig.git.calls.filter((c) => c.startsWith('pathsBetween ')), name).toEqual([`pathsBetween ${done.state.milestoneBase} ${remoteHead}`])
     }
+  })
+
+  it('Taste 문서 변경은 마일스톤 브랜치의 원격 머리까지 읽는다 — 로컬 머리가 앞서 있어도 로컬 머리를 넘기지 않는다', async () => {
+    const ctx = setup(PASS_ALL)
+    ctx.rig.git.pathsChanged = ['docs/agentdeck/Taste.md']
+    await atReview(ctx)
+    const before = await runLoop(ctx.runner, ctx.rig, { until: 'milestone-pr' })
+    expect(labelOf(nextStep(ctx.template, before.state))).toBe('milestone-pr')
+    const remoteHead = ctx.rig.git.remote.get('milestone/M1')?.at(-1)
+    ctx.rig.git.local.set('milestone/M1', [...(ctx.rig.git.remote.get('milestone/M1') ?? []), 'local-only'])
+    expect((await ctx.runner.step()).kind).toBe('halted')
+    expect(ctx.rig.git.calls.filter((c) => c.startsWith('pathsBetween '))).toEqual([`pathsBetween ${before.state.milestoneBase} ${remoteHead}`])
   })
 
   it('충돌 칸이 없는 옛 실행 상태도 그대로 읽히고, 꼴이 틀린 충돌 칸은 거부한다', async () => {

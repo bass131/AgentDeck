@@ -242,12 +242,13 @@ export class FakeGit implements GitPort {
     const sha = last(this.local.get(ref)) ?? ref
     return this.commitTrees.get(sha) ?? this.tree
   }
-  // 두 커밋 사이에 바뀐 경로. 시험이 정한다. pathsBetweenError를 정하면 읽기 오류를 흉내 낸다
+  // 두 커밋 사이에 바뀐 경로. 시험이 정하고, 끝 커밋이 어느 브랜치의 원격 머리일 때만 답한다. pathsBetweenError를 정하면 읽기 오류를 흉내 낸다
   pathsChanged: string[] = []
   pathsBetweenError: string | null = null
   async pathsBetween(from: string, to: string): Promise<string[]> {
     this.calls.push(`pathsBetween ${from} ${to}`)
     if (this.pathsBetweenError !== null) throw new Error(this.pathsBetweenError)
+    if (![...this.remote.values()].some((h) => last(h) === to)) throw new Error(`${to}는 원격 머리가 아니다`)
     return [...this.pathsChanged]
   }
   // 커밋 안의 파일 — `<sha>:<경로>`, `*:<경로>`는 모든 커밋. fileAtError를 정하면 읽기 오류를 흉내 낸다

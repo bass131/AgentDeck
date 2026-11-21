@@ -232,9 +232,9 @@ describe('자동 이어 가기 — 벽시계와 깨어남', () => {
     await rig.actions().pause()
     await sleep(100)
     clock.ms = START + 2 * HOUR
-    rig.d.recheck()
-    await sleep(300)
+    await rig.d.recheck()
     expect(pushed.at(-1)).toMatchObject({ phase: 'limit', paused: true })
+    expect(decomposeRuns(rig)).toBe(1)
     expect(onDisk().status).toBe('usage-limit')
     const tampered = { ...onDisk(), haltReason: '밖에서 고친 사유' }
     fs.writeFileSync(stateFile(), runStateText(tampered))

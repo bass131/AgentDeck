@@ -1,5 +1,6 @@
 // 한도 멈춤은 판정이 아니라 실행 환경의 사건이라 검증 줄·FAIL 계수·커서에 닿지 않는다
 import type { AgentEvent } from '@shared/agentEvents'
+import { localClockLabel } from '@shared/13_Loop/clock'
 import type { LimitAck, LimitReason, RunState, UsageLimitHalt, UsageLimitState } from './runState'
 import { scopeOf } from './runState'
 
@@ -18,7 +19,8 @@ interface LimitTracker {
 
 const isHard = (w: LimitWindow): boolean => w.status === 'rejected' || w.overage
 
-// 시각은 받는 때의 시계로 거른다 — 지난 시각·8일보다 먼 시각·창 이름 없음은 다시 걸리는 고리를 만든다
+// 시각은 받는 때의 시계로 거른다 — 지난 시각·8일보다 먼 시각·창 이름 없음은 다시 걸리는 고리를 만든다.
+// 실행 상태는 정수 초만 받으므로 받을 때 내린다
 export function createLimitTracker(now: () => number): LimitTracker {
   const windows = new Map<string | null, LimitWindow>()
   let error = false
@@ -30,8 +32,9 @@ export function createLimitTracker(now: () => number): LimitTracker {
       seen = true
       const window = e.rateLimitType ?? null
       const at = now()
-      const ms = e.resetsAt === undefined ? null : e.resetsAt * 1000
-      const resetsAt = window !== null && ms !== null && ms > at && ms - at <= RESET_HORIZON_MS ? e.resetsAt as number : null
+      const seconds = e.resetsAt === undefined ? null : Math.floor(e.resetsAt)
+      const ms = seconds === null ? null : seconds * 1000
+      const resetsAt = window !== null && ms !== null && ms > at && ms - at <= RESET_HORIZON_MS ? seconds : null
       const w: LimitWindow = {
         window, status: e.status, resetsAt, utilization: e.utilization ?? null,
         overage: e.isUsingOverage === true || e.overageInUse === true,
@@ -57,10 +60,13 @@ export interface LimitDecision {
 const acked = (w: LimitWindow, acks: readonly LimitAck[], nowMs: number): boolean =>
   w.window !== null && acks.some((a) => a.window === w.window && nowMs < a.until * 1000)
 
+// 경고를 받은 뒤 노드가 끝나기 전에 그 창이 풀렸을 수 있다
+const lapsed = (w: LimitWindow, nowMs: number): boolean => w.resetsAt !== null && nowMs >= w.resetsAt * 1000
+
 export function decideLimit(report: LimitReport | null | undefined, acks: readonly LimitAck[], nowMs: number): LimitDecision | null {
   if (!report) return null
   const hard = report.windows.filter(isHard)
-  const warnings = report.windows.filter((w) => w.status === 'allowed_warning' && !isHard(w) && !acked(w, acks, nowMs))
+  const warnings = report.windows.filter((w) => w.status === 'allowed_warning' && !isHard(w) && !acked(w, acks, nowMs) && !lapsed(w, nowMs))
   const blocking = hard.length > 0 || report.error ? hard : warnings
   if (blocking.length === 0 && !report.error) return null
   const reason: LimitReason = hard.some((w) => w.status === 'rejected') ? 'rejected' : hard.length > 0 ? 'overage' : report.error ? 'error' : 'warning'
@@ -80,15 +86,16 @@ export function decideLimit(report: LimitReport | null | undefined, acks: readon
 
 const REASON_WORD: Record<LimitReason, string> = { warning: '경고', rejected: '거부', overage: '초과 사용', error: '한도 오류' }
 
+// 사유 문구는 화면 사유 줄과 사건 글에 그대로 보인다
 function limitText(h: UsageLimitHalt): string {
-  const reset = h.resetsAt === null ? '풀리는 시각 모름' : `풀리는 시각 ${new Date(h.resetsAt * 1000).toISOString()}`
+  const reset = h.resetsAt === null ? '풀리는 시각 모름' : `풀리는 시각 ${localClockLabel(h.resetsAt * 1000)}`
   const util = h.utilization === null ? '사용률 모름' : `사용률 ${Math.round(h.utilization * 100)}%`
   const head = `사용량 한도(${REASON_WORD[h.reason]}${h.window ? `, ${h.window} 창` : ''}) — ${reset}, ${util}`
   const tail = h.human
     ? '노드 하나도 끝내지 못한 채 한도 멈춤이 두 번 이어져 사람의 「지금 이어 가기」를 기다린다'
     : h.resumeAt === null
       ? '풀리는 시각을 몰라 사람의 「지금 이어 가기」를 기다린다'
-      : `${h.resumeAt} 뒤 스스로 이어 간다`
+      : `${localClockLabel(Date.parse(h.resumeAt)) ?? h.resumeAt} 뒤 스스로 이어 간다`
   return `${head}. ${tail}`
 }
 

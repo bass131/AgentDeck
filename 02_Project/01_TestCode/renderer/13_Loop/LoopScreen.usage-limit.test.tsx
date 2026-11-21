@@ -8,8 +8,9 @@ import type { AgentEvent } from '@shared/agentEvents'
 import { adaptFlatApi } from '../00_Helpers/windowApiMock'
 
 const CWD = 'C:\\work\\practice'
+// 지역 시각 생성자로 만들어 실행 기계의 시간대와 무관하게 「11월 21일 19:00」으로 보인다
 const LIMIT: LoopLimitView = {
-  reason: 'rejected', window: 'five_hour', resetsAt: '2026-11-21T10:00:00.000Z', resumeAt: '2026-11-21T10:02:00.000Z', utilization: null, human: false,
+  reason: 'rejected', window: 'five_hour', resetsAt: new Date(2026, 10, 21, 19, 0).toISOString(), resumeAt: new Date(2026, 10, 21, 19, 2).toISOString(), utilization: null, human: false,
 }
 const st = (over: Partial<LoopStatus> = {}): LoopStatus => ({
   cwd: CWD, root: CWD, phase: 'limit', milestoneId: 'M01', node: 'G1/implement', nodeTitle: null, reason: '사용량 한도(거부, five_hour 창)',
@@ -51,8 +52,9 @@ describe('사용량 한도 멈춤의 화면', () => {
     expect(line.textContent).toContain('한도 멈춤')
     expect(line.textContent).toContain('사용량 한도(거부, five_hour 창)')
     const facts = screen.getByTestId('loop-limit')
-    expect(facts.textContent).toContain('2026-11-21T10:00:00.000Z')
-    expect(facts.textContent).toContain('2026-11-21T10:02:00.000Z')
+    expect(facts.textContent).toContain('풀리는 시각 11월 21일 19:00')
+    expect(facts.textContent).toContain('11월 21일 19:02 뒤 스스로 이어 간다')
+    expect(facts.textContent).not.toMatch(/\d{4}-\d{2}-\d{2}T/)
     expect(facts.textContent).toContain('사용률 모름')
     expect(screen.queryByRole('button', { name: '이어 가기' })).toBeNull()
     await act(async () => { fireEvent.click(screen.getByRole('button', { name: '지금 이어 가기' })) })

@@ -5,7 +5,7 @@ import type { ReviewPort, WorkResult } from '@main/05_Loop/ports'
 import type { RunState } from '@main/05_Loop/runState'
 import { DOCS } from '@main/05_Loop/survivalDocs'
 import type { Template } from '@main/05_Loop/template'
-import type { LimitReport } from '@main/05_Loop/usageLimit'
+import { createLimitTracker, type LimitReport } from '@main/05_Loop/usageLimit'
 import { labelOf, loaded, makeRig, runLoop, type Rig } from '../00_Helpers/loopFakes'
 
 const HOUR = 3_600_000
@@ -90,6 +90,18 @@ describe('경고 — 지금 노드를 끝낸 뒤 멈춘다', () => {
     expect(where(ctx, await state(ctx))).toBe('G2/checks')
   })
 
+  it('경고를 받은 뒤 노드가 끝나기 전에 그 창이 풀렸으면 멈추지 않는다', async () => {
+    const ctx = setup()
+    await at(ctx, 'G1/implement')
+    const tracker = createLimitTracker(() => ctx.clock.ms)
+    tracker.observe({ type: 'rate_limit', status: 'allowed_warning', rateLimitType: 'five_hour', resetsAt: sec(START + HOUR), utilization: 0.9 })
+    ctx.clock.ms = START + 2 * HOUR
+    ctx.rig.session.nextResult = { ok: true, summary: '구현했다', limit: tracker.report() as LimitReport }
+    expect(kindOf(await ctx.runner.step())).toBe('advanced')
+    const s = await state(ctx)
+    expect([s.status, where(ctx, s), s.usageLimit]).toEqual(['running', 'G1/checks', undefined])
+  })
+
   it('경고를 받아 둔 창이라도 거부가 오면 멈춘다', async () => {
     const ctx = setup()
     await at(ctx, 'G1/implement')
@@ -101,6 +113,23 @@ describe('경고 — 지금 노드를 끝낸 뒤 멈춘다', () => {
     expect(kindOf(await ctx.runner.step())).toBe('limited')
     const s = await state(ctx)
     expect([s.status, where(ctx, s), s.usageLimit?.halt?.reason]).toEqual(['usage-limit', 'G2/implement', 'rejected'])
+  })
+})
+
+describe('정수가 아닌 resetsAt', () => {
+  it('거부·경고 멈춤을 저장한 상태를 실행기가 다시 읽는다', async () => {
+    for (const status of ['rejected', 'allowed_warning'] as const) {
+      const ctx = setup()
+      await at(ctx, 'G1/implement')
+      const tracker = createLimitTracker(() => ctx.clock.ms)
+      tracker.observe({ type: 'rate_limit', status, rateLimitType: 'five_hour', resetsAt: sec(START + HOUR) + 0.5 })
+      const limit = tracker.report() as LimitReport
+      ctx.rig.session.nextResult = status === 'rejected' ? hardResult(limit) : { ok: true, summary: '구현했다', limit }
+      expect(kindOf(await ctx.runner.step()), status).toBe('limited')
+      const loaded = await ctx.runner.load()
+      expect(loaded.kind, status).toBe('ok')
+      expect((loaded as { state: RunState }).state.usageLimit?.halt?.resetsAt, status).toBe(sec(START + HOUR))
+    }
   })
 })
 

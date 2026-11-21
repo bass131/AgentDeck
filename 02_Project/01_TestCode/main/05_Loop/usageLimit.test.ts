@@ -92,6 +92,18 @@ describe('풀리는 시각', () => {
     expect(decideLimit(both.report, [], NOW)?.resumeAtMs).toBe(sec(NOW + HOUR) * 1000 + 120_000)
   })
 
+  it('판정 때 이미 지난 창의 경고로는 멈추지 않는다 — 시각 모르는 경고와 거부는 그대로 막는다', () => {
+    const later = NOW + 2 * HOUR
+    const warned = report([limit({ status: 'allowed_warning', rateLimitType: 'five_hour', resetsAt: sec(NOW + HOUR) })])
+    expect(decideLimit(warned.report, [], NOW)?.kind).toBe('warning')
+    expect(decideLimit(warned.report, [], later)).toBeNull()
+    expect(decideLimit(warned.report, [], sec(NOW + HOUR) * 1000)).toBeNull()
+    const timeless = report([limit({ status: 'allowed_warning', rateLimitType: 'five_hour' })])
+    expect(decideLimit(timeless.report, [], later)?.kind).toBe('warning')
+    const rejected = report([limit({ status: 'rejected', rateLimitType: 'five_hour', resetsAt: sec(NOW + HOUR) })])
+    expect(decideLimit(rejected.report, [], later)?.kind).toBe('hard')
+  })
+
   it('사용률은 공개 칸만 쓰고 없으면 null(모름)이다', () => {
     expect(decideLimit(report([limit({ status: 'rejected', rateLimitType: 'five_hour', resetsAt: sec(NOW + HOUR) })]).report, [], NOW)?.utilization).toBeNull()
   })
@@ -103,7 +115,8 @@ describe('사람이 푼 경고', () => {
     const acks = [{ window: 'seven_day', until }]
     const warn = report([limit({ status: 'allowed_warning', rateLimitType: 'seven_day', resetsAt: until })])
     expect(decideLimit(warn.report, acks, NOW)).toBeNull()
-    expect(decideLimit(warn.report, acks, until * 1000)?.kind).toBe('warning')
+    const nextWindow = report([limit({ status: 'allowed_warning', rateLimitType: 'seven_day', resetsAt: sec(NOW + 20 * HOUR) })], until * 1000)
+    expect(decideLimit(nextWindow.report, acks, until * 1000)?.kind).toBe('warning')
     const other = report([limit({ status: 'allowed_warning', rateLimitType: 'five_hour', resetsAt: sec(NOW + HOUR) })])
     expect(decideLimit(other.report, acks, NOW)?.kind).toBe('warning')
     const rejected = report([limit({ status: 'rejected', rateLimitType: 'seven_day', resetsAt: until })])
@@ -130,6 +143,45 @@ describe('실행 상태의 한도 멈춤 키', () => {
     expect(validateRunState({ ...held, status: 'running' }).ok).toBe(false)
     expect(validateRunState({ ...held, haltReason: null }).ok).toBe(false)
     expect(validateRunState({ ...running(), status: 'usage-limit', haltReason: '한도' }).ok).toBe(false)
+  })
+
+  it('status 오류 문구가 허용 값을 모두 적는다', () => {
+    const bad = validateRunState({ ...running(), status: 'paused' })
+    const reason = bad.ok ? '' : bad.errors.find((e) => e.path === '$.status')?.reason
+    expect(reason).toContain('usage-limit')
+    expect(reason).toContain('needs-user')
+  })
+
+  it('정수가 아닌 resetsAt은 받을 때 내린다 — 거부·경고 멈춤과 받아 둔 경고 창이 저장 뒤 다시 읽힌다', () => {
+    const roundTrip = (s: RunState): boolean => validateRunState(JSON.parse(JSON.stringify(s))).ok
+    const whole = sec(NOW + HOUR)
+    const t = createLimitTracker(() => NOW)
+    t.observe(limit({ status: 'rejected', rateLimitType: 'five_hour', resetsAt: whole + 0.5 }))
+    const hardDecision = decideLimit(t.report(), [], NOW)
+    if (!hardDecision) throw new Error('거부가 멈춤이 아니다')
+    const held = holdForLimit(running(), hardDecision, AT)
+    expect(held.usageLimit?.halt?.resetsAt).toBe(whole)
+    expect(roundTrip(held)).toBe(true)
+
+    const w = report([limit({ status: 'allowed_warning', rateLimitType: 'seven_day', resetsAt: whole + 0.25, utilization: 0.9 })])
+    const warnDecision = decideLimit(w.report, [], NOW)
+    if (!warnDecision) throw new Error('경고가 멈춤이 아니다')
+    const warnHeld = holdForLimit(running(), warnDecision, AT)
+    expect(roundTrip(warnHeld)).toBe(true)
+    const human = resumeFromLimit(warnHeld, 'human', NOW)
+    if (!human.ok) throw new Error(human.reason)
+    expect(human.state.usageLimit?.acks).toEqual([{ window: 'seven_day', until: whole }])
+    expect(roundTrip(human.state)).toBe(true)
+  })
+
+  it('사유 문구의 시각은 사람이 읽는 지역 시각이다', () => {
+    const resetMs = new Date(2026, 10, 21, 19, 0).getTime()
+    const d = { kind: 'hard' as const, reason: 'rejected' as const, window: 'five_hour', resetsAt: sec(resetMs), utilization: null, resumeAtMs: resetMs + 120_000, warned: [] }
+    const held = holdForLimit(running(), d, AT)
+    expect(held.haltReason).toContain('풀리는 시각 11월 21일 19:00')
+    expect(held.haltReason).toContain('11월 21일 19:02 뒤 스스로 이어 간다')
+    expect(held.haltReason).not.toMatch(/\d{4}-\d{2}-\d{2}T/)
+    expect(held.usageLimit?.halt?.resumeAt).toBe(new Date(resetMs + 120_000).toISOString())
   })
 
   it('한도 멈춤은 검증 줄과 FAIL 계수에 닿지 않는다 — 자동·사람 이어 가기 뒤에도 같다', () => {

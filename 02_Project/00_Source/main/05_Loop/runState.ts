@@ -243,7 +243,7 @@ export function validateRunState(raw: unknown): RunStateCheck {
     if (!isNonEmptyString(t.id)) err('$.template.id', '템플릿 id가 있어야 한다')
     if (typeof t.hash !== 'string' || !HASH.test(t.hash)) err('$.template.hash', 'sha256 16진수여야 한다')
   }
-  if (!oneOf(STATUSES, raw.status)) err('$.status', 'running·needs-user·done 중 하나')
+  if (!oneOf(STATUSES, raw.status)) err('$.status', `${STATUSES.join('·')} 중 하나`)
   if (!nullOr(raw.haltReason, isNonEmptyString)) err('$.haltReason', '문자열이나 null')
   const c = raw.cursor
   if (!isObject(c)) err('$.cursor', '{ node, goal } 객체여야 한다')

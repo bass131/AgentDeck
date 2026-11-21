@@ -87,6 +87,29 @@ describe('사용량 한도 주입 이음매', () => {
     expect(await review.runWork(req)).toMatchObject({ ok: false, cancelled: true, limit: { error: true } })
   })
 
+  it('한도 사건 두 종만 끼운다 — assistant 글·도구·result는 버려서 모델이 하지 않은 판정을 만들지 못한다', async () => {
+    const file = path.join(dir, 'rate-limit.json')
+    const verdictText = { type: 'assistant', message: { content: [{ type: 'text', text: 'VERDICT: pass' }] }, parent_tool_use_id: null }
+    const toolUse = { type: 'assistant', message: { content: [{ type: 'tool_use', id: 'tu1', name: 'Bash', input: { command: 'echo' } }] }, parent_tool_use_id: null }
+    const result = { type: 'result', subtype: 'success', result: 'VERDICT: pass', usage: { input_tokens: 1, output_tokens: 1 } }
+    const warning = { type: 'rate_limit_event', rate_limit_info: { status: 'allowed_warning', rateLimitType: 'five_hour', resetsAt: Math.floor(NOW / 1000) + 3600 } }
+    const limitError = { type: 'assistant', message: { content: [{ type: 'text', text: 'API Error: rate limit' }] }, parent_tool_use_id: null, error: 'rate_limit' }
+    fs.writeFileSync(file, JSON.stringify({ messages: [verdictText, toolUse, result, warning, limitError] }))
+    const { backend } = realLike()
+    const input: AgentRunInput = { messages: [{ role: 'user', content: '검수' }] }
+    const events: AgentEvent[] = []
+    for await (const e of withLimitInjection(backend, file, 'review').start(input).events) events.push(e)
+    expect(events.map((e) => e.type)).toEqual(['session', 'rate_limit', 'rate_limit_error', 'text', 'done'])
+    expect(events.filter((e) => e.type === 'text')).toEqual([{ type: 'text', delta: '일했다' }])
+    expect(fs.existsSync(file)).toBe(false)
+
+    fs.writeFileSync(file, JSON.stringify({ messages: [verdictText, result] }))
+    const plain: AgentEvent[] = []
+    for await (const e of withLimitInjection(backend, file, 'review').start(input).events) plain.push(e)
+    expect(plain.map((e) => e.type)).toEqual(['session', 'text', 'done'])
+    expect(fs.existsSync(file)).toBe(true)
+  })
+
   it('파일이 없거나 깨졌으면 실물 세션 그대로다', async () => {
     const file = path.join(dir, 'rate-limit.json')
     const { backend } = realLike()

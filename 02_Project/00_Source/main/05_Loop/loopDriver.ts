@@ -108,7 +108,7 @@ function limitViewOf(state: RunState): LoopLimitView | undefined {
 
 // 잠에서 깨면 한도 멈춤의 벽시계를 바로 다시 본다(점검 간격을 기다리지 않는다)
 export function recheckOnResume(pm: { on(event: 'resume', fn: () => void): unknown }, d: Pick<LoopDriver, 'recheck'>): void {
-  pm.on('resume', () => d.recheck())
+  pm.on('resume', () => { void d.recheck() })
 }
 const STEP_BUDGET = 1000
 
@@ -150,8 +150,8 @@ export interface LoopDriver {
   closeAll(): Promise<void>
   // 앱을 끌 때 열려 있던 작업 폴더를 다시 연다(사람이 닫은 폴더는 빠진다). 부팅 때 한 번 부른다
   reopenLast(): Promise<void>
-  // 한도 멈춤인 실행기들이 벽시계를 지금 다시 본다(잠에서 깸 — recheckOnResume)
-  recheck(): void
+  // 한도 멈춤인 실행기들이 벽시계를 지금 다시 본다(잠에서 깸 — recheckOnResume). 그 구동이 끝나면 풀린다
+  recheck(): Promise<void>
   // 메인 대화 — 읽기(닫힌 저장소는 앱 영역 파일), 사용자 글 보내기, 새 메인 대화
   mainRead(cwd: string): MainChatView
   mainSend(cwd: string, text: string, opts?: { proxy?: boolean }): LoopMainResponse
@@ -187,6 +187,8 @@ interface Entry {
   // 세션 차례 — 카드 맥락의 신호(세션마다 하나)에 차례를 붙인다. 차례 번호는 구동자 전역의 것이다
   turns: WeakMap<AbortSignal, string>
   running: boolean
+  // 지금(또는 마지막) 구동. 도는 중에 다시 부르면 그 구동이 한 바퀴 더 돈 뒤 풀린다
+  pass: Promise<void>
   again: boolean
   timer: ReturnType<typeof setTimeout> | null
   sessionActive: boolean
@@ -339,7 +341,7 @@ export function createLoopDriver(opts: LoopDriverOptions): LoopDriver {
   function newEntry(cwd: string): Entry {
     const e: Entry = {
       key: repoKeyOf(cwd), cwd, gen: 0, closed: false, loop: null, openFailure: null,
-      status: blankStatus(cwd), seq: 0, cards: new Map(), turns: new WeakMap(), running: false, again: false, timer: null,
+      status: blankStatus(cwd), seq: 0, cards: new Map(), turns: new WeakMap(), running: false, pass: Promise.resolve(), again: false, timer: null,
       sessionActive: false, waitingCi: false, blocked: null, note: null, notePhase: null, lastVerdict: null, latchSeen: new Map(),
       chat: null, lastStarted: null, lastLatch: null, chatNotify: false, tasteBusy: false, starting: false,
     }
@@ -800,9 +802,14 @@ export function createLoopDriver(opts: LoopDriverOptions): LoopDriver {
     setNote(e, `한 번의 구동에서 ${STEP_BUDGET}단계를 넘었다 — 멈추고 사람을 부른다`)
   }
 
-  async function kick(e: Entry): Promise<void> {
-    if (e.running) { e.again = true; return }
+  function kick(e: Entry): Promise<void> {
+    if (e.running) { e.again = true; return e.pass }
     e.running = true
+    e.pass = drive(e)
+    return e.pass
+  }
+
+  async function drive(e: Entry): Promise<void> {
     try {
       do {
         e.again = false
@@ -910,8 +917,8 @@ export function createLoopDriver(opts: LoopDriverOptions): LoopDriver {
 
     status: (cwd) => entryOf(cwd)?.status ?? blank(cwd),
 
-    recheck() {
-      for (const e of entries.values()) if (!e.closed && e.loop && e.status.phase === 'limit') void kick(e)
+    async recheck() {
+      await Promise.all([...entries.values()].filter((e) => !e.closed && e.loop && e.status.phase === 'limit').map(kick))
     },
 
     async decide(req) {

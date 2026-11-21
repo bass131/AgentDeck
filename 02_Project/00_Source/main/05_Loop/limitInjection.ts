@@ -12,6 +12,9 @@ export function limitInjectFileOf(env: NodeJS.ProcessEnv, loopAppDir: string): s
   return env.AGENTDECK_E2E_RATE_LIMIT === '1' ? path.join(loopAppDir, 'inject', 'rate-limit.json') : null
 }
 
+// 한도 사건만 끼운다 — assistant 글·result를 끼우면 모델이 하지 않은 판정(VERDICT)을 만들 수 있다
+const isLimitEvent = (e: AgentEvent): boolean => e.type === 'rate_limit' || e.type === 'rate_limit_error'
+
 // 맞는 세션 하나가 가져가면 지운다(한 번만)
 function take(file: string, kind: SessionKind, input: AgentRunInput): AgentEvent[] | null {
   let spec: InjectFile
@@ -19,7 +22,7 @@ function take(file: string, kind: SessionKind, input: AgentRunInput): AgentEvent
   if (!Array.isArray(spec?.messages)) return null
   if (spec.session !== undefined && spec.session !== kind) return null
   if (spec.promptIncludes !== undefined && !String(input.messages[0]?.content ?? '').includes(spec.promptIncludes)) return null
-  const events = spec.messages.flatMap((m) => mapClaudeStreamLine(m))
+  const events = spec.messages.flatMap((m) => mapClaudeStreamLine(m)).filter(isLimitEvent)
   if (events.length === 0) return null
   try { fs.unlinkSync(file) } catch { return null }
   return events

@@ -35,10 +35,10 @@
 진척 단계
 
 - [x] 1. goal 준비 — 이 문서, goal 2 종결 기록, `gate-config.json` `planPath` 전환(판정 장치)
-- [ ] 2. 구현 — 단계 판정, gh 확인, 안내 화면, 뜨는 때, 시험
-- [ ] 3. 실앱 확인 — 빌드본 e2e, 캡처
-- [ ] 4. 하드 게이트 다섯 종, `npm test`
-- [ ] 5. 독립 검수와 반영
+- [x] 2. 구현 — 단계 판정, gh 확인, 안내 화면, 뜨는 때, 시험
+- [x] 3. 실앱 확인 — 빌드본 e2e, 캡처
+- [x] 4. 하드 게이트 다섯 종, `npm test`
+- [>] 5. 독립 검수와 반영
 - [ ] 6. goal PR, `hard-gates`, 로컬 goal 병합
 
 실행 단계 일괄 승인 대상 (스펙에서 옮김)
@@ -52,7 +52,9 @@ DoD
 
 검증 기록
 
-- (기록 없음)
+- FAIL 2026-11-22T04:00:59+09:00 — 빌드본 e2e(`m13-g3-onboarding.e2e.ts`) 첫 실행: 첫 실행에 안내가 뜨고 GitHub(시험 서버)·프로젝트 단계가 끝남으로, 헌장·Taste·현황판 버튼이 해당 탭을 열고, 「나중에」 뒤 다시 켰을 때 저절로 뜨지 않는 데까지 지났다. 다시 켠 창에서 사이드바 「시작하기 열기」 클릭이 「안정됨」 대기로 30초 시간 초과했다. 스냅숏에는 버튼이 있고 덮는 대화상자가 없었다. 첫 창에서는 같은 클릭이 두 번 됐으므로 다시 켠 창이 앞으로 오지 않아 화면 갱신이 멈춘 것으로 추정한다. 시도 — 기동 뒤 창을 `show()`·`focus()`하고 다시 돈다.
+- PASS 2026-11-22T04:02:31+09:00 — 완료조건 2: 같은 e2e에 기동 뒤 창 앞으로 가져오기를 더해 통과했다(54.2s, 격리 앱 데이터, 2번 모니터). 첫 실행에 안내가 뜨고 여섯 단계가 claude 끝남·github 할 일·gh 끝남(이 PC의 gh 2.96.0)·project 할 일·taste 막힘·milestone 막힘이었다. 설정 「GitHub 계정」으로 시험 서버 연결(계정 `g3-octocat`) 뒤 안내로 돌아와 github 끝남, 「폴더 열기」(`AGENTDECK_E2E_PICK_FOLDER`의 git 저장소) 뒤 project 끝남·taste·milestone 할 일. 「헌장·Taste 열기」와 「현황판 열기」가 작업 모드의 해당 오른쪽 탭을 열었다. 「나중에」로 닫고 같은 앱 데이터로 다시 켜니 6초 동안 저절로 뜨지 않았고, 사이드바 「시작하기 열기」로 다시 열려 github·project가 끝남으로 남아 있었다. 다시 켠 창의 앞 실패는 창이 앞으로 오지 않은 e2e 환경 문제로 본다(앱 결함 아님, 추정). Claude·gh 단계는 이 PC의 실제 상태라 기록만 한다(격리 불가, Backlog 19). 캡처 `onboarding-first.png`·`onboarding-progress.png`·`onboarding-taste.png`·`onboarding-reopened.png`와 `states.json`은 세션 임시 폴더 `C:\Users\bass1\AppData\Local\Temp\claude\09203b92aa1d0186\95eb3854-a6b8-4778-8fa2-76bc3687de2f\scratchpad\m13-g3-out\`에 있고 마일스톤 결과 보고 때 저장소로 옮긴다.
+- PASS 2026-11-22T04:11:27+09:00 — 완료조건 1·3: 커밋 `a29664de`에 e2e 파일을 더한 트리에서 하드 게이트 다섯 종이 모두 0이고, `npm test`가 503 passed·6 skipped(509 파일), 9544 passed·10 skipped·실패 0이다. 묶는 시험 — `onboardingModel.steps.test.ts`(여섯 단계 판정 36건), `ghCli.test.ts`(있음·없음·시간 초과), `onboarding.handler.test.ts`(설치 안내는 고정 주소만), `Shell.onboarding.test.tsx`(첫 실행·완료 뒤·나중에 뒤·다시 열기, 버튼이 여는 화면).
 
 ## 결정 대장
 

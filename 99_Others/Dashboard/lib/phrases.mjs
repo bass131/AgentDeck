@@ -39,8 +39,7 @@ export function parseOverview(text) {
   return para.length ? { line: first, sentences: para.flatMap(splitSentences) } : null;
 }
 
-// ---- 훅 판정의 고정 사전 ----
-// 열쇠는 「훅|판정|규칙」이고, 없으면 「훅|판정」으로 한 번 더 찾는다. 둘 다 없으면 문장이 없다(화면은 원문을 그대로 보인다).
+// 훅 판정의 고정 사전. 열쇠는 「훅|판정|규칙」이고, 없으면 「훅|판정」으로 한 번 더 찾는다. 둘 다 없으면 문장이 없다(화면은 원문을 그대로 보인다).
 // 값은 [문장, 단계]다. 단계: ok(통과) · note(알림·확인 필요) · block(막음) · quiet(기록만).
 export const HOOK_NAMES = Object.freeze({
   'cmd-guard': '위험 명령 검사', 'role-gate': '역할 구분 검사', 'line-limit': '문서 길이 검사', 'pass-watcher': '검증 기록 감시',

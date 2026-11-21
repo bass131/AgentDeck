@@ -8,7 +8,7 @@ import {
   WORKFLOW_GATE_NOTICE,
   MEMORY_CONTINUITY_GUIDE,
 } from '@main/04_Claude/sdkOptions'
-import type { AgentEvent } from '../../../../02_Project/00_Source/shared/agentEvents'
+import type { AgentEvent } from '@shared/agentEvents'
 import type { CanUseToolFn } from '@main/04_Claude/permission/permissionCoordinator'
 
 const noopCanUse: CanUseToolFn = async (_t, input) => ({ behavior: 'allow', updatedInput: input })

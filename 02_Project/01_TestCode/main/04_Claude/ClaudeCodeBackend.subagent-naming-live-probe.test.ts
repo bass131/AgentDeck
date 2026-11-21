@@ -1,4 +1,3 @@
-// 작업 ID: ng1-ng2b · 옛 이름 ng1-ng2b-subagent-naming-live-probe.test.ts
 import { describe, it, expect } from 'vitest'
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'

@@ -92,64 +92,53 @@ describe('store loop — loopsStoppedNotice (정지 신뢰 피드백)', () => {
   })
 })
 
-describe('panel loop — CLEAR_LOOPS (LR2-03, abort 시 SDK 크론 표시 정리)', () => {
+describe('runReducer loop — CLEAR_LOOPS (LR2-03, abort 시 SDK 크론 표시 정리)', () => {
   it('CLEAR_LOOPS → activeLoops [] (단일채팅 abortRun과 동형)', async () => {
-    const { panelReducerFn } = await import('@renderer/03_Agent/state/panelSession')
+    const { runReducer } = await import('@renderer/03_Agent/state/runReducer')
     const { makeInitialState } = await import('@renderer/05_Conversation/state/reducer')
     const base = {
       ...makeInitialState(),
       currentRunId: 'p1',
       activeLoops: [{ id: 'cc1', summary: '매분 점검', interval: 'Every minute' }],
     }
-    const next = panelReducerFn(
-      base as Parameters<typeof panelReducerFn>[0],
-      { type: 'CLEAR_LOOPS' } as Parameters<typeof panelReducerFn>[1]
+    const next = runReducer(
+      base as Parameters<typeof runReducer>[0],
+      { type: 'CLEAR_LOOPS' } as Parameters<typeof runReducer>[1]
     )
     expect(next.activeLoops).toEqual([])
   })
 
   it('CLEAR_LOOPS(활성 루프 있음) → loopsStoppedNotice true', async () => {
-    const { panelReducerFn } = await import('@renderer/03_Agent/state/panelSession')
+    const { runReducer } = await import('@renderer/03_Agent/state/runReducer')
     const { makeInitialState } = await import('@renderer/05_Conversation/state/reducer')
     const base = {
       ...makeInitialState(),
       activeLoops: [{ id: 'cc1', summary: '매분 점검', interval: 'Every minute' }],
     }
-    const next = panelReducerFn(
-      base as Parameters<typeof panelReducerFn>[0],
-      { type: 'CLEAR_LOOPS' } as Parameters<typeof panelReducerFn>[1]
+    const next = runReducer(
+      base as Parameters<typeof runReducer>[0],
+      { type: 'CLEAR_LOOPS' } as Parameters<typeof runReducer>[1]
     )
     expect(next.loopsStoppedNotice).toBe(true)
   })
 
   it('CLEAR_LOOPS(활성 루프 없음) → notice 안 켬', async () => {
-    const { panelReducerFn } = await import('@renderer/03_Agent/state/panelSession')
+    const { runReducer } = await import('@renderer/03_Agent/state/runReducer')
     const { makeInitialState } = await import('@renderer/05_Conversation/state/reducer')
-    const next = panelReducerFn(
-      makeInitialState() as Parameters<typeof panelReducerFn>[0],
-      { type: 'CLEAR_LOOPS' } as Parameters<typeof panelReducerFn>[1]
+    const next = runReducer(
+      makeInitialState() as Parameters<typeof runReducer>[0],
+      { type: 'CLEAR_LOOPS' } as Parameters<typeof runReducer>[1]
     )
     expect(next.loopsStoppedNotice).toBe(false)
   })
 
   it('SET_RUN_ID(새 전송) → notice 해제', async () => {
-    const { panelReducerFn } = await import('@renderer/03_Agent/state/panelSession')
+    const { runReducer } = await import('@renderer/03_Agent/state/runReducer')
     const { makeInitialState } = await import('@renderer/05_Conversation/state/reducer')
     const base = { ...makeInitialState(), loopsStoppedNotice: true }
-    const next = panelReducerFn(
-      base as Parameters<typeof panelReducerFn>[0],
-      { type: 'SET_RUN_ID', runId: 'p2' } as Parameters<typeof panelReducerFn>[1]
-    )
-    expect(next.loopsStoppedNotice).toBe(false)
-  })
-
-  it('DISMISS_LOOPS_STOPPED → notice 해제(✕ 닫기)', async () => {
-    const { panelReducerFn } = await import('@renderer/03_Agent/state/panelSession')
-    const { makeInitialState } = await import('@renderer/05_Conversation/state/reducer')
-    const base = { ...makeInitialState(), loopsStoppedNotice: true }
-    const next = panelReducerFn(
-      base as Parameters<typeof panelReducerFn>[0],
-      { type: 'DISMISS_LOOPS_STOPPED' } as Parameters<typeof panelReducerFn>[1]
+    const next = runReducer(
+      base as Parameters<typeof runReducer>[0],
+      { type: 'SET_RUN_ID', runId: 'p2' } as Parameters<typeof runReducer>[1]
     )
     expect(next.loopsStoppedNotice).toBe(false)
   })

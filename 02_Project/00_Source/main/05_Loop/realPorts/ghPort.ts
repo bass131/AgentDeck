@@ -1,7 +1,7 @@
-// M09 G2 — 실물 gh 포트의 실행 층. gh CLI를 작업 저장소 cwd에서 부르고, 해석은 ghParse.ts의 순수 함수가 한다.
+// gh CLI를 작업 저장소 cwd에서 부르고, 해석은 ghParse.ts의 순수 함수가 한다.
 // 실행기 자신의 gh라 일반 환경(자격 있음)으로 돈다. 질의·업데이트 알림은 끈다.
 // getPr는 「그런 PR이 없다」만 null이고, 네트워크·권한 오류는 던진다(실행기는 CI 읽기 오류를 기다림으로 센다).
-// G2 재검수 중요 B — gh는 작업 저장소의 git 설정(remote.<이름>.gh-resolved)으로 기본 저장소를 고른다(실측: 그 키에
+// gh는 작업 저장소의 git 설정(remote.<이름>.gh-resolved)으로 기본 저장소를 고른다(실측: 그 키에
 // octocat/Hello-World를 넣으면 gh pr list가 그 저장소를 읽었다). 그래서 모든 호출에 열 때 정한 -R HOST/OWNER/REPO를 하위 명령
 // 바로 뒤에 넣는다(`gh pr view -R h/o/r 1`). gh-resolved 키 자체도 설정 대조가 본다(configGuard).
 // 실측(gh 2.96.0, 2026-11-19): AgentDeck 작업 폴더에서 `gh pr list -R github.com/octocat/Hello-World`가 그 저장소를 읽고,
@@ -12,7 +12,7 @@ import { parseCiStatus, parsePr, pickLatestPr, prNumberFromUrl, REPO_SLUG } from
 
 export type GhExec = (args: string[], input?: string) => Promise<CommandResult>
 
-export interface GhExecOptions {
+interface GhExecOptions {
   cwd: string
   // 모든 호출에 -R로 고정하는 저장소(HOST/OWNER/REPO, ghParse.repoSlugOf). 꼴이 아니면 만들지 않는다.
   repo: string
@@ -32,7 +32,7 @@ export function createGhExec(opts: GhExecOptions): GhExec {
   return async (args, input) => {
     await opts.guard?.assert()
     // 하위 명령(`pr view`) 바로 뒤 — 실행기가 부르는 gh는 모두 두 낱말 하위 명령이다.
-    // `repo view`에는 -R이 없고 위치 인자 [<repository>]가 그 자리다(G4 실측) — 같은 저장소를 위치 인자로 넣는다.
+    // `repo view`에는 -R이 없고 위치 인자 [<repository>]가 그 자리다(실측) — 같은 저장소를 위치 인자로 넣는다.
     const repoView = args[0] === 'repo' && args[1] === 'view'
     const pinned = [...args.slice(0, 2), ...(repoView ? [opts.repo] : ['-R', opts.repo]), ...args.slice(2)]
     const r = await run('gh', pinned, { cwd: opts.cwd, env, input, timeoutMs: opts.timeoutMs ?? 60_000 })
@@ -40,7 +40,7 @@ export function createGhExec(opts: GhExecOptions): GhExec {
   }
 }
 
-export interface GhPortOptions {
+interface GhPortOptions {
   // 이 이름의 검사만 CI 판정에 쓴다(예: hard-gates). 비우면 머리의 검사 전부.
   requiredChecks?: string[]
 }
@@ -82,7 +82,7 @@ export function createGhPort(exec: GhExec, opts: GhPortOptions = {}): GhPort {
       if (!pr) throw new Error(`만든 PR ${number}을 다시 읽지 못했다`)
       return pr
     },
-    // M09 G4 — origin/HEAD가 없을 때 openLoop가 부른다. 못 읽으면 null(열지 않는다).
+    // origin/HEAD가 없을 때 openLoop가 부른다. 못 읽으면 null(열지 않는다).
     async defaultBranch() {
       try {
         const r = await exec(['repo', 'view', '--json', 'defaultBranchRef'])

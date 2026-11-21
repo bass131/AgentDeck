@@ -213,7 +213,7 @@ describe('workspace.mode 영속 — getPref/setPref 인터페이스 계약', () 
     expect(getPref('workspace.mode', 'single')).toBe('single')
   })
 
-  // M10 G1 — 모드는 「채팅(single) · 작업(work)」 둘이다. 저장소는 값을 그대로 돌려주고, 옛 값(멀티)을 채팅으로 읽는
+  // 모드는 「채팅(single) · 작업(work)」 둘이다. 저장소는 값을 그대로 돌려주고, 옛 값(멀티)을 채팅으로 읽는
   // 해석은 restoreWorkspace의 parseWorkspaceMode가 한다(sessionKeys.branch-cleanup 테스트).
   it('getPref("workspace.mode", "single") — 저장된 "work" 반환', async () => {
     storedPrefs = { 'workspace.mode': 'work' }

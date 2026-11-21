@@ -1,5 +1,4 @@
-// tdd-guard 테스트 인정 규칙 — `.claude/hooks/*.test.mjs` 편집이 「테스트 동반」으로 판정되는가
-// (M02 Phase 1 Step 6·7, Backlog 11번 전반부).
+// tdd-guard 테스트 인정 규칙 — `.claude/hooks/*.test.mjs` 편집이 「테스트 동반」으로 판정되는가.
 //
 // 자충수 구조: 훅을 수리할 때 동반 테스트는 `.claude/hooks/*.test.mjs`에 두는데, tdd-guard는
 // `02_Project/01_TestCode/`만 테스트로 인정한다. 그래서 훅 테스트를 아무리 손질해도 미동반
@@ -7,7 +6,7 @@
 //
 // 격리 규율: 이 테스트는 실저장소의 98_Management/01_GateState/를 건드리지 않는다. mkdtemp 미러를
 // 만들어 CLAUDE_PROJECT_DIR로 주고, payload에는 합성 session_id·agent_id를 넣는다 — live hook-log에
-// 합성 줄이 0건이어야 한다 (Phase 1 DoD).
+// 합성 줄이 0건이어야 한다.
 import { describe, expect, it } from 'vitest'
 import { spawnSync } from 'node:child_process'
 import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
@@ -28,7 +27,7 @@ function makeMirror(): string {
   mkdirSync(path.join(dir, '.claude', 'hooks'), { recursive: true })
   mkdirSync(path.join(dir, GATE_REL), { recursive: true })
   cpSync(path.join(REPO_ROOT, HOOK_REL), path.join(dir, HOOK_REL))
-  // 훅이 상태 저장을 _lib/state-store.cjs에 위임하므로(M02 Phase 3 Step 9) 미러에 함께 넣는다 —
+  // 훅이 상태 저장을 _lib/state-store.cjs에 위임하므로 미러에 함께 넣는다 —
   // 빠뜨리면 require 실패로 훅이 크래시하고 판정이 「오류/훅-크래시」로 바뀐다.
   cpSync(path.join(REPO_ROOT, '.claude', 'hooks', '_lib'), path.join(dir, '.claude', 'hooks', '_lib'), { recursive: true })
   writeFileSync(path.join(dir, TARGET_REL), '// 합성 훅 테스트 파일 (미러 안에서만 존재한다)\n')

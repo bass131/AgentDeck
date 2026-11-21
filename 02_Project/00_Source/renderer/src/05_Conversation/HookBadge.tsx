@@ -1,7 +1,7 @@
 import { memo } from 'react'
 import { IconAlert } from '@renderer/02_Common/icons'
 
-export interface HookBadgeProps {
+interface HookBadgeProps {
   reason?: string
 }
 

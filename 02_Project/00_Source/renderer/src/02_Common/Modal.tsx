@@ -1,5 +1,6 @@
-import { useEffect, type ReactNode, type JSX } from 'react'
+import { type ReactNode, type JSX } from 'react'
 import { IconX } from './icons'
+import { useModalLayer } from './modalStack'
 import './Modal.css'
 
 interface ModalProps {
@@ -9,13 +10,7 @@ interface ModalProps {
 }
 
 export function Modal({ title, onClose, children }: ModalProps): JSX.Element {
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent): void => {
-      if (e.key === 'Escape') onClose()
-    }
-    document.addEventListener('keydown', onKey)
-    return () => document.removeEventListener('keydown', onKey)
-  }, [onClose])
+  useModalLayer(true, onClose)
 
   return (
     <div className="modal-overlay" onClick={onClose}>

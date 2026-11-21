@@ -2,7 +2,7 @@
 import { describe, it, expect, vi } from 'vitest'
 import { render } from '@testing-library/react'
 import { SlashPalette } from '@renderer/05_Conversation/SlashPalette'
-import type { SlashCommandInfo, SkillInfo } from '../../../../02_Project/00_Source/shared/ipcContract'
+import type { SlashCommandInfo, SkillInfo } from '@shared/ipcContract'
 
 const CMDS: SlashCommandInfo[] = [
   { name: 'ask',  description: '임시 질문', scope: 'builtin' },

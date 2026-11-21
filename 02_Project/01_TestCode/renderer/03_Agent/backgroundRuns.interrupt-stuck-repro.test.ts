@@ -1,4 +1,3 @@
-// 작업 ID: lr4-p01 · 옛 이름 lr4-p01-interrupt-stuck-repro.test.ts
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { makeInitialState } from '@renderer/05_Conversation/state/reducer'
 import type { ThreadItem } from '@renderer/05_Conversation/state/threadTypes'
@@ -80,6 +79,8 @@ function makeRunningSnapshot(overrides: Partial<ConversationRunState> = {}): Con
     attachedImages: [],
     restoredSession: false,
     replMode: true,
+    pickerMode: 'auto',
+    selectedModel: 'default',
     ...overrides,
   }
 }

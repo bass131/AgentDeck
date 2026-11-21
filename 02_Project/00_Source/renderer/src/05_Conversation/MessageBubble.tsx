@@ -21,7 +21,7 @@ export interface MessageBubbleProps {
   hookBadge?: boolean
   continuation?: boolean
   bare?: boolean
-  // 중단된 응답(E8) — meta에 「중단됨」을 시각·자율 발동 뒤, 훅 배지 앞에 단다(단일 DOM 순서).
+  // 중단된 응답 — meta에 「중단됨」을 시각·자율 발동 뒤, 훅 배지 앞에 단다(단일 DOM 순서).
   interrupted?: boolean
 }
 

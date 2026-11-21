@@ -1,9 +1,8 @@
-// 작업 ID: bf1 · 옛 이름 bf1-interrupt-error-mislabel.test.ts
 import { describe, it, expect, vi } from 'vitest'
 import { ClaudeCodeBackend } from '@main/04_Claude/ClaudeCodeBackend'
 import type { QueryFn } from '@main/04_Claude/ClaudeCodeBackend'
 import { createRunManager } from '@main/03_Agent/agentRuns'
-import type { AgentEvent } from '../../../../02_Project/00_Source/shared/agentEvents'
+import type { AgentEvent } from '@shared/agentEvents'
 import { makeInterruptibleQueryFn as makeInterruptibleQuery } from '../00_Helpers/fakeQuery'
 import { mkAssistantText, mkResult as mkResultFixture } from '../00_Helpers/sdkFixtures'
 

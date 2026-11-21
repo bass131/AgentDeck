@@ -1,4 +1,4 @@
-export interface ScrollMeasure {
+interface ScrollMeasure {
   scrollHeight: number
   scrollTop: number
   clientHeight: number

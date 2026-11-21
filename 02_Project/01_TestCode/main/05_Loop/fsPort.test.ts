@@ -1,4 +1,4 @@
-// M09 G2 실물 fs 포트 — 작업 저장소 뿌리 기준 상대 경로만 받는다. 뿌리 밖(절대 경로, `..`, 뿌리 밖을 가리키는 링크)은 거부한다.
+// 작업 저장소 뿌리 기준 상대 경로만 받는다. 뿌리 밖(절대 경로, `..`, 뿌리 밖을 가리키는 링크)은 거부한다.
 // 쓰기는 임시 파일 뒤 이름 바꾸기라, 읽는 쪽이 반쯤 쓴 파일을 보지 않는다.
 import fs from 'node:fs'
 import os from 'node:os'
@@ -63,7 +63,7 @@ describe('실물 fs 포트', () => {
     expect(fs.readdirSync(outside)).toEqual(['secret.txt'])
   })
 
-  // M10 G6 — 끝난 실행의 보관이 쓰는 이름 바꾸기와 있음 확인
+  // 끝난 실행의 보관이 쓰는 이름 바꾸기와 있음 확인
   it('옮기기는 대상 폴더를 만들고 이름을 바꾼다 — 대상이 있으면 덮어쓰지 않는다, 있음은 파일·폴더 모두 본다', async () => {
     const port = createFsPort(root)
     await port.write('.agentdeck/run-state.json', '옛 상태')

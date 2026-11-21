@@ -2,6 +2,37 @@
 
 - 범위 밖 발견을 한 줄로 남긴다(헌법 11조). 최신 번호가 위다.
 
+## 닫힘 (M11)
+
+M11 Backlog 정리(`01_Milestones/M11_BacklogSweep/`)가 닫은 항목이다. 아래 항목 줄은 그대로 두고 닫힘은 이 표가 갖는다. 표에 없는 항목은 M11 goal 2~9가 고치면서 더한다.
+
+| 항목 | 닫힘 | 근거 |
+|---|---|---|
+| 1 | 고침(M11 goal 7) | `gate.md`가 지운 `multi-agent-ops.e2e.ts`를 기준으로 적지 않는다 — e2e 기준선은 알려진 실패 없음, 수집 47파일 129테스트(`--list` 실측, `88394dac`). |
+| 2 | 고침(M11 goal 6) | 새 소식에서 「멀티 에이전트」 슬라이드를 지우고, 개요와 대화 슬라이드의 멀티 문구를 바꿨다(`renderer/src/10_Engine/whats-new/whatsNewSlides.ts`, 옛 이름 `whatsNewSampleData.ts`는 `234bad70`에서 바꿨다). `UpdateNotes.onboarding.test.tsx` 「[M10 Backlog 2]」가 멀티·패널 문구의 부재를 고정한다(`a55db0e9`). |
+| 3 | 고침(M11 goal 6) | 호출부가 없는 `FolderSwitchDialog`를 지웠고, 그것만 보던 시험 셋은 대신할 동작이 없다(`a55db0e9`). `multiAgentDefaults`의 COLS·COUNT_OPTIONS·SAMPLE_*는 이미 없다. `QuestionModal`의 `layer` prop은 G4 모달 층이 쓰므로 둔다(`QuestionModal.modals.test.tsx:209`). 앱에서 닿지 않던 `panelSession`·`PanelView`·`multiAgentDefaults` 본체(1048줄)와 그것만 보던 시험 21파일을 지웠다. 살아 있는 동작은 reducer·runCore·ThreadView 시험이 덮는다(`506681b8`, M11 Backlog 42). |
+| 4 | 해결됨 | 결정 기록이 같은 폴더 마일스톤 스펙 대장을 goal 대장에 더한다(`99_Others/Dashboard/lib/markdown.mjs:206-214`, `6b23c32c`). |
+| 5 | 해결됨 | G4 결정 대장 [USER·위임]대로 Windows 알림을 더하지 않고 앱 안 표시로 닫는다 — 작업 모드에서도 「채팅」 칸의 점이 채팅의 질문·권한 대기를 보인다(`renderer/src/12_Window/Sidebar.tsx:361,437`, `ProjectSidebar.test.tsx:176`, `e7b26d16`). |
+| 6 | 해결됨 | 작업 모드로 켜도 채팅의 마지막 대화를 복원한다(`renderer/src/12_Window/restoreWorkspace.ts:7`, `547ab01b`). |
+| 7 | 고침(M11 goal 6) | README의 멀티 에이전트 그림과 「6개 패널 동시 실행」 소개를 지우고, 기능 목록을 「대화」·「작업 모드」로 바꿨다(`cf6359ba`). 새 작업 모드 그림은 넣지 않았다. 남은 고아 그림 `readme-shot-multiagent.png`와 낡은 로드맵 절은 M11 Backlog 51이 갖는다. |
+| 8 | 고침(M11 goal 4) | 사본 대신 Shell의 실제 Esc 처리 `shellEscape()`(`useGlobalShortcuts.ts`)를 부르는 시험으로 바꿨다 — 모달·작업 모드 가드를 지우면 3건 실패(M11 Backlog 24, `a29fd8d5`). G1의 「goal 6에서 사본 시험 지우기」 결정을 대신한다. |
+| 9 | 해결됨 | 깃발 내리기 IPC `loop.lowerFlag`가 있다(`main/01_Ipc/handlers/loop.ts:161`, `547ab01b`). |
+| 10 | M13으로 | M11 스펙 「하지 않을 것」 — zod 의존성은 설치본 패키징과 함께 M13이 맡는다. |
+| 11 | M12로 | G1 결정 대장 [USER·위임] — 스펙 지정대로 노드 세션의 설정 원천은 M12가 정한다. |
+| 12 | 해결됨 | 취소 대상을 고르는 `LoopCancelTarget`이 IPC에 있다(`main/01_Ipc/handlers/loop.ts:39`, `547ab01b`). |
+| 13 | 고침(M11 goal 4) | 메인 대화 저장본을 읽을 때 `queue[].events`의 사건과 `cards[]`의 칸을 항목 검사와 같은 꼴로 본다 — 깨진 턴은 버리고 깨진 카드는 거른다(`main/05_Loop/mainChatStore.ts:73,89,101,111`, `abde4069`, `mainChat.test.ts` 「[M11-G4 M10-13]」). |
+| 14 | 해결됨 | `LoopStatus`가 `mainNode`를 싣는다(`shared/13_Loop/loop.ts:104`, `e7b26d16`). |
+| 16 | 고침(M11 goal 4) | 「파일·변경」 탐색기가 열린 실행기의 작업 저장소를 `loop.listDir`로 읽는다 — 채팅 폴더 트리와 「폴더 선택」을 쓰지 않는다(`renderer/src/13_Loop/FilesPanel.tsx:18,54`, `07_Workspace/file/FileExplorer.tsx:127`, `main/05_Loop/loopDriver.ts:919`, `main/01_Ipc/handlers/loop.ts:172`, `abde4069`). 실앱 e2e `m11-g4-work-mode-live.e2e.ts` B에서 연습 저장소의 `src`·`test`·`README.md`가 보였다. |
+| 17 | 고침(M11 goal 4, 실앱 확인) | 실앱 e2e `m11-g4-work-mode-live.e2e.ts` C(`18f0ed09`) — 위조 래치로 뜬 실제 알림 객체에 누름 사건을 내자 내려 둔 창이 앞으로 오고(최소화 풀림·보임·포커스) 채팅 모드에서 그 폴더의 작업 모드로 바뀌었다. Windows 알림 화면 자체를 누르는 것은 자동화하지 못해 그 객체의 `click`까지다. |
+| 18 | 고침(M11 goal 4, 뒷절) | 단일 인스턴스 잠금 — 둘째 실행은 끝나고 첫 실행이 제 창을 앞으로 가져온다(`main/index.ts:59,62`, `abde4069`, `appUserModel.test.ts`). 실앱 e2e E에서 둘째 실행이 180ms에 코드 0으로 끝났고 내려 둔 첫 창이 돌아왔다. 앞절(`load` 겹침의 `latched` 오탐, 확신 낮음)은 G4 결정 대장대로 고치지 않고 닫는다. |
+| 19 | 고침(M11 goal 4) | 알린 열쇠와 함께 앱 안 표시를 `alerts.json`에 남기고 판정자를 만들 때 되살린다(`main/05_Loop/loopNotifier.ts:62,83-85`, `abde4069`, `loopNotifier.test.ts`). 실앱 e2e D에서 재기동 직후 첫 `loop.alerts` 읽기에 래치 알림이 있었다 — 다만 그때 그 폴더는 이미 다시 열려 `latched`였다(제목 줄 0.8초), 되살림과 다시 열기를 실앱에서 가르지 못해 되살림 자체는 단위 시험이 근거다. |
+| 20 | 해결됨 | 끝난 실행은 막지 않고 안내하며 새 마일스톤 시작 때 보관한다(`main/05_Loop/loopRunner.ts:138-140`, `2e85b1fa`·`037f13a7`). |
+| 21 | 고침(M11 goal 1) | 연습 앱 데이터를 `%USERPROFILE%\.agentdeck-practice\udd`로 옮기고(loop 6파일 sha256 일치), 구동기 `m09-g5-practice-run.e2e.ts`가 `G5_UDD`가 없으면 그 자리를 쓴다. |
+| 24 | 고침(M11 goal 5) | 마지막 USER-INPUT 줄이 사용자의 답을 적은 줄(「사용자가 … 답했/골랐/확정했/승인했」, 「사용자 답:」, `[USER]`)이고 기다림 낱말이 없으면 `waitingUser`가 아니다(`99_Others/Dashboard/lib/markdown.mjs:180,198`, `03d25f64`). 시험 `[M11-G5 M10-24]`이 실제 줄 꼴 표로 본다. |
+| 23 | 고침(M11 goal 3) | 룰셋 규칙이 있으면 「보호가 없다」 대신 「룰셋에 필수 검사가 없어요」, 규칙이 없을 때만 「보호가 없어」다(`main/08_Git/prMerge.ts:118,286`, `2af8fd68`). 실앱 e2e `m11-g3-ruleset-card-live.e2e.ts`(연습 앱 데이터, 연습 토큰은 앱 프로세스 `GH_TOKEN`으로만)에서 PR 6 카드가 그 문구를 보였다. |
+| 22 | 고침(M11 goal 4) | 메인 대화가 세션 사건을 턴으로 나눠 채팅과 같은 `ThreadView`로 그린다 — 추론 중 표시·흘러나오는 글·도구 호출과 결과(`renderer/src/13_Loop/mainChatModel.ts:73`, `MainChatView.tsx:46`, `shared/13_Loop/mainTurn.ts:4`, `abde4069`). 실앱 e2e A에서 「사고 중」, Read·Write 도구 줄, 답 글이 차례로 캡처됐다(세션 대화 기록의 assistant 모델 `claude-haiku-5-5`). |
+| 15 | 고침(M11 goal 9) | 앱 소스·시험·훅·현황판 코드 주석을 전수조사해 이력 꼬리표 987건을 걷고(남은 2건은 현황판 파서가 읽는 goal 제목 형식 예시), 코드를 되풀이하는 주석과 머리 주석을 줄였다 — 주석 줄 5,776 → 4,460. 동작 무변경은 시험 개수·결과가 기준선과 같음과 훅·현황판의 주석 제거 뒤 코드 비교로 확인했다(`74f240eb`~`540edd1a`, 커밋 열넷). 설계 계약을 담은 긴 머리 주석 넷과 CSS 주석은 M11 Backlog 83~85. |
+
 24. (G6 관찰, 로컬 현황판 불변으로 범위 밖) 로컬 현황판은 goal 검증 기록의 마지막 줄이 `USER-INPUT`이면 「사용자 입력 기다림」(손 항목·탭 배지)으로 읽는다(`99_Others/Dashboard/lib/markdown.mjs:192`). 사용자 답을 받아 적은 USER-INPUT 줄(예: G6 13:18 알림 관찰)도 기다림으로 보인다 — 다음 PASS 줄이 붙기 전까지 오탐이다.
 23. (G6 실주행 관찰) PR 칸이 마일스톤 PR에 「main 브랜치에 보호가 없어 필수 검사가 없어요」를 보였다 — 연습 저장소는 옛 방식의 브랜치 보호가 아니라 룰셋(`main-protect`: 삭제·강제 push 금지, PR 필수)으로 지키는데, 앱은 `branches/<b>/protection`만 읽는다(404). 필수 검사가 없다는 결론은 맞지만 「보호가 없다」는 틀린 말이다 — 룰셋(`rules/branches/<b>`)도 읽어 문구를 고친다.
 22. (사용자 요청 2026-11-20, 작업량으로 다음 마일스톤 이월) 메인 대화의 표현이 채팅 모드보다 빈약하다 — 지금은 사용자 글·메인의 최종 답 글·실행기 사건 줄만 그리고(`MainChatItem`), 추론 중 표시, 글이 흘러나오는 중간 상태, 도구 호출과 결과, 생각 블록 같은 채팅 모드(`05_Conversation/ThreadView.tsx`)의 디테일이 없다. 재료는 이미 있다 — 메인 세션의 `AgentEvent`가 세션 기록(`loop.sessionEvent`, 키 `main`)으로 흐른다. 다음 마일스톤에서 채팅 모드의 스레드 그리기를 메인 대화에 재사용하는 goal로 다룬다.

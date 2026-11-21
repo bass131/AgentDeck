@@ -1,4 +1,4 @@
-import { memo, useEffect, useCallback, useRef, type JSX } from 'react'
+import { memo, useRef, type JSX } from 'react'
 import type { AskSelectionArgs } from '..'
 import {
   useAppStore,
@@ -14,6 +14,7 @@ import {
   selectChangedFiles,
 } from '@renderer/00_App/appStore'
 import { useResizableModal, ModalResizeHandles } from '@renderer/02_Common/resizableModal'
+import { useModalLayer } from '@renderer/02_Common/modalStack'
 import FileBadge from './FileBadge'
 import { CodeViewer } from '..'
 import { MarkdownView } from '@renderer/05_Conversation'
@@ -52,19 +53,7 @@ export function FileModal({ onAskSelection }: FileModalProps = {}): JSX.Element 
   const rz = useResizableModal(STORAGE_KEY, open, { defaultMaximized: true })
   const downOnOverlay = useRef(false)
 
-  const handleEsc = useCallback(
-    (e: KeyboardEvent): void => {
-      if (e.key === 'Escape' && open) {
-        closeOpenedFile()
-      }
-    },
-    [open, closeOpenedFile]
-  )
-
-  useEffect(() => {
-    document.addEventListener('keydown', handleEsc)
-    return () => document.removeEventListener('keydown', handleEsc)
-  }, [handleEsc])
+  useModalLayer(open, closeOpenedFile)
 
   if (!openedFile) return null
 

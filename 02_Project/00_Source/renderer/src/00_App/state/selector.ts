@@ -1,5 +1,5 @@
-import type { FileTreeNode, ConversationRecord, UsageInfo, Profile, BackendStatus } from '../../../../shared/ipcContract'
-import type { TokenUsage, TodoItem, SubAgentInfo, LoopInfo } from '../../../../shared/agentEvents'
+import type { FileTreeNode, ConversationRecord, UsageInfo, Profile, BackendStatus } from '@shared/ipcContract'
+import type { TokenUsage, TodoItem, SubAgentInfo, LoopInfo } from '@shared/agentEvents'
 import type { AppState, PendingPermission, PendingQuestion, FileDiffEntry } from '@renderer/05_Conversation/state/reducer'
 import type { ThreadItem } from '@renderer/05_Conversation/state/threadTypes'
 import type { OpenedViewer } from '@renderer/07_Workspace/viewer'
@@ -11,7 +11,7 @@ export const selectThread = (s: AppStore): ThreadItem[] => s.thread
 
 export const selectChangedFiles = (s: AppStore): Set<string> => s.changedFiles
 
-export interface TaskScope {
+interface TaskScope {
   fileCount: number
   toolCount: number
   changedFiles: string[]
@@ -24,7 +24,13 @@ export function computeTaskScope(s: Pick<AppState, 'changedFiles' | 'thread'>): 
   }
   return { fileCount: changedFiles.length, toolCount, changedFiles }
 }
-export const selectTaskScope = (s: AppStore): TaskScope => computeTaskScope(s)
+let lastTaskScope: { changedFiles: Set<string>; thread: ThreadItem[]; scope: TaskScope } | null = null
+export const selectTaskScope = (s: AppStore): TaskScope => {
+  if (lastTaskScope === null || lastTaskScope.changedFiles !== s.changedFiles || lastTaskScope.thread !== s.thread) {
+    lastTaskScope = { changedFiles: s.changedFiles, thread: s.thread, scope: computeTaskScope(s) }
+  }
+  return lastTaskScope.scope
+}
 export const selectIsRunning = (s: AppStore): boolean => s.isRunning
 export const selectErrorMessage = (s: AppStore): string | undefined => s.errorMessage
 export const selectFileTree = (s: AppStore): FileTreeNode | null => s.fileTree
@@ -45,7 +51,7 @@ export const selectOpenedRootId = (s: AppStore): string | null => s.openedRootId
 
 export const selectRecentFiles = (s: AppStore): string[] => s.recentFiles
 
-// 화면 배치 selector의 거처는 12_Window다(G9c). 기존 import 경로를 위해 다시 내보낸다.
+// 화면 배치 selector의 거처는 12_Window다. 기존 import 경로를 위해 다시 내보낸다.
 export { selectWorkspaceMode } from '@renderer/12_Window/windowMode'
 
 export const selectLastUsage = (s: AppStore): TokenUsage | undefined => s.lastUsage

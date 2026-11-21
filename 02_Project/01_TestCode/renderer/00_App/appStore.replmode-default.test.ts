@@ -1,4 +1,3 @@
-// 작업 ID: lr2-01 · 옛 이름 lr2-01-replmode-default.test.ts
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { resetAppStore } from '../00_Helpers/storeReset'
 import { adaptFlatApi } from '../00_Helpers/windowApiMock'
@@ -18,7 +17,7 @@ const mockApi = {
     capturedAgentRun = req
     return { runId: (req.sessionKey as string) ?? 'r1' }
   }),
-  agentAbort: async () => ({ accepted: true }),
+  agentAbort: async () => ({ ok: true }),
   onAgentEvent: () => () => {},
   listFiles: async () => ({ files: [] }),
   getUsage: async () => ({ fiveHour: null, weekly: null }),
@@ -82,7 +81,7 @@ describe('LR2-01 T2: 명시적 setReplMode(false) → 단발+resume 페이로드
     expect(cap.resumeSessionId).toBe('sess-prev')
   })
 
-  // M06 G4: 대화가 마지막으로 잰 컨텍스트 창을 실행 요청에 싣는다 — main이 기록 재적재 예산을 그 창으로 정한다.
+  // 대화가 마지막으로 잰 컨텍스트 창을 실행 요청에 싣는다 — main이 기록 재적재 예산을 그 창으로 정한다.
   it('lastContextWindow 보유 상태에서 sendMessage → contextWindow 포함', async () => {
     useAppStore.getState().setReplMode(false)
     useAppStore.setState({ sessionId: 'sess-prev', lastContextWindow: 200_000 } as Parameters<typeof useAppStore.setState>[0])
@@ -99,6 +98,22 @@ describe('LR2-01 T2: 명시적 setReplMode(false) → 단발+resume 페이로드
     await useAppStore.getState().sendMessage('안녕')
 
     expect('contextWindow' in getCapture()).toBe(false)
+  })
+
+  it('모델을 바꾼 뒤 첫 실행은 contextWindow를 싣지 않고, 계기의 창은 그대로다', async () => {
+    useAppStore.getState().setReplMode(false)
+    useAppStore.setState({ sessionId: 'sess-prev', selectedModel: 'claude-opus-5-5', lastContextWindow: 1_000_000 } as Parameters<typeof useAppStore.setState>[0])
+    useAppStore.getState().setSelectedModel('claude-haiku-4-5-20251001')
+    expect(useAppStore.getState().lastContextWindow).toBe(1_000_000)
+
+    await useAppStore.getState().sendMessage('안녕')
+
+    expect('contextWindow' in getCapture()).toBe(false)
+
+    // 새 모델의 턴이 창을 새로 재면 다시 싣는다
+    useAppStore.setState({ currentRunId: null, isRunning: false, lastContextWindow: 200_000, contextWindowStale: false } as Parameters<typeof useAppStore.setState>[0])
+    await useAppStore.getState().sendMessage('다시')
+    expect(getCapture().contextWindow).toBe(200_000)
   })
 })
 

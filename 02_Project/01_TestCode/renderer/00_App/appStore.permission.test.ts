@@ -1,10 +1,9 @@
-// 작업 ID: m4-4 · 옛 이름 m4-4-permission-store.test.ts
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import {
   applyAgentEvent,
   makeInitialState,
 } from '@renderer/05_Conversation/state/reducer'
-import type { AgentEventPayload } from '../../../../02_Project/00_Source/shared/ipcContract'
+import type { AgentEventPayload } from '@shared/ipcContract'
 import { adaptFlatApi } from '../00_Helpers/windowApiMock'
 
 const runId = 'run-24c'
@@ -80,7 +79,8 @@ describe('Phase 24c — store reducer: pendingPermission', () => {
     expect(s1.pendingPermission).toBeNull()
   })
 
-  it('permission_request 연속 수신 → 마지막 요청으로 덮어씀', () => {
+  // 덮어쓰면 보이는 카드의 응답이 뒤 요청에 꽂힌다. 먼저 온 요청을 보이고 뒤 요청은 줄을 선다.
+  it('permission_request 연속 수신 → 첫 요청이 보이고 두 번째는 줄을 선다', () => {
     const s0 = makeInitialState()
     const s1 = applyAgentEvent(s0, {
       runId: 'run-1',
@@ -90,8 +90,9 @@ describe('Phase 24c — store reducer: pendingPermission', () => {
       runId: 'run-1',
       event: { type: 'permission_request', requestId: 'req-2', toolName: 'Write', summary: '두 번째' },
     })
-    expect(s2.pendingPermission?.requestId).toBe('req-2')
-    expect(s2.pendingPermission?.toolName).toBe('Write')
+    expect(s2.pendingPermission?.requestId).toBe('req-1')
+    expect(s2.pendingPermission?.toolName).toBe('Bash')
+    expect(s2.pendingPermission?.behind?.map((p) => p.toolName)).toEqual(['Write'])
   })
 
   it('리듀서는 원본 상태를 변경하지 않는다 (freeze — permission_request)', () => {
@@ -128,7 +129,7 @@ describe('Phase 24c — appStore: respondPermission 액션 + selectPendingPermis
           conversationLoad: vi.fn().mockResolvedValue({ conversations: [] }),
           conversationSave: vi.fn().mockResolvedValue({ id: 'cv' }),
           agentRun: vi.fn().mockResolvedValue({ runId: 'r1' }),
-          agentAbort: vi.fn().mockResolvedValue({ accepted: true }),
+          agentAbort: vi.fn().mockResolvedValue({ ok: true }),
           onAgentEvent: vi.fn().mockReturnValue(() => {}),
           listFiles: vi.fn().mockResolvedValue({ files: [] }),
         }),

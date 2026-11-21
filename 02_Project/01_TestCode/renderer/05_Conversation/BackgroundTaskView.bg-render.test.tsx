@@ -1,4 +1,3 @@
-// 작업 ID: gap1-p09 · 옛 이름 gap1-p09-bg-task-render.test.tsx
 // @vitest-environment jsdom
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, cleanup, fireEvent } from '@testing-library/react'
@@ -10,7 +9,7 @@ import { ToolCallCard } from '@renderer/05_Conversation/ToolCallCard'
 import { adaptFlatApi } from '../00_Helpers/windowApiMock'
 
 const mockApi = {
-  agentTaskStop: vi.fn().mockResolvedValue({ accepted: true }),
+  agentTaskStop: vi.fn().mockResolvedValue({ ok: true }),
 }
 Object.defineProperty(window, 'api', { value: adaptFlatApi(mockApi), writable: true, configurable: true })
 

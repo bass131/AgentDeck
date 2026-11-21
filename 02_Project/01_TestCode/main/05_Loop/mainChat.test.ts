@@ -1,4 +1,4 @@
-// M10 G2 메인 대화 엔진(05_Loop/mainChat.ts) — 대본 백엔드와 임시 폴더로 프로덕션 모듈을 돈다(실행기 없이, 실행기 쪽 판정은 deps 흉내).
+// 대본 백엔드와 임시 폴더로 프로덕션 모듈을 돈다(실행기 없이, 실행기 쪽 판정은 deps 흉내).
 // 고정하는 것:
 //   - 저장: `<앱 영역>/<repoKey>.main.json`에 세션 id·대화 기록·사건·대기 카드·브레인스토밍 방문·일시 정지 깃발이 산다(채팅 저장소 밖).
 //   - 직렬화: 사용자 턴·시작 턴·사건 턴이 한 줄로 서서 같은 세션을 차례로 이어 쓴다(동시에 둘이 돌지 않는다).
@@ -8,7 +8,7 @@
 //     꺼질 때 기다리던 질문 카드는 다시 묻고(restored), 답은 사용자 턴으로 간다. 줄 서 있던 사용자 글은 다시 줄을 선다.
 //   - 세션 id가 무효면 생존 문서로 새 세션을 연다. 새 메인 대화는 지난 기록을 보관하고 새 세션으로 연다(열린 방문이면 시작 턴).
 //   - 쓰기 창: 잠금에 넘기는 canWrite는 방문이 열려 있고 실행기 판정(deps.canWrite)이 참일 때만 참이다.
-//   - G2 독립 검수: 세션을 열기 전의 틈(도구 서버를 기다리는 동안)에도 닫기·멈춤이 듣고 세션을 열지 않는다. 세션이 받기 전의 글·사건은
+//   - 세션을 열기 전의 틈(도구 서버를 기다리는 동안)에도 닫기·멈춤이 듣고 세션을 열지 않는다. 세션이 받기 전의 글·사건은
 //     저장본 대기열에 남아 다시 열면 한 번 간다(받은 뒤면 다시 보내지 않는다). 새 메인 대화를 여는 동안 들어온 글은 옛 세션을 잇지 않는다.
 //     일시적 실패는 세션 id를 지우지 않는다. 칸이 빠진 저장 항목은 버리고 열며, 저장 실패는 알림으로 한 번 남긴다.
 import { createHash } from 'node:crypto'
@@ -19,7 +19,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import type { AgentBackend, AgentRun, AgentRunInput } from '@main/03_Agent/AgentBackend'
 import { repoKeyOf } from '@main/05_Loop/digestStore'
 import { MAIN_CHAT_RULE, openMainChat, readMainChatView, type MainChat, type MainChatDeps } from '@main/05_Loop/mainChat'
-import { mainChatPath } from '@main/05_Loop/mainChatStore'
+import { loadRecordSync, mainChatPath } from '@main/05_Loop/mainChatStore'
 import type { WorkRequest } from '@main/05_Loop/ports'
 import { createFsPort } from '@main/05_Loop/realPorts/fsPort'
 import { DOCS } from '@main/05_Loop/survivalDocs'
@@ -76,6 +76,11 @@ const req = (key: string, rejected: string | null = null, spec: string | null = 
 async function closeAll(): Promise<void> { for (const c of chats.splice(0)) await c.close() }
 const fileOf = (): Record<string, unknown> => JSON.parse(fs.readFileSync(mainChatPath(app, repoKeyOf(root)), 'utf8')) as Record<string, unknown>
 const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms))
+// 고정 대기는 부하에서 첫 start 전에 끝날 수 있다 — 그러면 다시 연 뒤의 첫 start가 n=1 대본을 받아 멈춘다
+async function untilStarted(fake: ScriptedBackend, n: number): Promise<void> {
+  for (let i = 0; i < 500 && fake.starts.length < n; i++) await sleep(10)
+  expect(fake.starts).toHaveLength(n)
+}
 // 저장본 대기열의 글 — 저장은 비동기로 이어지므로 기대한 수가 될 때까지 다시 읽는다(읽는 도중의 빈 파일·없는 파일은 빈 대기열로 본다)
 async function storedQueue(n: number): Promise<string[]> {
   let texts: string[] = []
@@ -167,6 +172,16 @@ describe('턴 대기열 (M10 G2)', () => {
 })
 
 describe('여러 턴 브레인스토밍 (M10 G2)', () => {
+  it('[M11-G3 M09-12] 방문이 직전 FAIL 문장을 실으면 시작 턴이 그 문장을 싣는다', async () => {
+    const fake = scriptedBackend(textOnly('범위는?'))
+    const chat = open(fake)
+    await chat.brainstorm({ ...req('M1#1'), visit: { key: 'M1#1', rejected: null, failed: '스펙을 쓰지 않고 끝났다' } })
+    await chat.idle()
+    expect(fake.prompts[0]).toContain('직전 시도의 FAIL')
+    expect(fake.prompts[0]).toContain('스펙을 쓰지 않고 끝났다')
+    await closeAll()
+  })
+
   it('시작 턴을 한 번 넣고, 스펙이 그대로면 기다림·스펙이 바뀌면 방문 처음 해시와 함께 통과한다', async () => {
     let writeSpec = false
     const fake = scriptedBackend(async function* (t) {
@@ -275,7 +290,7 @@ describe('재개 (M10 G2)', () => {
     const fake = scriptedBackend(hang)
     const chat = open(fake)
     await chat.brainstorm(req('M1#0'))
-    await new Promise((r) => setTimeout(r, 30))
+    await untilStarted(fake, 1)
     await closeAll()
     const file = fileOf() as { visit: { open: string }; sessionId: string | null }
     file.visit.open = 'queued'
@@ -329,7 +344,7 @@ describe('재개 (M10 G2)', () => {
     const chat = open(fake)
     chat.send('하나')
     chat.send('둘')
-    await new Promise((r) => setTimeout(r, 30))
+    await untilStarted(fake, 1)
     await closeAll()
     const again = open(fake)
     await again.idle()
@@ -402,7 +417,7 @@ describe('새 메인 대화와 일시 정지 깃발 (M10 G2)', () => {
     expect(chat.view(root).sessionId).toBe('S2')
   })
 
-  // G4 검수 3·10 — 세션 id는 새 장을 알리지 못한다(null에서 null). 장 표지가 바뀌고, 새 장의 턴이 돌기 전에 알린다
+  // 세션 id는 새 장을 알리지 못한다(null에서 null). 장 표지가 바뀌고, 새 장의 턴이 돌기 전에 알린다
   it('새 메인 대화는 보기의 장 표지를 바꾸고, 새 장의 첫 사건보다 먼저 onNewChat을 부른다', async () => {
     const fake = scriptedBackend(textOnly('예'))
     const seen: string[] = []
@@ -488,7 +503,7 @@ describe('새 메인 대화와 일시 정지 깃발 (M10 G2)', () => {
   })
 })
 
-// G2 독립 검수 — 세션을 열기 전의 틈(생존 문서·도구 서버를 기다리는 동안)과 세션이 받기 전의 글
+// 세션을 열기 전의 틈(생존 문서·도구 서버를 기다리는 동안)과 세션이 받기 전의 글
 describe('세션을 열기 전의 틈 (M10 G2 검수)', () => {
   it('도구 서버를 기다리는 동안 닫으면 세션을 열지 않고 닫기가 끝난다(저장소 잠금을 쥔 채 남지 않는다)', async () => {
     const tools = deferred<Record<string, unknown> | null>()
@@ -618,8 +633,8 @@ describe('세션을 열기 전의 틈 (M10 G2 검수)', () => {
 })
 
 describe('저장본 검사와 저장 실패 (M10 G2 검수)', () => {
-  // G3 독립 검수 중요 1 — 모르는 사건 종류(이름이 바뀌기 전 빌드의 paused 꼴, 없는 종류)도 버린다. 화면이 모르는 종류의 모양을 찾다 무너지지 않게
-  // 저장본에서 걸러 연다(G2 검수 때는 옛 사건을 기록으로 남겼다 — 그 선택을 뒤집는다)
+  // 모르는 사건 종류(이름이 바뀌기 전 빌드의 paused 꼴, 없는 종류)도 버린다. 화면이 모르는 종류의 모양을 찾다 무너지지 않게
+  // 저장본에서 걸러 연다(옛 사건을 기록으로 남기던 선택을 뒤집었다)
   it('항목의 칸이 종류에 맞지 않거나 사건 종류를 모르면 버리고 연다 — 생존 문서를 싣는 턴이 깨지지 않는다', async () => {
     fs.mkdirSync(app, { recursive: true })
     const at = new Date().toISOString()
@@ -678,5 +693,90 @@ describe('저장본 검사와 저장 실패 (M10 G2 검수)', () => {
     expect(fake.starts).toHaveLength(2)
     const notes = chat.view(root).items.filter((i) => i.kind === 'notice' && i.text.includes('저장하지 못했다'))
     expect(notes).toHaveLength(1)
+  })
+})
+
+describe('대리 입력 (M11 G4)', () => {
+  const users = (chat: MainChat): [string, boolean][] =>
+    chat.view(root).items.flatMap((i) => (i.kind === 'user' ? [[i.text, i.proxy === true] as [string, boolean]] : []))
+
+  it('[M11-G4 M06-29] 대리로 보낸 글은 기록에 표지를 달고, 메인 세션은 그 턴에 [USER·위임]으로 적으라는 줄을 받는다', async () => {
+    const fake = scriptedBackend(textOnly('알았다'))
+    const chat = open(fake)
+    expect(chat.send('사람의 글').ok).toBe(true)
+    await chat.idle()
+    expect(chat.send('합의', { proxy: true }).ok).toBe(true)
+    await chat.idle()
+    expect(fake.prompts).toHaveLength(2)
+    expect(fake.prompts[0]).not.toContain('[USER·위임]')
+    expect(fake.prompts[1]).toContain('합의')
+    expect(fake.prompts[1]).toContain('[USER·위임]')
+    expect(users(chat)).toEqual([['사람의 글', false], ['합의', true]])
+  })
+
+  it('[M11-G4 M06-29] 줄 서 있던 대리 입력은 다시 열어도 표지와 [USER·위임] 줄을 잃지 않는다', async () => {
+    const fake = scriptedBackend(async function* (t) {
+      if (t.n === 1) { await t.answer('never'); return }
+      yield { type: 'done' }
+    })
+    const chat = open(fake)
+    chat.send('하나')
+    chat.send('합의', { proxy: true })
+    await untilStarted(fake, 1)
+    await closeAll()
+    const again = open(fake)
+    await again.idle()
+    expect(fake.prompts.at(-1)).toContain('합의')
+    expect(fake.prompts.at(-1)).toContain('[USER·위임]')
+    expect(users(again)).toEqual([['하나', false], ['합의', true]])
+  })
+})
+
+describe('저장본 칸 검사 (M11 G4)', () => {
+  const known = { kind: 'flag-raised', node: null, goal: null, text: '아는 사건' }
+  const write = (body: Record<string, unknown>): string => {
+    fs.mkdirSync(app, { recursive: true })
+    const file = mainChatPath(app, repoKeyOf(root))
+    fs.writeFileSync(file, JSON.stringify({ version: 1, root, sessionId: null, everSession: true, items: [], visit: null, paused: false, queue: [], cards: [], ...body }))
+    return file
+  }
+
+  it('[M11-G4 M10-13] 대기열의 사건 턴은 사건 칸이 배열이고 사건마다 아는 종류·글이 있어야 남는다', () => {
+    const rec = loadRecordSync(write({ queue: [
+      { kind: 'event', text: '글이 사건이다', itemId: null, events: '사건' },
+      { kind: 'event', text: '사건 칸 없음', itemId: null },
+      { kind: 'event', text: '빈 사건', itemId: null, events: [null, known] },
+      { kind: 'event', text: '모르는 종류', itemId: null, events: [{ ...known, kind: 'paused' }] },
+      { kind: 'event', text: '정상 사건', itemId: null, events: [known] },
+      { kind: 'user', text: '사람 글', itemId: null, events: '덤' },
+    ] }), root)
+    expect(rec?.queue.map((t) => t.text)).toEqual(['정상 사건', '사람 글'])
+    expect(rec?.queue[0].events).toEqual([known])
+    expect(rec?.queue[1].events).toBeUndefined()
+  })
+
+  it('[M11-G4 M10-13] 카드는 글이 있고 질문마다 질문 글과 고를 것 목록이 있어야 남는다', () => {
+    const q = { question: '범위는?', options: [{ label: '덧셈' }] }
+    const card = (requestId: string, over: Record<string, unknown>): Record<string, unknown> =>
+      ({ kind: 'question', requestId, node: 'brainstorm', goal: null, text: '묻는다', questions: [q], ...over })
+    const rec = loadRecordSync(write({ cards: [
+      card('q1', { questions: [null] }),
+      card('q2', { text: undefined }),
+      card('q3', { questions: [{ options: [] }] }),
+      card('q4', { questions: [{ question: '범위는?', options: [{}] }] }),
+      card('q5', { questions: [{ question: '범위는?' }] }),
+      card('q6', {}),
+    ] }), root)
+    expect(rec?.cards.map((c) => c.requestId)).toEqual(['q6'])
+  })
+
+  it('[M11-G4 M10-13] 칸이 틀린 저장본으로 열어도 줄 선 사건 턴이 예외 없이 돈다', async () => {
+    write({ queue: [{ kind: 'event', text: '빈 사건', itemId: null, events: [null] }, { kind: 'event', text: '정상', itemId: null, events: [known] }] })
+    const fake = scriptedBackend(textOnly('알렸다'))
+    const chat = open(fake)
+    await chat.idle()
+    expect(fake.prompts).toHaveLength(1)
+    expect(fake.prompts[0]).toContain('아는 사건')
+    expect(chat.view(root).items.some((i) => i.kind === 'notice' && i.text.includes('돌리지 못했다'))).toBe(false)
   })
 })

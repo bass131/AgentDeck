@@ -3,8 +3,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 
-// M05 G11: engineState와 usage가 각자 갖던 credentials 파일 읽기(~/.claude/.credentials.json)를 한 곳으로 모은다.
-// 두 소비처의 기본 경로(readCredentials 미주입)를 홈 디렉터리만 바꿔 실물 파일로 고정한다. 토큰 추출 규칙은 각자 다르고 그대로 둔다.
+// 두 소비처의 기본 경로(readCredentials 미주입)를 홈 디렉터리만 바꿔 실물 파일로 본다
 const h = vi.hoisted(() => ({ home: '' }))
 
 vi.mock('node:os', async (importOriginal) => {

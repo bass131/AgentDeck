@@ -98,10 +98,10 @@ describe('ML6 — modelFamilyColor: 패밀리 정체성 색(신규 색 0, picker
   })
 })
 
-// M06 G4: 모델 ID 손 표(KNOWN_MODELS·MODELS)를 지웠다. 패밀리는 색 표(MODEL_FAMILY_COLORS)의 키에서 온다.
+// 패밀리는 색 표(MODEL_FAMILY_COLORS)의 키에서 온다.
 describe('ML7 — 패밀리 목록은 색 표에서 파생된다', () => {
   it('최소 목록과 SDK 실측 목록의 모든 모델이 라벨로 변환된다', () => {
-    for (const id of [...FALLBACK_MODELS.map((r) => r.value), ...SDK_MODEL_ROWS.map((r) => r.resolvedModel ?? r.value)]) {
+    for (const id of [...FALLBACK_MODELS.map((r) => r.resolvedModel ?? r.value), ...SDK_MODEL_ROWS.map((r) => r.resolvedModel ?? r.value)]) {
       const label = modelLabel(id)
       expect(label, id).toBeDefined()
       expect(label, id).not.toBe(id)

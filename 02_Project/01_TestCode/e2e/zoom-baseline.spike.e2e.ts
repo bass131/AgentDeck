@@ -3,6 +3,7 @@ import type { ElectronApplication, Page } from '@playwright/test'
 import { mkdtempSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
+import { moveToSecondDisplay } from './helpers/isolatedBoot'
 
 const MAIN = join(process.cwd(), 'out', 'main', 'index.js')
 
@@ -13,6 +14,7 @@ async function launch(userDataDir: string): Promise<{ app: ElectronApplication; 
   })
   const page = await app.firstWindow()
   await page.waitForLoadState('domcontentloaded')
+  await moveToSecondDisplay(app)
   await page.waitForTimeout(1200)
   return { app, page }
 }

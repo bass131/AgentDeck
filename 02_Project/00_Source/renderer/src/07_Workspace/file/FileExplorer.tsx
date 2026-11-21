@@ -8,7 +8,7 @@ import {
   selectReferences,
 } from '@renderer/00_App/appStore'
 import type { ReferenceEntry } from '@renderer/00_App/appStore'
-import type { FileTreeNode } from '../../../../shared/ipcContract'
+import type { FileTreeNode } from '@shared/ipcContract'
 import { getPref, setPref } from '@renderer/11_Settings/prefs'
 import { ipc } from '@renderer/01_Ipc'
 import FileBadge from './FileBadge'
@@ -22,91 +22,14 @@ import {
   IconGitBranch,
   IconPlus,
 } from '@renderer/02_Common/icons'
+import { buildChgMaps, normalizeToRel, allDirsToLoad, computeHits } from './explorerTree'
 import './FileExplorer.css'
 
 const INDENT_BASE = 8
 const INDENT_STEP = 14
 
-type ChangeTag = 'new' | 'edit'
-
-export function buildChgMaps(
-  changed: Set<string>,
-  changedTagMap: Map<string, ChangeTag>,
-  viewing: boolean
-) {
-  const files = new Map<string, ChangeTag>()
-  const dirs = new Map<string, ChangeTag>()
-  if (viewing) return { files, dirs }
-  for (const [filePath, tag] of changedTagMap) {
-    files.set(filePath, tag)
-    let p = filePath
-    while (p.includes('/')) {
-      p = p.slice(0, p.lastIndexOf('/'))
-      if (dirs.get(p) !== 'new') dirs.set(p, tag)
-    }
-  }
-  if (changedTagMap.size === 0) {
-    for (const filePath of changed) {
-      files.set(filePath, 'edit')
-      let p = filePath
-      while (p.includes('/')) {
-        p = p.slice(0, p.lastIndexOf('/'))
-        if (dirs.get(p) !== 'new') dirs.set(p, 'edit')
-      }
-    }
-  }
-  return { files, dirs }
-}
-
 function expandedKey(root: string): string {
   return 'explorer.expanded:' + root.replace(/[\\/]+/g, '/').toLowerCase()
-}
-
-export function normalizeToRel(saved: string[], root: string): string[] {
-  const normRoot = root.replace(/\\/g, '/').replace(/\/$/, '')
-  return saved.map((p) => {
-    const norm = p.replace(/\\/g, '/')
-    if (norm.startsWith(normRoot + '/')) {
-      return norm.slice(normRoot.length + 1)
-    }
-    return norm
-  }).filter((p) => !p.startsWith('/') && !p.startsWith('..'))
-}
-
-export function getAncestors(rel: string): string[] {
-  const parts = rel.split('/')
-  const ancestors: string[] = []
-  for (let i = 1; i < parts.length; i++) {
-    ancestors.push(parts.slice(0, i).join('/'))
-  }
-  return ancestors
-}
-
-export function allDirsToLoad(savedExpanded: string[]): string[] {
-  const dirs = new Set<string>()
-  for (const rel of savedExpanded) {
-    for (const anc of getAncestors(rel)) {
-      dirs.add(anc)
-    }
-    dirs.add(rel)
-  }
-  return Array.from(dirs)
-}
-
-export function computeHits(allFiles: string[], query: string, limit = 100): string[] {
-  const q = query.trim().toLowerCase()
-  if (!q || !allFiles.length) return []
-  const starts: string[] = []
-  const names: string[] = []
-  const paths: string[] = []
-  for (const f of allFiles) {
-    const name = f.slice(f.lastIndexOf('/') + 1).toLowerCase()
-    if (name.startsWith(q)) starts.push(f)
-    else if (name.includes(q)) names.push(f)
-    else if (f.toLowerCase().includes(q)) paths.push(f)
-    if (starts.length >= limit) break
-  }
-  return [...starts, ...names, ...paths].slice(0, limit)
 }
 
 function indent(depth: number): number {
@@ -118,17 +41,37 @@ function basename(p: string): string {
   return parts.length ? parts[parts.length - 1] : p
 }
 
+// 채팅 모드 밖(작업 모드)의 탐색기는 받은 폴더만 그리고 채팅 모드의 폴더·참조 폴더·연 파일을 건드리지 않는다
+export interface ExplorerSource {
+  root: string
+  list(relDir: string): Promise<{ ok: boolean; entries: FileTreeNode[] }>
+  unavailable: string
+}
+
 export interface FileExplorerProps {
   onOpenGit?: () => void
   onCollapse?: () => void
+  source?: ExplorerSource
 }
 
-export function FileExplorer({ onOpenGit, onCollapse }: FileExplorerProps = {}): JSX.Element {
-  const fileTree = useAppStore(selectFileTree)
-  const workspaceRoot = useAppStore(selectWorkspaceRoot)
-  const changedFiles = useAppStore(selectChangedFiles)
-  const selectedPath = useAppStore(selectOpenedFile)
-  const references = useAppStore(selectReferences)
+const NO_CHANGES: Set<string> = new Set()
+const NO_REFERENCES: ReferenceEntry[] = []
+
+export function FileExplorer({ onOpenGit, onCollapse, source }: FileExplorerProps = {}): JSX.Element {
+  const chatTree = useAppStore(selectFileTree)
+  const chatRoot = useAppStore(selectWorkspaceRoot)
+  const chatChanged = useAppStore(selectChangedFiles)
+  const chatSelected = useAppStore(selectOpenedFile)
+  const chatReferences = useAppStore(selectReferences)
+  const sourced = source !== undefined
+  const fileTree = sourced ? null : chatTree
+  const workspaceRoot = sourced ? source.root : chatRoot
+  const changedFiles = sourced ? NO_CHANGES : chatChanged
+  const selectedPath = sourced ? null : chatSelected
+  const references = sourced ? NO_REFERENCES : chatReferences
+  const sourceRef = useRef(source)
+  sourceRef.current = source
+  const [unavailable, setUnavailable] = useState(false)
 
   const openWorkspace = useAppStore((s) => s.openWorkspace)
   const openFile = useAppStore((s) => s.openFile)
@@ -148,7 +91,8 @@ export function FileExplorer({ onOpenGit, onCollapse }: FileExplorerProps = {}):
     [viewing, references]
   )
 
-  const [childrenCache, setChildrenCache] = useState<Map<string, FileTreeNode[]>>(new Map())
+  // null은 목록이 막힌 폴더다(받은 목록이 ok가 아니다) — 빈 폴더와 다르게 그린다
+  const [childrenCache, setChildrenCache] = useState<Map<string, FileTreeNode[] | null>>(new Map())
 
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
 
@@ -157,23 +101,23 @@ export function FileExplorer({ onOpenGit, onCollapse }: FileExplorerProps = {}):
 
   const genRef = useRef(0)
 
-  const chg = useMemo(() => {
-    const tagMap = new Map<string, ChangeTag>()
-    for (const p of changedFiles) tagMap.set(p, 'edit')
-    return buildChgMaps(changedFiles, tagMap, !!viewing)
-  }, [changedFiles, viewing])
+  const chg = useMemo(() => buildChgMaps(changedFiles, !!viewing), [changedFiles, viewing])
 
   const loadDir = useCallback(
     (relDir: string, rootId?: string): void => {
       const gen = genRef.current
       const req = rootId ? { rootId, relDir } : { relDir }
-      ipc.workspace
-        .listDir(req)
-        .then(({ entries }) => {
+      const src = sourceRef.current
+      const read = src
+        ? src.list(relDir)
+        : ipc.workspace.listDir(req).then(({ entries }) => ({ ok: true, entries }))
+      read
+        .then(({ ok, entries }) => {
           if (gen !== genRef.current) return
+          if (relDir === '') setUnavailable(!ok)
           setChildrenCache((m) => {
             const next = new Map(m)
-            next.set(relDir, entries)
+            next.set(relDir, ok ? entries : null)
             return next
           })
         })
@@ -268,6 +212,7 @@ export function FileExplorer({ onOpenGit, onCollapse }: FileExplorerProps = {}):
 
   const handleFileClick = useCallback(
     (path: string) => {
+      if (sourceRef.current) return
       void openFile(path)
       selectDiffFile(path)
     },
@@ -310,14 +255,14 @@ export function FileExplorer({ onOpenGit, onCollapse }: FileExplorerProps = {}):
       )
     }
 
-    if (list.length === 0) {
+    if (list === null || list.length === 0) {
       return (
         <div
           className="fe-note"
           style={{ paddingLeft: indent(depth) + 18 }}
-          key={base + '/empty'}
+          key={base + (list === null ? '/blocked' : '/empty')}
         >
-          비어 있음
+          {list === null ? '열 수 없는 폴더예요' : '비어 있음'}
         </div>
       )
     }
@@ -344,7 +289,7 @@ export function FileExplorer({ onOpenGit, onCollapse }: FileExplorerProps = {}):
             <FileBadge path={node.name} size={15} />
           </span>
           <span className="fe-node-name">{node.name}</span>
-          {tag && <span className={`exp-chg ${tag}`}>{tag === 'new' ? 'N' : 'M'}</span>}
+          {tag && <span className={`exp-chg ${tag}`}>M</span>}
         </button>
       )
     }
@@ -407,6 +352,17 @@ export function FileExplorer({ onOpenGit, onCollapse }: FileExplorerProps = {}):
       )}
     </div>
   )
+
+  if (sourced) {
+    return (
+      <div className="file-explorer">
+        {header}
+        <div className="fe-tree" role="tree">
+          {unavailable ? <div className="fe-note">{source.unavailable}</div> : renderRows('', 0)}
+        </div>
+      </div>
+    )
+  }
 
   if (!fileTree && !workspaceRoot) {
     return (
@@ -546,7 +502,7 @@ export function FileExplorer({ onOpenGit, onCollapse }: FileExplorerProps = {}):
                   </span>
                   <span className="fe-node-name">{name}</span>
                   {dir && <span className="fe-result-path">{dir}</span>}
-                  {tag && <span className={`exp-chg ${tag}`}>{tag === 'new' ? 'N' : 'M'}</span>}
+                  {tag && <span className={`exp-chg ${tag}`}>M</span>}
                 </button>
               )
             })

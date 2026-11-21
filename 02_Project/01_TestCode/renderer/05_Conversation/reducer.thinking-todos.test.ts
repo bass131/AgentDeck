@@ -1,10 +1,9 @@
-// 작업 ID: m4-4 · 옛 이름 m4-4-thinking-todos.test.ts
 import { describe, it, expect } from 'vitest'
 import {
   applyAgentEvent,
   makeInitialState,
 } from '@renderer/05_Conversation/state/reducer'
-import type { AgentEventPayload } from '../../../../02_Project/00_Source/shared/ipcContract'
+import type { AgentEventPayload } from '@shared/ipcContract'
 
 const runId = 'run-m44'
 

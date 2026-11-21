@@ -22,9 +22,8 @@ import { registerPersonalizationHandlers } from './handlers/personalization'
 import { registerWindowHandlers } from './handlers/window'
 import { registerLoopHandlers, type LoopDriverApi } from './handlers/loop'
 
-// IPC 등록부 — 조립 지점(00_App/bootstrap)이 만든 객체를 deps로 받아 핸들러를 등록만 한다 (M05 G11).
-// 한 번만 등록하는 가드와 store 초기화는 조립 지점이 쥔다.
-export interface IpcDeps {
+// 등록만 한다. 한 번만 등록하는 가드와 store 초기화는 조립 지점(00_App/bootstrap)이 쥔다.
+interface IpcDeps {
   state: { win: BrowserWindow | null }
   roots: RootRegistry
   runManager: RunManager
@@ -36,9 +35,8 @@ export interface IpcDeps {
   getPrefsStore: () => PrefsStore | null
   getProfileStore: () => ProfileStore | null
   getModelList?: () => Promise<ModelListResponse>
-  // M09 G4 — 앱 안 루프 구동자(조립 지점이 만든다). 없으면 루프 채널을 등록하지 않는다.
+  // 없으면 루프 채널을 등록하지 않는다
   loopDriver?: LoopDriverApi
-  // M10 G5 — 알림 판정자의 지금 목록(loop.alerts)
   loopAlerts?: { list(): LoopAlert[] }
 }
 

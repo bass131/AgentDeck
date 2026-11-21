@@ -1,8 +1,7 @@
-// 작업 ID: fb2-p01 · 옛 이름 fb2-p01-interrupt-scope-selfrearm.test.ts
 import { describe, it, expect } from 'vitest'
 import { ClaudeCodeBackend } from '@main/04_Claude/ClaudeCodeBackend'
 import type { QueryFn } from '@main/04_Claude/ClaudeCodeBackend'
-import type { AgentEvent } from '../../../../02_Project/00_Source/shared/agentEvents'
+import type { AgentEvent } from '@shared/agentEvents'
 
 function mkResult(turnLabel = 'turn') {
   return {

@@ -1,8 +1,8 @@
 import type { LoopPhase, LoopStatus } from '@shared/ipcContract'
 import { cwdKey } from './loopModel'
 
-export type TagTone = 'brain' | 'run' | 'stop' | 'merge' | 'idle'
-export interface ProjectTag { label: string; tone: TagTone }
+type TagTone = 'brain' | 'run' | 'stop' | 'merge' | 'idle'
+interface ProjectTag {label: string; tone: TagTone }
 
 const STOP_PHASES: ReadonlySet<LoopPhase> = new Set<LoopPhase>(['halted', 'latched', 'blocked', 'open-failed'])
 
@@ -20,7 +20,7 @@ export function projectTag(s: LoopStatus | null): ProjectTag | null {
 }
 
 // 현황판이 직접 답하는 결정(이어 가기·래치 풀기·구동자 카드)은 빠진다. 여기는 다른 곳에서 답하는 결정을 가리키기만 한다
-export interface Decision { kind: 'chat' | 'merge'; title: string; text: string }
+interface Decision {kind: 'chat' | 'merge'; title: string; text: string }
 export function decisionsOf(s: LoopStatus): Decision[] {
   const out: Decision[] = []
   for (const c of s.cards) {

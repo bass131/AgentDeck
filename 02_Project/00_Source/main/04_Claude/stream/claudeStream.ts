@@ -1,6 +1,7 @@
 import type { AgentEvent, AgentEventBgTaskPatch, SearchResultMatch, TodoItem, TokenUsage } from '@shared/agentEvents'
 import { parseOrchestrationMeta } from './orchestrationMeta'
 import { SDK_MODE_TO_PICKER } from '../permissionModes'
+import { stripModelSuffixes } from '@shared/03_Agent/models/modelList'
 
 function oneLine(s: string, max: number): string {
   const t = s.replace(/\s+/g, ' ').trim()
@@ -332,7 +333,7 @@ function mapToolUseSearchResult(raw: unknown, toolUseId: string | undefined): Ag
   return []
 }
 
-function mapUsage(usageRaw: unknown): TokenUsage | undefined {
+export function mapUsage(usageRaw: unknown): TokenUsage | undefined {
   if (!isObject(usageRaw)) return undefined
   const inputTokens = usageRaw['input_tokens']
   const outputTokens = usageRaw['output_tokens']
@@ -349,16 +350,11 @@ function mapUsage(usageRaw: unknown): TokenUsage | undefined {
   return usage
 }
 
-function stripWireSuffixes(id: string): string {
-  return id.replace(/\[[^\]]*\]$/, '').replace(/-\d{8}$/, '')
-}
-
 function contextTokensOf(entry: Record<string, unknown>): number {
   const n = (k: string): number => (isNumber(entry[k]) ? (entry[k] as number) : 0)
   return n('inputTokens') + n('cacheReadInputTokens') + n('cacheCreationInputTokens')
 }
 
-// 턴 결과 modelUsage에서 주 모델 항목의 contextWindow를 고른다 (M06 G4).
 // 턴마다 보조 모델 항목이 함께 오고 그 창이 주 모델보다 클 수 있어(실측), 첫 항목도 최대 창도 쓰지 않는다.
 // 맞추는 순서: 키 일치 → canonicalModel 일치 → 접미를 벗긴 값 일치. 주 모델을 모르거나 안 맞으면
 // 대화 맥락(입력+캐시 토큰)을 가장 많이 실은 항목을 주 모델로 본다.
@@ -372,13 +368,13 @@ export function contextWindowFromModelUsage(modelUsage: unknown, mainModel?: str
   if (entries.length === 0) return undefined
 
   if (mainModel) {
-    const bare = stripWireSuffixes(mainModel)
+    const bare = stripModelSuffixes(mainModel)
     const canonicalOf = (e: Record<string, unknown>): string | undefined =>
       isString(e['canonicalModel']) ? e['canonicalModel'] : undefined
     const hit =
       entries.find(([k]) => k === mainModel) ??
       entries.find(([, e]) => canonicalOf(e) === mainModel) ??
-      entries.find(([k, e]) => stripWireSuffixes(k) === bare || stripWireSuffixes(canonicalOf(e) ?? '') === bare)
+      entries.find(([k, e]) => stripModelSuffixes(k) === bare || stripModelSuffixes(canonicalOf(e) ?? '') === bare)
     if (hit) return hit[1]['contextWindow'] as number
   }
 
@@ -387,7 +383,7 @@ export function contextWindowFromModelUsage(modelUsage: unknown, mainModel?: str
   return best[1]['contextWindow'] as number
 }
 
-export interface StreamLineContext {
+interface StreamLineContext {
   mainModel?: string
 }
 

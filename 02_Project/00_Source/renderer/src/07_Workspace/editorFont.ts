@@ -4,7 +4,7 @@ export const EDITOR_FONT_MIN = 10
 
 export const EDITOR_FONT_MAX = 28
 
-export const EDITOR_FONT_DEFAULT = 13
+const EDITOR_FONT_DEFAULT = 13
 
 export function clampEditorFont(px: number, min: number, max: number): number {
   return Math.round(Math.min(max, Math.max(min, px)))

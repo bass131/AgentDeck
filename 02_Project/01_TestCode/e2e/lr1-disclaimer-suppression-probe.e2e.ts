@@ -3,6 +3,7 @@ import type { ElectronApplication, Page } from '@playwright/test'
 import { mkdtempSync, rmSync, existsSync, readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
+import { moveToSecondDisplay } from './helpers/isolatedBoot'
 
 const LIVE = process.env.LIVE_SDK === '1'
 const CODENAME = 'MANGO88XR'
@@ -15,6 +16,7 @@ async function launchSingleChat(userDataDir: string, workspace: string): Promise
   })
   const page = await app.firstWindow()
   await page.waitForLoadState('domcontentloaded')
+  await moveToSecondDisplay(app)
   const nick = page.locator('#nickname')
   if (await nick.isVisible().catch(() => false)) {
     await nick.fill('disclaimer-probe')

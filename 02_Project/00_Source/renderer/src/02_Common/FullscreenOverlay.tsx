@@ -1,22 +1,17 @@
-import { useEffect, type JSX, type ReactNode } from 'react'
+import { type JSX, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { IconClose } from './icons'
+import { useModalLayer } from './modalStack'
 import './FullscreenOverlay.css'
 
-export interface FullscreenOverlayProps {
+interface FullscreenOverlayProps {
   onClose: () => void
   title?: string
   children: ReactNode
 }
 
 export function FullscreenOverlay({ onClose, title, children }: FullscreenOverlayProps): JSX.Element {
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent): void => {
-      if (e.key === 'Escape') onClose()
-    }
-    document.addEventListener('keydown', onKey)
-    return () => document.removeEventListener('keydown', onKey)
-  }, [onClose])
+  useModalLayer(true, onClose)
 
   return createPortal(
     <div

@@ -1,4 +1,3 @@
-// 작업 ID: gap1-p11 · 옛 이름 gap1-p11-send-token-accounting.test.ts
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { ClaudeCodeBackend } from '@main/04_Claude/ClaudeCodeBackend'
 import type { QueryFn } from '@main/04_Claude/ClaudeCodeBackend'
@@ -8,7 +7,7 @@ import type {
   AgentEventDone,
   AgentEventAutonomyStatus,
   AgentEventLoops,
-} from '../../../../02_Project/00_Source/shared/agentEvents'
+} from '@shared/agentEvents'
 
 const GRACE_PROBE_MS = 100
 const EXPIRE_MS = 10_000

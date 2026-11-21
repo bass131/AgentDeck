@@ -1,6 +1,4 @@
-// notice 기능 캡슐 — 공개 표면 배럴.
-// 캡슐 밖 소비처(Shell.tsx, PanelView.tsx, Conversation.tsx, AppGate.tsx, 테스트)는 이 파일을 통해서만 import한다.
-// 캡슐 내부 파일을 직접 가리키는 import는 캡슐 경계를 우회하므로 지양한다.
+// 캡슐 밖 소비처는 이 파일로만 import한다.
 export { AppUpdateGate } from './AppUpdateGate'
 export type { AppUpdateGateProps, AppUpdatePhase } from './AppUpdateGate'
 
@@ -9,15 +7,6 @@ export type { EngineGateProps } from './EngineGate'
 
 export { EngineUpdateNotice } from './EngineUpdateNotice'
 export type { EngineUpdateNoticeProps } from './EngineUpdateNotice'
-
-export { HookTimeline } from '@renderer/03_Agent/HookTimeline'
-export type { HookTimelineProps, HookRunView } from '@renderer/03_Agent/HookTimeline'
-
-export { LoopStatusBanner } from '@renderer/03_Agent/LoopStatusBanner'
-export type { LoopStatusBannerProps } from '@renderer/03_Agent/LoopStatusBanner'
-
-export { PermissionCard } from '@renderer/03_Agent/PermissionCard'
-export type { PermissionCardProps, PermissionChoice } from '@renderer/03_Agent/PermissionCard'
 
 export { UpdateNotes } from './UpdateNotes'
 export type { UpdateNotesProps } from './UpdateNotes'

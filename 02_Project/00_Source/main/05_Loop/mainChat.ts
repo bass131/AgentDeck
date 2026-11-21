@@ -1,4 +1,4 @@
-// M10 G2 — 메인 대화 엔진. 작업 폴더마다 하나, main 프로세스가 소유한다(채팅 목록·채팅 경로 agent.run과 무관).
+// 메인 대화 엔진. 작업 폴더마다 하나, main 프로세스가 소유한다(채팅 목록·채팅 경로 agent.run과 무관).
 //   - 턴 대기열: 사용자 글·브레인스토밍 여는 턴(start·rejected)·실행기 사건 턴·다시 물은 카드의 답이 한 줄로 서서
 //     같은 SDK 세션을 차례로 이어 쓴다(resumeSessionId). 동시에 둘이 돌지 않는다. 턴마다 루프 세션 포트와 같은 입력
 //     (자동 모드, 자격 없는 자식 환경, 루프 잠금의 메인 대화 꼴 — 앱 안 도구 서버만, 셸 금지, 브레인스토밍 쓰기 창)을 쓴다.
@@ -10,12 +10,12 @@
 //     잠금(loopLock.mainChatToolReason)이 도구 호출마다 묻는다.
 //   - 재개: 저장된 세션 id로 이어 간다. 여는 턴은 세션이 받은 뒤(session 사건)에 sent가 되고, 그 전이면 다음 부름에 다시 넣는다.
 //     resume한 턴이 session 사건 없이 오류로 끝나면 세션 id가 무효일 수 있다 — 생존 문서를 실어 새 세션으로 한 번 다시 보낸다.
-//     새 세션도 session 사건 없이 끝나면(일시적 spawn 실패 꼴) 옛 id를 되돌린다(G2 독립 검수).
+//     새 세션도 session 사건 없이 끝나면(일시적 spawn 실패 꼴) 옛 id를 되돌린다.
 //     세션 id를 잃은 장(everSession)의 새 세션에도 생존 문서를 싣는다. 꺼질 때 남은 질문 카드는 다시 묻는다(restored).
-//   - 받기 전의 턴(G2 독립 검수): 사용자 글·사건·다시 물은 카드의 답은 세션이 받기(session 사건) 전까지 저장본 대기열 맨 앞에 남고
+//   - 받기 전의 턴: 사용자 글·사건·다시 물은 카드의 답은 세션이 받기(session 사건) 전까지 저장본 대기열 맨 앞에 남고
 //     sent가 되지 않는다 — 프로세스가 죽어도 다시 열면 한 번 간다. 받기 전에 닫히면 대기열 맨 앞으로 되돌린다. 오류·멈춤·새 대화로
 //     끝난 턴은 다시 줄 세우지 않는다(받지 못하는 백엔드에서 턴이 끝없이 돌지 않게).
-//   - 닫기·멈춤(G2 독립 검수): 턴을 꺼낼 때 멈춤 신호를 만들어 세션에 넘긴다 — 생존 문서·도구 서버를 기다리는 틈에도 닫기와 멈춤이
+//   - 닫기·멈춤: 턴을 꺼낼 때 멈춤 신호를 만들어 세션에 넘긴다 — 생존 문서·도구 서버를 기다리는 틈에도 닫기와 멈춤이
 //     듣고, 그 틈에서는 세션을 열지 않는다. 새 메인 대화를 여는 동안에는 대기열을 돌리지 않고, 턴은 시작한 장에만 쓴다.
 //   - 저장 실패는 대화에 알림으로 한 번 남긴다(실패가 이어지는 동안 되풀이하지 않는다).
 //   - 사람 판정은 사람 몫이다. 메인의 도구(앱 안 도구)는 일시 정지 깃발과 Backlog 한 줄만 바꾼다(mainChatTools).
@@ -26,6 +26,7 @@ import type { AgentEvent } from '@shared/agentEvents'
 import type {
   LoopCard, LoopCardResponse, LoopEventItem, LoopSessionTag, MainChatItem, MainChatView, MainTurnKind,
 } from '@shared/13_Loop/loop'
+import { mainAnswerOf } from '@shared/13_Loop/mainTurn'
 import { repoKeyOf } from './digestStore'
 import {
   MAX_ITEMS, archiveRecord, blankRecord, loadRecordSync, mainChatPath, peekRecordSync, saveRecord,
@@ -52,13 +53,16 @@ export const MAIN_CHAT_RULE = [
 ].join('\n')
 
 // 브레인스토밍 여는 턴에 붙는다
-export const BRAINSTORM_RULE = [
+const BRAINSTORM_RULE = [
   '## 브레인스토밍',
   '',
   '- 여러 턴에 걸쳐 사람과 이야기한다. 턴을 끝내면 사람의 답을 기다린다.',
   '- 합의한 답은 그때그때 결정 대장(.agentdeck/decisions.md)에 적는다.',
   '- 마일스톤 스펙 파일(.agentdeck/milestone-spec.md)은 초안이 준비됐을 때만 쓴다. 스펙이 바뀌면 브레인스토밍이 끝나고 사람에게 승인 카드가 뜬다.',
 ].join('\n')
+
+// 대리 입력 턴의 글 끝에 붙는다
+const PROXY_NOTE = '[대리 입력] 이 글은 사람이 아니라 사람에게 위임받은 대리인이 보냈다. 이 글로 정한 것은 결정 대장에 [USER·위임]으로 적는다.'
 
 export interface MainActions {
   pause(): Promise<string>
@@ -96,7 +100,7 @@ export interface MainChatDeps {
 }
 
 export interface MainChat {
-  send(text: string): { ok: boolean; reason?: string }
+  send(text: string, opts?: { proxy?: boolean }): { ok: boolean; reason?: string }
   recordEvent(event: LoopEventItem, speak?: boolean): void
   brainstorm(req: WorkRequest): Promise<WorkResult>
   cards(): LoopCard[]
@@ -120,10 +124,12 @@ interface Turn {
   kind: MainTurnKind
   text: string
   itemId: string | null
+  proxy?: boolean
   events?: LoopEventItem[]
   node?: WorkNode
   goal?: GoalState | null
   milestoneId?: string
+  visit?: WorkRequest['visit']
 }
 interface LiveCard { card: LoopCard; turnId: string; resolve: (r: RunResponse) => void }
 
@@ -136,7 +142,7 @@ const errText = (e: unknown): string => (e instanceof Error ? e.message : String
 function tailLine(i: MainChatItem): string | null {
   const cut = (s: string): string => (s.length > TAIL_CHARS ? `${s.slice(0, TAIL_CHARS - 1)}…` : s)
   switch (i.kind) {
-    case 'user': return `- 사람: ${cut(i.text)}`
+    case 'user': return `- ${i.proxy === true ? '사람(대리 입력)' : '사람'}: ${cut(i.text)}`
     case 'assistant': return `- 메인: ${cut(i.text)}`
     case 'event': return `- 사건: ${cut(i.event.text)}`
     case 'notice': return null
@@ -191,7 +197,7 @@ export function openMainChat(deps: MainChatDeps): MainChat {
   // 저장본의 대기열 — 받기 전의 턴(inflight)이 맨 앞이다. 여는 턴(start·rejected)은 저장하지 않는다(visit.open으로 다시 넣는다)
   const stored = (): StoredTurn[] => [...(inflight ? [inflight] : []), ...queue]
     .filter(storable)
-    .map((t) => ({ kind: t.kind, text: t.text, itemId: t.itemId, ...(t.events ? { events: t.events } : {}) }))
+    .map((t) => ({ kind: t.kind, text: t.text, itemId: t.itemId, ...(t.proxy ? { proxy: true } : {}), ...(t.events ? { events: t.events } : {}) }))
 
   // 저장 실패는 처음 한 번만 알린다 — 여기서 persist를 부르지 않는다(실패가 되풀이돼도 저장이 저장을 부르지 않게)
   function save(snap: MainChatRecord): void {
@@ -235,7 +241,7 @@ export function openMainChat(deps: MainChatDeps): MainChat {
     if (v === null || queue.some((t) => t.kind === 'start' || t.kind === 'rejected')) return
     openTried = v.key
     const kind: MainTurnKind = rec.sessionId !== null && v.rejected !== null ? 'rejected' : 'start'
-    const turn: Turn = { kind, text: '', itemId: null, node: req.node, goal: req.goal, milestoneId: req.milestoneId }
+    const turn: Turn = { kind, text: '', itemId: null, node: req.node, goal: req.goal, milestoneId: req.milestoneId, visit: req.visit }
     if (front) queue.unshift(turn)
     else queue.push(turn)
   }
@@ -243,6 +249,7 @@ export function openMainChat(deps: MainChatDeps): MainChat {
   async function promptOf(t: Turn): Promise<string> {
     switch (t.kind) {
       case 'user':
+        return t.proxy ? `${t.text}\n\n${PROXY_NOTE}` : t.text
       case 'card-answer':
         return t.text
       case 'event':
@@ -255,7 +262,7 @@ export function openMainChat(deps: MainChatDeps): MainChat {
       case 'start': {
         const node = t.node as WorkNode
         const docs = await readNodeDocs(deps.fs, node.docs, t.goal?.id ?? null)
-        const parts = [buildNodePrompt({ milestoneId: t.milestoneId ?? '', node, goal: t.goal ?? null, docs }), BRAINSTORM_RULE]
+        const parts = [buildNodePrompt({ milestoneId: t.milestoneId ?? '', node, goal: t.goal ?? null, docs, visit: t.visit }), BRAINSTORM_RULE]
         if (rec.visit?.rejected) parts.push(`## 스펙 반려\n\n사람이 앞 스펙을 반려했다 — ${rec.visit.rejected}`)
         return parts.join('\n\n')
       }
@@ -308,7 +315,7 @@ export function openMainChat(deps: MainChatDeps): MainChat {
     // 새 세션에는 생존 문서를 싣는다 — 시작 턴은 노드 지시와 문서를 이미 싣으므로, 세션 id를 잃은 장(everSession)일 때만
     let seed = rec.sessionId === null && (t.kind !== 'start' || rec.everSession)
     // resume이 세션 사건 없이 오류로 끝나면 새 세션으로 한 번 다시 보낸다(fresh). 저장된 id는 그 새 세션이 받을 때(session 사건)만
-    // 바뀐다 — 새 세션도 받지 못하거나 그 전에 꺼지면 옛 id가 그대로다(일시적 spawn 실패로 id를 잃지 않게, G2 독립 검수)
+    // 바뀐다 — 새 세션도 받지 못하거나 그 전에 꺼지면 옛 id가 그대로다(일시적 spawn 실패로 id를 잃지 않게)
     let fresh = false
     for (let attempt = 0; attempt < 2; attempt++) {
       if (gone()) { stopped(); return }
@@ -316,11 +323,7 @@ export function openMainChat(deps: MainChatDeps): MainChat {
       const prompt = seed ? await seeded(base) : base
       const turnId = deps.nextTurnId()
       let sawSession = false
-      const paras: string[] = []
-      let cur = ''
-      let msgId: string | undefined
-      let afterTool = false
-      const flush = (): void => { if (cur.trim() !== '') paras.push(cur.trim()); cur = '' }
+      const said: AgentEvent[] = []
       // 도구 서버를 만들지 못하면 알린다(규칙 글은 도구를 말하므로 사람이 알아야 한다) — 턴은 도구 없이 돈다
       const tools = deps.buildTools
         ? await deps.buildTools().catch((e: unknown) => { notice(`앱 안 도구를 싣지 못했다 — ${oneLine(errText(e))}`); return null })
@@ -358,18 +361,13 @@ export function openMainChat(deps: MainChatDeps): MainChat {
               if ((t.kind === 'start' || t.kind === 'rejected') && rec.visit && rec.visit.open !== 'sent') { rec.visit.open = 'sent'; changed = true }
               if (changed) persist()
             }
-          } else if (ev.type === 'text' && ev.parentToolId === undefined) {
-            if (afterTool || (ev.messageId !== undefined && ev.messageId !== msgId)) { flush(); msgId = ev.messageId }
-            afterTool = false
-            cur += ev.delta
-          } else if (ev.type === 'tool_call' && ev.parentToolId === undefined) {
-            afterTool = true
+          } else if ((ev.type === 'text' || ev.type === 'tool_call') && ev.parentToolId === undefined) {
+            said.push(ev)
           }
           deps.onEvent?.({ key: 'main', kind: 'main', node: node === 'main' ? null : node, goal: null, sessionId: rec.sessionId }, ev)
         },
       })
       const end = await session.done
-      flush()
       // 세션이 끝난 카드는 거둔다. 닫을 때는 질문 카드를 남긴다(다시 묻는다)
       for (const [id, c] of [...live]) {
         if (c.turnId !== turnId) continue
@@ -384,7 +382,7 @@ export function openMainChat(deps: MainChatDeps): MainChat {
         continue
       }
       if (rec !== own) return
-      const text = paras.join('\n\n')
+      const text = mainAnswerOf(said)
       if (text !== '') push({ id: newId(), at: new Date().toISOString(), kind: 'assistant', text, turn: t.kind })
       if (end.kind === 'error') notice(`턴이 오류로 끝났다 — ${oneLine(end.error)}`)
       else if (end.kind === 'start-failed') notice(`턴을 열지 못했다 — ${oneLine(end.error)}`)
@@ -428,13 +426,14 @@ export function openMainChat(deps: MainChatDeps): MainChat {
   pump()
 
   const api: MainChat = {
-    send(text) {
+    send(text, opts) {
       const body = text.trim()
       if (closing) return { ok: false, reason: '메인 대화가 닫혔다' }
       if (body === '') return { ok: false, reason: '빈 글이다' }
       const id = newId()
-      push({ id, at: new Date().toISOString(), kind: 'user', text: body, state: 'queued' })
-      queue.push({ kind: 'user', text: body, itemId: id })
+      const proxy = opts?.proxy === true ? { proxy: true } : {}
+      push({ id, at: new Date().toISOString(), kind: 'user', text: body, state: 'queued', ...proxy })
+      queue.push({ kind: 'user', text: body, itemId: id, ...proxy })
       persist()
       pump()
       return { ok: true }
@@ -511,7 +510,7 @@ export function openMainChat(deps: MainChatDeps): MainChat {
     async newChat() {
       if (closing) return { ok: false, reason: '메인 대화가 닫혔다' }
       if (resetting) return { ok: false, reason: '새 메인 대화를 여는 중이다' }
-      // 여는 동안 대기열을 돌리지 않는다 — 그 사이 들어온 글이 옛 세션을 잇거나 옛 id를 새 장에 쓰지 않게(G2 독립 검수)
+      // 여는 동안 대기열을 돌리지 않는다 — 그 사이 들어온 글이 옛 세션을 잇거나 옛 id를 새 장에 쓰지 않게
       resetting = true
       arrived.splice(0)
       try {

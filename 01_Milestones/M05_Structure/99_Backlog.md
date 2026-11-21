@@ -3,6 +3,91 @@
 완료조건 밖의 발견을 한 줄씩 남깁니다. 승인을 묻지 않고 기록만 하며, 다음 goal의 후보입니다.
 M04에서 넘어온 항목은 `M04_Goal_Loop/99_Backlog.md`가 계속 소유합니다.
 
+## 닫힘 (M11)
+
+M11 Backlog 정리(`01_Milestones/M11_BacklogSweep/`)가 닫은 항목이다. 아래 항목 줄은 그대로 두고 닫힘은 이 표가 갖는다. 표에 없는 항목은 M11 goal 2~9가 고치면서 더한다.
+
+| 항목 | 닫힘 | 근거 |
+|---|---|---|
+| 1 | 고침(M11 goal 2) | 앱 종료가 LSP 서버를 끈다(`main/00_App/bootstrap.ts:117`, `main/09_Lsp/manager.ts:536`, `63911dda`). |
+| 2 | 해결됨 | `@keyframes rise`가 `renderer/src/11_Settings/SettingsModal.css:171` 한 벌만 남았다. |
+| 3 | 고침(M11 goal 2) | G1 결정 대장 [USER·위임]대로 앱 「자동」의 시작도 공식 `auto`다(`main/04_Claude/permissionModes.ts:19`, `d95d7051`). 실앱 e2e `m11-g2-app-session-live.e2e.ts` D에서 「자동」 대화가 카드 없이 도구를 쓰고 모드가 자동으로 남았다. 분류기 비교·규칙 GUI는 v2다. |
+| 4 | 해결됨 | 폴백 상수가 `main/10_Engine/sdkVersion.ts:8` 한 곳이고 `sdkVersion.read.test.ts`가 package.json 명세와의 드리프트를 고정한다. |
+| 5 | 고침(M11 goal 2) | `selectTaskScope`가 입력이 같으면 같은 객체를 돌려준다(`renderer/src/00_App/state/selector.ts:28`, `63911dda`). |
+| 6 | v2로 | Codex 실행기는 v1 범위 밖으로 미뤘다(`00_Vision/50_v1-범위.md:34`). |
+| 7 | 닫음(판단) | G1 결정 대장 [USER·위임] — 영속 기록 호환 때문에 `'model-fallback'` 이름을 둔다. |
+| 8 | 고침(M11 goal 8) | `375c1e37` — 가드가 `git branch -f`·`--force`·`-M`·`-C`를 막고(`switch -C`와 같은 차단), `-m`·`--move`를 묻는다. 시험: `dangerous-cmd-guard.test.mjs` 「브랜치 포인터 강제 이동·이름 바꾸기」. |
+| 9 | 고침(M11 goal 8) | `375c1e37` — G1 결정대로 규칙이 없던 꼴을 묻는다: `gh repo rename`·`archive`, `gh repo sync --force`(짧은 force 옵션은 없다, `gh repo sync --help`), `gh secret set`·`delete`·`remove`, `gh alias set`·`import`, git `--receive-pack`·`--upload-pack`과 push `--exec`. 판독이 못 읽는 꼴(다른 세그먼트의 push 설정, 영속 별칭, 셸 확장, 줄 이음·`2>&1` 뒤 옵션)은 v2다. |
+| 10 | 닫음(근거) | 결정 대장 [USER·위임]대로 실제 질의는 띄우지 않았다. 공식 hooks 문서 「When a subagent calls a tool, tool events such as `PreToolUse` and `PostToolUse` fire the same configured hooks as in the main conversation」, sub-agents 문서 「Permission prompts are passed through to you as they come up.」(전경)·「Claude Code surfaces the prompt in your main session and names the subagent that is asking.」(배경). hook-log에 하위 에이전트(`agent_id` 있음)의 가드 질의 줄이 있다 — 2026-11-16T12:30:54 `git-update-ref-삭제`, 2026-11-18T04:49:33 `gh-api-보호설정`. 모드별 창 실측은 M11 Backlog 74. |
+| 11 | 고침(M11 goal 6) | 경계 규칙이 `ImportExpression`·`TSImportType`도 본다(`.eslintrc.cjs:18-19`). 위반 꼴 고정물 `integration/eslintBoundary.test.ts`가 동적 import·`typeof import()`·`import().T`를 잡는다(`0245db82`). |
+| 12 | 고침(M11 goal 7) | Green 채집이 `persistedOutputPath` 파일 전문까지 읽는다(`33_tdd-guard.cjs` `responseText`, GE-09~09c, `3aa38815`). |
+| 13 | 낡음 | 대상 시험(뒤 이름 `MultiWorkspace.session-persist-2.test.tsx`)이 M10 G1 `95125a05`에서 지워졌다. |
+| 14 | 해결됨 | 다섯 하네스의 esbuild 호출이 `tsconfig: 'tsconfig.web.json'`을 준다(예: `gap1-p14-splitview-shots.e2e.ts:188`). |
+| 15 | 일부 고침(M11 goal 6) | 대소문자 오탐은 `caseSensitive: true`로 없앴다(`.eslintrc.cjs:16`, `0245db82`). `../Main`·`../Preload`·`./sub/main/x`가 안 걸리는 것을 고정물이 본다. glob이 경로를 풀지 못해 남는 `../main`(= `renderer/src/main.tsx`) 꼴은 M11 Backlog 43. |
+| 16 | 고침(M11 goal 6) | preload 덮어쓰기가 `boundary('renderer', 'main')`이다(`.eslintrc.cjs:43`). 상대·별칭·동적 꼴 모두 고정물이 본다(`0245db82`). |
+| 17 | 고침(M11 goal 6) | e2e의 `declare global`을 지역 타입 `ProbeWindow`로 바꿨다(`e2e/lr3-p01b-stale-session.e2e.ts:6`, `0245db82`). 같은 이름 `.ts`·`.tsx` 쌍은 지금 0쌍이다. 교차 시험의 상대 경로는 항목 줄대로 남는다. |
+| 18 | 고침(M11 goal 6) | 다시 잰 셈(파일마다 식별자 토큰 집합, 선언한 파일 밖 어디에도 이름이 없음)으로 243개였다. 235개는 `export`만 뗐고, 어디서도 안 쓰던 8개(`survivalDocs.ts`의 `readRunState`·`writeRunState`·`appendDecision`·`RunStateRead`, `loopModel.ts`의 `APPROVE_EVIDENCE`, `sessionRegistry.ts`의 `SessionRegistry`, 패널 잔재 `PanelThreadSnapshot`·`PersistedMsg`)는 지웠다. 시험만 쓰는 export는 시험이 고정하는 계약이라 쓰는 곳이 있는 것으로 세고 두었다. `integration/unusedExports.test.ts`가 0을 고정한다(`0a2f4157`). |
+| 19 | 고침(M11 goal 6) | `FileModal.test.tsx:307` 「본문 갈래와 읽기전용 배지」가 배지·too-large·binary·not-found·markdown·image 갈래를 본다(`42cdd5f9`). |
+| 20 | 고침(M11 goal 6) | 'new' 규칙을 지우고, 순수 함수를 `renderer/src/07_Workspace/file/explorerTree.ts:4`로 옮겼다(`a55db0e9`). 지운 시험 D-1·3·4·7('new' 갈래)은 갈래째 없어졌고, edit 올림은 D-2·5·6·8이 덮는다. |
+| 21 | 고침(M11 goal 6) | 대상 없는 `.sa-overlay`·`.sa-card*`·`.sa-tool*` CSS를 지우고 시험 제목을 고쳤다(`AgentPanel.subagent.test.tsx:99`, `a55db0e9`). Esc 셀렉터는 goal 4가 이미 지웠고 `PanelPicker.tsx`는 M10 G1에서 지워졌다. |
+| 22 | 고침(M11 goal 6) | `MentionToken`과 `QuestionOption` 재수출을 지우고, 중복 it 하나를 지웠다(그때 덮던 첫 it 「usePanelSlot().send() — agentRun reject …」는 뒤 `506681b8`에서 패널 코드와 함께 지워져, 대신할 동작이 없다). `nextInject`는 `12_Window/inject.ts:5`로 옮겼다(`a55db0e9`). |
+| 24 | 고침(M11 goal 6) | 공백만 있는 `requestId`·`runId`와 `null` 본문 사례를 더했다(`main/01_Ipc/agent.permission-respond-handler.test.ts:78,120`, `agent.question-respond-handler.test.ts`, `42cdd5f9`). |
+| 23 | 고침(M11 goal 7) | G1 결정 대장 [USER·위임]대로 `&&`·파이프의 fail-closed는 두고(GE-04·12), 차단 문구가 단독 실행 꼴(`npm test -- --no-color --reporter=dot`, `npx vitest run <경로>`, `node --test`)을 알려 준다(`33_tdd-guard.cjs` `RESUME_HINT`·`FULL_HINT`, MS-01~06, `3aa38815`). |
+| 25 | 고침(M11 goal 2) | 루트 밖 Windows 절대 경로를 거른다(`renderer/src/07_Workspace/file/FileExplorer.tsx:65,70`, `63911dda`). |
+| 26 | 고침(M11 goal 6) | 컴포넌트 아닌 export를 옮겼다 — 탐색기 순수 함수는 `07_Workspace/file/explorerTree.ts`, `nextInject`는 `12_Window/inject.ts`(`a55db0e9`). |
+| 27 | 고침(M11 goal 6) | `.gitignore:56`이 `/01_Phases/`를 무시한다. 남은 하네스의 `SHOT_DIR`(예: `bf3-p06-permission-card-shots.e2e.ts:9`)에 `git check-ignore -v 01_Phases/x.png`가 `.gitignore:56`을 돌려준다(`a55db0e9`). |
+| 28 | 고침(M11 goal 6) | `99_Others/loop-design-handoff.md:122,196`이 `main/04_Claude/permission/permissionCoordinator.ts`를 가리킨다(`a55db0e9`). |
+| 29 | 고침(M11 goal 2) | `resolveFsDiffLines`를 `main/08_Git/fsDiff.ts:7`로 옮겨 파일 순환을 끊었다(`63911dda`). |
+| 30 | 해결됨 | 러너가 쓰기 실패 쪽 임계구간을 `writeAt`까지로 읽는다(G11 2b `7cb426cd`). |
+| 31 | 해결됨 | 창 채널이 `main/01_Ipc/handlers/window.ts`에 있고 `01_Ipc/handlers/multi.ts`는 없다. |
+| 32 | 고침(M11 goal 6) | `SAMPLE_TODOS`·`SAMPLE_SUBAGENTS`를 `03_Agent/types.ts`에서 지웠다. 견본 자체만 보던 「agentSampleData — 구조 검증」 둘도 지웠고, 대신할 동작은 없다. `SAMPLE_BATCH_TO`는 이미 없고 `pickerOptions.audit-fix.test.tsx:86`이 그 부재를 지킨다(`a55db0e9`). |
+| 33 | 낡음 | `MultiWorkspace`가 M10 G1 `95125a05`에서 지워졌고 남은 순환은 M05-42가 맡는다. |
+| 34 | 고침(M11 goal 6) | 지운 멀티 화면을 그리던 하네스 셋(`tg1-p07-thinking-gui-shots`·`gap1-visual-shots`·`gap1-p14-splitview-shots`)을 지워, 옛 경로 문자열 6줄도 함께 없어졌다(`a55db0e9`). |
+| 35 | 해결됨 | 항목 본문에 H2의 닫힘(결정적 캡처와 digest 대조)이 적혀 있다. |
+| 36 | 고침(M11 goal 6) | renderer 소스 18파일과 시험이 shared를 `@shared` 별칭으로 가져온다. 예로 든 `'../../lib/time'`과 시험의 `store/appStore` 상대 경로는 이제 0건이다. `integration/eslintBoundary.test.ts` 「renderer 소스는 shared를 별칭으로 가져온다」가 고정한다(`fb9706f3`). |
+| 37 | 고침(M11 goal 6) | 실제 앱을 띄우는 e2e 33파일이 기동 직후 `moveToSecondDisplay(app)`로 창을 2번 모니터에 옮긴다. 헬퍼는 `e2e/helpers/isolatedBoot.ts`에 있고 앱 소스 없이 `electronApp.evaluate`로 옮긴다(`a55db0e9`·`39147bc2`). |
+| 38 | 해결됨 | 항목 본문에 닫힘이 적혀 있고 `tsconfig.web.json:28`이 e2e를 포함한다. |
+| 39 | 고침(M11 goal 6) | p14의 `.svg` `'text'` 로더와 tg1의 `__touch` 문자열은 M05-34의 하네스와 함께 지워졌다(`a55db0e9`). `master` ref 판정은 항목 줄대로 `origin/master`로 한다. |
+| 40 | 고침(M11 goal 6) | ① `Math.random` 위험은 tg1 하네스째 지워 없어졌다(`a55db0e9`). ② 보조 화면의 배율이 주 화면과 다르면 `logHarnessDisplay`가 경고한다(`e2e/helpers/stableShot.ts:18-19`, `a55db0e9`). |
+| 41 | 고침(M11 goal 7) | 포인터에 merge 충돌 표지가 있으면 결손이 아니라 `계획-포인터-충돌`로 거부하고 푸는 명령(`git checkout --ours\|--theirs …`·`git merge --abort`)을 적는다. 계획 문서의 충돌 표지도 `계획-충돌-표지`로 거부한다(`_lib/plan-verdict.cjs`, EP-35·36, `303876ee`). |
+| 42 | 일부 고침(M11 goal 6) | `10_Engine/index.ts`가 `03_Agent`의 `HookTimeline`·`LoopStatusBanner`·`PermissionCard`를 더 재수출하지 않고, `Conversation.tsx`가 `@renderer/03_Agent`에서 가져온다. `10_Engine`이 renderer 도메인 SCC에서 빠졌다(남은 SCC 9도메인). 빌드 CSS는 순서만 바뀌었고, 순서가 뒤집힌 파일 쌍은 수식어 클래스만 공유해 선택자가 겹치지 않는다. `noticeCapsule.smoke.test.ts` 「도메인 순환 래칫」이 재수출 부재와 상호 의존 12쌍 상한을 고정한다(`d924a6ab`). 스토어 허브는 조립 방향을 뒤집는 구조 변경이라 하지 않았다(M11 Backlog 53). |
+| 43 | 고침(M11 goal 6) | 실제 콘텐츠 파일 셋을 계획에 적은 내용 무변경 `git mv`로 옮겼다 — `11_Settings/lspServers.ts`, `10_Engine/updateNotesContent.ts`, `10_Engine/whats-new/whatsNewSlides.ts`. 남은 `*SampleData`는 `12_Window/sidebarSampleData.ts` 하나다. `UpdateNotes.onboarding.test.tsx` 「콘텐츠 파일 이름」이 고정한다(`234bad70`). |
+| 44 | 고침(M11 goal 5) | goal 한 장 형식의 진척 단계 읽기는 이미 됐다(`99_Others/Dashboard/lib/collector.mjs:149`, `test/goal.test.mjs`). 남은 마일스톤 목록은 첫머리 문서를 `_MilestonePreview.md` → `00_마일스톤-스펙.md` → `00_Goal.md` 순으로 읽고, 셋 다 없으면 goal 문서 수·종결 수를 보인다(`collector.mjs:15`, `03d25f64`). goal 「## 목표」는 이미 단계 영역 머리의 「이 goal의 목표 원문」으로 보인다(`lib/progress.mjs:63`, `public/app.js:540`). USER-INPUT 몫은 M10-24가 닫았다. Orca 탭 재사용의 흔들림은 재현하지 못해 M11 Backlog 39로 옮겼다. |
+| 45 | 해결됨 | 테스트·훅 타임아웃이 30000이고(`vitest.config.ts:20,22`) 콜드 import 근본 몫은 M11 Backlog로 옮겼다. |
+| 46 | 해결됨 | 폐기 포트가 지운 거처의 결과를 되살리지 않는다(`renderer/src/03_Agent/state/runCore.ts:99-100`, `2f78992a`). |
+| 47 | 고침(M11 goal 6) | 정규식이 `nowTime\w*\s*\(\)`로 넓어졌고, `reducer.ts`에 더해 쪼갠 `reducer/*.ts`도 본다(`reducer.time-bash.test.ts:88`, `42cdd5f9`). 패널 정지 클릭 동작 시험은 대상 `PanelView`를 지우며 함께 지웠다(`506681b8`, M11 Backlog 42). |
+| 48 | 닫음(판단) | G1 결정 대장 [USER·위임] — interrupt 때 대기열은 지금 동작을 둔다. |
+| 49 | 고침(M11 goal 2) | 질문 창 층이 320이고 다른 모달이 열려 있으면 Esc를 양보한다(`03_Agent/prompt/QuestionModal.css:4`, `QuestionModal.tsx:43,200`, `63911dda`). |
+| 50 | 낡음 | 멀티 질문 창과 패널 배지가 M10 G1 `95125a05`에서 화면째 지워졌다. |
+| 51 | 고침(M11 goal 2) | 전환 때 대기열을 비우고(`06_Sessions/state/sessions.ts:129,168`) `/clear`가 REPL 세션을 끝내며(`conversation.ts:100`) 후보 0개 팔레트의 Enter가 전송된다(`useComposerKeyHandler.ts:44`, `63911dda`). 패널 갈래는 M11 Backlog 10. |
+| 52 | 고침(M11 goal 2) | 실행 중인 대화를 지우면 그 run을 끊고(`sessions.ts:211-214`) 배경 복귀는 스냅숏의 `selectedModel`을 되살린다(`63911dda`, `d95d7051`). `preservePanelLocalFields`는 M11 Backlog 11. |
+| 53 | 일부 고침(M11 goal 2) | 죽은 `isRunning`·`active` 포트를 지웠다(`63911dda`). 응답 전 전환의 뒤늦은 `SET_RUN_ID` 등 남은 갈래는 M11 Backlog 12. |
+| 54 | 고침(M11 goal 2) | 채널 이름이 `sessions.*`·`workspace.*`다(`shared/06_Sessions/conversation.ts:6-8`, `63911dda`). |
+| 55 | 일부 고침(M11 goal 6) | `agentAbort`·`agentSetMode` mock이 지금 계약 `{ ok: true }`를 돌려주고, 지운 `windowGetBounds`·`windowSetBounds` mock 키를 지웠다(`fb9706f3`). 하네스의 `getUsage: null`은 더 없다. 남은 `{ accepted: true }`(`ipcContract.typemap.test.ts`)와 평면 키(`index.ipc-client.test.ts:349`)는 틀린 꼴을 일부러 넣는 시험이다. `USAGE_GET` 이름은 M11 Backlog 46, 콜드 import는 M11 Backlog 3이 갖는다. |
+| 56 | 고침(M11 goal 6) | 일부 묶음만 가진 가짜(`gap1-visual-shots.e2e.ts`)는 하네스째 지웠다(`a55db0e9`). `42cdd5f9`에서 셋을 고쳤다. ① 재구현 시험 셋은 `registerAgentHandlers`의 실제 핸들러를 부른다(`agentRuns.set-mode-handler`·`set-model-handler`·`task-stop-handler`). ② 직접 호출 정규식이 캐스트·대괄호·구조 분해를 잡는다(`renderer/01_Ipc/index.ipc-client.test.ts:46`). ③ 라우트 채널 중복을 `shared/01_Ipc/ipcContract.test.ts`가 잡는다. |
+| 57 | 해결됨 | `testTimeout`이 30000이다(`vitest.config.ts:20`). |
+| 58 | 해결됨 | 항목 본문대로 G11 2b(`7cb426cd`)에서 닫혔다. |
+| 59 | 해결됨 | 현황판 시험을 테스트 경로로 인정한다(`33_tdd-guard.cjs:225,233`, H4 2a `12b71046`). |
+| 60 | 고침(M11 goal 7, 가드 갈래) | 차단 문구가 시험 세 표면(`02_Project/01_TestCode/`, `.claude/hooks/*.test.mjs`, `99_Others/Dashboard/test/*.test.mjs`)과 `node --test`를 알려 준다(MS-04~06, `3aa38815`). 리셋이 표면을 가리지 않는 성질은 둔다 — 카운터의 뜻은 「시험을 손댔다·돌렸다」이고, 이제 하위 에이전트마다 갈린다. `app.js`의 탭 제목 배지는 G5 `m11-g5-dom.test.mjs`가 동작으로 보고, 알림음 기억 200개는 M11 Backlog 63. |
+| 61 | 고침(M11 goal 5) | 「내 손」의 병합 대기 줄이 병합 카드가 GitHub에서 읽은 같은 PR을 따른다 — 병합·닫힘이면 빠지고 「goal 문서 갱신만 남았어요」, `hard-gates` 실패면 빨강(`99_Others/Dashboard/public/chime.js:283`, `public/app.js:147`, `03d25f64`·`20329d6f`·`8e4116c0`). 시험 `[M11-G5 61]` 둘. |
+| 62 | 고침(M11 goal 5) | goal 문서의 마지막 커밋 뒤에 브랜치 커밋이 있는데 `[>]`가 그대로면 사실 줄 하나를 보인다(`99_Others/Dashboard/lib/collector.mjs:131`, `03d25f64`). 실기동에서 G5 문서에 「커밋이 2개 더」가 떴다. |
+| 63 | 고침(M11 goal 5) | 선택 설정 `inboxHandle`이 있을 때만 `orca orchestration inbox --full --json`(읽기 전용)을 30초마다 읽어 워커 완료·에스컬레이션·질문 최근 5개를 보인다(`99_Others/Dashboard/lib/inbox.mjs`, `server.mjs:92`, `03d25f64`). 칸이 없거나 orca가 없으면 절이 없다. |
+| 64 | 고침(M11 goal 5) | 「원문 N개를 읽지 못했어요」는 빨강 네모 깨짐 줄이고 `.mini-stop`·`.mini-todo`를 지웠다(`99_Others/Dashboard/public/app.js:186`, `styles.css:239`, `20329d6f`). 「알림음 없음」은 jsdom 화면 시험 `[M11-G5 64]`이 본다. |
+| 65 | 고침(M11 goal 2) | semver 비교 한 벌이 pre-release를 읽고 설치 목록 정렬도 그것을 쓴다(`main/10_Engine/engineCheckUpdate.ts:4`, `engineVersions.ts:84`, `63911dda`). |
+| 66 | 고침(M11 goal 6) | 세 가지를 고쳤다(`42cdd5f9`). ① set-mode 시험은 실제 핸들러를 부른다. ② 제목은 `SDK_VERSION_FALLBACK`이다(`ClaudeCodeBackend.dynamic-load.test.ts:153`). ③ 표 정의 검사는 picker↔SDK 리터럴 쌍을 본다(`permissionModes.test.ts:105`). 재실측 4절은 G11 당시의 기록이라 두었다. 이동 맵의 `sdkVersion` 거처는 사용자 확인 사항이라 M11 Backlog 47로 넘긴다. |
+| 67 | 닫음(판단) | G1 결정 대장 [USER·위임] — lint 안전망으로 충분해 규범 줄을 두지 않는다. |
+| 68 | 고침(M11 goal 5) | 링 캡션의 「N단계 중 k개 완료」를 지워 단계 영역 머리 한 곳만 남기고(링 `aria-label`은 유지), 「미래 시각」 대신 5분까지 늦은 화면 시계는 지금으로, 더 앞서면 「시계보다 앞서요」라고 쓴다(`99_Others/Dashboard/public/app.js:143`, `20329d6f`). 「동작 줄이기」는 Edge e2e(`reducedMotion: 'reduce'`)에서 도는 애니메이션 0개로 확인(`test/m11-g5-e2e.test.mjs:45`). |
+| 69 | 일부 고침(M11 goal 6) | 「settings 배선」 등 넷이 `assembled()`로 제 핸들러를 등록해 `-t` 단독으로도 통과한다(`main/00_App/context.assembly.test.ts:212`). 「표 정의는 한 곳」은 리터럴 쌍 검사로 바꿨다(`permissionModes.test.ts:105`, `42cdd5f9`). `mode: 'constructor'` 동작을 바꾸면 앱 동작이 바뀌므로 M11 Backlog 44로 넘긴다. |
+| 70 | 해결됨 | 현황판이 넣기 직전 Orca 목록으로 메인 터미널을 찾고(`99_Others/Dashboard/lib/deliver.mjs:64`, `a112b4f4`) 결정 보드 도구와 전달 판정 몫은 M11 Backlog로 옮겼다. |
+| 71 | 고침(M11 goal 5) | `test/m11-g5-dom.test.mjs`가 `app.js`를 jsdom에서 돌려 결정 카드·병합 카드·「내 손」 배선을 동작으로 보고, 덮인 소스 정규식 시험(`decide-view`·`merge-view`·`answer`·`chime` 일부)을 지웠다(`99_Others/Dashboard/test/m11-g5-dom.test.mjs:59`, `c98b20a1`). 고쳐 고름 표지 실측은 항목 줄대로 이미 닫혔다. |
+| 72 | 고침(M11 goal 5) | 병합 카드가 같은 PR을 열린 채로 보이면 「내 손」은 카드를 가리키는 한 줄만 둔다(셈·알림음은 그대로)(`99_Others/Dashboard/public/app.js:153`, `20329d6f`). 영역 바로 가기의 「결정 요청」은 항목 줄대로 링크가 대신한다. |
+| 73 | 낡음 | 운영 메모라 할 일이 없다. |
+| 74 | 고침(M11 goal 7, 판정 장치 갈래) | `gate.md`에서 지운 `agents/`·`reference-folder`·`phase18-audit-fix`를 빼고 기준선을 다시 쟀고(468파일·9117 시험·실패 0), `tsconfig.node.json`의 빈 글롭 `01_TestCode/agents/**`를 뺐다(`88394dac`). `e2e/`·`fixtures/` 이동은 분류표가 이 goal에 주지 않은 파일 이동이라 항목 줄대로 남는다. |
+| 75 | M12로 | G1 결정 대장 [USER·위임] — 스펙 지정대로 M12 전역 Taste 「문서 말투」가 맡는다. |
+| 76 | 해결됨 | 코드맵이 `99_Others/CodeMap/`에 편입돼 있다(H9). |
+| 77 | 고침(M11 goal 6) | `sdkVersion.ts`의 옛 시험 이름 주석은 이미 없다. 가드가 이름 가운데 ID도 잡고(`testLayout.guard.test.ts:27,80`), 실물은 `git mv`로 `sessionRegistry.sidebar-running.test.tsx`가 됐다(`42cdd5f9`). `integration/`·`hooks/`·`_lib/`를 보지 않는 것은 항목 줄대로 의도된 범위다. |
+| 78 | 고침(M11 goal 6) | 코드맵 입출력이 스크립트 위치 기준이다(`99_Others/CodeMap/build.mjs:8,36`, `extract.mjs`, `a55db0e9`). `C:\`에서 돌려 확인했다. 가드 리셋 경로의 근본 몫인 `testTimeout` 30000은 M05-57이 닫았다. 이때 본 코드맵 안내 앵커 경고 둘은 M11 Backlog 45로 넘긴다. |
+
 1. `main/03_lsp/manager.ts:519`의 `disposeAll()`을 프로덕션에서 아무도 부르지 않는다. 앱 종료(`before-quit`)는 실행과 store만 닫으므로 LSP 자식 프로세스가 남을 수 있다 (G1 감사, 판독 — 실행 확인 필요).
 2. `@keyframes rise`가 몸체가 다른 두 벌이다(`MultiWorkspace.css:698` +14px, `SettingsModal.css:171` -6px). 적용되는 쪽이 번들 순서에 달렸다 (G1 감사 실측, 화면 영향은 추측).
 3. 권한 모드 매핑이 시작 때(`runArgs.ts:10`, `auto→acceptEdits`)와 실행 중 전환 때(`claudeAgentRun.ts:31`, `auto→auto`) 다르다. M06의 권한 처리 goal이 의미를 정한다 (G1 감사 실측).

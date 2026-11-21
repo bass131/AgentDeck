@@ -1,10 +1,18 @@
-// 작업 ID: gap1-p09 · 옛 이름 gap1-p09-task-stop-handler.test.ts
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
+
+const h = vi.hoisted(() => ({ handlers: new Map<string, (...args: unknown[]) => unknown>() }))
+vi.mock('electron', () => ({
+  ipcMain: { handle: (ch: string, fn: (...a: unknown[]) => unknown): void => { h.handlers.set(ch, fn) } },
+}))
+vi.mock('@main/00_App/registry', () => ({ getBackend: (): unknown => ({}) }))
+
+import { registerAgentHandlers } from '@main/01_Ipc/handlers/agent'
+import { IPC_CHANNELS } from '@shared/ipcContract'
 import { createRunManager } from '@main/03_Agent/agentRuns'
 import type { RunManager } from '@main/03_Agent/agentRuns'
 import type { AgentBackend, AgentRun } from '@main/03_Agent/AgentBackend'
-import type { AgentEvent } from '../../../../02_Project/00_Source/shared/agentEvents'
-import type { BackendId } from '../../../../02_Project/00_Source/shared/ipcContract'
+import type { AgentEvent } from '@shared/agentEvents'
+import type { BackendId } from '@shared/ipcContract'
 
 type RunWithStopTask = AgentRun & { stopTask?: (taskId: string) => void }
 type ManagerWithTaskStop = RunManager & { taskStop?: (runId: string, taskId: string) => boolean }
@@ -111,14 +119,11 @@ interface TaskStopDelegate {
 }
 
 function handleTaskStop(req: TaskStopInput, manager: TaskStopDelegate): { ok: boolean } {
-  if (!req?.runId || typeof req.runId !== 'string' || req.runId.trim() === '') {
-    return { ok: false }
-  }
-  if (!req?.taskId || typeof req.taskId !== 'string' || req.taskId.trim() === '') {
-    return { ok: false }
-  }
-  const accepted = manager.taskStop?.(req.runId, req.taskId) === true
-  return { ok: accepted }
+  h.handlers.clear()
+  registerAgentHandlers({ state: { win: null }, runManager: manager as unknown as RunManager })
+  const handler = h.handlers.get(IPC_CHANNELS.AGENT_TASK_STOP)
+  if (!handler) throw new Error('AGENT_TASK_STOP 핸들러가 등록되지 않았다')
+  return handler({} as never, req) as { ok: boolean }
 }
 
 function makeRecordingDelegate(ret: boolean): {

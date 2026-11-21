@@ -1,4 +1,3 @@
-// M07 G2 노드 등록부 — G8 설계 `30_노드-구조.md`의 노드 모양과, 권한 콜백에서 옮긴 노드 여섯의 순서·실패 정책을 고정한다.
 import { describe, it, expect } from 'vitest'
 import {
   PERMISSION_NODES,
@@ -60,7 +59,7 @@ describe('노드 등록부 (M07 G2)', () => {
       expect(Object.isFrozen(n)).toBe(true)
       expect(Object.isFrozen(n.results)).toBe(true)
     }
-    // 목록 앞쪽이 권한 콜백 노드다. 뒤에 붙는 엔진 경로 노드는 enginePathLock.test.ts가 고정한다 (M07 G3).
+    // 목록 앞쪽이 권한 콜백 노드다. 뒤에 붙는 엔진 경로 노드는 enginePathLock.test.ts가 고정한다.
     const list = listControlNodes().slice(0, PERMISSION_NODES.length)
     expect(list.map((n) => n.id)).toEqual(PERMISSION_NODES.map((n) => n.id))
     for (const [i, n] of list.entries()) {
@@ -126,5 +125,12 @@ describe('노드 등록부 (M07 G2)', () => {
   it('기본 등록부로 일반 Bash 질의(normal)는 카드, auto는 허용이다', () => {
     expect(runPermissionNodes(ctx()).kind).toBe('card')
     expect(runPermissionNodes(ctx({ mode: 'auto' }))).toEqual({ kind: 'allow', nodeId: 'mode-auto-bypass-allow' })
+  })
+
+  // Bypass는 권한 콜백이 오지 않아(실측) 이름을 자동 모드로 좁혔다. id는 저장 열쇠라 둔다.
+  it('모드 허용 노드의 이름은 「자동 모드는 허용」이고 id는 그대로다', () => {
+    const node = PERMISSION_NODES.find((n) => n.id === 'mode-auto-bypass-allow')!
+    expect(node.name).toBe('자동 모드는 허용')
+    expect(node.decide(ctx({ mode: 'auto' }))).toEqual({ kind: 'allow' })
   })
 })

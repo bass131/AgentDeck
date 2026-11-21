@@ -12,7 +12,7 @@ import type {
 } from '../../../shared/ipcContract'
 import type { ConversationStore } from '@main/06_Sessions/store'
 
-export interface ConversationHandlerDeps {
+interface ConversationHandlerDeps {
   getStore: () => ConversationStore | null
 }
 
@@ -57,8 +57,8 @@ export function registerConversationHandlers(deps: ConversationHandlerDeps): voi
     const sessionId = typeof conv.sessionId === 'string' ? conv.sessionId : undefined
     const subagents = Array.isArray(conv.subagents) ? conv.subagents : undefined
     const replMode = typeof conv.replMode === 'boolean' ? conv.replMode : undefined
-    // 선택한 모델(정식 ID)도 넘긴다 — 빠지면 저장 때마다 지워졌다(M06 G4 실앱 확인에서 발견).
     const model = typeof conv.model === 'string' ? conv.model : undefined
+    const mode = typeof conv.mode === 'string' ? conv.mode : undefined
 
     const id = store.save({
       id: conv.id,
@@ -71,7 +71,8 @@ export function registerConversationHandlers(deps: ConversationHandlerDeps): voi
       lastUsage: conv.lastUsage,
       subagents,
       replMode,
-      model
+      model,
+      mode
     })
 
     return { id }

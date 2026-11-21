@@ -4,7 +4,7 @@ import {
   ENGINE_SEEN_KEY,
   decideEngineNotice,
 } from '@renderer/10_Engine/engineUpdateTrigger'
-import type { EngineUpdateInfo } from '../../../../02_Project/00_Source/shared/ipcContract'
+import type { EngineUpdateInfo } from '@shared/ipcContract'
 
 describe('ENGINE_SEEN_KEY', () => {
   it('engine.seenLatest 문자열', () => {

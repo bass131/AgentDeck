@@ -1,10 +1,10 @@
-// 작업 ID: f12 · 옛 이름 onboarding-f12.test.tsx
 // @vitest-environment jsdom
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, screen, fireEvent, cleanup } from '@testing-library/react'
 import { UpdateNotes } from '@renderer/10_Engine'
 import { WhatsNew, WN_SLIDES } from '@renderer/10_Engine/whats-new'
-import { UN_ITEMS } from '@renderer/10_Engine/updateNotesSampleData'
+import { UN_ITEMS } from '@renderer/10_Engine/updateNotesContent'
+import { isAnyModalOpen } from '@renderer/02_Common/modalStack'
 
 afterEach(() => cleanup())
 
@@ -91,6 +91,18 @@ describe('WhatsNew — open=true', () => {
     expect(onClose).toHaveBeenCalledOnce()
   })
 
+  it('[M11-G4 22] 새 소식 창은 열려 있는 동안 모달 층에 오르고, 화살표 넘기기는 그대로다', () => {
+    const { container } = renderWN()
+    expect(isAnyModalOpen()).toBe(true)
+    fireEvent.keyDown(window, { key: 'ArrowRight' })
+    expect(container.textContent).toContain(WN_SLIDES[1].title)
+  })
+
+  it('[M10 Backlog 2] 지운 멀티 에이전트 모드를 소개하지 않는다', () => {
+    const text = WN_SLIDES.map((s) => [s.chip, s.accent, s.title, s.titleMuted, s.desc].join(' ')).join('\n')
+    expect(text).not.toMatch(/멀티|패널|in parallel/)
+  })
+
   it('마지막 슬라이드 CTA = "시작하기" → onClose 호출', () => {
     const onClose = vi.fn()
     const { container } = renderWN(onClose)
@@ -171,6 +183,15 @@ describe('UpdateNotes — open=true', () => {
     expect(onClose).toHaveBeenCalledOnce()
   })
 
+  it('[M11-G4 22] 업데이트 노트는 열려 있는 동안만 모달 층에 오른다', () => {
+    expect(isAnyModalOpen()).toBe(false)
+    renderUN()
+    expect(isAnyModalOpen()).toBe(true)
+    cleanup()
+    render(<UpdateNotes open={false} onClose={vi.fn()} />)
+    expect(isAnyModalOpen()).toBe(false)
+  })
+
   it('un-marquee 존재 (키워드 마퀴)', () => {
     const { container } = renderUN()
     expect(container.querySelector('.un-marquee')).toBeTruthy()
@@ -180,5 +201,26 @@ describe('UpdateNotes — open=true', () => {
   it('un-foot 존재', () => {
     const { container } = renderUN()
     expect(container.querySelector('.un-foot')).toBeTruthy()
+  })
+})
+
+// 실제 콘텐츠의 거처는 견본(SampleData) 이름을 쓰지 않는다.
+// sidebarSampleData.ts는 시험 전용 견본 SAMPLE_SESSIONS가 섞여 있어 이 항목 밖이다.
+describe('콘텐츠 파일 이름 — *SampleData가 남지 않는다', () => {
+  it('renderer 소스에 *SampleData 파일은 sidebarSampleData.ts 하나뿐이다', async () => {
+    const { readdirSync } = await import('node:fs')
+    const { resolve } = await import('node:path')
+    const src = resolve(__dirname, '../../../00_Source/renderer/src')
+    const names = readdirSync(src, { recursive: true }).map((f) => String(f).replace(/\\/g, '/'))
+    expect(names.filter((f) => /SampleData\.tsx?$/.test(f))).toEqual(['12_Window/sidebarSampleData.ts'])
+  })
+
+  it('renderer 소스가 옛 이름(settings·updateNotes·whatsNew SampleData)을 주석에서도 부르지 않는다', async () => {
+    const { readdirSync, readFileSync } = await import('node:fs')
+    const { resolve, join } = await import('node:path')
+    const src = resolve(__dirname, '../../../00_Source/renderer/src')
+    const files = readdirSync(src, { recursive: true }).map(String).filter((f) => /\.(ts|tsx|css)$/.test(f))
+    const old = /\b(?:settingsSampleData|updateNotesSampleData|whatsNewSampleData)\b/
+    expect(files.filter((f) => old.test(readFileSync(join(src, f), 'utf8')))).toEqual([])
   })
 })

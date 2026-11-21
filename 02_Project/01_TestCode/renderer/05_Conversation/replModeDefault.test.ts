@@ -1,4 +1,3 @@
-// 작업 ID: lr4-p07 · 옛 이름 lr4-p07-repl-mode-default.test.ts
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import {
   getReplModeDefault,

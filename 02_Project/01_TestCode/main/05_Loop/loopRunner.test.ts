@@ -1,4 +1,4 @@
-// M09 G1 실행기 껍질 — 가짜 포트(fs·git·gh·명령·세션·검수)로 프로덕션 createLoopRunner를 돈다.
+// 가짜 포트(fs·git·gh·명령·세션·검수)로 프로덕션 createLoopRunner를 돈다.
 // 고정하는 것: 실제 템플릿으로 완주, 상태는 실행기가 저장본에서 읽어 소유한다(밖에서 상태를 넣는 길이 없다, 호출은 직렬),
 // 규칙 게이트 증거(검증 줄)를 실행기가 직접 쓴다, 에이전트가 쓴 「PASS」 글로는 나아가지 않는다, 재개는 같은 노드를 고른다,
 // action은 확인 뒤 실행이고 이미 있는 브랜치·PR은 이번 실행의 것일 때만 받는다, CI·병합은 push한 머리에 묶인다,
@@ -6,7 +6,9 @@
 import { describe, it, expect } from 'vitest'
 import { nextStep } from '@main/05_Loop/executor'
 import { createLoopRunner, type LoopRunner, type StepOutcome } from '@main/05_Loop/loopRunner'
+import type { WorkRequest } from '@main/05_Loop/ports'
 import type { RunState } from '@main/05_Loop/runState'
+import { buildNodePrompt } from '@main/05_Loop/workSession'
 import { DOCS, goalDocPath } from '@main/05_Loop/survivalDocs'
 import type { Template } from '@main/05_Loop/template'
 import { labelOf, loaded, makeRig, runLoop, variantText, type Rig } from '../00_Helpers/loopFakes'
@@ -116,8 +118,8 @@ describe('상태는 실행기가 소유한다', () => {
   })
 
   it('실행기 껍질에도 건너뛰기·강제 통과·상태 넣기 API가 없다', () => {
-    // idle은 직렬화 줄을 기다리기만 한다(닫기용, G2 검수 사소) — 상태를 넣거나 건너뛰지 않는다
-    // specView는 스펙 승인 카드가 보일 본문과 해시를 읽기만 한다(G4)
+    // idle은 직렬화 줄을 기다리기만 한다(닫기용) — 상태를 넣거나 건너뛰지 않는다
+    // specView는 스펙 승인 카드가 보일 본문과 해시를 읽기만 한다
     expect(Object.keys(setup().runner).sort()).toEqual(['idle', 'load', 'specView', 'start', 'step', 'submit'])
   })
 })
@@ -459,7 +461,7 @@ describe('재개는 같은 노드를 고르고, action은 확인 뒤 실행이�
     expect(count(ctx.rig.git.calls, 'merge ')).toBe(1)
     expect(ctx.rig.git.calls.at(-1)).toBe('push milestone/M1')
     expect(out.kind === 'advanced' && out.verdict?.evidence).toContain('push만')
-    // 받는 것은 부모가 (원격 머리, PR 머리)인 병합 커밋 하나뿐이다(G2 검수 중요 4 — 그 밖은 loopRunner.guards.test.ts)
+    // 받는 것은 부모가 (원격 머리, PR 머리)인 병합 커밋 하나뿐이다(그 밖은 loopRunner.guards.test.ts)
     expect(ctx.rig.git.remote.get('milestone/M1')?.at(-1)).toBe(merged)
   })
 
@@ -533,5 +535,40 @@ describe('템플릿 해시와 상태 스키마', () => {
     // 마일스톤 스펙과 결정 대장은 브레인스토밍 세션(가짜)이 쓴다 — 실행기가 쓰는 것은 상태와 검증 기록뿐이다
     expect(written.filter((k) => !k.startsWith('.agentdeck/goals/')).sort()).toEqual([DOCS.decisions, DOCS.milestoneSpec, DOCS.runState, DOCS.verification].sort())
     expect(ctx.rig.fs.files.get(DOCS.runState)).not.toContain('instruction')
+  })
+})
+
+describe('실행기 브랜치와 재시도 (M11 G3)', () => {
+  it('[M11-G3 M09-9] 마일스톤 브랜치 push는 이름이 아니라 확인한 머리 SHA로 보낸다', async () => {
+    const ctx = setup()
+    await until(ctx, 'milestone-branch')
+    const pushes: [string, string | undefined][] = []
+    const push = ctx.rig.git.push.bind(ctx.rig.git)
+    ctx.rig.git.push = async (branch, sha) => { pushes.push([branch, sha]); await push(branch, sha) }
+    expect((await ctx.runner.step()).kind).toBe('advanced')
+    expect(pushes).toEqual([['milestone/M1', await ctx.rig.git.headSha('milestone/M1')]])
+  })
+
+  it('[M11-G3 M09-8] 시작 SHA 없이 이미 있는 브랜치는 로컬 ref가 아니라 원격 머리로 계보를 본다 — 로컬 base를 옮긴 커밋은 push하지 않는다', async () => {
+    const ctx = setup()
+    await until(ctx, 'milestone-branch')
+    ctx.rig.git.local.set('master', ['m0', 'x1'])
+    ctx.rig.git.local.set('milestone/M1', ['m0', 'x1'])
+    const out = await ctx.runner.step()
+    expect(out.kind).not.toBe('advanced')
+    expect(ctx.rig.git.remote.get('milestone/M1') ?? []).not.toContain('x1')
+  })
+
+  it('[M11-G3 M09-12] 메인 노드가 FAIL한 뒤 같은 노드의 다음 요청은 직전 FAIL 사유를 싣는다', async () => {
+    const ctx = setup()
+    await ensureStarted(ctx)
+    ctx.rig.session.nextResult = { ok: false, summary: '질문 도구 없이 글로 묻고 끝났다' }
+    expect((await ctx.runner.step()).kind).toBe('failed')
+    let seen: WorkRequest | null = null
+    ctx.rig.session.onWork = async (req) => { seen = req }
+    await ctx.runner.step()
+    expect(ctx.rig.session.calls).toEqual(['brainstorm', 'brainstorm'])
+    expect(JSON.stringify(seen)).toContain('질문 도구 없이 글로 묻고 끝났다')
+    expect(buildNodePrompt(seen as unknown as WorkRequest)).toContain('질문 도구 없이 글로 묻고 끝났다')
   })
 })

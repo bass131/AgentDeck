@@ -1,4 +1,4 @@
-// M10 G6 — 두 번째 마일스톤 준비. 끝난 실행(status done, 다이제스트·스키마 정상)은 열 때 템플릿 해시가 달라도 막히지 않고,
+// 끝난 실행(status done, 다이제스트·스키마 정상)은 열 때 템플릿 해시가 달라도 막히지 않고,
 // 새 마일스톤을 시작하면 그 실행의 생존 문서를 `.agentdeck/archive/<옛 마일스톤>/`으로 옮긴 뒤 새 실행을 연다.
 // 끝나지 않은 실행·위조 상태·래치는 그대로 막힌다. 보관 중 실패하면 옮긴 것을 되돌리고 거부한다.
 import fs from 'node:fs'
@@ -72,7 +72,7 @@ describe('새 마일스톤을 시작하면 끝난 실행을 보관한다 (M10 G6
     const { rig } = await finished()
     const before = snapshot(rig)
     const oldDigest = rig.digest.digests.get(KEY)
-    // 앱이 G5 템플릿으로 바뀐 뒤의 시작이다
+    // 앱이 새 템플릿으로 바뀐 뒤의 시작이다
     const runner = runnerOf(rig, RETITLED)
     const r = await runner.start('M02')
     expect(r.kind).toBe('ok')

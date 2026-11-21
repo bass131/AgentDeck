@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeAll } from 'vitest'
-import { IPC_CHANNELS, ZOOM_FACTOR_RANGE } from '../../../../02_Project/00_Source/shared/ipcContract'
+import { IPC_CHANNELS, ZOOM_FACTOR_RANGE } from '@shared/ipcContract'
 
 const h = vi.hoisted(() => {
   const exposed: { api?: Record<string, unknown> } = {}
@@ -30,7 +30,7 @@ vi.mock('electron', () => ({
 }))
 
 beforeAll(async () => {
-  await import('../../../../02_Project/00_Source/preload/index')
+  await import('@preload/index')
 })
 
 describe('ZOOM_FACTOR_RANGE 범위상수 (shared, 신규 IPC 채널 0)', () => {
@@ -98,7 +98,7 @@ describe('preload getZoomFactor 화이트리스트 노출', () => {
     expect(api).not.toHaveProperty('zoomIn')
     expect(api).not.toHaveProperty('zoomOut')
     expect(api).not.toHaveProperty('resetZoom')
-    // M05 G10: zoom은 window 묶음에 붙었다 — 최상위와 다른 묶음에도 원시 객체가 없는지 함께 본다
+    // 최상위와 다른 묶음에도 원시 객체가 없는지 함께 본다
     const top = h.exposed.api as Record<string, Record<string, unknown>>
     expect(top).not.toHaveProperty('webFrame')
     for (const group of Object.values(top)) expect(group).not.toHaveProperty('webFrame')

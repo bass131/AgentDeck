@@ -15,7 +15,7 @@ import { mergeSlashCommands } from '@main/11_Settings/mergeSlashCommands'
 import { getBackend } from '@main/00_App/registry'
 import { validateWorkspaceRoot } from '@main/07_Workspace/workspace'
 
-export interface SettingsHandlerDeps {
+interface SettingsHandlerDeps {
   getCurrentWorkspaceRoot: () => string | null
   getSkillsStore: () => SkillsStore | null
   getMcpStore: () => McpStore | null

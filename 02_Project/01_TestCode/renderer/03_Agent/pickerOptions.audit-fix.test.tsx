@@ -1,4 +1,3 @@
-// 작업 ID: phase18 · 옛 이름 phase18-audit-fix.test.tsx
 // @vitest-environment jsdom
 import { describe, it, expect, afterEach, beforeAll, vi } from 'vitest'
 import { render, cleanup, act } from '@testing-library/react'
@@ -6,31 +5,20 @@ import { adaptFlatApi } from '../00_Helpers/windowApiMock'
 
 afterEach(() => cleanup())
 
-// M10 G1 — 멀티 화면을 지웠다. 패널 카드(PanelView)는 남겼으므로 패널 쪽 사례는 패널 하네스로 그린다.
 beforeAll(async () => {
   await import('@renderer/00_App/appStore')
-  await import('../00_Helpers/panelHarness')
 })
-
-async function renderPanelCards(): Promise<HTMLElement> {
-  const { useAppStore } = await import('@renderer/00_App/appStore')
-  useAppStore.setState({ workspaceMode: 'single' })
-  const { PanelHarness } = await import('../00_Helpers/panelHarness')
-  return render(<PanelHarness />).container
-}
 
 const mockApi = {
   conversationLoad: vi.fn().mockResolvedValue({ conversations: [] }),
   conversationSave: vi.fn().mockResolvedValue({ id: 'cv-1' }),
   agentRun: vi.fn().mockResolvedValue({ runId: 'r1' }),
-  agentAbort: vi.fn().mockResolvedValue({ accepted: true }),
+  agentAbort: vi.fn().mockResolvedValue({ ok: true }),
   onAgentEvent: vi.fn().mockReturnValue(() => {}),
   windowMinimize: vi.fn(),
   windowMaximizeToggle: vi.fn().mockResolvedValue({ maximized: false }),
   windowClose: vi.fn(),
   windowIsMaximized: vi.fn().mockResolvedValue({ maximized: false }),
-  windowGetBounds: vi.fn().mockResolvedValue({ x: 0, y: 0, width: 1200, height: 800 }),
-  windowSetBounds: vi.fn(),
   windowDragStart: vi.fn(),
   windowDragEnd: vi.fn(),
   windowResizeStart: vi.fn(),
@@ -47,7 +35,7 @@ describe('pickerOptions — 공유 옵션 모듈 (N1~N5)', () => {
     expect(mod.MODES).toBeDefined()
   })
 
-  // M06 G4: 모델 옵션은 손 표가 아니라 목록(최소 목록 또는 SDK 목록)에서 그린다.
+  // 모델 옵션은 손 표가 아니라 목록(최소 목록 또는 SDK 목록)에서 그린다.
   it('최소 목록 옵션은 정식 ID(짧은 별칭 아님)다', async () => {
     const { modelOptionsFor } = await import('@renderer/03_Agent/pickerOptions')
     const { FALLBACK_MODELS } = await import('@shared/03_Agent/models/knownModels')
@@ -72,21 +60,6 @@ describe('pickerOptions — 공유 옵션 모듈 (N1~N5)', () => {
     const ids = EFFORTS.map((e) => e.id)
     expect(ids).toEqual(['max', 'xhigh', 'high', 'medium', 'low'])
     expect(ids as string[]).not.toContain('minimal')
-  })
-
-  it('멀티 패널 기본값도 같은 기본 모델이고, 옛 손 표 재수출(MODEL_OPTIONS)이 없다 (M06 G4)', async () => {
-    const mod = await import('@renderer/03_Agent/multiAgentDefaults')
-    const { DEFAULT_MODEL_ID } = await import('@shared/03_Agent/models/knownModels')
-    expect(mod.DEFAULT_PICKER.model).toBe(DEFAULT_MODEL_ID)
-    expect('MODEL_OPTIONS' in mod).toBe(false)
-  })
-
-  it('멀티 모드 잔여물(COLS·COUNT_OPTIONS·SAMPLE_*·선택지 재수출)이 없고, 패널 보기가 쓰는 것만 남는다 (M10 G4)', async () => {
-    const mod = await import('@renderer/03_Agent/multiAgentDefaults')
-    for (const gone of ['COLS', 'COUNT_OPTIONS', 'SAMPLE_PANELS', 'SAMPLE_BATCH_TO', 'EFFORT_OPTIONS', 'MODE_OPTIONS']) {
-      expect(gone in mod, gone).toBe(false)
-    }
-    expect(Object.keys(mod).sort()).toEqual(['DEFAULT_PICKER', 'STATUS_META'])
   })
 
   it('EFFORTS max.label="최대", xhigh.label="매우 높음" (N3 수정)', async () => {
@@ -126,23 +99,7 @@ describe('pickerOptions — 공유 옵션 모듈 (N1~N5)', () => {
     const mod = await import('@renderer/03_Agent/pickerOptions')
     expect(mod.DEFAULT_MODEL).toBe('claude-opus-5-5')
     expect(mod.DEFAULT_EFFORT).toBe('max')
-    // G9c: 단일·멀티 이름을 대화·패널 이름으로 바꿨고 값(P4)은 그대로다.
     expect(mod.DEFAULT_MODE_CONVERSATION).toBe('auto')
-    expect(mod.DEFAULT_MODE_PANEL).toBe('bypass')
-  })
-})
-
-describe('패널 카드 — RunPickers caption "Effort" (N2)', () => {
-  it('RunPickers에 "Effort" 텍스트(.pick-lbl)가 있다', async () => {
-    const container = await renderPanelCards()
-    const lbls = Array.from(container.querySelectorAll('.pick-lbl')).map((el) => el.textContent)
-    expect(lbls).toContain('Effort')
-  })
-
-  it('"노력" 텍스트는 없다 (이전 caption 제거됨)', async () => {
-    const container = await renderPanelCards()
-    const lbls = Array.from(container.querySelectorAll('.pick-lbl')).map((el) => el.textContent)
-    expect(lbls).not.toContain('노력')
   })
 })
 
@@ -238,43 +195,6 @@ describe('Composer — 모드 Bypass warn 렌더 (N5)', () => {
   })
 })
 
-describe('패널 카드 — 컨텍스트 1M 표시 (N6)', () => {
-  it('ma-ctx-detail에 "1M 토큰" 텍스트가 있다', async () => {
-    const container = await renderPanelCards()
-    const details = Array.from(container.querySelectorAll('.ma-ctx-detail')).map((el) => el.textContent)
-    expect(details.some((d) => d?.includes('1M'))).toBe(true)
-  })
-
-  it('"200,000 토큰" 텍스트가 없다 (이전 값 제거됨)', async () => {
-    const container = await renderPanelCards()
-    const details = Array.from(container.querySelectorAll('.ma-ctx-detail')).map((el) => el.textContent)
-    expect(details.some((d) => d?.includes('200,000'))).toBe(false)
-  })
-})
-
-describe('패널 카드 — 기본 picker 값 (N6)', () => {
-  it('패널 기본 model → "Opus 5.5" 표시', async () => {
-    const container = await renderPanelCards()
-    const panel = container.querySelector('.ma-panel') as HTMLElement
-    const vals = Array.from(panel.querySelectorAll('.pick-val')).map((el) => el.textContent)
-    expect(vals).toContain('Opus 5.5')
-  })
-
-  it('패널 기본 effort → "최대" 표시', async () => {
-    const container = await renderPanelCards()
-    const panel = container.querySelector('.ma-panel') as HTMLElement
-    const vals = Array.from(panel.querySelectorAll('.pick-val')).map((el) => el.textContent)
-    expect(vals).toContain('최대')
-  })
-
-  it('패널 기본 mode=bypass → "Bypass" 표시', async () => {
-    const container = await renderPanelCards()
-    const panel = container.querySelector('.ma-panel') as HTMLElement
-    const vals = Array.from(panel.querySelectorAll('.pick-val')).map((el) => el.textContent)
-    expect(vals).toContain('Bypass')
-  })
-})
-
 describe('Conversation — 인사말 닉네임 (N1)', () => {
   async function setStore(patch: Record<string, unknown>) {
     const { useAppStore } = await import('@renderer/00_App/appStore')
@@ -349,18 +269,5 @@ describe('icons.tsx — IconClipList / IconCheckCirc export (N7)', () => {
   it('IconShieldChk가 이미 존재한다 (회귀)', async () => {
     const icons = await import('@renderer/02_Common/icons')
     expect(icons.IconShieldChk).toBeDefined()
-  })
-})
-
-describe('multiAgentSampleData — DEFAULT_PICKER', () => {
-  it('DEFAULT_PICKER가 pickerOptions 기본값에서 파생된다', async () => {
-    const { DEFAULT_PICKER } = await import('@renderer/03_Agent/multiAgentDefaults')
-    const { DEFAULT_MODEL, DEFAULT_EFFORT, DEFAULT_MODE_PANEL } = await import(
-      '@renderer/03_Agent/pickerOptions'
-    )
-    expect(DEFAULT_PICKER.model).toBe(DEFAULT_MODEL)
-    expect(DEFAULT_PICKER.effort).toBe(DEFAULT_EFFORT)
-    expect(DEFAULT_PICKER.mode).toBe(DEFAULT_MODE_PANEL)
-    expect(DEFAULT_PICKER.mode).toBe('bypass')
   })
 })

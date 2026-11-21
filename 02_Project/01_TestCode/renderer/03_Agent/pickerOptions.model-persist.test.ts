@@ -1,10 +1,10 @@
-// 작업 ID: gap1-p02 · 옛 이름 gap1-p02-model-persist.test.ts
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { makeInitialState } from '@renderer/05_Conversation/state/reducer'
 import { buildConversationSavePayload } from '@renderer/06_Sessions/state/conversationPayload'
 import type { ConversationPayloadSource } from '@renderer/06_Sessions/state/conversationPayload'
 import type { ThreadItem } from '@renderer/05_Conversation/state/threadTypes'
 import { DEFAULT_MODEL } from '@renderer/03_Agent/pickerOptions'
+import { FALLBACK_MODELS } from '@shared/03_Agent/models/knownModels'
 import { __resetBackgroundRunsForTests } from '@renderer/03_Agent/state/backgroundRuns'
 import { adaptFlatApi } from '../00_Helpers/windowApiMock'
 
@@ -37,7 +37,7 @@ const mockApi = {
   }),
   conversationSave: vi.fn(async () => ({ id: 'conv-A' })),
   agentRun: vi.fn(async (req: { [k: string]: unknown }) => ({ runId: (req.sessionKey as string) ?? 'r1' })),
-  agentAbort: async () => ({ accepted: true }),
+  agentAbort: async () => ({ ok: true }),
   onAgentEvent: () => () => {},
   listFiles: async () => ({ files: [] }),
   getUsage: async () => ({ fiveHour: null, weekly: null }),
@@ -73,6 +73,7 @@ function resetStore(
     currentRunId: null,
     isRunning: false,
     selectedModel,
+    modelRows: [...FALLBACK_MODELS],
   } as Parameters<typeof useAppStore.setState>[0])
   __resetBackgroundRunsForTests()
 }
@@ -94,6 +95,16 @@ describe('GAP1 P02 시나리오 1: 대화별 selectedModel 독립 복원(selectC
     await useAppStore.getState().selectConversation('conv-B')
     expect(useAppStore.getState().selectedModel).toBe(DEFAULT_MODEL)
   })
+
+  // 손으로 적은 DEFAULT_MODEL이 아니라 SDK 목록이 기본값을 정한다
+  it('대화 B(model 미설정) 선택 → 지금 목록 default 행의 정식 ID (M06 Backlog 17)', async () => {
+    resetStore(useAppStore, 'sonnet')
+    useAppStore.setState({
+      modelRows: [{ value: 'default', resolvedModel: 'claude-fable-5-2', displayName: 'Default', description: '', supportedEffortLevels: [] }],
+    } as never)
+    await useAppStore.getState().selectConversation('conv-B')
+    expect(useAppStore.getState().selectedModel).toBe('claude-fable-5-2')
+  })
 })
 
 describe('GAP1 P02 시나리오 2: conversationSave payload에 model 포함', () => {
@@ -112,6 +123,13 @@ describe('GAP1 P02 시나리오 2: conversationSave payload에 model 포함', ()
     const payload = buildConversationSavePayload(sourceWith(undefined), 'conv-x')
     expect(payload).not.toBeNull()
     expect('model' in (payload as object)).toBe(false)
+    expect('mode' in (payload as object)).toBe(false)
+  })
+
+  // 권한 모드도 같은 길로 저장 payload에 실린다.
+  it('source.mode → payload.mode', () => {
+    const payload = buildConversationSavePayload({ ...sourceWith('haiku'), mode: 'plan' }, 'conv-x')
+    expect(payload).toMatchObject({ mode: 'plan', model: 'haiku' })
   })
 })
 
@@ -127,6 +145,13 @@ describe('GAP1 P02 시나리오 3: loadConversation model 복원(폴백 포함)'
     expect(useAppStore.getState().selectedModel).toBe('sonnet')
   })
 
+  it('저장된 권한 모드가 있는 최근 대화 로드 → pickerMode도 그 값(M06 Backlog 1)', async () => {
+    mockApi.conversationLoad.mockImplementationOnce(async () => ({ conversations: [{ ...recordA, mode: 'plan' }] }))
+    resetStore(useAppStore, DEFAULT_MODEL)
+    await useAppStore.getState().loadConversation()
+    expect(useAppStore.getState().pickerMode).toBe('plan')
+  })
+
   it('conv.model 없는 레코드 로드 → DEFAULT_MODEL 폴백(크래시 0)', async () => {
     mockApi.conversationLoad.mockImplementationOnce(async () => ({ conversations: [recordB] }))
     resetStore(useAppStore, 'sonnet')
@@ -134,7 +159,18 @@ describe('GAP1 P02 시나리오 3: loadConversation model 복원(폴백 포함)'
     expect(useAppStore.getState().selectedModel).toBe(DEFAULT_MODEL)
   })
 
-  // M06 G4: 옛 ID로 저장된 대화는 그 ID 그대로 열리고 이어서 보낼 때도 그 ID로 간다(정식 ID로 몰래 바꾸지 않는다).
+  // 모델 없는 옛 레코드의 기본값도 지금 목록의 default 행을 따른다.
+  it('conv.model 없는 레코드 로드 → 지금 목록 default 행의 정식 ID', async () => {
+    mockApi.conversationLoad.mockImplementationOnce(async () => ({ conversations: [recordB] }))
+    resetStore(useAppStore, 'sonnet')
+    useAppStore.setState({
+      modelRows: [{ value: 'default', resolvedModel: 'claude-fable-5-2', displayName: 'Default', description: '', supportedEffortLevels: [] }],
+    } as never)
+    await useAppStore.getState().loadConversation()
+    expect(useAppStore.getState().selectedModel).toBe('claude-fable-5-2')
+  })
+
+  // 옛 ID로 저장된 대화는 그 ID 그대로 열리고 이어서 보낼 때도 그 ID로 간다(정식 ID로 몰래 바꾸지 않는다).
   it('옛 ID(claude-haiku-4-5) 대화 로드 → selectedModel이 그대로이고 다음 실행 요청에 그 값이 실린다', async () => {
     const oldRecord = { ...recordA, id: 'conv-old', model: 'claude-haiku-4-5' }
     mockApi.conversationLoad.mockImplementationOnce(async () => ({ conversations: [oldRecord] }))

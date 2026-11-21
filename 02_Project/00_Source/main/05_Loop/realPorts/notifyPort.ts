@@ -1,4 +1,4 @@
-// M10 G5 — 실물 알림 포트. Electron Notification으로 Windows 알림을 띄운다.
+// Electron Notification으로 Windows 알림을 띄운다.
 // 누르거나 닫을 때까지 객체를 쥐고 있다 — 놓으면 가비지 수집으로 누름 사건이 오지 않을 수 있다.
 import { Notification } from 'electron'
 import type { NotifyPort } from '../ports'

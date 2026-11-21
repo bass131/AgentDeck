@@ -1,11 +1,10 @@
-// M09 G4 루프 화면의 카드들 — 예외 한 줄, 질문·권한 카드, 스펙 승인 카드, 래치 풀기 카드, goal 목록.
 // 카드는 IPC를 부르지 않는다. 사람의 답을 콜백으로 올리고, 부르기와 응답 처리는 LoopScreen 한 곳이 한다.
 // 스펙 승인 카드는 받은 해시를 보이기만 한다 — 해시를 계산하거나 바꾸지 않는다.
 import { useState, type JSX } from 'react'
 import type { LoopApproval, LoopCard, LoopGoalView, LoopLatch, LoopStatus } from '@shared/ipcContract'
 import { EVIDENCE_MAX, GOAL_STATUS_LABEL, GRADE_LABEL, exceptionLine, sha12 } from './loopModel'
 
-// blocked(진행 불가)는 사람이 원인을 고친 뒤 다시 열어야 풀리는 꼴이라(자동 모드 허용 노드 같은 것) 「다시 열기」를 둔다(G4 검수 사소 7)
+// blocked(진행 불가)는 사람이 원인을 고친 뒤 다시 열어야 풀리는 꼴이라(자동 모드 허용 노드 같은 것) 「다시 열기」를 둔다
 export function ExceptionBar({ status, busy, onResume, onReopen, error }: {
   status: LoopStatus
   busy: boolean
@@ -75,7 +74,7 @@ export function CardList({ cards, answered, busy, onAsk, onPermission, error }: 
             )}
             <div className="loop-actions">
               {c.kind === 'question' ? (
-                // 질문 창 열기는 IPC를 부르지 않는다 — 다른 호출이 도는 동안에도 연다(고른 답은 LoopScreen이 대기열에 둔다, G4 검수 사소 8)
+                // 질문 창 열기는 IPC를 부르지 않는다 — 다른 호출이 도는 동안에도 연다(고른 답은 LoopScreen이 대기열에 둔다)
                 <button type="button" className="loop-btn pri" disabled={done} onClick={() => onAsk(c)}>답하기</button>
               ) : (
                 <>
@@ -93,7 +92,7 @@ export function CardList({ cards, answered, busy, onAsk, onPermission, error }: 
   )
 }
 
-// M10 G3 — 승인 카드는 메인 대화 안에 뜬다(「스펙 승인 / 이어서 고치기」). 글자만 바꿀 수 있고 판정의 꼴(해시 묶기·사유 필수)은 그대로다
+// 글자만 바꿀 수 있고 판정의 꼴(해시 묶기·사유 필수)은 그대로다
 export function ApprovalCard({ approval, busy, onApprove, onReject, error, approveLabel = '승인', rejectLabel = '반려', reasonLabel = '반려 사유', reasonPlaceholder = '반려 사유를 적어요' }: {
   approval: LoopApproval
   busy: boolean
@@ -106,7 +105,7 @@ export function ApprovalCard({ approval, busy, onApprove, onReject, error, appro
   reasonPlaceholder?: string
 }): JSX.Element {
   const [reason, setReason] = useState('')
-  // 승인은 본 해시에 묶인다 — 해시가 없으면 끈다. 반려는 스펙 파일이 없을 때도 켠다(해시 없는 반려로 브레인스토밍에 돌아간다, G4 검수 I3)
+  // 승인은 본 해시에 묶인다 — 해시가 없으면 끈다. 반려는 스펙 파일이 없을 때도 켠다(해시 없는 반려로 브레인스토밍에 돌아간다)
   const bound = approval.spec !== null && approval.sha256 !== null
   return (
     <section className="loop-sec loop-approval" aria-label="스펙 승인">

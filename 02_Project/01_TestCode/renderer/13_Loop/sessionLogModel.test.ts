@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import type { AgentEvent } from '../../../../02_Project/00_Source/shared/agentEvents'
-import type { LoopSessionEventPayload, LoopSessionLog, LoopSessionTag } from '../../../../02_Project/00_Source/shared/ipcContract'
-import { MAX_SESSION_EVENTS } from '../../../../02_Project/00_Source/shared/13_Loop/sessionMerge'
+import type { AgentEvent } from '@shared/agentEvents'
+import type { LoopSessionEventPayload, LoopSessionLog, LoopSessionTag } from '@shared/ipcContract'
+import { MAX_SESSION_EVENTS } from '@shared/13_Loop/sessionMerge'
 import { applyPush, foldSession, fromSnapshot, mainPanelOf, panelKeyOf, rowLabel } from '@renderer/13_Loop/sessionLogModel'
 
 const CWD = 'C:\\work\\practice'
@@ -33,7 +33,7 @@ describe('스냅숏과 push 맞물리기 (M10 G4)', () => {
     expect([...s.keys()]).toEqual(['b.1'])
   })
 
-  // G4 검수 1 — 글자 조각마다 사건이 하나씩 쌓이면 기록이 끝없이 길어진다. main과 같이 잇고 같은 상한으로 자른다
+  // 글자 조각마다 사건이 하나씩 쌓이면 기록이 끝없이 길어진다. main과 같이 잇고 같은 상한으로 자른다
   it('스냅숏 끝의 이어 붙인 글에 같은 messageId 조각이 오면 한 사건으로 합친다 — next는 조각마다 오른다', () => {
     const snap: LoopSessionLog = {
       cwd: CWD,
@@ -127,5 +127,18 @@ describe('메인 대화의 할 일·서브에이전트와 줄 이름 (M10 G4)', 
   it('줄 이름은 goal·노드·종류다', () => {
     expect(rowLabel({ kind: 'work', node: 'implement', goal: 'G2' })).toBe('G2 implement · 작업')
     expect(rowLabel({ kind: 'review', node: 'review', goal: null })).toBe('review · 검수')
+  })
+})
+
+describe('메인 턴 접기 (M11 G4)', () => {
+  it('[M11-G4 M10-22] 도는 턴만 실행 중·사고 표시를 싣고, 턴의 오류 글은 싣지 않는다(대화 기록의 알림이 보인다)', async () => {
+    const { foldMainTurn } = await import('@renderer/13_Loop/sessionLogModel')
+    const events: AgentEvent[] = [{ type: 'thinking', text: '따져 본다' }, tool('t1'), { type: 'error', message: '연결 끊김' }]
+    const live = foldMainTurn(events.slice(0, 2), true)
+    expect(live.isRunning).toBe(true)
+    expect(live.thinkingText).toBe('따져 본다')
+    const ended = foldMainTurn(events, false)
+    expect([ended.isRunning, ended.thinkingText, ended.errorMessage]).toEqual([false, null, undefined])
+    expect(ended.thread.some((t) => t.kind === 'toolgroup')).toBe(true)
   })
 })

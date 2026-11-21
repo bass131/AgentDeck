@@ -1,4 +1,3 @@
-// 작업 ID: gap1-p09 · 옛 이름 gap1-p09-bg-task.golden.test.ts
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
@@ -7,7 +6,7 @@ import { ClaudeCodeBackend } from '@main/04_Claude/ClaudeCodeBackend'
 import type { QueryFn } from '@main/04_Claude/ClaudeCodeBackend'
 import { EchoBackend } from '@main/03_Agent/testing/EchoBackend'
 import type { AgentRun } from '@main/03_Agent/AgentBackend'
-import type { AgentEvent } from '../../../../02_Project/00_Source/shared/agentEvents'
+import type { AgentEvent } from '@shared/agentEvents'
 
 type BgTaskEv = Extract<AgentEvent, { type: 'bg_task' }>
 type ToolCallEv = Extract<AgentEvent, { type: 'tool_call' }>

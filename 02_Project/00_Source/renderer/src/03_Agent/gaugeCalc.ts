@@ -1,5 +1,5 @@
-import { DEFAULT_CONTEXT_WINDOW } from '../../../shared/ipcContract'
-import type { TokenUsage } from '../../../shared/agentEvents'
+import { DEFAULT_CONTEXT_WINDOW } from '@shared/ipcContract'
+import type { TokenUsage } from '@shared/agentEvents'
 
 export interface GaugeResult {
   used: number
@@ -7,7 +7,7 @@ export interface GaugeResult {
   pct: number
 }
 
-// 창은 턴 결과가 준 contextWindow(main이 주 모델 항목에서 고른 값)를 쓰고, 첫 턴 전에는 기본값 하나다 (M06 G4).
+// 창은 턴 결과가 준 contextWindow(main이 주 모델 항목에서 고른 값)를 쓰고, 첫 턴 전에는 기본값 하나다.
 export function calcGauge(usage: TokenUsage | undefined, contextWindow?: number): GaugeResult {
   const used = usage
     ? usage.inputTokens +

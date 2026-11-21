@@ -2,7 +2,7 @@ import type { AgentEvent } from '@shared/agentEvents'
 
 export const IDLE_CLOSE_GRACE_MS = 3000
 
-export interface IdleCloseGovernorDeps {
+interface IdleCloseGovernorDeps {
   emit: (ev: AgentEvent) => void
   isRunActive: () => boolean
   externalGatesOpen: () => boolean

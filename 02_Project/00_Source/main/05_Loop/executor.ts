@@ -1,4 +1,4 @@
-// M09 G1 — 실행기 상태 기계. 템플릿 + 상태 + 판정 → 다음 상태와 다음 할 일. 순수 함수다(시각은 인자로 받는다).
+// 실행기 상태 기계. 템플릿 + 상태 + 판정 → 다음 상태와 다음 할 일. 순수 함수다(시각은 인자로 받는다).
 // 커서를 움직이는 길은 applyVerdict 하나다. 판정 하나의 꼴(Verdict)은 규칙·모델·사람 게이트와 작업·동작 노드의 완료에 공통이다.
 // 건너뛰기·강제 통과·커서 설정·계수 리셋 API는 없다. 멈춘 실행을 다시 돌리는 것도 같은 꼴의 사람 판정(pass)이며,
 // 그 판정은 USER-INPUT 줄을 쓰고 커서는 그대로 둔다 — 멈춘 노드를 다시 돌 뿐 통과시키지 않는다.
@@ -15,12 +15,12 @@ import {
 // 헌법 7조의 수. 템플릿이 바꾸지 못하게 코드에 둔다(정본은 runState — 상태 검사도 같은 수를 본다).
 export { FAIL_LIMIT }
 
-export type VerdictJudge = Judge | 'executor'
-export type VerdictKind = 'pass' | 'fail' | 'stop'
-// docSha256: 실행기가 읽은 goal 문서 본문의 sha256(G4 검수 I7). 실행기가 readGoalSeeds로 만든다.
+type VerdictJudge = Judge | 'executor'
+type VerdictKind = 'pass' | 'fail' | 'stop'
+// docSha256: 실행기가 읽은 goal 문서 본문의 sha256. 실행기가 readGoalSeeds로 만든다.
 export interface GoalSeed { id: string; title: string; docSha256?: string }
 // 판정이 실어 오는 사실. 노드 종이 읽는 칸만 쓰이고 나머지는 버린다(분해 노드가 적은 등급 같은 것).
-// M09 G4 검수 I7 — specSha256: 스펙 승인 pass가 묶인 스펙의 sha256. 실행기가 대조한 값만 싣는다(바깥 판정의 facts는 실행기가 버린다).
+// specSha256:스펙 승인 pass가 묶인 스펙의 sha256. 실행기가 대조한 값만 싣는다(바깥 판정의 facts는 실행기가 버린다).
 export interface VerdictFacts {
   specSha256?: string
   grade?: Grade
@@ -32,7 +32,7 @@ export interface VerdictFacts {
   pushedSha?: string
   ciSha?: string
   mergedSha?: string
-  // M09 G4 — 모델 게이트가 pass를 낸 작업 트리 해시(실행기가 검수 입력을 만든 임시 인덱스의 write-tree)
+  // 모델 게이트가 pass를 낸 작업 트리 해시(실행기가 검수 입력을 만든 임시 인덱스의 write-tree)
   reviewedTree?: string
 }
 export interface Verdict {
@@ -50,7 +50,7 @@ export type NextStep =
   | { kind: 'needs-user'; reason: string }
   | { kind: 'done' }
 
-export type ApplyResult = { ok: true; state: RunState; next: NextStep } | { ok: false; reason: string }
+type ApplyResult = { ok: true; state: RunState; next: NextStep } | { ok: false; reason: string }
 
 export interface CommandRun { cmd: string; code: number; stdout: string; stderr: string }
 export interface CiStatus { state: 'pending' | 'success' | 'failure'; headSha: string; summary: string }
@@ -169,7 +169,7 @@ function applyFacts(node: StepNode, s: RunState, goal: GoalState | null, facts: 
         return `goal 꼴이 틀렸다 — ${JSON.stringify(id)}`
       }
       ids.add(id)
-      // G4 검수 I7 — 실행기가 읽은 goal 문서 해시. 검수 직전과 goal PR 직전에 대조한다(없으면 대조하지 않는다 — 옛 꼴)
+      // 실행기가 읽은 goal 문서 해시. 검수 직전과 goal PR 직전에 대조한다(없으면 대조하지 않는다 — 옛 꼴)
       const doc = (g as GoalSeed | null)?.docSha256
       goals.push({
         id, title: oneSentence(title), grade: null, status: 'pending',
@@ -180,7 +180,7 @@ function applyFacts(node: StepNode, s: RunState, goal: GoalState | null, facts: 
     s.goals = goals
     return null
   }
-  // G4 검수 I7 — 스펙 승인 pass는 실행기가 대조한 스펙 해시를 상태 사실로 남긴다. 뒤 노드에서 스펙이 바뀌면 실행기가 멈춘다.
+  // 스펙 승인 pass는 실행기가 대조한 스펙 해시를 상태 사실로 남긴다. 뒤 노드에서 스펙이 바뀌면 실행기가 멈춘다.
   if (node.kind === 'gate' && node.judge === 'human' && !node.watch) {
     if (isSha256(facts?.specSha256)) s.specSha256 = facts.specSha256
     return null
@@ -196,7 +196,7 @@ function applyFacts(node: StepNode, s: RunState, goal: GoalState | null, facts: 
     goal.ciSha = sha
     return null
   }
-  // M09 G4 — 검수 pass는 검수한 트리에 묶인다. goal PR 동작이 커밋·push 직전에 이 해시와 지금 트리를 대조한다.
+  // 검수 pass는 검수한 트리에 묶인다. goal PR 동작이 커밋·push 직전에 이 해시와 지금 트리를 대조한다.
   if (node.kind === 'gate' && node.judge === 'model' && goal) {
     const tree = facts?.reviewedTree
     if (!isNonEmptyString(tree)) return '검수 통과에는 검수한 트리 해시가 있어야 한다'
@@ -275,7 +275,7 @@ export function applyVerdict(template: Template, state: RunState, verdict: Verdi
     moveForward(template, s)
     settle(template, s)
   } else if (verdict.verdict === 'fail') {
-    // 검수 불통과는 앞의 검수 트리를 지운다 — 옛 pass의 해시로 다음 goal 커밋을 통과시키지 않는다(G4)
+    // 검수 불통과는 앞의 검수 트리를 지운다 — 옛 pass의 해시로 다음 goal 커밋을 통과시키지 않는다
     if (here.node.kind === 'gate' && here.node.judge === 'model' && goal) goal.reviewedTree = null
     const human = verdict.judge === 'human'
     line(human ? 'USER-INPUT' : 'FAIL', human ? `사람이 반려했다 — ${verdict.evidence}` : verdict.evidence)

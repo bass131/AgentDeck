@@ -1,8 +1,8 @@
 import type { ThreadItem } from '@renderer/05_Conversation/state/threadTypes'
-import type { TokenUsage, PersistedSubAgent, ConversationSaveRequest } from '../../../../shared/ipcContract'
-import type { SubAgentInfo } from '../../../../shared/agentEvents'
+import type { TokenUsage, PersistedSubAgent, ConversationSaveRequest } from '@shared/ipcContract'
+import type { SubAgentInfo } from '@shared/agentEvents'
 
-export type ConversationSavePayload = ConversationSaveRequest['conversation']
+type ConversationSavePayload = ConversationSaveRequest['conversation']
 
 export interface ConversationPayloadSource {
   thread: ThreadItem[]
@@ -13,6 +13,7 @@ export interface ConversationPayloadSource {
   subagents?: SubAgentInfo[]
   replMode?: boolean
   model?: string
+  mode?: string
 }
 
 function computeSubagentAnchors(
@@ -93,5 +94,6 @@ export function buildConversationSavePayload(
     ...(subagentAnchors.length > 0 ? { subagents: subagentAnchors } : {}),
     ...(source.replMode !== undefined ? { replMode: source.replMode } : {}),
     ...(source.model !== undefined ? { model: source.model } : {}),
+    ...(source.mode !== undefined ? { mode: source.mode } : {}),
   }
 }

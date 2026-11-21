@@ -1,12 +1,11 @@
-// 작업 ID: g9b · 옛 이름 g9b-queue-core.test.tsx
 // @vitest-environment jsdom
-// M05 G9b — 대기열(C1·C2·E9)을 공용 실행 상태로 옮긴다. 단일 store와 패널 상태가 같은 reducer로
-// 넣고 빼며, 중단(CLEAR_LOOPS)은 두 쪽 모두에서 대기열을 비운다(E9, 단일 규칙).
+// 대기열은 공용 실행 상태에 있다. 단일 store가 runReducer로 넣고 빼며, 중단(CLEAR_LOOPS)이 대기열을 비운다.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { renderHook, act, cleanup } from '@testing-library/react'
 import type { AgentEventPayload } from '@shared/ipcContract'
 import type { QueuedMessage } from '@renderer/00_App/state/types'
-import type { PickerState } from '@renderer/03_Agent/multiAgentDefaults'
+import type { RunCoreState } from '@renderer/03_Agent/state/runReducer'
+import { makeInitialState } from '@renderer/05_Conversation/state/reducer'
 import { adaptFlatApi } from '../00_Helpers/windowApiMock'
 
 type Listener = (payload: AgentEventPayload) => void
@@ -27,12 +26,11 @@ const mockApi = {
 Object.defineProperty(window, 'api', { value: adaptFlatApi(mockApi), writable: true, configurable: true })
 
 const item = (id: string, text = id) => ({ id, text, images: [] })
+const runState = (): RunCoreState => ({ ...makeInitialState(), replMode: false, queue: [] })
 
-beforeEach(async () => {
+beforeEach(() => {
   vi.clearAllMocks()
   listeners.length = 0
-  const { __resetPanelSessionManagerForTests } = await import('@renderer/03_Agent/state/panelSession')
-  __resetPanelSessionManagerForTests()
 })
 
 afterEach(() => cleanup())
@@ -40,11 +38,7 @@ afterEach(() => cleanup())
 describe('runReducer — 대기열 액션', () => {
   it('ENQUEUE는 뒤에 붙이고, DEQUEUE는 앞에서 하나 빼고, REMOVE_QUEUED는 id로 지운다', async () => {
     const { runReducer } = await import('@renderer/03_Agent/state/runReducer')
-    const { makePanelInitialState } = await import('@renderer/03_Agent/state/panelSession')
-    let s = makePanelInitialState()
-    expect(s.queue).toEqual([])
-    // 복원 스냅숏으로 만든 패널 상태도 빈 대기열로 시작한다.
-    expect(makePanelInitialState({ messages: [{ id: 'm', role: 'user', text: 'x' }], seq: 1 }).queue).toEqual([])
+    let s = runState()
     s = runReducer(s, { type: 'ENQUEUE', item: item('a') })
     s = runReducer(s, { type: 'ENQUEUE', item: item('b') })
     s = runReducer(s, { type: 'ENQUEUE', item: item('c') })
@@ -57,9 +51,8 @@ describe('runReducer — 대기열 액션', () => {
 
   it('E9: CLEAR_LOOPS(중단)는 대기열을 비운다', async () => {
     const { runReducer } = await import('@renderer/03_Agent/state/runReducer')
-    const { makePanelInitialState } = await import('@renderer/03_Agent/state/panelSession')
     const s = runReducer(
-      runReducer(makePanelInitialState(), { type: 'ENQUEUE', item: item('a') }),
+      runReducer(runState(), { type: 'ENQUEUE', item: item('a') }),
       { type: 'CLEAR_LOOPS' },
     )
     expect(s.queue).toEqual([])
@@ -151,116 +144,5 @@ describe('useQueuedSend — 예약·드레인 공용 훅(C1)', () => {
     act(() => result.current('지금', []))
     expect(sendNow).toHaveBeenCalledWith('지금', [], undefined)
     expect(enqueue).not.toHaveBeenCalled()
-  })
-})
-
-describe('패널 — usePanelSlot이 대기열을 노출한다', () => {
-  it('enqueue·dequeue·removeQueued가 패널 상태 대기열을 다룬다', async () => {
-    const { usePanelSlot } = await import('@renderer/03_Agent/state/panelSession')
-    const { result } = renderHook(() => usePanelSlot('sess-q', 0))
-    act(() => {
-      result.current.enqueue(item('a'))
-      result.current.enqueue(item('b'))
-      result.current.enqueue(item('c'))
-    })
-    expect(result.current.state.queue.map((q) => q.id)).toEqual(['a', 'b', 'c'])
-    let first: { id: string } | undefined
-    act(() => {
-      first = result.current.dequeue()
-    })
-    expect(first?.id).toBe('a')
-    act(() => result.current.removeQueued('c'))
-    expect(result.current.state.queue.map((q) => q.id)).toEqual(['b'])
-  })
-
-  it('패널마다 대기열이 따로다(슬롯 키 격리)', async () => {
-    const { usePanelSlot } = await import('@renderer/03_Agent/state/panelSession')
-    const a = renderHook(() => usePanelSlot('sess-iso', 0))
-    const b = renderHook(() => usePanelSlot('sess-iso', 1))
-    act(() => a.result.current.enqueue(item('only-a')))
-    expect(a.result.current.state.queue.length).toBe(1)
-    expect(b.result.current.state.queue.length).toBe(0)
-    let none: unknown = 'x'
-    act(() => { none = b.result.current.dequeue() })
-    expect(none).toBeUndefined()
-  })
-
-  // G9b 검수 중요 3 — 단일 sendNow는 예약분의 모델을 선택기에 되돌린다(Conversation.tsx). 패널 드레인도 같게.
-  it('C7: 드레인된 예약분은 예약 시점 모델로 실행되고, 패널 선택기(와 컨텍스트 링 기준 모델)도 그 모델로 되돌아간다', async () => {
-    Object.assign(mockApi, {
-      listSlashCommands: vi.fn().mockResolvedValue([]),
-      listSkills: vi.fn().mockResolvedValue([]),
-      agentSetModel: vi.fn(async () => ({})),
-    })
-    const { render, fireEvent } = await import('@testing-library/react')
-    const { useState } = await import('react')
-    const { usePanelSlot } = await import('@renderer/03_Agent/state/panelSession')
-    const { PanelView } = await import('@renderer/05_Conversation/PanelView')
-    const { modelOptionsFor } = await import('@renderer/03_Agent/pickerOptions')
-    const { FALLBACK_MODELS } = await import('@shared/03_Agent/models/knownModels')
-    const MODELS = modelOptionsFor(FALLBACK_MODELS)
-    const { DEFAULT_PICKER } = await import('@renderer/03_Agent/multiAgentDefaults')
-    const [A, B] = [MODELS[0], MODELS[1]]
-    const setPickerSpy = vi.fn()
-    let setOutside: (m: string) => void = () => {}
-    function Live() {
-      const session = usePanelSlot('sess-c7', 0)
-      const [picker, setPicker] = useState<PickerState>({ ...DEFAULT_PICKER, model: A.id })
-      setOutside = (m) => setPicker((p) => ({ ...p, model: m }))
-      return (
-        <PanelView
-          slot={0}
-          panel={{ title: 'p', status: 'idle', cwd: 'C:/w', ctxPct: 0 }}
-          session={session}
-          workspaceRoot="C:/w"
-          onExpand={() => {}}
-          onPrompt={() => {}}
-          onPickFolder={() => {}}
-          picker={picker}
-          setPicker={(p) => { setPickerSpy(p); setPicker(p) }}
-        />
-      )
-    }
-    const { container } = render(<Live />)
-    const ta = container.querySelector('textarea') as HTMLTextAreaElement
-    const typeAndEnter = async (text: string) => {
-      await act(async () => { fireEvent.change(ta, { target: { value: text } }) })
-      await act(async () => { fireEvent.keyDown(ta, { key: 'Enter' }) })
-      await act(async () => { await new Promise((r) => setTimeout(r, 0)) })
-    }
-    await typeAndEnter('첫 작업')
-    await typeAndEnter('예약 작업')
-    expect(mockApi.agentRun).toHaveBeenCalledTimes(1)
-
-    // 예약 뒤 선택기를 B로 바꾼다 — 예약분은 예약 시점의 A로 가야 한다.
-    act(() => setOutside(B.id))
-    const modelVal = () => container.querySelector('[aria-label="모델 선택"] .pick-val')?.textContent
-    expect(modelVal()).toBe(B.label)
-
-    await act(async () => {
-      for (const l of [...listeners]) l({ runId: 'run-q', event: { type: 'done' } } as never)
-    })
-    await act(async () => { await Promise.resolve() })
-    expect(mockApi.agentRun).toHaveBeenCalledTimes(2)
-    const req = (mockApi.agentRun.mock.calls[1] as unknown as [{ model?: string; messages: { content: string }[] }])[0]
-    expect(req.model).toBe(A.id)
-    expect(req.messages.at(-1)?.content).toBe('예약 작업')
-    expect(modelVal()).toBe(A.label)
-    expect((setPickerSpy.mock.calls.at(-1) as unknown as [{ model: string }])[0].model).toBe(A.id)
-  })
-
-  it('E9: 패널 중단은 패널 대기열을 비운다', async () => {
-    const { usePanelSlot } = await import('@renderer/03_Agent/state/panelSession')
-    const { result } = renderHook(() => usePanelSlot('sess-q9', 0))
-    await act(async () => {
-      await result.current.send('작업')
-    })
-    expect(result.current.state.isRunning).toBe(true)
-    act(() => result.current.enqueue(item('next')))
-    await act(async () => {
-      await result.current.abort()
-    })
-    expect(result.current.state.queue).toEqual([])
-    expect(mockApi.agentAbort).toHaveBeenCalledWith({ runId: 'run-q' })
   })
 })

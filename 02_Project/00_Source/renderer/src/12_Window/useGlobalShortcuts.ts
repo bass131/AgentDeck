@@ -1,18 +1,39 @@
 import { useEffect } from 'react'
+import type { LoopInfo } from '@shared/agentEvents'
+import { isAnyModalOpen } from '@renderer/02_Common/modalStack'
+import { decideStopAction } from '@renderer/03_Agent/stopAction'
+import type { GoalPendingLike } from '@renderer/03_Agent/loopStatus'
 import type { WorkspaceMode } from './windowMode'
 
-export const MODAL_SELECTORS =
-  '.modal-overlay, .q-overlay, .perm-card, .ask-overlay, .pf-overlay, .iv-overlay, .gitm-overlay,' +
-  ' .fv-overlay, .set-dialog-overlay, .sa-overlay, .pr-overlay,' +
-  ' .ask-mini, .q-mini-pill, .sel-bar'
+// 모달 판정은 열린 모달의 층이다. 옛 import 자리를 위해 다시 내보낸다
+export { isAnyModalOpen, pushModalLayer } from '@renderer/02_Common/modalStack'
 
-export function isAnyModalOpen(): boolean {
-  return document.querySelector(MODAL_SELECTORS) !== null
+export interface EscapeContext {
+  isRunning: boolean
+  workspaceMode: WorkspaceMode
+  getState: () => {
+    replMode: boolean
+    activeLoops: LoopInfo[]
+    pendingCommand?: GoalPendingLike | null
+    interruptRun: () => Promise<void>
+    abortRun: () => Promise<void>
+  }
 }
 
-export interface GlobalShortcutOptions {
+// Shell의 Esc — 모달이 열려 있거나(그 키를 처음 본 때의 층) 작업 모드면 채팅 실행을 끊지 않는다. 실행 상태는 한 번 읽은 스냅숏에서 고른다
+export function shellEscape(e: KeyboardEvent | undefined, c: EscapeContext): void {
+  if (isAnyModalOpen(e)) return
+  if (c.workspaceMode !== 'single') return
+  if (!c.isRunning) return
+  const state = c.getState()
+  const action = decideStopAction(state.replMode, state.activeLoops, state.pendingCommand)
+  if (action === 'interrupt') void state.interruptRun()
+  else void state.abortRun()
+}
+
+interface GlobalShortcutOptions {
   toggleSidebar?: () => void
-  onEscape?: () => void
+  onEscape?: (e: KeyboardEvent) => void
   onNewChat?: () => void
   onOpenFolder?: () => void
   onSearch?: () => void
@@ -20,8 +41,8 @@ export interface GlobalShortcutOptions {
   onModeSwitch?: () => void
 }
 
-// 전역 Shift+Tab의 모드 순환 대상(P5, 사용자 결정) — 단일 선택기는 「채팅」 모드의 화면에만 있다.
-// 「작업」 모드(M10 G1)에서는 화면에 없는 단일 선택기를 돌리지 않는다.
+// 전역 Shift+Tab의 모드 순환 대상 — 단일 선택기는 「채팅」 모드의 화면에만 있다.
+// 「작업」 모드에서는 화면에 없는 단일 선택기를 돌리지 않는다.
 export function globalModeSwitchFor(
   workspaceMode: WorkspaceMode,
   cycleSingle: () => void,
@@ -41,7 +62,7 @@ export function useGlobalShortcuts(opts: GlobalShortcutOptions): void {
       const isCtrl = e.ctrlKey || e.metaKey
 
       if (e.key === 'Escape') {
-        opts.onEscape?.()
+        opts.onEscape?.(e)
         return
       }
 
@@ -79,8 +100,8 @@ export function useGlobalShortcuts(opts: GlobalShortcutOptions): void {
       }
 
       if (e.key === 'Tab' && e.shiftKey) {
-        // 바꿀 모드가 없는 화면(작업 모드)에서는 브라우저 기본 동작(역방향 포커스 이동)을 살린다(M10 G1 검수 사소 5)
-        if (isAnyModalOpen() || !opts.onModeSwitch) return
+        // 바꿀 모드가 없는 화면(작업 모드)에서는 브라우저 기본 동작(역방향 포커스 이동)을 살린다
+        if (isAnyModalOpen(e) || !opts.onModeSwitch) return
         e.preventDefault()
         opts.onModeSwitch()
         return

@@ -20,7 +20,7 @@ import { SDK_MODEL_ROWS } from '../../shared/00_Helpers/sdkModelRows'
 
 Object.defineProperty(window, 'api', { value: adaptFlatApi({}), writable: true, configurable: true })
 
-// M06 G4: effort 단계는 SDK 목록의 supportedEffortLevels에서 온다 — 실측 행을 store에 깐다.
+// effort 단계는 SDK 목록의 supportedEffortLevels에서 온다 — 실측 행을 store에 깐다.
 beforeEach(() => {
   useAppStore.setState({ modelRows: SDK_MODEL_ROWS } as never)
 })
@@ -74,7 +74,7 @@ describe('effortPickerFor — 일부 레벨만 받는 모델(합성)', () => {
     expect(effortPickerFor(PARTIAL, 'low', SYNTH_ROWS).displayValue).toBe('low')
   })
 
-  // main과 같은 규칙 — 옛 「최소」는 low로 보인다(G4 검수 1-2).
+  // main과 같은 규칙 — 옛 「최소」는 low로 보인다.
   it("옛 저장값 'minimal'은 low로 보인다", () => {
     expect(effortPickerFor(PARTIAL, 'minimal', SYNTH_ROWS).displayValue).toBe('low')
     expect(effortPickerFor(PARTIAL, 'turbo', SYNTH_ROWS).displayValue).toBe('high')
@@ -88,16 +88,22 @@ describe('effortPickerFor — 일부 레벨만 받는 모델(합성)', () => {
   })
 })
 
+// main은 목록에 없는 모델에 effort를 싣지 않으므로 메뉴도 끈다.
 describe('effortPickerFor — 목록에 없는 모델', () => {
-  it('목록에 없는 모델은 방어적으로 활성 취급한다', () => {
+  it('목록에 없는 모델은 effort 메뉴를 끈다 — main도 effort를 보내지 않는다', () => {
     const state = effortPickerFor('claude-nova-9', 'xhigh', SDK_MODEL_ROWS)
-    expect(state.disabled).toBe(false)
+    expect(state.disabled).toBe(true)
     expect(state.options).toHaveLength(EFFORTS.length)
     expect(state.displayValue).toBe('xhigh')
   })
+
+  it('최소 목록만 있을 때 저장된 claude-opus-5도 끈다', () => {
+    expect(effortPickerFor('claude-opus-5', 'max', FALLBACK_MODELS).disabled).toBe(true)
+    expect(effortPickerFor('opus', 'max', FALLBACK_MODELS).disabled).toBe(false)
+  })
 })
 
-// M05 G9b: 패널 선택기 사본(RunPickers)이 지워지고 패널도 PickerGroup을 쓴다.
+// 선택기는 PickerGroup 하나다.
 function pickerGroupProps(over: Record<string, unknown> = {}): Record<string, unknown> {
   return {
     model: OPUS5,

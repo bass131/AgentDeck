@@ -1,4 +1,4 @@
-// M10 G2 — 브레인스토밍(role main)이 메인 대화의 여러 턴이 될 때의 실행기 경계. 가짜 포트로 프로덕션 createLoopRunner를 돈다.
+// 브레인스토밍(role main)이 메인 대화의 여러 턴이 될 때의 실행기 경계. 가짜 포트로 프로덕션 createLoopRunner를 돈다.
 // 고정하는 것:
 //   - 세션 포트가 「아직 대화 중」(waiting)을 돌려주면 판정도 줄도 없이 기다린다 — 몇 번을 돌아도 FAIL이 쌓이지 않고 상태 파일이 그대로다.
 //     waiting은 메인 노드에만 받는다(작업자 노드가 돌려주면 FAIL).
@@ -80,7 +80,7 @@ describe('메인 노드의 여러 턴 — 기다림은 판정이 아니다 (M10 
     await ctx.runner.step()
     await ctx.runner.step()
     const [a, b] = ctx.reqs
-    expect(a.visit).toEqual({ key: 'M1#0', rejected: null })
+    expect(a.visit).toEqual({ key: 'M1#0', rejected: null, failed: null })
     expect(b.visit).toEqual(a.visit)
     // 두 번째 step은 가짜 세션의 기본(스펙을 쓴다)으로 통과한다
     const view = await ctx.runner.specView()

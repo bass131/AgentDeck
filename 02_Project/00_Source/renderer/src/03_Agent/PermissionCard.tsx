@@ -1,19 +1,23 @@
 import { useEffect, useRef, useState, type JSX } from 'react'
 import { IconShieldChk, IconChevDown } from '@renderer/02_Common/icons'
+import { isBlockingModalOpen, useModalLayer } from '@renderer/02_Common/modalStack'
 import type { PendingPermission } from '@renderer/05_Conversation/state/reducer'
 import { mcpToolLabel } from './toolKind'
 import { MarkdownView } from '@renderer/05_Conversation'
 import './PermissionCard.css'
 
-export type PermissionChoice = 'allow' | 'allow_always' | 'deny'
+type PermissionChoice = 'allow' | 'allow_always' | 'deny'
+
+// 숫자 키의 뜻은 카드 종류와 관계없이 같다 — 2는 언제나 거부(계획 카드는 계속 계획)다.
+const CHOICE_KEY: Record<PermissionChoice, number> = { allow: 1, deny: 2, allow_always: 3 }
 
 const PERM_CHOICES: { key: PermissionChoice; label: string; desc: string; color: string }[] = [
   { key: 'allow',        label: '허용',       desc: '이번 한 번만 실행을 허용해요',            color: 'var(--green)'  },
-  { key: 'allow_always', label: '항상 허용',  desc: '이번 세션 동안 이 도구를 자동 허용해요', color: 'var(--accent)' },
   { key: 'deny',         label: '거부',       desc: '이 작업을 실행하지 않아요',              color: 'var(--red)'    },
+  { key: 'allow_always', label: '항상 허용',  desc: '이번 세션 동안 이 도구를 자동 허용해요', color: 'var(--accent)' },
 ]
 
-// M06 G3 — 모드와 관계없이 사람에게 올린 호출에는 「항상 허용」이 없다. 도구 단위 세션 규칙이 Bash 전체를 열어 가드 질문까지 덮기 때문이다.
+// 사람에게 올린 호출에는 「항상 허용」이 없다 — 도구 단위 세션 규칙이 Bash 전체를 열어 가드 질문까지 덮기 때문이다.
 const GUARD_CHOICES = PERM_CHOICES.filter((c) => c.key !== 'allow_always')
 
 const PLAN_CHOICES: { key: PermissionChoice; label: string; desc: string; color: string }[] = [
@@ -29,6 +33,7 @@ const LONG_COMMAND_LINES = 4
 const REASON_LABEL = '확인이 필요한 이유'
 const REASON_FALLBACK = '도구가 사유를 보내지 않았어요. 아래 명령 전문을 보고 판단하세요.'
 const ALLOW_LOCKED_HINT = '명령 전문을 펼친 뒤 허용할 수 있어요'
+const ALLOW_TAIL_HINT = '명령 끝까지 스크롤한 뒤 허용할 수 있어요'
 
 function isLongCommand(summary: string): boolean {
   return summary.length > LONG_COMMAND_CHARS || summary.split('\n').length > LONG_COMMAND_LINES
@@ -54,28 +59,50 @@ function isInputFocused(): boolean {
   return !!ae && (ae.tagName === 'TEXTAREA' || ae.tagName === 'INPUT' || ae.isContentEditable)
 }
 
-export interface PermissionCardProps {
+const NEXT_REQUEST_KEY_DELAY_MS = 300
+
+function scrolledToEnd(el: HTMLElement): boolean {
+  return el.scrollHeight - el.scrollTop - el.clientHeight <= 2
+}
+
+interface PermissionCardProps {
   pending: PendingPermission | null
   onRespond: (choice: PermissionChoice) => void
 }
 
 export function PermissionCard({ pending, onRespond }: PermissionCardProps): JSX.Element | null {
   const rootRef = useRef<HTMLDivElement>(null)
+  const cmdRef = useRef<HTMLDivElement>(null)
 
   const onRespondRef = useRef(onRespond)
   onRespondRef.current = onRespond
 
   const [planOpen, setPlanOpen] = useState(false)
   const [cmdOpen, setCmdOpen] = useState(false)
+  const [tailSeen, setTailSeen] = useState(false)
+  const requestId = pending?.requestId ?? null
+  // 곁 층 — 떠 있는 동안 Esc가 채팅 실행을 끊지 않지만, 다른 모달의 Esc는 가로채지 않는다
+  useModalLayer(pending !== null, undefined, 'aside')
+  const lastRequestIdRef = useRef<string | null>(null)
+  const armedAtRef = useRef(0)
   useEffect(() => {
     setPlanOpen(false)
     setCmdOpen(false)
-  }, [pending])
+    setTailSeen(false)
+    // 줄 선 다음 요청으로 바뀐 직후의 키는 앞 요청에 누른 키일 수 있다
+    if (requestId !== null && lastRequestIdRef.current !== null) armedAtRef.current = Date.now() + NEXT_REQUEST_KEY_DELAY_MS
+    lastRequestIdRef.current = requestId
+  }, [requestId])
+
+  useEffect(() => {
+    if (cmdOpen && cmdRef.current && scrolledToEnd(cmdRef.current)) setTailSeen(true)
+  }, [cmdOpen])
 
   const escalated = pending != null && isEscalated(pending)
   const cmdLong = escalated && pending != null && isLongCommand(pending.summary)
-  // 접힌 긴 명령은 꼬리가 보이지 않는다 — 펼치기 전에는 허용(버튼·숫자 키)을 막는다. 거부와 Esc는 언제나 열려 있다.
-  const allowLocked = cmdLong && !cmdOpen
+  // 긴 명령은 꼬리를 보기 전에는 허용을 막는다. 거부와 Esc는 언제나 열려 있다.
+  const allowLocked = cmdLong && (!cmdOpen || !tailSeen)
+  const lockHint = cmdOpen ? ALLOW_TAIL_HINT : ALLOW_LOCKED_HINT
   const allowLockedRef = useRef(allowLocked)
   allowLockedRef.current = allowLocked
 
@@ -89,16 +116,17 @@ export function PermissionCard({ pending, onRespond }: PermissionCardProps): JSX
     const choices = choicesFor(pending)
 
     function onKey(e: KeyboardEvent): void {
+      if (e.repeat || Date.now() < armedAtRef.current) return
       if (e.key === 'Escape') {
-        onRespondRef.current('deny')
+        if (!isBlockingModalOpen(e)) onRespondRef.current('deny')
         return
       }
       const n = parseInt(e.key, 10)
-      if (Number.isInteger(n) && n >= 1 && n <= choices.length) {
+      const choice = choices.find((c) => CHOICE_KEY[c.key] === n)
+      if (choice) {
         e.preventDefault()
-        const key = choices[n - 1].key
-        if (key === 'allow' && allowLockedRef.current) return
-        onRespondRef.current(key)
+        if (choice.key === 'allow' && allowLockedRef.current) return
+        onRespondRef.current(choice.key)
       }
     }
     el.addEventListener('keydown', onKey)
@@ -112,6 +140,7 @@ export function PermissionCard({ pending, onRespond }: PermissionCardProps): JSX
   const hasPlanBody = planText.length > 0
   const choices = choicesFor(pending)
   const reasonText = typeof pending.askReason === 'string' && pending.askReason.length > 0 ? pending.askReason : undefined
+  const behind = pending.behind?.length ?? 0
 
   return (
     <div
@@ -171,8 +200,12 @@ export function PermissionCard({ pending, onRespond }: PermissionCardProps): JSX
             <span className={`perm-card-reason-text${reasonText ? '' : ' empty'}`}>{reasonText ?? REASON_FALLBACK}</span>
           </div>
           <div
+            ref={cmdRef}
             className={`perm-card-sum perm-card-sum-full${cmdLong && !cmdOpen ? ' collapsed' : ''}`}
             data-cmd-full
+            onScroll={(e) => {
+              if (cmdOpen && scrolledToEnd(e.currentTarget)) setTailSeen(true)
+            }}
           >
             {pending.summary}
           </div>
@@ -197,7 +230,7 @@ export function PermissionCard({ pending, onRespond }: PermissionCardProps): JSX
       )}
 
       <div className={`perm-card-opts${choices.length === 2 ? ' perm-card-opts-2' : ''}`}>
-        {choices.map((c, i) => {
+        {choices.map((c) => {
           const locked = c.key === 'allow' && allowLocked
           return (
             <button
@@ -205,8 +238,8 @@ export function PermissionCard({ pending, onRespond }: PermissionCardProps): JSX
               type="button"
               className="perm-card-opt"
               data-perm-choice={c.key}
-              title={locked ? ALLOW_LOCKED_HINT : c.desc}
-              aria-label={`${c.label} — ${locked ? ALLOW_LOCKED_HINT : c.desc}`}
+              title={locked ? lockHint : c.desc}
+              aria-label={`${c.label} — ${locked ? lockHint : c.desc}`}
               disabled={locked}
               onClick={() => {
                 if (locked) return
@@ -214,7 +247,7 @@ export function PermissionCard({ pending, onRespond }: PermissionCardProps): JSX
               }}
             >
               <span className="q-num" style={{ background: c.color, color: 'var(--on-accent)' }}>
-                {i + 1}
+                {CHOICE_KEY[c.key]}
               </span>
               <span className="perm-card-opt-text">
                 <span className="perm-card-opt-label">{c.label}</span>
@@ -225,7 +258,12 @@ export function PermissionCard({ pending, onRespond }: PermissionCardProps): JSX
         })}
         {allowLocked && (
           <span className="perm-card-lock-hint" data-allow-locked>
-            {ALLOW_LOCKED_HINT}
+            {lockHint}
+          </span>
+        )}
+        {behind > 0 && (
+          <span className="perm-card-hint" data-perm-behind>
+            뒤에 {behind}건 대기
           </span>
         )}
         <span className="perm-card-hint">{isPlanMode ? '숫자 키 · Esc 계속 계획' : '숫자 키 · Esc 거부'}</span>

@@ -8,7 +8,7 @@ import {
   cleanup,
 } from '@testing-library/react'
 import { useAppStore } from '@renderer/00_App/appStore'
-import type { ConversationRecord } from '../../../../02_Project/00_Source/shared/ipcContract'
+import type { ConversationRecord } from '@shared/ipcContract'
 import { adaptFlatApi } from '../00_Helpers/windowApiMock'
 
 const SAMPLE_AS_RECORDS: ConversationRecord[] = [
@@ -54,8 +54,6 @@ const mockApi = {
   windowMaximizeToggle: vi.fn(),
   windowClose: vi.fn(),
   windowIsMaximized: vi.fn().mockResolvedValue({ maximized: false }),
-  windowGetBounds: vi.fn().mockResolvedValue({ x: 0, y: 0, width: 1200, height: 800 }),
-  windowSetBounds: vi.fn(),
   windowDragStart: vi.fn(),
   windowDragEnd: vi.fn(),
   windowResizeStart: vi.fn(),
@@ -81,7 +79,7 @@ async function renderSidebar(
   return container
 }
 
-// M10 G1 — 모드는 「채팅」(single)과 「작업」(work) 둘이다. 멀티 에이전트 모드는 지웠다.
+// 모드는 「채팅」(single)과 「작업」(work) 둘이다.
 describe('F8-01: sb-mode 토글', () => {
   it('채팅/작업 탭 버튼 2개를 렌더한다', async () => {
     await renderSidebar()
@@ -407,6 +405,17 @@ describe('F8-02: rename 다이얼로그', () => {
     await waitFor(() => {
       expect(container.querySelector('.set-dialog-overlay')).toBeFalsy()
     })
+  })
+
+  it('[M11-G4 22] rename 창은 모달 층에 오른다 — 떠 있는 동안 Shell 중단·Shift+Tab이 손을 떼고, 그 아래 알약은 Esc에 닫히지 않는다', async () => {
+    const { isAnyModalOpen, isBlockingModalOpen } = await import('@renderer/02_Common/modalStack')
+    const container = await renderSidebar()
+    fireEvent.click(container.querySelector('.sb-item .more') as HTMLElement)
+    fireEvent.click(Array.from(container.querySelectorAll('.ctx-item')).find((el) => el.textContent?.includes('이름 변경')) as HTMLElement)
+    expect([isAnyModalOpen(), isBlockingModalOpen()]).toEqual([true, true])
+    fireEvent.keyDown(document, { key: 'Escape' })
+    await waitFor(() => expect(container.querySelector('.set-dialog-overlay')).toBeFalsy())
+    expect(isAnyModalOpen()).toBe(false)
   })
 })
 

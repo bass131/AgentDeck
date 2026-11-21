@@ -23,7 +23,7 @@ function win(o?: { utilization?: number | string; resets_at?: string }): UsageWi
   return { pct, resetsAt }
 }
 
-export interface UsageDeps {
+interface UsageDeps {
   readCredentials?: () => string | null
   fetchFn?: (url: string, init?: RequestInit) => Promise<Response>
   forceRefresh?: boolean

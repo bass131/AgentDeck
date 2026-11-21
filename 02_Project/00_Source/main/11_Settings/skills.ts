@@ -11,7 +11,7 @@ import type { SkillInfo } from '../../shared/ipcContract'
 import { parseFrontmatter } from './frontmatter'
 import { createDisabledOverlay } from './disabledOverlay'
 
-export interface SkillsDeps {
+interface SkillsDeps {
   homedir?: () => string
   getUserData?: () => string
   readdir?: (dir: string) => Array<{ name: string; isDirectory: () => boolean }>

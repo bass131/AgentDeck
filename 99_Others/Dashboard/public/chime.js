@@ -1,5 +1,5 @@
 // 「내 손이 필요한 일」 알림의 판단. app.js 「알림」 절이 쓰고, 설명은 docs/알림.md에 있다.
-// 맨 끝 절은 화면 모양의 판단(전역 AgentDeckView, M05 H6)이다. 같은 이유(정적 파일 목록을 늘리지 않음)로 이 파일에 둔다.
+// 맨 끝 절은 화면 모양의 판단(전역 AgentDeckView)이다. 같은 이유(정적 파일 목록을 늘리지 않음)로 이 파일에 둔다.
 // 화면 요소와 소리가 없는 순수 함수라서 Node 시험(test/chime.test.mjs)이 그대로 불러 쓴다.
 // 본보기는 C:\Dev\DawnHolder_Dashboard 의 web/public/decision-sound.js 다.
 // app.js가 classic script라서 이 파일도 import·export 없이 전역 AgentDeckChime 하나에만 붙는다.
@@ -82,7 +82,7 @@ const soundMark = state => SOUND_MARK[state] ?? null;
 const soundBadge = state => (SOUND_BADGE[state] ? { ...SOUND_BADGE[state] } : null);
 
 // 상단 띠의 손 줄: 보이는 항목 가운데 멈춤(stop)이 있으면 그 첫 항목, 없으면 첫 항목의 문장과 나머지 수.
-// to는 누르면 갈 곳이다 — 결정 항목은 「결정 요청」 카드(#decide), 나머지는 「내 손」 목록(#brief)이다(H8).
+// to는 누르면 갈 곳이다 — 결정 항목은 「결정 요청」 카드(#decide), 나머지는 「내 손」 목록(#brief)이다.
 function stripHand(items) {
   const list = (items || []).filter(Boolean);
   if (!list.length) return null;
@@ -93,7 +93,7 @@ function stripHand(items) {
 
 globalThis.AgentDeckChime = Object.freeze({ RUNG_KEY, RUNG_MAX, QUIET_AFTER_MIN, handKeys, chimeStep, readRung, writeRung, createChimeMemory, badgeTitle, quietMinutes, soundMark, soundBadge, stripHand });
 
-// ---- 화면 모양의 판단 (M05 H6). 알림과 따로 전역 AgentDeckView에 붙는다. 시험은 test/view.test.mjs ----
+// ---- 화면 모양의 판단. 알림과 따로 전역 AgentDeckView에 붙는다. 시험은 test/view.test.mjs ----
 // 새 사실을 만들지 않는다. 서버가 이미 정한 손 수준(stop·todo·ok)과 단계 판정(stage·flow)을 색 하나로 모을 뿐이다.
 
 // 「지금 하는 일」 카드의 상태. 멈춤 → 내 손 필요 → 완료 → 진행 중 순서이고, 시작 전·단계 사이는 회색 대기, 정할 수 없으면 확인 안 됨이다.
@@ -142,10 +142,10 @@ function enterKeys(seen, entries) {
 
 globalThis.AgentDeckView = Object.freeze({ doingTone, stepRing, enterKeys });
 
-// ---- 결정 응답의 화면 쪽 판단 (M05 H7). 전역 AgentDeckDecide. 시험은 test/decide-view.test.mjs, 설명은 docs/결정-응답.md ----
+// ---- 결정 응답의 화면 쪽 판단. 전역 AgentDeckDecide. 시험은 test/decide-view.test.mjs, 설명은 docs/결정-응답.md ----
 // 문장은 짓지 않는다. 문장은 서버(lib/decisions.mjs composeAnswer)만 만들고, 페이지는 id와 키를 보내 받은 문장을 보이기만 한다.
 
-// 기다리는 결정 하나가 「내 손이 필요한 일」 항목 하나다. 키는 decision:<id>라서 H4 알림 판단(새 키만 한 번, 첫 스냅샷 무음)과
+// 기다리는 결정 하나가 「내 손이 필요한 일」 항목 하나다. 키는 decision:<id>라서 알림 판단(새 키만 한 번, 첫 스냅샷 무음)과
 // 탭 제목 배지에 그대로 얹힌다. 보드가 반쯤 쓰여 직전 목록을 쥐고 있을 때(failed + kept)도 그 목록을 센다.
 function decisionHand(decisions) {
   const D = decisions;
@@ -155,7 +155,7 @@ function decisionHand(decisions) {
     ref: D.path ? { path: D.path } : null,
   }));
 }
-// 「내 손이 필요한 일」 목록에 보일 것(M05 H8, Backlog 70). 결정 항목(decision:)은 바로 위 결정 요청 카드가 보이므로 목록에서 빼고 수만 남긴다.
+// 「내 손이 필요한 일」 목록에 보일 것. 결정 항목(decision:)은 바로 위 결정 요청 카드가 보이므로 목록에서 빼고 수만 남긴다.
 // 표시만 가른다 — 알림음·탭 제목 배지·띠의 손 줄·카드 색은 지금처럼 결정까지 센 전체 목록(handNow)을 쓴다.
 // 결정만 있을 때 초록 「없음」이 나오지 않도록, 결정 요청을 가리키는 문장(note)을 여기서 정한다.
 function handShown(items) {
@@ -196,7 +196,7 @@ const answerBody = (sig, picks, comments, expect) => ({ sig, picks: Object.fromE
 
 globalThis.AgentDeckDecide = Object.freeze({ decisionHand, handShown, pickable, reconcilePicks, cardsKey, answerBody });
 
-// ---- 병합 카드의 화면 쪽 판단 (M07 G9). 전역 AgentDeckMerge. 시험은 test/merge-view.test.mjs, 설명은 docs/병합.md ----
+// ---- 병합 카드의 화면 쪽 판단. 전역 AgentDeckMerge. 시험은 test/merge-view.test.mjs, 설명은 docs/병합.md ----
 // 「꼭 볼 것」 펼침 게이트는 화면 쪽이다. 주소를 직접 부르면 건너뛰므로 사람 확인 창이 같은 파일 이름을 한 번 더 보인다.
 
 // 「내 손이 필요한 일」의 병합 대기 항목이 든 PR 번호. 서버(lib/progress.mjs judgeHand)가 goal 머리말에서 읽어 pr 칸에 싣는다. 문장에서 뽑지 않는다.
@@ -237,7 +237,7 @@ function resultLine(r) {
   return { level: 'todo', text: (r && r.message) || (r && r.reason) || '결과를 읽지 못했어요. 다시 읽기로 확인해 주세요' };
 }
 
-// ── 열린 PR 목록 (M07 G11) ── 목록은 요약만 보인다. 필수 검사·「꼭 볼 것」·병합 단추는 고른 PR 하나의 카드에서만 판정한다.
+// 열린 PR 목록 — 목록은 요약만 보인다. 필수 검사·「꼭 볼 것」·병합 단추는 고른 PR 하나의 카드에서만 판정한다.
 // 항목이 이보다 많으면 목록이 자기 안에서 세로 스크롤한다(높이는 styles.css의 항목 3개 높이).
 const LIST_SCROLL_AFTER = 3;
 // 표시할 항목: 카드에 연 PR이 먼저다(목록과 카드가 어긋나지 않게). 카드가 비었으면 goal의 병합 대기 PR이 처음 고른 항목이다. 목록에 없으면 null.
@@ -262,7 +262,7 @@ function prListHtml(items, { picked = null, esc } = {}) {
   return `<ul class="mg-list${list.length > LIST_SCROLL_AFTER ? ' is-scroll' : ''}" aria-label="열린 PR 목록">${rows}</ul>`;
 }
 
-// ── 닫힌 PR 정리 (M07 G15) ── 카드는 loadMerge에서만 새로 읽혀, 다른 곳에서 병합된 PR이 옛 카드로 남았다.
+// 닫힌 PR 정리 — 카드는 loadMerge에서만 새로 읽히므로, 다른 곳에서 병합된 PR이 옛 카드로 남지 않게 여기서 가른다.
 // 'drop': 자동으로 연 카드인데 goal이 더는 그 PR을 기다리지 않는다. 'reread': 열린 카드인데 새로 읽은 온전한 목록에 없다(다른 곳에서 병합·닫힘일 수 있다).
 // 사람이 번호로 연 카드는 내리지 않는다. 확인 창이 떠 있는 동안은 아무것도 바꾸지 않는다.
 function cardFate({ cardPr = null, manual = false, pending = null, running = false, list = null, open = true } = {}) {
@@ -277,5 +277,21 @@ function closedLine(view) {
   return `#${view.number} PR은 ${view.merged ? '병합됐어요' : '병합 없이 닫혔어요'}. 할 일이 없어 카드를 줄였어요.`;
 }
 
-globalThis.AgentDeckMerge = Object.freeze({ pendingPr, fileKey, mergeGate, patchRows, parsePrInput, shortSha, checkState, resultLine, LIST_SCROLL_AFTER, pickedPr, prListHtml, cardFate, closedLine });
+// 「내 손이 필요한 일」의 병합 대기 줄을 병합 카드가 GitHub에서 읽은 같은 PR에 맞춘다. goal 문서 머리말은 늦게 바뀐다.
+// 병합됐으면 줄을 빼고 note 한 줄만 남긴다(알림음·배지에서도 빠진다). 병합 없이 닫혔거나 필수 검사 hard-gates가 실패면 빨강의 새 사실로 바꾼다.
+const REQUIRED_CHECK = 'hard-gates';
+function mergeHand(hand, view) {
+  const list = (hand || []).filter(Boolean), pr = pendingPr(list);
+  if (!pr || !view || view.number !== pr) return { hand: list, note: null };
+  if (view.state !== 'open' && view.merged) return { hand: list.filter(h => h.id !== 'merge'), note: `PR ${pr}은 병합됐어요. goal 문서 갱신만 남았어요.` };
+  // 병합 없이 닫혔으면 사용자에게 알린다(헌법 11조) — 빨강의 새 사실로 셈에 남긴다
+  if (view.state !== 'open') return { hand: list.map(h => h.id !== 'merge' ? h : { ...h, level: 'stop', key: `${h.key}:closed`,
+    say: `PR ${pr}은 병합 없이 닫혔어요 — goal 문서의 「병합 대기」를 고치거나 PR을 다시 열어야 해요.` }), note: null };
+  const red = (view.checks || []).some(c => c && c.name === REQUIRED_CHECK && c.result === 'failure');
+  if (!red) return { hand: list, note: null };
+  return { hand: list.map(h => h.id !== 'merge' ? h : { ...h, level: 'stop', key: `${h.key}:ci-red`,
+    say: `PR ${pr}의 필수 검사 ${REQUIRED_CHECK}가 실패했어요 — 병합할 수 없어요. 고친 커밋을 올려야 해요.` }), note: null };
+}
+
+globalThis.AgentDeckMerge = Object.freeze({ pendingPr, fileKey, mergeGate, patchRows, parsePrInput, shortSha, checkState, resultLine, LIST_SCROLL_AFTER, pickedPr, prListHtml, cardFate, closedLine, mergeHand });
 })();

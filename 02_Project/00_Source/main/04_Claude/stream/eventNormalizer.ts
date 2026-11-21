@@ -1,9 +1,9 @@
-import { mapClaudeStreamLine } from './claudeStream'
+import { mapClaudeStreamLine, mapUsage } from './claudeStream'
 import { fallbackNotice } from './modelFallback'
 import { FileChangeTracker } from './fileChangeTracker'
 import { TaskTracker, CronTracker } from './progressTrackers'
 import { sanitizeSubagentToolResult } from './subagentMeta'
-import type { AgentEvent, AgentEventDone } from '@shared/agentEvents'
+import type { AgentEvent, AgentEventDone, TokenUsage } from '@shared/agentEvents'
 
 export { modelDisplay, REFUSAL_CATEGORY_LABEL, fallbackNotice } from './modelFallback'
 
@@ -57,8 +57,9 @@ export class RunEventNormalizer {
 
   resetStreaming(): void { this._streamedThisMsg = false }
 
-  // 계기가 턴 결과 modelUsage에서 고를 주 모델 (M06 G4) — init의 model, 거절 폴백, 실행 중 전환이 바꾼다.
+  // 계기가 턴 결과 modelUsage에서 고를 주 모델 — init의 model, 거절 폴백, 실행 중 전환이 바꾼다.
   private _mainModel: string | undefined
+  private _lastMainUsage: TokenUsage | undefined
 
   setMainModel(model: string): void { this._mainModel = model }
 
@@ -121,6 +122,11 @@ export class RunEventNormalizer {
     ) {
       const rawMsg = msg as Record<string, unknown>
       const rawParentId = rawMsg['parent_tool_use_id']
+      if (typeof rawParentId !== 'string' || rawParentId.length === 0) {
+        const message = rawMsg['message']
+        const usage = message !== null && typeof message === 'object' ? mapUsage((message as Record<string, unknown>)['usage']) : undefined
+        if (usage) this._lastMainUsage = usage
+      }
       if (typeof rawParentId === 'string' && rawParentId.length > 0) {
         const message = rawMsg['message']
         const rawModel =
@@ -153,7 +159,9 @@ export class RunEventNormalizer {
     for (const event of mapClaudeStreamLine(msg, { mainModel: this._mainModel })) {
 
       if (event.type === 'done') {
-        foundDone = event
+        // 턴 합계(result.usage)는 창을 넘으므로 계기는 마지막 최상위 호출의 크기를 본다
+        foundDone = this._lastMainUsage ? { ...event, usage: this._lastMainUsage } : event
+        this._lastMainUsage = undefined
         for (const e of this._cronTracker.onTurnEnd(turnOrigin)) events.push(e)
         continue
       }
@@ -270,6 +278,7 @@ export class RunEventNormalizer {
     const cleanupEvents: AgentEvent[] = []
 
     this._pendingFallbackNotices = 0
+    this._lastMainUsage = undefined
     this._fileTracker.clear()
     this._taskTracker.clear()
     this._orchestrationToolIds.clear()
@@ -287,6 +296,7 @@ export class RunEventNormalizer {
 
   singlePumpCleanup(): void {
     this._pendingFallbackNotices = 0
+    this._lastMainUsage = undefined
     this._streamedThisMsg = false
     this._fileTracker.clear()
     this._taskTracker.clear()
@@ -301,6 +311,7 @@ export class RunEventNormalizer {
     const cleanupEvents: AgentEvent[] = []
 
     this._pendingFallbackNotices = 0
+    this._lastMainUsage = undefined
     this._streamedThisMsg = false
     this._fileTracker.clear()
     this._taskTracker.clear()

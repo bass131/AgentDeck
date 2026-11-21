@@ -16,97 +16,9 @@ const COLLECTED_SUFFIXES = ['.test.ts', '.test.tsx'] as const
 
 const SKIP_DIRS = new Set(['node_modules', 'dist', 'out', 'coverage', '.git'])
 
-// M02 Phase 5: 하한(≥) 판정을 집행 후 정확값 등호로 전환했다 ([USER] 2026-08-10 산출물·수집 차분 고정).
-// 하한이면 수집 파일이 조용히 늘거나 줄어도 통과해서 차분이 판정 표면에 잡히지 않는다.
+// 하한(≥)이 아니라 정확값 등호로 본다. 하한이면 수집 파일이 조용히 늘거나 줄어도 통과해서 차분이 판정 표면에 잡히지 않는다.
 // 값을 바꿀 때는 추측하지 말고 실측해서(find 02_Project/01_TestCode -name '*.test.ts' -o -name '*.test.tsx') 고친다.
-// M05 G9a: 414 → 415. 공용 실행 코어의 구조 단위 테스트 renderer/g9a-run-core.test.ts를 더했다.
-// M05 G9a: 415 → 416. 단일·멀티 실행 동작 정렬(E 항목) 테스트 renderer/g9a-run-core-alignment.test.tsx를 더했다.
-// M05 G9b: 416 → 417. 공용 스레드 렌더(ThreadView) 구조 테스트 renderer/g9b-thread-view.test.tsx를 더했다.
-// M05 G9b: 417 → 418. 패널이 공용 스레드 렌더를 쓰는지(R1~R7) 고정하는 renderer/g9b-panel-thread.test.tsx를 더했다.
-// M05 G9b: 418 → 419. 선택기 하나(PickerGroup, P1·P2·P5) 테스트 renderer/g9b-picker-group.test.tsx를 더했다.
-// M05 G9b: 419 → 420. 입력창 본체 하나(ComposerView)·대기열·패널 입력창 테스트 renderer/g9b-composer-view.test.tsx를 더했다.
-// M05 G9b: 420 → 421. 대기열을 공용 실행 상태로 옮긴 구조 테스트 renderer/g9b-queue-core.test.tsx를 더했다.
-// M05 G9b: 421 → 420. 패널 팔레트 사본 useInputPalettes.ts를 지우며 그 테스트 renderer/useInputPalettes.test.tsx도
-// 지웠다. root 전달 테스트는 useSlashPalette.test.tsx로 옮겼고, 나머지는 공용 훅 테스트가 이미 덮는다.
-// M05 G9c: 420 → 421. 세션 레지스트리 키 형식(sessionKeys) 테스트 renderer/g9c-session-keys.test.ts를 더했다.
-// M05 G9c: 421 → 422. 세션 레지스트리 한 벌(상태·라우팅·루프 표시·타이머·구독) 테스트 renderer/g9c-session-registry.test.ts를 더했다.
-// M05 G9c: 422 → 423. 'multi'/'single' 분기 정리와 P4 기본 모드 값 고정 테스트 renderer/g9c-branch-cleanup.test.tsx를 더했다.
-// M05 G9c: 423 → 424. B1 Sidebar 실행 표시(레지스트리 기준) 테스트 renderer/g9c-b1-sidebar-running.test.tsx를 더했다.
-// M05 G9c: 424 → 425. Backlog 46(폐기 뒤 SET_RUN_ID) 테스트 renderer/g9c-backlog46-dispose.test.tsx를 더했다.
-// M05 G9c: 425 → 426. 차이 목록에서 테스트가 없던 항목(E6·E10·P3·L3·B2)을 고정하는 renderer/g9c-difference-pins.test.tsx를 더했다.
-// M05 G10: 426 → 427. IPC 채널 타입 맵 고정(@ts-expect-error 사례) 테스트 shared/g10-ipc-typemap.test.ts를 더했다.
-// M05 G10: 427 → 428. renderer IPC 클라이언트(01_Ipc)와 window.api 직접 호출 0 고정 테스트 renderer/g10-ipc-client.test.ts를 더했다.
-// M05 G10: 428 → 427. window.setBounds 채널을 지우며 그 신뢰경계 sanitizer와 테스트 main/window-bounds-sanitize.test.ts(15건)를 함께 지웠다 — 받는 채널이 없어 공격 면도 없다(goal 결정 대장 [AI]).
-// M05 G11: 427 → 428. credentials 파일 읽기 한 곳(10_Engine/credentials)과 두 소비처 기본 경로를 고정하는 main/credentials.test.ts를 더했다.
-// M05 G11: 428 → 429. frontmatter 파서 한 곳(11_Settings/frontmatter)과 skills·commands 공통 동작을 고정하는 main/frontmatter.test.ts를 더했다.
-// M05 G11: 429 → 430. 비활성 오버레이 한 곳(11_Settings/disabledOverlay)과 skills·mcp 공통 동작을 고정하는 main/disabledOverlay.test.ts를 더했다.
-// M05 G11: 430 → 431. 폴더 선택 대화상자 한 곳(07_Workspace/pickFolder)과 실물 핸들러 셋의 동작을 고정하는 main/handlers/folder-pick.test.ts를 더했다.
-// M05 G11: 431 → 432. userData 경로 해석 한 곳(02_Common/userData)과 각 자리의 해석 시점을 고정하는 main/userData.test.ts를 더했다.
-// M05 G11: 432 → 433. 권한 모드 표 한 곳(04_Claude/permissionModes)과 실물 진입점 넷(시작·실행 중·역매핑·화이트리스트)의 값을 고정하는 main/permissionModes.test.ts를 더했다.
-// M05 G11: 433 → 434. 워크스페이스 루트 원천 하나(roots, 접근자 getWorkspaceRootPath)와 루트를 읽는 네 채널을 고정하는 main/handlers/workspace-root-source.test.ts를 더했다.
-// M05 G11: 434 → 435. 조립 지점 00_App 하나(ConversationStore 소유자, skills·MCP store 같은 인스턴스, 기동·종료 배선)를 실물 모듈로 고정하는 main/appAssembly.test.ts를 더했다.
-// M05 G12: 435 → 436. 테스트 배치 가드(작업 ID 이름 0, 제자리 밖 테스트는 <프로세스>/NN_Domain/ 아래, agents/ 비움) testLayout.guard.test.ts를 더했다.
-// M05 G12: 436 그대로. 테스트 430파일을 <프로세스>/NN_Domain/으로 옮기고 이름을 바꿨지만 수는 바뀌지 않는다.
-// 위 줄들의 옛 경로는 그때의 이름이다. 지금 자리는 G12 이동 표(99e·99f·99g)에서 찾는다.
-// M05 G12: 436 → 435. 같은 대상(toolMetaFor) 테스트 renderer/03_Agent/toolKind.sdk-tools.test.ts를 renderer/03_Agent/toolKind.test.ts로 합쳤다(제목 그대로).
-// M05 G12: 435 → 434. 같은 대상(useGlobalShortcuts) 테스트 renderer/12_Window/useGlobalShortcuts.basics.test.tsx를 renderer/12_Window/useGlobalShortcuts.test.tsx로 합쳤다(제목 그대로, afterEach는 오버레이 DOM까지 지우는 쪽 하나).
-// M06 G3: 434 → 435. 가드가 물은 호출의 카드 경로·명령 전문·「항상 허용」 없음을 고정하는 main/04_Claude/permissionCoordinator.guard-ask.test.ts를 더했다.
-// M06 G3: 435 → 437. 사유가 reducer를 지나는지 보는 renderer/05_Conversation/reducer.guard-ask.test.ts와
-// 카드 표시(명령 전문·사유·「항상 허용」 없음)를 보는 renderer/03_Agent/PermissionCard.guard-ask.test.tsx를 더했다.
-// M06 G4: 437 → 440. 모델 목록 자동화 — main 공급자(SDK 목록·캐시·최소 목록, 턴 없는 목록 요청, IPC)를 고정하는
-// main/04_Claude/modelListProvider.test.ts, 계기가 주 모델 항목의 창을 고르는지 보는 main/04_Claude/claudeStream.context-window.test.ts,
-// 선택기·effort 메뉴가 SDK 목록으로 그려지고 정식 ID를 넘기는지 보는 renderer/05_Conversation/PickerGroup.model-list.test.tsx를 더했다.
-// M06 G4: 440 → 441. 실앱 확인에서 conversation.save 핸들러가 model을 버리는 것이 드러나, 그 저장을 고정하는
-// main/01_Ipc/conversation.model-persist.test.ts를 더했다.
-// M07 G2: 441 → 443. 권한 콜백을 노드 등록부로 옮기며, 옮기기 전 판정 표를 고정하는
-// main/04_Claude/permissionCoordinator.characterization.test.ts와 등록부를 고정하는 main/04_Claude/controlNodes.test.ts를 더했다.
-// M07 G3: 443 → 444. 앱 엔진·설정 경로 잠금(거부 규칙, Bash 잠금 훅, SDK 옵션 배선)을 고정하는 main/04_Claude/enginePathLock.test.ts를 더했다.
-// M07 G4: 444 → 445. 앱 밖에서 바뀐 엔진을 불러오지 않는 엔진 봉인을 고정하는 main/10_Engine/engineSeal.test.ts를 더했다.
-// M07 G5: 445 → 450. 컨트롤 패널 — controls.json 저장·봉인·노드 걸러내기(main/04_Claude/controlsStore.test.ts),
-// 실행 시작의 닫힌 실패(main/04_Claude/claudeAgentRun.controls-gate.test.ts), IPC 핸들러(main/01_Ipc/controls.handler.test.ts),
-// 라우트 계약(shared/01_Ipc/ipcContract.controls.test.ts), 패널 화면(renderer/11_Settings/ControlsView.test.tsx)을 더했다.
-// M07 G5: 450 → 451. 앱 리허설에서 실행 안의 거절 오류가 화면에 닿지 않아, agent.run 요청 단계의 거절을 고정하는
-// main/01_Ipc/agent.controls-gate-handler.test.ts를 더했다.
-// M07 G8: 451 → 455. 병합 거부 노드 main/04_Claude/mergeDeny.test.ts, PR 서비스 main/08_Git/prMerge.test.ts,
-// PR 카드 도우미 renderer/08_Git/prCardModel.test.ts, PR 카드 화면 renderer/08_Git/PrCard.test.tsx를 더했다.
-// M09 G1: 455 → 459. 루프 실행기 — 템플릿 스키마 main/05_Loop/template.test.ts, 상태 기계 main/05_Loop/executor.test.ts,
-// 등급 규칙 main/05_Loop/grade.test.ts, 포트로 도는 실행기 껍질 main/05_Loop/loopRunner.test.ts를 더했다.
-// M09 G2: 459 → 468. 실행기 포트의 실물 — 자격 없는 자식 환경 main/05_Loop/childEnv.test.ts, 명령 포트 commandPort.test.ts,
-// git 포트 gitPort.test.ts, gh 포트(녹취 JSON 해석) ghPort.test.ts, fs 포트 fsPort.test.ts, 앱 쪽 다이제스트 digestStore.test.ts,
-// 저장소당 실행기 하나 repoLock.test.ts, 번들 템플릿 bundledTemplate.test.ts, 실 git 통합 openLoop.test.ts를 더했다(모두 main/05_Loop/).
-// M09 G2: 468 → 471. 2차분 — 루프 잠금 노드 main/04_Claude/loopLock.test.ts, 그 배선 main/04_Claude/sdkOptions.loop-lock.test.ts,
-// 작업 노드 세션 포트 main/05_Loop/workSession.test.ts를 더했다.
-// M09 G2: 471 → 473. 독립 검수 반영 — 실행기 git 설정 대조 main/05_Loop/configGuard.test.ts, 원격·로컬 대조와 래치·CI 시간 상한
-// main/05_Loop/loopRunner.guards.test.ts를 더했다.
-// M09 G4: 473 → 479. 사람·모델 게이트 — 실행기의 스펙 해시·검수 트리 묶기 main/05_Loop/loopRunner.gates.test.ts, 검수 세션 포트
-// main/05_Loop/reviewSession.test.ts, 저장소마다 실행기 하나를 돌리는 구동자 main/05_Loop/loopDriver.test.ts, 읽기 전용 루프 잠금
-// main/04_Claude/loopLock.read-only.test.ts, loop IPC 핸들러 main/01_Ipc/loop.handler.test.ts, loop 계약 shared/13_Loop/loop.contract.test.ts를 더했다.
-// M09 G4: 479 → 482. 2차분(renderer 루프 화면) — 폴더·열기·시작·닫기·push·goal 목록 renderer/13_Loop/LoopScreen.test.tsx,
-// 예외 한 줄·질문·권한·스펙 승인·래치 풀기·마일스톤 PR 카드 renderer/13_Loop/LoopScreen.cards.test.tsx,
-// 사이드바 진입점과 Shell 배선 renderer/12_Window/Shell.loop-entry.test.tsx를 더했다.
-// M10 G1: 482 → 465. 멀티 에이전트 모드를 지우며 그 전용 시험 19개(멀티 저장소 main 둘, 멀티 세션 슬라이스, 멀티 저장 훅 둘,
-// 멀티 화면 여덟, 멀티 격리 가드·사이드바 멀티 모드, 패널 cwd·resume 셋, 패널 UltraCode 멀티판)를 지우고,
-// 작업 모드 격리 가드 renderer/12_Window/Shell.work-isolation-guard.test.tsx와
-// 패널 하네스판 UltraCode 시험 renderer/03_Agent/ultracodeToggle.panel.test.tsx를 더했다.
-// M10 G2: 465 → 470. 메인 대화 엔진 — 잠금의 메인 대화 꼴 main/04_Claude/loopLock.main-chat.test.ts,
-// 실행기의 여러 턴 경계 main/05_Loop/loopRunner.main-turns.test.ts, 메인 대화 모듈 main/05_Loop/mainChat.test.ts,
-// 앱 안 도구 main/05_Loop/mainChatTools.test.ts, 구동자와 메인 대화 main/05_Loop/loopDriver.main-chat.test.ts를 더했다.
-// M10 G3: 470 → 472. 메인 대화 화면 — 기록·사건 줄·알림·읽기와 push의 순서·입력칸·일시 정지·취소 대상·새 메인 대화
-// renderer/13_Loop/MainChatView.test.tsx, 대화 안 질문·권한·스펙 승인 카드와 사람 판정 경계·루프 화면에서 빼기
-// renderer/13_Loop/MainChatView.cards.test.tsx를 더했다.
-// M10 G4: 472 → 477. 작업 모드 화면 — 노드 세션 기록(차례·이어 붙이기·상한·끝) main/05_Loop/sessionLog.test.ts,
-// 스냅숏과 push 맞물리기·보기 전용 접기 renderer/13_Loop/sessionLogModel.test.ts, 진행 꼬리표·기다리는 결정·작업 폴더 목록
-// renderer/13_Loop/workModel.test.ts, 가운데 탭·오른쪽 탭·노드 세션 탭·지난 메인 대화·「파일·변경」 renderer/13_Loop/WorkView.test.tsx,
-// 프로젝트 사이드바와 채팅 대기 표시 renderer/13_Loop/ProjectSidebar.test.tsx를 더했다.
-// M10 G4 검수 반영: 477 → 479. main과 화면이 같이 쓰는 세션 사건 잇기·상한 shared/13_Loop/sessionMerge.test.ts,
-// 세션 push의 다시 그리기 범위(무거운 칸을 대역으로 바꿔 센다) renderer/13_Loop/WorkView.render.test.tsx를 더했다.
-// M10 G5: 479 → 481. 그래프 캔버스와 알림 — 템플릿을 화면용 그래프로 바꾸는 main/05_Loop/templateGraph.test.ts,
-// 알림 판정(중복 막기·재기동·풀림·나중 사건) main/05_Loop/loopNotifier.test.ts, 실물 알림 포트 main/05_Loop/notifyPort.test.ts,
-// 개발 빌드의 AppUserModelID main/00_App/appUserModel.test.ts, 그래프 탭의 표시 판정(노드 이름 대응·지금 위치·끝남·실패 수·선·맞춤)
-// renderer/13_Loop/graphModel.test.ts, 캔버스와 「노드 설정」 탭 renderer/13_Loop/WorkView.graph.test.tsx,
-// 앱 안 알림 표시(현황판 띠·프로젝트 점·「작업」 버튼 점·알림 열기) renderer/13_Loop/alerts.test.tsx를 더했다.
-// M10 G6: 486 → 487. 끝난 실행의 판정과 새 마일스톤 시작의 보관(이름 충돌·실패 되돌리기·위조 거부) main/05_Loop/loopRunner.archive.test.ts를 더했다.
-const BASELINE_TEST_FILES = 487
+const BASELINE_TEST_FILES = 474
 
 function collectTestFiles(dir: string, acc: string[] = []): string[] {
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {

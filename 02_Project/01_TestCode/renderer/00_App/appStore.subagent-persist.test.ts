@@ -1,8 +1,7 @@
-// 작업 ID: cp1-p05 · 옛 이름 cp1-p05-subagent-persist-store.test.ts
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { useAppStore } from '@renderer/00_App/appStore'
 import { __resetBackgroundRunsForTests } from '@renderer/03_Agent/state/backgroundRuns'
-import type { ConversationRecord } from '../../../../02_Project/00_Source/shared/ipcContract'
+import type { ConversationRecord } from '@shared/ipcContract'
 import { adaptFlatApi } from '../00_Helpers/windowApiMock'
 
 const CONV_WITH_SUBAGENTS: ConversationRecord = {
@@ -50,7 +49,7 @@ const mockApi = {
   conversationDelete: vi.fn(async () => ({ ok: true })),
   conversationRename: vi.fn(async () => ({ ok: true })),
   agentRun: vi.fn(async () => ({ runId: 'r1' })),
-  agentAbort: vi.fn(async () => ({ accepted: true })),
+  agentAbort: vi.fn(async () => ({ ok: true })),
   onAgentEvent: vi.fn(() => () => {}),
   listFiles: vi.fn(async () => ({ files: [] })),
   pathForFile: vi.fn(() => ''),

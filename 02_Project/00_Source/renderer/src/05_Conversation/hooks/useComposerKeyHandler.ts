@@ -41,7 +41,8 @@ export function useComposerKeyHandler({
             slash.setSlashIdx((i) => (i - 1 + slash.totalSlash) % slash.totalSlash)
           return
         }
-        if (e.key === 'Enter' || e.key === 'Tab') {
+        // 후보가 없는 팔레트는 Enter를 삼키지 않는다 — 아래 전송으로 간다(「/clear」를 공백 없이 친 경우)
+        if (e.key === 'Tab' || (e.key === 'Enter' && slash.totalSlash > 0)) {
           e.preventDefault()
           if (slash.totalSlash > 0) {
             const idx = slash.safeSlashIdx
@@ -116,7 +117,8 @@ export function useComposerKeyHandler({
         }
       }
 
-      if (e.key === 'Enter' && !e.shiftKey && !slash.slashOpen && !mention.mentionOpen) {
+      const slashPicking = slash.slashOpen && slash.totalSlash > 0
+      if (e.key === 'Enter' && !e.shiftKey && !slashPicking && !mention.mentionOpen) {
         e.preventDefault()
         hist.setHistIdx(null)
         doSend()

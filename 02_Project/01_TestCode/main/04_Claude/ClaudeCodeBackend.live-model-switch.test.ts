@@ -1,9 +1,8 @@
-// 작업 ID: lm1 · 옛 이름 lm1-live-model-switch.test.ts
 import { describe, it, expect } from 'vitest'
 import { ClaudeCodeBackend } from '@main/04_Claude/ClaudeCodeBackend'
 import type { QueryFn } from '@main/04_Claude/ClaudeCodeBackend'
 import type { AgentRun } from '@main/03_Agent/AgentBackend'
-import type { AgentEvent } from '../../../../02_Project/00_Source/shared/agentEvents'
+import type { AgentEvent } from '@shared/agentEvents'
 
 type RunWithSetModel = AgentRun & { setModel?: (modelId: string) => void }
 
@@ -255,7 +254,7 @@ describe('LM1 P02 ⑥ reject 롤백 — 재호출 재위임', () => {
   })
 })
 
-// M06 G4: 계기는 턴 결과에서 주 모델 항목의 창을 고른다 — 실행 중 전환 뒤에는 새 주 모델을 따라간다.
+// 실행 중 전환 뒤에는 계기가 새 주 모델의 창을 따라간다
 describe('M06 G4 — setModel 뒤 done.contextWindow는 새 주 모델의 창', () => {
   function usage(contextWindow: number, inputTokens: number): Record<string, unknown> {
     return { inputTokens, outputTokens: 1, cacheReadInputTokens: 0, cacheCreationInputTokens: 0, webSearchRequests: 0, costUSD: 0, contextWindow, maxOutputTokens: 1 }

@@ -2,7 +2,7 @@ import { useState, type JSX } from 'react'
 import { IconTerminal, IconChevDown, IconAlert, IconCheck } from '@renderer/02_Common/icons'
 import './HookTimeline.css'
 
-export interface HookRunView {
+interface HookRunView {
   hookId: string
   hookName: string
   hookEvent: string
@@ -14,7 +14,7 @@ export interface HookRunView {
   time?: string
 }
 
-export interface HookTimelineProps {
+interface HookTimelineProps {
   hookRuns: HookRunView[]
 }
 

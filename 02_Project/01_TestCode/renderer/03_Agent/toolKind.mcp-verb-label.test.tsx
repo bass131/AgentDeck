@@ -1,4 +1,3 @@
-// 작업 ID: gap1-p01 · 옛 이름 gap1-p01-mcp-verb-label.test.tsx
 // @vitest-environment jsdom
 import { describe, it, expect, afterEach } from 'vitest'
 import { render, cleanup } from '@testing-library/react'
@@ -71,7 +70,7 @@ describe('SubAgentInline — 실행 중 도구 활동 행에 MCP 라벨 노출',
 
 describe('PermissionCard — 권한 카드(.perm-card-tool)에 MCP 라벨 노출', () => {
   it('pending.toolName이 raw mcp 이름이어도 카드는 "서버 · 도구" 표시', async () => {
-    const { PermissionCard } = await import('@renderer/10_Engine')
+    const { PermissionCard } = await import('@renderer/03_Agent')
     const pending = {
       runId: 'r1',
       requestId: 'q1',
@@ -84,7 +83,7 @@ describe('PermissionCard — 권한 카드(.perm-card-tool)에 MCP 라벨 노출
   })
 
   it('일반 도구(Bash)는 그대로(회귀 0)', async () => {
-    const { PermissionCard } = await import('@renderer/10_Engine')
+    const { PermissionCard } = await import('@renderer/03_Agent')
     const pending = { runId: 'r1', requestId: 'q1', toolName: 'Bash', summary: 'ls -la' }
     const { container } = render(<PermissionCard pending={pending} onRespond={() => {}} />)
     expect(container.querySelector('.perm-card-tool')?.textContent).toBe('Bash')

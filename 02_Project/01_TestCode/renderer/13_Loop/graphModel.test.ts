@@ -1,7 +1,6 @@
-// M10 G5 — 그래프 탭의 표시 판정(순수 함수). 지금 위치·끝남·실패 수는 LoopStatus(node·goals·failCount·phase·recentLines)에서만 온다.
-// 같은 상태를 넣으면 같은 표시다. 노드 이름 `G2/implement`는 목표 G2의 반복 틀 안 implement, 슬래시 없는 이름은 마일스톤 수준 노드다.
+// 노드 이름 `G2/implement`는 목표 G2의 반복 틀 안 implement, 슬래시 없는 이름은 마일스톤 수준 노드다.
 import { describe, expect, it } from 'vitest'
-import type { LoopGraph, LoopGraphNode, LoopStatus, LoopVerificationLine } from '../../../../02_Project/00_Source/shared/ipcContract'
+import type { LoopGraph, LoopGraphNode, LoopStatus, LoopVerificationLine } from '@shared/ipcContract'
 import {
   EDGE_LABEL, backLabel, backLanes, curveDrop, edgeKey, edgeLabelAt, edgePath, fitScale, graphBounds, loopBox, loopLabel, nodeMarks, placeOf,
 } from '@renderer/13_Loop/graphModel'
@@ -88,7 +87,7 @@ describe('지금 위치·끝남·실패 수 (M10 G5)', () => {
     expect(nodeMarks(GRAPH, s)).toEqual(nodeMarks(GRAPH, structuredClone(s)))
   })
 
-  // G5 검수 5 — 약 등급 목표에서 강 등급만 켜지는 노드(독립 검수)는 끝난 것이 아니라 건너뛴 것이다
+  // 약 등급 목표에서 강 등급만 켜지는 노드(독립 검수)는 끝난 것이 아니라 건너뛴 것이다
   it('지금 목표의 등급에서 켜지지 않는 노드는 건너뜀이다 — 끝남(흐림·✓)이 아니고, 등급이 아직 없으면 지금처럼 둔다', () => {
     const g: LoopGraph = {
       ...GRAPH,
@@ -134,7 +133,7 @@ describe('배치와 선 (M10 G5)', () => {
     expect(edgePath(at('checks'), at('implement'), 'fail')).toMatch(/^M420 254 C/)
   })
 
-  // G5 검수 3 — 같은 곳으로 되돌아가는 곡선은 깊이를 엇갈리고, 글자는 겹치지 않으며, 곡선과 글자가 반복 상자 안에 있다
+  // 같은 곳으로 되돌아가는 곡선은 깊이를 엇갈리고, 글자는 겹치지 않으며, 곡선과 글자가 반복 상자 안에 있다
   it('되돌아가는 곡선은 겹치는 것끼리 다른 깊이이고, 글자끼리 겹치지 않으며, 반복 상자가 곡선 바닥과 글자를 담는다', () => {
     const col = (i: number) => 40 + i * 160
     const loop = ['goal-branch', 'implement', 'checks', 'grade', 'review', 'goal-pr', 'ci', 'merge']

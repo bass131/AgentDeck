@@ -3,7 +3,7 @@ import { getProviderBrand } from './providerBrand'
 import { getTheme } from './theme'
 import { IconClaude, type IconProps } from './icons'
 
-export interface ProviderBrandIconProps extends IconProps {
+interface ProviderBrandIconProps extends IconProps {
   provider?: string
 }
 

@@ -1,21 +1,10 @@
 #!/usr/bin/env node
-// 위험 명령 가드 — 수리 표면 테스트 (M02 Phase 2 Step 2·3·6).
-//
-// 이 파일이 겨누는 것은 셋이다.
-//   ① Moodie 초과 표면 (Backlog 9) — `git.exe`·대문자 `Git` 머리 토큰, `git branch` 삭제+강제 동치 전건,
-//      `git stash drop`·`clear`, `git checkout .`. 원본도 못 잡던 표면이라 「동등 이상」의 초과분이다.
-//   ② heredoc pipeline 하류 소비자 판별 (Step 3) — 양방향 픽스처 일곱(ⓐ~ⓖ).
-//      면제는 실행되지 않는 소비자뿐이다(`git commit -F -`·operand 없는 `cat`·operand 없는 `tee`).
-//      파일 sink(리다이렉트·`tee FILE`·`dd of=`·`sponge`)는 데이터 소비자가 아니라 판별 불가로 보고 스캔을 유지한다 —
-//      본문이 파일로 남으면 뒤이은 `bash run.sh`에는 위험 원문이 없어 가드가 잡을 자리가 사라진다 (fail-closed).
-//   ③ 읽기 전용 오탐 (Backlog 10) — `git config --global --get` 류는 통과해야 한다.
-//
-// 격리 — 가드 spawn은 공통 헬퍼(_lib/guard-spawn.mjs)만 쓴다. 직접 spawn 금지 규칙의 검사는
-//   dangerous-cmd-guard.test.mjs가 소유한다.
+// 가드 수리 표면 — 원본 Moodie도 못 잡던 표면, heredoc pipeline 하류 소비자 판별, 읽기 전용 오탐.
+// heredoc 면제는 실행되지 않는 소비자(`git commit -F -`·operand 없는 `cat`·`tee`)뿐이고, 파일 sink는 판별 불가로 보고 스캔을 유지한다 —
+// 본문이 파일로 남으면 뒤이은 `bash run.sh`에는 위험 원문이 없어 가드가 잡을 자리가 사라진다 (fail-closed).
 import { createRunner } from './_lib/runner.mjs'
 import { createGuardHarness } from './_lib/guard-spawn.mjs'
 
-// ── ① Moodie 초과 표면 ────────────────────────────────────────────────────────
 const SURFACE = [
   // 머리 토큰 — 실행 파일명·대소문자
   { id: 'SX-01', cmd: 'git.exe reset --hard', expect: 'deny', note: '실행 파일명 머리 토큰' },
@@ -55,8 +44,7 @@ const SURFACE = [
   { id: 'SX-28', cmd: 'git commit -m "-exec rm -rf 얘기"', expect: 'allow', note: 'find 밖의 -exec — 오탐 금지' },
 ]
 
-// ── ② heredoc pipeline 양방향 픽스처 (ⓐ~ⓖ) ───────────────────────────────────
-const BODY_PUSH = 'git push origin master'   // M05 H1부터 일반 push는 무출력이라, 면제가 의미 있도록 질의 꼴을 둔다
+const BODY_PUSH = 'git push origin master'   // 일반 push는 무출력이라, 면제가 의미 있도록 질의 꼴을 둔다
 const BODY_RESET = 'git reset --hard'
 const heredoc = (head, body) => `${head}\n${body}\nEOF`
 const HEREDOC = [
@@ -80,7 +68,6 @@ const HEREDOC = [
   { id: 'HD-20', cmd: "cat <<-EOF\n\tgit reset --hard\n\tEOF", expect: 'allow', note: '면제 — `<<-` 들여쓰기 형태' },
 ]
 
-// ── ③ 읽기 전용 오탐 (Backlog 10) ─────────────────────────────────────────────
 const CONFIG = [
   { id: 'CFG-01', cmd: 'git config --global --get user.name', expect: 'allow', note: '읽기 전용 — 오탐 금지' },
   { id: 'CFG-02', cmd: 'git config --global --get-all user.email', expect: 'allow', note: '읽기 전용' },

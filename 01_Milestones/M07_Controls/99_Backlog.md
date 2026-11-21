@@ -2,6 +2,49 @@
 
 goal 완료조건 밖에서 찾은 것을 한 줄씩 남긴다. 승인을 묻지 않는다. M06에서 넘어온 항목은 `M06_SelfDev/99_Backlog.md`가 계속 소유한다.
 
+## 닫힘 (M11)
+
+M11 Backlog 정리(`01_Milestones/M11_BacklogSweep/`)가 닫은 항목이다. 아래 항목 줄은 그대로 두고 닫힘은 이 표가 갖는다. 표에 없는 항목은 M11 goal 2~9가 고치면서 더한다.
+
+| 항목 | 닫힘 | 근거 |
+|---|---|---|
+| 1 | 고침(M11 goal 8) | `375c1e37`·`48a9baef` — 가드가 앱 데이터 폴더 경로(`…AppData/Roaming/agentdeck`, `%APPDATA%`·`$APPDATA`·`$env:APPDATA` 꼴)를 든 명령을 묻는다(`앱-데이터-폴더`). 그 명령이 읽기 명령(`cat`·`ls`·`grep` 등, `git commit` 본문, `gh pr`·`issue` 본문)이면 묻지 않고, 그 폴더로 `cd`·`pushd`한 뒤 읽기 아닌 명령이 돌면 묻는다. fd 리다이렉트(`2>&1`, `/dev/null`)는 쓰기로 보지 않는다. 남는 꼴은 M11 Backlog 77. |
+| 2 | M13으로 | M11 스펙 「하지 않을 것」 — `productName`은 설치본 패키징과 함께 M13이 맡는다. |
+| 3 | 고침(M11 goal 8) | `ac73f0ac` — 가드 밖 훅(편집 계획 게이트, TDD 가드 셋, 250줄, 자동 장전, 기동)에 `onFailure: "continue"`를 적고, Stop 훅(마감 게이트·표피 검사)에는 두지 않는다 — 공식 hooks 문서 「The field has no effect on these hooks」의 첫 줄이 `Stop`이다. `block`을 고르지 않은 것은 편집 훅이 깨지면 그 훅을 고칠 Edit·Write까지 막히기 때문이다(헌법 8조, M03-25의 내부 fail-open과 같은 결정). 시험: `settings-matcher.test.mjs` ⑧. |
+| 4 | 고침(M11 goal 7) | Green 채집이 `persistedOutputPath` 파일 전문까지 읽어 요약 줄과 실패 표기를 본다(`33_tdd-guard.cjs` `responseText`, GE-09~09c, `3aa38815`). |
+| 5 | v2로 | G1 결정 대장 [USER·위임] — 끈 노드의 토글은 그래프 편집기의 일이다. |
+| 6 | 고침(M11 goal 3) | 엔진 경로 잠금의 재실측(규칙 경로 꼴 `//c/`, 훅 실패 시 `onFailure: 'block'`)을 SDK 재실측 절차에 뒀고, 다른 엔진 버전을 활성으로 삼을 때도 돌린다(`00_Documents/00_Architecture/01_SDK-재실측-절차.md` 「언제 돌리나」·「다시 잴 것」). |
+| 7 | 고침(M11 goal 3) | 셸 잠금이 8.3 짧은 이름(`AGENTD~1`, `ENGINE~1.JSO`)을 원래 이름으로 펴서 판정한다(`main/04_Claude/permission/enginePathLock.ts:88,97`, `0c2fec37`). SDK 동작에 달린 나머지 꼴(junction, `\\?\`·UNC, 괄호 든 경로, 하위 에이전트, MCP 쓰기 도구, 콜백 시간 초과)은 재실측 절차 「아직 재지 않은 꼴」에 다음 SDK 갱신 때 잴 것으로 올렸다. |
+| 8 | 해결됨 | 컨트롤 패널이 엔진 봉인 경고와 「이 엔진 다시 고르기」를 보인다(`renderer/src/11_Settings/ControlsView.tsx:3,141`, `8a0eddd4`). |
+| 9 | 고침(M11 goal 3) | `installVersion`이 빈 임시 형제 폴더(`engines/.<v>.tmp-…`)에 npm을 부르고 성공하면 바꿔 끼운다 — 미리 놓인 잠금 파일·패키지를 쓰지 않고, 실패하면 기존 버전 폴더가 남는다(`main/10_Engine/engineVersions.ts` `swapIn`, `0c2fec37`·독립 검수). 점으로 시작하는 폴더는 설치 목록에 들지 않는다. |
+| 10 | 해결됨 | 3글자 이상 접두 뒤 와일드카드를 막는다(`main/04_Claude/permission/enginePathLock.ts:64-65`, G5). |
+| 11 | 고침(M11 goal 3) | 봉인 목록 행에 바뀜 시각(ctime)을 더했다 — utimes로 수정 시각을 되돌려도 걸린다(`main/10_Engine/engineSeal.ts:76`, `ed5411ae`). 내용 해시는 실측(설치본 7968개·402MB, 따뜻할 때 6.3초·차가울 때 16.6초, 목록만 0.15초)으로 거뒀다. `engines/node_modules`·`<userData>/node_modules`가 있으면 mismatch, 봉인 쓰기는 임시 파일+이름 바꾸기다(`engineSeal.ts:22,169,116`, `0c2fec37`). |
+| 12 | 고침(M11 goal 3) | `version()`은 실행이 실제로 쓰는 엔진(`activeInUse`)을 보인다 — major 불일치나 같은 봉인의 불러오기 실패면 번들 버전(`main/10_Engine/engineVersions.ts:352`, `main/04_Claude/ClaudeCodeBackend.ts:64`, `0c2fec37`). |
+| 13 | 고침(M11 goal 3) | 노드마다 메모리 고리(50줄, 파일 없음)에 시각·노드·도구·입력 요약(200자, 자격 가림)·결과·사유를 쌓는다(`main/04_Claude/permission/verdictLog.ts:6,56`). 권한 콜백은 `controlNodes.ts:201,205`, 훅 노드는 `sdkOptions.ts:88,91`이 감싼다. 패널에 「최근 판정 N」(`renderer/src/11_Settings/ControlsView.tsx:55`, `0c2fec37`). 인라인 거부 규칙 노드(`engine-path-file-deny`)는 SDK가 판정해 앱이 보지 못하므로 「최근 판정 기록 없음」이다(독립 검수). |
+| 14 | v2로 | 규칙 노드 GUI는 v2 그래프 편집기와 같은 화면이다(`00_Roadmap.md:33`). |
+| 15 | v2로 | G1 결정 대장 [USER·위임] — 노드 설정 내보내기·가져오기는 그래프 편집기의 일이다. |
+| 16 | 고침(M11 goal 2) | 응답 전에 도착한 실행 이벤트를 붙들었다가 실행 id가 정해지면 적용하고 요청 오류의 Electron 접두를 지운다(`renderer/src/03_Agent/state/runCore.ts:127,173-174,204`, `d95d7051`). |
+| 17 | 고침(M11 goal 2) | 실측(Bypass·허용 규칙·SDK 자체 승인·auto 분류기 승인은 콜백이 오지 않음) 뒤 노드 이름을 「자동 모드는 허용」으로 좁히고 패널 머리말에 적었다(`main/04_Claude/permission/controlNodes.ts:138`, `renderer/src/11_Settings/ControlsView.tsx:156`, `d95d7051`). |
+| 18 | 고침(M11 goal 2) | userData 경로를 못 얻으면 닫힌 실패이고 앱 조립 지점이 검사를 주입한다(`main/04_Claude/permission/controlsStore.ts:205`, `main/00_App/registry.ts:30`, `d95d7051`). |
+| 19 | 해결됨 | 「처음 설정함」 표시를 두 파일과 따로 둔다(`main/04_Claude/permission/controlsStore.ts:8`, PR 73 `aaaef0e4`). |
+| 20 | 고침(M11 goal 8) | `f49098a1` — M11 스펙 결정 대장 [USER] 2회차대로 헌법 3조 보호 표면 목록에 `.github/workflows/`와 `package.json`의 `scripts`를 더했다. `CLAUDE.md`·`AGENTS.md` 45줄이 같은 글이다. |
+| 21 | 고침(M11 goal 8, 고정 몫) | `f49098a1` — `hard-gates.yml`의 `actions/checkout`·`actions/setup-node`를 v4.4.0 커밋 SHA(`11d5960a…`·`49933ea5…`, 오늘의 `v4`와 같은 커밋)로 고정하고 태그를 주석으로 달았다. `dependabot.yml`에 `github-actions` 생태계를 더해 Node 24 대상 메이저는 그 PR로 받는다. 시험: `settings-matcher.test.mjs` ⑨. `npm test` 전체·`master` push 트리거·빨간 검사 실측·`state-race` 흔들림은 이 goal 밖이다. |
+| 22 | 고침(M11 goal 6) | ADR-004 23행 아래에 대체 표시를 달았다 — 병합의 사람 판정은 현황판·앱의 「병합」 버튼과 사용자가 직접 실행하는 `gh pr merge`이고, 에이전트의 병합은 가드가 거부한다(`cf6359ba`). ADR-003 80~81행의 옛 경로는 M08 G2가 ADR-005 대체 표시를 이미 달았다(`72623936`). |
+| 23 | 해결됨 | 가드가 `gh pr merge`와 병합 API·GraphQL 병합을 차단 목록으로 막고(`dangerous-cmd-guard.mjs:512-516`, M07 G12) 설정 `deny`의 넓은 꼴은 M11 Backlog로 옮겼다. |
+| 24 | 고침(M11 goal 3, 앞절) | 고전 보호가 「Branch not protected」면 `rules/branches/<b>`의 `required_status_checks`를 필수 검사로 읽는다(`main/08_Git/prMerge.ts:164,286`, `2af8fd68`). 실앱 e2e `m11-g3-ruleset-card-live.e2e.ts`에서 연습 저장소 PR 6 카드가 「main 브랜치 룰셋에 필수 검사가 없어요」. 뒷절(하위 에이전트 대화·「이미 있음」 오류의 `gh pr create`)은 M11 Backlog 26. |
+| 25 | v2로 | G1 결정 대장 [USER·위임] — 루프 노드 세션은 원격 자격이 없는 환경이라 `mergeDeny`는 겹의 하나이고, 남은 꼴은 판독 재설계와 함께 다룬다. |
+| 26 | 고침(M11 goal 5) | 병합 카드의 브라우저 e2e를 더했다 — `DASHBOARD_E2E=1`일 때 설치된 Edge(창 없음)로 펼친 diff가 새 스냅샷·시계 다시 칠하기에도 남는지, GitHub diff 링크를 누르면 본 것으로 세는지, 게이트가 그때만 열리는지 본다. 서버 쪽 병합(`prService`·`confirm`·`mergeFn`)은 가짜다(`99_Others/Dashboard/test/m11-g5-e2e.test.mjs:45`, `c98b20a1`). |
+| 27 | 고침(M11 goal 5) | 보낸 뒤 결과 줄이 있으면 「이미 병합을 요청했어요」 이유 줄을 빼 한 줄만 남긴다(`99_Others/Dashboard/public/app.js:896`, `20329d6f`). 시험 `[M11-G5 M07-27]`. |
+| 28 | 일부 고침(M11 goal 7) | `readme-links.test.mjs`가 루트 README와 현황판 README(그 폴더를 뿌리로)의 실물 링크를 검사한다(RL-28·29, `88394dac`). 현황판 `docs/*.md`는 검사 스크립트가 `README.md`만 읽어 그 스크립트를 고쳐야 본다 — M11 Backlog 62. AMSI 관찰은 할 일 없는 기록이다. |
+| 29 | 해결됨 | PR을 만든 세션이 병합을 뒤에서 감시한다(`99_Others/Dashboard/wait-merge.mjs`, `da219603`). |
+| 30 | 해결됨 | 현황판이 열린 PR 목록을 보인다(`4c49a98b`). |
+| 31 | 해결됨 | 넣기 직전 Orca 목록으로 메인 터미널을 찾는다(`99_Others/Dashboard/lib/deliver.mjs:64`, `53f5c91b`). |
+| 32 | 고침(M11 goal 5) | goal의 병합 대기 PR 번호가 바뀌면 PR 목록을 다시 읽고, 「목록 새로 읽기」·「다시 읽기」는 읽는 동안 끄지 않고 `aria-disabled`로 알려 키보드 초점이 남는다(`99_Others/Dashboard/public/app.js:911,988`, `20329d6f`). 시험 `[M11-G5 M07-32]`. |
+| 33 | 고침(M11 goal 7) | `SOURCE_EXTS`에서 `.css`를 뺐다 — 스타일 편집은 시험이 이끄는 편집이 아니다(CS-01). 현황판 `public/*.js`는 소스로 두고, 현황판 `node --test`의 실패 0 요약이 카운터를 푼다(GE-13, `3aa38815`). CSS 편집은 카운터에만 들지 않고 전체 Green 증거는 여전히 실효시킨다(CS-02, `1443e129`). |
+| 34 | v2로 | M11 스펙 결정 대장 [USER] 2회차 — 두 표 일원화는 가드 재설계와 함께 「이번엔 안 한다」. |
+| 35 | 고침(M11 goal 5) | 후보가 있을 때 `orca worktree ps --json`(읽기 전용)을 한 번 더 읽어 `agents[].parentPaneKey`가 있는 pane(`tabId:leafId`)을 빼고, ps를 못 읽으면 예전대로 고른다. 성공 응답에 넣은 터미널 제목(`terminal`)을 싣고 화면의 「넣었어요」 줄이 그 제목을 보인다(`99_Others/Dashboard/lib/deliver.mjs:52,62`, `server.mjs:160`, `public/app.js:745`, `03d25f64`·`8e4116c0`). `answer.test.mjs`의 `canType` 소스 정규식은 지웠다(`c98b20a1`). worker·셸 pane의 실제 목록 모양은 실측하지 못했다. |
+| 36 | 해결됨 | ADR-005와 바뀐 거부 사유(가드 `MERGE_HINT`, 앱 `mergeDeny.ts:17` `REASON`)와 `smoke.test.mjs:141-142` 단언이 있고 SessionStart 몫은 M08-4가 맡는다. |
+
 1. CLI 세션의 에이전트가 Bash 경유(`node -e`, 스크립트)로 앱 데이터 폴더(`engines/`, `engine-config.json`)를 쓰는 길이 열려 있다. G1의 `Edit(~/AppData/Roaming/agentdeck/**)` 거부는 파일 도구와 Claude Code가 알아보는 Bash 파일 명령에만 걸린다. G8 `30_노드-구조.md` 보호 6의 나머지이고 맡을 goal이 아직 없다 (G1 검수 4).
 2. 앱 데이터 폴더 이름 `agentdeck`은 실측이 아니라 Electron 기본 규칙(`productName ?? name`)에서 추론했다. 이 PC에는 아직 그 폴더가 없다. M08에서 설치본을 패키징할 때 `productName`이 생기면 거부 규칙을 갱신해야 한다. `settings-matcher.test.mjs`가 `package.json`에서 이름을 만들어 대조하므로 그때 빨갛게 된다 (G1 검수 2).
 3. 가드 말고 다른 저장소 훅(편집 계획 게이트, TDD 가드, 마감 게이트)도 기본 `onFailure: 'continue'`라, 시간 초과나 기동 실패 때 판정 없이 지나간다. 훅마다 막힘이 맞는지는 다르다(마감 게이트가 막히면 세션을 못 끝낸다). 판정 장치 goal에서 훅별로 정한다 (G1 실측).

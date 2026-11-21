@@ -1,15 +1,15 @@
-// M09 G2 — 작업 노드 세션 포트(ports.SessionPort)의 실물. 노드마다 새 세션을 기존 03_Agent 백엔드로 연다.
+// 작업 노드 세션 포트(ports.SessionPort)의 실물. 노드마다 새 세션을 기존 03_Agent 백엔드로 연다.
 //   - 프롬프트: 템플릿 노드의 지시와 그 노드가 고른 생존 문서(경로 머리 + 본문)만. 마일스톤 id·goal 제목 같은 다른 맥락은 없다.
 //     단, 세션은 앱 세션과 같은 설정 출처(user·project·local)를 읽는다 — 작업 저장소와 사용자의 CLAUDE.md는 그쪽 몫이다.
-//     사용자 MCP 서버는 루프 잠금이 붙은 세션에서 읽지 않는다(sdkOptions의 strictMcpConfig, G4).
+//     사용자 MCP 서버는 루프 잠금이 붙은 세션에서 읽지 않는다(sdkOptions의 strictMcpConfig).
 //   - 실행 입력: 앱 「자동」 모드(picker id auto), cwd는 작업 저장소, 환경은 자격 없는 자식 환경, 루프 잠금 노드(loopLock.ts).
 //     잠금은 claude-code 백엔드의 SDK 옵션에서만 붙으므로 다른 백엔드는 열지 않는다(fail-closed).
 //   - 결과: done이면 ok:true(요약은 마지막 메시지 한 줄). error가 하나라도 있었거나, done 없이 끝났거나, 시간 초과면 ok:false.
-//     취소(실행기 닫기 신호·화면의 취소)는 ok:false에 cancelled:true다 — 실행기는 FAIL로 세지 않고 멈춘다(G4).
-// M09 G4 — 메인 노드(role main, 브레인스토밍)는 사람과 이야기하는 세션이다.
+//     취소(실행기 닫기 신호·화면의 취소)는 ok:false에 cancelled:true다 — 실행기는 FAIL로 세지 않고 멈춘다.
+// 메인 노드(role main, 브레인스토밍)는 사람과 이야기하는 세션이다.
 //   - 카드(질문·권한)는 화면 응답자(mainCard)로 간다. 맥락으로 노드 id·goal id·그 세션의 최근 글, 세션이 끝나면 꺼지는 신호를 준다
 //     (화면이 남은 카드를 거둔다). 시간 상한이 없다 — 사람이 화면에서 취소한다(cancel).
-//   - 작업자 노드(role worker)는 G2와 같다 — 카드는 거부·무응답(onCard로 바꿔 끼울 수 있다), 시간 상한이 있다.
+//   - 작업자 노드(role worker)의 카드는 거부·무응답(onCard로 바꿔 끼울 수 있다), 시간 상한이 있다.
 // 세션 한 번을 돌리는 고리(runNodeSession)는 검수 세션(reviewSession.ts)과 함께 쓴다.
 import { randomBytes } from 'node:crypto'
 import type { AgentBackend, AgentRun, AgentRunInput, RunResponse } from '@main/03_Agent/AgentBackend'
@@ -23,7 +23,7 @@ export const DEFAULT_SESSION_TIMEOUT_MS = 60 * 60_000
 const SUMMARY_MAX = 300
 
 export type CardEvent = Extract<AgentEvent, { type: 'permission_request' | 'question_request' }>
-// 카드 맥락(G4) — signal은 그 세션이 끝나면 꺼진다(응답이 더는 쓰이지 않는다).
+// 카드 맥락 — signal은 그 세션이 끝나면 꺼진다(응답이 더는 쓰이지 않는다).
 export interface CardContext { node: string; goal: string | null; text: string; signal: AbortSignal }
 export type CardResponder = (ev: CardEvent, ctx: CardContext) => RunResponse | Promise<RunResponse>
 
@@ -35,7 +35,7 @@ export interface WorkSessionOptions {
   env: NodeJS.ProcessEnv
   // 앱 영역 — 잠금이 이 폴더 쓰기를 막는다
   appLoopDir: string
-  // 작업자 노드 세션의 시간 상한. 메인 노드에는 걸지 않는다(G4)
+  // 작업자 노드 세션의 시간 상한. 메인 노드에는 걸지 않는다
   timeoutMs?: number
   model?: string
   effort?: string
@@ -43,15 +43,15 @@ export interface WorkSessionOptions {
   signal?: AbortSignal
   // 작업자 노드의 카드 응답자. 기본은 거부·무응답
   onCard?: CardResponder
-  // 메인 노드의 카드 응답자(G4 — 화면). 없으면 메인 노드도 onCard·기본을 쓴다
+  // 메인 노드의 카드 응답자(화면). 없으면 메인 노드도 onCard·기본을 쓴다
   mainCard?: CardResponder
-  // 화면이 세션 진행을 볼 수 있게 이벤트를 흘린다. M10 G2 — 세션 꼬리표(kind work, 앱이 정한 key, 노드·goal, SDK 세션 id)를 함께 준다
+  // 화면이 세션 진행을 볼 수 있게 이벤트를 세션 꼬리표(kind work, 앱이 정한 key, 노드·goal, SDK 세션 id)와 함께 흘린다
   onEvent?: (e: AgentEvent, tag: LoopSessionTag) => void
-  // M10 G2 — 메인 노드(role main)를 메인 대화(mainChat.brainstorm)로 보낸다. 주면 메인 노드에 세션을 열지 않는다
+  // 메인 노드(role main)를 메인 대화(mainChat.brainstorm)로 보낸다. 주면 메인 노드에 세션을 열지 않는다
   mainWork?: (req: WorkRequest) => Promise<WorkResult>
 }
 
-// M10 G2 — 세션 꼬리표. key는 구동자 수명 동안 겹치지 않는 앱 이름(`<무작위 접두>.<차례>`)이다 — G4 노드 세션 탭이 같은 길을 쓴다.
+// 세션 꼬리표의 key는 구동자 수명 동안 겹치지 않는 앱 이름(`<무작위 접두>.<차례>`)이다 — 노드 세션 탭이 같은 길을 쓴다.
 const SESSION_KEY_PREFIX = randomBytes(3).toString('hex')
 let sessionKeySeq = 0
 export const nextSessionKey = (): string => `${SESSION_KEY_PREFIX}.${++sessionKeySeq}`
@@ -81,7 +81,7 @@ function docPathOf(kind: DocKind, req: WorkRequest): string | null {
   return kind === 'milestoneSpec' ? DOCS.milestoneSpec : kind === 'decisions' ? DOCS.decisions : DOCS.verification
 }
 
-// M09 G5 실주행 — 메인 노드 세션은 한 턴이다. 일반 글로 묻고 턴을 끝내면 사람이 답할 길 없이 세션이 끝난다
+// 메인 노드 세션은 한 턴이다. 일반 글로 묻고 턴을 끝내면 사람이 답할 길 없이 세션이 끝난다
 // (사용자 설정의 「결정 요청은 글로」 규칙을 따른 실제 모델이 그렇게 끝냈다). 묻는 길을 질문 도구 하나로 못 박는다.
 // 템플릿 지시가 아니라 여기에 두는 것은 템플릿 해시를 바꾸지 않기 위해서다(진행 중 실행 상태가 다시 열린다).
 export const MAIN_NODE_RULE = [
@@ -94,7 +94,8 @@ export const MAIN_NODE_RULE = [
 ].join('\n')
 
 // 노드가 고른 문서 종(node.docs)의 순서로만 싣는다 — req.docs에 다른 종이 있어도 넣지 않는다.
-// M10 G2 — 메인 대화(mainChat.ts)의 브레인스토밍 여는 턴도 이 꼴을 쓴다(규칙은 그쪽이 붙인다).
+// 메인 대화(mainChat.ts)의 브레인스토밍 여는 턴도 이 꼴을 쓴다(규칙은 그쪽이 붙인다).
+// 직전 FAIL 문장(visit.failed)이 있으면 끝에 싣는다.
 export function buildNodePrompt(req: WorkRequest): string {
   const parts = [req.node.instruction.trim()]
   for (const kind of req.node.docs) {
@@ -102,13 +103,17 @@ export function buildNodePrompt(req: WorkRequest): string {
     const body = req.docs[kind]
     parts.push(`## ${DOC_LABEL[kind]}${p ? ` (${p})` : ''}\n\n${body ?? '(아직 없음)'}`)
   }
+  if (req.visit?.failed) parts.push(`## 직전 시도의 FAIL\n\n이 노드의 앞 세션이 FAIL로 끝났다 — ${req.visit.failed}\n같은 이유로 끝나지 않게 한다.`)
   return parts.join('\n\n')
 }
 
-// 메인 노드(role main)에는 끝에 MAIN_NODE_RULE을 붙인다(메인 대화 없이 한 세션으로 도는 길).
-export function buildWorkPrompt(req: WorkRequest): string {
+// 사람과 이야기하는 세션인가 — 메인 노드이고 화면 응답자(mainCard)가 있다. 질문 도구 규칙과 카드 응답자가 이 술어 하나를 쓴다.
+export const talksToHuman = (req: WorkRequest, mainCard: CardResponder | undefined): boolean => req.node.role === 'main' && mainCard !== undefined
+
+// 사람과 이야기하는 세션에는 끝에 MAIN_NODE_RULE을 붙인다(메인 대화 없이 한 세션으로 도는 길).
+export function buildWorkPrompt(req: WorkRequest, asksHuman: boolean): string {
   const body = buildNodePrompt(req)
-  return req.node.role === 'main' ? `${body}\n\n${MAIN_NODE_RULE}` : body
+  return asksHuman ? `${body}\n\n${MAIN_NODE_RULE}` : body
 }
 
 export const oneLine = (s: string): string => {
@@ -120,14 +125,14 @@ export const denyCards = (ev: CardEvent): RunResponse =>
   ev.type === 'question_request' ? { kind: 'question', answers: null } : { kind: 'permission', behavior: 'deny' }
 
 // 세션 한 번의 끝. text는 마지막 최상위 메시지의 전문이다(검수 세션이 마지막 줄을 읽는다).
-export type SessionEnd =
+type SessionEnd =
   | { kind: 'done'; text: string }
   | { kind: 'error'; text: string; error: string }
   | { kind: 'cancelled'; text: string }
   | { kind: 'timeout'; text: string; timeoutMs: number }
   | { kind: 'start-failed'; error: string }
 
-export interface NodeSessionInput {
+interface NodeSessionInput {
   backend: AgentBackend
   input: AgentRunInput
   // null이면 시간 상한 없음
@@ -168,7 +173,7 @@ export function runNodeSession(s: NodeSessionInput): { done: Promise<SessionEnd>
   void (async () => {
     let messageId: string | undefined
     let error: string | null = null
-    // G4 검수 사소 5 — 최상위 도구 호출 뒤에는 새 메시지다. 그 뒤 글이 오면 새로 쌓고, 글 없이 끝나면 끝의 글은 빈 글이다.
+    // 최상위 도구 호출 뒤에는 새 메시지다. 그 뒤 글이 오면 새로 쌓고, 글 없이 끝나면 끝의 글은 빈 글이다.
     // 카드의 「최근 글」(ctx.text)은 지우지 않는다 — 질문 도구 호출 앞의 글이 카드에 보여야 한다.
     let afterTool = false
     try {
@@ -215,11 +220,11 @@ export function createWorkSessionPort(opts: WorkSessionOptions): SessionPort {
       }
       if (opts.signal?.aborted) return { ok: false, summary: '취소됐다 — 세션을 열지 않았다', cancelled: true }
       if (req.node.role === 'main' && opts.mainWork) return opts.mainWork(req)
-      const main = req.node.role === 'main' && opts.mainCard !== undefined
+      const main = talksToHuman(req, opts.mainCard)
       const session = runNodeSession({
         backend: opts.backend,
         input: {
-          messages: [{ role: 'user', content: buildWorkPrompt(req) }],
+          messages: [{ role: 'user', content: buildWorkPrompt(req, main) }],
           workspaceRoot: opts.cwd,
           mode: 'auto',
           ...(opts.model !== undefined ? { model: opts.model } : {}),

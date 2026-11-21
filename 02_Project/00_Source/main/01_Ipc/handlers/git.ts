@@ -57,13 +57,13 @@ export function registerGitHandlers(): void {
 
   handle(IPC_CHANNELS.GIT_COMMIT_DETAIL, async (_e, req: GitCommitDetailRequest): Promise<GitCommitDetailResponse> => {
     if (!req?.root || typeof req.root !== 'string') return []
-    if (!req?.hash || typeof req.hash !== 'string') return []
+    if (!req?.hash || typeof req.hash !== 'string' || !gitApi.isSafeRev(req.hash)) return []
     return gitApi.gitCommitDetail(req.root, req.hash)
   })
 
   handle(IPC_CHANNELS.GIT_FILE_AT, async (_e, req: GitFileAtRequest): Promise<GitFileAtResponse> => {
     if (!req?.root || typeof req.root !== 'string') return { content: null, diff: null }
-    if (!req?.hash || typeof req.hash !== 'string') return { content: null, diff: null }
+    if (!req?.hash || typeof req.hash !== 'string' || !gitApi.isSafeRev(req.hash)) return { content: null, diff: null }
     if (!req?.path || typeof req.path !== 'string') return { content: null, diff: null }
     return gitApi.gitFileAt(req.root, req.hash, req.path)
   })
@@ -98,7 +98,7 @@ export function registerGitHandlers(): void {
     return gitApi.gitPush(req.root)
   })
 
-  // PR 카드 (M07 G8) — 값은 main이 GitHub에서 읽고, 병합은 main이 마지막으로 읽어 보인 SHA로만 한다(prMerge.ts).
+  // 병합은 main이 마지막으로 읽어 보인 SHA로만 한다(prMerge.ts)
   handle(IPC_CHANNELS.GIT_PR_READ, async (_e, req: PrReadRequest): Promise<PrReadResponse> => {
     if (!req?.cwd || typeof req.cwd !== 'string' || !isAbsolute(req.cwd)) {
       return { ok: false, error: 'git.prRead: cwd는 절대 경로여야 합니다' }

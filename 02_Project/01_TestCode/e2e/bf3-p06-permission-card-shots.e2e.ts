@@ -126,7 +126,6 @@ test.describe('BF3 P06: 권한 인라인 카드 육안 스크린샷 (LIVE_SDK=1 
       await expect(page.locator(PERM_CARD)).toBeHidden({ timeout: 15_000 })
       await expect(page.locator(CHAT).locator(STOP)).toBeHidden({ timeout: 15_000 })
       log('단일챗: 거부 후 카드 소멸 + ■ 잔존 없음(정상 종료)')
-      // M10 G1 — 멀티 에이전트 모드를 지워 패널0 스트레치 샷을 뺐다.
     } finally {
       await teardown()
     }

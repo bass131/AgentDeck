@@ -1,4 +1,4 @@
-import type { OrchestrationDeniedReason } from '../../../shared/agentEvents'
+import type { OrchestrationDeniedReason } from '@shared/agentEvents'
 
 export const DEFAULT_ORCHESTRATION_DENIED_COPY =
   'UltraCode 오케스트레이션 호출이 차단됐어요 — 컴포저의 UltraCode 토글을 확인해 주세요.'

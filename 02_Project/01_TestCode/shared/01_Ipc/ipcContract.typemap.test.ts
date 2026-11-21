@@ -1,8 +1,6 @@
-// 작업 ID: g10 · 옛 이름 g10-ipc-typemap.test.ts
-// M05 G10 — IPC 채널 타입 맵 고정. 어긋난 타입은 `@ts-expect-error`로 고정한다:
-// 그 줄이 타입 오류를 내지 않게 되면(맵이 느슨해지면) typecheck:node가 「안 쓰인 @ts-expect-error」로 실패한다.
+// 어긋난 타입은 `@ts-expect-error`로 고정한다 — 맵이 느슨해지면 typecheck:node가 「안 쓰인 @ts-expect-error」로 실패한다.
 import { describe, it, expect, vi } from 'vitest'
-import { IPC_CHANNELS, sendPush } from '../../../../02_Project/00_Source/shared/ipcContract'
+import { IPC_CHANNELS, sendPush } from '@shared/ipcContract'
 import type {
   ReqOf,
   ResOf,
@@ -12,7 +10,7 @@ import type {
   InvokeChannel,
   PushChannel,
   PushTarget,
-} from '../../../../02_Project/00_Source/shared/ipcContract'
+} from '@shared/ipcContract'
 
 // 실행하지 않는 타입 전용 사례 모음 — 함수 본문은 타입 검사만 받는다.
 function typeCases(target: PushTarget): void {
@@ -24,7 +22,7 @@ function typeCases(target: PushTarget): void {
   const optional: ArgsOf<'settings.listSkills'> = []
   const optionalWithReq: ArgsOf<'settings.listSkills'> = [{ root: '/w' }]
   sendPush(target, 'window.state', { maximized: false })
-  // ack 통일 — 확인 응답 채널은 모두 Ack { ok, error? } 하나를 받는다
+  // 확인 응답 채널은 모두 Ack { ok, error? } 하나를 받는다
   const acks: Array<ResOf<'agent.interrupt' | 'agent.setMode' | 'git.push' | 'engine.install' | 'settings.setUiPref'>> = [
     { ok: true },
     { ok: false, error: 'why' },
@@ -32,7 +30,7 @@ function typeCases(target: PushTarget): void {
   void [run, req, state, noArgs, optional, optionalWithReq, acks]
 
   // 응답 모양이 맵과 다르면 실패한다
-  // @ts-expect-error agent.abort의 응답은 G10 ack 통일로 { ok }다 — 옛 { accepted }는 거부된다
+  // @ts-expect-error agent.abort의 응답은 { ok }다 — 옛 { accepted }는 거부된다
   const badRes: ResOf<'agent.abort'> = { accepted: true }
   // @ts-expect-error 맵에 없는 채널
   type BadChannel = ReqOf<'agent.nope'>
@@ -58,7 +56,7 @@ function typeCases(target: PushTarget): void {
 void typeCases
 
 // main 등록 사례 — `handle`은 타입만 가져온다(런타임 import 없음, electron 불필요).
-declare const handle: typeof import('../../../../02_Project/00_Source/main/01_Ipc/handle').handle
+declare const handle: typeof import('@main/01_Ipc/handle').handle
 function handleCases(): void {
   handle('agent.abort', (_e, req) => ({ ok: req.runId.length > 0 }))
   handle('engine.install', async () => ({ ok: false, error: 'bad version' }))
@@ -74,8 +72,8 @@ function handleCases(): void {
   handle('window.state', () => ({ maximized: true }))
   // @ts-expect-error 요청 타입이 맵과 다른 핸들러는 거부된다
   handle('agent.setMode', (_e, req: { runId: number }) => ({ ok: req.runId > 0 }))
-  // @ts-expect-error conversation.delete는 { ok }를 돌려준다
-  handle('conversation.delete', () => ({ deleted: true }))
+  // @ts-expect-error sessions.delete는 { ok }를 돌려준다
+  handle('sessions.delete', () => ({ deleted: true }))
   // @ts-expect-error engine.state는 EngineState를 돌려준다
   handle('engine.state', async () => ({ available: true }))
   // @ts-expect-error workspace.pickFolder는 { path }를 돌려준다 (옛 mock의 folderPath가 아니다)
@@ -86,12 +84,12 @@ function handleCases(): void {
   handle('lsp.definition', async () => null)
   // @ts-expect-error window.minimize는 인자 없는 채널이다 — 요청을 받는 핸들러는 맞지 않는다
   handle('window.minimize', (_e, req: { id: string }) => void req.id)
-  // @ts-expect-error M10 G1 — 멀티 에이전트 모드의 영속 채널은 맵에서 빠졌다
+  // @ts-expect-error 멀티 에이전트 모드의 영속 채널은 맵에서 빠졌다
   handle('multi.load', () => ({ state: null }))
   // @ts-expect-error settings.getProfile은 Profile | null을 돌려준다
   handle('settings.getProfile', async () => ({ nickname: 'n' }))
-  // @ts-expect-error reference.list는 { references }를 돌려준다
-  handle('reference.list', () => ({ refs: [] }))
+  // @ts-expect-error workspace.referenceList는 { references }를 돌려준다
+  handle('workspace.referenceList', () => ({ refs: [] }))
   // @ts-expect-error settings.listSkills는 반환 선언이 없던 채널이다 — 이제 SkillInfo[]로 검사받는다
   handle('settings.listSkills', async () => [{ name: 'x' }])
   // @ts-expect-error workspace.open은 { rootPath, tree }를 돌려준다
@@ -100,7 +98,7 @@ function handleCases(): void {
 void handleCases
 
 // preload 노출 사례 — 노출 함수의 타입이 맵에서 유도된다(타입 전용 import, preload 실행 없음).
-type PreloadApi = import('../../../../02_Project/00_Source/preload/index').Api
+type PreloadApi = import('@preload/index').Api
 function preloadCases(api: PreloadApi): void {
   const abort: PreloadApi['agent']['abort'] = async () => ({ ok: true })
   const skills: Promise<unknown> = api.settings.listSkills()
@@ -125,9 +123,9 @@ function preloadCases(api: PreloadApi): void {
 void preloadCases
 
 // 라우트 표 사례 — 표의 항목이 채널 맵과 어긋나면 실패한다(preload/route 불일치).
-declare const routes: typeof import('../../../../02_Project/00_Source/shared/01_Ipc/apiRoutes')
-type RoutedApiOf<T extends Record<string, Record<string, import('../../../../02_Project/00_Source/shared/01_Ipc/apiRoutes').ApiRoute>>> =
-  import('../../../../02_Project/00_Source/shared/01_Ipc/apiRoutes').RoutedApi<T>
+declare const routes: typeof import('@shared/01_Ipc/apiRoutes')
+type RoutedApiOf<T extends Record<string, Record<string, import('@shared/01_Ipc/apiRoutes').ApiRoute>>> =
+  import('@shared/01_Ipc/apiRoutes').RoutedApi<T>
 function routeCases(): void {
   const okRoutes = { x: { run: routes.call('agent.run'), min: routes.call0('window.minimize'), on: routes.push('window.state') } }
   const fns: RoutedApiOf<typeof okRoutes> = null as unknown as RoutedApiOf<typeof okRoutes>
@@ -142,22 +140,14 @@ function routeCases(): void {
   // @ts-expect-error 라우트 표가 유도한 함수도 응답 모양을 지킨다
   const badMin: RoutedApiOf<typeof okRoutes>['x']['min'] = async () => ({ maximized: true })
   void badMin
+  void okRoutes
 }
 void routeCases
 
 describe('M05 G10 — IPC 채널 타입 맵', () => {
-  // M06 G4: 70 → 71. 모델 목록 채널 agent.listModels(invoke)를 더했다.
-  // M07 G5: 71 → 74. 컨트롤 패널 채널 settings.controlsState·setControlEnabled·confirmControls(invoke)를 더했다.
-  // M09 G4: 76 → 85. 앱 안 루프 묶음 loop의 invoke 여덟(open·start·status·decide·answerCard·cancelSession·releaseLatch·close)과
-  // push 하나(loop.state)를 더했다.
-  // M10 G1: 85 → 79. 멀티 에이전트 모드를 지우며 multi 묶음 invoke 여섯(load·cmdUpsert·cmdCreate·cmdDelete·cmdRename·cmdSelect)을 뺐다.
-  // M10 G2: 79 → 84. 메인 대화 invoke 셋(loop.mainRead·mainSend·mainNew)과 push 둘(loop.mainState·loop.sessionEvent)을 더했다.
-  // M10 G3: 84 → 85. 사람이 일시 정지 깃발을 내리는 invoke 하나(loop.lowerFlag)를 더했다.
-  // M10 G4: 85 → 87. 노드 세션 기록 읽기(loop.sessionLog)와 지난 메인 대화 읽기(loop.mainArchives) invoke 둘을 더했다.
-  // M10 G5: 87 → 91. 그래프 읽기(loop.graph)·알림 읽기(loop.alerts) invoke 둘과 알림 push 둘(loop.alertsState·loop.alertOpen)을 더했다.
-  it('채널 수는 재실측 기준에서 미사용 3개를 빼고 M06 G4의 agent.listModels, M07 G5의 컨트롤 셋, M07 G8의 PR 카드 둘, M09 G4의 loop 아홉, M10 G2의 메인 대화 다섯, M10 G3의 깃발 내리기 하나, M10 G4의 기록 읽기 둘, M10 G5의 그래프·알림 넷을 더하고 M10 G1의 multi 여섯을 뺀 수다 (invoke 67+1+3+2+8-6+3+1+2+2=83 + push 3+1+2+2)', () => {
-    expect(Object.values(IPC_CHANNELS)).toHaveLength(91)
-    expect(new Set(Object.values(IPC_CHANNELS)).size).toBe(91)
+  it('채널 수는 재실측 기준에서 미사용 3개를 빼고 M06 G4의 agent.listModels, M07 G5의 컨트롤 셋, M07 G8의 PR 카드 둘, M09 G4의 loop 아홉, M10 G2의 메인 대화 다섯, M10 G3의 깃발 내리기 하나, M10 G4의 기록 읽기 둘, M10 G5의 그래프·알림 넷, M11 G2의 agent.setEffort를 더하고 M10 G1의 multi 여섯을 뺀 수다 (invoke 67+1+3+2+8-6+3+1+2+2+1=84 + push 3+1+2+2)', () => {
+    expect(Object.values(IPC_CHANNELS)).toHaveLength(93)
+    expect(new Set(Object.values(IPC_CHANNELS)).size).toBe(93)
     const values = Object.values(IPC_CHANNELS) as string[]
     for (const gone of ['window.getBounds', 'window.setBounds', 'engine.versionState']) expect(values).not.toContain(gone)
   })
@@ -206,7 +196,7 @@ describe('M05 G10 — IPC 채널 타입 맵', () => {
     vi.resetModules()
     const registered = new Map<string, unknown>()
     vi.doMock('electron', () => ({ ipcMain: { handle: (ch: string, fn: unknown) => registered.set(ch, fn) } }))
-    const mod = await import('../../../../02_Project/00_Source/main/01_Ipc/handle')
+    const mod = await import('@main/01_Ipc/handle')
     const fn = (): { ok: boolean } => ({ ok: true })
     mod.handle('agent.abort', fn)
     expect(registered.get('agent.abort')).toBe(fn)
@@ -228,7 +218,7 @@ describe('M05 G10 — IPC 채널 타입 맵', () => {
     vi.doMock(`${src}/10_Engine/engineCheckUpdate`, () => ({ checkEngineUpdate: vi.fn() }))
     vi.doMock(`${src}/00_App/registry`, () => ({ getBackend: vi.fn() }))
     vi.doMock(`${src}/10_Engine/usage`, () => ({ getUsage: vi.fn(async () => usage) }))
-    const mod = await import('../../../../02_Project/00_Source/main/01_Ipc/handlers/engine')
+    const mod = await import('@main/01_Ipc/handlers/engine')
     mod.registerEngineHandlers()
     const fn = registered.get(IPC_CHANNELS.USAGE_GET)
     expect(fn).toBeTypeOf('function')

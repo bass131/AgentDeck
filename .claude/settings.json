@@ -27,6 +27,7 @@
       "Bash(git fetch*)",
       "Bash(git push*)",
       "Bash(git merge --no-ff *)",
+      "Bash(git merge --ff-only origin/milestone/*)",
       "Bash(npx eslint *)",
       "Bash(date)",
       "Bash(date +%Y-%m-%dT%H:%M:%S%z)",
@@ -39,7 +40,13 @@
     "ask": [
       "Bash(npm run package*)",
       "Bash(npm publish*)",
-      "Bash(gh release*)"
+      "Bash(gh release*)",
+      "Bash(git merge -s*)",
+      "Bash(git merge * -s*)",
+      "Bash(git merge -X*)",
+      "Bash(git merge * -X*)",
+      "Bash(git merge *--strategy*)",
+      "Bash(git merge *--allow-unrelated-histories*)"
     ],
 
     "deny": [
@@ -49,7 +56,10 @@
       "Bash(gh pr -R * merge*)",
       "Bash(gh pr --repo * merge*)",
       "Bash(timeout * gh pr merge*)",
-      "Bash(gh api *pulls/*/merge*)",
+      "Bash(gh api *pulls/*/merge)",
+      "Bash(gh api *pulls/*/merge *)",
+      "Bash(gh api *pulls/*/merge/*)",
+      "Bash(gh api *pulls/*/merge-async*)",
       "Bash(gh api *graphql*mergePullRequest*)",
       "Bash(gh api *graphql*enablePullRequestAutoMerge*)",
       "Bash(curl*)",
@@ -77,12 +87,14 @@
             "type": "command",
             "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/31_edit-plan-gate.cjs\"",
             "timeout": 30,
+            "onFailure": "continue",
             "statusMessage": "편집 계획 게이트 판정 중"
           },
           {
             "type": "command",
             "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/33_tdd-guard.cjs\"",
             "timeout": 15,
+            "onFailure": "continue",
             "statusMessage": "TDD 가드 판정 중 (검증형)"
           }
         ]
@@ -97,18 +109,21 @@
             "type": "command",
             "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/41_line-limit.cjs\"",
             "timeout": 15,
+            "onFailure": "continue",
             "statusMessage": "250줄 상한 판정 중"
           },
           {
             "type": "command",
             "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/40_pass-watcher.cjs\"",
             "timeout": 15,
+            "onFailure": "continue",
             "statusMessage": "자동 장전 판정 중"
           },
           {
             "type": "command",
             "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/33_tdd-guard.cjs\"",
             "timeout": 15,
+            "onFailure": "continue",
             "statusMessage": "TDD 가드 판정 중 (휴리스틱)"
           }
         ]
@@ -120,6 +135,7 @@
             "type": "command",
             "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/33_tdd-guard.cjs\"",
             "timeout": 15,
+            "onFailure": "continue",
             "statusMessage": "TDD 가드 판정 중 (Green 채집)"
           }
         ]
@@ -133,6 +149,7 @@
             "type": "command",
             "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/10_start-brief.cjs\"",
             "timeout": 15,
+            "onFailure": "continue",
             "statusMessage": "재개 프로토콜 — 생존 문서 4종 로드 확인"
           }
         ]

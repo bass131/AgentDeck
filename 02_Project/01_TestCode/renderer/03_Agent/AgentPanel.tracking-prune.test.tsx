@@ -1,4 +1,3 @@
-// 작업 ID: cp1-p06 · 옛 이름 cp1-p06-agentpanel-tracking-prune.test.tsx
 // @vitest-environment jsdom
 import { describe, it, expect, afterEach, vi } from 'vitest'
 import { render, cleanup, act } from '@testing-library/react'

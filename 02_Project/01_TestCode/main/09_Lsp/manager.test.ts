@@ -606,3 +606,12 @@ describe('LspManager — hoverMarkdown 정규화', () => {
     expect(r).toBeNull()
   })
 })
+
+// 창을 붙이기 전(미초기화)에도 던지지 않는다
+describe('disposeLspManager — 앱 종료 정리', () => {
+  it('미초기화 상태에서도 던지지 않는다', async () => {
+    vi.resetModules()
+    const { disposeLspManager } = await import('@main/09_Lsp/manager')
+    expect(() => disposeLspManager()).not.toThrow()
+  })
+})

@@ -1,6 +1,6 @@
 import type { ElectronApplication, Locator, Page } from '@playwright/test'
 
-// 하네스 창을 2번 모니터에 띄운다(M05 H2, 사용자 요청). 하네스 임시 main의 BrowserWindow 생성 직후
+// 하네스 창을 2번 모니터에 띄운다(사용자 요청). 하네스 임시 main의 BrowserWindow 생성 직후
 // `win`이 있는 자리에 문자열로 끼워 넣는다. 주 모니터가 아닌 첫 디스플레이의 workArea 왼쪽 위 + 여백으로
 // 옮기고 크기는 건드리지 않는다. 디스플레이가 하나뿐이면 주 모니터에 그대로 둔다.
 export const MOVE_TO_SECOND_DISPLAY_JS = `
@@ -35,9 +35,14 @@ export async function logHarnessDisplay(app: ElectronApplication, label: string)
   })
   // eslint-disable-next-line no-console
   console.log(`[e2e-display] ${label}`, JSON.stringify(info))
+  const chosen = info.chosen as { secondary?: boolean; scaleFactor?: number; primaryScaleFactor?: number } | null
+  if (chosen?.secondary && chosen.scaleFactor !== chosen.primaryScaleFactor) {
+    // eslint-disable-next-line no-console
+    console.warn(`[e2e-display] ${label} 2번 모니터 배율 ${chosen.scaleFactor}이 주 모니터 ${chosen.primaryScaleFactor}와 달라 캡처 해시가 기준선과 어긋날 수 있다 (M05 Backlog 40)`)
+  }
 }
 
-// 결정적 캡처 — 같은 코드에서 같은 PNG가 나오게 한다(M05 H2).
+// 결정적 캡처 — 같은 코드에서 같은 PNG가 나오게 한다.
 // 흔들림 원인별 수단:
 // - CSS 애니메이션·트랜지션(진입 rise·fade, 테마 전환 직후 hover 배경, 스피너 회전, pulse, 커서 blink)
 //   → 정지 스타일을 주입해 모든 요소를 기본 상태(진입 끝 상태·스피너 0도·커서 표시)로 고정한다.

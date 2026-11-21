@@ -4,7 +4,7 @@ import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync } from 'nod
 import { execFileSync } from 'node:child_process'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
-import { isolatedBoot } from './helpers/isolatedBoot'
+import { isolatedBoot, moveToSecondDisplay } from './helpers/isolatedBoot'
 import { passBootGates, openWorkspace, settleTurn } from './helpers/bootGates'
 import { PERM_CARD } from './helpers/permSelectors'
 
@@ -167,6 +167,7 @@ async function bootWithFixture(
   })
   const page = await app.firstWindow()
   await page.waitForLoadState('domcontentloaded')
+  await moveToSecondDisplay(app)
   await passBootGates(page, { nickname: 'p15r2' })
   await openWorkspace(page, { waitForTree: true })
   await page.locator('.composer-ta:not([disabled])').waitFor({ state: 'visible', timeout: 10_000 })

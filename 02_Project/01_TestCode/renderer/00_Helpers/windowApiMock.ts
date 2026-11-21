@@ -1,20 +1,17 @@
-// window.api 테스트 mock 공용 헬퍼 (M05 G10).
-// preload는 api.<묶음>.<동작>으로 묶였지만, 테스트 136파일은 옛 평면 어휘(agentRun, onAgentEvent …)로 mock을 만든다.
-// 그 어휘는 여기 「옛 평면 키 어댑터」가 받아 묶음으로 잇는다 — 어휘 정리는 G12 몫이다.
+// preload는 api.<묶음>.<동작>으로 묶였지만, 많은 시험이 옛 평면 어휘(agentRun, onAgentEvent …)로 mock을 만든다.
+// 그 어휘는 여기 「옛 평면 키 어댑터」가 받아 묶음으로 잇는다. 표에 없는 평면 키는 무시한다.
 //   installFlatWindowApi(flat) — 평면 mock을 묶음 모양 window.api로 깐다(빠진 함수는 빠진 그대로)
 //   installWindowApi(overrides) — 모든 평면 키에 기본 stub을 채운 뒤 덮어쓰기를 얹어 깐다
-// G10 계약 커밋에서 지운 채널(windowGetBounds·windowSetBounds·getEngineVersionState)의 평면 키가
-// 옛 mock에 남아 있어도 묶음에는 나타나지 않는다(표에 없는 키는 무시) — 남은 키 정리는 G12 어휘 정리 몫이다.
 import { vi } from 'vitest'
 import type { Api } from '../../../../02_Project/00_Source/preload'
-import { API_ROUTES } from '../../../../02_Project/00_Source/shared/01_Ipc/apiRoutes'
-import type { ApiRoute } from '../../../../02_Project/00_Source/shared/01_Ipc/apiRoutes'
+import { API_ROUTES } from '@shared/01_Ipc/apiRoutes'
+import type { ApiRoute } from '@shared/01_Ipc/apiRoutes'
 import type {
   AgentEventPayload,
   InvokeChannel,
   ReqOf,
   ResOf,
-} from '../../../../02_Project/00_Source/shared/ipcContract'
+} from '@shared/ipcContract'
 
 type Group = keyof Api
 type ActionOf<G extends Group> = Extract<keyof Api[G], string>
@@ -37,6 +34,7 @@ export const FLAT_ROUTES = {
   agentTaskStop: { group: 'agent', action: 'taskStop' },
   agentSetMode: { group: 'agent', action: 'setMode' },
   agentSetModel: { group: 'agent', action: 'setModel' },
+  agentSetEffort: { group: 'agent', action: 'setEffort' },
   agentListModels: { group: 'agent', action: 'listModels' },
   permissionRespond: { group: 'agent', action: 'permissionRespond' },
   questionRespond: { group: 'agent', action: 'questionRespond' },
@@ -94,7 +92,6 @@ export const FLAT_ROUTES = {
   getZoomFactor: { group: 'window', action: 'getZoomFactor' },
   setZoomFactor: { group: 'window', action: 'setZoomFactor' },
 
-  // M09 G4 — 앱 안 루프 묶음(화면은 2차분)
   loopOpen: { group: 'loop', action: 'open' },
   loopStart: { group: 'loop', action: 'start' },
   loopStatus: { group: 'loop', action: 'status' },
@@ -104,21 +101,19 @@ export const FLAT_ROUTES = {
   loopReleaseLatch: { group: 'loop', action: 'releaseLatch' },
   loopClose: { group: 'loop', action: 'close' },
   onLoopState: { group: 'loop', action: 'onState' },
-  // M10 G2 — 메인 대화(화면은 G3)
   loopMainRead: { group: 'loop', action: 'mainRead' },
   loopMainSend: { group: 'loop', action: 'mainSend' },
   loopMainNew: { group: 'loop', action: 'mainNew' },
   onLoopMainState: { group: 'loop', action: 'onMainState' },
   onLoopSessionEvent: { group: 'loop', action: 'onSessionEvent' },
-  // M10 G3 — 사람이 일시 정지 깃발을 내린다
   loopLowerFlag: { group: 'loop', action: 'lowerFlag' },
   loopSessionLog: { group: 'loop', action: 'sessionLog' },
   loopMainArchives: { group: 'loop', action: 'mainArchives' },
-  // M10 G5 — 그래프 읽기와 알림
   loopGraph: { group: 'loop', action: 'graph' },
   loopAlerts: { group: 'loop', action: 'alerts' },
   onLoopAlerts: { group: 'loop', action: 'onAlerts' },
   onLoopAlertOpen: { group: 'loop', action: 'onAlertOpen' },
+  loopListDir: { group: 'loop', action: 'listDir' },
 } as const satisfies Record<string, FlatRoute>
 
 export type FlatKey = keyof typeof FLAT_ROUTES
@@ -199,23 +194,23 @@ const DEFAULT_RESULTS: { [C in InvokeChannel]?: ResOf<C> } = {
   'agent.taskStop': { ok: true },
   'agent.setMode': { ok: true },
   'agent.setModel': { ok: true },
-  // 빈 목록이면 store는 최소 목록을 그대로 둔다(M06 G4).
+  // 빈 목록이면 store는 최소 목록을 그대로 둔다.
   'agent.listModels': { models: [], source: 'builtin' },
   'agent.permissionRespond': { ok: true },
   'agent.questionRespond': { ok: true },
-  'fs.diff': { filePath: '', lines: [] },
-  'fs.read': { kind: 'not-found' },
-  'fs.listFiles': { files: [] },
-  'fs.listDir': { entries: [] },
+  'workspace.diff': { filePath: '', lines: [] },
+  'workspace.read': { kind: 'not-found' },
+  'workspace.listFiles': { files: [] },
+  'workspace.listDir': { entries: [] },
   'workspace.saveImage': { path: '' },
   'workspace.pickFolder': { path: null },
-  'conversation.load': { conversations: [] },
-  'conversation.save': { id: 'cv-mock' },
-  'conversation.delete': { ok: true },
-  'conversation.rename': { ok: true },
-  'reference.add': { reference: null },
-  'reference.list': { references: [] },
-  'reference.tree': { tree: null },
+  'sessions.load': { conversations: [] },
+  'sessions.save': { id: 'cv-mock' },
+  'sessions.delete': { ok: true },
+  'sessions.rename': { ok: true },
+  'workspace.referenceAdd': { reference: null },
+  'workspace.referenceList': { references: [] },
+  'workspace.referenceTree': { tree: null },
   'settings.setProfile': { ok: true },
   'settings.getProfile': null,
   'settings.getUiPrefs': {},
@@ -232,6 +227,7 @@ const DEFAULT_RESULTS: { [C in InvokeChannel]?: ResOf<C> } = {
   'settings.confirmControls': { ok: true },
   'loop.graph': { ok: false, reason: '시험 기본값 — 그래프 없음' },
   'loop.alerts': { alerts: [] },
+  'loop.listDir': { ok: false, entries: [] },
 }
 
 const SYNC_RESULTS: Partial<Record<FlatKey, unknown>> = {

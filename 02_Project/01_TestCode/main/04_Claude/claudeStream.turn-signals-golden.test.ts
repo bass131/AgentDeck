@@ -1,9 +1,8 @@
-// 작업 ID: gap1-p04 · 옛 이름 gap1-p04-turn-signals.golden.test.ts
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { mapClaudeStreamLine } from '@main/04_Claude/stream/claudeStream'
-import type { AgentEvent } from '../../../../02_Project/00_Source/shared/agentEvents'
+import type { AgentEvent } from '@shared/agentEvents'
 
 const PROBE_2B = fileURLToPath(
   new URL('../../fixtures/gap1-p03/probe-2b-session-state-env.jsonl', import.meta.url)

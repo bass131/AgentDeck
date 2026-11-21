@@ -1,4 +1,4 @@
-// M09 G2 템플릿 배선 — main이 program-dev.json을 번들(JSON import)로 싣고 loadTemplate에 넘긴다.
+// main이 program-dev.json을 번들(JSON import)로 싣고 loadTemplate에 넘긴다.
 // 해시는 파싱한 값의 정규 직렬화라, 번들 값을 다시 직렬화해 넘겨도 파일 본문의 해시와 같아야 한다(재개 때 해시 대조가 깨지지 않게).
 import { describe, expect, it } from 'vitest'
 import { BUNDLED_TEMPLATE_ID, loadBundledTemplate } from '@main/05_Loop/bundledTemplate'

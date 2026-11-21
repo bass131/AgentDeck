@@ -7,7 +7,7 @@ export interface SessionSummary {
   hasPrompt?: boolean
 }
 
-export interface SampleUser {
+interface SampleUser {
   name: string
   avatarText: string
   avatarColor: string

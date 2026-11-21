@@ -1,5 +1,6 @@
 import { useEffect, useRef, type JSX, type ReactNode } from 'react'
-import { UN_ITEMS, UN_KEYWORDS } from './updateNotesSampleData'
+import { UN_ITEMS, UN_KEYWORDS } from './updateNotesContent'
+import { useModalLayer } from '@renderer/02_Common/modalStack'
 import './UpdateNotes.css'
 
 export interface UpdateNotesProps {
@@ -29,17 +30,7 @@ const RELEASE_LEAD = '코딩 에이전트 데스크탑이 한 걸음 더 나아�
 export function UpdateNotes({ open, onClose }: UpdateNotesProps): JSX.Element | null {
   const listRef = useRef<HTMLElement>(null)
 
-  useEffect(() => {
-    if (!open) return
-    const onKey = (e: KeyboardEvent): void => {
-      if (e.key === 'Escape') {
-        e.preventDefault()
-        onClose()
-      }
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [open, onClose])
+  useModalLayer(open, onClose)
 
   useEffect(() => {
     if (!open) return

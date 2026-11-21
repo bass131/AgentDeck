@@ -24,7 +24,7 @@ Object.defineProperty(window, 'api', {
     saveImageData: mockSaveImageData,
     conversationLoad: vi.fn().mockResolvedValue({ conversations: [] }),
     agentRun: vi.fn().mockResolvedValue({ runId: 'r1' }),
-    agentAbort: vi.fn().mockResolvedValue({ accepted: true }),
+    agentAbort: vi.fn().mockResolvedValue({ ok: true }),
     onAgentEvent: vi.fn().mockReturnValue(vi.fn()),
   }),
   writable: true,

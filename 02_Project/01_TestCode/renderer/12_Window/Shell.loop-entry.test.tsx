@@ -1,12 +1,11 @@
 // @vitest-environment jsdom
-// 루프 화면의 진입점 — M09 G4의 사이드바 버튼·모달은 M10 G1에서 「작업」 모드의 몸체로 바뀌었다.
 // 사이드바 모드 전환에는 「채팅」과 「작업」 둘만 있고, 「작업」을 고르면 루프 화면이 가운데(대화 자리)에 모달 없이 그려진다.
 // 고른 저장소는 앱 껍데기(Shell)가 기억해 모드를 오가도 같은 저장소의 상태를 읽는다. 작업 모드에 들기 전에는 loop IPC를 부르지 않는다.
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { render, screen, fireEvent, act, cleanup } from '@testing-library/react'
-import type { LoopStatus, MainChatView } from '../../../../02_Project/00_Source/shared/ipcContract'
+import type { LoopStatus, MainChatView } from '@shared/ipcContract'
 import { installWindowApi } from '../00_Helpers/windowApiMock'
 
 const CWD = 'C:\\work\\practice'
@@ -140,7 +139,7 @@ describe('루프 화면 진입점 — 작업 모드 (M10 G1)', () => {
     }
   })
 
-  // M10 G5 — 알림 목록은 채팅 모드에서도 Shell 수명으로 구독한다(「작업」 버튼 점). Windows 알림을 누르면 그 폴더의 작업 모드를 연다
+  // 알림 목록은 채팅 모드에서도 Shell 수명으로 구독한다(「작업」 버튼 점). Windows 알림을 누르면 그 폴더의 작업 모드를 연다
   it('채팅 모드에서도 알림을 구독하고, 알림 열기 push가 오면 그 작업 폴더의 작업 모드로 바꾼다', async () => {
     const opens = new Set<(o: { cwd: string }) => void>()
     const overrides = {
@@ -179,7 +178,7 @@ describe('루프 화면 진입점 — 작업 모드 (M10 G1)', () => {
     }
   })
 
-  // M10 G3(Backlog 6) — 작업 모드로 끈 뒤 다시 켜면 그 작업 폴더로 뜬다. 고른 폴더는 설정(work.cwd)에 남는다.
+  // 작업 모드로 끈 뒤 다시 켜면 그 작업 폴더로 뜬다. 고른 폴더는 설정(work.cwd)에 남는다.
   // 다시 켤 때 루프를 저절로 열지 않는다(열기는 저장소 잠금을 잡고 실행기를 돌리는 사람의 동작이다) — 읽기만 한다
   it('고른 작업 폴더를 설정에 남기고, 다시 켜면 그 폴더의 루프 상태와 메인 대화를 읽는다(열지는 않는다)', async () => {
     const loopStatus = vi.fn().mockResolvedValue(closed)
@@ -231,7 +230,7 @@ describe('루프 화면 진입점 — 작업 모드 (M10 G1)', () => {
       expect(loopMainRead).toHaveBeenCalledWith({ cwd: CWD })
       expect(loopOpen).not.toHaveBeenCalled()
       expect(container.querySelector('.loop-cwd')?.textContent).toBe(CWD)
-      // 저장된 작업 폴더는 목록(work.projects)에 없어도 사이드바의 프로젝트로 보인다(G3 때 고른 폴더)
+      // 저장된 작업 폴더는 목록(work.projects)에 없어도 사이드바의 프로젝트로 보인다
       expect(screen.getByRole('list', { name: '프로젝트' }).textContent).toContain('practice')
     } finally {
       installed.uninstall()
@@ -252,7 +251,7 @@ describe('작업 모드 배치 CSS', () => {
     expect(css('12_Window/Sidebar.css')).not.toMatch(/\.sb-loop\b/)
   })
 
-  // M10 G3 — 작업 칸은 가운데 메인 대화(.work-center, 남은 너비)와 옆의 좁은 루프 화면 열(.work-side, 고정 너비)로 나뉜다
+  // 작업 칸은 가운데 메인 대화(.work-center, 남은 너비)와 옆의 좁은 루프 화면 열(.work-side, 고정 너비)로 나뉜다
   it('작업 칸 안에서 메인 대화 칸은 남은 너비를 채우고, 루프 화면 열은 좁은 고정 너비다', () => {
     const shell = css('12_Window/shell.css')
     const center = shell.match(/\.work-center\s*\{([^}]*)\}/)
@@ -276,11 +275,11 @@ describe('작업 모드 배치 CSS', () => {
     for (const cls of ['sb-projects', 'sb-proj-head', 'sb-proj-tag', 'sb-proj-item', 'sb-proj-open', 'sb-mode-wait', 'sb-proj-alert']) {
       expect(side, cls).toMatch(new RegExp(`\\.${cls}\\b`))
     }
-    // M10 G5 — 현황판의 알림 띠와 프로젝트 점. 나중 사건은 다른 꼴이다
+    // 현황판의 알림 띠와 프로젝트 점. 나중 사건은 다른 꼴이다
     expect(work).toMatch(/\.board-alert\s*\{/)
     expect(work).toMatch(/\.board-alert\[data-level='later'\]/)
     expect(side).toMatch(/\.sb-proj-alert\[data-level='later'\]/)
-    // G5 검수 5 — 건너뛴 노드는 끝남(흐림)과 다른 꼴이다
+    // 건너뛴 노드는 끝남(흐림)과 다른 꼴이다
     expect(css('13_Loop/Graph.css')).toMatch(/\.gc-card\[data-skipped='true'\]\s*\{[^}]*dashed/)
   })
 })

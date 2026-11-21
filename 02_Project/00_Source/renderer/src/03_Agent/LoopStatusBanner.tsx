@@ -4,7 +4,7 @@ import type { LoopStatus } from './loopStatus'
 import { CMD_CARDS } from './cmdCards'
 import './LoopStatusBanner.css'
 
-export interface LoopStatusBannerProps {
+interface LoopStatusBannerProps {
   status: LoopStatus
   onStopSdk?: () => void
   onDismissStopped?: () => void

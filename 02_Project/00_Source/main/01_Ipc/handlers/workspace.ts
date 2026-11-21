@@ -12,7 +12,7 @@ import { pickDirectory } from '@main/07_Workspace/pickFolder'
 import { getWorkspaceRootPath } from '@main/07_Workspace/roots'
 import type { RootRegistry } from '@main/07_Workspace/roots'
 
-export interface WorkspaceHandlerDeps {
+interface WorkspaceHandlerDeps {
   state: {
     win: BrowserWindow | null
   }

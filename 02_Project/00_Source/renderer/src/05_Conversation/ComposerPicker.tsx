@@ -26,18 +26,18 @@ const MODE_ICONS = {
 
 type ModeIconKey = keyof typeof MODE_ICONS
 
-export function ModeIc({ iconKey, size = 14 }: { iconKey?: ModeIconKey; size?: number }): JSX.Element | null {
+function ModeIc({ iconKey, size = 14 }: { iconKey?: ModeIconKey; size?: number }): JSX.Element | null {
   if (!iconKey) return null
   const C = MODE_ICONS[iconKey]
   return <C size={size} />
 }
 
-export type PickOption = ModelOption | EffortOption | ModeOption
+type PickOption = ModelOption | EffortOption | ModeOption
 
-export function isModeOption(o: PickOption): o is ModeOption {
+function isModeOption(o: PickOption): o is ModeOption {
   return 'icon' in o
 }
-export function isModelOption(o: PickOption): o is ModelOption {
+function isModelOption(o: PickOption): o is ModelOption {
   return 'ctx' in o
 }
 

@@ -7,7 +7,6 @@ import {
   FileBadge,
   FileExplorer,
   FileModal,
-  FolderSwitchDialog,
   RecentFiles,
 } from '@renderer/07_Workspace/file'
 
@@ -23,10 +22,6 @@ describe('file 캡슐 — 공개 표면 스모크', () => {
 
   it('FileModal이 캡슐 경로에서 export된다', () => {
     expect(FileModal).toBeTruthy()
-  })
-
-  it('FolderSwitchDialog가 캡슐 경로에서 export된다', () => {
-    expect(FolderSwitchDialog).toBeTruthy()
   })
 
   it('RecentFiles가 캡슐 경로에서 export된다', () => {

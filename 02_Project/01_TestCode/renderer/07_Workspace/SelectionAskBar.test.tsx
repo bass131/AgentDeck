@@ -1,4 +1,3 @@
-// 작업 ID: w6 · 옛 이름 w6-selection-ask.test.tsx
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, act, cleanup, screen, fireEvent } from '@testing-library/react'
@@ -20,7 +19,7 @@ const mockApi = {
   workspaceOpen: vi.fn().mockResolvedValue({ rootPath: null, tree: null }),
   workspaceTree: vi.fn().mockResolvedValue({ tree: null }),
   agentRun: vi.fn().mockResolvedValue({ runId: 'run-test' }),
-  agentAbort: vi.fn().mockResolvedValue({ accepted: true }),
+  agentAbort: vi.fn().mockResolvedValue({ ok: true }),
   onAgentEvent: vi.fn().mockReturnValue(vi.fn()),
   fsDiff: vi.fn().mockResolvedValue({ filePath: '', lines: [] }),
   fsRead: vi.fn().mockResolvedValue({ kind: 'text', content: '', language: 'text' }),
@@ -234,6 +233,9 @@ describe('W6b — SelectionAskBar', () => {
       container = result.container
     })
     expect(container.querySelector('[data-testid="sel-bar"]')).toBeTruthy()
+    // 선택 막대는 곁 층이다(열린 것으로 세되 맨 위 모달이 되지 않는다)
+    const { isAnyModalOpen, isBlockingModalOpen } = await import('@renderer/02_Common/modalStack')
+    expect([isAnyModalOpen(), isBlockingModalOpen()]).toEqual([true, false])
   })
 
   it('선택이 비어있으면 sel-bar를 미표시한다', async () => {

@@ -17,7 +17,7 @@ import { useZoomFactorPct } from '@renderer/12_Window/useGlobalZoom'
 import {
   LSP_SERVERS,
   LSP_BADGE,
-} from './settingsSampleData'
+} from './lspServers'
 import type { SkillInfo, McpServerInfo, EngineState } from '@shared/ipcContract'
 import { ProviderStatusPanel } from '@renderer/03_Agent'
 import { ipc } from '@renderer/01_Ipc'
@@ -28,7 +28,6 @@ type NavId = 'version' | 'controls' | 'mcp' | 'skill' | 'lsp' | 'appearance'
 
 const NAV: { id: NavId; label: string; Icon: (p: IconProps) => JSX.Element }[] = [
   { id: 'version', label: 'Claude Code', Icon: ProviderBrandIcon },
-  // M07 G5 컨트롤 패널
   { id: 'controls', label: '컨트롤', Icon: IconShieldChk },
   { id: 'mcp', label: 'MCP', Icon: IconServer },
   { id: 'skill', label: 'Skill', Icon: IconBook },

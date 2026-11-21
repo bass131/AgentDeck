@@ -9,8 +9,6 @@ import type {
 import { computeDragBounds, computeResizeBounds, computeSnapZone, snapBounds } from './geometry'
 import type { Bounds } from './geometry'
 
-// 창 동작 함수 — 채널 등록은 main/01_Ipc/handlers/window.ts가 한다 (M05 G10).
-
 const MIN_W = 1024
 const MIN_H = 680
 const FOLLOW_MS = 16

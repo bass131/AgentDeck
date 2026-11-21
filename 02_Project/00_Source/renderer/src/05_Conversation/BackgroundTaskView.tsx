@@ -15,7 +15,7 @@ const STATUS_LABEL: Record<string, string> = {
   killed: '강제 종료',
 }
 
-export interface BackgroundTaskViewProps {
+interface BackgroundTaskViewProps {
   bgTask: BgTaskState
   runId?: string
 }

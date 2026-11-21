@@ -1,4 +1,4 @@
-// M06 G4 — main의 모델 목록 공급자. SDK 목록 → 캐시 → 최소 목록 순으로 물러난다.
+// SDK 목록 → 캐시 → 최소 목록 순으로 물러난다.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { mkdtempSync, rmSync, readFileSync, writeFileSync, existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -27,7 +27,7 @@ import {
 import { registerAgentHandlers } from '@main/01_Ipc/handlers/agent'
 import type { RunManager } from '@main/03_Agent/agentRuns'
 import { FALLBACK_MODELS } from '@shared/03_Agent/models/knownModels'
-import { IPC_CHANNELS } from '../../../../02_Project/00_Source/shared/ipcContract'
+import { IPC_CHANNELS } from '@shared/ipcContract'
 import type { ModelListResponse } from '@shared/03_Agent/models/modelList'
 import { SDK_MODEL_ROWS, SDK_MODEL_ROWS_RAW } from '../../shared/00_Helpers/sdkModelRows'
 
@@ -119,6 +119,30 @@ describe('ModelListProvider — SDK 호출이 실패하면', () => {
     const provider = new ModelListProvider({ fetchRows: async () => Promise.reject(new Error('x')), cacheFile: null })
     expect((await provider.load()).source).toBe('builtin')
   })
+
+  it('SDK 목록을 못 받았으면 다음 load()가 다시 묻고, 받은 뒤에는 더 묻지 않는다', async () => {
+    const fetchRows = vi.fn()
+      .mockRejectedValueOnce(new Error('cold start'))
+      .mockResolvedValue(SDK_MODEL_ROWS_RAW)
+    const provider = new ModelListProvider({ fetchRows, cacheFile })
+    expect((await provider.load()).source).toBe('builtin')
+    const second = await provider.load()
+    expect(second.source).toBe('sdk')
+    expect(currentModelRows()).toEqual(SDK_MODEL_ROWS)
+    await provider.load()
+    expect(fetchRows).toHaveBeenCalledTimes(2)
+  })
+
+  it('다시 묻는 중의 동시 호출은 한 번만 묻는다', async () => {
+    const fetchRows = vi.fn()
+      .mockRejectedValueOnce(new Error('cold start'))
+      .mockResolvedValue(SDK_MODEL_ROWS_RAW)
+    const provider = new ModelListProvider({ fetchRows, cacheFile })
+    await provider.load()
+    const [a, b] = await Promise.all([provider.load(), provider.load()])
+    expect(a).toBe(b)
+    expect(fetchRows).toHaveBeenCalledTimes(2)
+  })
 })
 
 describe('fetchModelRowsWithoutTurn — 프롬프트 없이 목록만 묻는다', () => {
@@ -163,14 +187,14 @@ describe('fetchModelRowsWithoutTurn — 프롬프트 없이 목록만 묻는다'
     expect(seen.options?.['model']).toBeUndefined()
   })
 
-  // G4 검수: 앱을 켤 때마다 ~/.claude/projects에 목록용 세션 기록을 남기지 않는다(공개 옵션 persistSession).
+  // 앱을 켤 때마다 ~/.claude/projects에 목록용 세션 기록을 남기지 않는다(공개 옵션 persistSession).
   it('세션 기록을 디스크에 남기지 않는다(persistSession: false)', async () => {
     const { queryFn, seen } = fakeQuery(Promise.resolve(SDK_MODEL_ROWS_RAW))
     await fetchModelRowsWithoutTurn(queryFn, { cwd: dir, timeoutMs: 1000 })
     expect(seen.options?.['persistSession']).toBe(false)
   })
 
-  // G4 검수: 공개 타입의 Query.close()는 CLI 자식 프로세스까지 끝낸다 — 성공·시간 초과 모두 부른다.
+  // 공개 타입의 Query.close()는 CLI 자식 프로세스까지 끝낸다 — 성공·시간 초과 모두 부른다.
   it('끝나면 close()로 자식 프로세스를 정리한다(성공·시간 초과)', async () => {
     for (const rows of [Promise.resolve(SDK_MODEL_ROWS_RAW), new Promise(() => {})]) {
       let closed = 0

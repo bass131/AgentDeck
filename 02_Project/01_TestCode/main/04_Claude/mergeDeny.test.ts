@@ -1,5 +1,4 @@
-// M07 G8 병합 거부 노드 — 앱 세션의 PreToolUse 잠금 노드 `merge-deny`가 병합 꼴을 거부하고 오탐 꼴은 지나가는지 고정한다.
-// 오탐 꼴은 저장소 가드 테스트(.claude/hooks/dangerous-cmd-guard.test.mjs 392~432행 계열)에서 빌렸다.
+// 오탐 꼴은 저장소 가드 시험(.claude/hooks/dangerous-cmd-guard.test.mjs)에서 빌렸다.
 import { readFileSync } from 'node:fs'
 import { stripTypeScriptTypes } from 'node:module'
 import { fileURLToPath } from 'node:url'
@@ -7,7 +6,7 @@ import { describe, it, expect } from 'vitest'
 import { mergeDenyReason, buildMergeDenyHook, MERGE_DENY_NODE } from '@main/04_Claude/permission/mergeDeny'
 import { listControlNodes } from '@main/04_Claude/permission/controlNodes'
 
-// G3 검수 중요 4 — 하네스 같음 시험(.claude/hooks/cmd-guard-equivalence.test.mjs)이 mergeDeny.ts를 Node의 타입 지우기로 직접 import한다.
+// 하네스 같음 시험(.claude/hooks/cmd-guard-equivalence.test.mjs)이 mergeDeny.ts를 Node의 타입 지우기로 직접 import한다.
 // 값 import나 지울 수 없는 TS 문법이 들어오면 그 시험(판정 장치)만 깨지므로, 앱 시험에서 먼저 드러나게 한다.
 describe('merge-deny 소스 — Node가 타입만 지워 바로 읽을 수 있다 (M09 G3)', () => {
   const source = readFileSync(fileURLToPath(new URL('../../../00_Source/main/04_Claude/permission/mergeDeny.ts', import.meta.url)), 'utf8')
@@ -70,7 +69,7 @@ describe('merge-deny — 병합 꼴은 거부한다 (M07 G8)', () => {
     'gh api graphql -f query=\'mutation { mergePullRequest(input: {pullRequestId: "x"}) { clientMutationId } }\'',
     'gh api graphql -f query="mutation { enablePullRequestAutoMerge(input: {pullRequestId: \\"x\\"}) { clientMutationId } }"',
     "gh api graphql --input - <<'EOF'\n{\"query\": \"mutation { mergePullRequest(input: {}) { clientMutationId } }\"}\nEOF",
-    // 독립 검수 중요 3 — 흔한 래퍼와 Windows 셸
+    // 흔한 래퍼와 Windows 셸
     'timeout 30 gh pr merge 12',
     'timeout -s KILL 30s gh pr merge 12',
     'timeout --kill-after=5 30 gh pr merge 12',
@@ -91,18 +90,18 @@ describe('merge-deny — 병합 꼴은 거부한다 (M07 G8)', () => {
     "pwsh.exe -NoProfile -NonInteractive -Command 'gh pr merge 12'",
     'powershell -ExecutionPolicy Bypass "gh pr merge 12"',
     'powershell "gh pr merge 12"',
-    // 독립 검수 사소 7 — 따옴표 없는 heredoc 본문의 명령 치환은 bash가 실행한다
+    // 따옴표 없는 heredoc 본문의 명령 치환은 bash가 실행한다
     'cat <<EOF\n$(gh pr merge 12)\nEOF',
     'cat <<-EOF\n\tx `gh pr merge 12` y\n\tEOF',
     "cat <<EOF > out.txt\ndon't $(gh api -X PUT repos/o/r/pulls/12/merge)\nEOF",
-    // 검수 반영 — here-string·짝 없는 heredoc이 뒤 명령을 숨기지 않는다
+    // here-string·짝 없는 heredoc이 뒤 명령을 숨기지 않는다
     'wc -c <<< abc\ngh pr merge 12',
     'cat <<EOF\nno terminator\ngh pr merge 12',
     'echo $((1 << 2))\ngh pr merge 12',
-    // 검수 반영 — 붙여 쓴 옵션 값이 경로를 숨기지 않는다
+    // 붙여 쓴 옵션 값이 경로를 숨기지 않는다
     'gh api -XPUT repos/o/r/pulls/12/merge',
     `gh api -fsha=${'a'.repeat(39)}f repos/o/r/pulls/12/merge -X PUT`,
-    // 검수 반영 — graphql 끝점의 다른 꼴
+    // graphql 끝점의 다른 꼴
     'gh api /graphql -f query="mutation { mergePullRequest(input: {}) { clientMutationId } }"',
     'gh api https://api.github.com/graphql -f query="mutation { enablePullRequestAutoMerge(input: {}) { clientMutationId } }"',
   ]
@@ -178,7 +177,7 @@ describe('merge-deny — 오탐 꼴은 지나간다 (M07 G8)', () => {
   }
 })
 
-// M09 G3 — `env -S`(`--split-string`)는 문자열을 낱말로 나눠 그 자리에 끼우고 옵션 읽기를 잇는다(GNU env).
+// `env -S`(`--split-string`)는 문자열을 낱말로 나눠 그 자리에 끼우고 옵션 읽기를 잇는다(GNU env).
 // 그 문자열과 뒤 낱말을 명령으로 다시 읽어 다른 병합 호출과 같은 사유로 거부한다. 같은 사례를 가드 시험과 같음 시험에도 둔다.
 describe('merge-deny — env -S 문자열을 명령으로 다시 읽는다 (M09 G3)', () => {
   const denied = [
@@ -210,7 +209,7 @@ describe('merge-deny — env -S 문자열을 명령으로 다시 읽는다 (M09 
     'npm test && env -S "gh pr merge 1"',
     "bash -c 'env -S \"gh pr merge 1\"'",
     'env -S "gh api graphql -f query=\'mutation { mergePullRequest(input: {}) { clientMutationId } }\'"',
-    // G3 검수 중요 1 — env는 값 안의 낱말 머리 `#`부터 값 끝까지만 버리고 뒤 낱말은 그대로 돈다
+    // env는 값 안의 낱말 머리 `#`부터 값 끝까지만 버리고 뒤 낱말은 그대로 돈다
     'env -S "#" gh pr merge 1',
     'env -S "#c" gh pr merge 1',
     'env -S "gh pr #" merge 1',
@@ -219,7 +218,7 @@ describe('merge-deny — env -S 문자열을 명령으로 다시 읽는다 (M09 
     'env -S "gh api #" -X PUT repos/o/r/pulls/1/merge',
     // 따옴표 안의 `#`는 주석이 아니다
     'env -S \'FOO="a #b" gh pr merge 1\'',
-    // G3 검수 사소 2 — `-a`(`--argv0`)는 값을 받는다
+    // `-a`(`--argv0`)는 값을 받는다
     'env -a x -S "gh pr merge 1"',
     'env --argv0 x -S "gh pr merge 1"',
   ]
@@ -260,6 +259,80 @@ describe('merge-deny — env -S 문자열을 명령으로 다시 읽는다 (M09 
   }
 })
 
+describe('merge-deny — 가드와 같은 판독 (M11 G3)', () => {
+  const probes = [
+    'timeout -vs KILL 5 gh pr merge 1',
+    'timeout --sig KILL 5 gh pr merge 1',
+    'bash -ce "gh pr merge 1"',
+    'bash -c -x "gh pr merge 1"',
+    'eval gh pr merge 1',
+    'find . -maxdepth 0 -exec gh pr merge 1 \\;',
+  ]
+  for (const cmd of probes) {
+    it(`[M11-G3 M11-17] 거부: ${JSON.stringify(cmd)}`, () => {
+      expect(mergeDenyReason(cmd)).not.toBeNull()
+    })
+  }
+  const passed = [
+    'timeout -vs KILL 5 npm test',
+    'bash -ce "git status"',
+    'bash -c -x "npm test"',
+    'eval echo merge',
+    'find . -name "*.ts" -exec grep -l merge {} \\;',
+    'echo "find . -exec gh pr merge 1 \\;"',
+  ]
+  for (const cmd of passed) {
+    it(`통과: ${JSON.stringify(cmd)}`, () => {
+      expect(mergeDenyReason(cmd)).toBeNull()
+    })
+  }
+})
+
+describe('merge-deny — 가드와 같은 판독 (M11 G8)', () => {
+  const probes = [
+    // PowerShell이 인자를 스크립트로 돌리는 꼴
+    'iex "gh pr merge 1"',
+    'Invoke-Expression "gh pr merge 1"',
+    'Invoke-Expression -Command "gh pr merge 1 --merge"',
+    "Start-Process gh -ArgumentList 'pr merge 1'",
+    'Start-Process -FilePath gh -ArgumentList "pr","merge","1"',
+    "saps gh 'pr merge 1'",
+    'Start-Process gh -ArgumentList "pr", "merge", "1"',
+    'Start-Process gh -ArgumentList @("pr","merge","1")',
+    'Start-Process gh -ArgumentList @("pr", "merge", "1")',
+    "powershell -Command \"iex 'gh pr merge 1'\"",
+    // +c, 여러 o, 대시 하나 긴 옵션, .exe 셸
+    'bash +c "gh pr merge 1"',
+    'bash -coo pipefail errexit "gh pr merge 1"',
+    'bash -login -ce "gh pr merge 1"',
+    'dash.exe -c "gh pr merge 1"',
+    'zsh.exe -c "gh pr merge 1"',
+    // 대시 하나 긴 옵션은 bash만 읽는다. zsh·ksh에서 `-restricted`는 `c`가 든 묶음, sh는 두 판독의 합집합
+    'zsh -restricted "gh pr merge 1"',
+    'ksh -restricted "gh pr merge 1"',
+    'sh -restricted "gh pr merge 1"',
+    'sh -login -c "gh pr merge 1"',
+  ]
+  for (const cmd of probes) {
+    it(`[M11-G8 M11-28 M03-28] 거부: ${JSON.stringify(cmd)}`, () => {
+      expect(mergeDenyReason(cmd)).not.toBeNull()
+    })
+  }
+  const passed = [
+    'iex "npm test"',
+    'Start-Process notepad',
+    'Start-Process gh -ArgumentList "pr view 1"',
+    'git commit -m "iex gh pr merge 1 은 막힌다"',
+    'bash -login -c "npm test"',
+    'bash -restricted "gh pr merge 1"',
+  ]
+  for (const cmd of passed) {
+    it(`통과: ${JSON.stringify(cmd)}`, () => {
+      expect(mergeDenyReason(cmd)).toBeNull()
+    })
+  }
+})
+
 describe('merge-deny 훅과 노드 정보 (M07 G8)', () => {
   it('훅은 command 입력의 병합 꼴을 거부 결정으로, 나머지는 빈 출력으로 돌려준다', async () => {
     const matcher = buildMergeDenyHook()
@@ -271,9 +344,8 @@ describe('merge-deny 훅과 노드 정보 (M07 G8)', () => {
     const deny = await hook({ hook_event_name: 'PreToolUse', tool_name: 'Bash', tool_input: { command: 'gh pr merge 1' } }, 't1', { signal })
     expect(deny).toMatchObject({ hookSpecificOutput: { hookEventName: 'PreToolUse', permissionDecision: 'deny' } })
     expect(deny.hookSpecificOutput?.permissionDecisionReason).toMatch(/앱.*「병합」 버튼/)
-    // M08 G2(헌법 10조 효력 날 뒤): 이 노드는 작업 폴더와 관계없이 모든 앱 세션에 붙는다(sdkOptions). 안내는 작업 폴더 중립이다 —
-    //   호출 거부는 대상 브랜치와 관계없고, 로컬 병합은 저장소 규칙이 정해 둔 경우에만 그 조건을 따라 하며, 아니면 PR 생성까지만.
-    //   AgentDeck 저장소 전용 지시(「마일스톤 브랜치에 합치세요」)를 명령형으로 내리면 그 규칙이 없는 저장소에서 틀린다(G2 검수 중요 1).
+    // 이 노드는 작업 폴더와 관계없이 모든 앱 세션에 붙으므로 안내는 작업 폴더 중립이다 —
+    // AgentDeck 전용 지시(「마일스톤 브랜치에 합치세요」)를 명령형으로 내리면 그 규칙이 없는 저장소에서 틀린다.
     const why = deny.hookSpecificOutput?.permissionDecisionReason ?? ''
     expect(why).toMatch(/대상 브랜치와 관계없/)
     expect(why).toMatch(/저장소 규칙이[^.]*로컬 병합[^.]*정해 두었으면[^.]*병합 조건을 따르/)

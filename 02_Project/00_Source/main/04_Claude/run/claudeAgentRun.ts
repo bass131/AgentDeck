@@ -5,7 +5,7 @@ import { getUserDataDir } from '@main/02_Common/userData'
 import { PERMISSION_NODES } from '../permission/controlNodes'
 import { controlsForRun, type ControlsForRun } from '../permission/controlsStore'
 import { getDefaultQueryFn, captureSupportedCommands } from '../queryFn'
-import { normalizeRunModel } from '../runArgs'
+import { normalizeRunModel, runEffortFor } from '../runArgs'
 import { LIVE_MODE_TO_SDK } from '../permissionModes'
 import { buildModelContextPrompt } from '../buildPrompt'
 import { BgTaskObserver } from './bgTaskObserver'
@@ -21,18 +21,21 @@ export { IDLE_CLOSE_GRACE_MS } from './idleCloseGovernor'
 
 export const MAX_CONSECUTIVE_AUTONOMOUS_TURNS = 100
 
-// 엔진 경로 잠금에 넘길 userData 경로 (M07 G3). 실행마다 다시 읽는다 — 임시 --user-data-dir도 그 경로가 잠긴다.
-// Electron 밖(단위 테스트)에서는 app이 없어 던진다. 그때는 잠금 없이 열고 main 로그에 남긴다.
-function userDataForLock(): { userDataDir?: string } {
+const AUTO_COMPACT_ASK_MS = 2000
+
+// 실행마다 다시 읽는다 — 임시 --user-data-dir도 그 경로가 잠긴다.
+// 앱 조립 지점(registry)이 engineLockDir를 넣고, 그 읽기가 던지면 실행을 열지 않는다.
+// 넣지 않은 기본(Electron 밖 단위 테스트)은 app이 없어 던지면 잠금 없이 열고 main 로그에 남긴다.
+function defaultEngineLockDir(): string | undefined {
   try {
-    return { userDataDir: getUserDataDir() }
+    return getUserDataDir()
   } catch (err) {
     console.error('[controls] 엔진 경로 잠금 — userData 경로를 얻지 못해 잠금 없이 연다:', err instanceof Error ? err.message : err)
-    return {}
+    return undefined
   }
 }
 
-// 컨트롤 설정 (M07 G5). 실행을 열 때 한 번 읽어 그 실행에 고정한다 — 토글은 다음 실행부터다.
+// 실행을 열 때 한 번 읽어 그 실행에 고정한다 — 토글은 다음 실행부터다.
 // 이어지는(persistent) 실행은 세션을 다시 열 때 반영된다. 봉인이 맞지 않으면 실행을 열지 않는다(controlsStore.ts).
 // userData 경로를 못 얻으면(Electron 밖 단위 테스트) 기본 등록부로 연다 — 에이전트가 만들 수 있는 상태가 아니다.
 function controlsAtRunStart(): ControlsForRun {
@@ -55,7 +58,10 @@ export class ClaudeAgentRun implements AgentRun {
     stopTask?: (taskId: string) => unknown
     setPermissionMode?: (mode: string) => unknown
     setModel?: (model: string) => unknown
+    applyFlagSettings?: (settings: { effortLevel?: string }) => unknown
+    getContextUsage?: (opts: { detail: 'summary' }) => Promise<unknown>
   } | null = null
+  private _autoCompactAsked = false
   private _interrupted = false
 
   private _queue: AgentEvent[] = []
@@ -93,26 +99,35 @@ export class ClaudeAgentRun implements AgentRun {
 
   private _currentModel: string | null
 
+  private _currentEffort: string | null
+
   private readonly _req: AgentRunInput
   private readonly _queryFn: QueryFn | null
   private readonly _skillOverridesProvider: () => Record<string, 'off'> | null
   private readonly _mcpDeniedProvider: () => { serverName: string }[] | null
   private readonly _onCommandsCaptured: ((cmds: SlashCommandInfo[]) => void) | null
+  private readonly _controlsAtRunStart: () => ControlsForRun
+  private readonly _engineLockDir: () => string | undefined
 
   constructor(
     req: AgentRunInput,
     queryFn: QueryFn | null,
     skillOverridesProvider: () => Record<string, 'off'> | null,
     mcpDeniedProvider: () => { serverName: string }[] | null,
-    onCommandsCaptured: ((cmds: SlashCommandInfo[]) => void) | null = null
+    onCommandsCaptured: ((cmds: SlashCommandInfo[]) => void) | null = null,
+    controlsProvider: () => ControlsForRun = controlsAtRunStart,
+    engineLockDir: () => string | undefined = defaultEngineLockDir,
   ) {
     this._req = req
+    this._controlsAtRunStart = controlsProvider
+    this._engineLockDir = engineLockDir
     this._queryFn = queryFn
     this._skillOverridesProvider = skillOverridesProvider
     this._mcpDeniedProvider = mcpDeniedProvider
     this._onCommandsCaptured = onCommandsCaptured
     this._currentOrchestration = req.orchestration === true
     this._currentModel = normalizeRunModel(req.model) ?? null
+    this._currentEffort = req.effort !== undefined ? runEffortFor(req.effort, req.model) ?? null : null
     this._perm = new PermissionCoordinator((e) => this._push(e))
     this._bgTaskObserver = new BgTaskObserver((e) => this._push(e))
     this._idleGovernor = new IdleCloseGovernor({
@@ -194,8 +209,9 @@ export class ClaudeAgentRun implements AgentRun {
     if (!handle || typeof handle.setModel !== 'function') return
     const prev = this._currentModel
     this._currentModel = resolved
-    // 계기가 다음 턴 결과에서 새 주 모델의 창을 고르게 한다 (M06 G4). 전환이 거절되면 되돌린다.
+    // 계기가 다음 턴 결과에서 새 주 모델의 창을 고르게 한다. 전환이 거절되면 되돌린다.
     this._normalizer.setMainModel(resolved)
+    this._autoCompactAsked = false
     const rollback = (): void => {
       if (this._currentModel !== resolved) return
       this._currentModel = prev
@@ -203,6 +219,25 @@ export class ClaudeAgentRun implements AgentRun {
     }
     try {
       void Promise.resolve(handle.setModel(resolved)).catch(rollback)
+    } catch {
+      rollback()
+    }
+  }
+
+  // 공개 타입 Query.applyFlagSettings로 바꾼다. 지금 모델이 받는 단계로 내린다.
+  setEffort(effort: string): void {
+    if (this._req.persistent !== true) return
+    const level = runEffortFor(effort, this._currentModel ?? undefined)
+    if (level === undefined || level === this._currentEffort) return
+    const handle = this._queryHandle
+    if (!handle || typeof handle.applyFlagSettings !== 'function') return
+    const prev = this._currentEffort
+    this._currentEffort = level
+    const rollback = (): void => {
+      if (this._currentEffort === level) this._currentEffort = prev
+    }
+    try {
+      void Promise.resolve(handle.applyFlagSettings({ effortLevel: level })).catch(rollback)
     } catch {
       rollback()
     }
@@ -303,10 +338,20 @@ export class ClaudeAgentRun implements AgentRun {
   }
 
   private async _prepareQuery(): Promise<{ resolvedQueryFn: QueryFn; sdkOptions: Record<string, unknown> } | null> {
-    const controls = controlsAtRunStart()
+    const controls = this._controlsAtRunStart()
     if (!controls.ok) {
       console.error(`[controls] controls.json 봉인 ${controls.status} — 실행을 열지 않는다`)
       this._push({ type: 'error', message: controls.message })
+      this._push({ type: 'done' })
+      return null
+    }
+
+    let userDataDir: string | undefined
+    try {
+      userDataDir = this._engineLockDir()
+    } catch (err) {
+      const why = err instanceof Error ? err.message : String(err)
+      this._push({ type: 'error', message: `앱 데이터 폴더를 얻지 못해 엔진 경로 잠금을 걸 수 없어 실행을 열지 않았습니다(${why}) — 앱을 다시 시작하세요.` })
       this._push({ type: 'done' })
       return null
     }
@@ -335,7 +380,7 @@ export class ClaudeAgentRun implements AgentRun {
       skillOverrides: this._skillOverridesProvider(),
       mcpDenied: this._mcpDeniedProvider(),
       onUserDialog: makeRefusalFallbackHandler(this._normalizer, (e) => this._push(e)),
-      ...userDataForLock(),
+      ...(userDataDir ? { userDataDir } : {}),
     })
     return { resolvedQueryFn, sdkOptions }
   }
@@ -380,6 +425,8 @@ export class ClaudeAgentRun implements AgentRun {
           if (this._aborted || this._abortController.signal.aborted) {
             return
           }
+          // 문자열 프롬프트 query는 결과 뒤 곧 닫혀 그때는 답을 못 받는다 — 첫 메시지에서 묻는다
+          this._askAutoCompactOnce()
           const { events: normEvents, done } = this._normalizer.process(msg)
           this._bgTaskObserver.maybeStartTail(msg)
           for (const e of normEvents) {
@@ -389,9 +436,7 @@ export class ClaudeAgentRun implements AgentRun {
             }
             this._push(e)
           }
-          if (done !== null) {
-            lastDone = done
-          }
+          if (done !== null) lastDone = done
         }
 
         if (!this._aborted && !this._abortController.signal.aborted) {
@@ -587,9 +632,28 @@ export class ClaudeAgentRun implements AgentRun {
     this._push(e)
   }
 
+  // 모델마다 한 번 묻고, done을 기다리게 하지 않는다
+  private _askAutoCompactOnce(): void {
+    const handle = this._queryHandle
+    if (this._autoCompactAsked || !handle || typeof handle.getContextUsage !== 'function') return
+    this._autoCompactAsked = true
+    let timer: ReturnType<typeof setTimeout> | undefined
+    const timeout = new Promise<null>((resolve) => { timer = setTimeout(() => resolve(null), AUTO_COMPACT_ASK_MS) })
+    void Promise.race([Promise.resolve().then(() => handle.getContextUsage!({ detail: 'summary' })), timeout])
+      .then((res) => {
+        const r = res as { isAutoCompactEnabled?: unknown; autoCompactThreshold?: unknown } | null
+        if (!r || typeof r.isAutoCompactEnabled !== 'boolean') return
+        const threshold = typeof r.autoCompactThreshold === 'number' && r.autoCompactThreshold > 0 ? r.autoCompactThreshold : undefined
+        this._push({ type: 'compact', kind: 'settings', autoCompactEnabled: r.isAutoCompactEnabled, ...(threshold !== undefined ? { thresholdTokens: threshold } : {}) })
+      })
+      .catch(() => {})
+      .finally(() => clearTimeout(timer))
+  }
+
   private _handleTurnBoundary(done: AgentEventDone, turnOrigin: 'user' | 'cron'): void {
     this._sendTokens.completeTurn()
     this._push({ ...done, origin: turnOrigin })
+    this._askAutoCompactOnce()
     if (this._interrupted) this._interrupted = false
 
     if (turnOrigin === 'user') {

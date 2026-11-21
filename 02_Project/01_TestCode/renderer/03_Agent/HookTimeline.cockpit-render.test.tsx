@@ -1,4 +1,3 @@
-// 작업 ID: gap1-p05 · 옛 이름 gap1-p05-hook-cockpit-render.test.tsx
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, cleanup, act, fireEvent } from '@testing-library/react'
@@ -10,7 +9,7 @@ const mockApi = {
   conversationLoad: vi.fn().mockResolvedValue({ conversations: [] }),
   conversationSave: vi.fn().mockResolvedValue({ id: 'cv-1' }),
   agentRun: vi.fn().mockResolvedValue({ runId: 'r1' }),
-  agentAbort: vi.fn().mockResolvedValue({ accepted: true }),
+  agentAbort: vi.fn().mockResolvedValue({ ok: true }),
   onAgentEvent: vi.fn().mockReturnValue(mockUnsub),
   listFiles: vi.fn().mockResolvedValue({ files: [] }),
 }
@@ -24,7 +23,7 @@ beforeEach(() => {
 })
 afterEach(() => cleanup())
 
-const HOOK_TIMELINE_PATH = '@renderer/10_Engine'
+const HOOK_TIMELINE_PATH = '@renderer/03_Agent'
 
 const sampleRuns = [
   { hookId: 'h1', hookName: 'PreToolUse:Bash', hookEvent: 'PreToolUse', status: 'success', exitCode: 0 },

@@ -1,4 +1,4 @@
-// M10 G2 메인의 앱 안 도구(05_Loop/mainChatTools.ts) — 사람 판정 경계.
+// 메인의 앱 안 도구(05_Loop/mainChatTools.ts) — 사람 판정 경계.
 // 고정하는 것: 도구는 pause·resume·append_backlog 셋뿐이다(승인·반려·이어 가기·래치 풀기·판정 넣기 도구가 없다).
 // 도구는 좁은 능력 객체(MainActions)만 부른다. Backlog 한 줄은 실행기 코드가 `.agentdeck/backlog.md`에 붙인다(여러 줄·빈 글은 받지 않는다).
 // SDK 꼴: createSdkMcpServer로 만든 서버 하나(agentdeck-main)를 SDK mcpServers 값으로 돌려준다.

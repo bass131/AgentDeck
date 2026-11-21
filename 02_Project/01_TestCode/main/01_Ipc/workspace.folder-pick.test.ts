@@ -3,10 +3,6 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 
-// M05 G11: 폴더 선택 대화상자 세 벌(workspace.open·reference.add·dialog.pickFolder)을 한 곳으로 모은다.
-// 실물 핸들러 셋을 ipcMain.handle 가로채기로 등록해 지금 동작을 고정한다 —
-// 대화상자 인자(부모 창 유무), 취소·빈 결과, `\`→`/`, E2E 환경변수 이름과 호출 시점 읽기,
-// 요청 folderPath 우선(workspace·reference만), 실패 응답 모양, 사후 검증.
 const h = vi.hoisted(() => ({
   handlers: new Map<string, (...args: unknown[]) => unknown>(),
   showOpenDialog: null as unknown as ReturnType<typeof import('vitest').vi.fn>,
@@ -27,7 +23,7 @@ import { registerReferenceHandlers } from '@main/01_Ipc/handlers/reference'
 import { registerFsHandlers } from '@main/01_Ipc/handlers/fs'
 import { createRootRegistry } from '@main/07_Workspace/roots'
 import { pickDirectory } from '@main/07_Workspace/pickFolder'
-import { IPC_CHANNELS, WORKSPACE_ROOT_ID } from '../../../../02_Project/00_Source/shared/ipcContract'
+import { IPC_CHANNELS, WORKSPACE_ROOT_ID } from '@shared/ipcContract'
 
 const ENV_KEYS = ['AGENTDECK_E2E_WORKSPACE', 'AGENTDECK_E2E_REFERENCE', 'AGENTDECK_E2E_PICK_FOLDER'] as const
 const FAKE_WIN = { id: 'win' } as never
@@ -161,7 +157,7 @@ describe('pickDirectory() — 한 곳으로 모은 대화상자 (M05 G11)', () =
 })
 
 describe('workspace.open — 성공하면 현재 루트를 기록한다', () => {
-  // 루트 원천은 roots 하나다(G11 4단계) — 읽는 쪽 고정은 workspace.root-source.test.ts
+  // 읽는 쪽 고정은 workspace.root-source.test.ts
   it('roots의 작업 공간 루트에 `/` 경로가 들어간다', async () => {
     h.showOpenDialog.mockResolvedValue({ canceled: false, filePaths: [dir] })
     await call(IPC_CHANNELS.WORKSPACE_OPEN, {})

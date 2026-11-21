@@ -4,7 +4,6 @@ import { startApp, attachWindow, stopApp } from './00_App/bootstrap'
 import { getPrefsStore } from './00_App/context'
 import { restoreBootZoom } from './12_Window/zoom'
 
-// 진입점 — 창을 만들고 Electron 수명주기 이벤트를 조립 지점(00_App/bootstrap)에 잇는다 (M05 G11)
 function createWindow(): BrowserWindow {
   const { width: areaW, height: areaH } = screen.getPrimaryDisplay().workAreaSize
   const width = Math.min(1920, areaW)
@@ -47,24 +46,39 @@ function createWindow(): BrowserWindow {
   return win
 }
 
-app.whenReady().then(() => {
-  startApp()
+// 두 실행이 같은 앱 영역을 나눠 쓰지 않게 한 벌만 돈다. 둘째 실행은 첫 창을 앞으로 가져오고 끝난다
+function focusFirstWindow(): void {
+  const win = BrowserWindow.getAllWindows().find((w) => !w.isDestroyed())
+  if (!win) return
+  if (win.isMinimized()) win.restore()
+  win.show()
+  win.focus()
+}
 
-  const win = createWindow()
-  attachWindow(win)
+if (!app.requestSingleInstanceLock()) {
+  app.quit()
+} else {
+  app.on('second-instance', focusFirstWindow)
 
-  app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) {
-      const newWin = createWindow()
-      attachWindow(newWin)
-    }
+  app.whenReady().then(() => {
+    startApp()
+
+    const win = createWindow()
+    attachWindow(win)
+
+    app.on('activate', () => {
+      if (BrowserWindow.getAllWindows().length === 0) {
+        const newWin = createWindow()
+        attachWindow(newWin)
+      }
+    })
   })
-})
 
-app.on('before-quit', () => {
-  stopApp()
-})
+  app.on('before-quit', () => {
+    stopApp()
+  })
 
-app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') app.quit()
-})
+  app.on('window-all-closed', () => {
+    if (process.platform !== 'darwin') app.quit()
+  })
+}

@@ -4,9 +4,8 @@ import { MODES, effortPickerFor, modelOptionsFor, pickerModelValue } from '@rend
 import { useAppStore, selectModelRows } from '@renderer/00_App/appStore'
 import { Picker } from './ComposerPicker'
 
-// 선택기 묶음 하나(M05 G9b P1·P2) — 단일 입력창 바와 멀티 패널이 같은 묶음을 쓴다.
 // 값의 거처(store·패널 상태)와 라이브 전환 요청은 호출부가 setter로 넘긴다.
-export interface PickerGroupProps {
+interface PickerGroupProps {
   model: string
   setModel: (id: string) => void
   effort: string
@@ -33,7 +32,7 @@ function PickerGroupInner({
   setReplMode,
   replLit,
 }: PickerGroupProps): JSX.Element {
-  // 모델 목록은 main이 준 SDK 목록이다(M06 G4) — 오기 전에는 store 기본값인 최소 목록이다.
+  // 모델 목록은 main이 준 SDK 목록이다 — 오기 전에는 store 기본값인 최소 목록이다.
   const modelRows = useAppStore(selectModelRows)
   const modelOptions = useMemo(() => modelOptionsFor(modelRows, model), [modelRows, model])
   const modelValue = pickerModelValue(modelRows, model)

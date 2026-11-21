@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, act, cleanup, waitFor } from '@testing-library/react'
-import type { McpServerInfo } from '../../../../02_Project/00_Source/shared/ipcContract'
+import type { McpServerInfo } from '@shared/ipcContract'
 import { adaptFlatApi } from '../00_Helpers/windowApiMock'
 
 const mockListMcpServers = vi.fn<() => Promise<McpServerInfo[]>>()

@@ -128,7 +128,7 @@ describe('ClaudeCodeBackend.version()', () => {
     expect(result).toBe('1.2.3')
   })
 
-  // 폴백 값 자체는 10_Engine/sdkVersion.read.test.ts의 드리프트 테스트가 package.json 의존 명세에 묶는다 (M05 G11, Backlog 4).
+  // 폴백 값 자체는 10_Engine/sdkVersion.read.test.ts가 package.json 의존 명세에 묶는다
   it('resolvePackageVersion 주입이 실패(throw) → 폴백 상수 SDK_VERSION_FALLBACK', async () => {
     const backend = new ClaudeCodeBackend(undefined, undefined, undefined, {
       resolvePackageVersion: makeFailPkgVersionProvider()

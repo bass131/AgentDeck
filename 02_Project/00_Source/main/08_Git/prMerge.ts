@@ -1,13 +1,9 @@
-// PR 서비스 (M07 G8) — PR 카드의 값을 GitHub에서 직접 읽고, 사람이 누른 병합 버튼으로 비동기 병합 API를 부른다.
-// gh 실행기는 주입받는다(단위 테스트가 400·409·검사 미통과 같은 응답을 고정한다).
-//
 // 근거(github/docs `src/rest/data/fpt-2022-11-28/pulls.json`, 2026-11-18 읽음):
 //   PUT .../pulls/{n}/merge-async — 202 접수(pending, uuid·expected_head_sha), 200 이미 병합됨·병합 큐,
 //   400 병합할 수 없는 상태(보호 규칙은 이 단계에서 보지 않는다), 409 이미 대기 중인 요청(그 uuid와 옵션을 돌려준다).
 //   GET .../pulls/{n}/merge-async/{uuid} — 지금 결과(pending·merged·failed·enqueued), 24시간 뒤 404.
 // `gh api -i` 실측: 첫 줄 `HTTP/2.0 404 Not Found`, 머리글 뒤 빈 줄 다음이 본문, HTTP 오류면 exit 1.
 // `-i` 없이 실패하면 stdout에 오류 본문 JSON, stderr에 `gh: <message> (HTTP 404)`가 온다.
-// 필수 검사 실측(이 저장소): 보호 API `checks: [{context:"hard-gates", app_id:15368}]`, check run `app.id: 15368`.
 import { execFile } from 'node:child_process'
 import type { PrCheckResult, PrMergeResponse, PrReadResponse, PrView } from '../../shared/ipcContract'
 import { maskCredentials } from './git'
@@ -18,9 +14,9 @@ export interface GhResult {
   stderr: string
 }
 
-export type GhRunner = (args: string[], cwd: string) => Promise<GhResult>
+type GhRunner = (args: string[], cwd: string) => Promise<GhResult>
 
-export interface PrServiceDeps {
+interface PrServiceDeps {
   gh: GhRunner
   // 작업 폴더의 `git remote get-url origin`. 없으면 null
   originUrl: (cwd: string) => Promise<string | null>
@@ -30,12 +26,11 @@ export interface PrServiceDeps {
   pollTimeoutMs?: number
 }
 
-export interface RepoRef {
+interface RepoRef {
   owner: string
   repo: string
 }
 
-// ── 저장소·URL 해석 ──
 export function parseGithubRepo(url: string): RepoRef | null {
   const s = url.trim()
   const m =
@@ -56,7 +51,6 @@ const sameRepo = (a: RepoRef, b: RepoRef): boolean =>
 const isPrNumber = (n: unknown): n is number => typeof n === 'number' && Number.isInteger(n) && n > 0
 const isSha = (s: unknown): s is string => typeof s === 'string' && /^[0-9a-f]{40}$/i.test(s)
 
-// ── 응답 해석 ──
 interface Parsed {
   status: number | null
   body: unknown
@@ -98,7 +92,6 @@ function parseIncluded(r: GhResult): Parsed {
 const rec = (v: unknown): Record<string, unknown> => (v && typeof v === 'object' ? (v as Record<string, unknown>) : {})
 const str = (v: unknown): string => (typeof v === 'string' ? v : '')
 
-// ── 버튼 활성 판정 ──
 const CHECK_TEXT: Record<PrCheckResult, string> = { success: '성공', pending: '대기 중', failure: '실패', missing: '결과 없음' }
 
 export function mergeEligibility(pr: PrView): { canMerge: boolean; reasons: string[]; notes: string[] } {
@@ -114,7 +107,9 @@ export function mergeEligibility(pr: PrView): { canMerge: boolean; reasons: stri
     if (c.result !== 'success') reasons.push(`필수 검사 ${c.name}: ${CHECK_TEXT[c.result]}`)
   }
   if (!pr.protected && !pr.requiredError) notes.push(`${pr.baseRef} 브랜치에 보호가 없어 필수 검사가 없어요`)
-  else if (pr.protected && !pr.requiredError && pr.checks.length === 0) notes.push(`${pr.baseRef} 브랜치 보호에 필수 검사가 없어요`)
+  else if (pr.protected && !pr.requiredError && pr.checks.length === 0) {
+    notes.push(pr.byRuleset ? `${pr.baseRef} 브랜치 룰셋에 필수 검사가 없어요` : `${pr.baseRef} 브랜치 보호에 필수 검사가 없어요`)
+  }
   return { canMerge: reasons.length === 0, reasons, notes }
 }
 
@@ -154,7 +149,29 @@ function requiredOf(body: unknown): Required[] | null {
   return out
 }
 
-// 한 필수 검사의 결과 — 여럿이 맞으면 닫힌 쪽으로: 실패 > 대기 > 성공 > 없음 (독립 검수 중요 2).
+// `GET repos/{o}/{r}/rules/branches/{b}` 본문 — 그 브랜치에 걸린 룰셋 규칙 배열.
+// `required_status_checks` 규칙의 `parameters.required_status_checks[]`(context·integration_id)를 모은다. integration_id가 없으면 어느 앱이든.
+// 한 쪽이 가득 차면 다음 쪽에 규칙이 더 있을 수 있어 닫힌 실패(null)다.
+const RULES_PAGE = 100
+
+function rulesetRequiredOf(body: unknown): { ruleCount: number; required: Required[] } | null {
+  if (!Array.isArray(body) || body.length >= RULES_PAGE) return null
+  const required: Required[] = []
+  for (const rule of body) {
+    if (rec(rule)['type'] !== 'required_status_checks') continue
+    const list = rec(rec(rule)['parameters'])['required_status_checks']
+    if (!Array.isArray(list)) return null
+    for (const c of list) {
+      const name = str(rec(c)['context'])
+      if (!name) return null
+      const app = rec(c)['integration_id']
+      required.push({ name, appId: typeof app === 'number' ? app : null })
+    }
+  }
+  return { ruleCount: body.length, required }
+}
+
+// 한 필수 검사의 결과 — 여럿이 맞으면 닫힌 쪽으로: 실패 > 대기 > 성공 > 없음.
 // 앱이 정해진 검사는 그 앱의 check run만 보고, 같은 이름의 commit status는 보지 않는다(다른 주체가 같은 이름을 쓸 수 있다).
 function checkResult(req: Required, runs: Run[], statuses: { context: string; state: string }[]): PrCheckResult {
   const seen = new Set<PrCheckResult>()
@@ -185,7 +202,6 @@ function pendingMismatch(p: Record<string, unknown>): string[] {
 
 const UNKNOWN: PrMergeResponse = { status: 'unknown', message: '결과 모름 — 다시 읽기로 확인하세요' }
 
-// ── 서비스 ──
 export function createPrService(deps: PrServiceDeps) {
   const sleep = deps.sleep ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)))
   const now = deps.now ?? (() => Date.now())
@@ -259,7 +275,18 @@ export function createPrService(deps: PrServiceDeps) {
       if (r) required = r
       else view.requiredError = '보호 설정의 필수 검사 목록 모양을 읽지 못했어요'
     } else if (prot.status === 404 && /branch not protected/i.test(prot.message)) {
-      view.protected = false
+      const rules = await api(cwd, `${base}/rules/branches/${encodeURIComponent(baseRef)}?per_page=${RULES_PAGE}`)
+      const r = rules.status === 200 ? rulesetRequiredOf(rules.body) : null
+      if (rules.status !== 200) {
+        view.requiredError = `룰셋 읽기 실패 (HTTP ${rules.status ?? '?'}) ${maskCredentials(rules.message)}`.trim()
+      } else if (!r) {
+        view.requiredError = '룰셋 규칙 목록 모양을 읽지 못했어요'
+      } else if (r.ruleCount === 0) {
+        view.protected = false
+      } else {
+        view.byRuleset = true
+        required = r.required
+      }
     } else if (prot.status === 404 && /required status checks not enabled/i.test(prot.message)) {
       required = []
     } else {
@@ -298,7 +325,6 @@ export function createPrService(deps: PrServiceDeps) {
     return { ok: true, pr: view }
   }
 
-  // 대기 중인 병합 요청의 결과를 상한까지 조회한다
   async function poll(cwd: string, path: string): Promise<PrMergeResponse> {
     const deadline = now() + cap
     while (now() < deadline) {
@@ -405,7 +431,6 @@ export function createPrService(deps: PrServiceDeps) {
   return { readPr, mergePr }
 }
 
-// ── 실행 배선 ──
 function run(cmd: string, args: string[], cwd: string, timeout: number): Promise<GhResult> {
   return new Promise((resolve) => {
     execFile(
@@ -420,9 +445,9 @@ function run(cmd: string, args: string[], cwd: string, timeout: number): Promise
   })
 }
 
-export const ghRunner: GhRunner = (args, cwd) => run('gh', args, cwd, 60_000)
+const ghRunner: GhRunner = (args, cwd) => run('gh', args, cwd, 60_000)
 
-export async function gitOriginUrl(cwd: string): Promise<string | null> {
+async function gitOriginUrl(cwd: string): Promise<string | null> {
   const r = await run('git', ['remote', 'get-url', 'origin'], cwd, 10_000)
   return r.code === 0 ? r.stdout.trim() || null : null
 }

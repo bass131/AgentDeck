@@ -5,6 +5,7 @@ import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { PERM_CARD, permChoiceSelector } from './helpers/permSelectors'
 import { passBootGates, openWorkspace, settleTurn } from './helpers/bootGates'
+import { moveToSecondDisplay } from './helpers/isolatedBoot'
 
 const LIVE = process.env.LIVE_SDK === '1'
 const SHOT_DIR = join(process.cwd(), 'artifacts', 'screenshots')
@@ -68,6 +69,7 @@ test.describe('README 실사용 스크린샷 촬영 (opt-in: LIVE_SDK=1)', () =>
     })
     page = await app.firstWindow()
     await page.waitForLoadState('domcontentloaded')
+    await moveToSecondDisplay(app)
 
     await passBootGates(page, { nickname: '영호' })
     await openWorkspace(page)
@@ -120,5 +122,4 @@ test.describe('README 실사용 스크린샷 촬영 (opt-in: LIVE_SDK=1)', () =>
     await expect(page.locator('.gitm-overlay')).toHaveCount(0)
   })
 
-  // M10 G1 — 멀티 에이전트 모드를 지워 컷④(3패널 동시 실작동)를 뺐다.
 })

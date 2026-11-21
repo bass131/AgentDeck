@@ -2,7 +2,7 @@ import type { AgentEvent } from '@shared/agentEvents'
 
 export const GOAL_BANNER_STALE_THRESHOLD_MS = 5 * 60 * 1000
 
-export const ACTIVITY_EVENT_TYPES: ReadonlySet<AgentEvent['type']> = new Set<AgentEvent['type']>([
+const ACTIVITY_EVENT_TYPES:ReadonlySet<AgentEvent['type']> = new Set<AgentEvent['type']>([
   'text',
   'tool_call',
   'tool_result',

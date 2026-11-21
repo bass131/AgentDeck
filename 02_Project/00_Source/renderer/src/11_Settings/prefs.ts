@@ -1,4 +1,4 @@
-import type { UiPrefs } from '../../../shared/ipcContract'
+import type { UiPrefs } from '@shared/ipcContract'
 import { ipc, hasBridge } from '@renderer/01_Ipc'
 
 let _cache: UiPrefs = {}

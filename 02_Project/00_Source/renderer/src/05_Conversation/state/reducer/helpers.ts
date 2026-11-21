@@ -1,7 +1,7 @@
 import type { ThreadItem } from '../threadTypes'
 import type { AppState } from './types'
 
-export type TerminalResetFields = Pick<
+type TerminalResetFields = Pick<
   AppState,
   | 'activeLoops'
   | 'loopsStoppedNotice'
@@ -53,7 +53,7 @@ export function extractTarget(input: unknown): string {
   return String(candidate)
 }
 
-export function isMetaBlockText(t: string): boolean {
+function isMetaBlockText(t: string): boolean {
   const s = t.trim()
   return s.startsWith('agentId:') || s.includes('<usage>') || s.includes('use SendMessage with to:')
 }

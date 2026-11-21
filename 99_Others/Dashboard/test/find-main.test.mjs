@@ -1,4 +1,4 @@
-// M07 G13 메인 터미널 자동 지정 — 결정 응답을 넣기 직전에 Orca 목록에서 이 저장소의 Claude 터미널을 찾는다.
+// 메인 터미널 자동 지정 —결정 응답을 넣기 직전에 Orca 목록에서 이 저장소의 Claude 터미널을 찾는다.
 // 찾기는 주입한 가짜 execFile·findMain으로만 본다. 시험은 orca를 부르지 않고 어떤 터미널에도 글을 넣지 않는다.
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -36,7 +36,7 @@ test('pick: several candidates use the configured handle only when it is among t
   assert.equal(two.handle, null);
   assert.match(two.reason, /2개/);
   assert.equal(pickMain({ terminals: [T(1), T(2)] }, REPO, H(3)).handle, null, '설정이 후보 밖이면 넣지 않는다');
-  // 설정 handle이 있는데 후보 밖이면 자동으로 고르지 않는다 — 사용자가 다른 곳(child worktree·Codex)을 메인으로 지정했을 수 있다 (PR 83 검수 중요 3).
+  // 설정 handle이 있는데 후보 밖이면 자동으로 고르지 않는다 — 사용자가 다른 곳(child worktree·Codex)을 메인으로 지정했을 수 있다.
   // 설정은 보통 null이라(README) 자동이 기본이고, 낡은 설정은 복사 안내로 끝난다
   const stale = pickMain({ terminals: [T(1)] }, REPO, H(9));
   assert.equal(stale.handle, null);
@@ -66,7 +66,7 @@ test('findMainTerminal: no shell, a timeout, windowsHide; a missing folder is �
     const r = await findMainTerminal(REPO, null, { execFileFn: fake(err, out) });
     assert.equal(r.handle, null); assert.equal(r.unreachable, true, String(out || err.message));
   }
-  // Orca가 읽히는 답으로 거절하거나 모양이 틀리면 찾지 못함이다 — 설정 handle로 넣지 않는다 (PR 83 검수 중요 2)
+  // Orca가 읽히는 답으로 거절하거나 모양이 틀리면 찾지 못함이다 — 설정 handle로 넣지 않는다
   for (const [err, out] of [[Object.assign(new Error('Command failed'), { code: 1 }), '{"ok":false,"error":{"code":"selector_ambiguous"}}'],
     [null, '{"ok":false,"error":{"code":"runtime_unavailable"}}'], [null, '{"ok":true,"result":{}}'], [null, '{"ok":true}'], [null, 'null']]) {
     const r = await findMainTerminal(REPO, H(9), { execFileFn: fake(err, out) });
@@ -77,7 +77,7 @@ test('findMainTerminal: no shell, a timeout, windowsHide; a missing folder is �
   assert.equal(sync.unreachable, true);
 });
 
-// ── 서버 넣기 길 ──
+// 서버 넣기 길
 const opt = (key, label) => ({ key, label, effect: `${label}를 고르면 일어나는 일이다.` });
 const listOf = (...decisions) => { const { items, warnings } = parseBoard(JSON.stringify({ decisions })); return { sourceId: 'decisions', status: 'ok', path: BOARD, items, warnings, skipped: 0, kept: false, sig: decisionSig(items) }; };
 const one = { id: 'g13-q', title: '물음', state: 'waiting', options: [opt('A', '가'), opt('B', '나')] };
@@ -112,6 +112,15 @@ test('server: the send types once into the terminal found right before typing, n
   assert.deepEqual(app.state.typed.map(x => x[0]), [H(1)]);
   assert.deepEqual(app.state.finds, [[REPO, H(9)]], '넣을 때 한 번 찾고, 설정 handle을 함께 넘긴다');
   assert.ok(!JSON.stringify(app.boot.vm).includes('term_'), 'handle은 페이지에 싣지 않는다');
+});
+
+test('[M11-G5 M07-35] server: the success answer names the terminal it typed into (title only, never the handle)', async t => {
+  const app = await appFor(t, { findMain: async () => ({ handle: H(1), title: '메인 <세션>' }) });
+  const r = await post(app, 'send', await sendBody(app));
+  assert.deepEqual([r.json.ok, r.json.terminal], [true, '메인 <세션>']);
+  assert.ok(!JSON.stringify(r.json).includes('term_'));
+  const bare = await appFor(t, { findMain: async () => ({ handle: H(1) }) });
+  assert.equal((await post(bare, 'send', await sendBody(bare))).json.terminal, undefined, '제목이 없으면 싣지 않는다');
 });
 
 test('server: canType is true with no configured handle when finding is wired; preview never finds', async t => {

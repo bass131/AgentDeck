@@ -1,4 +1,3 @@
-// 작업 ID: gap1-p09 · 옛 이름 gap1-p09-bg-tail-wiring.test.ts
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { appendFileSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import os from 'node:os'
@@ -6,7 +5,7 @@ import path from 'node:path'
 import { ClaudeCodeBackend } from '@main/04_Claude/ClaudeCodeBackend'
 import type { QueryFn } from '@main/04_Claude/ClaudeCodeBackend'
 import { DEFAULT_TAIL_INTERVAL_MS } from '@main/04_Claude/run/bgTaskTail'
-import type { AgentEvent } from '../../../../02_Project/00_Source/shared/agentEvents'
+import type { AgentEvent } from '@shared/agentEvents'
 
 const TOOL_USE_ID = 'toolu_01T5qbRPpVRhXhNidJFukFYj'
 const TASK_ID = 'b7hqf83vz'

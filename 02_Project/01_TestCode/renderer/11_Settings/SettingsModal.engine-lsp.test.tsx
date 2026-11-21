@@ -1,4 +1,3 @@
-// 작업 ID: p5c · 옛 이름 settings-engine-lsp-p5c.test.tsx
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, act, cleanup } from '@testing-library/react'

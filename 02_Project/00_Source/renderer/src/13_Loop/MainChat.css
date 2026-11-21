@@ -83,6 +83,16 @@
 .mc-msg.user[data-state='queued'] .mc-state { color: var(--yellow); }
 .mc-who { font-size: 11px; color: var(--text-3); margin-bottom: 3px; }
 .mc-msg.assistant .markdown-view { background: transparent; }
+.mc-col > .thread.mc-turn,
+.mc-msg > .thread.mc-turn { max-width: none; margin: 0; padding: 0; gap: 12px; }
+.mc-proxy {
+  align-self: flex-start;
+  font-size: 10.5px;
+  color: var(--violet);
+  border: 1px solid var(--violet);
+  border-radius: 6px;
+  padding: 0 6px;
+}
 
 .mc-evt {
   display: flex;

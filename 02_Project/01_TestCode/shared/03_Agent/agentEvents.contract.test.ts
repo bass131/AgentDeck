@@ -1,4 +1,3 @@
-// 작업 ID: gap1-p03 · 옛 이름 gap1-p03-agent-event-contract.test.ts
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
@@ -17,7 +16,7 @@ import type {
   AgentEventSearchResult,
   AgentEventPermissionRequest,
   PlanReviewPayload,
-} from '../../../../02_Project/00_Source/shared/agentEvents'
+} from '@shared/agentEvents'
 
 const FIXTURE_DIR = fileURLToPath(new URL('../../fixtures/gap1-p03/', import.meta.url))
 

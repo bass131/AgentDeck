@@ -25,7 +25,7 @@ Object.defineProperty(window, 'api', {
     conversationLoad: vi.fn().mockResolvedValue({ conversations: [] }),
     conversationSave: vi.fn().mockResolvedValue({ id: 'cv-1' }),
     agentRun: vi.fn().mockResolvedValue({ runId: 'r1' }),
-    agentAbort: vi.fn().mockResolvedValue({ accepted: true }),
+    agentAbort: vi.fn().mockResolvedValue({ ok: true }),
     onAgentEvent: vi.fn().mockReturnValue(vi.fn()),
     listFiles: vi.fn().mockResolvedValue({ files: [] }),
   }),

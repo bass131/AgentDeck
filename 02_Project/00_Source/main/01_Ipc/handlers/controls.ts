@@ -4,10 +4,9 @@ import { handle } from '../handle'
 import { getUserDataDir } from '@main/02_Common/userData'
 import { getVersionState } from '@main/10_Engine/engineVersions'
 import { controlsState, setControlEnabled, confirmControls } from '@main/04_Claude/permission/controlsStore'
+import { verdictCounts } from '@main/04_Claude/permission/verdictLog'
 
-// 컨트롤 패널 (M07 G5) — 노드 목록과 켜짐, controls.json 봉인 상태, 엔진 봉인 상태(G4)를 renderer에 준다.
-// 엔진 쪽은 읽기만 한다. 다시 고르기는 기존 engine.setActive 경로가 맡는다.
-// 두 쪽은 따로 읽는다 — 한쪽 오류가 패널 전체를 막으면, 실행 거절이 가리키는 패널에서 할 일이 없어진다(G5 검수 사소 4).
+// 엔진 상태와 컨트롤 상태는 따로 읽는다 — 한쪽 오류가 패널 전체를 막으면, 실행 거절이 가리키는 패널에서 할 일이 없어진다.
 export function registerControlsHandlers(): void {
   handle(IPC_CHANNELS.CONTROLS_STATE, (): ControlsState => {
     const userData = getUserDataDir()
@@ -18,7 +17,12 @@ export function registerControlsHandlers(): void {
     } catch (err) {
       console.error('[controls] 엔진 상태를 읽지 못했다:', err)
     }
-    return { ...controlsState(userData), engine }
+    const state = controlsState(userData)
+    const counts = verdictCounts()
+    // 인라인 거부 규칙(permissionRules)은 SDK가 판정해 앱에 오지 않는다 — 0이 아니라 「기록 없음」(null)이다
+    const verdictsOf = (n: ControlsState['nodes'][number]): number | null =>
+      n.point === 'permissionRules' ? null : counts[n.id] ?? 0
+    return { ...state, nodes: state.nodes.map((n) => ({ ...n, recentVerdicts: verdictsOf(n) })), engine }
   })
 
   handle(IPC_CHANNELS.CONTROLS_SET_ENABLED, (_e, req: ControlSetEnabledReq): Ack => {

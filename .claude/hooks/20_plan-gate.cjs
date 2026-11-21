@@ -1,11 +1,6 @@
 #!/usr/bin/env node
-// 스폰 게이트 (PreToolUse: Task|Agent) — 구현 SubAgent 스폰 전 판정 4종. 파일 구획일 때는 판정 ①이
-// Preview 원문의 「사람용 개요」 절 실존까지 검사한다 (근거: 결정 대장 [USER] 2026-08-08 블랙박스 금지).
-// 설계 원 기록: AgentDeck 00_Documents/05_Design_Notes/ 아래 06_실패-카운터 · 07_주도권-게이트 · 10_분업-라우팅-규격.
-//
-// 판정부는 M03 Phase 2 Step 5에서 `_lib/plan-verdict.cjs`로 추출됐다 — 같은 판정이 편집 경로
-// (`31_edit-plan-gate.cjs`)에서도 발화하기 때문이다. 이 파일은 그 판정을 스폰 자리의 출력 계약
-// (deny JSON · hook-log 줄 모양)으로 옮기는 껍데기다. 스폰 자리는 판정 넷 전부를 거부로 쓴다.
+// 스폰 게이트 (PreToolUse: Task|Agent) — `_lib/plan-verdict.cjs`의 판정을 스폰 자리의 출력 계약(deny JSON · hook-log 줄)으로 옮긴다.
+// 스폰 자리는 판정 넷 전부를 거부로 쓴다.
 'use strict';
 const fs = require('fs');
 const path = require('path');

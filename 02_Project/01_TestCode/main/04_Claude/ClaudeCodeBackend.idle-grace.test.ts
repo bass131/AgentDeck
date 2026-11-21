@@ -1,4 +1,3 @@
-// 작업 ID: lr4-p03 · 옛 이름 lr4-p03-idle-grace.test.ts
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { ClaudeCodeBackend } from '@main/04_Claude/ClaudeCodeBackend'
 import type { QueryFn } from '@main/04_Claude/ClaudeCodeBackend'
@@ -7,7 +6,7 @@ import type {
   AgentEventDone,
   AgentEventAutonomyStatus,
   AutonomyEndedReason,
-} from '../../../../02_Project/00_Source/shared/agentEvents'
+} from '@shared/agentEvents'
 
 const MAX_CONSECUTIVE_AUTONOMOUS_TURNS = 100
 

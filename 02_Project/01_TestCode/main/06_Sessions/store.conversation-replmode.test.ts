@@ -1,10 +1,9 @@
-// 작업 ID: lr4-p07 · 옛 이름 lr4-p07-conversation-store-replmode.test.ts
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { createConversationStore, type ConversationStore } from '@main/06_Sessions/store'
-import type { ConversationRecord } from '../../../../02_Project/00_Source/shared/ipcContract'
+import type { ConversationRecord } from '@shared/ipcContract'
 
 function makeRecord(overrides: Partial<ConversationRecord> = {}): Omit<ConversationRecord, 'createdAt' | 'updatedAt'> {
   return {

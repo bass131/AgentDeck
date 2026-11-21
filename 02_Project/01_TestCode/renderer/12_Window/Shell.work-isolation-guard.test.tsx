@@ -1,6 +1,5 @@
 // @vitest-environment jsdom
 // Shell 전역 구독 회귀 가드 — 대화(Conversation)가 화면에서 내려가는 모드로 바꿔도 전역 agent 이벤트 구독은 Shell 수명이다.
-// 옛 이름 Shell.multi-isolation-guard.test.tsx — M10 G1에서 멀티 모드를 지우며 같은 성질을 「작업」 모드(대화 자리에 루프 화면)로 옮겼다.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, act, cleanup } from '@testing-library/react'
 import { useAppStore } from '@renderer/00_App/appStore'
@@ -22,8 +21,6 @@ const mockApi = {
   windowMaximizeToggle: vi.fn().mockResolvedValue({ maximized: false }),
   windowClose: vi.fn().mockResolvedValue(undefined),
   windowIsMaximized: vi.fn().mockResolvedValue({ maximized: false }),
-  windowGetBounds: vi.fn().mockResolvedValue({ x: 0, y: 0, width: 1200, height: 800 }),
-  windowSetBounds: vi.fn().mockResolvedValue(undefined),
   windowDragStart: vi.fn().mockResolvedValue(undefined),
   windowDragEnd: vi.fn().mockResolvedValue(undefined),
   windowResizeStart: vi.fn().mockResolvedValue(undefined),
@@ -34,7 +31,7 @@ const mockApi = {
   conversationLoad: vi.fn().mockResolvedValue({ conversations: [] }),
   conversationSave: vi.fn().mockResolvedValue({ ok: true }),
   agentRun: vi.fn().mockResolvedValue({ runId: 'run-guard-0' }),
-  agentAbort: vi.fn().mockResolvedValue({ accepted: true }),
+  agentAbort: vi.fn().mockResolvedValue({ ok: true }),
   workspaceOpen: vi.fn().mockResolvedValue({ rootPath: null, tree: null }),
   fsRead: vi.fn().mockResolvedValue({ content: '' }),
   listFiles: vi.fn().mockResolvedValue({ files: [] }),

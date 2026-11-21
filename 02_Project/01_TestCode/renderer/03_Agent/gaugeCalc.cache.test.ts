@@ -1,5 +1,4 @@
-// 작업 ID: gap1-p15-r2 · 옛 이름 gap1-p15-r2-gauge-cache.test.ts
-// M06 G4: calcGauge는 모델 ID를 받지 않는다 — 창은 턴 결과의 contextWindow, 첫 턴 전엔 기본값 하나다.
+// calcGauge는 모델 ID를 받지 않는다 — 창은 턴 결과의 contextWindow, 첫 턴 전엔 기본값 하나다.
 import { describe, it, expect } from 'vitest'
 import { calcGauge } from '@renderer/03_Agent/gaugeCalc'
 

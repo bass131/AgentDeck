@@ -4,6 +4,7 @@ import { mkdtempSync, rmSync, mkdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { passBootGates, openWorkspace } from './helpers/bootGates'
+import { moveToSecondDisplay } from './helpers/isolatedBoot'
 
 const LIVE = process.env.LIVE_SDK === '1'
 const SHOTS = join(process.cwd(), 'artifacts', 'screenshots')
@@ -26,6 +27,7 @@ test.describe('UltraCode 버튼 실사용 시연 (opt-in: LIVE_SDK=1)', () => {
     })
     page = await app.firstWindow()
     await page.waitForLoadState('domcontentloaded')
+    await moveToSecondDisplay(app)
     await passBootGates(page, { nickname: 'tester' })
     await openWorkspace(page, { waitForTree: false })
   })

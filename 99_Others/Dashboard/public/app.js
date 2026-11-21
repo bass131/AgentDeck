@@ -42,7 +42,7 @@ const fWhen = (ms, now) => { if (kDay(ms) === kDay(now)) return fHMS(ms); const 
 const parseAt = s => { const t = Date.parse(s); return Number.isFinite(t) ? t : null; };
 function rel(ms, now) {
   const s = Math.round((now - ms) / 1000);
-  if (s < 0) return '미래 시각';
+  if (s < 0) return '방금';
   if (s < 60) return `${s}초 전`;
   if (s < 3600) return `${Math.floor(s / 60)}분 전`;
   const dd = kDay(now) - kDay(ms);
@@ -139,16 +139,25 @@ const phaseOf = n => n == null || st.vm.phases.status !== 'ok' ? null : st.vm.ph
    판정은 서버(lib/progress.mjs)의 고정 규칙이다. 화면은 시간에 묶인 것(최근 10분)만 시계로 다시 본다 */
 const FRESH_MIN = 10;
 const SUM = () => st.vm.summary || { doing: { text: null }, activity: null, hand: [], chores: [] };
-const isFresh = (at, now, min = FRESH_MIN) => { const t = parseAt(at); return t != null && now - t >= 0 && now - t < min * 60000; };
-/* 기다리는 결정(결정 보드)도 「내 손이 필요한 일」 항목이다. 그래서 알림음·탭 제목 배지·띠의 손 줄·카드 색이 그대로 따라온다(M05 H7) */
-function handNow(now) { return [...(SUM().hand || []).filter(h => !h.fresh || isFresh(h.at, now, h.fresh)), ...(DEC ? DEC.decisionHand(st.vm.decisions) : [])]; }
+/* 화면 시계가 훅 기록보다 이만큼까지 늦은 것은 지금으로 본다. 더 앞선 시각은 「시계가 어긋남」이다 */
+const SKEW_MS = 5 * 60000;
+const isFresh = (at, now, min = FRESH_MIN) => { const t = parseAt(at); return t != null && now - t >= -SKEW_MS && now - t < min * 60000; };
+/* 기다리는 결정(결정 보드)도 「내 손이 필요한 일」 항목이다. 그래서 알림음·탭 제목 배지·띠의 손 줄·카드 색이 그대로 따라온다.
+   병합 대기 줄은 병합 카드가 GitHub에서 읽은 같은 PR에 맞춘다 — 병합·닫힘이면 빠지고, 필수 검사 실패면 빨강이다(chime.js mergeHand) */
+function handNow(now) {
+  const base = [...(SUM().hand || []).filter(h => !h.fresh || isFresh(h.at, now, h.fresh)), ...(DEC ? DEC.decisionHand(st.vm.decisions) : [])];
+  return MRG ? MRG.mergeHand(base, mg.view).hand : base;
+}
+const mergeNote = () => MRG ? MRG.mergeHand(SUM().hand, mg.view).note : null;
+/* 병합 카드가 같은 PR을 열린 채로 보이고 있으면, 「내 손」은 사실 줄 대신 카드를 가리키는 한 줄만 둔다. 셈(배지·알림음)은 그대로다 */
+const mergeFolded = () => !!(MRG && mg.view && mg.view.state === 'open' && !mg.error && mg.view.number === MRG.pendingPr(SUM().hand));
 /* 알림 판단 모듈(chime.js, classic script). 없으면(옛 서버가 내준 페이지) 알림만 빠지고 화면은 그대로다 */
 const CH = globalThis.AgentDeckChime || null;
 /* 결정 응답의 화면 쪽 판단(같은 chime.js의 전역 AgentDeckDecide). 없으면 결정 카드를 그리지 않는다 */
 const DEC = globalThis.AgentDeckDecide || null;
 /* 화면 모양의 판단(같은 chime.js의 전역 AgentDeckView): 큰 카드 상태, 진척 링, 등장 대상. 없으면 예전 모양으로 그린다 */
 const VIEW = globalThis.AgentDeckView || null;
-/* 병합 카드의 화면 쪽 판단(같은 chime.js의 전역 AgentDeckMerge, M07 G9). 없으면 병합 카드를 그리지 않는다 */
+/* 병합 카드의 화면 쪽 판단(같은 chime.js의 전역 AgentDeckMerge). 없으면 병합 카드를 그리지 않는다 */
 const MRG = globalThis.AgentDeckMerge || null;
 /* 응답을 마치고 조용한 분 수: 사실은 서버(summary.activity.quiet), 5분 넘게인지는 화면 시계로 chime.js가 정한다 */
 const quietNow = now => CH ? CH.quietMinutes(SUM().activity?.quiet, now) : null;
@@ -163,14 +172,18 @@ function notesNow(now) {
     if (P.format === 'goal' && !closed && P.record && !P.record.section) out.push('goal 문서에 「검증 기록」 줄이 없어요. 계획 검사가 이 계획을 막을 수 있어요.');
     if (P.format === 'goal' && P.goal.currentCount > 1) out.push(`진행 중 표시가 ${P.goal.currentCount}개예요. 첫 번째를 지금 단계로 봐요.`);
     if (P.pinDisagrees) out.push(`인수인계 메모는 ${P.pinPhase}단계라고 쓰지만 커밋 기록으로는 ${P.current}단계예요. 커밋 기준으로 보여요.`);
+    /* 진척 낡음: 사실만 말한다. goal 문서의 [>]가 그대로인데 그 문서의 마지막 커밋 뒤에 커밋이 더 있다 */
+    const sl = P.format === 'goal' ? P.goal.stale : null;
+    if (sl) out.push(`진척 표시가 낡았을 수 있어요 — goal 문서의 마지막 커밋 <code class="inline">${esc(sl.commit)}</code> 뒤에 이 브랜치 커밋이 ${num('n-stale', sl.after)}개 더 있는데, 진행 중 표시는 그대로예요.`);
   }
   if (H.status === 'ok') {
     const last = H.entries.filter(e => e.deny).at(-1);
     if (last && isFresh(last.at, now)) out.push(`${relSpan(parseAt(last.at))} 자동 검사가 작업 하나를 막았어요. <a href="#hooks">${esc(last.say || `${last.hook} ${last.verdict}`)}</a>`);
   }
-  const failedSrc = vm.sources.filter(s => s.status === 'failed').length;
-  if (failedSrc) out.push(`원문 ${failedSrc}개를 읽지 못했어요. <a href="#sources" data-open="sources">어떤 원문인지 보기</a>`);
   const notes = out.map(html => ({ kind: 'note', html }));
+  /* 읽지 못한 원문은 할 일(노랑)이 아니라 깨짐(빨강 네모)이다. 손 수준은 바꾸지 않는다 */
+  const failedSrc = vm.sources.filter(s => s.status === 'failed').length;
+  if (failedSrc) notes.push({ kind: 'broken', html: `원문 ${failedSrc}개를 읽지 못했어요. <a href="#sources" data-open="sources">어떤 원문인지 보기</a>` });
   /* 조용함은 맨 끝에 회색으로 둔다. 할 일이 아니라 지금 상태라서 주의 줄들과 섞지 않는다 */
   const quiet = quietNow(now);
   if (quiet != null) notes.push({ kind: 'quiet', html: `응답을 마치고 <b>${esc(quiet)}분째</b> 조용해요 <small>답을 기다리거나 배경 작업 중일 수 있어요.</small>` });
@@ -179,7 +192,7 @@ function notesNow(now) {
 const handLevel = now => { const h = handNow(now); return h.some(x => x.level === 'stop') ? 'stop' : h.length ? 'todo' : 'ok'; };
 const HAND_G = { stop: 'block', todo: 'note', ok: 'ok' };
 /* 「지금」 영역 가운데 시간이 지나기만 해도 바뀌는 것(fresh 만료, 조용함 분 수). 시계가 이것이 바뀔 때만 영역을 다시 그린다 */
-const nowSig = now => JSON.stringify([handNow(now).map(h => h.key ?? h.id), quietNow(now)]);
+const nowSig = now => JSON.stringify([handNow(now).map(h => h.key ?? h.id), quietNow(now), MRG ? [mergeFolded(), mergeNote()] : null]);
 
 /* ---------- 알림: 알림음과 탭 제목 배지 (판단은 chime.js, 설명은 docs/알림.md) ----------
    보이는 「내 손이 필요한 일」 항목(fresh 필터 뒤)의 키 가운데 새로 들어온 키만 한 번 울린다. 조용함 줄은 대상이 아니다.
@@ -311,7 +324,7 @@ function renderStrip(now) {
     reconnecting: ['is-reconnecting', `다시 연결하는 중${st.attempt ? ` (${st.attempt}번째)` : ''}`], disconnected: ['is-disconnected', '연결 끊김'] }[st.conn];
   stripSlot('conn', `<span class="conn ${conn[0]}"><i aria-hidden="true"></i>${conn[1]}</span>`);
   const collected = stripSlot('collected', `<span class="collected${st.conn === 'disconnected' ? ' is-stale' : ''}" title="저장소 원문을 마지막으로 읽은 시각"><time datetime="${esc(vm.collectedAt)}">${fHMS(at)}</time>에 읽음</span>`);
-  /* 읽은 시각은 스냅샷마다 바뀐다. 투명에서 다시 나타나면 시각이 자주 비어 보이므로, 살짝 흐려졌다 돌아오기만 한다(H8 체크리스트 14) */
+  /* 읽은 시각은 스냅샷마다 바뀐다. 투명에서 다시 나타나면 시각이 자주 비어 보이므로, 살짝 흐려졌다 돌아오기만 한다 */
   if (collected && st.shownCollected && st.shownCollected !== vm.collectedAt) play(collected.querySelector('time'), [{ opacity: 0.55, transform: 'translateY(-30%)' }, { opacity: 1, transform: 'none' }], { duration: 380, easing: EASE1 });
   st.shownCollected = vm.collectedAt;
   /* 머리가 화면 밖으로 나가면 띠에 「지금 하는 일」 한 줄을 고정한다.
@@ -352,8 +365,9 @@ function doingBlock(now) {
   let act;
   if (!a) act = `<p class="q-sub is-quiet">${G.quiet}<span>자동 검사 기록에 최근 활동이 없어요.</span></p>`;
   else {
-    const at = parseAt(a.at), live = isFresh(a.at, now);
-    act = `<p class="q-sub${live ? ' is-live' : ' is-quiet'}">${live ? '<i class="pulse" aria-hidden="true"></i>' : G.quiet}<span>${live ? esc(a.say) : `마지막 활동은 ${relSpan(at)}이에요. ${esc(a.sayPast)}`}${live ? ` <small>${relSpan(at)}</small>` : ''}</span></p>`;
+    const at = parseAt(a.at), live = isFresh(a.at, now), ahead = at != null && at - now > SKEW_MS;
+    const past = ahead ? `마지막 활동 시각이 이 화면의 시계보다 앞서요(${esc(fWhen(at, now))}). ${esc(a.sayPast)}` : `마지막 활동은 ${relSpan(at)}이에요. ${esc(a.sayPast)}`;
+    act = `<p class="q-sub${live ? ' is-live' : ' is-quiet'}">${live ? '<i class="pulse" aria-hidden="true"></i>' : G.quiet}<span>${live ? esc(a.say) : past}${live ? ` <small>${relSpan(at)}</small>` : ''}</span></p>`;
   }
   const src = [P.status === 'ok' ? (P.format === 'goal' ? 'goal 문서의 진척 단계 표시' : '계획 문서와 커밋 기록') : null,
     a ? (a.of > 1 ? `자동 검사 기록 최근 ${a.of}건 중 ${a.count}건이 ${KIND_WORD[a.kind] || a.kind}` : `자동 검사 기록의 마지막 기록(${KIND_WORD[a.kind] || a.kind})`) : null].filter(Boolean);
@@ -376,22 +390,39 @@ function ringBlock(P) {
   const arc = (cls, len, at) => `<circle class="${cls}" cx="32" cy="32" r="27" pathLength="100" stroke-dasharray="${len} 100" stroke-dashoffset="${-at}"/>`;
   return `<div class="doing-ring" data-enter="ring" data-state="${r.done}/${r.total}/${r.now}"><figure class="ring${r.stopped ? ' is-stopped' : ''}" role="img" aria-label="${r.total}단계 중 ${r.done}개 완료">
     <svg viewBox="0 0 64 64" aria-hidden="true">${arc('ring-track', 100, 0)}${r.donePct ? arc('ring-done', r.donePct, 0) : ''}${r.nowPct ? arc('ring-now', r.nowPct, r.donePct) : ''}</svg>
-    <figcaption aria-hidden="true">${num('rg-done', r.done)}<small>/ ${esc(r.total)}</small></figcaption></figure><p class="ring-cap">${r.total}단계 중 ${r.done}개 완료</p></div>`;
+    <figcaption aria-hidden="true">${num('rg-done', r.done)}<small>/ ${esc(r.total)}</small></figcaption></figure></div>`;
 }
+/* Orca 워커 보고 소식: 서버가 설정 inboxHandle의 우편함을 읽기만 해 싣는다. 할 일이 아니라 알림음·배지 대상이 아니다 */
+const INBOX_WORD = { worker_done: '워커 완료', escalation: '에스컬레이션', question: '질문' };
+function inboxBlock(now) {
+  const I = st.vm.inbox;
+  if (!I) return '';
+  if (I.status !== 'ok') return `<div class="inbox"><h3 class="sub-h">Orca 워커 소식</h3><p class="q-sub is-quiet">${G.quiet}<span>워커 소식을 읽지 못했어요. orca와 config.local.json의 inboxHandle을 확인해 주세요.</span></p></div>`;
+  if (!I.items?.length) return '';
+  const at = m => { const t = parseAt(m.at); return t ? ` <time datetime="${esc(m.at)}">${esc(fWhen(t, now))}</time>` : ''; };
+  return `<div class="inbox"><h3 class="sub-h">Orca 워커 소식 <span>최근 ${esc(I.items.length)}개 · 읽기만 해요</span></h3><ul>${I.items.map(m => `<li class="is-${esc(m.type)}${m.unread ? ' is-unread' : ''}"><span class="lz">${esc(INBOX_WORD[m.type] || m.type)}</span><span>${esc(m.subject)}</span>${at(m)}</li>`).join('')}</ul></div>`;
+}
+const NOTE_G = { quiet: () => CLOCK, broken: () => G.block, note: () => G.note };
 function handBlock(now) {
   const S = SUM(), hand = handNow(now), notes = notesNow(now), lv = handLevel(now);
-  /* 결정 보드 항목은 바로 위 「결정 요청」 카드가 보이므로 목록에서 빼고 그 카드를 가리키는 한 줄만 둔다(H8, chime.js handShown).
+  /* 결정 보드 항목은 바로 위 「결정 요청」 카드가 보이므로 목록에서 빼고 그 카드를 가리키는 한 줄만 둔다(chime.js handShown).
      머리 색(lv)과 알림음·탭 제목 배지·띠의 손 줄은 결정까지 센 전체 목록(handNow) 그대로다 */
   const shown = DEC ? DEC.handShown(hand) : { facts: hand, decisions: 0, note: null };
   const toDecide = shown.note ? `<a href="#decide">${esc(shown.note)}</a>` : '';
-  /* 병합 대기 항목은 바로 위 병합 카드(#merge, M07 G9)를 가리킨다 */
-  const items = shown.facts.length ? `<ul class="hand-list">${shown.facts.map(h => `<li class="is-${h.level}">${G[HAND_G[h.level]]}<div><p>${esc(h.say)}${h.id === 'merge' && MRG ? ' <a href="#merge">현황판 병합 카드</a>' : ''}</p>${h.quote ? `<p class="rawtext">「${md(clipText(h.quote, 160))}」</p>` : ''}<p class="q-src">근거: ${esc(h.source)}${h.ref ? ' ' + srcLink(h.ref) : ''}</p></div></li>`).join('')}</ul>${toDecide ? `<p class="hand-more">${toDecide}</p>` : ''}`
-    : toDecide ? `<p class="q-line is-defer">${G.note}${toDecide}</p>`
-    : `<p class="q-line is-none">${G.ok}<span>없음</span></p>`;
+  /* 병합 대기 항목은 바로 위 병합 카드(#merge)를 가리킨다. 카드가 같은 PR을 보이고 있으면 사실 줄을 카드 하나로 합친다 */
+  /* 필수 검사가 실패한 빨강 줄은 합치지 않는다 — 멈춤 사실은 「내 손」에 그대로 보인다 */
+  const folded = mergeFolded(), mergeItem = folded ? shown.facts.find(h => h.id === 'merge' && h.level !== 'stop') : null;
+  const facts = mergeItem ? shown.facts.filter(h => h !== mergeItem) : shown.facts;
+  const toMerge = mergeItem ? `<a href="#merge">PR ${esc(mergeItem.pr)} 병합은 위 병합 카드에서 해요</a>` : '';
+  const pointers = [toMerge, toDecide].filter(Boolean), mergedNote = mergeNote();
+  const more = [...pointers.map(a => `<p class="hand-more">${a}</p>`), mergedNote && facts.length ? `<p class="hand-more is-ok">${G.ok}<span>${esc(mergedNote)}</span></p>` : ''].join('');
+  const items = facts.length ? `<ul class="hand-list">${facts.map(h => `<li class="is-${h.level}">${G[HAND_G[h.level]]}<div><p>${esc(h.say)}${h.id === 'merge' && MRG ? ' <a href="#merge">현황판 병합 카드</a>' : ''}</p>${h.quote ? `<p class="rawtext">「${md(clipText(h.quote, 160))}」</p>` : ''}<p class="q-src">근거: ${esc(h.source)}${h.ref ? ' ' + srcLink(h.ref) : ''}</p></div></li>`).join('')}</ul>${more}`
+    : pointers.length ? `<p class="q-line is-defer">${G.note}${pointers.join(' · ')}</p>${mergedNote ? `<p class="hand-more is-ok">${G.ok}<span>${esc(mergedNote)}</span></p>` : ''}`
+    : `<p class="q-line is-none">${G.ok}<span>${mergedNote ? esc(mergedNote) : '없음'}</span></p>`;
   const chores = S.chores?.length ? fold('chores', `급하지 않은 정리 일 ${S.chores.length}개 <small>인수인계 메모에 「사용자 몫」으로 적힌 문장</small>`, sents(S.chores) + (S.choresRef ? srcLink(S.choresRef) : ''), 'raw') : '';
-  const noteHtml = notes.length ? `<ul class="q-notes">${notes.map(n => `<li class="is-${n.kind}">${n.kind === 'quiet' ? CLOCK : G.note}<span>${n.html}</span></li>`).join('')}</ul>` : '';
+  const noteHtml = notes.length ? `<ul class="q-notes">${notes.map(n => `<li class="is-${n.kind}">${(NOTE_G[n.kind] || NOTE_G.note)()}<span>${n.html}</span></li>`).join('')}</ul>` : '';
   st.nowSig = nowSig(now);
-  return `<div class="q q-hand is-${lv}"${fxAttr('hand')}><div class="q-head"><h2 class="q-k">내 손이 필요한 일</h2>${soundState()}</div><div class="q-a">${items}${soundChip()}${noteHtml}${chores}</div></div>`;
+  return `<div class="q q-hand is-${lv}"${fxAttr('hand')}><div class="q-head"><h2 class="q-k">내 손이 필요한 일</h2>${soundState()}</div><div class="q-a">${items}${soundChip()}${noteHtml}${inboxBlock(now)}${chores}</div></div>`;
 }
 const GOAL_WORD = { done: '완료', current: '진행 중', draft: '초안', left: '남음', unknown: '상태 미확인' };
 function whereBlock() {
@@ -399,12 +430,12 @@ function whereBlock() {
   if (Gs?.status === 'ok' && Gs.items.length) {
     const cur = Gs.items.find(g => g.current);
     const say = `goal ${Gs.total}개 중 ${Gs.done}개 완료${Gs.doing ? `, 지금 ${cur ? cur.id : Gs.doing + '개'}` : ''}, 남은 goal ${Gs.left}개${Gs.unknown ? ` (상태를 읽지 못한 goal ${Gs.unknown}개)` : ''}`;
-    /* 진척 띠(H8 체크리스트 1·6): 칸 하나가 goal 하나다. 숫자는 위 문장 한 곳에만 있고, 칸 이름과 PR은 title과 아래 접힘에 있다.
+    /* 진척 띠: 칸 하나가 goal 하나다. 숫자는 위 문장 한 곳에만 있고, 칸 이름과 PR은 title과 아래 접힘에 있다.
        지금 칸 아래에는 「… 지금」 글을 둬서 색만으로 말하지 않는다. 칸마다 화면 읽기용 상태 글이 있다 */
     const n = Gs.items.length, at = cur ? Gs.items.indexOf(cur) : -1;
     const cell = g => `<li class="bc is-${g.state}${g.current ? ' is-here' : ''}" data-enter="${esc(g.id)}" data-state="${esc(g.state)}${g.current ? '-here' : ''}" title="${esc(`${g.id} ${g.name} — ${GOAL_WORD[g.state]}${g.pr ? ` (PR ${g.pr})` : ''}`)}"><span class="sr">${esc(g.id)} ${esc(GOAL_WORD[g.state])}</span></li>`;
     const here = cur ? `<li class="bc-say ${at < n / 2 ? 'is-start' : 'is-end'}" style="grid-column:${at + 1}" aria-hidden="true">${esc(cur.id)} 지금</li>` : '';
-    /* 이름 목록: 이웃과 상태가 같은 완료 줄은 모양을 빼고, 상태가 다른 줄에만 모양을 남긴다(H8 체크리스트 13) */
+    /* 이름 목록: 이웃과 상태가 같은 완료 줄은 모양을 빼고, 상태가 다른 줄에만 모양을 남긴다 */
     const list = fold('goal-list', 'goal 이름 모두 보기', `<ol class="goal-names">${Gs.items.map(g => `<li class="is-${g.state}">${g.state === 'done' ? '<span aria-hidden="true"></span>' : G[{ current: 'current', draft: 'current', left: 'waiting', unknown: 'unknown' }[g.state]]}<b>${esc(g.id)}</b><span>${md(g.name)}</span><small>${g.current ? '지금' : esc(GOAL_WORD[g.state])}${g.pr ? ` · PR ${esc(g.pr)}` : ''}</small></li>`).join('')}</ol>
       <p class="q-src">근거: ${esc(P.planPath ? P.planPath.slice(0, P.planPath.lastIndexOf('/') + 1) : '')} 의 goal 문서 머리말 「상태:」, 아직 파일이 없는 goal은 계획 문서의 goal 목록</p>`, 'raw');
     return `<div class="q q-where"${fxAttr('goals')}><h2 class="q-k">전체 중 어디쯤</h2><div class="q-a"><p class="band-head"><b>${md(Gs.milestoneName || vm.milestone.title || '')}</b><span>${esc(say)}</span></p>
@@ -415,7 +446,7 @@ function whereBlock() {
   return `<div class="q q-where"${fxAttr('goals')}><h2 class="q-k">전체 중 어디쯤</h2><div class="q-a"><p class="q-line">${vm.milestone.status === 'ok' ? md(vm.milestone.title) : '마일스톤을 읽지 못했어요'}</p>
     <p class="q-sub">${n != null ? `단계 ${n}개 중 ${done}개 완료` : esc(srcOf('phases')?.error || '단계 정보를 읽지 못했어요.')}${Gs?.status === 'failed' ? ` · goal 목록을 읽지 못했어요: ${esc(srcOf('goals')?.error || '')}` : ''}</p></div></div>`;
 }
-/* 「지금 하는 일」 카드만 #now에 칠하고, 「내 손」과 「어디쯤」은 결정 요청 밑의 #brief에 칠한다(H8, 사용자 「결정요청 UI는 지금하는일 UI 바로 밑에」).
+/* 「지금 하는 일」 카드만 #now에 칠하고, 「내 손」과 「어디쯤」은 결정 요청 밑의 #brief에 칠한다.
    결정 영역(#decide)은 두 영역 사이에 있지만 여기서 칠하지 않는다 — 초 단위 다시 칠하기가 입력 중인 코멘트를 건드리지 않게 하려는 것이다.
    서버를 다시 켜기 전(시작할 때 읽은 옛 index.html)에도 보이도록, #brief가 없으면 결정 영역 뒤에 만든다 */
 function briefBox() {
@@ -646,8 +677,11 @@ function renderBacklog() {
 function renderMilestones() {
   const el = $('#milestones'), M = st.vm.milestones;
   if (M.status !== 'ok') { paint(el, panel('milestones', '마일스톤 목록', tag('읽지 못함', 'tag-broken'), failedBlock(M, '마일스톤 목록을 읽지 못했어요.', '마일스톤 수는 미확인이에요.'), true)); return; }
+  /* 첫머리 문서가 없고 goal 문서만 있는 폴더는 머리말 「상태:」가 종결인 goal 수를 보인다(collector.mjs HEAD_FILES) */
+  const sub = m => m.state === 'goals' && m.goals ? `goal 문서 ${esc(m.goals.total)}개 중 ${esc(m.goals.closed)}개 종결 (첫머리 문서 없음)`
+    : m.statusText ? `계획 문서의 상태 줄: ${md(m.statusText)}` : m.error ? esc(m.error) : '상태 줄이 없어요.';
   const row = m => `<li class="row ms-row${m.current ? ' is-current' : ''}"${fxAttr('ms:' + m.name)}><div class="row-body"><span class="row-title">${md(m.title || m.name)}</span> ${m.current ? state('current', '지금') : ''}${m.state === 'missing' ? tag('계획 문서 없음', 'tag-candidate') : m.state === 'failed' ? tag('읽기 실패', 'tag-broken') : ''} ${freshTag('ms:' + m.name)}
-    <span class="row-sub">${m.statusText ? `계획 문서의 상태 줄: ${md(m.statusText)}` : m.error ? esc(m.error) : '상태 줄이 없어요.'}</span>${srcLink({ path: m.path, line: m.line })}</div></li>`;
+    <span class="row-sub">${sub(m)}</span>${srcLink({ path: m.path, line: m.line })}</div></li>`;
   const cur = M.items.find(m => m.current);
   paint(el, panel('milestones', '마일스톤 목록', `${num('ms-n', M.items.length)}개${cur ? ` · 지금은 ${esc((cur.title || cur.name).split(/\s+[—·-]\s+/)[0])}` : ''}`,
     (M.items.length ? `<ol class="list" data-list="ms">${M.items.map(row).join('')}</ol>` : '<p class="empty">01_Milestones 아래에 폴더가 없어요.</p>')
@@ -664,7 +698,7 @@ function renderSources() {
     `<ul class="list">${rows}</ul><p class="area-foot">저장소 ${esc(vm.repo.path)} · 보기 모델 ${esc(vm.schema)} 개정 ${esc(vm.revision)} · 이 화면은 저장소에 쓰지 않습니다. 쓰기는 결정 응답(메인 입력창에 글 넣기)과 병합 카드(확인 창을 거친 PR 병합)뿐입니다.</p>`, failed > 0));
 }
 
-/* ---------- 결정이 필요한 일: 결정 카드와 보낼 문장 (M05 H7, docs/결정-응답.md) ----------
+/* ---------- 결정이 필요한 일: 결정 카드와 보낼 문장 (docs/결정-응답.md) ----------
    문장은 서버가 id와 키로 만든다(POST /api/answer/preview). 페이지는 받은 문장을 보이기만 하고, 「넣기」는 서버가 메인 입력창에 글만 넣는다.
    Enter는 누르지 않는다. 카드는 「지금」 밖의 자기 영역(#decide)에만 칠한다. 「지금」의 초 단위 다시 칠하기가 입력 중인 코멘트를 건드리지 않게 하려는 것이다.
    카드 목록은 다시 칠하기 키(listKey = chime.js cardsKey: 목록 서명·읽기 상태·고름·상세 글·경고 글)가 바뀔 때만 다시 칠하고,
@@ -708,7 +742,7 @@ function sendBox() {
   else line = `<p class="send-line">${esc(p.text)}</p>`;
   const ready = !!(p && !p.pending && p.text && !p.refusal);
   const result = !res ? '' : res.phase === 'sending' ? '<p class="send-result">넣는 중이에요…</p>'
-    : res.phase === 'inserted' ? `<p class="send-result is-done">${G.ok}<span>메인 입력창에 넣었어요. 메인 pane에서 Enter를 눌러야 전달돼요.${res.note ? ' ' + esc(res.note) : ''}</span></p>`
+    : res.phase === 'inserted' ? `<p class="send-result is-done">${G.ok}<span>메인 입력창${res.terminal ? `(「${esc(res.terminal)}」)` : ''}에 넣었어요. 메인 pane에서 Enter를 눌러야 전달돼요.${res.note ? ' ' + esc(res.note) : ''}</span></p>`
     : res.phase === 'clipboard' ? `<p class="send-result is-todo">${G.note}<span>${res.reason ? esc(res.reason) + ' ' : ''}문장을 복사했어요. 메인 입력창에 붙여 넣고 Enter를 눌러 주세요.</span></p>`
     : res.phase === 'manual' ? `<p class="send-result is-todo">${G.note}<span>${res.reason ? esc(res.reason) + ' ' : ''}복사하지 못했어요. 아래 글을 직접 복사해 주세요.</span></p><textarea class="send-manual" readonly rows="2">${esc(res.line)}</textarea>`
     : `<p class="send-result is-todo">${G.note}<span>${esc(res.reason)}</span></p>`;
@@ -727,7 +761,7 @@ function renderDecide() {
   const box = $('#decide');
   if (!box) return;
   const D = decList(), items = D.items;
-  /* H8: 결정 요청은 「지금 하는 일」 바로 밑 자리에 늘 있다. 기다리는 결정이 없으면 머리말 한 줄(is-empty)로 조용히 둔다 */
+  /* 결정 요청은 「지금 하는 일」 바로 밑 자리에 늘 있다. 기다리는 결정이 없으면 머리말 한 줄(is-empty)로 조용히 둔다 */
   box.hidden = !DEC;
   if (!DEC) { dec.listKey = null; return; }
   const empty = !(items.length > 0 || D.status === 'failed' || (D.warnings || []).length > 0 || !!dec.result);
@@ -774,7 +808,7 @@ async function sendLine() {
   try { r = await postAnswer('send', shown); } catch { r = { ok: false, copy: true, line: dec.preview?.text ?? '', reason: '서버에 닿지 못했어요. 메인 입력창을 먼저 확인해 주세요.' }; }
   if (dec.result !== pending) return;
   /* 서버가 고쳐 고름 표지를 붙여 넣었으면(corrected) note가 앞 문장이 입력창에 남아 있을 수 있다고 알린다 */
-  if (r.ok) dec.result = { phase: 'inserted', line: r.line, note: r.note || '', ids };
+  if (r.ok) dec.result = { phase: 'inserted', line: r.line, note: r.note || '', terminal: typeof r.terminal === 'string' ? r.terminal : '', ids };
   else if (r.copy && r.line) {
     const ok = await copyText(r.line);
     if (dec.result !== pending) return;
@@ -798,13 +832,13 @@ function decReconcile(prev) {
   if (!dec.picks.size) dec.preview = null;
 }
 
-/* ---------- 병합 카드 (M07 G9, docs/병합.md) ----------
+/* ---------- 병합 카드 (docs/병합.md) ----------
    「내 손이 필요한 일」의 병합 대기 PR(judgeHand의 pr 칸)을 번호가 바뀔 때 한 번 불러오고, 다른 PR은 번호 칸으로 불러온다.
    카드는 머리 SHA·필수 검사·막는 이유·「꼭 볼 것」(파일마다 접힌 diff)을 보인다. 꼭 볼 것을 모두 펼친 뒤에만 「병합」이 켜진다.
    펼친 기록은 메모리에만 둔다(PR·머리 SHA·경로 — chime.js fileKey). 접기 상태 저장(fold·data-id·localStorage)을 타지 않는다.
    「병합」은 서버에 PR 번호와 보인 머리 SHA만 보낸다. 서버가 띄우는 Windows 확인 창에서 사람이 「병합」을 눌러야 병합이 나간다.
    카드는 자기 영역(#merge)에만, 내용이 바뀔 때만 칠한다(cardKey). 「지금」의 초 단위 다시 칠하기가 펼친 diff를 접지 않게 하려는 것이다 */
-/* 열린 PR 목록(M07 G11)은 카드 위에 있다. 요약만 보이고, 항목을 누르면 번호 칸과 같은 길(loadMerge)로 카드가 그 PR을 읽는다.
+/* 열린 PR 목록은 카드 위에 있다. 요약만 보이고, 항목을 누르면 번호 칸과 같은 길(loadMerge)로 카드가 그 PR을 읽는다.
    목록은 처음 그릴 때, 「목록 새로 읽기」, 병합 결과 뒤에만 읽는다(스냅샷마다 gh를 부르지 않는다). 목록의 SHA는 보이기만 하고 병합에 쓰지 않는다 */
 const mg = { pr: null, view: null, loading: false, error: null, running: false, spent: false, result: null, opened: new Set(), expanded: new Set(), autoFor: null, manual: false, cardKey: null, seq: 0,
   list: null, listSeq: 0, listAsked: false, listLoading: false };
@@ -836,7 +870,7 @@ function mergeCard() {
   if (mg.error) return `<p class="send-refusal">${G.note}<span>${esc(mg.error)}</span></p>`;
   const v = mg.view;
   if (!v) return mg.loading ? `<p class="send-hint">PR #${esc(mg.pr)}을 읽는 중이에요…</p>` : '';
-  /* 닫힌 PR(M07 G15)은 한 줄과 「카드 닫기」만 — diff·필수 검사가 병합 영역을 차지하지 않게 */
+  /* 닫힌 PR은 한 줄과 「카드 닫기」만 — diff·필수 검사가 병합 영역을 차지하지 않게 */
   if (v.state !== 'open') return `<p class="q-sub is-quiet">${G.quiet}<span>${esc(MRG.closedLine(v))}</span> <button type="button" class="ghost" data-merge-close>카드 닫기</button></p>`;
   const link = /^https:\/\/github\.com\//.test(v.url || '') ? ` <a href="${esc(v.url)}" target="_blank" rel="noopener noreferrer">GitHub에서 보기</a>` : '';
   const checks = v.checks?.length ? `<ul class="mg-checks">${v.checks.map(c => { const s = MRG.checkState(c.result); return `<li>${state(s.kind, s.word)}<code class="inline">${esc(c.name)}</code></li>`; }).join('')}</ul>` : '';
@@ -856,8 +890,12 @@ function mergeAction() {
   const wait = mg.running ? `<p class="send-result is-todo">${G.note}<span>바탕화면의 확인 창에서 병합을 눌러 주세요. 창에 보이는 머리 SHA와 꼭 볼 것 파일이 이 카드와 같은지 확인하세요. 고르지 않으면 창이 저절로 닫히고 병합하지 않아요.</span></p>` : '';
   const r = mg.result ? MRG.resultLine(mg.result) : null;
   const res = r ? `<p class="send-result is-${r.level === 'ok' ? 'done' : 'todo'}">${r.level === 'ok' ? G.ok : G.note}<span>${esc(r.text)}</span></p>` : '';
-  return `<div class="send-actions">${v ? `<button type="button" class="btn" data-merge-run${gate.ready ? '' : ' disabled'}>병합</button>` : ''}<button type="button" class="ghost" data-merge-reload${mg.pr && !mg.loading && !mg.running ? '' : ' disabled'}>다시 읽기</button></div>
-    ${v && gate.why && !mg.running ? `<p class="send-note">${esc(gate.why)}</p>` : ''}${wait}${res}
+  /* 「다시 읽기」는 읽는 동안 끄지 않고 aria-disabled로만 알린다 — 꺼지면 키보드 초점이 페이지로 떨어진다. 누름은 클릭 처리에서 거른다.
+     보낸 뒤의 결과 줄이 있으면 「이미 요청했어요」 이유 줄은 같은 뜻이라 빼고 한 줄만 둔다 */
+  const reloadOff = !(mg.pr && !mg.loading && !mg.running);
+  const why = v && gate.why && !mg.running && !(mg.spent && r) ? `<p class="send-note">${esc(gate.why)}</p>` : '';
+  return `<div class="send-actions">${v ? `<button type="button" class="btn" data-merge-run${gate.ready ? '' : ' disabled'}>병합</button>` : ''}<button type="button" class="ghost" data-merge-reload aria-disabled="${reloadOff}">다시 읽기</button></div>
+    ${why}${wait}${res}
     <p class="send-note">병합은 서버가 띄우는 Windows 확인 창에서 「병합」을 눌러야 나가요. 이 화면의 단추만으로는 병합하지 않아요.</p>`;
 }
 function renderMerge() {
@@ -866,22 +904,32 @@ function renderMerge() {
   const box = mergeBox();
   /* 병합 대기 PR이 새로 보이면 한 번 불러온다. 사용자가 번호로 다른 PR을 불렀으면 덮지 않는다 */
   const want = MRG.pendingPr(SUM().hand);
-  if (want !== mg.autoFor) { mg.autoFor = want; if (want && !mg.manual && !mg.running && mg.pr !== want) void loadMerge(want, false); }
-  /* 다른 곳에서 병합·닫힌 PR의 카드를 내리거나 다시 읽는다(M07 G15, chime.js cardFate) */
+  /* 번호가 바뀌면 목록도 다시 읽는다 — 새 PR이 목록에 이미 있어도 목록의 SHA·제목이 낡았을 수 있다 */
+  if (want !== mg.autoFor) {
+    mg.autoFor = want;
+    if (want && !mg.manual && !mg.running && mg.pr !== want) void loadMerge(want, false);
+    if (mg.listAsked && !mg.listLoading) void loadPrList();
+  }
+  /* 다른 곳에서 병합·닫힌 PR의 카드를 내리거나 다시 읽는다(chime.js cardFate) */
   const fate = MRG.cardFate({ cardPr: mg.pr, manual: mg.manual, pending: want, running: mg.running, list: mg.list, open: !mg.view || mg.view.state === 'open' });
   if (fate === 'drop') dropCard();
   else if (fate === 'reread' && !mg.loading && mg.rereadFor !== `${mg.pr}:${mg.listSeq}`) { mg.rereadFor = `${mg.pr}:${mg.listSeq}`; void loadMerge(mg.pr, mg.manual); }
   box.classList.toggle('is-empty', !mg.view && !mg.loading && !mg.error && !mg.result);
   /* 목록은 처음 그릴 때 한 번 읽는다. 그 뒤는 「목록 새로 읽기」와 병합 결과 뒤에만 */
   if (!mg.listAsked) { mg.listAsked = true; void loadPrList(); }
-  /* 병합 대기 PR이 목록에 없으면(목록을 읽은 뒤 새 PR이 생김) 그 번호에 한 번 다시 읽는다(PR 79 검수 중요 1) */
+  /* 병합 대기 PR이 목록에 없으면(목록을 읽은 뒤 새 PR이 생김) 그 번호에 한 번 다시 읽는다 */
   else if (want && mg.list?.ok && !mg.list.items.some(i => i.number === want) && mg.listMissFor !== want && !mg.listLoading) { mg.listMissFor = want; void loadPrList(); }
   renderPrList();
   paint($('#merge-sum'), mg.view ? `<span>PR ${esc(mg.view.number)} · ${mg.view.state !== 'open' ? (mg.view.merged ? '병합됐어요' : '병합 없이 닫혔어요') : mg.view.canMerge ? '병합 조건을 채웠어요' : '병합 조건을 채우지 못했어요'}</span>`
     : `<span>${want ? `병합 대기 PR ${esc(want)}` : '병합을 기다리는 PR이 없어요. 목록에서 고르거나 번호로 불러올 수 있어요'}</span>`);
   const v = mg.view, key = JSON.stringify([mg.pr, v, mg.loading, mg.error, v ? v.mustSee.filter(m => mg.opened.has(mergeKey(v, m.path))).map(m => m.path) : []]);
   if (key !== mg.cardKey) { paint($('#merge-card'), mergeCard()); mg.cardKey = key; }
-  paint($('#merge-act'), mergeAction());
+  const act = $('#merge-act'), f = document.activeElement && act.contains(document.activeElement) ? document.activeElement : null;
+  const fSel = f?.matches?.('[data-merge-reload]') ? '[data-merge-reload]' : f?.matches?.('[data-merge-run]') ? '[data-merge-run]' : null;
+  if (paint(act, mergeAction()) && fSel) act.querySelector(fSel)?.focus({ preventScroll: true });
+  /* 카드가 읽은 PR이 「내 손」의 병합 대기 줄을 바꾼다(mergeHand·mergeFolded). 바뀌었을 때만 「지금」과 배지를 다시 맞춘다 */
+  const now = Date.now();
+  if (nowSig(now) !== st.nowSig) { renderNow(now); renderStrip(now); notify(now); }
 }
 /* 카드를 내린다. 늦게 온 읽기가 내린 카드를 되살리지 않게 순번을 올린다 */
 function dropCard() {
@@ -900,7 +948,7 @@ async function loadMerge(n, manual) {
   /* 읽기에 실패하면 옛 카드를 남기지 않는다(옛 머리 SHA로 단추가 켜져 있지 않게) */
   if (r?.ok && r.pr && Array.isArray(r.pr.mustSee)) {
     mg.view = r.pr; mg.spent = false;
-    /* 목록 행의 SHA가 카드와 다르면(그 사이 push) 목록이 낡은 것이다 — 다시 읽어 나란히 다른 값이 보이지 않게 한다(PR 79 검수 사소 4) */
+    /* 목록 행의 SHA가 카드와 다르면(그 사이 push) 목록이 낡은 것이다 — 다시 읽어 나란히 다른 값이 보이지 않게 한다 */
     const row = mg.list?.ok ? mg.list.items.find(i => i.number === r.pr.number) : null;
     if (row && row.sha !== r.pr.headSha && !mg.listLoading) void loadPrList();
   }
@@ -937,7 +985,7 @@ function renderPrList() {
   if (!box) return;
   const L = mg.list, ok = !!L?.ok, n = ok ? L.items.length : 0;
   const say = mg.listLoading ? '읽는 중…' : !ok || !n ? '' : `먼저 연 PR부터 · ${n > MRG.LIST_SCROLL_AFTER ? '목록 안에서 스크롤해요 · ' : ''}고르면 아래 카드가 그 PR을 읽어요`;
-  const head = `<div class="mg-list-head"><h3 class="sub-h">열린 PR${ok ? ` ${esc(n)}개${L.more ? ' 넘게' : ''}` : ''} <span>${esc(say)}</span></h3><button type="button" class="ghost" data-merge-list-reload${mg.listLoading ? ' disabled' : ''}>목록 새로 읽기</button></div>`;
+  const head = `<div class="mg-list-head"><h3 class="sub-h">열린 PR${ok ? ` ${esc(n)}개${L.more ? ' 넘게' : ''}` : ''} <span>${esc(say)}</span></h3><button type="button" class="ghost" data-merge-list-reload aria-disabled="${mg.listLoading}">목록 새로 읽기</button></div>`;
   let body = '';
   if (ok) {
     body = MRG.prListHtml(L.items, { esc, picked: MRG.pickedPr(L.items, mg.pr, MRG.pendingPr(SUM().hand)) });
@@ -1108,7 +1156,7 @@ document.addEventListener('click', e => {
     const pick = e.target.closest('[data-merge-pick]');
     if (pick) { pickFromList(pick); return; }
     if (e.target.closest('[data-merge-list-reload]')) { if (!mg.listLoading) void loadPrList(); return; }
-    if (e.target.closest('[data-merge-reload]')) { if (mg.pr && !mg.running) void loadMerge(mg.pr, mg.manual); return; }
+    if (e.target.closest('[data-merge-reload]')) { if (mg.pr && !mg.running && !mg.loading) void loadMerge(mg.pr, mg.manual); return; }
     if (e.target.closest('[data-merge-run]')) { void runMerge(); return; }
     if (e.target.closest('[data-merge-close]')) { if (!mg.running) { dropCard(); renderMerge(); } return; }
     const ml = e.target.closest('[data-merge-link]');

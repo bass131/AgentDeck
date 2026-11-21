@@ -1,10 +1,9 @@
-// 작업 ID: gap1-p13 · 옛 이름 gap1-p13-live-mode-switch.test.ts
 import { describe, it, expect } from 'vitest'
 import { ClaudeCodeBackend } from '@main/04_Claude/ClaudeCodeBackend'
 import type { QueryFn } from '@main/04_Claude/ClaudeCodeBackend'
 import { PermissionCoordinator } from '@main/04_Claude/permission/permissionCoordinator'
 import type { AgentRun } from '@main/03_Agent/AgentBackend'
-import type { AgentEvent } from '../../../../02_Project/00_Source/shared/agentEvents'
+import type { AgentEvent } from '@shared/agentEvents'
 
 type RunWithSetPermissionMode = AgentRun & { setPermissionMode?: (modeId: string) => void }
 
@@ -199,7 +198,7 @@ describe('gap1-p13 ② 전환 후 다음 canUseTool부터 새 모드 (RED)', () 
       setTimeout(() => resolve({ behavior: '__timeout__' }), 300)
     )
     const decision = await Promise.race([
-      // M06 G3 — 일반 질의의 실측 꼴(규칙 제안 한 개 이상). 제안 없는 호출은 모드와 관계없이 카드로 간다.
+      // 일반 질의의 실측 꼴(규칙 제안 한 개 이상). 제안 없는 호출은 모드와 관계없이 카드로 간다.
       cap.canUseTool!('Bash', { command: 'echo p13' }, {
         signal,
         toolUseID: 'bash-p13',

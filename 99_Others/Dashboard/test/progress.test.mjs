@@ -29,7 +29,7 @@ test('short name: the part before 「 — 」, else the text without asides, els
 });
 
 test('short name: a leading demonstrative item (「이 goal 문서」) is not the head; the first meaningful item is', () => {
-  // H4 1단계 원문. 예전에는 「이 goal 문서 외 3가지」라 무엇을 하는 단계인지 사라졌다
+  // 실제 단계 원문. 지시어 항목을 머리로 쓰면 「이 goal 문서 외 3가지」가 되어 무엇을 하는 단계인지 사라진다
   assert.equal(shortName('이 goal 문서, 포인터 전환(`98_Management/01_GateState/gate-config.json`의 `planPath`), pin 갱신, G9c·G10의 상태를 「종결」로 바꾸고 병합 기록'), '포인터 전환 외 3가지');
   assert.equal(shortName('그 단계 문서, 해당 결정 기록, 검증 기록 절을 다시 세어 마지막 줄 시각까지 맞춘다'), '검증 기록 절을 다시 세어 마지막 줄 시각까지 맞춘다 외 2가지');
   // 의미 있는 항목이 32자를 넘으면 그 항목을 잘라 쓴다
@@ -141,9 +141,9 @@ test('hand: merge waiting, a merge step in progress, a question, a stop, the led
   const ids = h => h.map(x => [x.id, x.level]);
   assert.deepEqual(judgeHand({ phases: goal('실행 중', [step(1, 'current', '구현')], 1) }), []);
   assert.deepEqual(ids(judgeHand({ phases: goal('병합 대기', [step(1, 'done', 'a')], null, { goal: { status: '병합 대기 (PR 49)' } }) })), [['merge', 'todo']]);
-  // M07 G8·G9: 병합은 사용자가 현황판 병합 카드(확인 창)나 앱 PR 카드의 「병합」 버튼으로 한다 — 보드 승인 요청이 아니다
-  assert.match(judgeHand({ phases: goal('병합 대기', [], null, { goal: { status: '병합 대기 (PR 49)' } }) })[0].say, /^PR 49의 병합을 기다려요 — 아래 병합 카드의 「병합」 버튼으로 해 주세요/);
-  // M07 G9: 현황판 병합 카드가 이 번호로 PR을 불러온다(문장에서 번호를 뽑지 않는다). 번호가 없으면 null이다
+  // 병합은 사용자가 현황판 병합 카드(확인 창)나 앱 PR 카드의 「병합」 버튼으로 한다 — 보드 승인 요청이 아니다
+  assert.match(judgeHand({ phases: goal('병합 대기', [], null, { goal: { status: '병합 대기 (PR 49)' } }) })[0].say, /^PR 49의 병합을 기다려요 — 위 병합 카드의 「병합」 버튼으로 해 주세요/, '병합 카드는 「내 손」 위에 있다(M11 G5 72)');
+  // 현황판 병합 카드가 이 번호로 PR을 불러온다(문장에서 번호를 뽑지 않는다). 번호가 없으면 null이다
   assert.equal(judgeHand({ phases: goal('병합 대기', [], null, { goal: { status: '병합 대기 (PR 49)' } }) })[0].pr, 49);
   assert.equal(judgeHand({ phases: goal('병합 대기', [], null) })[0].pr, null);
   assert.deepEqual(ids(judgeHand({ phases: goal('실행 중', [step(8, 'current', '커밋, push, PR 생성, 병합 승인 요청')], 8) })), [['merge-step', 'todo']]);
@@ -166,21 +166,21 @@ test('hand keys: the same fact gives the same key; a step number or a gate in an
   const goal = (statusWord, items, cur, extra = {}, doc = 'g.md') => ({ status: 'ok', format: 'goal', items, current: cur,
     record: { section: true, failSinceUserInput: 0, userInput: 0, last: null, ...extra.record }, goal: { status: statusWord, statusWord, closed: false, waitingUser: false, ref: { path: doc, line: 3 }, ...extra.goal } });
   const keys = h => h.map(x => x.key);
-  // 병합 대기는 goal 문서 하나의 사실이다 — 머리말에 PR 번호가 나중에 붙어도 같은 키라 다시 울리지 않는다(H4 검수 비차단 1)
+  // 병합 대기는 goal 문서 하나의 사실이다 — 머리말에 PR 번호가 나중에 붙어도 같은 키라 다시 울리지 않는다
   assert.deepEqual(keys(judgeHand({ phases: goal('병합 대기', [], null, { goal: { status: '병합 대기 (PR 49)' } }) })), ['merge:g.md']);
   assert.deepEqual(keys(judgeHand({ phases: goal('병합 대기', [], null) })), ['merge:g.md']);
   assert.deepEqual(keys(judgeHand({ phases: goal('병합 대기', [], null, { goal: { status: '병합 대기 (PR 49)' } }, 'h.md') })), ['merge:h.md']);
   const mergeStep = doc => keys(judgeHand({ phases: goal('실행 중', [step(7, 'current', '커밋, push, PR 생성, 병합 승인 요청')], 7, {}, doc) }));
   assert.deepEqual(mergeStep('g.md'), ['merge-step:g.md:7']);
   assert.deepEqual(mergeStep('h.md'), ['merge-step:h.md:7'], '다음 goal의 같은 단계 번호는 다른 사실이다');
-  // 사용자 입력 줄은 그 줄의 시각으로 가른다 — 위쪽에 줄이 더해져 줄 번호가 밀려도 같은 사실이다(H4 검수 비차단 2)
+  // 사용자 입력 줄은 그 줄의 시각으로 가른다 — 위쪽에 줄이 더해져 줄 번호가 밀려도 같은 사실이다
   const q = (line, at) => keys(judgeHand({ phases: goal('실행 중', [step(2, 'current', 'b')], 2, { goal: { waitingUser: true }, record: { last: { marker: 'USER-INPUT', at, text: '?', file: 'g.md', line } } }) }));
   assert.deepEqual([q(40, '2026-11-15T19:14:01+09:00'), q(41, '2026-11-15T19:14:01+09:00')], [['question:g.md:2026-11-15T19:14:01+09:00'], ['question:g.md:2026-11-15T19:14:01+09:00']]);
   assert.deepEqual(q(40, null), ['question:g.md:40'], '시각이 없는 줄은 줄 번호로 가른다');
   // 멈춤: 실패 수가 더 늘어도 같은 사실이고, 사용자가 답한 뒤(USER-INPUT 줄이 늘어난 뒤) 다시 멈추면 새 사실이다
   const stop = (fails, userInput) => keys(judgeHand({ phases: goal('실행 중', [step(2, 'stopped', 'b')], 2, { record: { failSinceUserInput: fails, userInput } }) }));
   assert.deepEqual([stop(3, 0), stop(4, 0), stop(3, 1)], [['stopped:g.md:2:u0'], ['stopped:g.md:2:u0'], ['stopped:g.md:2:u1']]);
-  // 결정 대장 게이트: 사용자 결정 수를 넣는다 — 사용자가 결정을 더해 풀린 뒤 다시 막히면 새 사실이다(H4 검수 비차단 3)
+  // 결정 대장 게이트: 사용자 결정 수를 넣는다 — 사용자가 결정을 더해 풀린 뒤 다시 막히면 새 사실이다
   const ledger = (path, userSide = 1) => keys(judgeHand({ ledger: { status: 'ok', gate: 'ask', tally: { AI: 3 }, userSide, ref: { path, line: 9 } } }));
   assert.deepEqual([ledger('g.md'), ledger('h.md'), ledger('g.md', 2)], [['ledger:g.md:ask:u1'], ['ledger:h.md:ask:u1'], ['ledger:g.md:ask:u2']]);
   const ask = judgeHand({ hooks: { status: 'ok', entries: entries([line({ hook: 'cmd-guard', verdict: 'ask', agent_id: null, cmd: 'git push' })]) } });
@@ -212,7 +212,7 @@ test('quiet after a stop: only when the very last record is surface-probe\'s Sto
   const after = entries([line({ hook: 'surface-probe', event: 'Stop', agent_id: null }), line({ hook: 'pass-watcher', event: 'PostToolUse', verdict: '무장전' })]);
   assert.equal(judgeQuiet(after), null);
   assert.equal(summarizeActivity(after).quiet, null);
-  // 같은 Stop 묶음의 두 훅은 기록 순서가 보장되지 않는다 — 끝의 Stop 묶음에 surface-probe가 있으면 조용함이다(H4 검수 비차단 8)
+  // 같은 Stop 묶음의 두 훅은 기록 순서가 보장되지 않는다 — 끝의 Stop 묶음에 surface-probe가 있으면 조용함이다
   const reordered = entries([line({ hook: 'surface-probe', event: 'Stop' }), line({ hook: 'stop-gate', event: 'Stop' })]);
   assert.deepEqual(judgeQuiet(reordered), { at: reordered[0].at, session: reordered[0].session, after: 5 });
   assert.equal(judgeQuiet(entries([line({ hook: 'stop-gate', event: 'Stop' })])), null, 'surface-probe 없는 Stop은 응답 마침이 아니다');

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type JSX } from 'react'
 import { imageSrc, imageName } from '@renderer/05_Conversation/images'
 import { IconClose, IconChevLeft, IconChevRight, IconEye } from '@renderer/02_Common/icons'
+import { useModalLayer } from '@renderer/02_Common/modalStack'
 import './ImageViewer.css'
 
 export interface ImageViewerProps {
@@ -30,10 +31,11 @@ export function ImageViewer({ images, index, onIndexChange, onClose }: ImageView
 
   useEffect(() => setZoom(false), [index])
 
+  useModalLayer(true, () => onCloseRef.current())
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent): void => {
-      if (e.key === 'Escape') onCloseRef.current()
-      else if (e.key === 'ArrowRight') goRef.current(1)
+      if (e.key === 'ArrowRight') goRef.current(1)
       else if (e.key === 'ArrowLeft') goRef.current(-1)
     }
     window.addEventListener('keydown', onKey)

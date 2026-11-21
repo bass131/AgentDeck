@@ -12,7 +12,7 @@ const AGENT_W_FALLBACK = 392
 
 const AGENT_W_VIEWPORT_RATIO = 0.5
 
-export interface PaneSplitterProps {
+interface PaneSplitterProps {
   targetRef?: React.RefObject<HTMLElement | null>
   cssVar?: string
   storageKey?: string

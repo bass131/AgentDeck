@@ -1,12 +1,13 @@
 import type { StateCreator } from 'zustand'
-import type { ConversationRecord } from '../../../../shared/ipcContract'
+import type { ConversationRecord } from '@shared/ipcContract'
 import type { ThreadItem } from '@renderer/05_Conversation/state/threadTypes'
 import { getPref, setPref } from '@renderer/11_Settings/prefs'
 import { nextMsgId } from '@renderer/00_App/state/ids'
 import { ipc } from '@renderer/01_Ipc'
 import { rebuildThreadWithSubagents, freezePersistedSubagents } from './conversationPayload'
 import { getReplModeDefault } from '@renderer/05_Conversation/replModeDefault'
-import { DEFAULT_MODEL } from '@renderer/03_Agent/pickerOptions'
+import { conversationModeOf } from '@renderer/03_Agent/pickerOptions'
+import { defaultModelOf } from '@shared/03_Agent/models/knownModels'
 import { pruneConversationScope } from '@renderer/03_Agent/state/ultracodeToggle'
 import {
   sessionLoopDisplayRegistry,
@@ -37,6 +38,7 @@ function buildConversationRunSnapshot(state: AppStore): ConversationRunState {
     isRunning: state.isRunning,
     lastUsage: state.lastUsage,
     lastContextWindow: state.lastContextWindow,
+    contextWindowStale: state.contextWindowStale,
     sessionId: state.sessionId,
     activeLoops: state.activeLoops,
     loopsStoppedNotice: state.loopsStoppedNotice,
@@ -47,6 +49,7 @@ function buildConversationRunSnapshot(state: AppStore): ConversationRunState {
     goalRun: state.goalRun,
     apiRetry: state.apiRetry,
     compacting: state.compacting,
+    autoCompact: state.autoCompact,
     sdkSessionState: state.sdkSessionState,
     hookRuns: state.hookRuns,
     errorMessage: state.errorMessage,
@@ -61,6 +64,8 @@ function buildConversationRunSnapshot(state: AppStore): ConversationRunState {
     attachedImages: state.attachedImages,
     restoredSession: state.restoredSession,
     replMode: state.replMode,
+    pickerMode: state.pickerMode,
+    selectedModel: state.selectedModel,
   }
 }
 
@@ -121,6 +126,7 @@ export const createSessionListSlice: StateCreator<AppStore, [], [], SessionListS
         ...bg,
         conversationId: id,
         workspaceRoot: s.workspaceRoot,
+        queue: [],
       }))
       if (bgWorkspaceRoot && bgWorkspaceRoot !== get().workspaceRoot) {
         await get().restoreWorkspaceFromCwd(bgWorkspaceRoot)
@@ -159,9 +165,12 @@ export const createSessionListSlice: StateCreator<AppStore, [], [], SessionListS
       errorMessage: undefined,
       isRunning: false,
       attachedImages: [],
+      queue: [],
       sessionId: conv.sessionId,
       restoredSession: Boolean(conv.sessionId) && loadedMessages.length > 0,
       lastContextWindow: conv.lastContextWindow,
+      contextWindowStale: false,
+      autoCompact: null,
       lastUsage: conv.lastUsage,
       activeLoops: savedLoopDisplay?.activeLoops ?? [],
       loopsStoppedNotice: savedLoopDisplay?.loopsStoppedNotice ?? false,
@@ -173,7 +182,8 @@ export const createSessionListSlice: StateCreator<AppStore, [], [], SessionListS
       goalRun: savedLoopDisplay?.goalRun ?? null,
       subagents: freezePersistedSubagents(conv.subagents),
       replMode: conv.replMode ?? getReplModeDefault(),
-      selectedModel: conv.model ?? DEFAULT_MODEL,
+      selectedModel: conv.model ?? defaultModelOf(get().modelRows),
+      pickerMode: conversationModeOf(conv.mode),
     })
 
     get().refreshStaleWatchdog()
@@ -198,6 +208,10 @@ export const createSessionListSlice: StateCreator<AppStore, [], [], SessionListS
   deleteConversation: async (id: string) => {
     const res = await ipc.sessions.delete({ id })
     if (!res.ok) return
+    // 지운 대화의 run이 돌고 있으면 끊는다 — 남겨 두면 지운 대화의 도구 실행이 계속된다
+    const fg = get()
+    const runningRunId = fg.conversationId === id ? fg.currentRunId : (backgroundRunOf(id)?.currentRunId ?? null)
+    if (runningRunId !== null) void Promise.resolve(ipc.agent.abort({ runId: runningRunId })).catch(() => {})
     set((s) => ({
       conversations: s.conversations.filter((c) => c.id !== id),
     }))

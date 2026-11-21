@@ -1,6 +1,5 @@
 #!/usr/bin/env node
 // 문서 250줄 상한 훅 (PostToolUse: Write|Edit|MultiEdit) — 산출 문서(.md) 실측.
-// ⚠️ 목표 H로 실측된 구멍 — 프로브를 생략하지 않는다 (M01 Phase-Steps Phase 3 Step 3).
 'use strict';
 const fs = require('fs');
 const path = require('path');

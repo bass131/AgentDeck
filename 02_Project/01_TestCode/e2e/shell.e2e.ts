@@ -168,8 +168,8 @@ test('F8 사이드바: 채팅/작업 토글 + 세션 행 + 컨텍스트 메뉴 +
   await expect(page.locator('.set-dialog')).toHaveCount(0)
 })
 
-// M10 G1 — 멀티 에이전트 모드를 지웠다. 두 번째 모드 탭은 「작업」이고 루프 화면이 가운데 칸에 모달 없이 그려진다.
-// M10 G4 — 작업 화면은 가운데 탭(.work-center)과 오른쪽 현황판(.work-side)이다. 채팅으로 돌아가면 작업 칸이 내려간다
+// 두 번째 모드 탭은 「작업」이고 루프 화면이 가운데 칸에 모달 없이 그려진다.
+// 작업 화면은 가운데 탭(.work-center)과 오른쪽 현황판(.work-side)이다. 채팅으로 돌아가면 작업 칸이 내려간다
 test('F13 작업 모드: 작업 토글 → 가운데 탭과 오른쪽 현황판(모달 아님) → 채팅 복귀', async () => {
   const modeBtns = page.locator('.sb-mode .sb-mode-btn')
   await modeBtns.nth(1).click()

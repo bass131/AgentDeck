@@ -1,6 +1,4 @@
-// 검수의 Taste 판. 실행기가 읽은 두 층의 원문으로 체크리스트를 만들고, 검수 세션의 마지막 메시지에서 TASTE 줄을 판독해 판정한다.
-// 판정 규칙: 체크리스트의 항목마다 꼴이 맞는 줄이 정확히 하나여야 하고, 빠짐·중복·모르는 ID·꼴 틀림은 불통과다.
-// 남은 TASTE fail이 하나라도 있으면 불통과다. 충돌 면제는 체크리스트의 P 항목 pass·G 항목 fail 짝일 때만 인정한다.
+// 항목 줄이 빠지거나 겹치면 불통과다 — 떨어질 항목의 줄을 빼서 통과하는 구멍을 막는다
 import { scanTaste, type TasteScope } from '@shared/14_Taste/tasteDoc'
 import { LOOP_DOC_MAX_BYTES } from '@main/13_Taste/tasteStore'
 import type { TasteConflict } from './runState'
@@ -59,7 +57,10 @@ const CONFLICT_LINE = /^TASTE-CONFLICT (\S+) (\S+): (\S.*)$/
 const MALFORMED = '꼴이 틀린 TASTE 줄'
 const NOTE_MAX = 200
 
-// 충돌 줄의 머리가 TASTE 줄의 머리를 품으므로 충돌 머리를 먼저 본다
+const TOKEN_MAX = 24
+const LIST_MAX = 5
+const BAD_CONFLICT = '꼴 틀림'
+
 export const isTasteLine = (line: string): boolean => line.startsWith(CONFLICT_HEAD) || line.startsWith(MARK_HEAD)
 
 const clip = (s: string, n: number): string => (s.length > n ? `${s.slice(0, Math.max(0, n - 1))}…` : s)
@@ -77,13 +78,13 @@ export function judgeTaste(items: readonly TasteCheckItem[], text: string): Tast
     if (line.startsWith(CONFLICT_HEAD)) {
       const m = CONFLICT_LINE.exec(line)
       if (m) conflictLines.push({ p: m[1], g: m[2], note: m[3], line })
-      else ignoredConflicts.push('꼴 틀림')
+      else ignoredConflicts.push(BAD_CONFLICT)
       continue
     }
     if (!line.startsWith(MARK_HEAD)) continue
     const m = MARK_LINE.exec(line)
     if (!m) { strays.push(`${MALFORMED} — ${clip(line, 60)}`); continue }
-    if (!known.has(m[1])) { strays.push(`모르는 ID ${m[1]}`); continue }
+    if (!known.has(m[1])) { strays.push(`모르는 ID ${clip(m[1], TOKEN_MAX)}`); continue }
     seen.set(m[1], [...(seen.get(m[1]) ?? []), { mark: m[2] as TasteMark, reason: m[3] }])
   }
   const entries: TasteEntry[] = items.map((item) => {
@@ -97,7 +98,7 @@ export function judgeTaste(items: readonly TasteCheckItem[], text: string): Tast
     const p = byId.get(c.p)
     const g = byId.get(c.g)
     const recognized = c.p.startsWith('P-') && c.g.startsWith('G-') && p?.state === 'pass' && g?.state === 'fail'
-    if (!recognized || !g) { ignoredConflicts.push(`${c.p} ${c.g}`); continue }
+    if (!recognized || !g) { ignoredConflicts.push(`${clip(c.p, TOKEN_MAX)} ${clip(c.g, TOKEN_MAX)}`); continue }
     if (conflicts.some((x) => x.project === c.p && x.global === c.g)) continue
     g.exemptBy ??= c.p
     conflicts.push({ project: c.p, global: c.g, note: clip(c.note, NOTE_MAX) })
@@ -112,28 +113,40 @@ function tags(e: TasteEntry): string {
 }
 const STATE_WORD: Record<TasteEntry['state'], string> = { pass: 'pass', fail: 'fail', 'n/a': 'n/a', missing: '없음', duplicate: '중복' }
 
-function extras(j: TasteJudgement): string[] {
+interface HeadPart { full: string; folded: string }
+
+const capped = (xs: string[]): string[] => (xs.length > LIST_MAX ? [...xs.slice(0, LIST_MAX), `외 ${xs.length - LIST_MAX}개`] : xs)
+
+function extras(j: TasteJudgement): HeadPart[] {
   const unknown = j.strays.filter((s) => s.startsWith('모르는 ID ')).map((s) => s.slice('모르는 ID '.length))
   const malformed = j.strays.filter((s) => s.startsWith(MALFORMED)).length
+  const pairs = j.ignoredConflicts.filter((c) => c !== BAD_CONFLICT)
+  const bad = j.ignoredConflicts.length - pairs.length
+  const ignored = [...capped(pairs), ...(bad > 0 ? [`${BAD_CONFLICT} ${bad}개`] : [])]
   return [
-    ...(unknown.length > 0 ? [`모르는 ID ${unknown.join(' ')}`] : []),
-    ...(malformed > 0 ? [`${MALFORMED} ${malformed}개`] : []),
-    ...(j.ignoredConflicts.length > 0 ? [`인정하지 않은 충돌 ${j.ignoredConflicts.join(', ')}`] : []),
+    ...(unknown.length > 0 ? [{ full: `모르는 ID ${capped(unknown).join(' ')}`, folded: `모르는 ID ${unknown.length}개` }] : []),
+    ...(malformed > 0 ? [{ full: `${MALFORMED} ${malformed}개`, folded: `${MALFORMED} ${malformed}개` }] : []),
+    ...(ignored.length > 0 ? [{ full: `인정하지 않은 충돌 ${ignored.join(', ')}`, folded: `인정하지 않은 충돌 ${j.ignoredConflicts.length}개` }] : []),
   ]
 }
 
-// 항목마다 「ID 판정」을 체크리스트 순서로 싣는다. max를 넘으면 판정별로 묶는다(ID를 빼지 않는다).
+const NOT_PASSED: TasteEntry['state'][] = ['fail', 'missing', 'duplicate']
+
+// 불통과 ID는 가장 늦게 접는다 — FAIL 줄이 왜 떨어졌는지를 잃지 않게(헌법 1조)
 export function tasteHead(j: TasteJudgement, max: number): string {
-  const tail = extras(j).map((x) => `; ${x}`).join('')
-  const flat = `Taste ${j.entries.map((e) => `${e.id} ${STATE_WORD[e.state]}${tags(e)}`).join(', ')}${tail}`
+  const tail = extras(j)
+  const flat = `Taste ${j.entries.map((e) => `${e.id} ${STATE_WORD[e.state]}${tags(e)}`).join(', ')}${tail.map((x) => `; ${x.full}`).join('')}`
   if (flat.length <= max) return flat
-  const groups = (Object.keys(STATE_WORD) as TasteEntry['state'][])
-    .map((s) => [s, j.entries.filter((e) => e.state === s)] as const)
-    .filter(([, es]) => es.length > 0)
-    .map(([s, es]) => `${STATE_WORD[s]} ${es.map((e) => `${e.id}${tags(e)}`).join(' ')}`)
-  return `Taste ${groups.join('; ')}${tail}`
+  const group = (s: TasteEntry['state']): HeadPart[] => {
+    const es = j.entries.filter((e) => e.state === s)
+    return es.length === 0 ? [] : [{ full: `${STATE_WORD[s]} ${es.map((e) => `${e.id}${tags(e)}`).join(' ')}`, folded: `${STATE_WORD[s]} ${es.length}개` }]
+  }
+  const parts = [...NOT_PASSED.flatMap(group), ...tail, ...group('n/a'), ...group('pass')]
+  const shown = parts.map((p) => p.full)
+  const render = (): string => `Taste ${shown.join('; ')}`
+  for (let i = parts.length - 1; i >= 0 && render().length > max; i--) shown[i] = parts[i].folded
+  return clip(render(), max)
 }
 
-// fail 항목의 근거 글 — 근거 줄에서 머리 뒤의 남는 자리에 싣는다
 export const tasteFailReasons = (j: TasteJudgement): string[] =>
   j.entries.filter((e) => e.state === 'fail' && e.reason).map((e) => `${e.id}: ${e.reason}`)

@@ -50,8 +50,7 @@
 //   - goal PR은 SHA를 한 번 읽어 그 커밋의 트리를 대조하고 그 SHA를 push한다(`<sha>:refs/heads/<b>`).
 //   - 검수 diff가 상한을 넘으면 검수를 열지 않고 멈춘다(잘린 diff로 낸 pass가 전체 트리에 묶이지 않게).
 //   - 밖에서 넣는 사람 판정의 facts는 버린다 — 상태 사실은 실행기가 대조한 값만 싣는다.
-//   - 검수의 Taste 판은 goal 시작 SHA 커밋의 프로젝트 Taste와 검수 시작 때의 전역 Taste다. 읽지 못하거나 검사 문제가 있으면 멈춘다.
-//     검수 pass가 인정한 Taste 충돌은 goal 상태에 남고 마일스톤 PR 본문의 「영역 재설계 안건」에 실린다.
+//   - 프로젝트 Taste의 판은 마일스톤 시작점 커밋에서 읽는다 — 약 등급 goal이 검수 없이 병합한 Taste가 다음 goal의 판이 되지 않게.
 import {
   applyVerdict, checkResumable, expectedJudge, judgeCi, judgeCommands, nextStep, oneSentence,
   type CommandRun, type NextStep, type Verdict,
@@ -147,7 +146,7 @@ const ARCHIVED_DOCS = [DOCS.milestoneSpec, DOCS.decisions, DOCS.verification] as
 // 실행기가 매 단계 쓰는 생존 문서는 goal의 변경이 아니므로 등급 통계에서 뺀다(템플릿과 관계없이).
 const EXECUTOR_OWNED = /^(\.[\\/])*\.agentdeck[\\/]/
 // 특수 글자가 든 경로는 git이 따옴표로 감싼다
-const TASTE_DOCS_DIFF = /^diff --git "?a\/docs\/agentdeck\//m
+const TASTE_DOCS_DIFF = /^diff --git "?a\/docs\/agentdeck\//im
 const short = (sha: string | null | undefined): string => (sha ? sha.slice(0, 8) : '(없음)')
 const errorText = (e: unknown): string => oneSentence(e instanceof Error ? e.message : String(e))
 const v = (node: StepNode, verdict: Verdict['verdict'], evidence: string, facts?: Verdict['facts']): Verdict =>
@@ -462,8 +461,8 @@ export function createLoopRunner(deps: LoopRunnerDeps): LoopRunner {
       const drift = goalDocDrift(goal, goalDoc)
       if (drift) return v(node, 'stop', `${drift} 검수를 열지 않았다`)
       // 판을 읽지 못하면 Taste 판정이 조용히 꺼지지 않게 멈춘다(설정 문제라 FAIL로 세지 않는다)
-      const plate = await tastePlate(baseSha)
-      if (!plate.ok) return v(node, 'stop', `${plate.reason} — Taste 판을 읽지 못해 검수를 열지 않았다. 사람이 문서를 고치고 이어 간다`)
+      const plate = await tastePlate(state)
+      if (!plate.ok) return v(node, 'stop', `Taste 판을 쓸 수 없어 검수를 열지 않았다 — ${plate.reason}`)
       const snap = await git.reviewSnapshot(baseSha)
       if (!snap) return v(node, 'fail', `${names.milestone}의 목표 시작 ${short(baseSha)} 대비 diff를 만들지 못해 검수를 열지 않았다`)
       // 잘린 diff로 검수하지 않는다(pass가 전체 트리에 묶이므로). FAIL로 세지 않고 멈춘다
@@ -486,17 +485,28 @@ export function createLoopRunner(deps: LoopRunnerDeps): LoopRunner {
     }
   }
 
-  // 검수의 Taste 판 — 프로젝트 Taste는 goal 시작 SHA의 커밋에서(작업 노드가 작업 트리에서 고쳐도 판은 그대로다), 전역 Taste는 지금 앱 데이터에서
-  async function tastePlate(baseSha: string): Promise<{ ok: true; items: TasteCheckItem[] } | { ok: false; reason: string }> {
-    let project: string | null
+  async function projectPlate(state: RunState): Promise<{ ok: true; text: string | null } | { ok: false; reason: string }> {
+    const base = state.milestoneBase
+    if (!base) return { ok: false, reason: '마일스톤 시작 SHA가 상태에 없어 프로젝트 Taste의 판을 정할 수 없다 — 사람 판단이 필요하다' }
+    const fixed = `판은 마일스톤 시작점 커밋 ${short(base)}의 원문이라 이 실행에서는 고칠 수 없다. 기본 브랜치에서 고친 뒤 새 실행으로`
+    let text: string | null
+    try { text = await git.fileAt(base, PROJECT_TASTE_REL) } catch (e) {
+      return { ok: false, reason: `${fixed} — 일시적인 읽기 오류면 이어 가기로 다시 읽는다. 마일스톤 시작 ${short(base)}의 프로젝트 Taste를 읽지 못했다(${PROJECT_TASTE_REL} — ${errorText(e)})` }
+    }
+    const checked = tasteChecklist({ project: text, global: null })
+    return checked.ok ? { ok: true, text } : { ok: false, reason: `${fixed} — ${checked.reason}` }
+  }
+
+  async function tastePlate(state: RunState): Promise<{ ok: true; items: TasteCheckItem[] } | { ok: false; reason: string }> {
+    const project = await projectPlate(state)
+    if (!project.ok) return project
+    const fixable = '사람이 전역 Taste를 고치고 이어 간다'
     let global: string | null
-    try { project = await git.fileAt(baseSha, PROJECT_TASTE_REL) } catch (e) {
-      return { ok: false, reason: `목표 시작 ${short(baseSha)}의 프로젝트 Taste를 읽지 못했다(${PROJECT_TASTE_REL} — ${errorText(e)})` }
-    }
     try { global = (await ports.taste?.readGlobal()) ?? null } catch (e) {
-      return { ok: false, reason: `전역 Taste를 읽지 못했다(${errorText(e)})` }
+      return { ok: false, reason: `${fixable} — 전역 Taste를 읽지 못했다(${errorText(e)})` }
     }
-    return tasteChecklist({ project, global })
+    const checked = tasteChecklist({ project: project.text, global })
+    return checked.ok ? checked : { ok: false, reason: `${fixable} — ${checked.reason}` }
   }
 
   async function runGate(node: GateNode, state: RunState, goal: GoalState | null, names: BranchNames): Promise<Produced> {
@@ -686,9 +696,13 @@ export function createLoopRunner(deps: LoopRunnerDeps): LoopRunner {
       switch (node.action) {
         case 'createMilestoneBranch':
           return await ensureBranch(node, names.milestone, names.base, state.milestoneBase, true)
-        case 'createGoalBranch':
+        case 'createGoalBranch': {
           if (!goal || names.goal === null) return v(node, 'fail', 'goal 밖에서 goal 브랜치를 가를 수 없다')
+          // 프로젝트 판은 이 실행에서 고칠 수 없으니 작업을 쓰기 전에 멈춘다. 전역 판은 사람이 고치면 풀리므로 검수 때 본다
+          const plate = await projectPlate(state)
+          if (!plate.ok) return v(node, 'stop', `프로젝트 Taste를 판으로 쓸 수 없어 ${names.goal}을 가르지 않았다 — ${plate.reason}`)
           return await ensureBranch(node, names.goal, names.milestone, goal.baseSha, false)
+        }
         case 'openGoalPr': {
           if (!goal || names.goal === null) return v(node, 'fail', 'goal 밖에서 goal PR을 열 수 없다')
           // 검수 없는(약 등급) goal도 PR 전에 goal 문서를 대조한다

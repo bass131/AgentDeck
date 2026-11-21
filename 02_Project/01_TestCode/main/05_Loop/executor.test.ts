@@ -360,6 +360,22 @@ describe('실행 상태 스키마와 재개 조건', () => {
     expect(s.goals[0].reviewedTree).toBeNull()
   })
 
+  it('검수 pass의 Taste 충돌은 꼴이 맞을 때만 받고, 충돌 없는 다음 pass는 남아 있던 충돌을 지운다', () => {
+    const at = drive(template, fresh(template, hash), { goals: GOALS, grades: GRADES, until: 'G1/review' }).state
+    const pass = (tasteConflicts: unknown): Verdict => ({ ...verdict('review', 'model', 'pass', '검수 통과'), facts: { reviewedTree: 'tree-1', tasteConflicts } as Verdict['facts'] })
+    for (const bad of [[{ project: 'G-T1', global: 'G-T2', note: 'x' }], [{ project: 'P-T1', global: 'G-T2', note: '' }], [{ project: 'P-T1', global: 'G-T2' }], 'x']) {
+      const r = applyVerdict(template, at, pass(bad), AT)
+      expect(r.ok, JSON.stringify(bad)).toBe(false)
+      expect(!r.ok && r.reason, JSON.stringify(bad)).toContain('Taste 충돌')
+    }
+    const kept = apply(template, at, pass([{ project: 'P-T1', global: 'G-T2', note: '프로젝트 쪽' }]))
+    expect(kept.goals[0].tasteConflicts).toEqual([{ project: 'P-T1', global: 'G-T2', note: '프로젝트 쪽' }])
+    const stale = structuredClone(at)
+    stale.goals[0].tasteConflicts = [{ project: 'P-T1', global: 'G-T2', note: '옛 충돌' }]
+    expect('tasteConflicts' in apply(template, stale, pass(undefined)).goals[0]).toBe(false)
+    expect('tasteConflicts' in apply(template, stale, pass([])).goals[0]).toBe(false)
+  })
+
   it('변형본 시험의 실패 참조 가공이 실제 노드를 고친다', () => {
     const text = variantText((raw) => { findRawNode(raw, 'checks').onFail = { goto: 'checks' } })
     const { template: t, hash: h } = loaded(text)

@@ -169,6 +169,40 @@ describe('Taste 체크리스트 절', () => {
     expect(vFail.verdict).toBe('fail')
   })
 
+  it('판은 마일스톤 시작점 커밋의 원문이라고 적는다', () => {
+    expect(buildReviewPrompt(request({ taste: TASTE }))).toContain('마일스톤 시작점 커밋')
+  })
+
+  // 항목이 많고 근거가 길어도 FAIL 줄은 왜 떨어졌는지를 잃지 않는다(헌법 1조)
+  describe('근거 줄의 길이', () => {
+    const MANY: TasteCheckItem[] = Array.from({ length: 80 }, (_, i) => ({ id: `P-T${i + 1}`, title: `항목 ${i + 1}`, fields: [{ name: '원칙', text: 'x' }] }))
+    const long = '아주 긴 근거 글 '.repeat(60)
+    const run = async (lines: string[], extra: Partial<ReviewRequest> = {}) =>
+      createReviewSessionPort(opts(fakeBackend(said([long, ...lines].join('\n'))).backend)).review(request({ taste: MANY, tasteDocsChanged: true, ...extra }))
+    const marks = (mark: (i: number) => string): string[] => MANY.map((m, i) => `TASTE ${m.id}: ${mark(i)} — ${'항목 근거 '.repeat(8)}`)
+
+    it('80개 항목이 모두 pass여도 VERDICT가 fail이거나 마지막 줄이 꼴이 아니면 그 사유가 근거에 남는다', async () => {
+      for (const [last, why] of [['VERDICT: fail', 'VERDICT: fail'], ['끝.', '마지막 줄이 VERDICT 꼴이 아니라']]) {
+        const r = await run([...marks(() => 'pass'), last])
+        expect(r.verdict, last).toBe('fail')
+        expect(r.evidence, last).toContain(why)
+        expect(r.evidence, last).toContain('pass 80개')
+        expect(r.evidence, last).toContain('docs/agentdeck/')
+        expect(r.evidence.length, last).toBeLessThanOrEqual(380)
+      }
+    })
+
+    it('VERDICT pass를 Taste 판정이 뒤집으면 그 문구와 모든 불통과 ID가 남는다 — 긴 충돌 줄도 상한을 넘기지 않는다', async () => {
+      const conflict = `TASTE-CONFLICT P-${'X'.repeat(400)} G-T1: ${'Y'.repeat(400)}`
+      const r = await run([...marks((i) => (i % 9 === 4 ? 'fail' : 'pass')), conflict, 'VERDICT: pass'])
+      expect(r.verdict).toBe('fail')
+      expect(r.evidence).toContain('VERDICT는 pass였지만 Taste 판정으로 불통과')
+      for (const id of ['P-T5', 'P-T14', 'P-T23', 'P-T32', 'P-T41', 'P-T50', 'P-T59', 'P-T68', 'P-T77']) expect(r.evidence).toMatch(new RegExp(`fail [^;]*${id}(?!\\d)`))
+      expect(r.evidence).not.toContain('X'.repeat(30))
+      expect(r.evidence.length).toBeLessThanOrEqual(380)
+    })
+  })
+
   it('Taste가 없으면 TASTE 줄을 읽지 않는다 — 판정은 VERDICT 줄 그대로다', async () => {
     const r = await createReviewSessionPort(opts(fakeBackend(said('TASTE P-T3: fail — x\nVERDICT: pass')).backend)).review(request())
     expect(r.verdict).toBe('pass')

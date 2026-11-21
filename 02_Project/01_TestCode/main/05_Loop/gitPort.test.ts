@@ -211,6 +211,19 @@ describe('fileAt', () => {
     await expect(git.fileAt('f'.repeat(40), 'docs/agentdeck/Taste.md')).rejects.toThrow()
     await expect(git.fileAt(base, '../x.md')).rejects.toThrow()
   })
+
+  it('경로의 대소문자를 가리지 않고 찾고, 대소문자만 다른 경로가 둘 이상 맞으면 던진다', async () => {
+    write('Docs/AgentDeck/taste.md', '# 프로젝트 Taste\n\n## T1 다른 대소문자\n- 원칙: x\n')
+    const one = await git.commitAll('다른 대소문자')
+    expect(repos.git(['ls-tree', '-r', '--name-only', one]).split('\n')).toContain('Docs/AgentDeck/taste.md')
+    expect(await git.fileAt(one, 'docs/agentdeck/Taste.md')).toContain('## T1 다른 대소문자')
+    const blob = repos.git(['hash-object', '-w', '--stdin'], undefined, '# 프로젝트 Taste\n')
+    repos.git(['-c', 'core.ignorecase=false', 'update-index', '--add', '--cacheinfo', `100644,${blob},docs/agentdeck/Taste.md`])
+    repos.git(['commit', '--quiet', '-m', '두 경로'])
+    const two = repos.git(['rev-parse', 'HEAD'])
+    expect(repos.git(['ls-tree', '-r', '--name-only', two]).split('\n')).toEqual(expect.arrayContaining(['Docs/AgentDeck/taste.md', 'docs/agentdeck/Taste.md']))
+    await expect(git.fileAt(two, 'docs/agentdeck/Taste.md')).rejects.toThrow(/2개/)
+  })
 })
 
 // 실행기가 원격과 로컬을 대조하는 데 쓰는 읽기

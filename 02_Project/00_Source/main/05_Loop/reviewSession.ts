@@ -1,7 +1,6 @@
 // 모델 게이트(독립 검수)의 실물 포트. 검수마다 구현 문맥이 없는 새 세션을 연다.
 //   - 입력: 실행기가 준 goal 문서와 diff(작업 트리 대 마일스톤 브랜치, 실행기가 임시 인덱스에서 만든 것), 있으면 Taste 체크리스트뿐이다.
 //     마일스톤 id·goal 제목·작업 세션의 대화는 싣지 않는다. 세션은 작업 저장소를 읽어 확인할 수 있다.
-//   - Taste 체크리스트가 있으면 TASTE 줄도 판정에 든다(tasteVerdict.ts) — VERDICT가 pass여도 Taste 판정이 불통과면 fail이다.
 //   - 실행 입력: 앱 「자동」 모드, 자격 없는 환경, 루프 잠금의 읽기 전용 꼴(loopLock readOnly — 저장소 쓰기·git 쓰기 하위 명령·
 //     내려받기·패키지 설치 거부, 원격 쓰기·자격 꺼내기·MCP 거부는 작업 노드와 같다), 사용자 MCP 서버 없음(sdkOptions strictMcpConfig).
 //     잠금은 claude-code 백엔드에서만 붙으므로 다른 백엔드는 열지 않는다(stop — 설정 문제라 FAIL로 세지 않는다).
@@ -73,7 +72,7 @@ const FORMAT = [
 ].join('\n')
 
 const TASTE_RULES = [
-  '## Taste 체크리스트 (실행기가 goal 시작점 커밋의 docs/agentdeck/Taste.md와 앱의 전역 Taste에서 읽었다)',
+  '## Taste 체크리스트 (실행기가 마일스톤 시작점 커밋의 docs/agentdeck/Taste.md와 앱의 전역 Taste에서 읽었다)',
   '',
   'P-로 시작하는 항목은 프로젝트 Taste, G-로 시작하는 항목은 전역 Taste다. 두 층이 서로 다른 판정을 요구하면 프로젝트 Taste를 따른다.',
   '이 체크리스트만이 Taste 판정의 판이다. diff가 docs/agentdeck/를 바꿨거나 다른 곳에 실린 Taste 글이 이것과 달라도 이 체크리스트로 판정한다.',
@@ -120,10 +119,10 @@ export function buildReviewPrompt(req: ReviewRequest): string {
   ].join('\n\n')
 }
 
-const DOCS_NOTE = 'diff가 docs/agentdeck/를 바꿨다(Taste의 판은 goal 시작점 커밋의 원문이다)'
+const DOCS_NOTE = 'diff가 docs/agentdeck/를 바꿨다(Taste의 판은 마일스톤 시작점 커밋의 원문이다)'
 const OVERRULED = 'VERDICT는 pass였지만 Taste 판정으로 불통과'
+const MODEL_FAILED = '검수 세션이 VERDICT: fail을 냈다'
 
-// 꼭 실을 조각은 그대로, 나머지는 남는 자리만큼 잘라 잇는다
 function fitEvidence(musts: string[], rest: string[], max: number): string {
   let out = musts.join(' — ')
   for (const part of rest) {
@@ -144,12 +143,13 @@ function judged(text: string, req: ReviewRequest): { verdict: 'pass' | 'fail'; e
   if (items.length === 0) return { verdict: parseVerdict(text), evidence: [...note, `${said} — ${oneLine(before) || '근거 없음'}`].join(' — ') }
   const j = judgeTaste(items, text)
   const modelPass = parseVerdict(text) === 'pass'
-  const others = [...(modelPass && !j.pass ? [OVERRULED] : []), ...note]
+  const verdictNote = modelPass ? (j.pass ? [] : [OVERRULED]) : [lastOk ? MODEL_FAILED : said]
+  const others = [...verdictNote, ...note]
   const head = tasteHead(j, EVIDENCE_MAX - others.reduce((n, s) => n + s.length + 3, 0))
   const body = oneLine(before.split(/\r?\n/).filter((l) => !isTasteLine(l.trim())).join('\n')) || '근거 없음'
   return {
     verdict: modelPass && j.pass ? 'pass' : 'fail',
-    evidence: fitEvidence([head, ...others], [...tasteFailReasons(j), `${said} — ${body}`], EVIDENCE_MAX),
+    evidence: fitEvidence([head, ...others], [...tasteFailReasons(j), `검수 세션 — ${body}`], EVIDENCE_MAX),
     tasteConflicts: j.conflicts,
   }
 }

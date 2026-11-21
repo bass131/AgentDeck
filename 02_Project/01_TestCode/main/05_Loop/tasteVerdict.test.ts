@@ -138,13 +138,43 @@ describe('근거 머리', () => {
     expect(tasteHead(judgeTaste(items(), answer(...ALL_PASS)), 380)).toBe('Taste P-T1 pass, P-T5 pass, G-T1 pass, G-T2 n/a')
   })
 
-  it('상한을 넘으면 판정별로 묶어 ID를 빼지 않는다', () => {
-    const many = Array.from({ length: 40 }, (_, i) => ({ id: `P-T${i + 10}`, title: 't', fields: [{ name: '원칙', text: 'x' }] }))
-    const text = answer(...many.map((m, i) => `TASTE ${m.id}: ${i === 3 ? 'fail' : 'pass'} — 근거`))
-    const head = tasteHead(judgeTaste(many, text), 380)
+  const many = (n: number): TasteCheckItem[] => Array.from({ length: n }, (_, i) => ({ id: `P-T${i + 10}`, title: 't', fields: [{ name: '원칙', text: 'x' }] }))
+
+  it('상한을 넘으면 판정별로 묶고 불통과 항목을 앞에 둔다 — 들어가면 ID를 빼지 않는다', () => {
+    const items40 = many(40)
+    const text = answer(...items40.map((m, i) => `TASTE ${m.id}: ${i === 3 ? 'fail' : 'pass'} — 근거`))
+    const head = tasteHead(judgeTaste(items40, text), 380)
     expect(head.length).toBeLessThanOrEqual(380)
-    expect(head.startsWith('Taste pass ')).toBe(true)
-    for (const m of many) expect(head).toContain(m.id)
-    expect(head).toContain('fail P-T13')
+    expect(head.startsWith('Taste fail P-T13; pass ')).toBe(true)
+    for (const m of items40) expect(head).toContain(m.id)
+  })
+
+  it('묶어도 넘치면 pass·n/a를 개수로 접고, 불통과 ID와 모르는 ID는 남긴다', () => {
+    const items80 = many(80)
+    const marks = (i: number): string => (i % 20 === 7 ? 'fail' : i % 3 === 0 ? 'n/a' : 'pass')
+    const lines = items80.map((m, i) => `TASTE ${m.id}: ${marks(i)} — 근거`).filter((_, i) => i !== 50)
+    const head = tasteHead(judgeTaste(items80, answer(...lines, 'TASTE P-T999: pass — 모르는 항목')), 300)
+    expect(head.length).toBeLessThanOrEqual(300)
+    expect(head).toMatch(/^Taste fail P-T17 P-T37 P-T57 P-T77; 없음 P-T60; 모르는 ID P-T999; /)
+    expect(head).toMatch(/pass \d+개$/)
+  })
+
+  it('검수 모델이 쓴 토큰은 짧게 자르고 목록은 몇 개만 싣는다 — 근거 머리는 상한 안이다', () => {
+    const long = 'X'.repeat(500)
+    const lines = [...ALL_PASS, `TASTE ${long}: pass — 긴 ID`, ...Array.from({ length: 30 }, (_, i) => `TASTE P-U${i}: pass — 모름`),
+      `TASTE-CONFLICT P-${long} G-${long}: ${long}`, 'TASTE-CONFLICT 꼴 틀림', 'TASTE-CONFLICT 또 틀림']
+    const head = tasteHead(judgeTaste(items(), answer(...lines)), 380)
+    expect(head.length).toBeLessThanOrEqual(380)
+    expect(head).not.toContain('X'.repeat(30))
+    expect(head).toContain('외 ')
+    expect(head).toContain('꼴 틀림 2개')
+    for (const id of ['P-T1', 'P-T5', 'G-T1', 'G-T2']) expect(head).toContain(id)
+  })
+
+  it('불통과 항목만으로 넘쳐도 상한을 넘지 않는다 — 마지막에는 개수로 접는다', () => {
+    const items80 = many(80)
+    const head = tasteHead(judgeTaste(items80, answer(...items80.map((m) => `TASTE ${m.id}: fail — x`))), 200)
+    expect(head.length).toBeLessThanOrEqual(200)
+    expect(head).toContain('fail 80개')
   })
 })

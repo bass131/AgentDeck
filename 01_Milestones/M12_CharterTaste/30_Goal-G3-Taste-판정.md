@@ -1,6 +1,6 @@
 # M12 G3 — Taste 판정
 
-- 마일스톤: M12 (마일스톤 스펙 `01_Milestones/M12_CharterTaste/00_마일스톤-스펙.md`) · 작성: 2026-11-21 · 상태: 실행 중 · 검증 강도: 강(앱 소스 50줄 이상, 검수 판정 변경)
+- 마일스톤: M12 (마일스톤 스펙 `01_Milestones/M12_CharterTaste/00_마일스톤-스펙.md`) · 작성: 2026-11-21 · 상태: 종결(goal PR 121, 로컬 병합 `47e87bcd`, 2026-11-21) · 검증 강도: 강(앱 소스 50줄 이상, 검수 판정 변경)
 - 작업 브랜치: `feat/m12-g3-taste-verdict` · 기준 브랜치: `milestone/m12-charter-taste`(`8c456887`, goal 2 병합 머리)
 
 ## 목표
@@ -33,7 +33,7 @@
 - [x] 3. TASTE 줄 판독과 판정 규칙, 시험
 - [x] 4. 검증 기록 근거와 충돌 안건, 마일스톤 PR 본문, 시험
 - [x] 5. 하드 게이트 다섯 종, `npm test`
-- [>] 6. 독립 검수와 반영, goal PR, `hard-gates`, 로컬 goal 병합
+- [x] 6. 독립 검수와 반영, goal PR, `hard-gates`, 로컬 goal 병합
 
 실행 단계 일괄 승인 대상 (스펙에서 옮김)
 
@@ -46,6 +46,7 @@ DoD
 
 검증 기록
 
+- PASS 2026-11-21T17:41:41+09:00 — goal 병합: PR 121 `hard-gates` 통과(머리 `82e78ca0`, pin 커밋 뒤 다시 돈 검사) 뒤 정형 절차로 `milestone/m12-charter-taste`에 합쳤다(`47e87bcd`, 둘째 부모가 CI 머리와 같음, 로컬 마일스톤 머리가 원격 `8c456887`과 같았음). GitHub가 PR 121을 병합됨으로 닫았다(08:41:35Z).
 - PASS 2026-11-21T17:35:43+09:00 — 반영분 재검수(다른 검수자, `9449687c..f3cde31b`): 막는 결함 0, 앞 지적 다섯 닫힘 확인(실측 `fileAt` 표 포함). 고칠 것 3·사소 3 반영(`44f20a7b` 결정·Backlog 10·11, `fd3bc2e2` 코드) — 판 확인을 마일스톤 브랜치를 가르기 전으로 당겨 가르지 않고 stop, FAIL 0, Taste를 고친 원격 머리로 이어 가면 통과(`loopRunner.taste.test.ts:113·134`), 이미 있는 브랜치 `:149`, goal 브랜치 방어 `:161`. 마일스톤 PR 본문 「Taste 문서 변경」 절(`:295`, 실 git `gitPort.test.ts:229`). 이유 최소 예산 100자로 24·28·29개 띠에서 이유가 남음(`reviewSession.test.ts:206`), fail 근거 80자 상한(`:221`), 낡은 문구 두 곳. 사소 1(중간 마디 링크)과 미확인 1(검수 세션의 project 설정 원천)은 Backlog 10·11. 메인이 다시 돌린 하드 게이트 다섯 종 exit 0, `npm test` Test Files 481 passed·6 skipped(487), Tests 9338 passed·10 skipped, 실패 0. 판정 장치 변경은 계획된 `gate-config.json` `planPath` 한 줄뿐.
 - PASS 2026-11-21T16:57:33+09:00 — 독립 검수(구현 문맥 없는 검수자, `9a729409..2978d4c0`): 막는 결함 1, 고칠 것 4, 사소 3. 반영(`9449687c` 결정·Backlog 9, `f3cde31b` 코드) — 막는 결함: 약 등급 goal이 Taste.md를 고치면 다음 goal의 판이 되던 것을 마일스톤 시작점 커밋에서 읽게 고쳤다(`loopRunner.taste.test.ts:88`, 고치기 전 코드에서 실패 확인). 판 문제는 goal 브랜치를 가르기 전 stop이고 FAIL 줄 없음(`:109`), 검수 때 stop 방어와 층별 문구(`:148`). 경로 대소문자 무시와 둘 이상이면 stop(실 git `gitPort.test.ts:215`). 근거 길이 상한에서 불통과 ID와 실패 이유가 남음(`tasteVerdict.test.ts:143·152·162·174`, `reviewSession.test.ts:184·195`, `loopRunner.taste.test.ts:186`). 빠진 시험(`executor.test.ts:363`, `loopRunner.taste.test.ts:172`), 주석 정리. 사소 1(전역 Taste 다이제스트)은 Backlog 9. 메인이 다시 돌린 하드 게이트 다섯 종 exit 0, `npm test` Test Files 481 passed·6 skipped(487), Tests 9329 passed·10 skipped, 실패 0. 막는 결함이 있었으므로 반영분을 다른 검수자가 다시 본다.
 - PASS 2026-11-21T16:16:36+09:00 — 구현: 작업 하위 에이전트 `723254a8`·`a40c0bfa`와 메인 `1b63eccf`. 판의 고정(시작점 커밋 원문, 작업 트리 수정 무시) `loopRunner.taste.test.ts:73`, 절 없음 `:89`, 한 층만 `:99`, 읽기 오류·검사 문제면 stop이고 FAIL 줄 없음 `:107`, 실 git `gitPort.test.ts:193`·`openLoop.test.ts:155`. 판정 규칙 `tasteVerdict.test.ts:54`(fail)·`:60`(누락·중복·모르는 ID)·`:72`(꼴 틀림)·`:91·100·114`(충돌 인정·불인정)·`:121`(금지), VERDICT pass라도 fail `reviewSession.test.ts:158`, Taste 없으면 지금 그대로 `:172`. 기록 줄 근거의 ID·판정 `loopRunner.taste.test.ts:128`, 30항목 길이 `:141`, 「영역 재설계 안건」 `:161`·없음 `:176`, 옛 상태 파일 `:183`. 검수 세션이 작업 트리 Taste 원문을 싣지 않음(Backlog 8을 goal 안에서 고침) `sdkOptions.taste.test.ts:39`. 메인이 다시 돌린 하드 게이트 다섯 종 exit 0, `npm test` Test Files 481 passed·6 skipped(487), Tests 9318 passed·10 skipped, 실패 0.

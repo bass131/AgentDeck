@@ -1,4 +1,4 @@
-// 설정 권한 규칙의 최소 판정기 (M11 goal 8) — `.claude/settings.json`의 Bash 규칙이 명령 하나에 내는 판정을 문서 규칙대로 셈한다.
+// 설정 권한 규칙의 최소 판정기 — `.claude/settings.json`의 Bash 규칙이 명령 하나에 내는 판정을 문서 규칙대로 셈한다.
 // 근거는 공식 permissions 문서(code.claude.com/docs/en/permissions)의 네 규칙이다.
 //   순서: 「Rules are evaluated in order: deny, then ask, then allow. The first match in that order determines the outcome」
 //   `*`: 그 자리의 아무 글이고, 끝의 ` *`가 유일한 `*`면 맨 명령도 맞는다. `:*` 끝은 ` *`와 같다.

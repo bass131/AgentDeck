@@ -11,12 +11,14 @@ const h = vi.hoisted(() => ({
   handleCalls: 0,
   powerEvents: [] as string[],
   encryption: false,
+  packaged: false,
+  githubBases: [] as { web: string; api: string }[],
   loopDriverOpts: [] as { openExtras?: { githubToken?: () => string | null } }[],
   tokenStores: [] as { file: string; store: { write(a: { token: string; login: string }): Promise<unknown>; clear(): Promise<void> } }[],
 }))
 
 vi.mock('electron', () => ({
-  app: { getPath: () => h.userData, getAppPath: () => h.userData, getVersion: () => '0.0.0', isPackaged: false, setAppUserModelId: (): void => {} },
+  app: { getPath: () => h.userData, getAppPath: () => h.userData, getVersion: () => '0.0.0', get isPackaged() { return h.packaged }, setAppUserModelId: (): void => {} },
   ipcMain: { handle: (ch: string, fn: (...a: unknown[]) => unknown): void => { h.handleCalls++; h.handlers.set(ch, fn) } },
   dialog: {},
   powerMonitor: { on: (ev: string): void => { h.powerEvents.push(ev) } },
@@ -87,6 +89,17 @@ vi.mock('@main/14_GitHub/tokenStore', async (importOriginal) => {
       const store = orig.createTokenStore(...a)
       h.tokenStores.push({ file: a[0].file, store })
       return store
+    },
+  }
+})
+
+vi.mock('@main/14_GitHub/githubAuth', async (importOriginal) => {
+  const orig = await importOriginal<typeof import('@main/14_GitHub/githubAuth')>()
+  return {
+    ...orig,
+    createGithubAuth: (...a: Parameters<typeof orig.createGithubAuth>) => {
+      h.githubBases.push(a[0].bases)
+      return orig.createGithubAuth(...a)
     },
   }
 })
@@ -374,5 +387,34 @@ describe('기동·종료 배선 — 00_App/bootstrap 한 곳 (M05 G11 4단계)',
     expect(src).toMatch(/\bstopApp\(\)/)
     // 창 생성은 수명주기(activate)와 같이 다니는 Electron 표면이라 진입점에 남는다
     expect(callersOf(/new BrowserWindow\(/)).toEqual(['index.ts'])
+  })
+})
+
+describe('GitHub 연결 주소 — 패키징본은 시험 서버 환경변수를 읽지 않는다 (M13 G2)', () => {
+  const KEY = 'AGENTDECK_E2E_GITHUB_BASE'
+  let saved: string | undefined
+  beforeEach(() => { saved = process.env[KEY] })
+  afterEach(() => {
+    h.packaged = false
+    if (saved === undefined) delete process.env[KEY]
+    else process.env[KEY] = saved
+  })
+
+  // attachWindow는 모듈 수준 1회 가드라 모듈을 새로 읽어 다시 조립한다
+  const assembleFresh = async (): Promise<{ web: string; api: string } | undefined> => {
+    vi.resetModules()
+    const boot = await import('@main/00_App/bootstrap')
+    boot.attachWindow({ id: 90 } as never)
+    const bases = h.githubBases.at(-1)
+    boot.stopApp()
+    return bases
+  }
+
+  it('개발 실행본은 환경변수의 시험 서버로, 패키징본은 같은 환경변수가 있어도 github.com으로 조립한다', async () => {
+    process.env[KEY] = 'http://127.0.0.1:9'
+    h.packaged = false
+    expect(await assembleFresh()).toEqual({ web: 'http://127.0.0.1:9', api: 'http://127.0.0.1:9' })
+    h.packaged = true
+    expect(await assembleFresh()).toEqual({ web: 'https://github.com', api: 'https://api.github.com' })
   })
 })

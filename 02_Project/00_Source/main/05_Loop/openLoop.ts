@@ -92,7 +92,6 @@ export interface OpenLoopOptions {
   ghRun?: typeof runProcess
 }
 
-
 export interface OpenedLoop {
   runner: LoopRunner
   // 작업 저장소 뿌리(실제 경로)

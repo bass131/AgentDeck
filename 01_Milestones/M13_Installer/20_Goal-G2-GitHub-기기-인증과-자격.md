@@ -1,6 +1,6 @@
 # M13 G2 — GitHub 기기 인증과 자격 · 앱이 직접 잇는 계정과 그 토큰의 쓰임
 
-- 마일스톤: M13 (마일스톤 스펙 `01_Milestones/M13_Installer/00_마일스톤-스펙.md`) · 작성: 2026-11-22 · 상태: 실행 중 · 검증 강도: 강(자격 경로 교체, 앱 소스 50줄 이상)
+- 마일스톤: M13 (마일스톤 스펙 `01_Milestones/M13_Installer/00_마일스톤-스펙.md`) · 작성: 2026-11-22 · 상태: 종결(goal PR 127, 로컬 병합 `f27c289b`) · 검증 강도: 강(자격 경로 교체, 앱 소스 50줄 이상)
 - 작업 브랜치: `feat/m13-g2-device-auth` · 기준 브랜치: `milestone/m13-installer`(`12c15838`, goal 1 병합 머리)
 
 ## 목표
@@ -38,7 +38,7 @@
 - [x] 3. 실앱 확인 — 시험 서버를 향한 빌드본 e2e, 캡처
 - [x] 4. 하드 게이트 다섯 종, `npm test`
 - [x] 5. 독립 검수와 반영
-- [ ] 6. goal PR, `hard-gates`, 로컬 goal 병합
+- [x] 6. goal PR, `hard-gates`, 로컬 goal 병합
 
 실행 단계 일괄 승인 대상 (스펙에서 옮김)
 
@@ -56,6 +56,7 @@ DoD
 - PASS 2026-11-22T01:35:02+09:00 — 완료조건 1·2·3·5: 커밋 `05d08ab9`에 e2e 파일을 더한 트리에서 하드 게이트 다섯 종이 모두 0이고, `npm test`가 499 passed·6 skipped(505 파일), 9454 passed·10 skipped·실패 0이다. 묶는 시험 — 조건 1: `deviceFlow.test.ts`(성공·pending·`slow_down` 응답 간격과 +5초·만료·거부·취소), `githubAuth.local-server.test.ts`(로컬 서버로 코드 요청→폴링→`/user`→저장→해제). 조건 2: `tokenStore.test.ts`, `github.handler.test.ts`. 조건 3: `appToken.credential-paths.test.ts`(PR 카드 gh), `gitPort.app-token.test.ts`, `openLoop.app-token.test.ts`(실행기 git push 자격과 gh `GH_TOKEN`, 해제 뒤 사용자 도우미), `context.assembly.test.ts`·`loopDriver.test.ts`(조립 지점에서 실행기까지의 배선), `openLoop.test.ts`(자식 환경에 토큰 없음). 배선 시험은 해당 줄을 지우면 빨개지는 것을 작업 에이전트가 셋 실측했다.
 - PASS 2026-11-22T02:15:35+09:00 — 독립 검수(다른 검수자, `12c15838..eba11555`): 막음 0, 고침 권장 2, 사소 7. 정정 — 01:27:47 줄의 「평문 토큰 없음」 단언은 파일이 base64라 암호화 없이도 통과하는 헛단언이었고, 「연결됐어요」·`Bearer`는 단언하지 않았다. 반영 — 실행기 gh는 `-R` 호스트가 `github.com`일 때만, git 원격 호출은 origin이 `https://github.com`일 때만 토큰을 싣는다(`acme.ghe.com` 등 제외). 실제 `github.com` 키의 `credential fill` 시험, 조립 지점의 `app.isPackaged` 배선 시험, HTTP 30초 시간 제한과 코드 요청 중 취소, 폴링의 연결 오류·본문 없는 5xx 재시도(간격 두 배, 만료면 끝), 화면 요청 실패 문구와 지우기 재시도, 토큰 수신 뒤 취소 경합 시험을 더했다(`473b9876`·`9dae4352`·`c9b3be16`·`a532ea45`, 지우면 빨개짐 대부분 실측). e2e는 파일을 base64로 푼 뒤 토큰·계정 이름이 없고 앱의 실제 `safeStorage`로 복호화하면 계정 이름이 나오는지, `/user`가 정확히 `Bearer`인지, 「연결됐어요」가 보이는지 단언하게 고쳐 빌드본에서 다시 통과했다(02:08). 「GitHub에서 열기」 IPC 실패도 문구로 받는다. 그 트리에서 하드 게이트 다섯 종 0, `npm test` 499 passed·6 skipped(505 파일), 9471 passed·10 skipped·실패 0. PR 카드 gh는 `parseGithubRepo`가 github.com만 받아 호스트 문제가 없다(검수 확인). 넘긴 것 — Backlog 15(조직 OAuth App 접근 제한).
 - PASS 2026-11-22T02:41:09+09:00 — 반영분 재검수(다른 검수자, `1a5c9cab..a4aa6e8d`): 막음 0, 고침 권장 1, 사소 2, 앞 지적 9 중 닫힘 7·부분 2. 반영 — 폴링 물러남에 60초 상한·정상 응답이면 기본 간격 복구·잠을 만료 시각까지로 자름(`8d89287a`), 코드 요청 중 상태 `requesting`과 화면 「취소」(`6d9dd041`), git 토큰 판정을 push는 `get-url --push --all`, fetch·ls-remote는 `get-url --all`의 모든 값으로(전역 `pushInsteadOf`·주소 여러 값 시험, `3f954891`), 빈 줄 정리(`9c1f868e`). 시험은 대부분 지우면 빨개짐을 실측했다. 작업 에이전트가 `9c1f868e`에서 하드 게이트 다섯 종 0, `npm test` 499 passed·6 skipped(505 파일), 9477 passed·10 skipped·실패 0을 보고했고, 그 빌드본으로 e2e를 다시 돌려 통과했다(02:41). 넘긴 것 — Backlog 16(PR 카드 gh의 `GH_HOST`).
+- PASS 2026-11-22T02:46:22+09:00 — goal PR 127(→ `milestone/m13-installer`)의 `hard-gates`가 머리 `c9fbddde`에서 SUCCESS이고, 원격과 같던 마일스톤 브랜치에 `--no-ff`로 병합해(`f27c289b`, 둘째 부모 `c9fbddde`) push했다. GitHub가 PR을 병합됨으로 닫았다.
 
 ## 결정 대장
 

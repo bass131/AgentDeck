@@ -63,6 +63,7 @@ DoD
 검증 기록
 
 - PASS 2026-11-21T20:56:34+09:00 — 2·3단계(실측): 구동기(`G5_RATE_LIMIT`, `injectLimit`, 채팅 모드 폴더 env `AGENTDECK_E2E_WORKSPACE`)로 앱 빌드본을 2번 모니터에 띄우고 연습 clone을 `main` `7ff4f9e`로 맞췄다. 작업 모드 「헌장·Taste」의 「전역 Taste 문답 열기」로 메인 대화 문답 3턴(답 2, 성향 1·4·13·28·38·27·17·25·37, M05 Backlog 75) 뒤 승인 카드 확정 → 앱 데이터 `udd\taste\global-taste.md`(T1–T9). 「헌장·Taste 문답 열기」로 2턴(답 1, 성향 3·11·20·23·37) 뒤 카드 둘을 확정 → 헌장 PR #7, 프로젝트 Taste PR #8(`agentdeck/charter-*` → `main`). 두 PR은 채팅 모드 Git 창의 PR 카드 「병합」·「확인」으로 병합했다(`76da22de`, `6aaac269`, `main` 머리 `6aaac26`에 `docs/agentdeck/헌장.md`·`Taste.md`). 장면: `scene1-taste-dialog`, `scene2-approval-global`, `scene2-approval-charter`, `charter-pr-merge-confirm`, `scene3-charter-view`. 예외 2: 작업 모드에는 문서 PR의 병합 버튼이 없어 채팅 모드 Git 창으로 갔고, 그 때문에 구동기 재기동 1번.
+- PASS 2026-11-21T21:13:33+09:00 — 한도 주입 관찰(실측): M03 시작(M02 보관), 브레인스토밍 답 2·스펙 승인 1 뒤 분해가 G1(옵션·`--exclude`)·G2(`--format json`)를 냈다. G1 구현이 막 시작된 뒤(21:05:56) 거부 사건(`five_hour`, `resetsAt` 1795263056 = 21:10:56)을 `session: work`, `promptIncludes: .agentdeck/goals/G1.md`로 넣었다. G1은 그 전에 띄운 세션이라 지나쳤고(PR #9 병합), 다음으로 그 문자열을 담은 G2 구현 세션이 가져가 21:10:27에 멈췄다. 상태는 `usage-limit`, `failCount` 0, 검증 줄 추가 없음, `halt` {G2/implement, rejected, resumeAt 21:12:56, utilization null}, 현황판 「한도 멈춤」과 「풀리는 시각 11월 21일 21:10 · 21:12 뒤 스스로 이어 간다 · 사용률 모름 · 지금 이어 가기」, 알림은 「나중에 봐도 돼」(Windows 알림 없음), `.agentdeck/verification.md` 꼬리 한 줄. 사람 손 없이 21:13:30에 「사용량 한도가 풀릴 시각이 지나 G2/implement를 처음부터 다시 돈다」로 이어 갔고 `failCount` 0, `halt` null이다. 장면 `scene4-limit-halt`.
 
 ## 결정 대장
 

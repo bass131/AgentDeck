@@ -1,4 +1,3 @@
-// 작업 ID: gap1-p06 · 옛 이름 gap1-p06-thinking-fulltext.test.ts
 import { describe, it, expect } from 'vitest'
 import { mapClaudeStreamLine } from '@main/04_Claude/stream/claudeStream'
 import { RunEventNormalizer } from '@main/04_Claude/stream/eventNormalizer'

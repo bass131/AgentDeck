@@ -193,7 +193,7 @@ describe('F-B — 펌프 done 병합: 다중 result → 단일 최종 done', () 
     expect(events[events.length - 1].type).toBe('done')
 
     const done = doneEvents[0] as { type: 'done'; usage?: { inputTokens: number }; contextWindow?: number }
-    // 계기용 usage는 마지막 턴의 마지막 최상위 assistant 호출이다(M11 G2, M06 Backlog 2·26)
+    // 계기용 usage는 마지막 턴의 마지막 최상위 assistant 호출이다
     expect(done.usage?.inputTokens).toBe(55)
     expect(done.contextWindow).toBe(200000)
   })

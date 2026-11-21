@@ -1,4 +1,3 @@
-// 작업 ID: fb2-p01 · 옛 이름 fb2-p01-interrupt-scope-selfrearm.test.ts
 import { describe, it, expect } from 'vitest'
 import { ClaudeCodeBackend } from '@main/04_Claude/ClaudeCodeBackend'
 import type { QueryFn } from '@main/04_Claude/ClaudeCodeBackend'

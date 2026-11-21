@@ -1,4 +1,3 @@
-// 작업 ID: bf3-p02 · 옛 이름 bf3-p02-interrupt-toolexec-error.test.ts
 import { describe, it, expect } from 'vitest'
 import { ClaudeCodeBackend } from '@main/04_Claude/ClaudeCodeBackend'
 import type { QueryFn } from '@main/04_Claude/ClaudeCodeBackend'

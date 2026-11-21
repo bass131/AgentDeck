@@ -160,10 +160,10 @@ describe('B. version() — getVersionState active 우선 → _resolvePackageVers
         bundled: '0.3.0',
         active: '0.4.0',
         installed: ['0.4.0'],
-        // M07 G4: 봉인이 맞을 때만 활성 버전을 보인다 (봉인이 다르면 번들이 돈다 — engineSeal.test.ts)
+        // 봉인이 맞을 때만 활성 버전을 보인다 (봉인이 다르면 번들이 돈다 — engineSeal.test.ts)
         seal: 'ok',
       }),
-      // M11 G3: 보이는 버전은 실행이 실제로 쓰는 엔진(activeInUse)이다 — major·불러오기 판정은 engineSeal.test.ts
+      // 보이는 버전은 실행이 실제로 쓰는 엔진(activeInUse)이다 — major·불러오기 판정은 engineSeal.test.ts
       activeInUse: vi.fn().mockReturnValue('0.4.0'),
     }))
 

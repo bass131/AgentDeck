@@ -1,4 +1,3 @@
-// 작업 ID: m5 · 옛 이름 m5-token-streaming.test.ts
 import { describe, it, expect } from 'vitest'
 import { mapClaudeStreamLine } from '@main/04_Claude/stream/claudeStream'
 import { ClaudeCodeBackend } from '@main/04_Claude/ClaudeCodeBackend'

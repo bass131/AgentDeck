@@ -1,4 +1,3 @@
-// 작업 ID: bf3-p04 · 옛 이름 bf3-p04-interleave-banner.test.ts
 import { describe, it, expect, beforeEach } from 'vitest'
 import { RunEventNormalizer } from '@main/04_Claude/stream/eventNormalizer'
 import { CronTracker } from '@main/04_Claude/stream/progressTrackers'

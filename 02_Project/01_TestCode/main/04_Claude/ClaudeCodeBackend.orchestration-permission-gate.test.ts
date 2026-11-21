@@ -128,7 +128,7 @@ describe('Phase 37 — orchestration ON: Workflow canUseTool 게이트', () => {
 
     const queryFn = makeCaptureQuery([mkResultSuccess()], cap, async () => {
       const signal = new AbortController().signal
-      // M06 G3 — 일반 질의의 실측 꼴(규칙 제안 한 개 이상). 제안 없는 호출은 모드와 관계없이 카드로 간다.
+      // 일반 질의의 실측 꼴(규칙 제안 한 개 이상). 제안 없는 호출은 모드와 관계없이 카드로 간다.
       cutResult = await cap.canUseTool!('Bash', { command: 'echo hi' }, {
         signal,
         toolUseID: 'bash-1',

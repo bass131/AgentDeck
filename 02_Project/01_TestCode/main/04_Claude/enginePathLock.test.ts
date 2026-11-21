@@ -1,5 +1,4 @@
-// M07 G3 엔진 경로 잠금 — 보호 대상 경로, 인라인 거부 규칙 글자, Bash 잠금 노드, SDK 옵션 배선을 고정한다.
-// 규칙 경로 꼴 `//c/...`와 훅 실패 시 막힘은 SDK 블랙박스 실측으로 골랐다(G3 goal 검증 기록 1단계).
+// 규칙 경로 꼴 `//c/...`와 훅 실패 시 막힘은 SDK 블랙박스 실측으로 골랐다.
 import { describe, it, expect, vi } from 'vitest'
 import {
   protectedTargets,
@@ -92,7 +91,7 @@ describe('보호 대상과 거부 규칙 (M07 G3)', () => {
     ]) {
       expect(bashLockReason(cmd, WIN_UD), cmd).toMatch(/agentdeck-guard/)
     }
-    // 폴더 이름 접두 와일드카드는 앱 데이터 폴더와 guard 폴더를 함께 지우므로 막는다 — 따옴표를 닫은 꼴 포함(G7 검수 중요 2)
+    // 폴더 이름 접두 와일드카드는 앱 데이터 폴더와 guard 폴더를 함께 지우므로 막는다 — 따옴표를 닫은 꼴 포함
     for (const cmd of [
       'cd "$APPDATA" && rm -rf agentdeck*',
       'rm -rf $APPDATA/agentdeck-*',
@@ -130,14 +129,14 @@ describe('보호 대상과 거부 규칙 (M07 G3)', () => {
   it('봉인 파일을 셸로 고치는 명령도 막는다 (G4)', () => {
     expect(bashLockReason('echo {} > "$APPDATA/agentdeck/engine-seal.json"', WIN_UD)).toMatch(/engine-seal/)
     expect(bashLockReason('cd "$APPDATA/agentdeck" && rm engine-seal.json', WIN_UD)).not.toBeNull()
-    // G4 검수: 폴더로 들어가서 `./` 꼴로 쓰는 명령 — 네 대상 모두
+    // 폴더로 들어가서 `./` 꼴로 쓰는 명령 — 네 대상 모두
     expect(bashLockReason('cd "$APPDATA/agentdeck" && cp /tmp/x ./engine-seal.json', WIN_UD)).not.toBeNull()
     expect(bashLockReason('cd "$APPDATA/agentdeck" && rm -r ./engines', WIN_UD)).not.toBeNull()
     // 저장소(폴더 이름이 같은 AgentDeck)의 소스 경로는 대상 이름 낱말이 아니므로 통과한다
     expect(bashLockReason('cd /c/Dev/AgentDeck && cat ./02_Project/00_Source/main/10_Engine/engineSeal.ts', WIN_UD)).toBeNull()
   })
 
-  // M11 G2 — 대화 파일이 권한 모드를 싣는다(M06-1). 에이전트가 `"mode":"bypass"`를 써 두면 다음 기동에 그 모드로 열린다.
+  // 대화 파일이 권한 모드를 싣는다. 에이전트가 `"mode":"bypass"`를 써 두면 다음 기동에 그 모드로 열린다.
   it('대화 폴더(chats)도 보호 대상이다 — 파일 도구와 셸 모두', () => {
     expect(protectedTargets(WIN_UD)).toContain('C:/Users/x/AppData/Roaming/agentdeck/chats')
     expect(enginePathDenyRules(WIN_UD)).toContain('Edit(//c/Users/x/AppData/Roaming/agentdeck/chats/**)')
@@ -176,7 +175,7 @@ describe('Bash 잠금 노드 (M07 G3)', () => {
     'node -e "require(\'fs\').writeFileSync(process.env.APPDATA + \'/agentdeck/controls.json\', \'{}\')"',
     'echo {} > ~/AppData/Roaming/AgentDeck/ENGINE-CONFIG.JSON',
     'rm -r /c/Users/x/AppData/Roaming/agentdeck/engines',
-    // G3 검수: 폴더로 들어가서 이름만 쓰는 꼴, 접두 와일드카드, 리다이렉트 바로 뒤
+    // 폴더로 들어가서 이름만 쓰는 꼴, 접두 와일드카드, 리다이렉트 바로 뒤
     'cd "$APPDATA/agentdeck" && rm -r engines',
     'rm -rf $APPDATA/agentdeck/engine*',
     'cd $APPDATA && echo x >agentdeck/controls.json',
@@ -256,7 +255,7 @@ describe('등록부 목록과 SDK 옵션 배선 (M07 G3)', () => {
     const settings = opts['settings'] as { permissions: { defaultMode: string; deny: string[] } }
     expect(settings.permissions.defaultMode).toBe('auto')
     expect(settings.permissions.deny).toEqual(enginePathDenyRules(WIN_UD))
-    // 엔진 경로 잠금 훅 뒤에 병합 거부 훅(M07 G8)이 붙는다
+    // 엔진 경로 잠금 훅 뒤에 병합 거부 훅이 붙는다
     const hooks = opts['hooks'] as { PreToolUse: { onFailure: string }[] }
     expect(hooks.PreToolUse).toHaveLength(2)
     expect(hooks.PreToolUse.map((m) => m.onFailure)).toEqual(['block', 'block'])

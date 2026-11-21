@@ -1,4 +1,4 @@
-// M09 G4 루프 잠금의 읽기 전용 꼴 — 검수 세션(reviewSession.ts)에 붙는다. 작업 노드 잠금의 거부는 그대로 두고, 그 위에
+// 루프 잠금의 읽기 전용 꼴 — 검수 세션(reviewSession.ts)에 붙는다. 작업 노드 잠금의 거부는 그대로 두고, 그 위에
 // 저장소 안 쓰기 전부(편집 도구·쓰기 명령·리다이렉트), 읽기 목록 밖 git 하위 명령, 로컬에 내려받는 gh(pr checkout·repo clone·
 // run download), 패키지 설치를 거부한다. 읽기 명령은 지나간다. 인터프리터·npm 스크립트의 안은 판독하지 않는다(실행기의 트리 대조가 본다).
 import { describe, expect, it } from 'vitest'
@@ -65,7 +65,7 @@ describe('읽기 전용 루프 잠금 (M09 G4)', () => {
     expect(bash('gh pr checkout 1', BASE)).toBeNull()
   })
 
-  // G4 검수 사소 1 — 붙여 쓴 -u값, 파일을 여는 git grep, 명령을 돌리는 환경 대입, 설치 꼴의 다른 이름들
+  // 붙여 쓴 -u값, 파일을 여는 git grep, 명령을 돌리는 환경 대입, 설치 꼴의 다른 이름들
   it('붙여 쓴 branch -u, git grep -O, 명령을 돌리는 GIT_* 대입, pip3.x·python -m pip·uvx·corepack 설치를 거부한다', () => {
     for (const cmd of [
       'git branch -uorigin/x', 'git branch -u=origin/x', 'git branch --set-upstream-to origin/x', 'git branch --unset-upstream',
@@ -84,7 +84,7 @@ describe('읽기 전용 루프 잠금 (M09 G4)', () => {
     expect(bash('python -m pip install x', BASE)).toBeNull()
   })
 
-  // G4 검수 사소 2 — 편집 도구 거부는 입력의 command 칸 판독보다 먼저다
+  // 편집 도구 거부는 입력의 command 칸 판독보다 먼저다
   it('편집 도구는 입력에 command 칸이 있어도 읽기 전용 사유로 거부한다', () => {
     expect(loopLockReason('Write', { file_path: `${TEMP}\\a.md`, command: 'ls' }, RO)).toContain('읽기 전용')
     expect(loopLockReason('Edit', { command: 'ls' }, RO)).toContain('읽기 전용')

@@ -355,7 +355,6 @@ function contextTokensOf(entry: Record<string, unknown>): number {
   return n('inputTokens') + n('cacheReadInputTokens') + n('cacheCreationInputTokens')
 }
 
-// 턴 결과 modelUsage에서 주 모델 항목의 contextWindow를 고른다 (M06 G4).
 // 턴마다 보조 모델 항목이 함께 오고 그 창이 주 모델보다 클 수 있어(실측), 첫 항목도 최대 창도 쓰지 않는다.
 // 맞추는 순서: 키 일치 → canonicalModel 일치 → 접미를 벗긴 값 일치. 주 모델을 모르거나 안 맞으면
 // 대화 맥락(입력+캐시 토큰)을 가장 많이 실은 항목을 주 모델로 본다.

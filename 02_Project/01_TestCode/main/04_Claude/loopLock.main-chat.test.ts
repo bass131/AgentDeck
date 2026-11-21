@@ -1,8 +1,8 @@
-// M10 G2 루프 잠금의 메인 대화 꼴 — 메인 대화(05_Loop/mainChat.ts)의 턴에 붙는다. 허용 목록 밖은 모두 거부한다(fail-closed).
+// 루프 잠금의 메인 대화 꼴 — 메인 대화(05_Loop/mainChat.ts)의 턴에 붙는다. 허용 목록 밖은 모두 거부한다(fail-closed).
 //   - 셸(입력에 command가 있는 도구 — Bash·PowerShell 등)은 명령과 관계없이 거부한다.
 //   - 편집 도구는 `.agentdeck/milestone-spec.md`·`.agentdeck/decisions.md` 두 경로만, 그리고 쓰기 창(canWrite — 실행기 커서가
 //     브레인스토밍 노드에 있고 그 방문이 열려 있을 때)이 열렸을 때만 지나간다. 경로는 잠금의 정규형으로 맞추고, 링크로 밖을 가리키면 거부한다.
-//     경로의 변수·물결표·명령 치환은 펼치지 않고 거부한다(G2 독립 검수 — 편집 도구는 경로를 글자 그대로 쓴다).
+//     경로의 변수·물결표·명령 치환은 펼치지 않고 거부한다(편집 도구는 경로를 글자 그대로 쓴다).
 //   - MCP 도구는 앱 안 도구 서버(toolServer)의 것만 지나간다. 읽기 도구와 질문 도구는 지나간다.
 import fs from 'node:fs'
 import os from 'node:os'
@@ -79,7 +79,7 @@ describe('메인 대화 잠금 — 쓰기 창 (M10 G2)', () => {
     expect(await mainChatToolReason('Write', { file_path: 42 }, scope())).not.toBeNull()
   })
 
-  // G2 독립 검수 — 편집 도구는 경로를 글자 그대로 쓴다. 잠금이 변수를 펼쳐 두 경로로 보면, 실제로는 다른 파일을 쓰는 호출을 지나보낸다
+  // 편집 도구는 경로를 글자 그대로 쓴다. 잠금이 변수를 펼쳐 두 경로로 보면, 실제로는 다른 파일을 쓰는 호출을 지나보낸다
   it('경로의 변수·물결표·명령 치환은 펼치지 않고 거부한다 — 펼친 곳이 두 경로여도', async () => {
     const base = scope()
     const s: LoopLockScope = { ...base, vars: { ...base.vars, HOME: ROOT, USERPROFILE: ROOT } }

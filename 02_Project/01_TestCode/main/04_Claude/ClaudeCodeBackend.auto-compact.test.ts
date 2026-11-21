@@ -1,4 +1,4 @@
-// M11 G2 — M06 Backlog 27. SDK 자동 압축의 켜짐·문턱(getContextUsage summary)을 compact settings 사건으로 알린다.
+// SDK 자동 압축의 켜짐·문턱(getContextUsage summary)을 compact settings 사건으로 알린다.
 import { describe, it, expect } from 'vitest'
 import { ClaudeCodeBackend } from '@main/04_Claude/ClaudeCodeBackend'
 import type { QueryFn } from '@main/04_Claude/ClaudeCodeBackend'

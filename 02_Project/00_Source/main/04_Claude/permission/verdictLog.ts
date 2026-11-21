@@ -1,5 +1,5 @@
-// 노드 판정 기록 (M11 G3, M07 Backlog 13) — 노드마다 메모리 안의 최근 판정 고리. 파일로 남기지 않는다(앱을 끄면 사라진다).
-// 한 줄은 시각·노드·도구·입력 요약·결과·사유다. 입력 요약은 자격 증명을 가리고(maskCredentials) 길이를 자른다.
+// 노드마다 메모리 안의 최근 판정 고리다. 파일로 남기지 않는다(앱을 끄면 사라진다).
+// 입력 요약은 자격 증명을 가리고(maskCredentials) 길이를 자른다.
 // 권한 콜백 노드는 runPermissionNodes가, 훅 노드(엔진 경로 잠금·병합 거부)는 훅을 조립하는 곳(sdkOptions)이 감싸 쌓는다.
 import { maskCredentials } from '@main/08_Git/git'
 

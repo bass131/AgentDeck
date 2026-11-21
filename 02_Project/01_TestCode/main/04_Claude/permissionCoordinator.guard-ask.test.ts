@@ -1,4 +1,4 @@
-// M06 G3 — 가드가 물은 호출(훅 ask)은 모드와 관계없이 승인 카드로 간다.
+// 가드가 물은 호출(훅 ask)은 모드와 관계없이 승인 카드로 간다.
 // 픽스처의 모양은 블랙박스 실측(SDK 0.3.201, 독립 clone, 2단계와 7단계 재측정)에서 canUseTool이 실제로 받은 인자다.
 //   훅 ask + settings allow 규칙과 겹침(`git push origin HEAD:master`): decisionReason = 훅 사유 원문, suggestions 없음
 //   훅 ask + settings ask 규칙과 겹침(`gh release --help`·`npm publish --help`): decisionReason도 suggestions도 없음

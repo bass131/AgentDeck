@@ -1,4 +1,3 @@
-// 작업 ID: gap1-p09 · 옛 이름 gap1-p09-bg-task.golden.test.ts
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'

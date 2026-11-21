@@ -49,7 +49,7 @@ describe('buildQueryOptions — 골든 케이스(SDK 목록 기준)', () => {
 })
 
 describe("buildQueryOptions — 「최소」(사고 끄기) 경로가 없다", () => {
-  // 옛 「최소」는 가장 싼 설정이었다 — 남은 단계 중 가장 가까운 low로 읽는다(G4 검수 1-2). 다른 비단계 값은 기본 단계.
+  // 옛 「최소」는 가장 싼 설정이었다 — 남은 단계 중 가장 가까운 low로 읽는다. 다른 비단계 값은 기본 단계.
   it("옛 저장값 'minimal'은 low로 보내고 thinking 키를 만들지 않는다", () => {
     const result = buildQueryOptions({ model: OPUS55, effort: 'minimal', mode: 'plan' }, ROWS)
     expect(result).toEqual({ model: OPUS55, effort: 'low', permissionMode: 'plan' })

@@ -1,4 +1,4 @@
-// M07 G5 — Claude 실행을 열 때 컨트롤 설정을 한 번 읽는다.
+// Claude 실행을 열 때 컨트롤 설정을 한 번 읽는다.
 // 봉인이 맞지 않으면 SDK를 부르지 않고 오류와 done을 낸다(닫힌 실패). 맞으면 꺼진 노드를 뺀 등록부로 권한 콜백을 만든다.
 import { describe, it, expect, vi, beforeEach, afterAll } from 'vitest'
 import fs from 'node:fs'
@@ -63,7 +63,7 @@ describe('실행 시작의 컨트롤 설정 검사 (M07 G5)', () => {
     expect(events.map((e) => e.type)).toEqual(expect.arrayContaining(['error', 'done']))
   })
 
-  // M11 G2 — M07 Backlog 18. 조립 지점이 넣은 검사를 쓴다 — 그 검사가 닫으면 SDK를 부르지 않는다.
+  // 조립 지점이 넣은 검사를 쓴다 — 그 검사가 닫으면 SDK를 부르지 않는다.
   it('주입된 컨트롤 검사가 닫으면 SDK를 부르지 않고 그 문장으로 끝난다', async () => {
     const query = vi.fn()
     const run = new ClaudeAgentRun(
@@ -157,7 +157,7 @@ describe('실행 시작의 컨트롤 설정 검사 (M07 G5)', () => {
   })
 })
 
-// M11 G3 — M11 Backlog 18. 엔진 경로 잠금의 userData 경로도 조립 지점이 넣는다. 그 경로를 얻지 못하면 잠금 없이 열지 않는다.
+// 엔진 경로 잠금의 userData 경로도 조립 지점이 넣는다. 그 경로를 얻지 못하면 잠금 없이 열지 않는다.
 describe('엔진 경로 잠금의 userData 경로 (M11 G3)', () => {
   const ok = (): ControlsForRun => ({ ok: true, nodes: [] })
   it('[M11-G3 M11-18] 주입된 경로 읽기가 던지면 SDK를 부르지 않고 오류와 done으로 끝난다', async () => {

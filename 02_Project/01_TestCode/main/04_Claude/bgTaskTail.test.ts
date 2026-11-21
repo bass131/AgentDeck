@@ -1,4 +1,3 @@
-// 작업 ID: gap1-p09 · 옛 이름 gap1-p09-bg-task-tail.test.ts
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { appendFileSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import os from 'node:os'

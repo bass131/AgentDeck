@@ -1,4 +1,3 @@
-// 작업 ID: bf3-p03 · 옛 이름 bf3-p03-push-race-window.test.ts
 import { describe, it, expect } from 'vitest'
 import { ClaudeCodeBackend } from '@main/04_Claude/ClaudeCodeBackend'
 import type { QueryFn } from '@main/04_Claude/ClaudeCodeBackend'

@@ -1,4 +1,3 @@
-// 작업 ID: gap1-p05 · 옛 이름 gap1-p05-hook-cockpit.golden.test.ts
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'

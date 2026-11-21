@@ -1,4 +1,4 @@
-// M11 G3 — M07 Backlog 13. 노드마다 메모리 안의 최근 판정 고리(상한, 입력 요약은 비밀을 가림). 파일로 남기지 않는다.
+// 노드마다 메모리 안의 최근 판정 고리(상한, 입력 요약은 비밀을 가림). 파일로 남기지 않는다.
 import { describe, it, expect, beforeEach } from 'vitest'
 import { recordVerdict, recentVerdicts, verdictCounts, clearVerdicts, withVerdictLog, VERDICT_RING, VERDICT_INPUT_MAX } from '@main/04_Claude/permission/verdictLog'
 import { runPermissionNodes, PERMISSION_NODES, type ControlNode } from '@main/04_Claude/permission/controlNodes'

@@ -1,15 +1,10 @@
-// 컨트롤 설정 (M07 G5) — G8 설계 `01_Milestones/M06_SelfDev/81_G8-컨트롤-설계/30_노드-구조.md` 「보호」 1·4와 「공통 GUI」.
-// 사용자가 컨트롤 패널에서 끈 노드를 userData `controls.json`에 적고, 내용 해시를 `controls-seal.json`에 함께 적는다.
-// Claude 실행을 열 때(run/claudeAgentRun.ts, 그 앞의 agent.run 요청 단계) 한 번 읽어 그 실행의 권한 콜백에 고정한다.
-// 토글은 다음 실행부터다.
-//
-// 봉인이 맞지 않으면 기본값으로 물러나지 않고 실행을 열지 않는다(G5 결정 대장 [USER]). 풀린 노드는 허용 노드뿐이라
-// 기본값(전부 켬)이 가장 느슨하다 — 물러나면 사용자가 꺼 둔 허용이 파일 훼손 한 번으로 되살아난다.
-// 「처음 설정함」 표시(`first-setup.json`)는 두 파일과 따로 둔다(설계 보호 4). 두 파일을 함께 지워도 첫 실행으로 보이지 않게 하려는 것이다
-// (G5 검수 차단 1). 거처는 앱 데이터 폴더의 이웃 폴더 `<폴더>-guard/`다(G7 사용자 결정) — 앱 데이터 폴더를 통째로 지워도 남는다.
-// G5가 앱 데이터 폴더 안에 쓴 옛 표시는 읽을 때 새 거처로 옮겨 적고, 옛 파일은 지우지 않는다.
-// 파일들은 앱 세션에서 잠겨 있다(enginePathLock.ts). CLI 세션이나 다른 프로그램이 고친 경우를 이 봉인이 잡는다.
-// 표시까지 함께 지우거나(`agentdeck*` 와일드카드 포함) 봉인까지 함께 고치면 통과한다 — L1 보호다(설계 「보호」 끝 문단).
+// 끈 노드는 userData `controls.json`에, 내용 해시는 `controls-seal.json`에 적는다. 실행을 열 때 한 번 읽어 그 실행에 고정한다.
+// 봉인이 맞지 않으면 기본값으로 물러나지 않고 실행을 열지 않는다. 풀린 노드는 허용 노드뿐이라 기본값(전부 켬)이 가장 느슨하다 —
+// 물러나면 사용자가 꺼 둔 허용이 파일 훼손 한 번으로 되살아난다.
+// 「처음 설정함」 표시(`first-setup.json`)는 이웃 폴더 `<폴더>-guard/`에 따로 둔다 — 두 파일이나 앱 데이터 폴더를 통째로 지워도
+// 첫 실행으로 보이지 않게 한다. 앱 데이터 폴더 안의 옛 표시는 읽을 때 새 거처로 옮겨 적고, 옛 파일은 지우지 않는다.
+// 파일들은 앱 세션에서 잠겨 있고(enginePathLock.ts), 이 봉인은 CLI 세션이나 다른 프로그램이 고친 경우를 잡는다.
+// 표시까지 함께 지우거나(`agentdeck*` 와일드카드 포함) 봉인까지 함께 고치면 통과한다(L1 보호).
 import fs from 'node:fs'
 import path from 'node:path'
 import { createHash } from 'node:crypto'
@@ -89,7 +84,7 @@ function writeMarker(userData: string): void {
 }
 
 // 표시가 있는가. 옛 거처(앱 데이터 폴더 안)에만 있으면 새 거처로 옮겨 적는다 — 옮기기가 실패해도 판정은 「있음」이다.
-// 표시를 읽다 오류(EACCES·EISDIR 등)가 나면 던진다. 두 파일이 멀쩡해도 실행은 error로 닫힌다 — 의도된 닫힌 실패다(G7 검수 사소 3).
+// 표시를 읽다 오류(EACCES·EISDIR 등)가 나면 던진다. 두 파일이 멀쩡해도 실행은 error로 닫힌다 — 의도된 닫힌 실패다.
 function isMarked(userData: string): boolean {
   if (readOrNull(path.join(markerDir(userData), MARKER)) !== null) return true
   if (readOrNull(path.join(userData, MARKER)) === null) return false
@@ -117,7 +112,7 @@ export function readControls(userData: string): ControlsRead {
   // 앱은 읽을 수 없는 내용을 봉인하지 않는다. 봉인이 맞는데 못 읽으면 바뀐 것과 같이 본다.
   const parsed = parseFile(raw)
   if (parsed === null) return { status: 'mismatch', disabled: [] }
-  // 봉인이 맞는데 표시만 없으면 다시 적는다 — guard 폴더만 먼저 사라진 뒤 앱 데이터 폴더가 따로 지워지는 경우를 막는다(G7 검수 사소 5)
+  // 봉인이 맞는데 표시만 없으면 다시 적는다 — guard 폴더만 먼저 사라진 뒤 앱 데이터 폴더가 따로 지워지는 경우를 막는다
   if (!marked) {
     try {
       writeMarker(userData)
@@ -157,7 +152,7 @@ export function setControlEnabled(userData: string, id: string, enabled: boolean
   }
 }
 
-// 패널의 확인 — 사람이 본 내용(seen)이 지금 파일 내용과 같을 때만 다시 봉인한다(G5 검수 중요 2).
+// 패널의 확인 — 사람이 본 내용(seen)이 지금 파일 내용과 같을 때만 다시 봉인한다.
 // 패널을 연 뒤 파일이 또 바뀌었으면 거절하고, 패널이 새 내용을 다시 보이게 한다.
 // 파일이 없거나 읽을 수 없으면 내용은 기본값(전부 켬)이다. 내용은 정규화해 다시 쓴다(모르는 id·잠긴 노드를 뺀다).
 export function confirmControls(userData: string, seen: readonly string[]): Ack {
@@ -174,7 +169,7 @@ export function confirmControls(userData: string, seen: readonly string[]): Ack 
   }
 }
 
-// 패널 상태. 읽다 오류가 나면 error 상태와 사유를 준다 — 실행은 닫히고(controlsForRun), 패널은 원인을 보인다(G5 검수 사소 4).
+// 패널 상태. 읽다 오류가 나면 error 상태와 사유를 준다 — 실행은 닫히고(controlsForRun), 패널은 원인을 보인다.
 export function controlsState(userData: string): Omit<ControlsState, 'engine'> {
   const view = (status: ControlsState['status'], disabled: readonly string[], fileReadable: boolean): Omit<ControlsState, 'engine'> => {
     const off = new Set(disabled)
@@ -201,7 +196,7 @@ export function activePermissionNodes(disabled: readonly string[]): readonly Con
 
 const BLOCKED = '컨트롤 설정(controls.json)이 앱 밖에서 바뀌어 실행을 열지 않았습니다 — 설정 › 컨트롤에서 확인하세요.'
 
-// 앱 실행의 검사 — userData 경로를 못 얻으면 열지 않는다(M11 G2, M07 Backlog 18)
+// 앱 실행의 검사 — userData 경로를 못 얻으면 열지 않는다
 export function controlsForAppRun(userDataDir: () => string): ControlsForRun {
   let userData: string
   try {

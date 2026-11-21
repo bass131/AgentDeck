@@ -46,6 +46,7 @@ DoD
 
 검증 기록
 
+- PASS 2026-11-21T16:57:33+09:00 — 독립 검수(구현 문맥 없는 검수자, `9a729409..2978d4c0`): 막는 결함 1, 고칠 것 4, 사소 3. 반영(`9449687c` 결정·Backlog 9, `f3cde31b` 코드) — 막는 결함: 약 등급 goal이 Taste.md를 고치면 다음 goal의 판이 되던 것을 마일스톤 시작점 커밋에서 읽게 고쳤다(`loopRunner.taste.test.ts:88`, 고치기 전 코드에서 실패 확인). 판 문제는 goal 브랜치를 가르기 전 stop이고 FAIL 줄 없음(`:109`), 검수 때 stop 방어와 층별 문구(`:148`). 경로 대소문자 무시와 둘 이상이면 stop(실 git `gitPort.test.ts:215`). 근거 길이 상한에서 불통과 ID와 실패 이유가 남음(`tasteVerdict.test.ts:143·152·162·174`, `reviewSession.test.ts:184·195`, `loopRunner.taste.test.ts:186`). 빠진 시험(`executor.test.ts:363`, `loopRunner.taste.test.ts:172`), 주석 정리. 사소 1(전역 Taste 다이제스트)은 Backlog 9. 메인이 다시 돌린 하드 게이트 다섯 종 exit 0, `npm test` Test Files 481 passed·6 skipped(487), Tests 9329 passed·10 skipped, 실패 0. 막는 결함이 있었으므로 반영분을 다른 검수자가 다시 본다.
 - PASS 2026-11-21T16:16:36+09:00 — 구현: 작업 하위 에이전트 `723254a8`·`a40c0bfa`와 메인 `1b63eccf`. 판의 고정(시작점 커밋 원문, 작업 트리 수정 무시) `loopRunner.taste.test.ts:73`, 절 없음 `:89`, 한 층만 `:99`, 읽기 오류·검사 문제면 stop이고 FAIL 줄 없음 `:107`, 실 git `gitPort.test.ts:193`·`openLoop.test.ts:155`. 판정 규칙 `tasteVerdict.test.ts:54`(fail)·`:60`(누락·중복·모르는 ID)·`:72`(꼴 틀림)·`:91·100·114`(충돌 인정·불인정)·`:121`(금지), VERDICT pass라도 fail `reviewSession.test.ts:158`, Taste 없으면 지금 그대로 `:172`. 기록 줄 근거의 ID·판정 `loopRunner.taste.test.ts:128`, 30항목 길이 `:141`, 「영역 재설계 안건」 `:161`·없음 `:176`, 옛 상태 파일 `:183`. 검수 세션이 작업 트리 Taste 원문을 싣지 않음(Backlog 8을 goal 안에서 고침) `sdkOptions.taste.test.ts:39`. 메인이 다시 돌린 하드 게이트 다섯 종 exit 0, `npm test` Test Files 481 passed·6 skipped(487), Tests 9318 passed·10 skipped, 실패 0.
 
 ## 결정 대장

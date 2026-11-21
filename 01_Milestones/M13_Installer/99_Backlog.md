@@ -2,6 +2,7 @@
 
 M13 진행 중 범위 밖으로 발견한 것을 한 줄씩 남긴다. 새 줄은 위에 쌓는다.
 
+15. (M13 G2 검수) 앱 토큰을 무조건 우선하므로, 조직이 「OAuth App 접근 제한」을 켜 두면 개발 PC에서 앱을 연결하는 순간 그 조직 저장소의 PR 카드와 실행기 gh가 막힐 수 있다(예전에는 승인된 gh 로그인으로 돌았다). 미실측 추정 — goal 6 실측 때 본다.
 14. (M13 G2) OAuth App 클라이언트 ID를 넣는 화면이 없다 — 지금은 `ui-prefs.json`의 `githubClientId`(렌더러의 `settings.setUiPref`로도 쓸 수 있다)뿐이다. 등록(goal 6) 뒤 설치본에 기본값을 싣는 길을 첫 실행 안내(goal 3)나 릴리스 후보(goal 5)에서 정할 후보.
 13. (M13 G2) 앱 토큰 파일(`userData/github-auth.bin`)은 루프 잠금이 쓰기만 막고(저장소 밖 쓰기) 읽기는 막지 않는다 — `loopLock.ts`에 읽기 차단 규칙이 없다. 내용은 safeStorage(DPAPI) 암호문이지만 같은 OS 사용자 프로세스는 `Local State`의 키로 풀 수 있다(미실측 추정, childEnv 한계와 같은 부류).
 12. (M13 G2) origin이 ssh 주소면 앱 토큰이 있어도 실행기 git은 사용자 ssh 키로 돈다 — 토큰 도우미는 `https://github.com` 원격에만 걸린다. 설치본만 쓰는 사람(goal 6)의 ssh origin 저장소는 push가 실패할 수 있다.

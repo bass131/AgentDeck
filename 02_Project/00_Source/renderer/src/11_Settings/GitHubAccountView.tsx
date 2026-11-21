@@ -55,7 +55,7 @@ export function GitHubAccountView(): JSX.Element {
   }
 
   const openGithub = async (): Promise<void> => {
-    const r = await ipc.github.openVerification()
+    const r = await ipc.github.openVerification().catch(() => ({ ok: false as const, error: undefined }))
     setNote(r.ok ? '브라우저에서 GitHub를 열었어요' : (r.error ?? 'GitHub를 열지 못했어요'))
   }
 

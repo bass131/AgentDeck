@@ -37,7 +37,7 @@
 - [x] 2. 구현 — 흐름 모듈, 저장, IPC, 자격 경로 교체, 설정 화면, 시험
 - [x] 3. 실앱 확인 — 시험 서버를 향한 빌드본 e2e, 캡처
 - [x] 4. 하드 게이트 다섯 종, `npm test`
-- [>] 5. 독립 검수와 반영
+- [x] 5. 독립 검수와 반영
 - [ ] 6. goal PR, `hard-gates`, 로컬 goal 병합
 
 실행 단계 일괄 승인 대상 (스펙에서 옮김)
@@ -54,6 +54,7 @@ DoD
 - FAIL 2026-11-22T01:27:24+09:00 — 시험 서버를 향한 빌드본 e2e(`m13-g2-github-account.e2e.ts`) 첫 실행이 사용자 코드 단언에서 멈췄다. 준비 안 됨 안내와 코드 요청까지는 지났다. 선택자 `getByLabel('사용자 코드')`가 「사용자 코드 복사」 버튼까지 잡은 시험 결함이다(앱 결함 아님). 시도 — 정확 일치(`exact: true`)로 고쳐 다시 돈다.
 - PASS 2026-11-22T01:27:47+09:00 — 완료조건 4: 빌드본(`out/`, 격리 앱 데이터, 2번 모니터)이 로컬 시험 서버(`AGENTDECK_E2E_GITHUB_BASE`)를 향해 설정 「GitHub 계정」 칸에서 준비 안 됨 안내 → 클라이언트 ID 설정 → 연결(사용자 코드 `E2EA-1234`·승인 기다림·폴링) → 서버 승인 → 「연결됐어요」·계정 `e2e-octocat` → 연결 해제까지 돌았다(3.8s). 코드 요청 본문에 `client_id`와 `scope=repo workflow`, `/user`에 `Bearer` 토큰. 실제 `safeStorage`(DPAPI)로 쓴 `github-auth.bin`에 평문 토큰(UTF-8·UTF-16)이 없고 화면 HTML에도 없으며, 해제 뒤 파일이 지워졌다. 캡처 `github-pending.png`·`github-connected.png`·`github-disconnected.png`는 세션 임시 폴더 `C:\Users\bass1\AppData\Local\Temp\claude\09203b92aa1d0186\95eb3854-a6b8-4778-8fa2-76bc3687de2f\scratchpad\m13-g2-out\`에 있고 마일스톤 결과 보고 때 저장소로 옮긴다.
 - PASS 2026-11-22T01:35:02+09:00 — 완료조건 1·2·3·5: 커밋 `05d08ab9`에 e2e 파일을 더한 트리에서 하드 게이트 다섯 종이 모두 0이고, `npm test`가 499 passed·6 skipped(505 파일), 9454 passed·10 skipped·실패 0이다. 묶는 시험 — 조건 1: `deviceFlow.test.ts`(성공·pending·`slow_down` 응답 간격과 +5초·만료·거부·취소), `githubAuth.local-server.test.ts`(로컬 서버로 코드 요청→폴링→`/user`→저장→해제). 조건 2: `tokenStore.test.ts`, `github.handler.test.ts`. 조건 3: `appToken.credential-paths.test.ts`(PR 카드 gh), `gitPort.app-token.test.ts`, `openLoop.app-token.test.ts`(실행기 git push 자격과 gh `GH_TOKEN`, 해제 뒤 사용자 도우미), `context.assembly.test.ts`·`loopDriver.test.ts`(조립 지점에서 실행기까지의 배선), `openLoop.test.ts`(자식 환경에 토큰 없음). 배선 시험은 해당 줄을 지우면 빨개지는 것을 작업 에이전트가 셋 실측했다.
+- PASS 2026-11-22T02:15:35+09:00 — 독립 검수(다른 검수자, `12c15838..eba11555`): 막음 0, 고침 권장 2, 사소 7. 정정 — 01:27:47 줄의 「평문 토큰 없음」 단언은 파일이 base64라 암호화 없이도 통과하는 헛단언이었고, 「연결됐어요」·`Bearer`는 단언하지 않았다. 반영 — 실행기 gh는 `-R` 호스트가 `github.com`일 때만, git 원격 호출은 origin이 `https://github.com`일 때만 토큰을 싣는다(`acme.ghe.com` 등 제외). 실제 `github.com` 키의 `credential fill` 시험, 조립 지점의 `app.isPackaged` 배선 시험, HTTP 30초 시간 제한과 코드 요청 중 취소, 폴링의 연결 오류·본문 없는 5xx 재시도(간격 두 배, 만료면 끝), 화면 요청 실패 문구와 지우기 재시도, 토큰 수신 뒤 취소 경합 시험을 더했다(`473b9876`·`9dae4352`·`c9b3be16`·`a532ea45`, 지우면 빨개짐 대부분 실측). e2e는 파일을 base64로 푼 뒤 토큰·계정 이름이 없고 앱의 실제 `safeStorage`로 복호화하면 계정 이름이 나오는지, `/user`가 정확히 `Bearer`인지, 「연결됐어요」가 보이는지 단언하게 고쳐 빌드본에서 다시 통과했다(02:08). 「GitHub에서 열기」 IPC 실패도 문구로 받는다. 그 트리에서 하드 게이트 다섯 종 0, `npm test` 499 passed·6 skipped(505 파일), 9471 passed·10 skipped·실패 0. PR 카드 gh는 `parseGithubRepo`가 github.com만 받아 호스트 문제가 없다(검수 확인). 넘긴 것 — Backlog 15(조직 OAuth App 접근 제한).
 
 ## 결정 대장
 

@@ -86,12 +86,18 @@ test('설정 「GitHub 계정」: 준비 안 됨 → 연결(코드 표시·승�
   await expect(page.getByLabel('연결된 계정')).toHaveText('e2e-octocat')
   await page.screenshot({ path: join(OUT, 'github-connected.png') })
 
-  expect(seen.find((s) => s.path === '/user')?.auth).toMatch(new RegExp(`^(token|Bearer) ${TOKEN}$`))
+  await expect(page.getByText('연결됐어요', { exact: true })).toBeVisible()
+  expect(seen.find((s) => s.path === '/user')?.auth).toBe(`Bearer ${TOKEN}`)
   expect(existsSync(authFile)).toBe(true)
-  const stored = readFileSync(authFile)
-  expect(stored.length).toBeGreaterThan(0)
-  expect(stored.includes(Buffer.from(TOKEN))).toBe(false)
-  expect(stored.includes(Buffer.from(TOKEN, 'utf16le'))).toBe(false)
+  const cipher = Buffer.from(readFileSync(authFile, 'utf8').trim(), 'base64')
+  expect(cipher.length).toBeGreaterThan(16)
+  for (const plain of [TOKEN, 'e2e-octocat']) {
+    expect(cipher.includes(Buffer.from(plain))).toBe(false)
+    expect(cipher.includes(Buffer.from(plain, 'utf16le'))).toBe(false)
+  }
+  const decryptedLogin = await boot.app.evaluate(({ safeStorage }, b64) =>
+    (JSON.parse(safeStorage.decryptString(Buffer.from(b64, 'base64'))) as { login?: string }).login, cipher.toString('base64'))
+  expect(decryptedLogin).toBe('e2e-octocat')
   expect(await page.content()).not.toContain(TOKEN)
 
   await page.getByRole('button', { name: '연결 해제' }).click()

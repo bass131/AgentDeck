@@ -86,9 +86,25 @@ function validItem(i: unknown): boolean {
 // 다시 묻는 질문 창이 읽는 칸 — 질문 글과 고를 것의 이름표
 const validQuestion = (q: unknown): boolean =>
   isObj(q) && str(q['question']) && Array.isArray(q['options']) && (q['options'] as unknown[]).every((o) => isObj(o) && str(o['label']))
+const strs = (v: unknown): boolean => Array.isArray(v) && v.every(str)
+const validTasteItem = (i: unknown): boolean =>
+  isObj(i) && str(i['id']) && str(i['title']) && Array.isArray(i['fields'])
+  && (i['fields'] as unknown[]).every((f) => isObj(f) && str(f['name']) && str(f['text']))
+function validDraft(d: unknown): boolean {
+  if (!isObj(d)) return false
+  if (d['doc'] === 'global-taste' || d['doc'] === 'project-taste') return Array.isArray(d['items']) && (d['items'] as unknown[]).every(validTasteItem)
+  const c = d['charter']
+  return d['doc'] === 'charter' && isObj(c) && strs(c['goal']) && (c['nonGoals'] === null || strs(c['nonGoals']))
+}
+// 문서 초안 카드는 확정에 쓰는 구조(draft)와 사람이 본 원문(preview)이 함께 있어야 받는다
+const validTasteCard = (c: Record<string, unknown>): boolean =>
+  str(c['preview']) && validDraft(c['draft'])
+  && (c['confirming'] === undefined || typeof c['confirming'] === 'boolean') && (c['refused'] === undefined || str(c['refused']))
 const validCard = (c: unknown): boolean =>
-  isObj(c) && c['kind'] === 'question' && str(c['requestId']) && str(c['text'])
-  && Array.isArray(c['questions']) && (c['questions'] as unknown[]).every(validQuestion)
+  isObj(c) && str(c['requestId']) && str(c['text']) && (
+    (c['kind'] === 'question' && Array.isArray(c['questions']) && (c['questions'] as unknown[]).every(validQuestion))
+    || (c['kind'] === 'taste' && validTasteCard(c))
+  )
 
 // 줄 선 턴 — 사건 턴은 사건 칸이 아는 사건의 배열이어야 프롬프트를 만든다. 다른 턴의 사건 칸은 버린다
 function storedTurn(t: unknown): StoredTurn | null {

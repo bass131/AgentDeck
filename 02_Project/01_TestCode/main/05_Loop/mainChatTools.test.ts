@@ -5,25 +5,54 @@
 import { describe, expect, it } from 'vitest'
 import { MAIN_TOOL_SERVER, type MainActions } from '@main/05_Loop/mainChat'
 import { BACKLOG_PATH, appendBacklogLine, buildMainTools, mainToolSpecs } from '@main/05_Loop/mainChatTools'
+import type { TasteDraft } from '@shared/14_Taste/taste'
 import { FakeFs } from '../00_Helpers/loopFakes'
 
-function spyActions(): { actions: MainActions; calls: string[] } {
+function spyActions(): { actions: MainActions; calls: string[]; drafts: TasteDraft[] } {
   const calls: string[] = []
+  const drafts: TasteDraft[] = []
   return {
     calls,
+    drafts,
     actions: {
       pause: async () => { calls.push('pause'); return '멈춤 깃발을 올렸다' },
       resume: async () => { calls.push('resume'); return '깃발을 내렸다' },
       appendBacklog: async (line) => { calls.push(`backlog:${line}`); return '적었다' },
+      proposeTasteDoc: async (d) => { calls.push(`propose:${d.doc}`); drafts.push(d); return '카드를 띄웠다' },
     },
   }
 }
 
 describe('메인의 앱 안 도구 (M10 G2)', () => {
-  it('도구는 셋뿐이다 — 사람 판정을 대신하는 도구가 없다', () => {
+  it('도구는 넷뿐이다 — 사람 판정을 대신하는 도구가 없다', () => {
     const names = mainToolSpecs(spyActions().actions).map((t) => t.name).sort()
-    expect(names).toEqual(['append_backlog', 'pause', 'resume'])
-    for (const n of names) expect(n).not.toMatch(/approve|reject|decide|verdict|release|latch|submit/)
+    expect(names).toEqual(['append_backlog', 'pause', 'propose_taste_doc', 'resume'])
+    for (const n of names) expect(n).not.toMatch(/approve|reject|decide|verdict|release|latch|submit|confirm|write/)
+  })
+
+  it('문서 제안 도구는 종류와 구조를 초안으로 읽어 능력 객체에 넘기고, 꼴이 틀린 입력은 넘기지 않는다', async () => {
+    const { actions, calls, drafts } = spyActions()
+    const propose = mainToolSpecs(actions).find((t) => t.name === 'propose_taste_doc')
+    const items = [{ id: 'T1', title: '밀도', fields: [{ name: '원칙', text: '높게' }] }]
+    expect(await propose?.run({ doc: 'global-taste', items })).toBe('카드를 띄웠다')
+    expect(await propose?.run({ doc: 'charter', goal: ['끝까지 맡는다.'], nonGoals: ['- 동기화'] })).toBe('카드를 띄웠다')
+    expect(await propose?.run({ doc: 'charter', goal: ['끝까지 맡는다.'] })).toBe('카드를 띄웠다')
+    expect(drafts).toEqual([
+      { doc: 'global-taste', items },
+      { doc: 'charter', charter: { goal: ['끝까지 맡는다.'], nonGoals: ['- 동기화'] } },
+      { doc: 'charter', charter: { goal: ['끝까지 맡는다.'], nonGoals: null } },
+    ])
+    for (const bad of [
+      { doc: 'readme', items },
+      { doc: 'project-taste' },
+      { doc: 'project-taste', items: [{ id: 'T1', title: 3, fields: [] }] },
+      { doc: 'project-taste', items: [{ id: 'T1', title: 'a', fields: [{ name: '원칙' }] }] },
+      { doc: 'charter', goal: '한 줄' },
+      { doc: 'charter', goal: ['a'], nonGoals: [1] },
+    ]) {
+      expect(await propose?.run(bad)).toMatch(/^제안하지 않았다/)
+    }
+    expect(calls).toEqual(['propose:global-taste', 'propose:charter', 'propose:charter'])
   })
 
   it('도구는 능력 객체만 부르고 결과 글을 돌려준다', async () => {

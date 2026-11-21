@@ -60,7 +60,7 @@ function open(fake: ScriptedBackend, over: Partial<MainChatDeps> = {}): MainChat
   const chat = openMainChat({
     root, appDataDir: app, env: { PATH: process.env.PATH }, backend: fake.backend, fs: createFsPort(root),
     canWrite: async () => windowOpen,
-    actions: { pause: async () => '멈춤', resume: async () => '이어 감', appendBacklog: async () => '적었다' },
+    actions: { pause: async () => '멈춤', resume: async () => '이어 감', appendBacklog: async () => '적었다', proposeTasteDoc: async () => '카드를 띄웠다' },
     context: async () => '실행 상태: M1 · brainstorm · running · FAIL 0',
     nextTurnId: () => `t.${++turnSeq}`,
     onTurnEnd: () => { turnEnds++ },

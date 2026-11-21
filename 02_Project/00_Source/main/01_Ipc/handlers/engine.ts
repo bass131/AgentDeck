@@ -1,5 +1,5 @@
-import { app } from 'electron'
 import { IPC_CHANNELS, sendPush } from '@shared/ipcContract'
+import { APP_VERSION } from '@main/02_Common/appVersion'
 import { handle } from '../handle'
 import type {
   EngineState,
@@ -37,7 +37,7 @@ export function registerEngineHandlers(): void {
   })
 
   handle(IPC_CHANNELS.APP_VERSION, async (): Promise<string> => {
-    return app.getVersion()
+    return APP_VERSION
   })
 
   handle(IPC_CHANNELS.USAGE_GET, async (): Promise<UsageInfo> => {

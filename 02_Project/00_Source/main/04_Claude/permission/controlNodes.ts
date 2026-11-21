@@ -73,7 +73,7 @@ type PermissionVerdict =
   | { kind: 'card'; nodeId: string | null; escalation?: Escalation }
   | { kind: 'deny'; nodeId: string; message: string }
 
-// 켜짐 상태는 노드가 아니라 사용자 설정(controlsStore.ts의 controls.json)이 갖는다. locked 칸은 「끌 수 있는가」다.
+// 켜짐 상태는 노드가 아니라 사용자 설정(controlsStore.ts의 controls.json)이 갖는다. locked가 참이면 끌 수 없다.
 export interface ControlNodeInfo {
   readonly id: string
   readonly name: string

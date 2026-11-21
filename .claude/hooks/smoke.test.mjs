@@ -64,7 +64,7 @@ function blockReason(res) {
   try { const o = JSON.parse(res.stdout); return o.decision === 'block' ? o.reason : null } catch { return null }
 }
 
-const edit =(session, event, file, oldS, newS, extra) => ({
+const edit = (session, event, file, oldS, newS, extra) => ({
   session_id: session, hook_event_name: event, tool_name: 'Edit',
   tool_input: { file_path: file, old_string: oldS, new_string: newS }, ...extra,
 })

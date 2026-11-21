@@ -103,7 +103,7 @@ test('styles.css: in a row the SHA keeps its width and only the branch names shr
   assert.match(css, /\.mg-row-sha\{flex:none\}/);
   assert.match(css, /\.mg-row-br\{[^}]*min-width:0;[^}]*overflow:hidden;[^}]*text-overflow:ellipsis/);
 });
-const item =(n, over = {}) => ({ number: n, title: `PR ${n}`, baseRef: 'master', headRef: `feat/x-${n}`, sha: SHA, draft: false, author: 'bass131', updatedAt: '2026-11-18T00:08:22Z', ...over });
+const item = (n, over = {}) => ({ number: n, title: `PR ${n}`, baseRef: 'master', headRef: `feat/x-${n}`, sha: SHA, draft: false, author: 'bass131', updatedAt: '2026-11-18T00:08:22Z', ...over });
 
 test('list helpers are on the frozen merge module', () => {
   for (const fn of ['prListHtml', 'pickedPr']) assert.equal(typeof M[fn], 'function', fn);

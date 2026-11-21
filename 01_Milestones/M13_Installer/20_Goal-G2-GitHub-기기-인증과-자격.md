@@ -34,10 +34,10 @@
 진척 단계
 
 - [x] 1. goal 준비 — 이 문서, goal 1 종결 기록, `gate-config.json` `planPath` 전환(판정 장치)
-- [ ] 2. 구현 — 흐름 모듈, 저장, IPC, 자격 경로 교체, 설정 화면, 시험
-- [ ] 3. 실앱 확인 — 시험 서버를 향한 빌드본 e2e, 캡처
-- [ ] 4. 하드 게이트 다섯 종, `npm test`
-- [ ] 5. 독립 검수와 반영
+- [x] 2. 구현 — 흐름 모듈, 저장, IPC, 자격 경로 교체, 설정 화면, 시험
+- [x] 3. 실앱 확인 — 시험 서버를 향한 빌드본 e2e, 캡처
+- [x] 4. 하드 게이트 다섯 종, `npm test`
+- [>] 5. 독립 검수와 반영
 - [ ] 6. goal PR, `hard-gates`, 로컬 goal 병합
 
 실행 단계 일괄 승인 대상 (스펙에서 옮김)
@@ -51,7 +51,9 @@ DoD
 
 검증 기록
 
-- (기록 없음)
+- FAIL 2026-11-22T01:27:24+09:00 — 시험 서버를 향한 빌드본 e2e(`m13-g2-github-account.e2e.ts`) 첫 실행이 사용자 코드 단언에서 멈췄다. 준비 안 됨 안내와 코드 요청까지는 지났다. 선택자 `getByLabel('사용자 코드')`가 「사용자 코드 복사」 버튼까지 잡은 시험 결함이다(앱 결함 아님). 시도 — 정확 일치(`exact: true`)로 고쳐 다시 돈다.
+- PASS 2026-11-22T01:27:47+09:00 — 완료조건 4: 빌드본(`out/`, 격리 앱 데이터, 2번 모니터)이 로컬 시험 서버(`AGENTDECK_E2E_GITHUB_BASE`)를 향해 설정 「GitHub 계정」 칸에서 준비 안 됨 안내 → 클라이언트 ID 설정 → 연결(사용자 코드 `E2EA-1234`·승인 기다림·폴링) → 서버 승인 → 「연결됐어요」·계정 `e2e-octocat` → 연결 해제까지 돌았다(3.8s). 코드 요청 본문에 `client_id`와 `scope=repo workflow`, `/user`에 `Bearer` 토큰. 실제 `safeStorage`(DPAPI)로 쓴 `github-auth.bin`에 평문 토큰(UTF-8·UTF-16)이 없고 화면 HTML에도 없으며, 해제 뒤 파일이 지워졌다. 캡처 `github-pending.png`·`github-connected.png`·`github-disconnected.png`는 세션 임시 폴더 `C:\Users\bass1\AppData\Local\Temp\claude\09203b92aa1d0186\95eb3854-a6b8-4778-8fa2-76bc3687de2f\scratchpad\m13-g2-out\`에 있고 마일스톤 결과 보고 때 저장소로 옮긴다.
+- PASS 2026-11-22T01:35:02+09:00 — 완료조건 1·2·3·5: 커밋 `05d08ab9`에 e2e 파일을 더한 트리에서 하드 게이트 다섯 종이 모두 0이고, `npm test`가 499 passed·6 skipped(505 파일), 9454 passed·10 skipped·실패 0이다. 묶는 시험 — 조건 1: `deviceFlow.test.ts`(성공·pending·`slow_down` 응답 간격과 +5초·만료·거부·취소), `githubAuth.local-server.test.ts`(로컬 서버로 코드 요청→폴링→`/user`→저장→해제). 조건 2: `tokenStore.test.ts`, `github.handler.test.ts`. 조건 3: `appToken.credential-paths.test.ts`(PR 카드 gh), `gitPort.app-token.test.ts`, `openLoop.app-token.test.ts`(실행기 git push 자격과 gh `GH_TOKEN`, 해제 뒤 사용자 도우미), `context.assembly.test.ts`·`loopDriver.test.ts`(조립 지점에서 실행기까지의 배선), `openLoop.test.ts`(자식 환경에 토큰 없음). 배선 시험은 해당 줄을 지우면 빨개지는 것을 작업 에이전트가 셋 실측했다.
 
 ## 결정 대장
 

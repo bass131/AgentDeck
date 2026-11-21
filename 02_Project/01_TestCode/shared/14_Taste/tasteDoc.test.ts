@@ -6,6 +6,8 @@ import {
   parseCharter,
   serializeCharter,
   validateCharter,
+  scanTaste,
+  scanCharter,
   type DocProblemKind,
   type TasteItem,
 } from '@shared/14_Taste/tasteDoc'
@@ -122,6 +124,49 @@ describe('Taste 문서 읽기·쓰기', () => {
       expect(() => parseTaste(t, 'project')).not.toThrow()
     }
   })
+
+  it('ID는 숫자로 견준다 — T1과 T01은 겹친다', () => {
+    const ps = validateTaste('# 전역 Taste\n\n## T1 a\n- 원칙: x\n\n## T01 b\n- 원칙: y\n', 'global')
+    expect(kinds(ps)).toEqual(['duplicate-id'])
+    expect(ps[0].line).toBe(6)
+    expect(kinds(validateTaste('# 전역 Taste\n\n## T1 a\n- 원칙: x\n\n## T10 b\n- 원칙: y\n', 'global'))).toEqual([])
+  })
+
+  it('아는 칸은 이름 바로 뒤의 쌍점에서만 가르고, 모르는 칸은 첫 「쌍점+공백」에서 가른다', () => {
+    const text = '# 전역 Taste\n\n## T1 a\n- 레퍼런스: https://x.example/a:b\n- 원칙:붙여 쓴 글\n- note: see https://x\n'
+    const items = parseTaste(text, 'global').items
+    expect(items[0].fields).toEqual([
+      { name: '레퍼런스', text: 'https://x.example/a:b' },
+      { name: '원칙', text: '붙여 쓴 글' },
+      { name: 'note', text: 'see https://x' },
+    ])
+    expect(kinds(validateTaste(text, 'global'))).toEqual(['unknown-field'])
+  })
+
+  it('칸 꼴이 아닌 「- 」 줄은 칸으로 바꾸지 않고 문제로 둔다 — URL의 쌍점을 칸 경계로 읽지 않는다', () => {
+    const text = '# 전역 Taste\n\n## T1 a\n- 원칙: x\n- see https://x\n* 별표 목록\n'
+    const ps = validateTaste(text, 'global')
+    expect(kinds(ps)).toEqual(['stray-line', 'stray-line'])
+    expect(parseTaste(text, 'global').items[0].fields).toEqual([{ name: '원칙', text: 'x' }])
+  })
+
+  it('코드 울타리는 문제이고, 그 안의 줄은 항목·칸으로 읽지 않는다', () => {
+    const text = '# 전역 Taste\n\n## T1 a\n- 원칙: x\n```\n## T2 b\n- 금지: y\n```\n'
+    const ps = validateTaste(text, 'global')
+    expect(kinds(ps)).toEqual(['code-fence'])
+    expect(ps[0].line).toBe(5)
+    expect(parseTaste(text, 'global').items.map((i) => i.id)).toEqual(['T1'])
+    expect(kinds(validateTaste('# 전역 Taste\n\n## T1 a\n- 원칙: x\n~~~md\n## T2 b\n', 'global'))).toEqual(['code-fence'])
+  })
+
+  it('아주 긴 줄도 선형 시간에 읽는다', () => {
+    const pad = ' '.repeat(65536)
+    const text = ['# 전역 Taste', '## T1 a', `- ${pad}x`, `- 원칙${pad}`, `- ${pad}:${pad}y`, `## T2${pad}`, `${pad}-`].join('\n')
+    const t0 = performance.now()
+    validateTaste(text, 'global')
+    parseCharter(text)
+    expect(performance.now() - t0).toBeLessThan(500)
+  })
 })
 
 describe('헌장 문서 읽기·쓰기', () => {
@@ -162,5 +207,18 @@ describe('헌장 문서 읽기·쓰기', () => {
       expect(() => validateCharter(t)).not.toThrow()
       expect(() => parseCharter(t)).not.toThrow()
     }
+  })
+
+  it('헌장의 코드 울타리도 문제이고, 그 안의 절 머리는 절로 읽지 않는다', () => {
+    const text = '# 프로젝트 헌장\n\n## 목표\na\n```\n## 하지 않을 것\n```\n'
+    const ps = validateCharter(text)
+    expect(kinds(ps)).toEqual(['code-fence'])
+    expect(ps[0].line).toBe(5)
+    expect(parseCharter(text)).toEqual({ goal: ['a'], nonGoals: null })
+  })
+
+  it('한 번 훑어 구조와 문제를 함께 돌려준다', () => {
+    expect(scanCharter(CHARTER)).toEqual({ doc: parseCharter(CHARTER), problems: [] })
+    expect(scanTaste(GLOBAL, 'global')).toEqual({ doc: parseTaste(GLOBAL, 'global'), problems: [] })
   })
 })

@@ -1,6 +1,7 @@
 // Taste·헌장 문서의 꼴. 사람이 읽고 git diff로 감사하는 마크다운이라 YAML·JSON을 쓰지 않는다.
 // 바른 꼴(canonical): LF 줄바꿈, 끝 줄바꿈 하나, 머리 뒤와 절·항목 사이에 빈 줄 하나, 절·항목 머리와 그 몸 사이에는 빈 줄 없음.
 // 바른 꼴의 글은 parse → serialize가 같은 글이다. 읽기는 CRLF·BOM을 받고, 쓰기는 늘 바른 꼴로 쓴다.
+// 문제가 하나라도 있는 글은 다시 쓰면 사람이 쓴 글을 잃을 수 있다 — 저장소(tasteStore)는 그런 글을 덮어쓰지 않는다.
 
 export type TasteScope = 'global' | 'project'
 
@@ -25,19 +26,41 @@ export type DocProblemKind =
   | 'bad-head'
   | 'bad-heading'
   | 'stray-line'
+  | 'code-fence'
   | 'empty-item'
   | 'duplicate-id'
   | 'unknown-field'
   | 'empty-goal'
+  | 'unreadable'
 export interface DocProblem { kind: DocProblemKind; line: number | null; message: string }
 
 const ITEM_HEADING = /^## (T\d+)(?: (.*))?$/
-const FIELD_LINE = /^- ([^:]+?)\s*:\s*(.*)$/
 
 function linesOf(text: string): string[] {
   const body = text.charCodeAt(0) === 0xfeff ? text.slice(1) : text
   return body.split('\n').map((l) => l.replace(/\r$/, '').trimEnd())
 }
+
+const isFence = (line: string): boolean => {
+  const t = line.trimStart()
+  return t.startsWith('```') || t.startsWith('~~~')
+}
+
+// 아는 칸은 이름 바로 뒤의 쌍점에서, 모르는 칸은 첫 「쌍점+공백」(또는 줄 끝 쌍점)에서 가른다. 칸 꼴이 아니면 null.
+function fieldOf(line: string): { name: string; text: string } | null {
+  if (!line.startsWith('- ')) return null
+  const body = line.slice(2)
+  for (const name of TASTE_FIELDS) {
+    if (body.startsWith(`${name}:`)) return { name, text: body.slice(name.length + 1).trim() }
+  }
+  let i = body.indexOf(': ')
+  if (i < 0 && body.endsWith(':')) i = body.length - 1
+  if (i < 0) return null
+  const name = body.slice(0, i).trim()
+  return name === '' ? null : { name, text: body.slice(i + 1).trim() }
+}
+
+const idKey = (id: string): string => id.slice(1).replace(/^0+(?=\d)/, '')
 
 const byLine = (ps: DocProblem[]): DocProblem[] => [...ps].sort((a, b) => (a.line ?? 0) - (b.line ?? 0))
 
@@ -48,7 +71,21 @@ function takeHead(line: string, n: number, head: string, problems: DocProblem[])
   return line.startsWith('# ')
 }
 
-function scanTaste(text: string, scope: TasteScope): { doc: TasteDoc; problems: DocProblem[] } {
+// 줄을 차례로 넘기되 코드 울타리 안의 줄은 넘기지 않고, 여는 줄마다 문제 하나를 남긴다.
+function eachLine(text: string, problems: DocProblem[], visit: (line: string, n: number) => void): void {
+  let fenced = false
+  linesOf(text).forEach((line, i) => {
+    const n = i + 1
+    if (isFence(line)) {
+      if (!fenced) problems.push({ kind: 'code-fence', line: n, message: '코드 울타리 안의 글은 Taste·헌장으로 읽지 않는다' })
+      fenced = !fenced
+      return
+    }
+    if (!fenced) visit(line, n)
+  })
+}
+
+export function scanTaste(text: string, scope: TasteScope): { doc: TasteDoc; problems: DocProblem[] } {
   const head = TASTE_HEAD[scope]
   const problems: DocProblem[] = []
   const items: TasteItem[] = []
@@ -56,8 +93,7 @@ function scanTaste(text: string, scope: TasteScope): { doc: TasteDoc; problems: 
   let headSeen = false
   let cur: TasteItem | null = null
   let skipping = false
-  linesOf(text).forEach((line, i) => {
-    const n = i + 1
+  eachLine(text, problems, (line, n) => {
     if (line.trim() === '') return
     if (!headSeen) {
       headSeen = true
@@ -77,12 +113,11 @@ function scanTaste(text: string, scope: TasteScope): { doc: TasteDoc; problems: 
       skipping = false
       return
     }
-    const f = cur ? FIELD_LINE.exec(line) : null
+    const f = cur ? fieldOf(line) : null
     if (cur && f) {
-      const name = f[1].trim()
-      cur.fields.push({ name, text: f[2].trim() })
-      if (!TASTE_FIELDS.includes(name)) {
-        problems.push({ kind: 'unknown-field', line: n, message: `모르는 칸 「${name}」 — 칸은 원칙·레퍼런스·금지다` })
+      cur.fields.push(f)
+      if (!TASTE_FIELDS.includes(f.name)) {
+        problems.push({ kind: 'unknown-field', line: n, message: `모르는 칸 「${f.name}」 — 칸은 원칙·레퍼런스·금지다` })
       }
       return
     }
@@ -92,8 +127,8 @@ function scanTaste(text: string, scope: TasteScope): { doc: TasteDoc; problems: 
   const seen = new Set<string>()
   items.forEach((item, k) => {
     if (item.fields.length === 0) problems.push({ kind: 'empty-item', line: itemLine[k], message: `${item.id}에 칸이 하나도 없다` })
-    if (seen.has(item.id)) problems.push({ kind: 'duplicate-id', line: itemLine[k], message: `${item.id}가 겹친다` })
-    seen.add(item.id)
+    if (seen.has(idKey(item.id))) problems.push({ kind: 'duplicate-id', line: itemLine[k], message: `${item.id}가 겹친다` })
+    seen.add(idKey(item.id))
   })
   return { doc: { scope, items }, problems: byLine(problems) }
 }
@@ -123,15 +158,14 @@ function trimBlank(lines: string[]): string[] {
   return lines.slice(a, b)
 }
 
-function scanCharter(text: string): { doc: CharterDoc; problems: DocProblem[] } {
+export function scanCharter(text: string): { doc: CharterDoc; problems: DocProblem[] } {
   const problems: DocProblem[] = []
   const sections: { goal?: string[]; nonGoals?: string[] } = {}
   let goalLine: number | null = null
   let headSeen = false
   let cur: string[] | null = null
   let skipping = false
-  linesOf(text).forEach((line, i) => {
-    const n = i + 1
+  eachLine(text, problems, (line, n) => {
     if (line.trim() === '') {
       cur?.push('')
       return

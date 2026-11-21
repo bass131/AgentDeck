@@ -128,7 +128,6 @@ export const denyCards = (ev: CardEvent): RunResponse =>
   ev.type === 'question_request' ? { kind: 'question', answers: null } : { kind: 'permission', behavior: 'deny' }
 
 // 세션 한 번의 끝. text는 마지막 최상위 메시지의 전문이다(검수 세션이 마지막 줄을 읽는다).
-// limited: 거부·초과 사용·한도 오류를 받아 그 자리에서 멈췄다. limit은 세션이 받은 한도 사건의 창별 모음(없으면 null)이다.
 type SessionEnd = (
   | { kind: 'done'; text: string }
   | { kind: 'error'; text: string; error: string }

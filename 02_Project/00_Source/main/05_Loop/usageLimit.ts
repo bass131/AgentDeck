@@ -1,8 +1,4 @@
-// 사용량 한도. 노드 세션의 한도 사건을 창별로 모으고(createLimitTracker), 실행기가 그 모음으로 멈춤을 정한다(decideLimit).
-// 한도 멈춤은 판정이 아니라 실행 환경의 사건이다 — 검증 줄을 쓰지 않고 FAIL 계수에 닿지 않으며, 커서를 옮기지 않는다.
-//   - 거부·초과 사용·한도 오류: 그 노드를 멈추고 이어 갈 때 그 노드를 처음부터 다시 한다.
-//   - 경고: 지금 노드를 끝낸 뒤 다음 노드를 시작하지 않는다.
-// 이어 가기(resumeFromLimit)는 자동(풀리는 시각이 지났다)과 사람(「지금 이어 가기」) 둘이다. 둘 다 줄을 쓰지 않는다.
+// 한도 멈춤은 판정이 아니라 실행 환경의 사건이라 검증 줄·FAIL 계수·커서에 닿지 않는다
 import type { AgentEvent } from '@shared/agentEvents'
 import type { LimitAck, LimitReason, RunState, UsageLimitHalt, UsageLimitState } from './runState'
 import { scopeOf } from './runState'

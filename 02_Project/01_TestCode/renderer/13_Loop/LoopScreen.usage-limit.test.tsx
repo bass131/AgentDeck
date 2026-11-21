@@ -3,6 +3,8 @@ import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
 import { render, screen, fireEvent, cleanup, act } from '@testing-library/react'
 import type { LoopLimitView, LoopStatus } from '@shared/ipcContract'
 import { projectTag } from '@renderer/13_Loop/workModel'
+import { foldSession } from '@renderer/13_Loop/sessionLogModel'
+import type { AgentEvent } from '@shared/agentEvents'
 import { adaptFlatApi } from '../00_Helpers/windowApiMock'
 
 const CWD = 'C:\\work\\practice'
@@ -68,5 +70,14 @@ describe('사용량 한도 멈춤의 화면', () => {
 
   it('작업 모드 꼬리표는 「한도 멈춤」이다', () => {
     expect(projectTag(st())).toEqual({ label: 'M01 · 한도 멈춤', tone: 'stop' })
+  })
+
+  // 실물 세션은 허용 사건도 내므로 노드 세션 보기에 한도 사건이 섞인다
+  it('노드 세션 보기는 한도 사건을 그리지 않고 지나간다', () => {
+    const base: AgentEvent[] = [{ type: 'text', delta: '일했다' }, { type: 'done' }]
+    const mixed: AgentEvent[] = [
+      { type: 'rate_limit', status: 'allowed', rateLimitType: 'seven_day', resetsAt: 1795518000 }, base[0], { type: 'rate_limit_error' }, base[1],
+    ]
+    expect(foldSession(mixed, false)).toEqual(foldSession(base, false))
   })
 })

@@ -2,7 +2,9 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import type { AgentBackend, AgentRun, AgentRunInput } from '@main/03_Agent/AgentBackend'
+import { loopPathReason } from '@main/04_Claude/permission/loopLock'
 import { createFileDigestStore, repoKeyOf, stateDigest } from '@main/05_Loop/digestStore'
+import { limitInjectFileOf } from '@main/05_Loop/limitInjection'
 import { createLoopDriver, recheckOnResume, type LoopDriver } from '@main/05_Loop/loopDriver'
 import { createLoopNotifier } from '@main/05_Loop/loopNotifier'
 import type { MainActions } from '@main/05_Loop/mainChat'
@@ -76,12 +78,15 @@ const clock = { ms: START }
 const drivers: LoopDriver[] = []
 
 interface Rig { d: LoopDriver; starts: AgentRunInput[]; actions: () => MainActions }
-function driver(limits: AgentEvent[][] = [], over: { limitPollMs?: number; onState?: (s: LoopStatus) => void } = {}): Rig {
+function driver(limits: AgentEvent[][] = [], over: { limitPollMs?: number; onState?: (s: LoopStatus) => void; limitInjectFile?: string } = {}): Rig {
   const { backend, starts } = fakeBackend(limits)
   let actions: MainActions | null = null
   const d = createLoopDriver({
     appDataDir: appData, backend, ciRetryMs: 20, humanPollMs: 20, limitPollMs: over.limitPollMs ?? 3_600_000,
-    openExtras: { gh, template: TEMPLATE, executorEnv: repos.env, commandTimeoutMs: 60_000, clock: { now: () => new Date(clock.ms).toISOString() } },
+    openExtras: {
+      gh, template: TEMPLATE, executorEnv: repos.env, commandTimeoutMs: 60_000, clock: { now: () => new Date(clock.ms).toISOString() },
+      ...(over.limitInjectFile ? { limitInjectFile: over.limitInjectFile } : {}),
+    },
     onState: over.onState ?? ((s) => { pushed.push(s) }),
     mainTools: async (a) => { actions = a; return null },
   })
@@ -238,6 +243,24 @@ describe('자동 이어 가기 — 벽시계와 깨어남', () => {
     await sleep(300)
     expect(onDisk()).toMatchObject({ status: 'usage-limit', haltReason: '밖에서 고친 사유' })
     expect(decomposeRuns(rig)).toBe(1)
+  })
+})
+
+describe('주입 자리 — goal 5 실주행이 켜는 길', () => {
+  it('openExtras.limitInjectFile이 있으면 앱 영역 주입 파일의 거부가 실물 세션 사건처럼 한도 멈춤을 만든다. 그 파일은 노드 세션이 쓸 수 없는 곳이다', SLOW, async () => {
+    await plantApproved()
+    const file = limitInjectFileOf({ AGENTDECK_E2E_RATE_LIMIT: '1' }, appData) as string
+    expect(loopPathReason(file, { repoRoot: repos.work, appLoopDir: appData })).not.toBeNull()
+    fs.mkdirSync(path.dirname(file), { recursive: true })
+    fs.writeFileSync(file, JSON.stringify({
+      session: 'work', promptIncludes: DECOMPOSE,
+      messages: [{ type: 'rate_limit_event', rate_limit_info: { status: 'rejected', rateLimitType: 'five_hour', resetsAt: Math.floor((START + HOUR) / 1000) } }],
+    }))
+    const rig = driver([], { limitInjectFile: file })
+    await rig.d.open({ cwd: repos.work })
+    const s = await until((x) => x.phase === 'limit', '주입한 한도 멈춤')
+    expect(s.limit).toMatchObject({ reason: 'rejected', window: 'five_hour' })
+    expect(fs.existsSync(file)).toBe(false)
   })
 })
 

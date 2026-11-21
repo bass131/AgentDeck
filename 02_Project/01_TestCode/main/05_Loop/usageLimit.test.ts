@@ -161,6 +161,13 @@ describe('실행 상태의 한도 멈춤 키', () => {
     expect(resumeFromLimit(held, 'human', NOW).ok).toBe(true)
   })
 
+  it('한도 이어 가기는 한도 멈춤만 푼다 — 사람 판정 대기(needs-user)와 도는 실행은 건드리지 않는다', () => {
+    const halted = { ...running(), status: 'needs-user' as const, haltReason: '실패 셋' }
+    expect(resumeFromLimit(halted, 'auto', NOW + 365 * 24 * HOUR).ok).toBe(false)
+    expect(resumeFromLimit(halted, 'human', NOW).ok).toBe(false)
+    expect(resumeFromLimit(running(), 'human', NOW).ok).toBe(false)
+  })
+
   it('노드 하나도 끝내지 못한 채 두 번 이어지면 사람 기다림이다 — 노드가 끝나면 셈을 지운다', () => {
     const first = holdForLimit(running(), hard(NOW + HOUR), AT)
     expect(first.usageLimit?.halt?.human).toBe(false)

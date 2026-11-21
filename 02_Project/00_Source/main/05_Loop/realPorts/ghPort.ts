@@ -8,7 +8,7 @@
 // `gh pr view -R github.com/<소유자>/AgentDeck 93`이 그 PR을 읽었다. pr create -R은 PR을 실제로 만들어야 재므로 실측하지 않았다.
 import type { CommandResult, GhPort } from '../ports'
 import { runProcess } from './exec'
-import { parseCiStatus, parsePr, pickLatestPr, prNumberFromUrl, REPO_SLUG } from './ghParse'
+import { parseCiStatus, parsePr, parsePrHeads, pickLatestPr, prNumberFromUrl, REPO_SLUG } from './ghParse'
 
 export type GhExec = (args: string[], input?: string) => Promise<CommandResult>
 
@@ -81,6 +81,11 @@ export function createGhPort(exec: GhExec, opts: GhPortOptions = {}): GhPort {
       const pr = await getPr(number)
       if (!pr) throw new Error(`만든 PR ${number}을 다시 읽지 못했다`)
       return pr
+    },
+    async openPrHeads(base) {
+      const r = await exec(['pr', 'list', '--base', base, '--state', 'open', '--limit', '1000', '--json', 'number,headRefName'])
+      if (r.code !== 0) throw fail('pr list', r)
+      return parsePrHeads(json('pr list', r.stdout))
     },
     // origin/HEAD가 없을 때 openLoop가 부른다. 못 읽으면 null(열지 않는다).
     async defaultBranch() {

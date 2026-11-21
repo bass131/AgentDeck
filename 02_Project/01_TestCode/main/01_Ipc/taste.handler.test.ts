@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterAll } from 'vitest'
+import { execFileSync } from 'node:child_process'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -90,6 +91,15 @@ describe('Taste 읽기 IPC', () => {
     }
     expect(r.charter).toMatchObject({ absent: false, doc: { goal: ['목표 한 줄'], nonGoals: null }, problems: [] })
     expect(r.project).toEqual({ absent: true, path: path.join(ws, 'docs', 'agentdeck', 'Taste.md') })
+  })
+
+  it('cwd가 git 저장소의 하위 폴더면 저장소 뿌리(실행기와 같은 실제 경로)의 문서를 읽는다', async () => {
+    execFileSync('git', ['init', '--quiet', ws], { windowsHide: true })
+    const sub = path.join(ws, 'packages', 'app')
+    fs.mkdirSync(sub, { recursive: true })
+    await writeProjectCharter(ws, { goal: ['뿌리의 헌장'], nonGoals: null })
+    const r = await call({ cwd: sub })
+    expect(r.charter).toMatchObject({ absent: false, path: path.join(fs.realpathSync.native(ws), 'docs', 'agentdeck', '헌장.md'), doc: { goal: ['뿌리의 헌장'] } })
   })
 
   it('cwd가 절대 경로가 아니면 거절한다', async () => {

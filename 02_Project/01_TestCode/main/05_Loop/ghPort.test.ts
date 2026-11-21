@@ -174,6 +174,20 @@ describe('실행 층 — gh 인자와 오류', () => {
     expect(a[a.indexOf('--json') + 1].split(',')).toEqual(expect.arrayContaining(['number', 'state', 'headRefOid', 'mergeCommit', 'createdAt']))
   })
 
+  it('openPrHeads는 base로 가는 열린 PR의 번호와 머리 브랜치를 읽고, 꼴이 틀리거나 오류면 던진다', async () => {
+    const { exec, calls } = fakeExec(() => ok('[{"number":7,"headRefName":"agentdeck/charter-20261121T010000"},{"number":9,"headRefName":"feat/x"}]'))
+    expect(await createGhPort(exec).openPrHeads?.('master')).toEqual([
+      { number: 7, head: 'agentdeck/charter-20261121T010000' }, { number: 9, head: 'feat/x' },
+    ])
+    const a = calls[0].args
+    expect(a.slice(0, 2)).toEqual(['pr', 'list'])
+    expect(a[a.indexOf('--base') + 1]).toBe('master')
+    expect(a[a.indexOf('--state') + 1]).toBe('open')
+    expect(a[a.indexOf('--json') + 1]).toBe('number,headRefName')
+    await expect(createGhPort(fakeExec(() => ok('[{"number":"7"}]')).exec).openPrHeads?.('master')).rejects.toThrow()
+    await expect(createGhPort(fakeExec(() => ({ code: 1, stdout: '', stderr: 'HTTP 502' })).exec).openPrHeads?.('master')).rejects.toThrow(/502/)
+  })
+
   it('ciStatus는 머리와 검사 묶음을 한 번의 pr view로 받는다', async () => {
     const { exec, calls } = fakeExec(() => ok(fx.VIEW_93_MERGED))
     const ci = await createGhPort(exec, { requiredChecks: ['hard-gates'] }).ciStatus(93)

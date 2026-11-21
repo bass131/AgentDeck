@@ -48,6 +48,12 @@ function install(log: Promise<LoopSessionLog> | LoopSessionLog = snapshot(), sta
     loopSessionLog: vi.fn(() => Promise.resolve(log)),
     loopMainArchives: vi.fn().mockResolvedValue({ cwd: CWD, archives: [] }),
     onLoopSessionEvent: vi.fn((cb: (p: LoopSessionEventPayload) => void) => { sessionHandlers.add(cb); return () => sessionHandlers.delete(cb) }),
+    tasteRead: vi.fn().mockResolvedValue({
+      global: { absent: true, path: 'C:\\ud\\taste\\global.md' },
+      charter: { absent: true, path: `${CWD}\\docs\\agentdeck\\헌장.md` },
+      project: { absent: true, path: `${CWD}\\docs\\agentdeck\\taste.md` },
+    }),
+    loopTasteOpen: vi.fn().mockResolvedValue({ ok: true, view: mv }),
     loopListDir: vi.fn(async (req: { relDir: string }) => ({
       ok: true,
       entries: req.relDir === ''
@@ -81,10 +87,11 @@ beforeEach(() => install())
 afterEach(() => { cleanup(); installed.uninstall() })
 
 describe('작업 모드 세 영역과 탭 (M10 G4)', () => {
-  it('가운데는 「그래프」「메인 대화」 탭(처음은 메인 대화), 오른쪽은 「현황판」「파일·변경」 탭(처음은 현황판)이다', async () => {
+  it('가운데는 「그래프」「메인 대화」 탭(처음은 메인 대화), 오른쪽은 「현황판」「파일·변경」「헌장·Taste」 탭(처음은 현황판)이다', async () => {
     const r = await renderWork()
     expect(tabNames('가운데 탭')).toEqual(['그래프', '메인 대화'])
-    expect(tabNames('오른쪽 탭')).toEqual(['현황판', '파일·변경'])
+    expect(tabNames('오른쪽 탭')).toEqual(['현황판', '파일·변경', '헌장·Taste'])
+    expect(api.tasteRead).not.toHaveBeenCalled()
     expect(within(tabs('가운데 탭')).getByRole('tab', { name: '메인 대화' }).getAttribute('aria-selected')).toBe('true')
     expect(within(tabs('오른쪽 탭')).getByRole('tab', { name: '현황판' }).getAttribute('aria-selected')).toBe('true')
     expect(r.container.querySelector('.work-center .main-chat')).not.toBeNull()
@@ -103,6 +110,19 @@ describe('작업 모드 세 영역과 탭 (M10 G4)', () => {
     await click(within(tabs('가운데 탭')).getByRole('tab', { name: '메인 대화' }))
     expect(chat.hidden).toBe(false)
     expect(api.loopMainRead).toHaveBeenCalledTimes(1)
+  })
+
+  it('「헌장·Taste」 탭은 문서를 읽기만 하고, 「문답 열기」가 받아지면 가운데를 메인 대화로 돌린다', async () => {
+    await renderWork()
+    await click(within(tabs('가운데 탭')).getByRole('tab', { name: '그래프' }))
+    await click(within(tabs('오른쪽 탭')).getByRole('tab', { name: '헌장·Taste' }))
+    const panel = screen.getByRole('region', { name: '헌장·Taste' })
+    expect(api.tasteRead).toHaveBeenCalledWith({ cwd: CWD })
+    expect(api.loopTasteOpen).not.toHaveBeenCalled()
+    await click(within(panel).getByRole('button', { name: '전역 Taste 문답 열기' }))
+    expect(api.loopTasteOpen).toHaveBeenCalledWith({ cwd: CWD, scope: 'global' })
+    expect(within(tabs('가운데 탭')).getByRole('tab', { name: '메인 대화' }).getAttribute('aria-selected')).toBe('true')
+    expect(within(tabs('오른쪽 탭')).getByRole('tab', { name: '헌장·Taste' }).getAttribute('aria-selected')).toBe('true')
   })
 })
 

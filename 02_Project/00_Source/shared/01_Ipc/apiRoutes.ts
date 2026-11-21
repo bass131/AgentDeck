@@ -139,6 +139,7 @@ export const API_ROUTES = {
     onAlerts: push(IPC_CHANNELS.LOOP_ALERTS_STATE),
     onAlertOpen: push(IPC_CHANNELS.LOOP_ALERT_OPEN),
     listDir: call(IPC_CHANNELS.LOOP_LIST_DIR),
+    tasteOpen: call(IPC_CHANNELS.LOOP_TASTE_OPEN),
   },
   taste: {
     read: call(IPC_CHANNELS.TASTE_READ),

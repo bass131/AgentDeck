@@ -48,6 +48,11 @@ describe('기다리는 결정 (M10 G4)', () => {
       { kind: 'chat', title: '질문 1개 — 메인 대화에 있어', text: 'M02에서 무엇을 더할까?' },
       { kind: 'chat', title: '스펙 승인 — 메인 대화에 있어', text: '스펙 승인' },
     ])
+    const taste = {
+      kind: 'taste' as const, requestId: 'taste-1', node: 'main', goal: null, text: '전역 Taste 초안', inChat: true,
+      draft: { doc: 'global-taste' as const, items: [] }, preview: '# 전역 Taste\n',
+    }
+    expect(decisionsOf(st({ cards: [taste] }))).toEqual([{ kind: 'chat', title: '문서 확정 — 메인 대화에 있어', text: '전역 Taste 초안' }])
     expect(decisionsOf(st({ phase: 'waiting-human', milestonePr: 6 }))).toEqual([
       { kind: 'merge', title: '마일스톤 PR #6 병합 — 아래 PR 칸에서', text: '병합은 사람이 버튼으로 한다' },
     ])

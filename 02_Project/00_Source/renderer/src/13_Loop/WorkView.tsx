@@ -7,6 +7,7 @@ import { NodeSessionView, labelOf } from './NodeSessionView'
 import { FilesPanel } from './FilesPanel'
 import { GraphCanvas } from './GraphCanvas'
 import { NodeSettings } from './NodeSettings'
+import { TastePanel } from './TastePanel'
 import { errText, sameCwd } from './loopModel'
 import { useSessionLog } from './useSessionLog'
 import { useWorkStore, type CenterTab } from './workStore'
@@ -22,6 +23,7 @@ const NodeSessionPane = memo(NodeSessionView)
 const FilesPane = memo(FilesPanel)
 const GraphPane = memo(GraphCanvas)
 const NodeSettingsPane = memo(NodeSettings)
+const TastePane = memo(TastePanel)
 const store = useWorkStore.getState
 const openMain = (): void => store().openTab('main')
 const openSession = (key: string): void => store().openTab(`${SESSION}${key}`)
@@ -187,6 +189,7 @@ export function WorkView(): JSX.Element {
           {graphOpen && <TabButton label="노드 설정" selected={right === 'node'} onSelect={() => store().setRight('node')} />}
           <TabButton label="현황판" selected={right === 'board'} onSelect={() => store().setRight('board')} />
           <TabButton label="파일·변경" selected={right === 'files'} onSelect={() => store().setRight('files')} />
+          <TabButton label="헌장·Taste" selected={right === 'taste'} onSelect={() => store().setRight('taste')} />
         </div>
         {graphOpen && right === 'node' && (
           <div className="work-panel" data-tab-panel="node">
@@ -205,6 +208,11 @@ export function WorkView(): JSX.Element {
         {right === 'files' && (
           <div className="work-panel" data-tab-panel="files">
             <FilesPane cwd={cwd} main={sessions.get('main')} />
+          </div>
+        )}
+        {right === 'taste' && (
+          <div className="work-panel" data-tab-panel="taste">
+            <TastePane cwd={cwd} onOpened={openMain} />
           </div>
         )}
       </aside>

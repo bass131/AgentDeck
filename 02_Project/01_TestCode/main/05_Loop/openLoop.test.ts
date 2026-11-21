@@ -423,6 +423,13 @@ describe('openLoop — 기준 브랜치·설정 받기·검수 포트 (M09 G4)',
     expect(r.loop.base).toBe('main')
   })
 
+  it('실행기와 같은 git·gh 포트를 내보낸다 — 실행기 밖의 확정 쓰기가 같은 설정 대조를 지난다', async () => {
+    const loop = await open()
+    expect(loop.gh).toBe(gh)
+    expect(await loop.git.currentBranch?.()).toBe('master')
+    expect(await loop.git.headSha('master')).toBe(repos.git(['rev-parse', 'master']))
+  })
+
   it('지난 스냅숏과 설정이 다르면 바뀐 키를 구조로 돌려주고, 그 목록을 받으면 연다', async () => {
     await close(await open())
     repos.git(['config', 'user.name', 'Someone Else'])

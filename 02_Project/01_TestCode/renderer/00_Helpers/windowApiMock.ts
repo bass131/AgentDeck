@@ -114,6 +114,7 @@ export const FLAT_ROUTES = {
   onLoopAlerts: { group: 'loop', action: 'onAlerts' },
   onLoopAlertOpen: { group: 'loop', action: 'onAlertOpen' },
   loopListDir: { group: 'loop', action: 'listDir' },
+  loopTasteOpen: { group: 'loop', action: 'tasteOpen' },
 
   tasteRead: { group: 'taste', action: 'read' },
 } as const satisfies Record<string, FlatRoute>

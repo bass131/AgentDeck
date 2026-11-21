@@ -10,7 +10,7 @@ const WORK_PROJECTS_PREF = 'work.projects'
 
 export type CenterTab = 'graph' | 'main' | `session:${string}` | `archive:${string}`
 // node(「노드 설정」)는 그래프 탭이 열려 있을 때만 있다 — 가운데가 그래프를 떠나면 현황판으로 돌아간다
-type RightTab = 'node' | 'board' | 'files'
+type RightTab = 'node' | 'board' | 'files' | 'taste'
 
 interface WorkStore {
   hydrated: boolean

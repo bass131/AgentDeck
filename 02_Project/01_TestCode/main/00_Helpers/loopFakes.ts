@@ -147,6 +147,9 @@ export class FakeGit implements GitPort {
     if (!this.local.has(name)) throw new Error(`없는 브랜치 ${name}`)
     this.current = name
   }
+  // null이면 분리된 HEAD를 흉내 낸다
+  detached = false
+  async currentBranch(): Promise<string | null> { return this.detached ? null : this.current }
   async headSha(ref: string): Promise<string | null> { return last(this.local.get(ref)) }
   async hasChanges(): Promise<boolean> { return this.dirty }
   async commitAll(message: string): Promise<string> {

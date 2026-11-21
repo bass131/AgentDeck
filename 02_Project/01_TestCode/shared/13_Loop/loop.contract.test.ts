@@ -25,7 +25,7 @@ describe('loop IPC 묶음 (M09 G4)', () => {
     expect(Object.values(LOOP_CHANNELS).sort()).toEqual([
       'loop.alertOpen', 'loop.alerts', 'loop.alertsState',
       'loop.answerCard', 'loop.cancelSession', 'loop.close', 'loop.decide', 'loop.graph', 'loop.listDir', 'loop.lowerFlag', 'loop.mainArchives', 'loop.mainNew', 'loop.mainRead', 'loop.mainSend', 'loop.mainState',
-      'loop.open', 'loop.releaseLatch', 'loop.sessionEvent', 'loop.sessionLog', 'loop.start', 'loop.state', 'loop.status',
+      'loop.open', 'loop.releaseLatch', 'loop.sessionEvent', 'loop.sessionLog', 'loop.start', 'loop.state', 'loop.status', 'loop.tasteOpen',
     ])
     for (const v of Object.values(LOOP_CHANNELS)) expect(Object.values(IPC_CHANNELS)).toContain(v)
     expect(LOOP_CHANNELS.LOOP_STATE).toBe('loop.state')
@@ -55,7 +55,22 @@ describe('loop IPC 묶음 (M09 G4)', () => {
       onAlerts: { kind: 'push', channel: 'loop.alertsState' },
       onAlertOpen: { kind: 'push', channel: 'loop.alertOpen' },
       listDir: { kind: 'call', channel: 'loop.listDir' },
+      tasteOpen: { kind: 'call', channel: 'loop.tasteOpen' },
     })
+  })
+
+  it('문답 열기는 cwd와 범위만 싣고 메인 대화 응답을 받는다. 문서 초안 카드의 답은 확정과 이유 있는 반려다', () => {
+    const req: ReqOf<'loop.tasteOpen'> = { cwd: 'C:/w', scope: 'project' }
+    const res: ResOf<'loop.tasteOpen'> = { ok: true, view: { cwd: 'C:/w', root: null, chapter: '', sessionId: null, items: [], cards: [], busy: false, waitingUser: false, brainstorming: false, paused: false, queued: 0 } }
+    expect(Object.keys(req).sort()).toEqual(['cwd', 'scope'])
+    expect(res.ok).toBe(true)
+    const card: LoopCard = {
+      kind: 'taste', requestId: 'taste-1', node: 'main', goal: null, text: '프로젝트 헌장 초안',
+      draft: { doc: 'charter', charter: { goal: ['끝까지 맡는다.'], nonGoals: null } }, preview: '# 프로젝트 헌장\n',
+    }
+    const answers: ReqOf<'loop.answerCard'>['response'][] = [{ kind: 'taste', decision: 'confirm' }, { kind: 'taste', decision: 'reject', reason: '목표가 흐리다' }]
+    expect(card.kind).toBe('taste')
+    expect(answers).toHaveLength(2)
   })
 
   it('[M11-G4 M10-16] 작업 폴더 목록은 요청 하나를 받는 invoke이고, 요청은 cwd와 상대 경로만 싣는다', () => {

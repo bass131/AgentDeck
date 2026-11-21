@@ -15,6 +15,7 @@ import type {
   LoopAlert, LoopAlertList, LoopAlertOpen, LoopCancelTarget, LoopListDirResponse, LoopMainResponse, LoopSessionEventPayload, LoopSessionLog, MainChatArchives, MainChatView,
 } from '@shared/13_Loop/loop'
 import type { LoopGraphResponse } from '@shared/13_Loop/graph'
+import type { TasteDialogScope } from '@shared/14_Taste/taste'
 import { handle } from '../handle'
 
 const MAIN_TEXT_MAX = 20_000
@@ -28,6 +29,7 @@ export interface LoopDriverApi {
   mainArchives(cwd: string): Promise<MainChatArchives>
   graph(cwd: string): LoopGraphResponse
   listDir(cwd: string, relDir: string): Promise<LoopListDirResponse>
+  tasteOpen(cwd: string, scope: TasteDialogScope): Promise<LoopMainResponse>
   open(req: LoopOpenRequest): Promise<LoopStatus>
   start(cwd: string, milestoneId: string): Promise<LoopStatus>
   status(cwd: string): LoopStatus
@@ -42,6 +44,7 @@ interface LoopHandlerDeps { driver: LoopDriverApi; alerts?: { list(): LoopAlert[
 
 const SHA256 = /^[0-9a-f]{64}$/
 const EVIDENCE_MAX = 2000
+const REJECT_REASON_MAX = 500
 
 function obj(req: unknown, ch: string): Record<string, unknown> {
   if (!req || typeof req !== 'object') throw new Error(`${ch}: 요청이 객체가 아니다`)
@@ -69,6 +72,14 @@ function cardResponseOf(v: unknown): LoopCardResponse | null {
     if (a === null) return { kind: 'question', answers: null }
     if (Array.isArray(a) && a.every((row) => Array.isArray(row) && row.every((s) => typeof s === 'string'))) {
       return { kind: 'question', answers: a as string[][] }
+    }
+  }
+  // 문서 초안 카드 — 확정은 구조를 받지 않는다(쓰는 것은 main이 쥔 초안이다). 반려는 이유 한 줄
+  if (r['kind'] === 'taste') {
+    if (r['decision'] === 'confirm') return { kind: 'taste', decision: 'confirm' }
+    const reason = r['reason']
+    if (r['decision'] === 'reject' && typeof reason === 'string' && reason.trim() !== '' && reason.length <= REJECT_REASON_MAX && !/[\r\n]/.test(reason)) {
+      return { kind: 'taste', decision: 'reject', reason }
     }
   }
   return null
@@ -166,6 +177,15 @@ export function registerLoopHandlers(deps: LoopHandlerDeps): void {
     const relDir = r['relDir']
     if (typeof relDir !== 'string' || relDir.length > 4096) throw new Error('loop.listDir: relDir는 상대 경로 글자다')
     return driver.listDir(cwd, relDir)
+  })
+
+  // 여는 턴의 글은 main이 만든다 — 화면은 범위만 고른다
+  handle(IPC_CHANNELS.LOOP_TASTE_OPEN, async (_e, req) => {
+    const r = obj(req, 'loop.tasteOpen')
+    const cwd = cwdOf(r, 'loop.tasteOpen')
+    const scope = r['scope']
+    if (scope !== 'global' && scope !== 'project') throw new Error('loop.tasteOpen: scope는 global·project 중 하나다')
+    return driver.tasteOpen(cwd, scope)
   })
 }
 

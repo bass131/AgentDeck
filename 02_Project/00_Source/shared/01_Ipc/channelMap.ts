@@ -113,6 +113,7 @@ import type {
   LoopDecideResponse,
   LoopMainResponse,
   LoopMainSendRequest,
+  LoopTasteOpenRequest,
   LoopOkResponse,
   LoopOpenRequest,
   LoopReleaseLatchRequest,
@@ -234,6 +235,7 @@ interface IpcInvokeMap {
   'loop.graph': { req: LoopCwdRequest; res: LoopGraphResponse }
   'loop.alerts': { req: void; res: LoopAlertList }
   'loop.listDir': { req: LoopListDirRequest; res: LoopListDirResponse }
+  'loop.tasteOpen': { req: LoopTasteOpenRequest; res: LoopMainResponse }
 
   'taste.read': { req: TasteReadRequest; res: TasteDocsRead }
 }

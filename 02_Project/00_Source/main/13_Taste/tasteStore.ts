@@ -16,7 +16,7 @@ import {
   type TasteItem,
   type TasteScope,
 } from '@shared/14_Taste/tasteDoc'
-import type { DocRead, TasteDocsRead } from '@shared/14_Taste/taste'
+import type { DocRead, TasteDocsRead, TasteDraft } from '@shared/14_Taste/taste'
 
 const GLOBAL_REL = 'taste/global-taste.md'
 const CHARTER_REL = 'docs/agentdeck/헌장.md'
@@ -94,35 +94,88 @@ function checkRoundTrip<T>(text: string, scan: Scan<T>, expected: T): void {
   if (!isDeepStrictEqual(back.doc, expected)) throw new TasteWriteError('bad-input', '다시 읽은 구조가 쓰려는 구조와 다르다')
 }
 
-async function writeDoc<T>(root: string, rel: string, text: string, scan: Scan<T>): Promise<void> {
+async function checkExisting<T>(root: string, rel: string, scan: Scan<T>): Promise<void> {
   const current = await readRaw(root, rel)
   if (current !== null && current.trim() !== '') {
     const { problems } = scan(current)
     if (problems.length > 0) throw new TasteWriteError('existing-problems', `${rel}에 문제가 있어 덮어쓰지 않는다`, problems)
   }
-  await createFsPort(root).write(rel, text)
 }
 
-async function writeTaste(root: string, rel: string, scope: TasteScope, items: TasteItem[]): Promise<void> {
+function tasteText(scope: TasteScope, items: TasteItem[]): string {
   checkTasteInput(items)
   const expected = { scope, items: items.map((i) => ({ id: i.id, title: i.title, fields: i.fields.map((f) => ({ name: f.name, text: f.text })) })) }
   const text = serializeTaste(expected)
   checkRoundTrip(text, tasteScan(scope), expected)
-  await writeDoc(root, rel, text, tasteScan(scope))
+  return text
 }
 
-export const writeGlobalTaste = (userDataDir: string, items: TasteItem[]): Promise<void> =>
-  writeTaste(userDataDir, GLOBAL_REL, 'global', items)
-
-export const writeProjectTaste = (root: string, items: TasteItem[]): Promise<void> =>
-  writeTaste(root, PROJECT_TASTE_REL, 'project', items)
-
-export async function writeProjectCharter(root: string, doc: CharterDoc): Promise<void> {
+function charterText(doc: CharterDoc): string {
   const expected: CharterDoc = { goal: [...doc.goal], nonGoals: doc.nonGoals === null ? null : [...doc.nonGoals] }
   if ([...expected.goal, ...(expected.nonGoals ?? [])].some(hasBreak)) throw new TasteWriteError('bad-input', '헌장: 줄바꿈이 든 줄은 쓰지 않는다')
   const text = serializeCharter(expected)
   checkRoundTrip(text, scanCharter, expected)
-  await writeDoc(root, CHARTER_REL, text, scanCharter)
+  return text
+}
+
+interface Plan { root: string; rel: string; text: string; scan: Scan<unknown> }
+
+async function writePlan(p: Plan): Promise<void> {
+  await checkExisting(p.root, p.rel, p.scan)
+  await createFsPort(p.root).write(p.rel, p.text)
+}
+
+export const writeGlobalTaste = async (userDataDir: string, items: TasteItem[]): Promise<void> =>
+  writePlan({ root: userDataDir, rel: GLOBAL_REL, text: tasteText('global', items), scan: tasteScan('global') })
+
+export const writeProjectTaste = async (root: string, items: TasteItem[]): Promise<void> =>
+  writePlan({ root, rel: PROJECT_TASTE_REL, text: tasteText('project', items), scan: tasteScan('project') })
+
+export const writeProjectCharter = async (root: string, doc: CharterDoc): Promise<void> =>
+  writePlan({ root, rel: CHARTER_REL, text: charterText(doc), scan: scanCharter })
+
+export interface TasteDirs { userDataDir: string | null; root: string }
+
+// 루프 세션이 싣지 않을 크기의 문서는 쓰지 않는다
+function planOf(draft: TasteDraft, dirs: TasteDirs): Plan {
+  const p = planOfDoc(draft, dirs)
+  const size = Buffer.byteLength(p.text, 'utf8')
+  if (size > LOOP_DOC_MAX_BYTES) {
+    throw new TasteWriteError('bad-input', `쓸 글이 ${size}바이트로 루프 세션이 싣는 상한 ${LOOP_DOC_MAX_BYTES}바이트를 넘는다 — 항목을 줄인다`)
+  }
+  return p
+}
+
+function planOfDoc(draft: TasteDraft, dirs: TasteDirs): Plan {
+  switch (draft.doc) {
+    case 'global-taste':
+      if (dirs.userDataDir === null) throw new Error('전역 Taste의 거처(앱 데이터 폴더)를 모른다')
+      return { root: dirs.userDataDir, rel: GLOBAL_REL, text: tasteText('global', draft.items), scan: tasteScan('global') }
+    case 'project-taste':
+      return { root: dirs.root, rel: PROJECT_TASTE_REL, text: tasteText('project', draft.items), scan: tasteScan('project') }
+    case 'charter':
+      return { root: dirs.root, rel: CHARTER_REL, text: charterText(draft.charter), scan: scanCharter }
+  }
+}
+
+// 프로젝트 문서의 저장소 상대 경로와 쓸 글(뿌리를 읽지 않는다 — 확정 브랜치에서 쓰기 전에 커밋할 경로를 정한다)
+export function projectDraftFile(draft: TasteDraft): { rel: string; text: string } {
+  if (draft.doc === 'global-taste') throw new Error('전역 Taste는 프로젝트 문서가 아니다')
+  const p = planOf(draft, { userDataDir: null, root: '' })
+  return { rel: p.rel, text: p.text }
+}
+
+// 쓰기와 같은 검사를 돌리되 쓰지 않는다. 통과하면 쓸 글을 돌려준다.
+export async function checkTasteDraft(draft: TasteDraft, dirs: TasteDirs): Promise<string> {
+  const p = planOf(draft, dirs)
+  await checkExisting(p.root, p.rel, p.scan)
+  return p.text
+}
+
+export async function writeTasteDraft(draft: TasteDraft, dirs: TasteDirs): Promise<string> {
+  const p = planOf(draft, dirs)
+  await writePlan(p)
+  return path.join(p.root, ...p.rel.split('/'))
 }
 
 type LoopDocRaw = string | null | { tooLarge: number }

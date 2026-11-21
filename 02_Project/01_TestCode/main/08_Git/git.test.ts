@@ -76,6 +76,17 @@ describe('gitRoot', () => {
     }
   })
 
+  it('저장소가 아니던 폴더에서 git init을 하면 force 없이도 다음 읽기에 뿌리가 잡힌다', async () => {
+    const later = mkdtempSync(join(tmpdir(), 'agentdeck-lateinit-'))
+    try {
+      expect(await gitRoot(later)).toBeNull()
+      sh('git', ['init', '--quiet'], later)
+      expect(await gitRoot(later)).not.toBeNull()
+    } finally {
+      rmSync(later, { recursive: true, force: true })
+    }
+  })
+
   it('force=true면 캐시를 무시하고 재탐색한다', async () => {
     const r1 = await gitRoot(repoDir, false)
     const r2 = await gitRoot(repoDir, true)

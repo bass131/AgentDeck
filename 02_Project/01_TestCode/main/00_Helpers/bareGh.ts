@@ -44,6 +44,10 @@ export class BareGh implements GhPort {
     this.prs.push(pr)
     return this.view(pr)
   }
+  async openPrHeads(base: string): Promise<{ number: number; head: string }[]> {
+    this.calls.push(`openPrHeads ${base}`)
+    return this.prs.filter((p) => p.base === base && this.view(p).state === 'open').map((p) => ({ number: p.number, head: p.head }))
+  }
   // 앞으로 몇 번의 CI 조회를 「도는 중」으로 돌려줄지(구동자의 CI 재시도)
   ciPending = 0
   ciPolls = 0

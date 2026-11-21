@@ -2,6 +2,7 @@
 import type { AgentEvent } from '../agentEvents'
 import type { AgentQuestion } from '../03_Agent/events/interaction'
 import type { FileTreeNode } from '../07_Workspace/workspace'
+import type { TasteCut, TasteDialogScope, TasteDraft, TastePrNote } from '../14_Taste/taste'
 
 export const LOOP_CHANNELS = {
   LOOP_OPEN: 'loop.open',
@@ -28,6 +29,7 @@ export const LOOP_CHANNELS = {
   LOOP_ALERT_OPEN: 'loop.alertOpen',
   // 열린 루프의 작업 폴더를 읽는다(채팅 모드의 폴더와 따로)
   LOOP_LIST_DIR: 'loop.listDir',
+  LOOP_TASTE_OPEN: 'loop.tasteOpen',
 } as const
 
 // ok: 그 작업 폴더의 실행기가 열려 있고 경로가 작업 저장소 뿌리 아래다. 아니면 목록 없이 거짓이다(빈 폴더와 다르다)
@@ -57,9 +59,12 @@ export type LoopPhase =
 // inChat: LoopStatus.cards에도 실리지만(현황판이 보인다) 답하는 곳은 메인 대화 화면 한 곳뿐이다.
 interface LoopCardBase { requestId: string; node: string; goal: string | null; text: string; restored?: boolean; inChat?: boolean }
 // node는 브레인스토밍 노드, 브레인스토밍 밖의 턴이면 'main'이다. 세션이 끝나면 카드는 상태에서 빠진다.
+// taste: 메인이 제안하고 앱이 검사를 통과시킨 문서 초안. 세션과 무관하게 남고(재기동 뒤에도), 사람의 확정·반려로만 빠진다.
+//   preview는 확정하면 쓸 원문, confirming은 확정 쓰기가 도는 중, refused는 지난 확정이 쓰지 않은 이유다.
 export type LoopCard =
   | (LoopCardBase & { kind: 'question'; questions: AgentQuestion[] })
   | (LoopCardBase & { kind: 'permission'; toolName: string; summary: string })
+  | (LoopCardBase & { kind: 'taste'; draft: TasteDraft; preview: string; confirming?: boolean; refused?: string; cut?: TasteCut })
 
 // 판정(decide)은 이 sha256을 함께 보내야 받는다(파일이 바뀌었으면 거부)
 export interface LoopApproval { node: string; title: string; spec: string | null; sha256: string | null }
@@ -142,8 +147,12 @@ export interface MainChatView {
   paused: boolean
   // 돌고 있는 턴 제외
   queued: number
+  // 프로젝트 문서 확정이 마지막으로 연 PR(열려 있을 수 있다)
+  tastePr?: TastePrNote
 }
 export interface LoopMainSendRequest { cwd: string; text: string; proxy?: boolean }
+// 「문답 열기」 — 여는 턴의 글은 main이 지금 문서 원문과 꼴 규칙으로 만든다(화면은 범위만 보낸다)
+export interface LoopTasteOpenRequest { cwd: string; scope: TasteDialogScope }
 export interface LoopMainResponse { ok: boolean; reason?: string; view: MainChatView }
 // key는 앱이 정한 세션 이름(메인 대화는 'main'), sessionId는 SDK가 알린 세션 id(아직 모르면 null)다.
 export interface LoopSessionTag { key: string; kind: 'main' | 'work' | 'review'; node: string | null; goal: string | null; sessionId: string | null }
@@ -163,7 +172,11 @@ export interface LoopCancelRequest { cwd: string; target: LoopCancelTarget }
 // expectNode: 화면이 본 노드. 주면 지금 노드와 다를 때 거부한다
 export interface LoopDecideRequest { cwd: string; verdict: 'pass' | 'fail'; evidence: string; specSha256?: string; expectNode?: string }
 export interface LoopDecideResponse { ok: boolean; reason?: string; status: LoopStatus }
-export type LoopCardResponse = { kind: 'permission'; behavior: 'allow' | 'deny' } | { kind: 'question'; answers: string[][] | null }
+export type LoopCardResponse =
+  | { kind: 'permission'; behavior: 'allow' | 'deny' }
+  | { kind: 'question'; answers: string[][] | null }
+  | { kind: 'taste'; decision: 'confirm' }
+  | { kind: 'taste'; decision: 'reject'; reason: string }
 export interface LoopAnswerCardRequest { cwd: string; requestId: string; response: LoopCardResponse }
 export interface LoopOkResponse { ok: boolean }
 export interface LoopReleaseLatchRequest { cwd: string; token: string }

@@ -54,6 +54,69 @@ beforeEach(() => {
 afterEach(() => { repos.cleanup() })
 
 describe('브랜치·머리·커밋·push', () => {
+  it('체크아웃된 브랜치 이름을 읽고, 분리된 HEAD는 null이다', async () => {
+    expect(await git.currentBranch?.()).toBe('master')
+    await git.createBranch('agentdeck/charter-x', 'master')
+    await git.checkout('agentdeck/charter-x')
+    expect(await git.currentBranch?.()).toBe('agentdeck/charter-x')
+    repos.git(['checkout', '--quiet', '--detach'])
+    expect(await git.currentBranch?.()).toBeNull()
+  })
+
+  it('바뀐 경로를 untracked까지 읽고, 준 경로만 커밋하며, 준 경로만 머리 상태로 되돌린다', async () => {
+    expect(await git.changedPaths?.()).toEqual([])
+    write('docs/agentdeck/헌장.md', '# 프로젝트 헌장\n')
+    write('.env', 'SECRET=1\n')
+    write('README.md', '# 바뀜\n')
+    expect([...(await git.changedPaths?.() ?? [])].sort()).toEqual(['.env', 'README.md', 'docs/agentdeck/헌장.md'])
+    const sha = await git.commitPaths?.(['docs/agentdeck/헌장.md'], 'docs: 헌장')
+    expect(repos.git(['show', '-z', '--name-only', '--format=', sha as string]).split('\0').filter((x) => x.trim() !== '')).toEqual(['docs/agentdeck/헌장.md'])
+    expect([...(await git.changedPaths?.() ?? [])].sort()).toEqual(['.env', 'README.md'])
+    write('docs/agentdeck/헌장.md', '# 고침\n')
+    write('docs/agentdeck/Taste.md', '# 프로젝트 Taste\n')
+    repos.git(['add', '--', 'docs/agentdeck/Taste.md'])
+    await git.discardPaths?.(['docs/agentdeck/헌장.md', 'docs/agentdeck/Taste.md'])
+    expect(fs.readFileSync(path.join(repos.work, 'docs', 'agentdeck', '헌장.md'), 'utf8')).toBe('# 프로젝트 헌장\n')
+    expect(fs.existsSync(path.join(repos.work, 'docs', 'agentdeck', 'Taste.md'))).toBe(false)
+    expect([...(await git.changedPaths?.() ?? [])].sort()).toEqual(['.env', 'README.md'])
+    for (const bad of [[], ['../x.md'], ['/abs.md'], ['-n'], [':(glob)*'], ['']]) {
+      await expect(git.commitPaths?.(bad, 'x')).rejects.toThrow(/경로/)
+    }
+  })
+
+  it('무시되는 경로를 읽고, 되돌리기는 무시된 채 쓴 문서도 지운다', async () => {
+    write('.gitignore', 'docs/\n')
+    repos.git(['add', '.gitignore'])
+    repos.git(['commit', '--quiet', '-m', 'ignore docs'])
+    expect(await git.ignoredPaths?.(['docs/agentdeck/헌장.md', 'README.md'])).toEqual(['docs/agentdeck/헌장.md'])
+    expect(await git.ignoredPaths?.(['README.md'])).toEqual([])
+    expect(await git.ignoredPaths?.(['docs/agentdeck/Taste.md', 'README.md', 'docs/agentdeck/헌장.md'])).toEqual(['docs/agentdeck/Taste.md', 'docs/agentdeck/헌장.md'])
+    write('docs/agentdeck/헌장.md', '# 프로젝트 헌장\n')
+    write('docs/keep.md', '남는다\n')
+    expect(await git.changedPaths?.()).toEqual([])
+    await git.discardPaths?.(['docs/agentdeck/헌장.md'])
+    expect(fs.existsSync(path.join(repos.work, 'docs', 'agentdeck', '헌장.md'))).toBe(false)
+    expect(fs.readFileSync(path.join(repos.work, 'docs', 'keep.md'), 'utf8')).toBe('남는다\n')
+  })
+
+  it('지금 브랜치에서 무시된 채 있는 파일 가운데 다른 브랜치가 추적하는 것을 찾는다', async () => {
+    repos.git(['checkout', '--quiet', '-b', 'feat/side'])
+    write('.env', 'BASE=1\n')
+    write('cache/keep/a.txt', 'a\n')
+    repos.git(['add', '.env', 'cache/keep/a.txt'])
+    repos.git(['commit', '--quiet', '-m', 'track'])
+    repos.git(['checkout', '--quiet', 'master'])
+    write('.gitignore', '.env\ncache/\nnode_modules/\n')
+    repos.git(['add', '.gitignore'])
+    repos.git(['commit', '--quiet', '-m', 'ignore'])
+    expect(await git.ignoredTrackedIn?.('feat/side')).toEqual([])
+    write('.env', 'MINE=1\n')
+    write('node_modules/x/index.js', 'x\n')
+    expect(await git.ignoredTrackedIn?.('feat/side')).toEqual(['.env'])
+    write('cache/keep/a.txt', '내 것\n')
+    expect(await git.ignoredTrackedIn?.('feat/side')).toEqual(['.env', 'cache/keep/a.txt'])
+  })
+
   it('브랜치를 만들고 옮겨 가며, 머리와 계보를 읽는다', async () => {
     const m0 = await git.headSha('master')
     expect(m0).toMatch(/^[0-9a-f]{40}$/)

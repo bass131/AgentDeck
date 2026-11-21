@@ -73,6 +73,7 @@ export function attachWindow(win: BrowserWindow): void {
 
   _loopDriver = createLoopDriver({
     appDataDir: loopAppDir,
+    tasteDataDir: getUserDataDir(),
     backend: getBackend('claude-code'),
     // 자동 모드 허용 노드는 구동마다 다시 읽는다
     autoModeCheck: () => autoModeReasonOf(controlsForRun(getUserDataDir())),

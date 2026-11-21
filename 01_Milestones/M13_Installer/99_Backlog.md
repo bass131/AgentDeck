@@ -2,6 +2,10 @@
 
 M13 진행 중 범위 밖으로 발견한 것을 한 줄씩 남긴다. 새 줄은 위에 쌓는다.
 
+19. (M13 G3) 시작하기 안내의 Claude 로그인 판정(`engineState.ts`)은 `homedir()/.claude/.credentials.json`과 `ANTHROPIC_API_KEY`를 읽는다 — `--user-data-dir` 격리나 `AGENTDECK_E2E=1`로는 바뀌지 않아 e2e에서는 그 PC의 실제 로그인이 보인다. 미인증 화면을 e2e로 보려면 자식 프로세스의 `USERPROFILE`을 빈 임시 폴더로 줘야 한다(미실측).
+18. (M13 G3) 엔진 업데이트 확인(`engineCheckUpdate.ts`)에는 시간 제한이 없다 — 시작하기 안내는 그 완료를 기다리지 않고 뜨지만, 알림이 늦게 오면 그동안 안내가 가려졌다가 알림을 닫은 뒤 다시 보인다.
+17. (M13 G3) 「첫 마일스톤」 단계의 신호는 루프 상태(`LoopStatus`)뿐이다 — 루프를 다시 열지 않은 프로젝트는 예전에 마일스톤을 돌렸어도 `closed`로 「할 일」이고, 앞서 끝난 실행은 `not-started`와 안내 한 줄(`notice`)로만 알아본다. main이 `.agentdeck/run-state.json` 유무를 읽기 전용으로 알려 주는 신호로 바꿀 후보.
+
 16. (M13 G2 재검수) PR 카드의 gh(`prMerge.ts` `ghRunner`)는 `gh api <path>`를 `--hostname`·`-R` 없이 `process.env`로 부른다 — 사용자 환경에 `GH_HOST=acme.ghe.com`이 있으면 앱 토큰이 그 호스트로 갈 수 있다(미실측). 호출에 `--hostname github.com`을 고정할 후보.
 15. (M13 G2 검수) 앱 토큰을 무조건 우선하므로, 조직이 「OAuth App 접근 제한」을 켜 두면 개발 PC에서 앱을 연결하는 순간 그 조직 저장소의 PR 카드와 실행기 gh가 막힐 수 있다(예전에는 승인된 gh 로그인으로 돌았다). 미실측 추정 — goal 6 실측 때 본다.
 14. (M13 G2) OAuth App 클라이언트 ID를 넣는 화면이 없다 — 지금은 `ui-prefs.json`의 `githubClientId`(렌더러의 `settings.setUiPref`로도 쓸 수 있다)뿐이다. 등록(goal 6) 뒤 설치본에 기본값을 싣는 길을 첫 실행 안내(goal 3)나 릴리스 후보(goal 5)에서 정할 후보.

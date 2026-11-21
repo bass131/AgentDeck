@@ -1,6 +1,6 @@
 # M12 G1 — Taste·헌장 문서와 저장
 
-- 마일스톤: M12 (마일스톤 스펙 `01_Milestones/M12_CharterTaste/00_마일스톤-스펙.md`) · 작성: 2026-11-21 · 상태: 실행 중 · 검증 강도: 강(앱 소스 50줄 이상, 세션 설정 원천 변경)
+- 마일스톤: M12 (마일스톤 스펙 `01_Milestones/M12_CharterTaste/00_마일스톤-스펙.md`) · 작성: 2026-11-21 · 상태: 종결(goal PR 119, 로컬 병합 `e544d797`, 2026-11-21) · 검증 강도: 강(앱 소스 50줄 이상, 세션 설정 원천 변경)
 - 작업 브랜치: `feat/m12-g1-taste-store` · 기준 브랜치: `milestone/m12-charter-taste`(`6c31c299`, M11 마일스톤 PR 118 머리)
 
 ## 목표
@@ -35,7 +35,7 @@
 - [x] 4. main 저장 모듈과 읽기 IPC, 시험
 - [x] 5. 루프 세션 설정 원천과 Taste·헌장 싣기, 시험
 - [x] 6. 하드 게이트 다섯 종, `npm test`, 닫힘 표
-- [>] 7. 독립 검수와 반영, goal PR, `hard-gates`, 로컬 goal 병합
+- [x] 7. 독립 검수와 반영, goal PR, `hard-gates`, 로컬 goal 병합
 
 실행 단계 일괄 승인 대상 (스펙에서 옮김)
 
@@ -48,6 +48,7 @@ DoD
 
 검증 기록
 
+- PASS 2026-11-21T12:53:17+09:00 — goal 병합: PR 119 `hard-gates` 통과(머리 `f0af1f2a`) 뒤 정형 절차로 `milestone/m12-charter-taste`에 합쳤다(`e544d797`, 둘째 부모가 CI 머리와 같음, 원격 머리 같음). GitHub가 PR 119를 병합됨으로 닫았다.
 - PASS 2026-11-21T12:48:38+09:00 — 독립 검수(구현 문맥 없는 검수자, `10a0cc73..a281b41b`): 막는 결함 0, goal 2의 쓰기 전에 막을 것 셋과 사소 다섯. 반영(`a91d3669`·`b0ba568e`) — 쓰기는 줄바꿈·칸 이름의 쌍점·다시 읽어 구조가 달라지는 값을 `TasteWriteError`(`bad-input`)로 거절(`tasteStore.test.ts:172·184`), 문제가 있는 기존 문서는 덮어쓰지 않음(`existing-problems`, `:189`), 루프 덧붙임은 문서당 32 KiB 상한과 건너뜀 알림(`:249`), 칸 판독을 선형으로(`tasteDoc.test.ts:162`)·한 번 훑기(`:220`), URL의 쌍점 보존(`:135·146`), 코드 울타리는 문제(`:153`), 읽기·쓰기·싣기 모두 `createFsPort(root)`의 뿌리 안 확인(실제 junction 시험 `tasteStore.test.ts:143`), `ENOTDIR`은 그 문서만 없음(`:134`), `T1`·`T01` 겹침(`tasteDoc.test.ts:128`), `sdkOptions.ts:132` 주석은 코드가 하는 일만. 워커 보고 `npm test` 473 passed·6 skipped(479), Tests 9204 passed·10 skipped, 실패 0, 하드 게이트 다섯 종 통과. 메인이 taste 시험 5파일 50건 통과와 lint를 다시 돌려 확인했다.
 - PASS 2026-11-21T12:31:25+09:00 — 실앱 확인(Backlog 2의 앞당김): `a281b41b` 빌드로 `m11-g4-work-mode-live.e2e.ts`(Haiku, 연습 앱 데이터)를 돌려 5 passed. 루프 세션인 메인 대화가 `user` 원천 없이 실제 모델 턴을 끝냈다 — Read 도구 한 번 뒤 README의 답 낱말 「pelican」을 답했다(메인이 `a-main-done.png`를 눈 확인). 작업 노드도 같은 `ClaudeAgentRun` 길이라 로그인 경로가 같다. 디스플레이는 하나(`displays: 1`)라 창은 주 모니터였다.
 - PASS 2026-11-21T12:26:19+09:00 — 구현: 작업 하위 에이전트가 커밋 셋(`751a790f` 파서·저장소·읽기 IPC `taste.read`, `94328d64` 루프 세션 설정 원천과 문서 싣기, `a281b41b` 닫힘 표·Backlog). 파서 `shared/14_Taste/tasteDoc.ts`(시험 `tasteDoc.test.ts` — 정상 :45·:128, 왕복 :60·:135, 칸 없음 :76, 겹치는 ID :85, 모르는 칸 :93, 빈 목표 :143, 던지지 않음 :119·:160). 저장소 `main/13_Taste/tasteStore.ts`(시험 `tasteStore.test.ts` — 두 거처 :55, 없음 :61, 원자적 쓰기 :68·:80, 빈 파일은 없음이 아님 :95). 세션 옵션 `sdkOptions.taste.test.ts:25·32·43`, 실행 단계 `claudeAgentRun.taste.test.ts:46·58·64`. 하드 게이트 다섯 종 통과, `npm test` Test Files 473 passed·6 skipped(479), Tests 9190 passed·10 skipped, 실패 0(기준선보다 파일 5·시험 36 늘었다). M10 닫힘 표 11행 `고침(M12 goal 1)`. 워커 보고 기준이며 메인이 `git diff --name-only`로 범위 밖 변경 0을 확인했다.

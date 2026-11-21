@@ -25,7 +25,7 @@ import { createCredentialFreeEnv, type CredentialFreeEnv, type GitIdentity } fro
 import { createConfigGuard, executorGitEnv, promptlessGitEnv } from './configGuard'
 import { createFileDigestStore, repoKeyOf } from './digestStore'
 import { createLoopRunner, type LoopRunner } from './loopRunner'
-import type { Clock, DigestStore, GhPort, ReviewPort, SessionPort, WorkRequest, WorkResult } from './ports'
+import type { Clock, DigestStore, GhPort, GitPort, ReviewPort, SessionPort, WorkRequest, WorkResult } from './ports'
 import { createCommandPort } from './realPorts/commandPort'
 import { runProcess } from './realPorts/exec'
 import { createFsPort } from './realPorts/fsPort'
@@ -91,6 +91,9 @@ export interface OpenedLoop {
   childEnv: CredentialFreeEnv
   // 실물 gh가 모든 호출에 -R로 고정한 저장소(HOST/OWNER/REPO). 부르는 쪽이 gh 포트를 주면 null
   ghRepo: string | null
+  // 실행기와 같은 git·gh 포트(설정 대조·훅 끄기 포함). 실행기 밖에서 쓰는 쪽은 실행기가 돌지 않을 때만 쓴다
+  git: GitPort
+  gh: GhPort
   // 열린 뒤 기준선과 달라진 설정 키(래치 카드가 보인다)
   configChanges(): string[]
   // 돌고 있는 작업·검수 세션을 취소한다(화면의 취소). 멈춘 세션이 있었으면 true
@@ -196,6 +199,7 @@ export async function openLoop(opts: OpenLoopOptions): Promise<OpenLoopResult> {
       ...(opts.onSessionEvent ? { onEvent: opts.onSessionEvent } : {}),
     })
     const digest = createFileDigestStore(path.join(opts.appDataDir, 'digests'))
+    const git = createGitPort({ cwd: root, env: executorEnv, hooksPath: hooksDir, guard })
     const runner = createLoopRunner({
       template: template.template,
       hash: template.hash,
@@ -205,7 +209,7 @@ export async function openLoop(opts: OpenLoopOptions): Promise<OpenLoopResult> {
       ciWaitLimit: opts.ciWaitLimit,
       ports: {
         command: createCommandPort({ env: child.env, timeoutMs: opts.commandTimeoutMs ?? DEFAULT_COMMAND_TIMEOUT_MS }),
-        git: createGitPort({ cwd: root, env: executorEnv, hooksPath: hooksDir, guard }),
+        git,
         gh,
         fs: createFsPort(root),
         session,
@@ -227,6 +231,8 @@ export async function openLoop(opts: OpenLoopOptions): Promise<OpenLoopResult> {
         base,
         childEnv: env,
         ghRepo,
+        git,
+        gh,
         configChanges: () => guard.changes(),
         cancelSession: () => {
           const a = session.cancel?.() ?? false

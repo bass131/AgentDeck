@@ -52,7 +52,7 @@ describe('runCore — buildAgentRunArgs resumeSessionId (S3)', () => {
     expect(args.resumeSessionId).toBe('sess-panel-1')
   })
 
-  // M06 G4: 마지막으로 잰 컨텍스트 창을 실어 main이 기록 재적재 예산을 정하게 한다.
+  // 마지막으로 잰 컨텍스트 창을 실어 main이 기록 재적재 예산을 정하게 한다.
   it('S3c: opts.contextWindow 운반, 미전달이면 키 없음', async () => {
     const { buildAgentRunArgs } = await import('@renderer/03_Agent/state/runCore')
     const withWindow = buildAgentRunArgs([{ role: 'user', content: 'hi' }], { contextWindow: 200_000 })

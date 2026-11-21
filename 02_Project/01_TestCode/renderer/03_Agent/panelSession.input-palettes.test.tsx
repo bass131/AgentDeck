@@ -1,5 +1,4 @@
 // @vitest-environment jsdom
-// M11 G6 — 패널 입력창 사례(1~12)는 그리는 곳이 없던 PanelView와 함께 지웠다(M10 Backlog 3).
 // 같은 입력창 본체(ComposerView)의 팔레트·히스토리는 아래 단일 Composer 사례와 Composer.slash-ipc·useInputHistory 시험이 본다.
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
 import { render, fireEvent, act, cleanup } from '@testing-library/react'

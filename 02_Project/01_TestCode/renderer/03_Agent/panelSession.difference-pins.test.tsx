@@ -1,4 +1,3 @@
-// 작업 ID: g9c · 옛 이름 g9c-difference-pins.test.tsx
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, act, cleanup, fireEvent } from '@testing-library/react'
@@ -6,8 +5,7 @@ import type { JSX } from 'react'
 import { useAppStore } from '@renderer/00_App/appStore'
 import { adaptFlatApi } from '../00_Helpers/windowApiMock'
 
-// G9c — 차이 목록에서 범위 밖으로 둔 항목(E6·P3·B2)의 지금 동작을 고정한다. G9a·G9b·G9c 모두 「새 기능 금지」로
-// 이 동작을 바꾸지 않았다(결정 대장 [AI] 성향 25·37). 바꾸려면 이 테스트를 먼저 고친다.
+// 의도적으로 두는 지금 동작을 고정한다. 바꾸려면 이 테스트를 먼저 고친다.
 
 const mockApi = {
   windowMinimize: vi.fn().mockResolvedValue(undefined),
@@ -70,8 +68,6 @@ describe('E6 현 동작 — 단일 대화는 systemPrompt를 싣지 않는다', 
     const before = useAppStore.getState()
 
     // 단일 배치의 채팅 메뉴 → 「프롬프트 설정」 → 값 입력 → 저장(지금 Sidebar의 onSave는 아무것도 하지 않는다).
-    // 반대 동작 확인(검수 경미 2, 2026-11-14): onSave가 값을 store에 두고 sendMessage가 그 값을 sysPrompt로 싣게
-    // 임시로 바꾸자 이 테스트가 실패했고(store 키 변화 단언), 원복 뒤 통과했다.
     fireEvent.click(view.container.querySelector('[aria-label="채팅 메뉴"]') as HTMLElement)
     const promptItem = Array.from(view.container.querySelectorAll('.ctx-item'))
       .find((b) => b.textContent?.includes('프롬프트 설정')) as HTMLElement | undefined
@@ -169,7 +165,7 @@ describe('L3 — @멘션 팔레트의 마우스 선택은 단일 입력창과 �
   }, 15000)
 })
 
-// M10 G1 — 멀티 배치를 지웠다. 대화가 화면에 없는 배치는 이제 「작업」 모드(루프 화면)다.
+// 대화가 화면에 없는 배치는 「작업」 모드(루프 화면)다.
 describe('B2 현 동작 — Esc 중단은 채팅 배치에서만 한다(작업 배치에서는 무시)', () => {
   async function renderShell(mode: 'single' | 'work') {
     const abortRun = vi.fn(async () => {})

@@ -1,4 +1,3 @@
-// 작업 ID: g9c · 옛 이름 g9c-session-registry.test.ts
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import type { AgentEventPayload } from '@shared/ipcContract'
@@ -6,7 +5,6 @@ import { sessionRegistry } from '@renderer/03_Agent/state/sessionRegistry'
 import { convKey, panelKey } from '@renderer/03_Agent/state/sessionKeys'
 import { adaptFlatApi } from '../00_Helpers/windowApiMock'
 
-// G9c — 세션 레지스트리 한 벌: 키별 상태 Map, runId 라우팅, 루프 표시, stale 타이머, 이벤트 구독.
 
 const entry = (isRunning: boolean, currentRunId: string | null = null) => ({ isRunning, currentRunId })
 
@@ -136,7 +134,6 @@ describe('G9c 레지스트리 — 대화 어댑터(loopDisplay·runtime)도 같�
     expect(sessionRegistry.lookup('rp')).toBe(panelKey('s', 0))
   })
 
-  // M11 G2 — M05 Backlog 53. 호출부가 없던 isRunning·active 포트를 지웠다.
   it('레지스트리에 죽은 실행 판정 isRunning과 active 포트가 없다', async () => {
     expect('isRunning' in sessionRegistry).toBe(false)
     const fs = await import('node:fs')

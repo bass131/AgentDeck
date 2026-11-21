@@ -1,4 +1,3 @@
-// 작업 ID: gap1-p14 · 옛 이름 gap1-p14-splitview-container.test.tsx
 // @vitest-environment jsdom
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, screen, cleanup, act, fireEvent } from '@testing-library/react'

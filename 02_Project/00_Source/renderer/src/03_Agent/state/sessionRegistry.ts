@@ -7,11 +7,8 @@ import type { RunCoreState } from './runReducer'
 import { keyKind } from './sessionKeys'
 import type { SessionKind } from './sessionKeys'
 
-// 세션 레지스트리 — 키(`conv:<id|draft>`, `multi:<id>:slot:<n>`)별 run 상태의 거처 하나(G9c).
-// 키별 상태 Map, runId → 키 라우팅, 루프 표시 레지스트리, stale 타이머, `onAgentEvent` 구독을 한 벌로 둔다.
-// React에 기대지 않는 모듈 store다. 종류(대화·패널)마다 다른 정책은 어댑터가 defineKind 포트로 넘기고,
-// 이 파일 안에는 종류 분기가 없다. 전경 대화(활성 키)의 상태는 Map이 아니라 그 종류의 활성 저장 칸(zustand
-// 평탄화 필드)에 산다 — 안 A, G9c 결정 대장 [AI].
+// 종류(대화·패널)마다 다른 정책은 어댑터가 defineKind 포트로 넘기고, 이 파일 안에는 종류 분기가 없다.
+// 전경 대화(활성 키)의 상태는 Map이 아니라 그 종류의 활성 저장 칸(zustand 평탄화 필드)에 산다.
 
 interface RegistryEntry {
   isRunning: boolean
@@ -37,7 +34,7 @@ const lives = new Map<string, number>()
 const policies = new Map<SessionKind, KindPolicy>()
 const holders: Record<SessionKind, number> = { conv: 0, panel: 0 }
 
-// 실행 중인 Map 항목의 키 집합 — 바뀔 때만 새 Set으로 갈고 구독자에게 알린다(B1 Sidebar가 읽는다).
+// 바뀔 때만 새 Set으로 갈고 구독자에게 알린다(Sidebar가 읽는다).
 let runningKeys: ReadonlySet<string> = new Set()
 
 function policyOf(key: string): KindPolicy | undefined {
@@ -126,7 +123,7 @@ export const sessionRegistry = {
     return () => { changeListeners.delete(listener) }
   },
 
-  // ── 키 생애(Backlog 46) — forget이 올린다. 전송 중에 키가 폐기됐는지 가르는 데 쓴다. ──
+  // ── 키 생애 — forget이 올린다. 전송 중에 키가 폐기됐는지 가르는 데 쓴다. ──
   life(key: string): number {
     return lives.get(key) ?? 0
   },

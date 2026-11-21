@@ -1,10 +1,5 @@
 // @vitest-environment jsdom
-// 캡슐 경계 스모크 테스트 — agent 기능 캡슐(02_Project/00_Source/renderer/src/03_Agent)의
-// 공개 표면이 새 경로에서 정상 import되는지만 얕게 확인한다.
-// 재편 전에는 이 경로가 존재하지 않으므로 import 자체가 실패해 Red여야 한다.
-// 공개 표면 9종 = 앱 소비처(Conversation·SettingsModal·Shell·FilesPanel)가
-// 실제로 소비하는 심볼 전부. Props 타입은 캡슐 밖 실소비가 없어 등재하지 않는다.
-// M11 G6(M05 Backlog 42) — HookTimeline·LoopStatusBanner·PermissionCard는 10_Engine 재수출을 지우고 여기서 낸다.
+// 공개 표면은 앱 소비처가 실제로 소비하는 심볼 전부다. Props 타입은 캡슐 밖 실소비가 없어 등재하지 않는다.
 import { describe, it, expect } from 'vitest'
 import {
   OrchestrationCard,

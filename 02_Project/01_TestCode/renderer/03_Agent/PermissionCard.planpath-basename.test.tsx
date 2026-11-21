@@ -1,4 +1,3 @@
-// 작업 ID: gap1-p15-r1-s2 · 옛 이름 gap1-p15-r1-s2-planpath-basename.test.tsx
 // @vitest-environment jsdom
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, cleanup } from '@testing-library/react'

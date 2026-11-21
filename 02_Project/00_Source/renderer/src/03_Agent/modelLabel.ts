@@ -1,5 +1,4 @@
-// 패밀리별 색 표 — 모델 ID 표가 아니라 패밀리 이름 표다 (M06 G4). 선택기 점·서브에이전트 배지가 같이 쓴다.
-// 여기 없는 새 패밀리는 라벨이 원문 그대로, 색은 중립이다. 선택기 라벨은 SDK displayName을 쓰므로 영향이 없다.
+// 모델 ID 표가 아니라 패밀리 이름 표다. 여기 없는 새 패밀리는 라벨이 원문 그대로, 색은 중립이다.
 export const MODEL_FAMILY_COLORS: Readonly<Record<string, string>> = {
   opus: 'var(--violet)',
   sonnet: 'var(--blue)',

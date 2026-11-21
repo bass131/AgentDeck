@@ -1,4 +1,3 @@
-// 작업 ID: g9a · 옛 이름 g9a-run-core.test.ts
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { makeInitialState } from '@renderer/05_Conversation/state/reducer'
 import { createRunCore, createStaleWatchdogs, enginePromptFor, isRunningRetained, pickEvictions } from '@renderer/03_Agent/state/runCore'
@@ -10,7 +9,6 @@ import type { ThreadItem } from '@renderer/05_Conversation/state/threadTypes'
 import { GOAL_BANNER_STALE_THRESHOLD_MS } from '@renderer/03_Agent/state/staleWatchdog'
 import { adaptFlatApi } from '../00_Helpers/windowApiMock'
 
-// M05 G9a — 공용 실행 코어의 구조 단위 테스트. 코어의 동작 규칙(E 항목)도 여기서 본다.
 
 function base(over: Partial<RunCoreState> = {}): RunCoreState {
   return { ...makeInitialState(), replMode: false, queue: [], ...over }
@@ -157,7 +155,7 @@ describe('createRunCore.send — 실행 대상이 동기로 정해지면 agentRu
   })
 })
 
-// M11 G2 — M07 Backlog 16. agent.run 응답 전에 온 이벤트를 붙들었다가 실행 id가 정해지면 그 id의 것만 적용한다.
+// agent.run 응답 전에 온 이벤트를 붙들었다가 실행 id가 정해지면 그 id의 것만 적용한다.
 describe('createRunCore.send — 응답 전에 도착한 실행 이벤트 (M07-16)', () => {
   function rig(agentRun: () => Promise<{ runId: string }>) {
     Object.defineProperty(globalThis, 'window', {
@@ -237,7 +235,6 @@ describe('createRunCore.handleEvent — permission_mode는 모드 포트로만 �
   })
 })
 
-// M11 G6 — 패널 어댑터를 거쳐 코어를 보던 시험(panelSession.run-core-alignment·backlog46-dispose, M10 Backlog 3로 지움)을 코어에서 직접 본다.
 describe('createRunCore — 전송·중단·질문 규칙(E1·E2·E3·E8·E11·E13, Backlog 46)', () => {
   type Api = Record<string, ReturnType<typeof vi.fn>>
   function deferred<T>(): { promise: Promise<T>; resolve: (v: T) => void; reject: (e: unknown) => void } {

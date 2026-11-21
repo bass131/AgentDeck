@@ -1,4 +1,3 @@
-// 작업 ID: g9c · 옛 이름 g9c-branch-cleanup.test.tsx
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { existsSync, readFileSync, readdirSync, statSync } from 'fs'
@@ -7,8 +6,7 @@ import { render, renderHook, act, cleanup } from '@testing-library/react'
 import { convKey, panelKey } from '@renderer/03_Agent/state/sessionKeys'
 import { adaptFlatApi } from '../00_Helpers/windowApiMock'
 
-// G9c — 단일·멀티 분기를 화면 배치(12_Window) 밖에서 키·포트로 옮겼다. 값은 그대로다(P4 포함).
-// M10 G1 — 멀티 에이전트 모드를 지워 모드는 「채팅(single) · 작업(work)」 둘이다.
+// 모드 분기는 화면 배치(12_Window) 안에만 있고, 밖은 키·포트로 다룬다. 모드는 「채팅(single) · 작업(work)」 둘이다.
 
 const SRC_ROOT = resolve(__dirname, '../../../00_Source/renderer/src')
 
@@ -25,7 +23,7 @@ afterEach(() => cleanup())
 
 describe('G9c 분기 정리 — 12_Window 밖에 단일·멀티 분기가 남지 않는다', () => {
   // 모드 분기의 표식 — 배치 상태·selector·판정 함수 이름(대소문자 무시)과 모드 값 리터럴('single'·'work', 큰따옴표 포함).
-  // M10 G1에서 모드가 「채팅(single) · 작업(work)」이 되어 'work'를 더했고, 옛 값 리터럴도 계속 잡는다.
+  // 옛 값 리터럴('multi')도 계속 잡는다.
   const MODE_MARK = /workspaceMode|selectWorkspaceMode|isConversationLayout|['"](multi|single|work)['"]/i
   // 줄 단위 예외 꼴 — 서브에이전트 메시지 묶음의 종류 kind: 'single' / kind === 'single'(작업 공간 모드와 무관).
   // 이 꼴만 지우고 다시 검사하므로, 같은 줄이나 같은 파일에 진짜 모드 분기가 있으면 걸린다.
@@ -53,8 +51,6 @@ describe('G9c 분기 정리 — 12_Window 밖에 단일·멀티 분기가 남지
     return hits
   }
 
-  // 반대 동작 확인(검수 경미 1, 2026-11-14): subagentChat.ts 끝에 `m === "multi"` 분기를 임시로 넣자 이 테스트가
-  // 그 줄을 짚어 실패했고(옛 파일 단위 예외였다면 통과했을 자리), 원복 뒤 통과했다.
   it("12_Window 밖에 모드 분기 표식이 없다 — 예외는 줄 단위 kind: 'single' 꼴과 위치별 허용 목록뿐이다", () => {
     expect(modeHitsOutsideWindow()).toEqual([])
   })
@@ -168,8 +164,8 @@ describe('[M10 Backlog 3] 그리는 곳이 없던 패널 코드가 없다', () =
 })
 
 describe('G9c 시작 복원 — main은 12_Window의 함수만 부른다', () => {
-  // M10 G3(Backlog 6) — 두 모드의 복원. 작업 모드로 켜도 채팅의 마지막 대화를 store에 복원해 둔다 — 채팅 모드로 돌아가면
-  // 그 대화로 뜬다(옛 동작은 대화 배치일 때만 복원해, 작업 모드로 끈 뒤 켜면 채팅이 빈 화면이었다). 작업 폴더의 복원은 Shell 몫이다.
+  // 작업 모드로 켜도 채팅의 마지막 대화를 store에 복원해 둔다 — 채팅 모드로 돌아가면 그 대화로 뜬다.
+  // 작업 폴더의 복원은 Shell 몫이다.
   it('저장된 모드를 store에 넣고, 어느 모드로 켜든 마지막 대화를 한 번 복원한다', async () => {
     Object.defineProperty(window, 'api', {
       value: adaptFlatApi({ getUiPrefs: vi.fn().mockResolvedValue({}), setUiPref: vi.fn().mockResolvedValue(undefined) }),
@@ -192,7 +188,7 @@ describe('G9c 시작 복원 — main은 12_Window의 함수만 부른다', () =>
     expect(restore).toHaveBeenCalledTimes(2)
   })
 
-  // M10 G1 — 멀티 에이전트 모드를 지웠다. 옛 저장값 'multi'와 모르는 값은 「채팅」으로 읽고, 저장 파일은 고치지 않는다.
+  // 옛 저장값 'multi'와 모르는 값은 「채팅」으로 읽고, 저장 파일은 고치지 않는다.
   it("저장된 'multi'나 모르는 값으로 켜면 「채팅」(single)으로 뜨고 마지막 대화를 복원한다", async () => {
     Object.defineProperty(window, 'api', {
       value: adaptFlatApi({ getUiPrefs: vi.fn().mockResolvedValue({}), setUiPref: vi.fn().mockResolvedValue(undefined) }),

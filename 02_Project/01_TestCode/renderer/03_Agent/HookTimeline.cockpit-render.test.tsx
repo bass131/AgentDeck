@@ -1,4 +1,3 @@
-// 작업 ID: gap1-p05 · 옛 이름 gap1-p05-hook-cockpit-render.test.tsx
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, cleanup, act, fireEvent } from '@testing-library/react'

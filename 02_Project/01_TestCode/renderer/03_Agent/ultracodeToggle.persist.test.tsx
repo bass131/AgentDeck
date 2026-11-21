@@ -1,4 +1,3 @@
-// 작업 ID: lr4-p06 · 옛 이름 lr4-p06-ultracode-toggle-persist.test.tsx
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, fireEvent, act, cleanup, type RenderResult } from '@testing-library/react'
@@ -62,7 +61,7 @@ async function store() {
   return mod.useAppStore
 }
 
-// M10 G1 — 멀티 에이전트 모드를 지워 대화가 화면에서 빠지는 배치는 「작업」 모드다. 왕복은 채팅→작업→채팅으로 본다.
+// 대화가 화면에서 빠지는 배치는 「작업」 모드다. 왕복은 채팅→작업→채팅으로 본다.
 describe('lr4-p06-A: 단일챗 왕복 보존 (single→work→single OFF 유지)', () => {
   async function renderSingleShellHarness(): Promise<RenderResult> {
     const useAppStore = await store()

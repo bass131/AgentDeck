@@ -1,4 +1,3 @@
-// 작업 ID: uc1-p10 · 옛 이름 uc1-p10-orchestration-denied-display.test.tsx
 // @vitest-environment jsdom
 import { describe, it, expect, afterEach } from 'vitest'
 import { render, cleanup, screen } from '@testing-library/react'

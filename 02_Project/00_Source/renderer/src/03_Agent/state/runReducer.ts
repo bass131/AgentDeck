@@ -12,13 +12,12 @@ import { handleError } from '@renderer/05_Conversation/state/reducer/lifecycle'
 import { popPendingPermission } from '@renderer/05_Conversation/state/reducer/permission'
 import type { QueuedMessage } from '@renderer/00_App/state/types'
 
-// 단일(store)과 멀티(패널) 실행 상태가 공유하는 순수 reducer.
-// 시각·id는 액션에 실려 오고, 이 파일은 시계·id 생성기를 부르지 않는다.
+// 시각·id는 액션에 실려 오고, 이 파일은 시계·id 생성기를 부르지 않는다(시험이 지킨다).
 
 export interface RunCoreState extends AppState {
   runGeneration?: string | null
   replMode: boolean
-  // 실행 중 Enter로 예약한 메시지(C1·C2). 중단(CLEAR_LOOPS)이 비운다(E9). 단일 store와 패널이 같은 필드다.
+  // 실행 중 Enter로 예약한 메시지. 중단(CLEAR_LOOPS)이 비운다.
   queue: QueuedMessage[]
 }
 
@@ -134,7 +133,6 @@ export function runReducer<S extends RunCoreState>(state: S, action: RunAction):
         ...state,
         ...terminalResetFields(state),
         runGeneration: null,
-        // E9(단일 규칙) — 중단하면 예약해 둔 메시지도 버린다.
         queue: [],
         thread: closeAbortedOrchestrationCards(
           closeAbortedCommandCard(thread, state.pendingCommand?.cardId)

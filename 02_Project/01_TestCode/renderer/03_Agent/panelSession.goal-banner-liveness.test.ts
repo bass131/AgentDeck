@@ -1,4 +1,3 @@
-// 작업 ID: lr4-p05 · 옛 이름 lr4-p05-goal-banner-liveness.test.ts
 import { describe, it, expect, beforeEach } from 'vitest'
 import {
   applyAgentEvent,

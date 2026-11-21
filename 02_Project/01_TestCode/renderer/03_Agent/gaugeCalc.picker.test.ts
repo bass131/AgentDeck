@@ -1,4 +1,3 @@
-// 작업 ID: m4-1 · 옛 이름 m4-1-picker-gauge.test.ts
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
 import { applyAgentEvent, makeInitialState } from '@renderer/05_Conversation/state/reducer'
@@ -117,7 +116,7 @@ import { calcGauge } from '@renderer/03_Agent/gaugeCalc'
 import { DEFAULT_CONTEXT_WINDOW } from '@shared/ipcContract'
 
 describe('(c) 게이지 계산 — used / window / pct', () => {
-  // M06 G4: 모델별 창 표를 지웠다 — 첫 턴 전에는 기본값 하나, 턴 뒤에는 결과의 contextWindow다.
+  // 첫 턴 전에는 기본값 하나, 턴 뒤에는 결과의 contextWindow다.
   it('usage 없으면 used=0, pct=0, 창은 기본값', () => {
     const result = calcGauge(undefined)
     expect(result.used).toBe(0)

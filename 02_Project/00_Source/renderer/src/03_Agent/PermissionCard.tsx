@@ -6,9 +6,9 @@ import { mcpToolLabel } from './toolKind'
 import { MarkdownView } from '@renderer/05_Conversation'
 import './PermissionCard.css'
 
-type PermissionChoice ='allow' | 'allow_always' | 'deny'
+type PermissionChoice = 'allow' | 'allow_always' | 'deny'
 
-// 숫자 키의 뜻은 카드 종류와 관계없이 같다(M11 G2, M06 Backlog 11) — 2는 언제나 거부(계획 카드는 계속 계획)다.
+// 숫자 키의 뜻은 카드 종류와 관계없이 같다 — 2는 언제나 거부(계획 카드는 계속 계획)다.
 const CHOICE_KEY: Record<PermissionChoice, number> = { allow: 1, deny: 2, allow_always: 3 }
 
 const PERM_CHOICES: { key: PermissionChoice; label: string; desc: string; color: string }[] = [
@@ -17,7 +17,7 @@ const PERM_CHOICES: { key: PermissionChoice; label: string; desc: string; color:
   { key: 'allow_always', label: '항상 허용',  desc: '이번 세션 동안 이 도구를 자동 허용해요', color: 'var(--accent)' },
 ]
 
-// M06 G3 — 모드와 관계없이 사람에게 올린 호출에는 「항상 허용」이 없다. 도구 단위 세션 규칙이 Bash 전체를 열어 가드 질문까지 덮기 때문이다.
+// 사람에게 올린 호출에는 「항상 허용」이 없다 — 도구 단위 세션 규칙이 Bash 전체를 열어 가드 질문까지 덮기 때문이다.
 const GUARD_CHOICES = PERM_CHOICES.filter((c) => c.key !== 'allow_always')
 
 const PLAN_CHOICES: { key: PermissionChoice; label: string; desc: string; color: string }[] = [
@@ -81,7 +81,7 @@ export function PermissionCard({ pending, onRespond }: PermissionCardProps): JSX
   const [cmdOpen, setCmdOpen] = useState(false)
   const [tailSeen, setTailSeen] = useState(false)
   const requestId = pending?.requestId ?? null
-  // 곁 층 — 떠 있는 동안 Esc가 채팅 실행을 끊지 않지만, 다른 모달의 Esc는 가로채지 않는다(M11 G4)
+  // 곁 층 — 떠 있는 동안 Esc가 채팅 실행을 끊지 않지만, 다른 모달의 Esc는 가로채지 않는다
   useModalLayer(pending !== null, undefined, 'aside')
   const lastRequestIdRef = useRef<string | null>(null)
   const armedAtRef = useRef(0)

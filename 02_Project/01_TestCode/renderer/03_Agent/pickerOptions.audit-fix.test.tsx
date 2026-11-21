@@ -1,4 +1,3 @@
-// 작업 ID: phase18 · 옛 이름 phase18-audit-fix.test.tsx
 // @vitest-environment jsdom
 import { describe, it, expect, afterEach, beforeAll, vi } from 'vitest'
 import { render, cleanup, act } from '@testing-library/react'
@@ -6,7 +5,6 @@ import { adaptFlatApi } from '../00_Helpers/windowApiMock'
 
 afterEach(() => cleanup())
 
-// M11 G6 — 패널 카드 사례(N2·N6 패널 쪽)는 그리는 곳이 없던 PanelView와 함께 지웠다(M10 Backlog 3).
 beforeAll(async () => {
   await import('@renderer/00_App/appStore')
 })
@@ -37,7 +35,7 @@ describe('pickerOptions — 공유 옵션 모듈 (N1~N5)', () => {
     expect(mod.MODES).toBeDefined()
   })
 
-  // M06 G4: 모델 옵션은 손 표가 아니라 목록(최소 목록 또는 SDK 목록)에서 그린다.
+  // 모델 옵션은 손 표가 아니라 목록(최소 목록 또는 SDK 목록)에서 그린다.
   it('최소 목록 옵션은 정식 ID(짧은 별칭 아님)다', async () => {
     const { modelOptionsFor } = await import('@renderer/03_Agent/pickerOptions')
     const { FALLBACK_MODELS } = await import('@shared/03_Agent/models/knownModels')

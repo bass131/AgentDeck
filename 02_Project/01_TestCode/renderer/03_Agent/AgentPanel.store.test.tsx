@@ -1,4 +1,3 @@
-// 작업 ID: m4-4 · 옛 이름 m4-4-agentpanel-store.test.tsx
 // @vitest-environment jsdom
 import { describe, it, expect, afterEach } from 'vitest'
 import { render, screen, cleanup, act } from '@testing-library/react'

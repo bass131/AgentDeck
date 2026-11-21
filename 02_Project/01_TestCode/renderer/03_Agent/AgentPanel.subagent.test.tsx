@@ -1,4 +1,3 @@
-// 작업 ID: m4-4 · 옛 이름 m4-4-subagent-panel.test.tsx
 // @vitest-environment jsdom
 import { describe, it, expect, afterEach, vi } from 'vitest'
 import { render, screen, cleanup, act, fireEvent } from '@testing-library/react'

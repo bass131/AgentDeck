@@ -1,7 +1,5 @@
-// 작업 ID: g9b · 옛 이름 g9b-queue-core.test.tsx
 // @vitest-environment jsdom
-// M05 G9b — 대기열(C1·C2·E9)은 공용 실행 상태에 있다. 단일 store가 runReducer로 넣고 빼며,
-// 중단(CLEAR_LOOPS)이 대기열을 비운다(E9). 패널 쪽 사례는 M10 Backlog 3(M11 G6)에서 패널 코드와 함께 지웠다.
+// 대기열은 공용 실행 상태에 있다. 단일 store가 runReducer로 넣고 빼며, 중단(CLEAR_LOOPS)이 대기열을 비운다.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { renderHook, act, cleanup } from '@testing-library/react'
 import type { AgentEventPayload } from '@shared/ipcContract'

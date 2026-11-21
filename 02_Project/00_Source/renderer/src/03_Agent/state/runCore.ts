@@ -16,7 +16,6 @@ import { createStaleTimer, isStaleNow, remainingStaleMs } from './staleWatchdog'
 import type { StaleTimerHandle } from './staleWatchdog'
 import type { RunAction, RunCoreState } from './runReducer'
 
-// 실행 코어 — 전송·중단·interrupt·권한 응답·질문 응답·stale 감시를 한 구현으로 둔다.
 // 상태의 거처는 모른다. 어댑터(runtime.ts)가 readState·dispatch 포트와 부수효과 콜백을 넘긴다.
 
 interface SendOptions {
@@ -28,7 +27,7 @@ interface SendOptions {
   resumeSessionId?: string
   persistent?: boolean
   sessionKey?: string
-  // 대화가 마지막으로 잰 컨텍스트 창 — main이 기록 재적재 예산을 정한다 (M06 G4)
+  // 대화가 마지막으로 잰 컨텍스트 창 — main이 기록 재적재 예산을 정한다
   contextWindow?: number
 }
 
@@ -51,8 +50,6 @@ export function buildAgentRunArgs(
   }
 }
 
-// 엔진에 보낼 사용자 메시지(E4, 단일 규칙) — /로 시작하면 원문, 아니면 @멘션과 첨부 이미지 노트를 붙인다.
-// 단일(Conversation.tsx)과 패널(performManagedSend)이 모두 이 함수 하나로 계산한다(G9b).
 export function enginePromptFor(text: string, imagePaths: string[]): string {
   if (text.startsWith('/')) return text
   return buildEnginePrompt(text, {
@@ -61,7 +58,7 @@ export function enginePromptFor(text: string, imagePaths: string[]): string {
   })
 }
 
-// agentRun 직전에 어댑터가 정하는 실행 대상 — 작업 폴더, 이어갈 SDK 세션, REPL 세션키.
+// agentRun 직전에 어댑터가 정한다.
 export interface RunTarget {
   workspaceRoot?: string
   resumeSessionId?: string
@@ -93,10 +90,10 @@ export interface RunCorePorts<S extends RunCoreState> {
   owner?: () => string | null
   onRunStarted?: (runId: string) => void
   onInterruptRejected?: (target: InterruptTarget, foregroundClosed: boolean) => void
-  // permission_mode 이벤트의 유일한 반영 경로(E15) — 대화 reducer는 이 이벤트를 다루지 않는다.
+  // permission_mode 이벤트의 유일한 반영 경로 — 대화 reducer는 이 이벤트를 다루지 않는다.
   onPermissionMode: (mode: string) => void
   onEvent?: (payload: AgentEventPayload) => void
-  // 폐기 포트(Backlog 46) — 상태 거처의 생애 표식. 전송 시작 때와 agentRun 응답 때 값이 다르면 그 사이에
+  // 상태 거처의 생애 표식. 전송 시작 때와 agentRun 응답 때 값이 다르면 그 사이에
   // 폐기된 것이다: 결과를 되살려 쓰지 않고, 도착한 run은 agentAbort로 끊는다. 없으면 폐기가 없는 거처다.
   life?: () => number
 }
@@ -132,7 +129,7 @@ export function createRunCore<S extends RunCoreState>(ports: RunCorePorts<S>): R
 
   const send = async (input: RunSendInput): Promise<void> => {
     const before = ports.readState()
-    // E1: 실행 중 재전송은 무시한다. E2: 전송마다 새 실행 세대를 단다. E3: 지난 오류를 지운다.
+    // 실행 중 재전송은 무시한다. 전송마다 새 실행 세대를 단다. 지난 오류를 지운다.
     if (before.isRunning) return
     const lifeAtStart = ports.life?.()
     const disposedSinceStart = (): boolean => ports.life !== undefined && ports.life() !== lifeAtStart
@@ -179,7 +176,7 @@ export function createRunCore<S extends RunCoreState>(ports: RunCorePorts<S>): R
       const target = resolved instanceof Promise ? await resolved : resolved
       res = await ipc.agent.run(buildAgentRunArgs(history, { ...input.options, ...target }))
     } catch (err) {
-      // 폐기된 거처에는 오류 상태도 되살려 쓰지 않는다(Backlog 46).
+      // 폐기된 거처에는 오류 상태도 되살려 쓰지 않는다.
       if (disposedSinceStart()) return
       const message = (err instanceof Error ? err.message : String(err)).replace(ELECTRON_INVOKE_PREFIX, '')
       ports.dispatch({
@@ -194,7 +191,7 @@ export function createRunCore<S extends RunCoreState>(ports: RunCorePorts<S>): R
       if (earlyEvents === early) earlyEvents = null
     }
 
-    // 응답 전에 폐기됐으면 지운 거처를 되살리지 않고 고아가 될 run을 끊는다(Backlog 46, 기존 IPC).
+    // 응답 전에 폐기됐으면 지운 거처를 되살리지 않고 고아가 될 run을 끊는다.
     if (disposedSinceStart()) {
       void Promise.resolve(ipc.agent.abort({ runId: res.runId })).catch(() => {})
       return
@@ -207,7 +204,7 @@ export function createRunCore<S extends RunCoreState>(ports: RunCorePorts<S>): R
   const abort = async (): Promise<void> => {
     const { currentRunId, runGeneration } = ports.readState()
     if (!currentRunId || isPendingGeneration(runGeneration)) return
-    // E8: 중단은 열린 응답 메시지에 「중단됨」을 단다(CLEAR_LOOPS가 처리).
+    // 중단은 열린 응답 메시지에 「중단됨」을 단다(CLEAR_LOOPS가 처리).
     ports.dispatch({ type: 'CLEAR_LOOPS' })
     ports.refreshStale()
     await ipc.agent.abort({ runId: currentRunId })
@@ -224,7 +221,7 @@ export function createRunCore<S extends RunCoreState>(ports: RunCorePorts<S>): R
       && s.currentRunId === target.runId
       && (s.runGeneration ?? null) === target.runGeneration
 
-    // M05 G10 ack 통일: interrupt 응답은 { ok }다 (옛 { accepted }). ok=false는 main에 그 run이 없다는 뜻이다.
+    // ok=false는 main에 그 run이 없다는 뜻이다.
     const { ok } = await ipc.agent.interrupt({ runId })
     if (ok) {
       if (isSameRun(ports.readState())) ports.dispatch({ type: 'MARK_INTERRUPTED' })
@@ -268,7 +265,7 @@ export function createRunCore<S extends RunCoreState>(ports: RunCorePorts<S>): R
   const handleEvent = (payload: AgentEventPayload): boolean => {
     const s = ports.readState()
     if (s.currentRunId === null || payload.runId !== s.currentRunId) {
-      // 응답을 기다리는 동안 온 이벤트는 붙든다 — 그 실행의 것인지는 응답이 오면 가린다(M07 Backlog 16)
+      // 응답을 기다리는 동안 온 이벤트는 붙든다 — 그 실행의 것인지는 응답이 오면 가린다
       if (earlyEvents !== null && earlyEvents.length < EARLY_EVENTS_CAP) earlyEvents.push(payload)
       return false
     }
@@ -344,7 +341,7 @@ export function createStaleWatchdogs(ports: {
   }
 }
 
-// 보관 상한의 보호 규칙(E17, 멀티 규칙) — 실행 중인 run은 상한을 넘겨도 버리지 않는다.
+// 실행 중인 run은 보관 상한을 넘겨도 버리지 않는다.
 export function isRunningRetained(_key: string, state: { isRunning: boolean }): boolean {
   return state.isRunning
 }

@@ -1,20 +1,13 @@
 #!/usr/bin/env node
-// 편집 경로 계획 게이트 판정 계약 (M03 Phase 2 Step 5 · 계획 승인 문답 안건 5 채택).
-//
-// 겨누는 것 — 3조를 완화하면 「스폰하지 않고 직접 고치는 경로」에 7조의 기계 집행 자리가 없다.
-// 그래서 스폰 게이트의 판정 ①(계획 규격)·②(실패 카운터)·③(결정 대장 주도권)을 편집 경로로 옮긴다.
-// 강도는 스폰 자리와 같고 자리만 늘어난다 — 판정부는 한 모듈(_lib/plan-verdict.cjs)을 공유한다.
-//
-// 계약 네 줄 —
+// 스폰하지 않고 직접 고치는 경로에도 헌법 7조의 기계 집행 자리를 둔다 — 판정 ①(계획 규격)·②(실패 카운터)·③(결정 대장 주도권)을
+// 편집 경로에 건다. 판정부는 _lib/plan-verdict.cjs 한 모듈을 공유한다.
+// 계약 —
 //   ① 저장소 안이고 `01_Milestones` 밖인 대상은 계획 ①②③을 통과해야 편집이 열린다.
 //   ② `01_Milestones` 안의 대상은 계획 상태와 무관하게 열린다 — 계획을 쓰는 편집을 막으면 교착이다.
 //   ③ 저장소 밖의 대상은 관할이 아니다.
 //   ④ 판정 ④(라우팅)는 분업 규격이라 거부 사유에서 빼고 로그 필드로만 남긴다.
-//   ⑤ 판정할 수 없으면 거부다 (M03 Phase 4 Step 11) — 포인터 결손·planPath 형식 오류·대상 경로 없음.
-//      단 ②③의 표면 판정이 먼저라, 포인터가 깨져도 01_Milestones 안과 저장소 밖은 열린다.
-// 역할 신호(agent_id·agent_type)는 읽지 않는다 — fork도 메인도 같은 판정이다.
-//
-// 판정 근거는 미러 hook-log 줄과 stdout의 deny JSON뿐이다 (실저장소는 건드리지 않는다).
+//   ⑤ 판정할 수 없으면 거부다 — 포인터 결손·planPath 형식 오류·대상 경로 없음. 단 ②③의 표면 판정이 먼저다.
+// 역할 신호(agent_id·agent_type)는 읽지 않는다 — fork도 메인도 같은 판정이다. 판정 근거는 미러 hook-log 줄과 stdout뿐이다.
 import { execSync } from 'node:child_process'
 import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -94,7 +87,7 @@ try {
   // 편집 대상 파일은 실존할 필요가 없다 — 이 게이트는 경로의 소속만 보고 대상 내용은 읽지 않는다.
   const src = H.path(...SOURCE_TARGET)
 
-  // ---- ① 거부 — 저장소 안 · 01_Milestones 밖 · 계획이 유효하지 않다 --------
+  // ① 거부 — 저장소 안 · 01_Milestones 밖 · 계획이 유효하지 않다
   for (const [id, planPath, expect, needle, aim] of [
     ['EP-01', '.claude/hooks/fixtures/plan-fail3.md', 'deny/실패-카운터', 'FAIL 3회', '판정 ② 실패 카운터'],
     ['EP-02', '.claude/hooks/fixtures/plan-ai-majority.md', 'deny/주도권-문답분기', '주도권 게이트 발동', '판정 ③ 결정 대장 주도권'],
@@ -110,7 +103,7 @@ try {
     r.check(`${id}d 편집 거부 사유가 스폰을 말하지 않는다`, !c.reason.includes('스폰'), `실측 ${JSON.stringify(c.reason)}`)
   }
 
-  // ---- ② 허용 — 유효한 계획 ------------------------------------------------
+  // ② 허용 — 유효한 계획
   {
     const c = judge(writeValidPartition(), src)
     r.judge('EP-06 유효한 파일 구획 계획', c.verdict, 'allow/통과', { note: '판정 ①②③ 통과 — 편집을 연다' })
@@ -118,7 +111,7 @@ try {
       `실측 ${JSON.stringify(c.evidence?.routing ?? null)}`)
   }
 
-  // ---- ② 허용 — 01_Milestones 안의 대상은 계획 상태와 무관하다 -------------
+  // ② 허용 — 01_Milestones 안의 대상은 계획 상태와 무관하다
   {
     const plan = H.path('01_Milestones', 'M03_Harness_Refresh', '02_Phase_2.md')
     const c = judge('.claude/hooks/fixtures/plan-fail3.md', plan)
@@ -126,14 +119,14 @@ try {
       { note: '계획을 쓰는 편집을 계획 게이트가 막으면 교착이다' })
   }
 
-  // ---- ③ 허용 — 저장소 밖의 대상은 관할이 아니다 ---------------------------
+  // ③ 허용 — 저장소 밖의 대상은 관할이 아니다
   {
     const outside = join(tmpdir(), 'edit-plan-gate-outside.txt')
     const c = judge('.claude/hooks/fixtures/plan-fail3.md', outside)
     r.judge('EP-08 저장소 밖의 대상 (FAIL 3회 계획)', c.verdict, 'allow/저장소-밖', { note: '관할 밖' })
   }
 
-  // ---- ④ 라우팅은 거부 사유가 아니다 ---------------------------------------
+  // ④ 라우팅은 거부 사유가 아니다
   {
     const c = judge(writeOverflowPlan(), src)
     r.judge('EP-09 Phase 9개 (판정 ④만 걸리는 계획)', c.verdict, 'allow/라우팅-로그전용',
@@ -142,7 +135,7 @@ try {
       `실측 ${JSON.stringify(c.evidence?.routingAdvisory ?? null)}`)
   }
 
-  // ---- 역할 신호는 읽지 않는다 ---------------------------------------------
+  // 역할 신호는 읽지 않는다
   {
     const asWorker = judge('.claude/hooks/fixtures/plan-fail3.md', src,
       { agent_id: 'edit-plan-gate-agent', agent_type: 'worker' })
@@ -154,10 +147,8 @@ try {
       `실측 키 ${JSON.stringify(keys)}`)
   }
 
-  // ---- fail-open 세 경로 닫기 (M03 Phase 4 Step 11 · M03 Backlog 20) -----------
-  // 포인터가 없거나 깨졌거나 planPath가 없으면 종결된 M01 계획으로 떨어져 허용했고, planPath가 문자열이
-  // 아니면 내부 오류로 허용했고, 대상 경로가 없으면 허용했다. 셋 다 거부여야 한다.
-  // 실저장소와 같은 조건을 만들려고 M01 계획 폴더를 미러에 둔다 — 종전 기본값이 실제로 읽히는 상태다.
+  // fail-open 세 경로 — 포인터 결손(종결된 M01 계획으로 떨어지는 길), 문자열이 아닌 planPath, 대상 경로 없음은 모두 거부여야 한다.
+  // M01 계획 폴더를 미러에 둬 그 옛 기본값이 실제로 읽히는 상태를 만든다.
   cpSync(join(REPO_ROOT, '01_Milestones', 'M01_Bootstrap'), H.path('01_Milestones', 'M01_Bootstrap'), { recursive: true })
   const VALID = '.claude/hooks/fixtures/plan-body-fail-narrative.md' // 판정 ①②③ 통과 픽스처 (smoke와 같다)
   function judgeRaw(prepare, toolName, toolInput, hook = HOOK, hookTag = 'edit-plan-gate') {
@@ -218,12 +209,10 @@ try {
       { note: '판정부를 함께 쓰는 스폰 자리도 종결된 계획으로 떨어지지 않는다' })
   }
 
-  // ---- 주도권 판정 ③은 마일스톤 스펙 대장과 합쳐 센다 (M10 G1) -----------------
-  // 헌법 11조 뒤로 사람의 합의는 마일스톤 스펙 대장에 모이고 goal 대장은 [AI] 위주다. 계획 문서와 같은
-  // 폴더의 `00_마일스톤-스펙.md`(01_Milestones 안) 대장을 goal 대장과 합쳐 센다 — 머리말의 경로 글자는
-  // 읽지 않는다(다른 마일스톤 스펙을 가리켜 [USER]를 빌려 오는 길, 독립 검수 중요 2). 스펙이 없거나
-  // 01_Milestones 밖이거나 대장 절이 없으면 goal 대장만 센다(닫힌 쪽). [AI·비가역]은 어느 대장에 있든 즉시 발동이다.
-  // 근거: M10 마일스톤 스펙 결정 대장 [USER] 2026-11-19 「고쳐 쓴다 (추천)」.
+  // 주도권 판정 ③은 마일스톤 스펙 대장과 합쳐 센다 — 헌법 11조에서 사람의 합의는 마일스톤 스펙 대장에 모이고 goal 대장은 [AI] 위주다.
+  // 계획 문서와 같은 폴더의 `00_마일스톤-스펙.md`(01_Milestones 안) 대장만 합친다 — 머리말의 경로 글자는 읽지 않는다
+  // (다른 마일스톤 스펙을 가리켜 [USER]를 빌려 오는 길). 스펙이 없거나 밖이거나 대장 절이 없으면 goal 대장만 센다.
+  // [AI·비가역]은 어느 대장에 있든 즉시 발동이다.
   {
     const SPEC = '00_마일스톤-스펙.md'
     const writeRel = (rel, text) => {
@@ -291,7 +280,7 @@ try {
     r.judge('EP-32 스폰 게이트(판정부 공유)도 스펙과 합쳐 센다', spawn.verdict, 'allow/통과')
   }
 
-  // ---- 포인터 전환 — planPath를 다른 goal 문서로 바꾸는 편집은 지나가고, 뒤 편집은 새 계획을 따른다 (M11 G7) ----
+  // 포인터 전환 — planPath를 다른 goal 문서로 바꾸는 편집은 지나가고, 뒤 편집은 새 계획을 따른다
   // gate-config.json은 01_Milestones 밖이라 바꾸는 편집이 지금 계획으로 판정된다. goal을 닫은(상태: 종결) 뒤의
   // 전환도 지나가야 한다 — 막히면 다음 goal로 넘어가는 길이 잠긴다.
   {
@@ -374,7 +363,7 @@ try {
       r.judge('PS-08 포인터 결손 중 gate-config 쓰기 — 사용자 복구(M03-26 닫음 판단)', broken.verdict, 'deny/계획-포인터-결손')
     }
 
-    // ---- 「상태: 종결」 계획 (M04-3) — 머리말의 상태만 읽는다 ----
+    // 「상태: 종결」 계획 — 머리말의 상태만 읽는다
     {
       const done = judge(A_DONE, src)
       r.judge('EP-33 상태: 종결인 계획 — 01_Milestones 밖 편집 거부', done.verdict, 'deny/계획-종결')
@@ -390,7 +379,7 @@ try {
     }
   }
 
-  // ---- 포인터 BOM·충돌 표지 (M03-29 · M05-41) -------------------------------
+  // 포인터 BOM·충돌 표지
   {
     const VALID_JSON = JSON.stringify({ planPath: VALID, workPinPath: PIN }, null, 2) + '\n'
     const bom = judgeRaw(() => H.write(H.configFile, '\uFEFF' + VALID_JSON), 'Edit', editAt(src))
@@ -409,7 +398,7 @@ try {
     r.judge('EP-36 충돌 표지가 든 계획 문서 — 충돌로 거부', pc.verdict, 'deny/계획-충돌-표지')
   }
 
-  // ---- 경로 표기 정규화 (M03-19) — 표기만 바꾼 저장소 안 경로가 「저장소 밖」 허용으로 새지 않는다 ----
+  // 경로 표기 정규화 — 표기만 바꾼 저장소 안 경로가 「저장소 밖」 허용으로 새지 않는다 ----
   {
     const FAIL3 = '.claude/hooks/fixtures/plan-fail3.md'
     const dotted = judge(FAIL3, H.path('..probe.ts'))
@@ -435,7 +424,7 @@ try {
     r.judge('EP-42 정말 저장소 밖은 여전히 관할 밖', judge(FAIL3, join(dirname(H.mirror), 'other-repo', 'x.ts')).verdict, 'allow/저장소-밖')
   }
 
-  // ---- 격리 — 미러 밖으로 새지 않는다 --------------------------------------
+  // 격리 — 미러 밖으로 새지 않는다
   r.check('격리 — 미러가 실저장소 밖이다', !H.mirror.startsWith(REPO_ROOT), H.mirror)
   const liveLog = join(REPO_ROOT, '98_Management', '01_GateState', 'hook-log.jsonl')
   const liveHits = existsSync(liveLog)

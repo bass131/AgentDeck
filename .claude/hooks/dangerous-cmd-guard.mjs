@@ -1,23 +1,11 @@
 #!/usr/bin/env node
-// 위험 명령 가드 (PreToolUse: Bash) — 트립와이어. 무상태(상태 파일 없음)·CLI 모드 없음.
-//
-// 판정 파이프라인은 넷이다 (M02 Phase 2 Step 3~6에서 수리).
-//   ① heredoc 본문 면제 — 본문이 흘러가는 pipeline 전수 소비자를 보고, 실행되지 않는 소비자뿐일 때만 본문을 판정에서 뺀다.
-//   ② 세그먼트 분할 — `&&`·`||`·`;`·`|`·`&`·개행으로 나누되 따옴표 안에서는 나누지 않는다.
-//      원문 읽기 옆에 bash식 논리 줄 판독(줄 이음·주석·heredoc 본문 소비, `logicalLines`)과 이음 지운 원문 읽기
-//      (bash가 잇는 `\`+개행만 지운 글을 원문 읽기로 다시 읽기, `joinedReading`)를 더해 셋을 합친다(M06 G5).
-//   ③ 토큰화 — 토큰에서 따옴표 문자를 벗긴다. `"rm" -rf`·`git reset "--hard"` 류 인용 우회가 여기서 잡힌다.
-//   ④ 명령 위치 판정 — 규칙은 세그먼트의 머리 토큰(과 래퍼 뒤 토큰)에만 적용한다.
-//      인용문·커밋 메시지 본문에 든 `rm -rf`·`git push`를 명령으로 읽지 않기 위한 오탐 방어다.
-//
-// 확정된 한계 (M02 결정 대장 [USER] 2026-08-10 안건 2 — 기각, 방어 담당은 Claude Code 내장 권한 분류기):
-//   변수 확장(`c=push; git $c`)·`$()` 명령 치환·`cmd /c` 접두는 두 구현 모두 못 잡는다.
-// M06 G5가 논리 줄 판독과 이음 지운 원문 읽기를 둘째·셋째 판독으로 더했다(원문 읽기와 합집합, 사용자 결정 B) — Backlog 8.
-// 그 밖의 셸 판독(①~④)은 M05 H1에서 바꾸지 않았다 — 기준 커밋 9910a31 그대로다. 전처리(줄 이음·주석·리다이렉트 토큰)를
-//   넣은 시도가 기존 `reset --hard` 판정을 회귀시키고 정상 heredoc 커밋에 질의·차단을 만들어 되돌렸다
-//   (H1 결정 대장 [AI] 2026-11-13). 이 판독이 못 읽는 꼴의 작업 브랜치 강제 push는 감수 위험이다 ([USER] 2026-11-13).
-// fail-closed: payload가 없거나 파싱 불가면 통과가 아니라 차단이다 (Moodie 원본과 갈리는 축).
-// 로그는 fail-open이다 — 기록에 실패해도 판정을 막지 않는다.
+// 위험 명령 가드 (PreToolUse: Bash) — 트립와이어. 무상태·CLI 모드 없음.
+// 판정은 넷이다 — heredoc 본문 면제(실행되지 않는 소비자뿐일 때만 본문을 뺀다), 따옴표 밖 구분자로 세그먼트 분할,
+// 따옴표 문자를 벗기는 토큰화(`"rm" -rf` 류 인용 우회를 잡는다), 머리 토큰에만 규칙을 거는 명령 위치 판정(인용문·커밋 본문 오탐 방어).
+// 세그먼트는 원문 읽기, bash식 논리 줄 판독(`logicalLines`), 이음 지운 원문 읽기(`joinedReading`)의 합집합이다.
+// 변수 확장(`c=push; git $c`)·`$()` 명령 치환·`cmd /c` 접두는 못 잡는다 — 그 방어는 Claude Code 내장 권한 분류기 몫이다.
+// 원문 읽기에 전처리를 넣은 시도는 `reset --hard` 판정을 회귀시키고 정상 heredoc 커밋에 질의를 만들어 되돌렸다.
+// 이 판독이 못 읽는 꼴의 작업 브랜치 강제 push는 감수 위험이다. payload가 없거나 파싱 불가면 차단이고(fail-closed), 로그는 fail-open이다.
 
 import { appendFileSync, existsSync, mkdirSync, readFileSync, statSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
@@ -32,8 +20,7 @@ function ts() {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}${s}${p(Math.floor(a / 60))}:${p(a % 60)}`
 }
 
-// 판정 로그 (M02 Phase 2 Step 8, Backlog 10) — 필드는 hook·event·session·agent_id·verdict·rule이다.
-// 기존 훅과 같은 스키마의 독립 로거이며, 경로는 CLAUDE_PROJECT_DIR 기준이라 격리 미러 안에서 나고 죽는다.
+// 다른 훅과 같은 스키마의 독립 로거다 — 경로가 CLAUDE_PROJECT_DIR 기준이라 격리 미러 안에서 나고 죽는다.
 const ctx = { session: null, agentId: null, event: 'PreToolUse', cmd: '' }
 function log(verdict, rule, reason) {
   try {
@@ -67,16 +54,12 @@ function allow(reason) {
   process.exit(0)
 }
 
-// ── ② 세그먼트 분할 · ③ 토큰화 ───────────────────────────────────────────────
 const low = (t) => String(t).toLowerCase()
 
-// 백슬래시 이스케이프 — 따옴표 상태를 바꾸는 꼴만 읽는다. 작은따옴표 안에서는 백슬래시가 이스케이프가 아니다.
-//   큰따옴표 안: POSIX 셸은 `\"`·`\\`·`\$`·`` \` ``만 이스케이프로 읽는다 (M03 Phase 4 Step 10 · Backlog 17 갈래 ③).
-//     이것을 모르면 `sh -c "sh -c \"git push\""`의 `\"`가 바깥 인용을 닫는 것으로 읽혀 안쪽 스크립트가 조각난다.
-//   인용부 밖: `\"`·`\'`는 문자 그대로의 따옴표이고 인용을 열지 않는다 (M03 Phase 4 Step 13 · 재검수 FAIL 08:25:11).
-//     이것을 모르면 `echo \"hello\" && rm -rf dist`의 `\"`가 연 가짜 인용이 뒤의 구분자와 명령을 숨긴다.
-//     `\\`도 짝으로 읽는다 — `echo \\"a" && …`의 `"`는 이스케이프되지 않고 인용을 연다(EQ-08).
-//     그 밖의 `\X`는 종전대로 두 글자 그대로다 — 넓히면 `C:\Tools\Git\bin\git.exe` 류 basename 판정(GR-06)이 깨진다.
+// 백슬래시 이스케이프는 따옴표 상태를 바꾸는 꼴만 읽는다. 작은따옴표 안에서는 이스케이프가 아니다.
+//   큰따옴표 안은 `\"`·`\\`·`\$`·`` \` ``만 이스케이프다 — 모르면 `sh -c "sh -c \"git push\""`의 안쪽 스크립트가 조각난다.
+//   인용부 밖의 `\"`·`\'`는 인용을 열지 않는다 — 모르면 `echo \"hello\" && rm -rf dist`의 가짜 인용이 뒤 명령을 숨긴다. `\\`도 짝으로 읽는다.
+//   그 밖의 `\X`는 두 글자 그대로다 — 넓히면 `C:\Tools\Git\bin\git.exe` 류 basename 판정이 깨진다.
 const DQ_ESCAPABLE = new Set(['"', '\\', '$', '`'])
 const BARE_ESCAPABLE = new Set(['"', "'", '\\'])
 const isEscape = (quote, ch, next) => ch === '\\'
@@ -98,10 +81,8 @@ function splitSegments(text) {
   return segments.map((s) => s.trim()).filter(Boolean)
 }
 
-// 따옴표를 아는 토크나이저 — 구분자는 인용부 **밖**의 공백뿐이고, 인용 문자 자체는 값에서 벗긴다.
-// 전자는 `bash -c "rm -rf dist"`의 `-c` 인자를 토큰 하나로 보존하려는 것이고 (M03 Phase 2 Step 3),
-// 후자는 `"rm" -rf`·`git reset "--hard"` 류 인용 우회를 잡으려는 것이다 (M02 Phase 2).
-// 이스케이프(위 주석의 꼴)는 다음 문자 하나를 값으로 남긴다 — 중첩 `sh -c`의 안쪽 따옴표가 산다.
+// 구분자는 인용부 밖의 공백뿐이다 — `bash -c "rm -rf dist"`의 인자를 토큰 하나로 지킨다. 인용 문자는 값에서 벗긴다.
+// 이스케이프는 다음 문자 하나를 값으로 남긴다 — 중첩 `sh -c`의 안쪽 따옴표가 산다.
 function tokenize(segment) {
   const out = []
   let cur = ''
@@ -119,19 +100,13 @@ function tokenize(segment) {
   return out
 }
 
-// ── ④ 명령 위치 판정 ─────────────────────────────────────────────────────────
-// 명령 위치는 세그먼트의 머리 토큰이다. 여기에 셋을 더한다 —
-//   래퍼(`sudo rm -rf`·`env FOO=1 rm -rf`)는 다음 토큰으로 명령 위치를 넘긴다. 머리에서 이어질 때만
-//     이어지며, 래퍼 뒤의 플래그와 `VAR=값` 할당 토큰은 건너뛴다 (M03 Phase 2 — M02 Backlog 3·10).
-//   `find`의 `-exec`류는 다음 토큰이 명령이다 — 머리가 find일 때만 인정해 인용문 오탐을 막는다.
-//   셸 실행 파일의 `-c` 인자는 문자열 자체가 명령이라 같은 파이프라인으로 다시 판정한다 (contextsOf).
-// 각 토큰의 판정 이름은 둘이다 — `name`은 토큰 원형(소문자), `base`는 경로 접두를 벗긴 basename이다.
-// basename 판정은 git 계열과 셸 계열에만 쓴다 (M02 Backlog 2) — 규칙의 다른 이름 판정은 원형 그대로다.
+// 명령 위치는 세그먼트의 머리 토큰에, 머리에서 이어진 래퍼 뒤 토큰(플래그·`VAR=값` 건너뜀)과 머리가 find일 때의 `-exec` 다음 토큰을 더한다.
+// 셸의 `-c` 인자는 같은 파이프라인으로 다시 판정한다(contextsOf). 경로 접두를 벗긴 basename(`base`) 판정은 git·셸 계열에만 쓴다.
 const WRAPPERS = new Set(['sudo', 'doas', 'env', 'nohup', 'time', 'nice', 'ionice', 'xargs', 'command', 'busybox'])
 const SHELLS = new Set(['sh', 'bash', 'dash', 'zsh', 'ksh', 'ash', 'sh.exe', 'bash.exe', 'dash.exe', 'zsh.exe', 'ksh.exe', 'ash.exe'])
 const FIND_EXEC = new Set(['-exec', '-execdir', '-ok', '-okdir'])
-// 래퍼 — 뒤의 낱말을 명령으로 실행한다. 값을 다음 낱말로 받는 옵션과 명령 앞의 위치 인자 수(`timeout <시간>`)를 적는다 (M07 G12).
-// 앱 잠금 노드 `02_Project/00_Source/main/04_Claude/permission/mergeDeny.ts`의 표와 같다. 위 WRAPPERS 집합은 heredoc 소비자 판독(stageHead)용으로 그대로 둔다.
+// 래퍼마다 값을 받는 옵션과 명령 앞 위치 인자 수(`timeout <시간>`)를 적는다 — 앱 잠금 노드 `main/04_Claude/permission/mergeDeny.ts`의 표와 같다.
+// 위 WRAPPERS 집합은 heredoc 소비자 판독(stageHead)용이다.
 const WRAPPER_SPECS = new Map([
   ['sudo', { valueOpts: ['-u', '-g', '-h', '-p', '-C', '-U', '-r', '-t', '-D', '-R', '-T', '--user', '--group', '--host', '--prompt', '--close-from', '--other-user', '--role', '--type', '--chdir', '--chroot', '--command-timeout'], positional: 0 }],
   ['doas', { valueOpts: ['-u', '-C'], positional: 0 }],
@@ -159,13 +134,13 @@ function takesValue(spec, t) {
 const RE_ASSIGN = /^[A-Za-z_][A-Za-z0-9_]*=/   // `FOO=1` 류 환경변수 할당 토큰
 const RE_SHELL_C = /^-[A-Za-z]*c$/             // `-c`·`-lc`·`-ec` — 다음 토큰이 셸 스크립트 문자열
 
-// `env -S`·`--split-string` (M09 G3) — GNU env는 문자열을 낱말로 나눠 그 자리에 끼우고 옵션 읽기를 잇는다. 그래서 다시 읽을 글은
+// `env -S`·`--split-string` — GNU env는 문자열을 낱말로 나눠 그 자리에 끼우고 옵션 읽기를 잇는다. 그래서 다시 읽을 글은
 // `env <문자열> <뒤 낱말>`이다(`env -S "-i gh …"`의 `-i`도 옵션으로 읽힌다). 뒤 낱말은 작은따옴표로 감싸 낱말 하나로 남긴다.
 // 옵션은 getopt처럼 읽는다(루프 잠금 loopLock.ts의 wrapperOpts와 같다) — 묶은 짧은 옵션은 값 옵션 글자에서 끝나고(`-vS`는 -S,
 // `-uS`의 S는 -u의 값), 값은 붙여 쓰거나(`-S"…"`·`--split-string=…`) 다음 낱말이며, 긴 옵션은 표에서 유일한 접두면 줄여 쓴다(`--sp`).
 // 앱 잠금 노드 mergeDeny.ts의 splitScriptOf와 같은 판독이다. 없으면 null.
 const shQuote = (t) => `'${t.replace(/'/g, "'\\''")}'`
-// 값 안의 주석 (G3 검수 중요 1) — env는 따옴표 밖 낱말 머리의 `#`부터 **값 끝까지만** 버리고 뒤 낱말은 그대로 돈다.
+// 값 안의 주석 — env는 따옴표 밖 낱말 머리의 `#`부터 **값 끝까지만** 버리고 뒤 낱말은 그대로 돈다.
 // 다시 읽을 글에서는 그 `#`가 뒤 낱말까지 주석으로 삼키므로, 잇기 전에 값에서 잘라 낸다. 따옴표 안의 `#`는 글자다.
 function dropSplitComment(v) {
   let quote = null
@@ -221,18 +196,15 @@ function baseName(token) {
 }
 
 function commandsOf(rawTokens) {
-  // 서브셸·그룹의 괄호를 머리와 꼬리에서 벗긴다 — `(git push)`·`{ git push; }`·`(cd x && git push)`의
-  // 조각에서 `(git`·`push)`가 명령과 하위 명령으로 읽히지 않던 표면이다 (M04 독립 검수 결함 6·7).
+  // 서브셸·그룹의 괄호를 벗긴다 — `(git push)`의 `(git`·`push)`가 명령과 하위 명령으로 읽히지 않게.
   const tokens = rawTokens.slice()
   if (tokens.length) tokens[0] = tokens[0].replace(/^[({]+/, '')
   if (tokens.length) tokens[tokens.length - 1] = tokens[tokens.length - 1].replace(/[)}]+$/, '')
   while (tokens.length && tokens[0] === '') tokens.shift()
   while (tokens.length && tokens[tokens.length - 1] === '') tokens.pop()
   if (!tokens.length) return []
-  // 머리의 `VAR=값` 할당은 명령이 아니다 — 그 뒤 토큰이 명령 위치다 (M04 독립 검수 결함 7).
-  // 종전에는 `FOO=1 git push origin master`의 머리 토큰이 `FOO=1`이라 어떤 규칙도 걸리지 않았다.
-  // `DIRS=(src rm -rf)` 같은 배열 할당은 건너뛰지 않는다 — 괄호 안 원소가 명령으로 읽힌다 (재검수 오탐).
-  // 셸 문법 낱말(`then`·`do`·`!`·`{` …)과 `eval` 뒤도 명령 위치다 (M07 G12 검수 중요 2 — 앱 잠금 노드 `mergeDeny.ts`의 표와 같다).
+  // 머리의 `VAR=값` 할당과 셸 문법 낱말(`then`·`!`·`{`·`eval` …, `mergeDeny.ts`의 표와 같다) 뒤가 명령 위치다.
+  // `DIRS=(src rm -rf)` 같은 배열 할당은 건너뛰지 않는다 — 괄호 안 원소가 명령으로 읽힌다.
   let head = 0
   while (head < tokens.length - 1 && ((RE_ASSIGN.test(tokens[head]) && !tokens[head].includes('(')) || SHELL_HEAD_WORDS.has(tokens[head]))) head++
   const pos = new Set([head])
@@ -260,7 +232,7 @@ function commandsOf(rawTokens) {
 // `--git-dir=<path>`처럼 등호로 값을 붙이는 형태는 토큰 하나라 별도 처리가 필요 없다.
 const GIT_VALUE_OPTS = new Set(['-C', '-c', '--git-dir', '--work-tree', '--namespace', '--exec-path'])
 
-// 머리 토큰이 git 계열인가 — `git.exe`·대문자 `Git`도 같은 명령이다 (M02 Backlog 9 신규 표면).
+// 머리 토큰이 git 계열인가 — `git.exe`·대문자 `Git`도 같은 명령이다.
 const isGit = (name) => name === 'git' || name === 'git.exe'
 
 function gitSub(args) {
@@ -280,15 +252,12 @@ const isBranchD = (t) => !t.startsWith('--') && /^-[A-Za-z]*D/.test(t)
 const isBranchDelete = (t) => t === '--delete' || (!t.startsWith('--') && /^-[A-Za-z]*d/.test(t))
 const isConfigRead = (t) => t === '--list' || t === '-l' || t.startsWith('--get')
 
-// git push·fetch 옵션 판독 (M05 H1) — 토큰 판독은 기준 그대로이고, 옵션을 읽는 방식만 접두로 넓힌다.
-//   긴 옵션: 토큰이 규칙 이름으로 시작하면 센다(`--force>/dev/null`처럼 붙인 꼴도 접두라 잡힌다).
-//     git은 고유 접두 축약도 받으므로(`--mir`는 `--mirror`) `=` 앞 이름이 규칙 이름의 접두여도 센다.
-//     강제 옵션의 축약은 `--for`부터 센다 — `--f`·`--fo`는 `--follow-tags`와 겹쳐 git이 모호하다고 거부한다.
-//     `--no-…` 꼴은 규칙 이름의 접두가 아니라 걸리지 않는다.
-//   짧은 옵션: 묶음 머리(`-uf`·`-f>/dev/null`)를 기준의 `isForce`처럼 접두로 읽되, 값을 먹는 `-o`에서 멈춘다 —
-//     `-ofoo`는 push 옵션 값 `foo`이지 강제 push가 아니다 (종전 오차단).
-//   refspec은 첫 글자로 읽는다 — `+`는 강제 갱신, `:`는 원격 ref 삭제(`:` 단독은 같은 이름 전부 push)다.
-//     `*`가 든 refspec은 여러 브랜치를 한 번에 바꾸는 일괄 push다.
+// git push·fetch 옵션은 접두로 읽는다.
+//   긴 옵션: 토큰이 규칙 이름으로 시작하면 센다(`--force>/dev/null`처럼 붙인 꼴도 잡힌다). git은 고유 접두 축약도 받아
+//     (`--mir`는 `--mirror`) `=` 앞 이름이 규칙 이름의 접두여도 센다. 강제 축약은 `--for`부터다 — `--f`·`--fo`는
+//     `--follow-tags`와 겹쳐 git이 거부한다. `--no-…` 꼴은 걸리지 않는다.
+//   짧은 옵션: 묶음 머리(`-uf`·`-f>/dev/null`)를 접두로 읽되 값을 먹는 `-o`에서 멈춘다 — `-ofoo`는 강제 push가 아니다.
+//   refspec은 첫 글자로 읽는다 — `+`는 강제 갱신, `:`는 원격 ref 삭제(`:` 단독은 같은 이름 전부 push), `*`는 일괄 push다.
 const isLongOpt = (t, names, min = 1) => {
   if (!t.startsWith('--')) return false
   const body = t.slice(2)
@@ -312,7 +281,7 @@ const isPushBulk = (t) => (isLongOpt(t, PUSH_BULK_LONG) && !t.startsWith('--prun
   || (!t.startsWith('-') && t.includes('*'))
 const pushArgs = (c) => (c.git?.[0] === 'push' ? c.git.slice(1) : null)
 
-// 한 번 쓰는 git 설정 (M05 H1) — 전역 옵션 `-c 키=값`과 세그먼트 머리의 `GIT_CONFIG_VALUE_N=값` 할당.
+// 한 번 쓰는 git 설정 — 전역 옵션 `-c 키=값`과 세그먼트 머리의 `GIT_CONFIG_VALUE_N=값` 할당.
 //   `remote.<원격>.push=+…`는 refspec 없는 `git push`를 강제 push로 만든다 — 강제 push로 막는다.
 //   `alias.<이름>=…push…`는 하위 명령 자리에 별칭 이름만 남겨 push 판독이 닿지 않는다 — 묻는다.
 function gitConfigValues(c) {
@@ -328,11 +297,11 @@ const isConfigForcePush = (c) => pushArgs(c) !== null
     || (c.seg ?? []).some((t) => /^GIT_CONFIG_VALUE_\d+=\s*\+/.test(t)))
 const isConfigPushAlias = (c) => isGit(c.base) && gitConfigValues(c).some((v) => /^alias\.[^=]+=.*\b(push|send-pack)\b/i.test(v))
 
-// fetch가 로컬 ref를 덮어쓰는가 (M05 H1) — 설정이 `git fetch*`를 질의 없이 연다.
+// fetch가 로컬 ref를 덮어쓰는가 — 설정이 `git fetch*`를 질의 없이 연다.
 // refspec은 저장소 다음의 operand다. `+`로 시작하거나 `:`가 든 refspec은 로컬 ref를 쓰고(`+`는 강제),
 // `--prune`(`-p`)과 refspec이 함께 오면 refspec 범위의 로컬 추적 ref를 지운다. 저장소 이름·URL의 `:`는 보지 않는다.
-// 기준 판독은 리다이렉트·주석·옵션 값도 낱말로 넘기므로 refspec 후보에서 뺀다 — `git fetch --prune origin 2>&1 | tail -3`,
-// `git fetch -j 4 --prune origin`, `git fetch origin 2>C:/tmp/e.log`가 질의로 루프를 멈추던 오탐이다 (H1 3차 검수 중요 1).
+// 판독은 리다이렉트·주석·옵션 값도 낱말로 넘기므로 refspec 후보에서 뺀다 — 빼지 않으면 `git fetch --prune origin 2>&1 | tail -3`,
+// `git fetch -j 4 --prune origin`, `git fetch origin 2>C:/tmp/e.log`가 질의로 루프를 멈춘다.
 const FETCH_VALUE_OPTS = new Set(['--depth', '--deepen', '--shallow-since', '--shallow-exclude', '-j', '--jobs',
   '--negotiation-tip', '-o', '--server-option', '--upload-pack', '--refmap', '--filter', '--recurse-submodules-default', '--submodule-prefix'])
 const REDIRECT_WORD = /^(\d*>|\d*<|&>|<<<|>>|>&|\d+>&)/
@@ -362,7 +331,7 @@ const DESTRUCTIVE = [
   { id: 'git-reset-hard', why: 'git reset --hard (작업 손실)', match: (c) => c.git?.[0] === 'reset' && c.git.includes('--hard') },
   { id: 'git-clean-f', why: 'git clean -d/-f/-x (미추적 파일 손실)', match: (c) => c.git?.[0] === 'clean' && c.git.slice(1).some(isCleanFlag) },
   {
-    // `--force-with-lease`·`--force-if-includes`·`+refspec`·`-c remote.*.push=+…`도 원격 이력을 덮어쓴다 (M05 H1 — 종전 lease는 질의)
+    // `--force-with-lease`·`--force-if-includes`·`+refspec`·`-c remote.*.push=+…`도 원격 이력을 덮어쓴다
     id: 'force-push',
     why: 'force push — --force / -f / --force-with-lease / --force-if-includes / +refspec (원격 이력 손실)',
     match: (c) => (pushArgs(c)?.some(isPushForce) ?? false) || isConfigForcePush(c),
@@ -374,7 +343,7 @@ const DESTRUCTIVE = [
       || (c.git.slice(1).some(isBranchDelete) && c.git.slice(1).some(isForce))),
   },
   {
-    // `switch -C`와 같은 종류다 — 기존 브랜치 포인터를 강제로 옮기거나 이름·사본으로 덮는다 (M04-8 · M05-8)
+    // `switch -C`와 같은 종류다 — 기존 브랜치 포인터를 강제로 옮기거나 이름·사본으로 덮는다
     id: 'git-branch-강제이동',
     why: 'git branch -f / --force / -M / -C (브랜치 포인터 강제 이동·덮어쓰기)',
     match: (c) => c.git?.[0] === 'branch' && c.git.slice(1).some((t) => t === '--force' || (!t.startsWith('--') && /^-[A-Za-z]*[fMC]/.test(t))),
@@ -386,8 +355,8 @@ const DESTRUCTIVE = [
   },
   { id: 'git-restore', why: 'git restore (로컬 편집 폐기)', match: (c) => c.git?.[0] === 'restore' },
   {
-    // 설정이 `git switch *`를 질의 없이 열어 두므로 (M04·M05 H1), 작업을 버리는 꼴은 여기서 막는다.
-    // `-C`·`--force-create`는 기존 브랜치 포인터를 강제로 옮겨 그 브랜치의 커밋을 잃게 한다 (M05 H1).
+    // 설정이 `git switch *`를 질의 없이 열어 두므로 작업을 버리는 꼴은 여기서 막는다.
+    // `-C`·`--force-create`는 기존 브랜치 포인터를 강제로 옮겨 그 브랜치의 커밋을 잃게 한다.
     id: 'git-switch-폐기',
     why: 'git switch --discard-changes / -f / -C (로컬 편집·브랜치 포인터 폐기)',
     match: (c) => c.git?.[0] === 'switch' && c.git.slice(1).some((t) => isForce(t) || /^--(f|di)/.test(t)
@@ -405,27 +374,20 @@ const DESTRUCTIVE = [
   { id: '디스크-직접조작', why: '디스크 직접 조작', match: (c) => c.name === 'dd' || c.name === 'mkfs' || c.name.startsWith('mkfs.') },
 ]
 
-// ── push 경계 (M05 H1 · 헌법 10조 개정 · H1 결정 대장 [USER] 2026-11-13) ──
-// push는 허용이고, 작업별 브랜치 분리로 통제한다. `master`는 GitHub 서버의 브랜치 보호가 지킨다 —
-// PR 필수, 관리자에게도 적용, 강제 push·삭제 금지. 작업 브랜치에는 서버 ruleset을 걸지 않는다.
-// 그래서 일반 push(`git push`, `git push -u origin <작업 브랜치>`)는 묻지 않고 무출력으로 둔다.
-// 가드는 이중 안전장치다. 강제 push 꼴은 위 DESTRUCTIVE가 차단하고, 아래는 질의한다 —
-//   원격 삭제(`--delete`·`-d` 묶음·`:refspec`), 여러 ref 일괄(`--mirror`·`--all`·`--branches`·`--tags`·`--prune`·`*` refspec),
-//   세그먼트 토큰 어디에든 `master`가 글자로 보이는 push(부분 문자열, 대소문자 무시), `send-pack` 전부,
-//   `-c alias.*`로 감싼 push, 로컬 ref를 덮어쓰는 fetch, 서버 보호를 바꿀 수 있는 `gh api` 쓰기·보호 설정 경로 호출,
-//   `gh repo edit`·`delete`.
-// 가드 판독이 못 읽는 꼴(변수·설정·저장소 상태·리다이렉트로 목적지나 옵션이 가려지는 push)은 무출력이다. `\` 줄 이음으로 가려진 꼴은 M06 G5의 논리 줄 판독이
-//   bash처럼 이어 읽는다(주석·heredoc 본문·산술·`$( … )` 문맥을 따라). 명령 치환의 실행 내용은 여전히 읽지 않는다.
-//   `master`로 가면 서버가 거부하고, 작업 브랜치의 강제 갱신은 그 브랜치 안의 감수 위험이다 ([USER] 2026-11-13).
-// 가드는 여전히 어떤 명령에도 `permissionDecision: "allow"`를 내지 않는다 — 무출력이면 설정의 allow가 적용된다.
-// push 목적지를 저장소 상태로 판정하는 설계는 M04에서 독립 검수를 통과하지 못했다 (ADR-003). 근거와 대체 기록은 —
-//   98_Management/00_ADR/ADR-004-push-서버-보호.md
+// push 경계 (헌법 10조) — push는 허용하고 작업 브랜치 분리로 통제한다. `master`는 GitHub 서버 보호가 지킨다
+// (PR 필수, 관리자 포함, 강제 push·삭제 금지). 그래서 일반 push는 무출력이고, 가드는 이중 안전장치다.
+// 강제 push는 위 DESTRUCTIVE가 차단하고, 아래는 묻는다 — 원격 삭제, 여러 ref 일괄, 토큰 어디에든 `master`가 보이는 push,
+//   `send-pack`, `-c alias.*`로 감싼 push, 로컬 ref를 덮어쓰는 fetch, 서버 보호를 바꿀 수 있는 `gh api`·`gh repo` 호출.
+// 판독이 못 읽는 꼴(변수·설정·저장소 상태·리다이렉트로 가려진 push, 명령 치환의 실행 내용)은 무출력이다 —
+//   `master`로 가면 서버가 거부하고, 작업 브랜치의 강제 갱신은 감수 위험이다.
+// 가드는 어떤 명령에도 `permissionDecision: "allow"`를 내지 않는다 — 무출력이면 설정의 allow가 적용된다.
+// push 목적지를 저장소 상태로 판정하는 설계는 버렸다 — 근거는 98_Management/00_ADR/ADR-004-push-서버-보호.md.
 const isGh = (c) => c.base === 'gh' || c.base === 'gh.exe'
 
-// gh의 하위 명령 낱말 둘(무리와 동사) — gh가 하위 명령을 찾는 규칙을 그대로 따른다 (gh 2.92 실측).
+// gh의 하위 명령 낱말 둘(무리와 동사) — gh가 하위 명령을 찾는 규칙을 따른다 (gh 2.92 실측).
 //   `=` 없는 `--긴옵션`과 정확히 두 글자인 `-x`는 다음 낱말을 값으로 먹는다 (`gh pr -b x merge 12`는 병합이다).
 //   `--긴옵션=값`과 세 글자 이상의 `-xy` 묶음, `--help`·`-h`·`--version`은 값을 먹지 않는다.
-// 동사 뒤의 낱말은 보지 않는다 — `gh pr create --title merge`의 `merge`는 병합이 아니다 (마감 검수 실측).
+// 동사 뒤의 낱말은 보지 않는다 — `gh pr create --title merge`의 `merge`는 병합이 아니다.
 const GH_NO_VALUE = new Set(['--help', '-h', '--version'])
 function ghWords(c) {
   const words = []
@@ -438,14 +400,14 @@ function ghWords(c) {
   return words
 }
 const ghPr = (c, verb) => { const w = ghWords(c); return isGh(c) && w[0] === 'pr' && w[1] === verb }
-// 새 gh 규칙(M05 H1)의 낱말 대조 — 낱말에 붙은 리다이렉트(`edit>/dev/null`)는 떼고 본다. 기존 `ghPr`는 기준 그대로다.
+// 낱말에 붙은 리다이렉트(`edit>/dev/null`)는 떼고 대조한다. `ghPr`는 떼지 않는다.
 const ghWord = (w) => (typeof w === 'string' ? w.split(/[<>]/)[0] : w)
 const ghIs = (c, group, verbs) => {
   const w = ghWords(c).map(ghWord)
   return isGh(c) && w[0] === group && (!verbs || verbs.includes(w[1]))
 }
 
-// `gh api`의 쓰기 판정 (M05 H1 · H1 결정 대장 [AI] 2026-11-13) — gh 2.x pflag 규칙을 따른다.
+// `gh api`의 쓰기 판정 — gh 2.x pflag 규칙을 따른다.
 //   메서드: `-X`·`--method` 값, `--method=X`, `-XPUT`·`-X=PUT` 붙여쓰기, `-iX PUT` 묶음. GET이 아니면 쓰기다.
 //   필드: `-f`·`-F`·`--field`·`--raw-field`·`--input`이 있으면 gh는 기본 메서드를 POST로 바꾼다 — 쓰기로 본다.
 //   짧은 옵션 묶음은 앞에서부터 읽고, 값을 먹는 글자(`H`·`p`·`q`·`t`)에서 멈춘다. 값이 빠진 `-X`는 묻는 쪽이다.
@@ -477,14 +439,11 @@ function ghApiWrites(args) {
 const RE_GH_PROTECTION = /protection|rulesets/i
 const ghApi = (c) => ghIs(c, 'api')
 
-// ── 병합 차단 (M07 G12 · 결정 대장 [USER] 「OK 가드도 Deny」) ──
-// `master`로 가는 병합은 사람의 버튼(현황판 병합 카드·앱 PR 카드)과 사용자가 직접 치는 한 줄로만 한다(헌법 10조). goal의 로컬
-// `git merge --no-ff`는 이 구획 밖이다(M08 G2). 가드는 읽을 수 있는 병합 호출 꼴을 대상 브랜치와 관계없이
-// 묻지 않고 차단한다 — 권한 창을 생략하는 모드에서도 사람 없이 지나가지 않게. 사용자의 `!` 명령은 이 훅을 지나지 않는다.
-// `gh api`는 끝점 낱말로 판정한다. 설정 `deny`의 글자 꼴(`gh api *pulls/*/merge*`)보다 좁다 — 본문 글에 끝점 글자가 든 다른 호출과
-// 같은 끝점의 GET(병합 여부 읽기)은 막지 않는다. 차단은 루프를 멈추므로 오탐 비용이 묻기보다 크다.
-// 읽지 못하는 꼴(변수·명령 치환·gh 별칭·`--input`·`-F query=@파일`·해석기 안 코드)은 쫓지 않는다 — goal G12 「하지 않을 것」.
-// M08 G2(헌법 10조 효력 날 뒤): `master`로 가는 병합은 사람의 길, goal은 에이전트의 로컬 `git merge --no-ff`. 차단은 대상 브랜치와 관계없다.
+// 병합 차단 (헌법 10조) — `master`로 가는 병합은 사람의 버튼과 사용자가 직접 치는 한 줄로만 한다. goal의 로컬 `git merge --no-ff`는 밖이다.
+// 가드는 읽을 수 있는 병합 호출 꼴을 대상 브랜치와 관계없이 묻지 않고 차단한다 — 권한 창을 생략하는 모드에서도 사람 없이 지나가지 않게.
+// 사용자의 `!` 명령은 이 훅을 지나지 않는다.
+// `gh api`는 끝점 낱말로 판정해 설정 `deny`의 글자 꼴보다 좁다 — 본문 글에 끝점 글자가 든 다른 호출과 같은 끝점의 GET은 막지 않는다.
+// 차단은 루프를 멈추므로 오탐 비용이 묻기보다 크다. 읽지 못하는 꼴(변수·명령 치환·gh 별칭·`--input`·`-F query=@파일`·해석기 안 코드)은 쫓지 않는다.
 const MERGE_HINT = '`master`로 가는 병합은 사람이 합니다 — 현황판 병합 카드, 앱 PR 카드, GitHub 웹, 또는 사용자가 직접 치는 `gh pr merge <번호> --merge --match-head-commit <SHA>`. 에이전트는 그 한 줄을 적어 줄 뿐 실행하지 않습니다. goal PR은 에이전트가 로컬 `git merge --no-ff`로 마일스톤 브랜치에 합치고 그 브랜치를 push합니다 — GitHub가 PR을 병합됨으로 닫습니다. `gh pr merge`·병합 API는 대상 브랜치와 관계없이 쓰지 않습니다(헌법 10조).'
 // gh api에서 다음 낱말을 값으로 먹는 옵션 (gh 2.x `gh api --help`)
 const GH_API_VALUE_OPTS = new Set(['-X', '--method', '-H', '--header', '-f', '--raw-field', '-F', '--field', '--input', '-p', '--preview', '-q', '--jq', '-t', '--template', '--cache', '--hostname'])
@@ -500,7 +459,7 @@ function ghApiEndpoint(c) {
   for (i++; i < c.args.length; i++) {
     const t = c.args[i]
     if (t === '--') return ghWord(c.args[i + 1] ?? '')
-    // 리다이렉트 낱말(`>/dev/null`·`2>&1`·떨어진 `>` 뒤의 대상)은 끝점이 아니다 (검수 사소 4)
+    // 리다이렉트 낱말(`>/dev/null`·`2>&1`·떨어진 `>` 뒤의 대상)은 끝점이 아니다
     if (/^(\d*|&)[<>]/.test(t)) { if (/^(\d*|&)[<>]{1,2}$/.test(t)) i++; continue }
     if (!t.startsWith('-')) return ghWord(t)
     if (GH_API_VALUE_OPTS.has(t)) { i++; continue }
@@ -516,7 +475,7 @@ const RE_PULL_MERGE = /(^|\/)pulls\/[^/?#]+\/merge(-async)?\/?([?#].*)?$/i
 const RE_GRAPHQL = /(^|\/)graphql\/?([?#].*)?$/i
 const RE_GQL_MERGE = /mergePullRequest|enablePullRequestAutoMerge|enqueuePullRequest/i
 const MERGE_BLOCK = [
-  // 동사에 붙은 리다이렉트(`merge>/dev/null`)도 뗀다 — ghIs (검수 사소 5)
+  // 동사에 붙은 리다이렉트(`merge>/dev/null`)도 뗀다 — ghIs
   { id: 'gh-pr-merge', why: 'PR 병합 (master 진입)', match: (c) => ghIs(c, 'pr', ['merge']) },
   { id: 'gh-api-병합', why: 'gh api 병합 호출 (pulls/<번호>/merge 쓰기)', match: (c) => ghApi(c) && RE_PULL_MERGE.test(ghApiEndpoint(c)) && ghApiWrites(c.args) },
   { id: 'gh-graphql-병합', why: 'GraphQL 병합 변이 (mergePullRequest·enablePullRequestAutoMerge)', match: (c) => ghApi(c) && RE_GRAPHQL.test(ghApiEndpoint(c)) && c.args.some((t) => RE_GQL_MERGE.test(t)) },
@@ -535,7 +494,7 @@ const IRREVERSIBLE = [
   { id: 'gh-api-보호설정', why: 'gh api 보호 설정 경로 (branch protection·rulesets)', match: (c) => ghApi(c) && c.args.some((t) => RE_GH_PROTECTION.test(t)) },
   { id: 'gh-api-쓰기', why: 'gh api 쓰기 호출 (GitHub 상태 변경)', match: (c) => ghApi(c) && ghApiWrites(c.args) },
   { id: 'gh-repo-변경', why: 'gh repo edit / delete / rename / archive (저장소 설정 변경·삭제)', match: (c) => ghIs(c, 'repo', ['edit', 'delete', 'rename', 'archive']) },
-  // M11 goal 8(M05-9) — 규칙이 없던 꼴. 판독이 못 읽는 꼴(영속 별칭·셸 확장·다른 세그먼트의 설정)은 v2다
+  // 판독이 못 읽는 꼴(영속 별칭·셸 확장·다른 세그먼트의 설정)은 쫓지 않는다
   { id: 'gh-repo-sync-강제', why: 'gh repo sync --force (원격 브랜치 덮어쓰기)', match: (c) => ghIs(c, 'repo', ['sync']) && c.args.some((t) => t === '--force') },
   { id: 'gh-secret', why: 'gh secret set / delete (저장소 비밀 변경)', match: (c) => ghIs(c, 'secret', ['set', 'delete', 'remove']) },
   { id: 'gh-alias', why: 'gh alias set / import (명령을 감추는 별칭 심기)', match: (c) => ghIs(c, 'alias', ['set', 'import']) },
@@ -546,7 +505,7 @@ const IRREVERSIBLE = [
       || (pushArgs(c)?.some((t) => t === '--exec' || t.startsWith('--exec=')) ?? false),
   },
   { id: 'git-branch-이름바꾸기', why: 'git branch -m / --move (브랜치 이름 바꾸기)', match: (c) => c.git?.[0] === 'branch' && c.git.slice(1).some((t) => t === '--move' || (!t.startsWith('--') && /^-[A-Za-z]*m/.test(t))) },
-  // M04-8 — 설정의 `git log*`·`git diff*`·`git show*` 허용이 임의 경로 쓰기를 연다
+  // 설정의 `git log*`·`git diff*`·`git show*` 허용이 임의 경로 쓰기를 연다
   { id: 'git-출력파일', why: 'git --output (임의 경로에 파일 쓰기)', match: (c) => c.git?.slice(1).some((t) => t === '--output' || t.startsWith('--output=')) ?? false },
   {
     id: 'gh-pr-브랜치삭제',
@@ -564,12 +523,9 @@ const IRREVERSIBLE = [
   { id: 'npm-package', why: '배포 산출물 빌드', match: (c) => c.name === 'npm' && c.args[0] === 'run' && c.args[1] === 'package' },
 ]
 
-// ── ① heredoc 본문 면제 — pipeline 하류 전수 소비자 판별 ──────────────────────
-// 계약: heredoc이 붙은 줄의 pipeline 전체를 소비자 집합으로 본다. 면제는 「실행되지도, 파일로 남지도
-// 않는 소비자」뿐이다 — `git commit -F -`, operand 없는 `cat`, operand 없는 `tee` 셋이다.
-// 파일 sink(리다이렉트·`tee FILE`·`dd of=`·`sponge`)는 데이터 소비자가 아니라 판별 불가로 본다 —
-// 본문이 파일로 남으면 뒤이은 `bash run.sh`에는 위험 원문이 없어 가드가 잡을 자리가 사라진다.
-// fail-closed: 판별 불가 소비자가 하나라도 있으면 본문 스캔을 유지한다.
+// heredoc 본문 면제 — 줄의 pipeline 전체를 소비자로 보고, 실행되지도 파일로 남지도 않는 소비자
+// (`git commit -F -`, operand 없는 `cat`·`tee`)뿐일 때만 본문을 뺀다. 파일 sink(리다이렉트·`tee FILE`·`dd of=`·`sponge`)는
+// 판별 불가다 — 본문이 파일로 남으면 뒤이은 `bash run.sh`에는 위험 원문이 없다. 판별 불가가 하나라도 있으면 본문을 판정한다.
 const HEREDOC_WORD = /[A-Za-z0-9_.-]/
 
 function heredocDelims(line) {
@@ -593,7 +549,7 @@ function heredocDelims(line) {
 
 const stripHeredocMarkers = (stage) => stage.replace(/<<-?\s*(?:'[^']*'|"[^"]*"|[A-Za-z0-9_.-]+)/g, ' ')
 
-// 이스케이프는 세그먼트 분할과 같게 읽는다(M03-32) — 인용부 밖 `\"`가 연 가짜 인용이 뒤의 `>`를 가리지 않게.
+// 이스케이프는 세그먼트 분할과 같게 읽는다 — 인용부 밖 `\"`가 연 가짜 인용이 뒤의 `>`를 가리지 않게.
 function hasOutputRedirect(stage) {
   let quote = null
   for (let i = 0; i < stage.length; i++) {
@@ -627,10 +583,10 @@ function allConsumersExempt(line) {
   return stages.length > 0 && stages.every(isExemptConsumer)
 }
 // heredoc 하나의 면제 — `<<`가 든 파이프라인만 소비자로 본다(논리 줄 판독 `logicalLines`와 같은 규칙).
-// `git add -A && git commit -F - <<'EOF'`의 `git add`는 본문을 받지 않는다 (M07 G12 검수 중요 1).
+// `git add -A && git commit -F - <<'EOF'`의 `git add`는 본문을 받지 않는다.
 // 파이프라인 단위 면제는 그룹·서브셸·명령 치환이 없는 평평한 줄에서만 쓴다 — `{ echo; cat <<EOF; } | bash`처럼
 // 묶음 밖의 소비자가 본문을 실행하는 꼴은 파이프라인 경계로 읽히지 않는다. 그 밖은 줄 전체 규칙 그대로다.
-// 줄마다 한 번만 훑는다 — heredoc이 많은 줄에서 제곱 시간이 되지 않게(큰 입력 시험).
+// 줄마다 한 번만 훑는다 — heredoc이 많은 줄에서 제곱 시간이 되지 않게.
 function heredocExemptFor(line) {
   if (allConsumersExempt(line)) return () => true
   if (/[(){}`]/.test(line)) return () => false
@@ -670,28 +626,20 @@ function stripExemptHeredocBodies(command) {
   return kept.join('\n')
 }
 
-// ── 판정 문맥 수집 — 셸 `-c` 인자를 같은 파이프라인으로 재귀 판정한다 ────────
-// `bash -c "rm -rf dist"`·`sh -c "git push origin main"`은 Moodie 원본이 잡던 표면인데 현행 가드가
-// 통과시켰다 (M02 Backlog 10의 회귀 2표면 중 하나와 동반 관측된 push 표면). 수리는 셸이 **명령 위치**에
-// 섰을 때만 `-c` 인자 문자열을 다시 판정하는 것이다 — 인용문·커밋 메시지에 든 `bash -c "…"` 서술은
-// 명령 위치가 아니라 재귀하지 않고, 오탐 방어가 유지된다 (OK-07·08·09 양방향 고정).
-// 깊이 상한은 셸 안의 셸을 몇 겹까지 따라갈지다 — 무한 중첩 입력에서 스택을 보호한다 (fail-safe).
+// 셸이 명령 위치에 섰을 때만 `-c` 인자 문자열을 같은 파이프라인으로 다시 판정한다 — 인용문·커밋 메시지에 든
+// `bash -c "…"` 서술은 명령 위치가 아니라 다시 읽지 않는다. 깊이 상한은 무한 중첩 입력에서 스택을 보호한다.
 const SHELL_DEPTH_LIMIT = 3
 
-// 셸 실행 파일 인자에서 스크립트 문자열을 찾는다 (M03 Phase 4 Step 10 · Backlog 17 갈래 ①②).
-// `sh [옵션…] -c [옵션…] [--] 스크립트`의 옵션 구간을 읽는다 — 구간은 첫 operand나 `--`·`-`에서 끝난다.
-//   ① `c`가 짧은 옵션 묶음의 어디에 있어도 -c 모드다 (`-ce`·`-cx`·`-lc`). `+` 묶음은 옵션 해제라 세지 않는다.
-//   ② -c 모드의 스크립트는 옵션 구간 뒤의 첫 operand다 (`bash -c -x "…"`·`bash -c -- "…"`).
-//   `-o`·`-O` 묶음과 `--rcfile`·`--init-file`은 다음 토큰을 값으로 먹는다 (`bash -o pipefail -c "…"`).
-// 종전 판독(`-c` 꼴 토큰 바로 뒤의 토큰)은 합집합으로 남긴다 — 수리가 기존 재판정 표면을 줄이지 않게 한다.
-// -c 모드가 아닌 operand(`bash -x run.sh`)는 파일 이름이라 다시 판정하지 않는다.
-// M11 goal 8(M03-28): bash는 `+c`도 -c 모드로 읽고, 묶음의 `o`·`O`마다 값을 하나씩 먹으며(`-coo a b`),
-//   대시 하나짜리 긴 옵션(`-login`·`-posix`·`-noprofile`)은 값을 먹지 않는다. 앱 mergeDeny.ts의 사본과 같다.
+// 셸 실행 파일 인자에서 스크립트 문자열을 찾는다 — `sh [옵션…] -c [옵션…] [--] 스크립트`의 옵션 구간은 첫 operand나 `--`·`-`에서 끝난다.
+//   `c`가 짧은 옵션 묶음의 어디에 있어도 -c 모드다(`-ce`·`-lc`, bash는 `+c`도). 스크립트는 옵션 구간 뒤의 첫 operand다.
+//   `-o`·`-O`는 글자마다 값을 하나씩 먹고(`-coo a b`), `--rcfile`·`--init-file`도 값을 먹는다. 대시 하나 긴 옵션(`-login`)은 먹지 않는다.
+// `-c` 꼴 토큰 바로 뒤의 토큰도 합집합으로 읽는다 — 재판정 표면을 줄이지 않는다. -c 모드가 아닌 operand는 파일 이름이다.
+// 앱 mergeDeny.ts의 사본과 같다.
 const SHELL_VALUE_LONG = new Set(['--rcfile', '--init-file'])
 const SHELL_LONG_WORDS = new Set(['login', 'noprofile', 'norc', 'posix', 'restricted', 'verbose', 'version', 'help', 'debugger', 'noediting', 'dump-strings', 'dump-po-strings', 'pretty-print'])
 const RE_SHELL_BUNDLE = /^[-+][A-Za-z]+$/
 
-// 대시 하나 긴 옵션은 bash만 읽는다 — zsh·ksh·dash·ash에서 `-restricted`는 `c`가 든 짧은 묶음이다(독립 검수 1).
+// 대시 하나 긴 옵션은 bash만 읽는다 — zsh·ksh·dash·ash에서 `-restricted`는 `c`가 든 짧은 묶음이다.
 // sh는 bash일 수도 dash일 수도 있어 두 판독의 합집합이다. 셸을 모르면 합집합이다.
 const LONG_WORD_SHELLS = new Set(['bash', 'bash.exe'])
 const EITHER_SHELLS = new Set(['sh', 'sh.exe'])
@@ -717,12 +665,10 @@ function shellScriptsOf(args, shell) {
   return [...at].map((j) => args[j])
 }
 
-// ── 논리 줄 판독 (M06 G5 · Backlog 8 · 사용자 결정 B) ────────────────────────
-// 원문 읽기(①②)는 물리 줄 단위라 `\`+개행 줄 이음을 모르고, 원문 전체를 이으면 bash가 잇지 않는 자리
-// (주석 끝, 따옴표 친 heredoc 본문)까지 이어 뒤 명령이 사라진다(G5 1·2차 검수 FAIL). 그래서 bash처럼 한 번에 읽는
-// 두 번째 판독을 둔다. 판정은 원문 읽기·이 판독·이음 지운 원문 읽기(`joinedReading`, 아래)의 합집합이라
-// 옛 가드보다 약해질 수 없다. 이 판독이 문맥을 잘못 짐작해 글을 잃어도(4차 검수의 닫히지 않는 `((`, 묶음 밖 `| bash`)
-// 이어 쓴 명령은 이음 지운 원문 읽기가 따로 읽는다. 판독끼리 면제 범위를 주고받지 않는다 — 어느 판독도 다른 판독의 글을 지우지 않는다.
+// 논리 줄 판독 — 원문 읽기는 물리 줄 단위라 `\`+개행 줄 이음을 모르고, 원문 전체를 이으면 bash가 잇지 않는 자리
+// (주석 끝, 따옴표 친 heredoc 본문)까지 이어 뒤 명령이 사라진다. 그래서 bash처럼 한 번에 읽는 두 번째 판독을 둔다.
+// 판정은 원문 읽기·이 판독·이음 지운 원문 읽기(`joinedReading`)의 합집합이라 원문 읽기보다 약해질 수 없다. 이 판독이 문맥을
+// 잘못 짐작해 글을 잃어도(닫히지 않는 `((`, 묶음 밖 `| bash`) 이음 지운 원문 읽기가 따로 읽는다. 어느 판독도 다른 판독의 글을 지우지 않는다.
 //   - 문맥 쌓기: 작은따옴표·`$'…'`·큰따옴표·백틱·`${ … }`·`$( … )`·산술(`$(( ))`·`(( ))`·`$[ ]`).
 //     따옴표 밖과 큰따옴표 안의 `\`+LF·`\`+CRLF는 지운다. 그 밖의 `\X`는 두 글자 그대로 두되 X가 문맥을 바꾸지 않게 건너뛰고,
 //     X는 낱말 경계로 치지 않는다(`a\ #b`). 백틱 안은 닫는 백틱까지 글자 그대로다.
@@ -731,11 +677,11 @@ function shellScriptsOf(args, shell) {
 //   - heredoc: `<<`·`<<-` 뒤 단어가 구분자다(따옴표나 `\`가 섞이면 따옴표 친 구분자). 본문은 연산자가 있는 줄의
 //     개행 뒤에서 읽는다. 따옴표 친 구분자는 원문 줄 그대로, 없는 구분자는 줄 끝 홀수 `\`로 이은 줄로 종결자를 찾는다.
 //   - 본문은 먹는 쪽이 면제 소비자(`cat`·`tee`, `git commit -F -`)뿐일 때만 버리고, 나머지는 명령으로 다시 읽는다
-//     (G5 3차 검수 FAIL — 셸 이름 목록은 닫히지 않는다). 먹는 쪽은 가장 안쪽 `$( … )` 안의 파이프라인으로 본다.
+//     (셸 이름 목록은 닫히지 않는다). 먹는 쪽은 가장 안쪽 `$( … )` 안의 파이프라인으로 본다.
 //     명령 자리의 `$( … )`(`bash -c "$(cat <<EOF …)"`의 스크립트)가 내는 글은 실행되므로 면제하지 않는다.
 // 반환은 따옴표 밖 개행이 없는 논리 줄의 목록이다(`$( … )` 안의 개행은 남는다). 각 줄을 `splitSegments`로 나눈다.
 // 한 번 훑기다 — 파이프라인 경계는 개행마다 heredoc의 문맥 머리별로 한 번 셈하고 보관하며, 줄 하나에 heredoc이
-// HEREDOC_MANY개를 넘으면 경계를 세지 않고 본문을 모두 다시 읽는다(3·4차 검수의 제곱 시간).
+// HEREDOC_MANY개를 넘으면 경계를 세지 않고 본문을 모두 다시 읽는다(제곱 시간 방지).
 const HEREDOC_WORD_END = new Set([' ', '\t', '\r', '\n', ';', '&', '|', '<', '>', '(', ')'])
 const COMMENT_AFTER = new Set([' ', '\t', ';', '&', '|', '(', '\n'])
 const ARITH = new Set(['$((', '((', '$[', '['])
@@ -744,8 +690,8 @@ const HEREDOC_DEPTH_LIMIT = 8
 
 // `((`·`$((`가 산술인가 — j는 여는 괄호 둘 다음 위치다. 같은 물리 줄 안에서 괄호 깊이가 붙은 `))`로 0이 되면 산술이다.
 // 닫히지 않으면(`[[ x =~ ((a|b)c) ]]`·`((cd .) || …)`) bash는 서브셸·묶음으로 읽는다 — 산술로 보면 heredoc 판독이 꺼져
-// 커밋 본문을 명령으로 읽었다(5차 검수의 오탐). 바깥 `(`의 짝이 안쪽 `(`의 짝 바로 뒤 `)`면 산술이다.
-// 물리 줄마다 괄호 짝을 한 번만 세어 둔다 — `((`마다 줄을 다시 훑으면 개행 없는 `((` 반복에서 제곱 시간이다(6차 검수).
+// 커밋 본문을 명령으로 읽는다. 바깥 `(`의 짝이 안쪽 `(`의 짝 바로 뒤 `)`면 산술이다.
+// 물리 줄마다 괄호 짝을 한 번만 세어 둔다 — `((`마다 줄을 다시 훑으면 개행 없는 `((` 반복에서 제곱 시간이다.
 let arithMemo = null
 function arithCloses(text, j) {
   const o = j - 2
@@ -804,7 +750,7 @@ function readHeredocBody(text, i, h) {
     let line = nl < 0 ? text.slice(i) : text.slice(i, nl)
     let next = nl < 0 ? text.length : nl + 1
     // 따옴표 없는 구분자는 줄 끝 홀수 `\`로 줄을 잇는다. 조각을 모아 한 번에 붙인다 — 잇는 줄마다 전체를 복사하면
-    // 줄마다 `\`인 본문에서 제곱 시간이 된다(5차 검수). 끝 `\` 개수는 새 조각이 모두 `\`일 때만 앞 조각과 이어 센다.
+    // 줄마다 `\`인 본문에서 제곱 시간이 된다. 끝 `\` 개수는 새 조각이 모두 `\`일 때만 앞 조각과 이어 센다.
     if (!h.quoted && endsWithContinuation(line) && next < text.length) {
       const parts = [line]
       let tb = trailingBackslashes(line)
@@ -884,8 +830,8 @@ const executesSubst = (tail) => atCommandPos(tail) || RE_SHELL_C_ARG.test(tail) 
 // 버퍼는 둘이다 — `done`은 이 논리 줄에서 앞서 끝난 물리 줄들(따옴표 밖 개행이 `$( … )` 안에 남은 것), `cur`는 지금 물리 줄.
 // 위치는 논리 줄 머리부터 센다(`base` = done 길이). 판독 중에는 `cur`의 글자를 다시 읽지 않고 끝 글자(`last`)와
 // 짧은 꼬리(`tail`)만 따로 든다 — 긴 이어 붙인 문자열의 글자를 읽으면 V8이 매번 전체를 펴서 제곱 시간이 된다.
-// 줄 하나에 heredoc이 HEREDOC_MANY개를 넘으면 면제를 따지지 않고 모두 다시 읽는다(4·5차 검수의 큰 입력 시간).
-const HEREDOC_MANY = 8   // 경계 셈은 문맥 머리마다 줄 길이만큼 든다 — 줄이 길고 heredoc이 많으면(5차 검수 160만 자 6초) 셈을 접는다
+// 줄 하나에 heredoc이 HEREDOC_MANY개를 넘으면 면제를 따지지 않고 모두 다시 읽는다.
+const HEREDOC_MANY = 8   // 경계 셈은 문맥 머리마다 줄 길이만큼 든다 — 줄이 길고 heredoc이 많으면(160만 자에 6초) 셈을 접는다
 function logicalLines(text, depth = 0) {
   const units = []
   const stack = []
@@ -922,11 +868,11 @@ function logicalLines(text, depth = 0) {
       if (text[i + 1] === '\n') { i += 2; continue }
       if (text[i + 1] === '\r' && text[i + 2] === '\n') { i += 3; continue }
       add(text.slice(i, i + 2)); i += 2
-      last = '\\'   // 이스케이프된 글자는 낱말 경계가 아니다 — `a\ #b`의 `#`는 주석이 아니다 (4차 검수)
+      last = '\\'   // 이스케이프된 글자는 낱말 경계가 아니다 — `a\ #b`의 `#`는 주석이 아니다
       continue
     }
     if (ch === '$' && (text[i + 1] === '(' || text[i + 1] === '[' || text[i + 1] === '{')) {
-      // `$((`가 같은 줄에서 `))`로 닫히지 않으면 bash는 명령 치환 안의 서브셸로 읽는다(`$((echo a) | cat)`, 5차 검수)
+      // `$((`가 같은 줄에서 `))`로 닫히지 않으면 bash는 명령 치환 안의 서브셸로 읽는다(`$((echo a) | cat)`)
       const t = text[i + 1] === '(' ? (text[i + 2] === '(' && arithCloses(text, i + 3) ? '$((' : '$(') : '$' + text[i + 1]
       push(t, t.length)
       add(t)
@@ -1010,15 +956,14 @@ function logicalLines(text, depth = 0) {
   return units.filter((u) => u.trim())
 }
 
-// ── 이음 지운 원문 읽기 (M06 G5 6차 검수 FAIL) ──────────────────────────────────
-// 세 번째 판독이다. 원문 읽기가 보는 글(면제 heredoc 본문을 지운 글) 전체를 원문 읽기의 따옴표 규칙으로 앞에서부터 한 번
-// 훑으며 bash가 잇는 자리의 `\`+개행만 지우고, 그 글을 원문 읽기(`splitSegments`)에 그대로 넘긴다 — 한 줄 꼴에서 원문 읽기가
-// 보는 글을 이어 쓴 꼴에서도 보게 하는 것이다. 문맥을 잘라 다시 짐작하지 않는다: 따옴표 상태는 글 머리부터 이어 세고
-// (6차 검수 — 거슬러 보기 상한, 따옴표 친 인자 안의 예시 명령), 다른 판독의 면제 범위를 쓰지 않는다(글 인자 판정의 꼬리 절단).
+// 이음 지운 원문 읽기 — 세 번째 판독이다. 원문 읽기가 보는 글(면제 heredoc 본문을 지운 글) 전체를 원문 읽기의 따옴표 규칙으로
+// 앞에서부터 한 번 훑으며 bash가 잇는 자리의 `\`+개행만 지우고, 그 글을 `splitSegments`에 넘긴다 — 한 줄 꼴에서 원문 읽기가
+// 보는 글을 이어 쓴 꼴에서도 보게 한다. 문맥을 잘라 다시 짐작하지 않는다: 따옴표 상태는 글 머리부터 이어 세고
+// (거슬러 보는 상한을 두면 긴 따옴표 인자에서 틀린다), 다른 판독의 면제 범위를 쓰지 않는다.
 // 원문 읽기와 다른 판단은 셋이다 — 각각 bash가 잇지 않거나 실행하지 않는 자리다.
 //   - 작은따옴표가 열린 채 줄 끝에 온 `\`(`'mas\⏎ter'`)는 잇지 않는다.
 //   - 낱말 머리의 `#`(따옴표 밖)부터의 주석 안은 잇지 않는다. 이스케이프된 글자(`a\ #b`)와 줄 이음 뒤 글자(`feat\⏎#1`)는
-//     낱말 경계가 아니다. 같은 줄 괄호 안이나 `|` 뒤의 `#`는 정규식·extglob 글자일 수 있어(`[[ x =~ (#) ]]`, 7차 검수),
+//     낱말 경계가 아니다. 같은 줄 괄호 안이나 `|` 뒤의 `#`는 정규식·extglob 글자일 수 있어(`[[ x =~ (#) ]]`),
 //     그 자리가 이음을 끊으면 주석 없이 이은 글도 더 읽는다 — 원문 읽기보다 덜 읽지 않게 한다.
 //   - 글 인자 자리 heredoc(`dataArgHeredoc`)의 본문은 지운다.
 // heredoc은 줄 이음을 먼저 이은 논리 줄에서 찾는다. 원문 읽기가 한 줄 꼴에서 놓치는 꼴(따옴표 규칙이 bash와 다른 자리)은
@@ -1028,7 +973,7 @@ const RUN_WORD_BREAK = new Set([' ', '\t', ';', '&', '|', '(', '<', '>', '\n'])
 // 글 인자 자리의 heredoc — 논리 줄 머리부터 따옴표·`$( … )`를 세어, 첫 `<<`가 `$( … )` 한 겹 안에 있고 그 `$(`가 선
 // 단계의 머리 낱말이 `git`·`gh`이며 `$(` 안이 면제 소비자뿐이면 본문은 글이다(`gh pr create --body "$(cat <<'EOF'`).
 // 원문 읽기는 이 본문을 열린 큰따옴표 안으로 읽어 건너뛰지만, 본문에 짝 없는 `"`(`5" screen`)가 있으면 그 뒤를 명령으로
-// 읽는다 — 이은 글에서 새 오탐이 되지 않게 이 판독만 본문을 뺀다. 줄 전체를 앞에서부터 세며 꼬리를 자르지 않는다(6차 검수).
+// 읽는다 — 이은 글에서 새 오탐이 되지 않게 이 판독만 본문을 뺀다. 줄 전체를 앞에서부터 세며 꼬리를 자르지 않는다.
 // 셸 `-c` 스크립트 안(depth > 0)에서는 쓰지 않는다 — 바깥 셸이 `$( … )`를 먼저 펼쳐 본문이 스크립트가 된다.
 function dataArgHeredoc(line) {
   const st = []
@@ -1078,7 +1023,7 @@ function stageHead(stage) {
 // bash처럼 줄 이음을 먼저 이어 논리 줄을 만든 뒤 그 논리 줄에서 heredoc을 찾고(`git commit \⏎ -F - <<'EOF'`, `cat <\⏎<'EOF'`),
 // 본문은 `stripExemptHeredocBodies`의 규칙대로 면제면 지우고 아니면 줄로 남긴다. 본문 안의 이음은 본문 안에서만 잇는다.
 // comments가 거짓이면 주석을 모르는 원문 읽기 그대로 잇는다. 주석 규칙은 `[[ x =~ (#) ]]`·extglob `@(#|y)` 안의 `#`를
-// bash와 달리 주석으로 볼 수 있어(7차 검수), 주석이 이음을 끊은 자리가 있으면 주석 없이 이은 글도 함께 읽는다.
+// bash와 달리 주석으로 볼 수 있어, 주석이 이음을 끊은 자리가 있으면 주석 없이 이은 글도 함께 읽는다.
 // 반환은 { text, commentCut } — text는 이음을 지운 글(지운 이음이 없으면 null), commentCut은 주석이 이음을 끊었는가.
 function joinedReading(command, depth = 0, comments = true) {
   if (!command.includes('\\')) return { text: null, commentCut: false }
@@ -1161,16 +1106,16 @@ function contextsOf(command, depth = 0) {
   const out = []
   for (const seg of segs) {
     const toks = tokenize(seg)
-    // 명령 자리의 `eval`은 인자를 이어 스크립트로 돌린다 — 인용한 꼴(`eval "gh pr merge 1"`)도 다시 읽는다 (Backlog 17)
+    // 명령 자리의 `eval`은 인자를 이어 스크립트로 돌린다 — 인용한 꼴(`eval "gh pr merge 1"`)도 다시 읽는다
     const ev = toks.indexOf('eval')
     if (depth < SHELL_DEPTH_LIMIT && ev >= 0 && toks.slice(0, ev).every((t) => RE_ASSIGN.test(t) || SHELL_HEAD_WORDS.has(t))) {
       out.push(...contextsOf(toks.slice(ev + 1).join(' '), depth + 1))
     }
     for (const c of commandsOf(toks)) {
-      // seg — 세그먼트의 토큰 전부다 (M05 H1). `master` 글자 판정이 머리의 할당(`GIT_CONFIG_VALUE_0=HEAD:master git push`)까지 보게 한다
+      // seg는 세그먼트의 토큰 전부다 — `master` 글자 판정이 머리의 할당(`GIT_CONFIG_VALUE_0=HEAD:master git push`)까지 보게 한다
       out.push({ ...c, seg: toks, segText: seg, git: isGit(c.base) ? gitSub(c.args) : null })
       if (depth >= SHELL_DEPTH_LIMIT) continue
-      // `env -S` 문자열은 셸 `-c` 스크립트처럼 같은 파이프라인으로 다시 판정한다 (M09 G3)
+      // `env -S` 문자열은 셸 `-c` 스크립트처럼 같은 파이프라인으로 다시 판정한다
       const split = splitScriptOf(c)
       if (split !== null) out.push(...contextsOf(split, depth + 1))
       const evaluated = evaluatedScriptOf(c)
@@ -1184,7 +1129,7 @@ function contextsOf(command, depth = 0) {
   return out
 }
 
-// 인자를 스크립트로 돌리는 PowerShell 명령 (M11 goal 8 · Backlog 28) — `iex`·`Invoke-Expression`, `Start-Process`.
+// 인자를 스크립트로 돌리는 PowerShell 명령 — `iex`·`Invoke-Expression`, `Start-Process`.
 // 다시 읽을 글을 돌려준다. 앱 잠금 노드 mergeDeny.ts의 windowsShellScripts와 같다. 없으면 null.
 const PS_EVAL = new Set(['iex', 'invoke-expression'])
 const PS_START = new Set(['start-process', 'saps'])
@@ -1224,7 +1169,7 @@ function evaluatedScriptOf(c) {
   return [file, ...list.filter((v) => typeof v === 'string').flatMap((v) => v.replace(/^@\(/, '').replace(/\)$/, '').split(','))].join(' ')
 }
 
-// 앱 데이터 폴더(Electron userData `agentdeck` — 엔진 코드 `engines/`·`engine-config.json`) (M11 goal 8 · M07-1).
+// 앱 데이터 폴더(Electron userData `agentdeck` — 엔진 코드 `engines/`·`engine-config.json`).
 // 설정 deny `Edit(~/AppData/Roaming/agentdeck/**)`는 파일 도구에만 걸린다. 명령이 그 경로를 글로 들고 있고 읽기 명령만이 아니면 묻는다.
 const RE_APP_DATA = /(?:appdata[\\/]+roaming|%appdata%|\$\{?appdata\}?|\$env:appdata)[\\/]+agentdeck(?=$|[\\/"'\s])/i
 const READ_ONLY_BASES = new Set(['cat', 'ls', 'dir', 'head', 'tail', 'grep', 'rg', 'wc', 'stat', 'file', 'echo', 'cd', 'pushd', 'type', 'get-content', 'gc', 'get-childitem', 'gci'])
@@ -1258,7 +1203,7 @@ const showsAppData = (c) => c.seg.some((t) => RE_APP_DATA.test(t))
 const appDataWrite = (contexts) => contexts.some((c) => showsAppData(c) && !readOnlyCtx(c))
   || (contexts.some((c) => showsAppData(c) && (c.base === 'cd' || c.base === 'pushd')) && contexts.some((c) => !readOnlyCtx(c)))
 
-// 현재 브랜치 (M11 goal 8 · M08-2) — 작업 폴더에서 위로 `.git`을 찾아 HEAD를 읽는다(worktree의 `.git` 파일은 gitdir를 따른다).
+// 현재 브랜치 — 작업 폴더에서 위로 `.git`을 찾아 HEAD를 읽는다(worktree의 `.git` 파일은 gitdir를 따른다).
 // 이 읽기는 질의를 더할 뿐 빼지 않는다 — 못 읽으면(저장소 밖·분리 머리·읽기 실패) 지금과 같은 판정이다. ADR-003의 상태 판독은
 // 통과를 내는 설계라 상태가 틀리면 새었다. 여기서는 틀려도 질의 하나가 덜 뜰 뿐이고, `master`는 서버 보호가 받는다.
 function currentBranch(cwd) {
@@ -1297,7 +1242,7 @@ function movesToMaster(c) {
     if (t === '--') break
     if (sub !== 'rebase' && NEW_BRANCH_OPT.test(t)) return low(args[i + 1] ?? '') === MASTER
     if (sub !== 'rebase' && /^--(?:create|force-create|orphan)=/.test(t)) return low(t.slice(t.indexOf('=') + 1)) === MASTER
-    // 이전 브랜치(`-`·`@{-N}`)는 대상을 못 읽는다 — 묻는 쪽으로 본다(독립 검수 2). 끝 `}`는 묶음 닫기로 떨어져 올 수 있다
+    // 이전 브랜치(`-`·`@{-N}`)는 대상을 못 읽는다 — 묻는 쪽으로 본다. 끝 `}`는 묶음 닫기로 떨어져 올 수 있다
     if (sub !== 'rebase' && (t === '-' || /^@\{-\d+\}?$/.test(t))) return true
     if (sub !== 'rebase' && (t === '--track' || t === '-t' || t.startsWith('--track='))) { track = true; continue }
     if (sub === 'rebase' && ['--onto', '-s', '--strategy', '-X', '--strategy-option', '-x', '--exec'].includes(t)) { i++; continue }
@@ -1321,7 +1266,6 @@ function pushesCurrent(c) {
 }
 const isPushOrMerge = (c) => pushesCurrent(c) || c.git?.[0] === 'merge'
 
-// ── 본체 ─────────────────────────────────────────────────────────────────────
 function main() {
   const raw = (() => { try { return readFileSync(0, 'utf8') } catch { return '' } })()
   if (!raw.trim()) block('payload-없음', '훅 payload 없음', '판정할 수 없는 상태에서 통과시키면 게이트가 없는 것과 같습니다.')

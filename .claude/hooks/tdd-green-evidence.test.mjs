@@ -1,13 +1,5 @@
 #!/usr/bin/env node
-// tdd-guard Green 증거 강도 (M02 Phase 3 Step 2 · M01 Backlog 11번 잔여 + 7번).
-//
-// 겨누는 결함 두 가지 —
-//   ① 전체 Green 오채집(fail-open): 채집 조건이 「명령에 vitest·npm test가 들어 있고 출력에 Test Files
-//      … passed가 있다」뿐이라, 단건 파일 실행이나 -t 필터 실행의 통과도 「전체 Green」 증거로 기록된다.
-//      그 증거 하나로 source 태그 Phase의 PASS 추기가 열린다 — 전체 회귀를 보지 않은 통과다.
-//      출력이 파이프로 잘린 실행도 같은 이유로 위험하다 — 잘린 꼬리에 실패 표기가 있었을 수 있다.
-//   ② 증거 오염: lastGreen.evidence에 vitest 색상 제어 문자(ANSI)가 그대로 박힌다.
-//
+// 단건·필터·파이프로 잘린 실행의 통과가 전체 Green 증거로 기록되지 않는지, 증거 줄에 ANSI가 남지 않는지 본다.
 // 판정 근거는 미러 hook-log 줄과 미러 상태 파일뿐이다 (실저장소는 건드리지 않는다).
 import { join } from 'node:path'
 import { createRunner } from './_lib/runner.mjs'
@@ -39,14 +31,12 @@ function lastGreen() {
 }
 
 try {
-  // ---- 회귀 불변식 — 전체 실행은 지금도 증거다 -----------------------------
   {
     const c = collect('ge', 'npm run test', VITEST_FULL_GREEN)
     r.judge('GE-01 전체 실행(`npm run test`) + 전체 Green', c.verdict, 'green-기록/vitest-green',
       { note: '회귀 불변식 — 유일한 인정 경로' })
   }
 
-  // ---- ① 전체 Green 오채집 (fail-open) ------------------------------------
   {
     const c = collect('ge', 'npx vitest run 02_Project/01_TestCode/hooks/probe.test.ts', VITEST_SINGLE_GREEN)
     r.judge('GE-02 단건 파일 실행 통과 — 카운터만 푼다', c.verdict, '리셋/vitest-green-좁힘',
@@ -75,7 +65,6 @@ try {
       { note: '대상·필터가 아니라 출력 형태 인자다' })
   }
 
-  // ---- ② 증거 오염 (ANSI) --------------------------------------------------
   {
     const c = collect('ge', 'npm test', ANSI_GREEN)
     r.judge('GE-06 ANSI 섞인 전체 Green의 채집 판정', c.verdict, 'green-기록/vitest-green')
@@ -86,13 +75,11 @@ try {
       `실측 ${JSON.stringify(ev)}`)
   }
 
-  // ---- 회귀 불변식 — Red은 증거가 아니다 -----------------------------------
   {
     const c = collect('ge', 'npm run test', VITEST_FULL_RED)
     r.judge('GE-07 전체 실행 Red', c.verdict, '무기록/vitest-red', { note: '회귀 불변식' })
   }
 
-  // ---- 저장 파일로 넘어간 출력 (M03-3 · M05-12 · M07-4) -----------------------
   {
     const big = H.path('persisted-out.txt')
     const persisted = (session, command, fileText) => {
@@ -110,7 +97,6 @@ try {
     r.judge('GE-09c persisted 파일이 없으면 판정 불능', runP({ ...persisted('ge', 'npm test', ''), tool_response: { stdout: 'x', persistedOutputPath: H.path('없는-파일.txt') } }), '무기록/판정-불능')
   }
 
-  // ---- 좁힌 실행 (M11 Backlog 40) — 실패 0인 요약이면 카운터만 푼다 ----------------
   {
     const seed = (streak) => H.write(STATE, JSON.stringify({ schema: 2, global: null, sessions: { ge: { streak, at: Date.now() } } }, null, 2) + '\n')
     const streakOf = () => { try { return H.readJson(STATE).sessions?.ge?.streak ?? null } catch { return null } }
@@ -141,7 +127,6 @@ try {
       narrow('node --test-reporter=dot --test 99_Others/Dashboard/test/chime.test.mjs', NODE_GREEN), '리셋/node-test-green-좁힘')
   }
 
-  // ---- 상대 경로의 기준과 PASS 추기 대상의 표기 (M03-19) ----------------------
   {
     H.write(STATE, JSON.stringify({ schema: 2, global: null, sessions: {} }, null, 2) + '\n')
     const sub = H.run(HOOK, {
@@ -162,7 +147,6 @@ try {
     }
   }
 
-  // ---- 하위 에이전트·작업 폴더·확장자 (M11 Backlog 8 · M07-33) --------------------
   {
     const edit = (ev, file, agent) => ({
       session_id: 'sc', hook_event_name: ev, tool_name: 'Edit', cwd: H.mirror,
@@ -198,7 +182,6 @@ try {
     r.judge('CS-02 전체 Green 뒤 CSS 편집 — PASS 추기 증거가 실효한다', seen(passAdd), 'deny/green-실효')
   }
 
-  // ---- 차단 문구가 채집되는 실행 꼴과 시험 경로를 알려 준다 (M02-6 · M05-23 · M05-60) ----
   {
     const SRC = H.path('02_Project', '00_Source', 'main', 'probe.ts')
     H.write(STATE, JSON.stringify({ schema: 2, global: null, sessions: { msg: { streak: 2, at: Date.now() } } }, null, 2) + '\n')

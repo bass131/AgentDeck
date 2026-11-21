@@ -1,8 +1,5 @@
 #!/usr/bin/env node
-// 기대-실패 플래그 자기 검증 시나리오 (M02 Phase 1 Step 8) — runner-flag.test.mjs가 자식으로 돌린다.
-// 인자 하나로 두 방향을 고른다.
-//   red             : 플래그 항목의 실측(allow)이 기대(deny)와 다르다 → Red 관측 성공 → exit 0
-//   unexpected-pass : 플래그 항목의 실측(deny)이 기대(deny)와 같다 → 예상 밖 통과 → exit 1
+// runner-flag.test.mjs가 자식으로 돌린다. 인자 `red`는 Red 관측 성공(exit 0), `unexpected-pass`는 예상 밖 통과(exit 1) 시나리오다.
 import { createRunner } from '../_lib/runner.mjs'
 
 const mode = process.argv[2] || 'red'

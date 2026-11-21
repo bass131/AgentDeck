@@ -12,7 +12,7 @@
 - 마일스톤 스펙: `01_Milestones/M12_CharterTaste/00_마일스톤-스펙.md`. 다음 `M13_Installer/00_마일스톤-스펙.md`.
 - 마일스톤 브랜치: `milestone/m12-charter-taste`(`6c31c299`에서 가름 — M11 마일스톤 PR 118 머리).
 - 사슬 PR: M11 118(`master`로, 사용자 병합 대기 — 감시는 사슬 끝에서 건다).
-- 현재 goal: G5 연습 저장소 실주행 — `50_Goal-G5-연습-저장소-실주행.md`, 브랜치 `feat/m12-g5-practice-run`(마일스톤 머리 `b54891a6`에서). G1 종결(PR 119), G2 종결(PR 120), G3 종결(PR 121), G4 종결(PR 122).
+- 현재 goal: G6 마일스톤 회귀 검증과 마일스톤 PR — `60_Goal-G6-회귀검증과-마일스톤-PR.md`, 브랜치 `feat/m12-g6-regression`(마일스톤 머리 `b0a19b3d`에서). G1…G5 종결(PR 119–123).
 - 연습 저장소: `bass131/AgentDeck_Test`(공개, `main` 룰셋 `main-protect`). clone `C:\Dev\AgentDeck_Test`. 연습 토큰 `%USERPROFILE%\.agentdeck-practice\gh-token.txt`(만료 2026-11-27 03:20 UTC). 연습 앱 데이터 `%USERPROFILE%\.agentdeck-practice\udd`.
 - goal 병합의 정형 절차: ① goal 브랜치를 push하고 독립 검수를 PR 전에 반영한다. ② `gh pr view <N> --json headRefOid,statusCheckRollup`으로 `hard-gates`와 머리 SHA를 읽는다. ③ `git fetch origin` 뒤 로컬 마일스톤 브랜치가 원격과 같은지 확인하고 `git switch milestone/m12-charter-taste`, `git merge --no-ff -m "<메시지>" origin/<goal 브랜치>`. ④ 병합한 SHA가 머리 SHA와 같은지 확인한 뒤 `git push -u origin milestone/m12-charter-taste`. 작업 트리는 병합 전에 깨끗해야 한다.
 - push는 항상 `-u origin <브랜치>`로 원격 브랜치를 명시합니다. `master`로 가는 병합은 사용자가 직접 합니다.
@@ -22,7 +22,7 @@
 
 ## 마감 요약 (최신 1건 — 3줄: 바뀐 것 / 내린 결정 / 봐야 할 것)
 
-- 스탬프: 2026-11-21T21:49:42+09:00
-- 바뀐 것: 연습 저장소에서 헌장·Taste 문답, 한도 주입 멈춤과 자동 이어 가기, M03 완주(마일스톤 PR #11 앱 병합)를 실측했습니다. 하드 게이트 다섯 종과 `npm test`(실패 0)까지 `PASS` 넷을 남겼고 독립 검수가 돌고 있습니다.
-- 내린 결정: 연습 토큰의 Workflows 권한 부족(연습 실행 FAIL 3)은 실행 환경 원인이라 이 goal의 FAIL로 세지 않았습니다. 사용자가 권한을 넓힌 뒤 「이어 가기」로 풀었습니다.
-- 봐야 할 것: `npm test`·검수 반영 뒤 goal PR과 병합, 그다음 goal 6 회귀와 마일스톤 PR입니다. 장면 캡처를 저장소로 복사할지는 사용자 허락을 기다립니다.
+- 스탬프: 2026-11-21T22:13:35+09:00
+- 바뀐 것: goal 5를 독립 검수 반영 뒤 병합했습니다(PR 123 `b0a19b3d`). goal 6 문서를 쓰고 `planPath`를 옮겼으며, 마일스톤 회귀 검증이 뒤에서 돌고 있습니다.
+- 내린 결정: 완주 기록은 기억이 아니라 연습 저장소의 확정 문서와 대조해 적었습니다. 연습 실행의 FAIL은 실행 환경 원인이라 goal FAIL로 세지 않는다는 판단을 결정 대장에 올렸습니다.
+- 봐야 할 것: 스펙 완료조건 「결과 보고에 장면 캡처」는 임시 폴더의 PNG를 저장소로 복사하는 사용자 허락을 기다립니다. 회귀 통과 뒤 마일스톤 PR과 M13 브랜치입니다.

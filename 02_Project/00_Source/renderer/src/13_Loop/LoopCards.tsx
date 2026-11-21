@@ -2,7 +2,7 @@
 // 스펙 승인 카드는 받은 해시를 보이기만 한다 — 해시를 계산하거나 바꾸지 않는다.
 import { useState, type JSX } from 'react'
 import type { LoopApproval, LoopCard, LoopGoalView, LoopLatch, LoopStatus } from '@shared/ipcContract'
-import { EVIDENCE_MAX, GOAL_STATUS_LABEL, GRADE_LABEL, exceptionLine, sha12 } from './loopModel'
+import { EVIDENCE_MAX, GOAL_STATUS_LABEL, GRADE_LABEL, exceptionLine, limitFacts, sha12 } from './loopModel'
 
 // blocked(진행 불가)는 사람이 원인을 고친 뒤 다시 열어야 풀리는 꼴이라(자동 모드 허용 노드 같은 것) 「다시 열기」를 둔다
 export function ExceptionBar({ status, busy, onResume, onReopen, error }: {
@@ -33,6 +33,18 @@ export function ExceptionBar({ status, busy, onResume, onReopen, error }: {
           <div className="loop-actions">
             <button type="button" className="loop-btn pri" disabled={busy} onClick={onResume}>이어 가기</button>
           </div>
+        )}
+        {status.phase === 'limit' && (
+          <>
+            {status.limit && (
+              <ul className="loop-limit" data-testid="loop-limit">
+                {limitFacts(status.limit).map((f) => <li key={f}>{f}</li>)}
+              </ul>
+            )}
+            <div className="loop-actions">
+              <button type="button" className="loop-btn pri" disabled={busy} onClick={onResume}>지금 이어 가기</button>
+            </div>
+          </>
         )}
         {status.phase === 'blocked' && (
           <div className="loop-actions">

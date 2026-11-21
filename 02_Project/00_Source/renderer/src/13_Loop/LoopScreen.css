@@ -124,6 +124,7 @@
 .loop-exc-label { font-weight: 700; }
 .loop-exc-reason { white-space: pre-wrap; word-break: break-word; }
 .loop-exc-file { font-family: var(--font-mono); color: var(--text-2); word-break: break-all; }
+.loop-limit { margin: 0; padding-left: 18px; color: var(--text-2); word-break: break-word; }
 
 .loop-facts {
   margin: 0;

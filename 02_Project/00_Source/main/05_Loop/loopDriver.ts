@@ -52,7 +52,7 @@ import type {
 } from '@shared/ipcContract'
 import type { AgentEvent } from '@shared/agentEvents'
 import type {
-  LoopCancelTarget, LoopEventItem, LoopListDirResponse, LoopMainResponse, LoopSessionEventPayload, LoopSessionLog, LoopSessionTag, LoopVerificationLine, MainChatArchives, MainChatView,
+  LoopCancelTarget, LoopEventItem, LoopLimitView, LoopListDirResponse, LoopMainResponse, LoopSessionEventPayload, LoopSessionLog, LoopSessionTag, LoopVerificationLine, MainChatArchives, MainChatView,
 } from '@shared/13_Loop/loop'
 import type { LoopGraphResponse } from '@shared/13_Loop/graph'
 import { listDir as listWorkDir, resolveSafe } from '@main/07_Workspace/workspace'
@@ -94,7 +94,22 @@ export function autoModeReasonOf(c: ControlsForRun): string | null {
 
 const DEFAULT_CI_RETRY_MS = 60_000
 const DEFAULT_HUMAN_POLL_MS = 60_000
+const DEFAULT_LIMIT_POLL_MS = 60_000
 const DEFAULT_REQUIRED_CHECKS = ['hard-gates']
+
+function limitViewOf(state: RunState): LoopLimitView | undefined {
+  const h = state.usageLimit?.halt
+  if (!h) return undefined
+  return {
+    reason: h.reason, window: h.window, resetsAt: h.resetsAt === null ? null : new Date(h.resetsAt * 1000).toISOString(),
+    resumeAt: h.resumeAt, utilization: h.utilization, human: h.human,
+  }
+}
+
+// 잠에서 깨면 한도 멈춤의 벽시계를 바로 다시 본다(점검 간격을 기다리지 않는다)
+export function recheckOnResume(pm: { on(event: 'resume', fn: () => void): unknown }, d: Pick<LoopDriver, 'recheck'>): void {
+  pm.on('resume', () => d.recheck())
+}
 const STEP_BUDGET = 1000
 
 interface LoopDriverOptions {
@@ -116,6 +131,8 @@ interface LoopDriverOptions {
   mainTools?: (actions: MainActions) => Promise<Record<string, unknown> | null>
   ciRetryMs?: number
   humanPollMs?: number
+  // 한도 멈춤 동안 벽시계를 다시 보는 간격(기본 1분). 풀리는 시각까지 긴 타이머 하나를 걸지 않는다
+  limitPollMs?: number
   // 시험 이음매 — 실행기를 여는 함수(기본 openLoop). 열기·풀기 도중 닫기의 시점을 시험이 잡는다
   openLoopImpl?: (o: OpenLoopOptions) => Promise<OpenLoopResult>
 }
@@ -133,6 +150,8 @@ export interface LoopDriver {
   closeAll(): Promise<void>
   // 앱을 끌 때 열려 있던 작업 폴더를 다시 연다(사람이 닫은 폴더는 빠진다). 부팅 때 한 번 부른다
   reopenLast(): Promise<void>
+  // 한도 멈춤인 실행기들이 벽시계를 지금 다시 본다(잠에서 깸 — recheckOnResume)
+  recheck(): void
   // 메인 대화 — 읽기(닫힌 저장소는 앱 영역 파일), 사용자 글 보내기, 새 메인 대화
   mainRead(cwd: string): MainChatView
   mainSend(cwd: string, text: string, opts?: { proxy?: boolean }): LoopMainResponse
@@ -276,6 +295,7 @@ export function createLoopDriver(opts: LoopDriverOptions): LoopDriver {
   const nextTurn = (): string => `${turnPrefix}.${++turnSeq}`
   const ciRetryMs = opts.ciRetryMs ?? DEFAULT_CI_RETRY_MS
   const humanPollMs = opts.humanPollMs ?? DEFAULT_HUMAN_POLL_MS
+  const limitPollMs = opts.limitPollMs ?? DEFAULT_LIMIT_POLL_MS
   const openImpl = opts.openLoopImpl ?? openLoop
   const mainTools = opts.mainTools ?? buildMainTools
   const appDigest = (): DigestStore => createFileDigestStore(path.join(opts.appDataDir, 'digests'))
@@ -640,6 +660,9 @@ export function createLoopDriver(opts: LoopDriverOptions): LoopDriver {
       recentLines: recentLinesOf(state.lines),
     }
     if (state.status === 'done' || next.kind === 'done') return { ...filled, phase: 'done' }
+    // 한도 멈춤은 halted(바로 알림)가 아니다. 일시 정지·자동 모드 꺼짐보다 먼저 본다 — 그동안에도 한도 멈춤으로 보인다
+    const limit = state.status === 'usage-limit' ? limitViewOf(state) : undefined
+    if (limit) return { ...filled, phase: 'limit', reason: state.haltReason, limit }
     if (state.status === 'needs-user' || next.kind === 'needs-user') return { ...filled, phase: 'halted', reason: state.haltReason }
     // 구동(kick)과 같은 판단을 상태 계산이 직접 한다 — 여는 쪽의 계산이 구동보다 먼저 끝나도 running 한 장이 끼지 않는다
     const blocked = e.blocked ?? (chat?.paused() ? null : autoCheck())
@@ -707,6 +730,10 @@ export function createLoopDriver(opts: LoopDriverOptions): LoopDriver {
     }
     if (out.kind === 'halted') {
       record(e, { kind: 'halt', node, goal, verdict: 'stop', text: `실행이 멈췄다(${label}) — ${oneLine(out.state.haltReason ?? '사유 없음')}` }, true)
+    } else if (out.kind === 'limited') {
+      // 한도 멈춤 동안 메인 턴을 열지 않는다(그 턴도 같은 한도를 쓴다)
+      const s = out.state
+      record(e, { kind: 'usage-limit', node: s.cursor.node, goal: s.usageLimit?.halt?.goal ?? null, text: `사용량 한도로 멈췄다(${cursorLabel(s)}) — ${oneLine(s.haltReason ?? '')}` })
     } else if (out.kind === 'done') {
       record(e, { kind: 'done', node, goal, text: '마일스톤 실행이 끝났다' })
     }
@@ -724,6 +751,16 @@ export function createLoopDriver(opts: LoopDriverOptions): LoopDriver {
       }
       if (loaded.kind !== 'ok') return
       e.lastLatch = null
+      if (loaded.state.status === 'usage-limit') {
+        // 자동 이어 가기는 한도 멈춤만 푼다 — 깃발·자동 모드 꺼짐을 넘지 않고, 아직이면 조용히 다음 점검을 기다린다
+        if (e.chat?.paused() || autoCheck()) return
+        const r = await loop.runner.resumeLimit('auto')
+        if (!alive(e, gen) || r.kind !== 'resumed') return
+        const s = loaded.state
+        record(e, { kind: 'limit-resumed', node: s.cursor.node, goal: s.usageLimit?.halt?.goal ?? null, text: `사용량 한도가 풀릴 시각이 지나 ${cursorLabel(s)}를 처음부터 다시 돈다` })
+        void publish(e)
+        continue
+      }
       const next = loaded.next
       if (next.kind === 'done' || next.kind === 'needs-user') return
       // 일시 정지 깃발이 올라 있으면 다음 단계를 돌지 않는다(실행 상태는 그대로)
@@ -780,7 +817,9 @@ export function createLoopDriver(opts: LoopDriverOptions): LoopDriver {
       e.running = false
       e.sessionActive = false
     }
-    await publish(e)
+    const s = await publish(e)
+    // 한도 멈춤의 점검은 여기 한 곳에서 건다. 같은 타이머 칸이라 닫기(closeEntry)가 지운다
+    if (!e.closed && s.phase === 'limit' && s.limit?.resumeAt && !s.limit.human) schedule(e, limitPollMs)
   }
 
   async function closeEntry(e: Entry): Promise<void> {
@@ -871,6 +910,10 @@ export function createLoopDriver(opts: LoopDriverOptions): LoopDriver {
 
     status: (cwd) => entryOf(cwd)?.status ?? blank(cwd),
 
+    recheck() {
+      for (const e of entries.values()) if (!e.closed && e.loop && e.status.phase === 'limit') void kick(e)
+    },
+
     async decide(req) {
       const e = entryOf(req.cwd)
       if (!e?.loop) return { ok: false, reason: '열린 실행기가 없다', status: e?.status ?? blankStatus(req.cwd) }
@@ -878,13 +921,20 @@ export function createLoopDriver(opts: LoopDriverOptions): LoopDriver {
       const r = await loop.runner.load()
       if (r.kind !== 'ok') return rejectWith(e, r.kind === 'missing' ? '실행 상태가 없다' : r.reason)
       const { state, next } = r
-      const here = state.status === 'needs-user' ? cursorLabel(state) : labelOf(next)
+      const here = state.status === 'needs-user' || state.status === 'usage-limit' ? cursorLabel(state) : labelOf(next)
       if (req.expectNode !== undefined && req.expectNode !== here) {
         return rejectWith(e, `화면이 본 노드 ${req.expectNode}와 지금 노드 ${here ?? '(없음)'}가 다르다 — 다시 보고 판정한다`)
       }
       let out
       let event: LoopEventItem
-      if (state.status === 'needs-user') {
+      if (state.status === 'usage-limit') {
+        // 「지금 이어 가기」 — 판정이 아니어서 줄을 쓰지 않는다(FAIL 계수의 기준점이 옮겨지지 않는다)
+        if (req.verdict !== 'pass') return rejectWith(e, '사용량 한도 멈춤은 「지금 이어 가기」만 받는다')
+        const why = autoCheck()
+        if (why) { e.blocked = why; return rejectWith(e, why) }
+        out = await loop.runner.resumeLimit('human')
+        event = { kind: 'limit-resumed', node: state.cursor.node, goal: state.usageLimit?.halt?.goal ?? null, text: `사람이 사용량 한도 멈춤을 지금 이어 갔다(${here})` }
+      } else if (state.status === 'needs-user') {
         if (req.verdict !== 'pass') return rejectWith(e, '멈춘 실행은 이어 가기(pass)만 받는다')
         const why = autoCheck()
         if (why) { e.blocked = why; return rejectWith(e, why) }

@@ -15,6 +15,7 @@ vi.mock('electron', () => ({
   app: { getPath: () => h.userData, getAppPath: () => h.userData, getVersion: () => '0.0.0', isPackaged: false, setAppUserModelId: (): void => {} },
   ipcMain: { handle: (ch: string, fn: (...a: unknown[]) => unknown): void => { h.handleCalls++; h.handlers.set(ch, fn) } },
   dialog: {},
+  powerMonitor: { on: (): void => {} },
 }))
 
 vi.mock('@main/06_Sessions/store', async (importOriginal) => {

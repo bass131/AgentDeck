@@ -10,6 +10,7 @@ export function projectTag(s: LoopStatus | null): ProjectTag | null {
   if (s === null || s.phase === 'closed') return null
   const pre = s.milestoneId !== null ? `${s.milestoneId} · ` : ''
   if (STOP_PHASES.has(s.phase)) return { label: `${pre}멈춤`, tone: 'stop' }
+  if (s.phase === 'limit') return { label: `${pre}한도 멈춤`, tone: 'stop' }
   if (s.phase === 'done') return { label: `${pre}끝`, tone: 'idle' }
   if (s.paused) return { label: `${pre}멈춤`, tone: 'stop' }
   if (s.phase === 'not-started') return { label: `${pre}시작 전`, tone: 'idle' }

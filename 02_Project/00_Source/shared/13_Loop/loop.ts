@@ -51,9 +51,20 @@ export interface LoopAlertOpen { cwd: string }
 // halted       멈췄다(FAIL 셋·취소·실행기가 만든 판정 거부 등, reason) — 사람의 이어 가기(decide pass)로 같은 노드를 다시 돈다
 // latched      위조 래치(상태 파일 위조·실행기 git 설정 변경, latch) — 사람이 확인하고 푼다(releaseLatch)
 // blocked      진행할 수 없다(스키마·템플릿 해시·기준 브랜치 불일치·자동 모드 허용 노드 꺼짐 등, reason)
+// limit        사용량 한도로 멈췄다(limit) — 풀리는 시각이 지나면 스스로 이어 가고, 사람의 「지금 이어 가기」로도 다시 돈다
 // done         마일스톤이 끝났다
 export type LoopPhase =
-  | 'closed' | 'open-failed' | 'not-started' | 'running' | 'waiting-human' | 'waiting-ci' | 'halted' | 'latched' | 'blocked' | 'done'
+  | 'closed' | 'open-failed' | 'not-started' | 'running' | 'waiting-human' | 'waiting-ci' | 'halted' | 'latched' | 'blocked' | 'limit' | 'done'
+
+// resetsAt·resumeAt은 ISO 시각이고 모르면 null이다. human이면 자동으로 이어 가지 않는다
+export interface LoopLimitView {
+  reason: 'warning' | 'rejected' | 'overage' | 'error'
+  window: string | null
+  resetsAt: string | null
+  resumeAt: string | null
+  utilization: number | null
+  human: boolean
+}
 
 // restored: 앱이 꺼질 때 답을 받지 못해 다시 묻는 카드. 그 질문을 낸 턴은 이미 끝났으므로 답은 메인 대화의 사용자 턴으로 간다.
 // inChat: LoopStatus.cards에도 실리지만(현황판이 보인다) 답하는 곳은 메인 대화 화면 한 곳뿐이다.
@@ -87,6 +98,8 @@ export interface LoopStatus {
   reason: string | null
   // 사람을 부르지 않는 안내 한 줄 — 강조·알림 없이 보인다
   notice?: string
+  // phase limit일 때만
+  limit?: LoopLimitView
   base: string | null
   ghRepo: string | null
   failCount: number
@@ -114,9 +127,11 @@ export interface LoopSessionRow { key: string; kind: 'work' | 'review'; node: st
 
 // 실행기가 모델 없이 만든 한 줄. 메인은 경계(goal-merged, halt, milestone-pr)에서만 짧은 턴으로 말한다.
 // flag-raised·flag-lowered는 메인 도구의 일시 정지 깃발, resumed는 사람이 멈춘 실행을 이어 간 판정이다.
+// usage-limit·limit-resumed는 사용량 한도 멈춤과 그 풀림이다(판정이 아니다 — 메인은 말하지 않는다).
 export type LoopEventKind =
   | 'node-start' | 'node-end' | 'fail' | 'halt' | 'error' | 'goal-merged' | 'milestone-pr'
   | 'spec-approved' | 'spec-rejected' | 'flag-raised' | 'flag-lowered' | 'resumed' | 'backlog' | 'latched' | 'done'
+  | 'usage-limit' | 'limit-resumed'
 export interface LoopEventItem {
   kind: LoopEventKind
   node: string | null

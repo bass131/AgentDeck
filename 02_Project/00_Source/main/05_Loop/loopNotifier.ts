@@ -35,14 +35,25 @@ export interface LoopNotifier {
   list(): LoopAlert[]
 }
 
+// 한도 멈춤은 「나중」이다 — 사람이 없어도 풀리는 시각에 스스로 이어 간다
 function levelOf(s: LoopStatus): LoopAlert['level'] | null {
   if (NOW_PHASES.has(s.phase)) return 'now'
   if (s.phase === 'waiting-human' && s.milestonePr !== null) return 'later'
+  if (s.phase === 'limit') return 'later'
   return null
+}
+
+function limitTextOf(s: LoopStatus): string {
+  const l = s.limit
+  const head = ['사용량 한도 멈춤', s.node].filter((x) => x !== null && x !== '').join(' · ')
+  if (!l) return head
+  const at = l.human ? '사람의 「지금 이어 가기」를 기다려요' : l.resumeAt ? `${l.resumeAt} 뒤 스스로 이어 가요` : '풀리는 시각을 몰라 「지금 이어 가기」를 기다려요'
+  return `${head} — ${at}`
 }
 
 function textOf(s: LoopStatus): string {
   if (s.phase === 'waiting-human') return `마일스톤 PR #${s.milestonePr ?? ''} 병합을 기다려요`
+  if (s.phase === 'limit') return limitTextOf(s)
   const head = [LABEL[s.phase] ?? s.phase, s.node].filter((x) => x !== null && x !== '').join(' · ')
   const reason = (s.reason ?? '').replace(/\s+/g, ' ').trim()
   if (reason === '') return head

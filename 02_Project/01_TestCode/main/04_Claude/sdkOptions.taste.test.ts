@@ -36,6 +36,10 @@ describe('세션 설정 원천과 Taste·헌장 싣기', () => {
     expect(resumed).toBe(`앞글\n\n${WORKFLOW_GATE_NOTICE}\n\n${MEMORY_CONTINUITY_GUIDE}\n\n${DOCS}`)
   })
 
+  it('읽기 전용 루프 세션(검수)은 작업 트리의 Taste·헌장 원문을 싣지 않는다 — 판은 실행기가 준 체크리스트뿐이다', () => {
+    expect(append(build({ loopLock: { ...LOOP, readOnly: true } }, DOCS))).toBe(WORKFLOW_GATE_NOTICE)
+  })
+
   it('실을 문서가 없는 루프 세션의 덧붙임은 지금과 같다', () => {
     expect(append(build({ loopLock: LOOP }))).toBe(WORKFLOW_GATE_NOTICE)
   })

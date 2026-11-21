@@ -107,7 +107,8 @@ export function buildClaudeSdkOptions(params: {
     userAppend,
     WORKFLOW_GATE_NOTICE,
     req.resumeSessionId ? MEMORY_CONTINUITY_GUIDE : undefined,
-    loopLock ? loopDocs?.trim() : undefined,
+    // 검수(읽기 전용)의 Taste 판은 실행기가 시작점 커밋에서 읽어 준 체크리스트뿐이다 — 작업 트리 원문을 싣지 않는다
+    req.loopLock && !req.loopLock.readOnly ? loopDocs?.trim() : undefined,
   ].filter(Boolean) as string[]).join('\n\n') || undefined
 
   return {

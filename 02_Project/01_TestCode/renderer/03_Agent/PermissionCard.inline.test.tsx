@@ -1,4 +1,3 @@
-// 작업 ID: bf3-p06 · 옛 이름 bf3-p06-permission-inline-card.test.tsx
 // @vitest-environment jsdom
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, cleanup, act, fireEvent } from '@testing-library/react'
@@ -71,7 +70,7 @@ describe('PermissionCard — pending 있음: 렌더 계약', () => {
     expect(container.textContent).toContain('rm -rf /tmp/test')
   })
 
-  // M11 G2 — M06 Backlog 11. 숫자 키는 카드 종류와 관계없이 1 허용, 2 거부, 3 항상 허용이다.
+  // 숫자 키는 카드 종류와 관계없이 1 허용, 2 거부, 3 항상 허용이다.
   it('perm-card-opt 3개 렌더(allow/deny/allow_always 순서, 번호 1·2·3)', async () => {
     const { PermissionCard } = await import('@renderer/03_Agent')
     const { container } = render(<PermissionCard pending={SAMPLE_PENDING} onRespond={vi.fn()} />)

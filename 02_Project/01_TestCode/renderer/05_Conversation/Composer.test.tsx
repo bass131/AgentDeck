@@ -5,7 +5,7 @@ import { Composer } from '@renderer/05_Conversation/Composer'
 import { modelOptionsFor } from '@renderer/03_Agent/pickerOptions'
 import { FALLBACK_MODELS } from '@shared/03_Agent/models/knownModels'
 
-// M06 G4: 손 표 MODELS가 없어졌다 — store 기본 목록(최소 목록)에서 그린 옵션과 같다.
+// 옵션은 store 기본 목록(최소 목록)에서 그린다.
 const MODELS = modelOptionsFor(FALLBACK_MODELS)
 import { __resetUltracodeToggleForTests } from '@renderer/03_Agent/state/ultracodeToggle'
 

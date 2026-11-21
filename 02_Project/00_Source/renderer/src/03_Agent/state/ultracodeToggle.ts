@@ -2,8 +2,7 @@ import { useCallback, type Dispatch, type SetStateAction } from 'react'
 import { create } from 'zustand'
 import { convKey } from './sessionKeys'
 
-// UltraCode 토글의 범위 키는 세션 레지스트리 키다(G9c) — 대화는 convKey(id), id가 없는 새 대화는
-// convKey(null), 멀티 패널은 패널 키. 꺼 둔 키만 기억하고(기본 ON) 영속하지 않는다.
+// 범위 키는 세션 레지스트리 키다. 꺼 둔 키만 기억하고(기본 ON) 영속하지 않는다.
 
 interface UltracodeToggleState {
   offKeys: Set<string>

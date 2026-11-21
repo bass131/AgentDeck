@@ -1,4 +1,3 @@
-// 작업 ID: f14 · 옛 이름 chat-polish-f14.test.tsx
 // @vitest-environment jsdom
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
 import { render, screen, cleanup, fireEvent } from '@testing-library/react'
@@ -148,7 +147,7 @@ describe('SelectionToolbar', () => {
       <SelectionToolbar scrollRef={scrollRef} onElaborate={onElaborate} />
     )
     expect(container.querySelector('.sel-bar')).toBeFalsy()
-    // M11 G4(설계 감사 22) — 막대가 떠 있지 않으면 곁 층에도 오르지 않는다
+    // 막대가 떠 있지 않으면 곁 층에도 오르지 않는다
     const { isAnyModalOpen } = await import('@renderer/02_Common/modalStack')
     expect(isAnyModalOpen()).toBe(false)
     document.body.removeChild(el)

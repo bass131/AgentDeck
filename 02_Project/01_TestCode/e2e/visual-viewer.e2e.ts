@@ -453,4 +453,3 @@ test('QA(P5): 설정 5탭 실데이터 — 엔진(Agent SDK)·Skill·MCP·Code·
   await expect(page.locator('.set-layout')).toHaveCount(0)
 })
 
-// M10 G1 — 멀티 에이전트 모드를 지워 QA(P15) 멀티 패널별 cwd 사례를 뺐다.

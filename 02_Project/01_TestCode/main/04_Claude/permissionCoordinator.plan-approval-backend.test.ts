@@ -1,4 +1,3 @@
-// 작업 ID: gap1-p07 · 옛 이름 gap1-p07-plan-approval-backend.test.ts
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import path from 'node:path'

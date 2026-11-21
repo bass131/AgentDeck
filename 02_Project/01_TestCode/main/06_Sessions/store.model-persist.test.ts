@@ -1,4 +1,3 @@
-// 작업 ID: gap1-p02 · 옛 이름 gap1-p02-model-persist.test.ts
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import fs from 'node:fs'
 import os from 'node:os'
@@ -72,7 +71,7 @@ describe('GAP1 P02 — ConversationStore model 라운드트립', () => {
     expect(store.load('conv-model-overwrite')?.model).toBe('opus')
   })
 
-  // M06 G4: 배경 run의 저장 payload에는 model이 없다 — 그 저장이 전경에서 고른 모델을 지우면 안 된다.
+  // 배경 run의 저장 payload에는 model이 없다 — 그 저장이 전경에서 고른 모델을 지우면 안 된다
   it('model 없이 다시 저장하면 기존 model을 유지한다 (배경 저장 경로)', () => {
     const rec = makeRecord({ id: 'conv-model-keep', model: 'claude-fable-5-2' })
     store.save(rec)
@@ -83,7 +82,7 @@ describe('GAP1 P02 — ConversationStore model 라운드트립', () => {
     expect(loaded?.messages).toHaveLength(3)
   })
 
-  // M11 G2 — M06 Backlog 1. 권한 모드도 대화마다 저장한다. 규칙은 model과 같다 — 없이 저장하면 지우지 않는다.
+  // 권한 모드의 규칙은 model과 같다 — 없이 저장하면 지우지 않는다
   it('권한 모드(mode)를 왕복 보존하고, 없이 다시 저장하면 유지하고, 모르는 값은 버린다', () => {
     const rec = makeRecord({ id: 'conv-mode', mode: 'bypass' })
     store.save(rec)

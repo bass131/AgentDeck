@@ -1,6 +1,6 @@
 import type { AgentEvent } from '../agentEvents'
 
-// 메인 대화 한 턴의 답 글. main은 이 글을 대화 기록의 메인 답으로 남기고, 화면은 같은 글로 세션 사건의 턴과 그 답을 짝짓는다
+// main의 대화 기록과 화면의 턴 짝짓기가 같은 이 규칙을 써야 둘이 어긋나지 않는다
 export function mainAnswerOf(events: readonly AgentEvent[]): string {
   const paras: string[] = []
   let cur = ''

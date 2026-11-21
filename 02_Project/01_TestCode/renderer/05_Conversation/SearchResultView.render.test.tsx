@@ -1,4 +1,3 @@
-// 작업 ID: gap1-p08 · 옛 이름 gap1-p08-search-result-render.test.tsx
 // @vitest-environment jsdom
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, cleanup, fireEvent } from '@testing-library/react'

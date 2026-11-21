@@ -1,6 +1,5 @@
 // @vitest-environment jsdom
 // Shell 전역 구독 회귀 가드 — 대화(Conversation)가 화면에서 내려가는 모드로 바꿔도 전역 agent 이벤트 구독은 Shell 수명이다.
-// 옛 이름 Shell.multi-isolation-guard.test.tsx — M10 G1에서 멀티 모드를 지우며 같은 성질을 「작업」 모드(대화 자리에 루프 화면)로 옮겼다.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, act, cleanup } from '@testing-library/react'
 import { useAppStore } from '@renderer/00_App/appStore'

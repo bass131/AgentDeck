@@ -1,10 +1,7 @@
-// window.api 테스트 mock 공용 헬퍼 (M05 G10).
-// preload는 api.<묶음>.<동작>으로 묶였지만, 테스트 136파일은 옛 평면 어휘(agentRun, onAgentEvent …)로 mock을 만든다.
-// 그 어휘는 여기 「옛 평면 키 어댑터」가 받아 묶음으로 잇는다 — 어휘 정리는 G12 몫이다.
+// preload는 api.<묶음>.<동작>으로 묶였지만, 많은 시험이 옛 평면 어휘(agentRun, onAgentEvent …)로 mock을 만든다.
+// 그 어휘는 여기 「옛 평면 키 어댑터」가 받아 묶음으로 잇는다. 표에 없는 평면 키는 무시한다.
 //   installFlatWindowApi(flat) — 평면 mock을 묶음 모양 window.api로 깐다(빠진 함수는 빠진 그대로)
 //   installWindowApi(overrides) — 모든 평면 키에 기본 stub을 채운 뒤 덮어쓰기를 얹어 깐다
-// G10 계약 커밋에서 지운 채널(windowGetBounds·windowSetBounds·getEngineVersionState)의 평면 키가
-// 옛 mock에 남아 있어도 묶음에는 나타나지 않는다(표에 없는 키는 무시) — 남은 키 정리는 G12 어휘 정리 몫이다.
 import { vi } from 'vitest'
 import type { Api } from '../../../../02_Project/00_Source/preload'
 import { API_ROUTES } from '@shared/01_Ipc/apiRoutes'
@@ -95,7 +92,6 @@ export const FLAT_ROUTES = {
   getZoomFactor: { group: 'window', action: 'getZoomFactor' },
   setZoomFactor: { group: 'window', action: 'setZoomFactor' },
 
-  // M09 G4 — 앱 안 루프 묶음(화면은 2차분)
   loopOpen: { group: 'loop', action: 'open' },
   loopStart: { group: 'loop', action: 'start' },
   loopStatus: { group: 'loop', action: 'status' },
@@ -105,22 +101,18 @@ export const FLAT_ROUTES = {
   loopReleaseLatch: { group: 'loop', action: 'releaseLatch' },
   loopClose: { group: 'loop', action: 'close' },
   onLoopState: { group: 'loop', action: 'onState' },
-  // M10 G2 — 메인 대화(화면은 G3)
   loopMainRead: { group: 'loop', action: 'mainRead' },
   loopMainSend: { group: 'loop', action: 'mainSend' },
   loopMainNew: { group: 'loop', action: 'mainNew' },
   onLoopMainState: { group: 'loop', action: 'onMainState' },
   onLoopSessionEvent: { group: 'loop', action: 'onSessionEvent' },
-  // M10 G3 — 사람이 일시 정지 깃발을 내린다
   loopLowerFlag: { group: 'loop', action: 'lowerFlag' },
   loopSessionLog: { group: 'loop', action: 'sessionLog' },
   loopMainArchives: { group: 'loop', action: 'mainArchives' },
-  // M10 G5 — 그래프 읽기와 알림
   loopGraph: { group: 'loop', action: 'graph' },
   loopAlerts: { group: 'loop', action: 'alerts' },
   onLoopAlerts: { group: 'loop', action: 'onAlerts' },
   onLoopAlertOpen: { group: 'loop', action: 'onAlertOpen' },
-  // M11 G4 — 작업 폴더 목록
   loopListDir: { group: 'loop', action: 'listDir' },
 } as const satisfies Record<string, FlatRoute>
 
@@ -202,7 +194,7 @@ const DEFAULT_RESULTS: { [C in InvokeChannel]?: ResOf<C> } = {
   'agent.taskStop': { ok: true },
   'agent.setMode': { ok: true },
   'agent.setModel': { ok: true },
-  // 빈 목록이면 store는 최소 목록을 그대로 둔다(M06 G4).
+  // 빈 목록이면 store는 최소 목록을 그대로 둔다.
   'agent.listModels': { models: [], source: 'builtin' },
   'agent.permissionRespond': { ok: true },
   'agent.questionRespond': { ok: true },

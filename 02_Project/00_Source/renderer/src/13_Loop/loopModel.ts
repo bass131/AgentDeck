@@ -1,10 +1,8 @@
-// M09 G4 루프 화면의 순수 도우미 — 저장소 경로 비교 키, 단계 이름, 예외 한 줄, 고정 근거 문구.
-// 화면은 상태를 만들지 않는다. 여기 함수는 main이 준 한 장(LoopStatus)을 읽어 보일 글만 고른다.
 import type { LoopGoalView, LoopPhase, LoopStatus, LoopVerificationLine } from '@shared/ipcContract'
 
 // main의 decide 근거 상한(handlers/loop.ts EVIDENCE_MAX)과 같다 — 넘으면 main이 요청을 거부한다
 export const EVIDENCE_MAX = 2000
-// 사람이 버튼으로 낸 판정의 근거 — main은 빈 근거를 받지 않는다
+// main은 빈 근거를 받지 않는다
 export const RESUME_EVIDENCE = '사람이 루프 화면에서 멈춘 사유를 보고 이어 가기를 골랐다'
 
 // 저장소 경로 비교 키 — main의 repoKeyOf처럼 구분자·끝 구분자를 맞추고, Windows 경로는 대소문자를 가리지 않는다.

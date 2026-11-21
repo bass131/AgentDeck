@@ -34,7 +34,7 @@ export function splitSentences(text) {
   return out;
 }
 
-// ---- plan-gate(.claude/hooks/20_plan-gate.cjs)와 같은 판정식 ----
+// plan-gate(.claude/hooks/20_plan-gate.cjs)와 같은 판정식이다.
 // 바꾸면 test/drift.test.mjs가 훅 원문과의 차이를 알려 준다.
 export const SECTION_RE = /^##\s+/;
 export const PHASE_ANY_RE = /^##\s+Phase\s+(\d+)/;
@@ -151,7 +151,7 @@ export function parsePhaseRecords(entries) {
   });
 }
 
-// ---- goal 한 장 형식(AgentDeck 00_Documents/02_Rules/04_Goal-한장-템플릿.md) ----
+// goal 한 장 형식(AgentDeck 00_Documents/02_Rules/04_Goal-한장-템플릿.md).
 // Phase 절 하나의 「진척 단계」 목록이 곧 단계다. [x] 완료, [>] 진행, [ ] 남음. 번호는 원문 글자(「3b」 포함)를 그대로 둔다.
 export const STEPS_HEADER = /^진척 단계/;
 export const STEP_LINE = /^-\s*\[(.)\]\s*(?:(\d+[A-Za-z]?)\.\s+)?(.*?)\s*$/;
@@ -173,7 +173,7 @@ export function parseGoalSteps(entries) {
   return { phaseLine: sec.line, stepsLine: sec.body[hi].line, steps };
 }
 
-// USER-INPUT 줄은 질문을 적은 줄일 수도, 받은 답을 적은 줄일 수도 있다(M10 Backlog 24). 답을 적었다는 표지가 있고
+// USER-INPUT 줄은 질문을 적은 줄일 수도, 받은 답을 적은 줄일 수도 있다. 답을 적었다는 표지가 있고
 // 기다림 표지가 없을 때만 받은 답이다. 그 밖은 기다림으로 둔다 — 답을 놓치는 쪽보다 한 번 더 묻는 쪽이 싸다.
 const ANSWER_MARK = /사용자[가는]?\s[^.]*?(답했|골랐|확정했|승인했)|사용자\s*(답|결정|확정|판정|승인)\s*[:：「(]|\[USER\]/;
 // 질문 꼴(물음표·「무엇」·「어느」·「할지」)은 답 표지가 있어도 기다림이다 — 숨긴 질문이 오탐보다 비싸다

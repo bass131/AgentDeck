@@ -1,4 +1,4 @@
-// M11 G2 — M06 Backlog 24. 지속 세션의 effort를 공개 Query.applyFlagSettings({ effortLevel })로 바꾼다(실측: deny 규칙 유지).
+// 지속 세션의 effort를 공개 Query.applyFlagSettings({ effortLevel })로 바꾼다(실측: deny 규칙 유지).
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
 const h = vi.hoisted(() => ({ handlers: new Map<string, (...args: unknown[]) => unknown>() }))

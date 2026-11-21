@@ -1,4 +1,3 @@
-// 작업 ID: w6 · 옛 이름 w6-inject-nonce.test.tsx
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest'
 import { nextInject } from '@renderer/12_Window/inject'

@@ -1,4 +1,3 @@
-// 작업 ID: gap1-p12 · 옛 이름 gap1-p12-grace-expired-misemission.test.ts
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { ClaudeCodeBackend } from '@main/04_Claude/ClaudeCodeBackend'
 import type { QueryFn } from '@main/04_Claude/ClaudeCodeBackend'

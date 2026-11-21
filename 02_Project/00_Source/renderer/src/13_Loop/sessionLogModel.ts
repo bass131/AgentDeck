@@ -54,7 +54,7 @@ export function foldSession(events: readonly AgentEvent[], live: boolean): Threa
   }
 }
 
-// 메인 대화 한 턴(M11 G4) — 도는 턴만 실행 중·사고 표시를 싣는다. 턴의 오류는 대화 기록의 알림 줄이 이미 보인다
+// 도는 턴만 실행 중·사고 표시를 싣는다. 턴의 오류는 대화 기록의 알림 줄이 이미 보인다
 export function foldMainTurn(events: readonly AgentEvent[], running: boolean): ThreadViewState {
   return { ...foldSession(events, running), isRunning: running, errorMessage: undefined }
 }

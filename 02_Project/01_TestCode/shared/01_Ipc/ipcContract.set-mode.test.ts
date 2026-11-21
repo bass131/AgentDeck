@@ -1,4 +1,3 @@
-// 작업 ID: gap1-p13 · 옛 이름 gap1-p13-set-mode-contract.test.ts
 import { describe, it, expect, vi, beforeAll, beforeEach } from 'vitest'
 import { AGENT_CHANNELS } from '@shared/03_Agent/agent'
 import { IPC_CHANNELS } from '@shared/ipcContract'
@@ -58,7 +57,6 @@ describe('GAP1 P13 — AGENT_SET_MODE 채널 계약 (RED)', () => {
 })
 
 describe('GAP1 P13 — preload agentSetMode 노출 (RED)', () => {
-  // M05 G10: preload가 api.<묶음>.<동작>으로 묶였다 — agentSetMode → agent.setMode
   it('window.api.agent.setMode가 함수로 노출된다', () => {
     const api = (h.exposed.api as { agent: Record<string, unknown> }).agent
     expect(typeof api['setMode']).toBe('function')

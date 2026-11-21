@@ -3,9 +3,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 
-// M05 G11 4단계: 조립 지점을 `00_App` 하나로 모은다.
-// 실물 모듈을 import해 소유자·인스턴스 수를 고정한다 — 조립 로직을 테스트 안에 복제하지 않는다.
-// 팩토리는 importOriginal로 감싼 spy라 실제 인스턴스를 만들고, 몇 번 만들어졌는지만 센다.
+// 조립 로직을 시험 안에 복제하지 않으려고, 팩토리를 importOriginal로 감싼 spy로 두어 실제 인스턴스를 만들고 수만 센다.
 const h = vi.hoisted(() => ({
   userData: '',
   conversationStores: [] as { close: () => void }[],
@@ -59,8 +57,7 @@ vi.mock('@main/11_Settings/mcp', async (importOriginal) => {
   }
 })
 
-// registry의 ClaudeCodeBackend는 queryFn을 주입받지 않으므로 기본 경로(getDefaultQueryFn)를 가짜 질의로 바꾼다.
-// 가짜 질의는 받은 SDK 옵션을 실행마다 모은다.
+// registry의 ClaudeCodeBackend는 queryFn을 주입받지 않으므로 기본 경로(getDefaultQueryFn)를 가짜 질의로 바꾼다
 const q = vi.hoisted(() => ({ options: [] as Record<string, unknown>[] }))
 vi.mock('@main/04_Claude/queryFn', async (importOriginal) => {
   const orig = await importOriginal<typeof import('@main/04_Claude/queryFn')>()
@@ -204,11 +201,9 @@ describe('skills·MCP store — 같은 앱 수명에서 실행 두 번이 조립
   })
 })
 
-// 기동 순서: 대화 저장소 → (진입점이 창 생성) → 창 붙이기(win 대입, 첫 번째면 store 다섯·LSP·핸들러 등록).
-// M10 G1에서 멀티 에이전트 모드를 지워 startApp의 멀티 저장 경로 단계가 없어졌다(사용자 디스크의 옛 파일은 읽지 않을 뿐이다).
 describe('기동·종료 배선 — 00_App/bootstrap 한 곳 (M05 G11 4단계)', () => {
   const calls = (fn: unknown): number => vi.mocked(fn as () => unknown).mock.calls.length
-  // attachWindow는 모듈 수준 1회 가드라, 사례를 혼자 돌려도(-t) 조립된 상태에서 시작하게 한다 (M05 Backlog 69)
+  // attachWindow는 모듈 수준 1회 가드라, 사례를 혼자 돌려도(-t) 조립된 상태에서 시작하게 한다
   const assembled = (): void => {
     if (!h.handlers.has(IPC_CHANNELS.WORKSPACE_OPEN)) attachWindow({ id: 0 } as never)
   }
@@ -229,7 +224,6 @@ describe('기동·종료 배선 — 00_App/bootstrap 한 곳 (M05 G11 4단계)',
     attachWindow(win1)
     expect(ipcState.win).toBe(win1)
     expect(calls(createSkillsStore) - skills0).toBe(1)
-    // M09 G4 — 루프 구동자 핸들러도 같은 한 번의 조립에서 등록된다
     for (const ch of [IPC_CHANNELS.WORKSPACE_OPEN, IPC_CHANNELS.AGENT_RUN, IPC_CHANNELS.CONVERSATION_LOAD, IPC_CHANNELS.SKILL_LIST, IPC_CHANNELS.LSP_STATUS, IPC_CHANNELS.LOOP_OPEN, IPC_CHANNELS.LOOP_CLOSE]) {
       expect(h.handlers.has(ch)).toBe(true)
     }
@@ -253,8 +247,7 @@ describe('기동·종료 배선 — 00_App/bootstrap 한 곳 (M05 G11 4단계)',
     expect(listSkills).toHaveBeenCalledWith(fwd(h.userData))
   })
 
-  // M06 G4: 모델 목록 공급자도 조립 지점이 만든다. 첫 요청(앱 시작 때 renderer)에서 SDK에 묻고,
-  // 엔진이 supportedModels()를 내지 않으면(이 파일의 가짜 질의) 최소 목록으로 뜬다 — 캐시는 쓰지 않는다.
+  // 이 파일의 가짜 질의는 supportedModels()를 내지 않으므로 최소 목록으로 뜬다
   it('agent.listModels가 배선되고, 목록을 못 받으면 최소 목록(builtin)을 준다', async () => {
     assembled()
     const list = h.handlers.get(IPC_CHANNELS.AGENT_LIST_MODELS)!
@@ -269,16 +262,14 @@ describe('기동·종료 배선 — 00_App/bootstrap 한 곳 (M05 G11 4단계)',
     startApp()
     const s = h.conversationStores.at(-1)!
     const closeAll = vi.spyOn(runManager, 'closeAll')
-    // M05 Backlog 1 — 앞 사례의 attachWindow가 만든 LSP 관리자. 종료 때 자식 프로세스를 남기지 않는다
     const disposeAll = vi.spyOn(getLspManager(), 'disposeAll')
-    // 루프 구동자 닫기는 기다리지 않는다(앱 종료를 막지 않는다) — stopApp은 동기로 돌아온다
+    // 루프 구동자 닫기는 앱 종료를 막지 않으려고 기다리지 않는다
     expect(stopApp()).toBeUndefined()
     expect(closeAll).toHaveBeenCalledTimes(1)
     expect(disposeAll).toHaveBeenCalledTimes(1)
     expect(s.close).toHaveBeenCalledTimes(1)
   })
 
-  // M09 G4: 루프 구동자는 조립 지점이 만들고 stopApp이 닫는다(기다리지 않는다). 닫은 뒤 상태는 빈 한 장이다.
   it('loop.status는 조립된 구동자를 읽는다 — 열린 실행기가 없으면 closed', async () => {
     assembled()
     const status = h.handlers.get(IPC_CHANNELS.LOOP_STATUS)!
@@ -287,15 +278,12 @@ describe('기동·종료 배선 — 00_App/bootstrap 한 곳 (M05 G11 4단계)',
     expect(callersOf(/\bcreateLoopDriver\(/).filter((r) => r !== '05_Loop/loopDriver.ts')).toEqual(['00_App/bootstrap.ts'])
     const boot = mainSources().find((f) => f.rel === '00_App/bootstrap.ts')!.src
     expect(boot).toMatch(/closeAll\(\)/)
-    // M11 G4 — 부팅 때 앱을 끌 때 열려 있던 작업 폴더를 다시 연다(M09-10)
     expect(boot).toMatch(/void _loopDriver\.reopenLast\(\)/)
     expect(boot).toMatch(/join\(getUserDataDir\(\), 'loop'\)/)
-    // M10 G2 — 메인 대화 보기와 루프 세션 사건도 조립 지점이 창으로 push한다
     expect(boot).toMatch(/onMainState: \(v\) => pushMainState\(ipcState, v\)/)
     expect(boot).toMatch(/onSessionEvent: \(p\) => pushSessionEvent\(ipcState, p\)/)
     const mainRead = h.handlers.get(IPC_CHANNELS.LOOP_MAIN_READ)
     expect((await mainRead?.({}, { cwd: h.userData }) as { items: unknown[]; root: string | null }).items).toEqual([])
-    // M10 G5 — 알림 판정자도 조립 지점이 만들고, 구동자의 상태를 받으며, 그 목록을 loop.alerts가 읽는다
     expect(boot).toMatch(/void notifier\.observe\(s\)/)
     expect(callersOf(/\bcreateLoopNotifier\(/).filter((r) => r !== '05_Loop/loopNotifier.ts')).toEqual(['00_App/bootstrap.ts'])
     expect(boot).toMatch(/applyDevAppUserModelId\(app\)/)
@@ -329,7 +317,7 @@ describe('기동·종료 배선 — 00_App/bootstrap 한 곳 (M05 G11 4단계)',
     expect(src).toMatch(/\bstartApp\(\)/)
     expect(src).toMatch(/\battachWindow\(/)
     expect(src).toMatch(/\bstopApp\(\)/)
-    // 남기는 예외: 창(BrowserWindow) 생성은 진입점에 둔다 — 수명주기(activate)와 같이 다니는 Electron 표면이다
+    // 창 생성은 수명주기(activate)와 같이 다니는 Electron 표면이라 진입점에 남는다
     expect(callersOf(/new BrowserWindow\(/)).toEqual(['index.ts'])
   })
 })

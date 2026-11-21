@@ -1,18 +1,10 @@
 // @vitest-environment jsdom
-// M10 G3 메인 대화 보기 — 작업 폴더의 메인 대화(main 소유)를 loop.mainRead와 loop.mainState push로 받아 그린다.
-// 고정하는 것:
-//   - 기록: 사람 글(줄 섬·보냄), 메인 글(마크다운), 사건 줄(종류별 모양), 알림(오류·저장 실패).
-//     메인 깃발 사건(flag-raised·flag-lowered)은 사람의 이어 가기(resumed)와 다른 모양이다.
-//   - 순서: 첫 읽기·보내기·새로 열기의 응답이 그 사이 온 push보다 늦으면 응답의 보기로 되돌아가지 않는다. 다른 폴더의 push는 버린다.
-//   - 입력칸: 열린 실행기가 없으면 막고 까닭을 보인다. 메인이 도는 중·사람을 기다림·줄 선 글 수를 보인다.
-//   - 일시 정지: 깃발이 올라 있으면 표시와 「이어 가기」 — 깃발 내리기(loop.lowerFlag)만 부르고 사람 판정(decide)은 부르지 않는다.
-//   - 취소는 대상을 골라 보낸다(메인 턴 main / 작업 세션 worker). 새 메인 대화는 확인을 한 번 받은 뒤 loop.mainNew다.
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
 import { render, screen, fireEvent, cleanup, act, within } from '@testing-library/react'
 import type { LoopEventKind, LoopStatus, MainChatItem, MainChatView } from '@shared/ipcContract'
 import { adaptFlatApi } from '../00_Helpers/windowApiMock'
 
-// 독립 검수 중요 2 — 기록의 글을 다시 그렸는지 센다. 진짜 마크다운 보기를 그대로 그리고, 그린 원문만 적는다
+// 기록의 글을 다시 그렸는지 센다. 진짜 마크다운 보기를 그대로 그리고, 그린 원문만 적는다
 const md = vi.hoisted(() => ({ renders: [] as string[] }))
 vi.mock('@renderer/05_Conversation', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@renderer/05_Conversation')>()
@@ -138,7 +130,7 @@ describe('메인 대화 기록 (M10 G3)', () => {
     ]
     expect(Object.keys(EVENT_LOOK).sort()).toEqual([...kinds].sort())
     for (const k of kinds) expect(EVENT_LOOK[k].label.trim().length, k).toBeGreaterThan(0)
-    // M10 G5 — 작업 모드의 화면 글은 한글로 맞춘다. 이름표에 영어 낱말(PR 제외)을 두지 않는다
+    // 작업 모드의 화면 글은 한글로 맞춘다. 이름표에 영어 낱말(PR 제외)을 두지 않는다
     expect([EVENT_LOOK['node-start'].label, EVENT_LOOK['node-end'].label, EVENT_LOOK.fail.label, EVENT_LOOK.backlog.label]).toEqual(['시작', '통과', '실패', '미룬 일'])
     for (const k of kinds) expect(EVENT_LOOK[k].label.replace(/\bPR\b/g, ''), k).not.toMatch(/[A-Za-z]/)
   })
@@ -370,7 +362,6 @@ describe('새 메인 대화 (M10 G3)', () => {
   })
 })
 
-// G3 독립 검수 반영 — 모르는 사건 종류, 다시 그리기, 입력칸·멈추기 알림·끝 보이기, 한글 조합 중 Enter
 describe('G3 독립 검수 반영 (M10 G3)', () => {
   const box = (): HTMLTextAreaElement => within(chat()).getByLabelText('메인에게 말하기') as HTMLTextAreaElement
 

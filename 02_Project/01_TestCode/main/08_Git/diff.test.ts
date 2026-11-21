@@ -4,7 +4,6 @@ import path from 'node:path'
 import { computeDiff } from '@main/08_Git/diff'
 import type { DiffLine } from '@shared/ipcContract'
 
-// M11 G2 — M05 Backlog 29. 08_Git 안 파일끼리 import가 돌지 않는다(옛 diff.ts ⇄ git.ts).
 describe('08_Git 파일 의존', () => {
   it('폴더 안 상대 import에 순환이 없다', () => {
     const dir = path.resolve(__dirname, '../../../00_Source/main/08_Git')
@@ -109,8 +108,7 @@ describe('computeDiff', () => {
   })
 })
 
-// M11 G3 — M11 Backlog 21. LCS 표는 (옛 줄 수 × 새 줄 수) 칸이다. 큰 파일은 그 표가 main 메모리를 다 쓴다.
-// 상한을 넘으면 표를 만들지 않고 앞뒤 공통 줄만 문맥으로, 가운데는 지운 줄·더한 줄로 보인다.
+// 상한을 넘으면 앞뒤 공통 줄만 문맥으로, 가운데는 지운 줄·더한 줄로 보인다
 describe('computeDiff 크기 상한 (M11 G3)', () => {
   const big = (n: number, f: (i: number) => string): string => Array.from({ length: n }, (_, i) => f(i)).join('\n')
 

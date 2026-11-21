@@ -1,4 +1,4 @@
-// M06 G4 — 컨텍스트 계기는 턴 결과 modelUsage에서 「주 모델」 항목의 contextWindow를 쓴다.
+// 컨텍스트 계기는 턴 결과 modelUsage에서 「주 모델」 항목의 contextWindow를 쓴다.
 // 실측(SDK 0.3.325): 턴마다 보조 모델 항목이 함께 오고, 그 창이 주 모델보다 클 수 있다.
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
@@ -58,7 +58,6 @@ describe('contextWindowFromModelUsage — 주 모델 항목을 고른다', () =>
     expect(contextWindowFromModelUsage(HAIKU45_TURN, 'claude-none-1')).toBe(200_000)
   })
 
-  // M11 G2 — M06 Backlog 19. 접미 벗기기가 modelList.ts의 stripModelSuffixes와 복제였다.
   it('접미 벗기기는 공용 stripModelSuffixes 하나를 쓴다', () => {
     const src = readFileSync(resolve(__dirname, '../../../00_Source/main/04_Claude/stream/claudeStream.ts'), 'utf8')
     expect(src).not.toMatch(/stripWireSuffixes/)
@@ -100,7 +99,7 @@ describe('RunEventNormalizer — 주 모델을 추적해 계기에 넘긴다', (
     expect(n.process(resultLine(HAIKU45_TURN), 'user').done?.contextWindow).toBe(200_000)
   })
 
-  // 공개 타입: scope 'local'은 서브에이전트 등 그 응답만 폴백했고 세션 모델은 그대로다 (G4 검수 1-1).
+  // 공개 타입: scope 'local'은 서브에이전트 등 그 응답만 폴백했고 세션 모델은 그대로다.
   it("scope 'local' 거절 폴백은 주 모델을 바꾸지 않는다", () => {
     const n = new RunEventNormalizer('t5')
     n.process({ type: 'system', subtype: 'init', session_id: 's5', model: 'claude-haiku-4-5' })
@@ -108,7 +107,7 @@ describe('RunEventNormalizer — 주 모델을 추적해 계기에 넘긴다', (
     expect(n.process(resultLine(HAIKU45_TURN), 'user').done?.contextWindow).toBe(200_000)
   })
 
-  // M11 G2 — M06 Backlog 2·26. result.usage는 턴 합계라 창을 넘는다 — 마지막 최상위 assistant usage를 쓴다(실측).
+  // result.usage는 턴 합계라 창을 넘는다 — 마지막 최상위 assistant usage를 쓴다(실측).
   it('done.usage는 턴 합계가 아니라 마지막 최상위 assistant 메시지의 usage다', () => {
     const n = new RunEventNormalizer('t-usage')
     n.process({ type: 'system', subtype: 'init', session_id: 's6', model: 'claude-haiku-5-5' })

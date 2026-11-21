@@ -1,4 +1,3 @@
-// 작업 ID: lm1 · 옛 이름 lm1-live-model-picker.test.ts
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { createElement } from 'react'
@@ -43,7 +42,7 @@ async function getStore() {
 
 type Store = Awaited<ReturnType<typeof getStore>>
 
-// M06 G4: 짧은 별칭('haiku'·'sonnet')은 SDK 목록에 그 별칭 행이 있을 때만 받는다 — 실측 목록을 깐다.
+// 짧은 별칭('haiku'·'sonnet')은 SDK 목록에 그 별칭 행이 있을 때만 받는다 — 실측 목록을 깐다.
 function resetStore(useAppStore: Store, patch: Record<string, unknown> = {}) {
   mockApi.agentSetModel.mockClear()
   resetAppStore(useAppStore, {
@@ -184,7 +183,7 @@ function composerBarProps(over: Record<string, unknown> = {}) {
   }
 }
 
-// M05 G9b: 패널 선택기 사본(RunPickers)이 지워지고 패널도 PickerGroup을 쓴다.
+// 선택기는 PickerGroup 하나다.
 function pickerGroupProps(over: Record<string, unknown> = {}) {
   return {
     model: 'opus',

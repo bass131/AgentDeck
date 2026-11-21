@@ -1,4 +1,3 @@
-// 작업 ID: gap1-p05 · 옛 이름 gap1-p05-hook-cockpit-reducer.test.ts
 import { describe, it, expect } from 'vitest'
 import { applyAgentEvent, makeInitialState } from '@renderer/05_Conversation/state/reducer'
 import type { AppState } from '@renderer/05_Conversation/state/reducer'

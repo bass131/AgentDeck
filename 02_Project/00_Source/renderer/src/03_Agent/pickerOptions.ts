@@ -38,7 +38,6 @@ export interface ModeOption {
 
 const NEUTRAL_MODEL_COLOR = 'var(--text-3)'
 
-// 모델 선택기 옵션 (M06 G4) — main이 준 SDK 목록에서 그린다. 옵션 id는 정식 ID라 고르면 그 값이 저장된다.
 // 지금 값이 목록 어느 행과도 맞지 않으면(목록에서 빠진 옛 모델) 그 값 자체를 한 줄 더해 첫 행으로 둔갑하지 않게 한다.
 export function modelOptionsFor(rows: readonly ModelRow[], currentValue?: string): ModelOption[] {
   const options: ModelOption[] = pickerModelRows(rows).map((row) => {
@@ -82,10 +81,8 @@ export const DEFAULT_MODEL: string = DEFAULT_MODEL_ID
 
 export const DEFAULT_EFFORT: EffortLevel = DEFAULT_EFFORT_LEVEL
 
-// 대화 기본 실행 모드(P4).
 export const DEFAULT_MODE_CONVERSATION = 'auto'
 
-// 저장된 대화의 모드 — 선택기에 없는 값이면 대화 기본값(M06 Backlog 1)
 export function conversationModeOf(saved: string | undefined): string {
   return MODES.some((m) => m.id === saved) ? (saved as string) : DEFAULT_MODE_CONVERSATION
 }
@@ -96,8 +93,7 @@ interface EffortPickerState {
   displayValue: string
 }
 
-// effort 메뉴 — 목록 행의 supportedEffortLevels로 그린다. 저장값은 readEffortLevel로 읽는다(옛 「최소」는 low).
-// main의 실행 인자 검사도 같은 규칙이라 보이는 값과 보내는 값이 같다 — 목록에 없는 모델은 main이 effort를 싣지 않으니 메뉴도 끈다(M06 Backlog 16).
+// main의 실행 인자 검사도 같은 규칙이라 보이는 값과 보내는 값이 같다 — 목록에 없는 모델은 main이 effort를 싣지 않으니 메뉴도 끈다.
 export function effortPickerFor(
   modelId: string,
   selectedEffort: string,

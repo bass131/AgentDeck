@@ -24,8 +24,8 @@ import { sessionRegistry } from './sessionRegistry'
 import type { AgentEventPayload } from '@shared/ipcContract'
 import type { AppStore, ConversationRunState } from '@renderer/00_App/state/types'
 
-// 단일(전경 대화) 어댑터 — 실행 동작은 runCore에, 라우팅·루프 표시·stale 타이머·이벤트 구독은 세션 레지스트리에
-// 있다(G9c). 여기는 대화 종류의 정책과 store 읽기·쓰기, 단일 전용 부수효과만 넘긴다.
+// 실행 동작은 runCore에, 라우팅·루프 표시·stale 타이머·이벤트 구독은 세션 레지스트리에 있다.
+// 여기는 대화 종류의 정책과 store 읽기·쓰기, 전경 대화 전용 부수효과만 넘긴다.
 
 export interface RuntimeState {
   runGeneration: string | null
@@ -47,7 +47,7 @@ export interface RuntimeActions {
 const FOREGROUND_STALE_KEY = convKey('@foreground')
 
 export const createRuntimeSlice: StateCreator<AppStore, [], [], RuntimeState & RuntimeActions> = (set, get) => {
-  // 대기열(E9)도 공용 reducer가 다룬다(G9b) — 중단(CLEAR_LOOPS)이 같은 갱신에서 비운다.
+  // 대기열도 공용 reducer가 다룬다 — 중단(CLEAR_LOOPS)이 같은 갱신에서 비운다.
   const dispatch = (action: RunAction): void => {
     set((s) => runReducer(s, action))
   }
@@ -148,7 +148,7 @@ export const createRuntimeSlice: StateCreator<AppStore, [], [], RuntimeState & R
     if (bgHit) {
       const [bgConvId, bgState] = bgHit
       const applied = applyAgentEvent(bgState as AppState, payload, t, nowMs) as unknown as ConversationRunState
-      // 배경 대화의 모드 변화는 그 대화 몫이다(M06 Backlog 1) — 전경 선택기는 건드리지 않는다
+      // 배경 대화의 모드 변화는 그 대화 몫이다 — 전경 선택기는 건드리지 않는다
       const nextBg = payload.event.type === 'permission_mode' ? { ...applied, pickerMode: payload.event.mode } : applied
 
       putBackgroundRun(bgConvId, nextBg)

@@ -122,5 +122,4 @@ test.describe('README 실사용 스크린샷 촬영 (opt-in: LIVE_SDK=1)', () =>
     await expect(page.locator('.gitm-overlay')).toHaveCount(0)
   })
 
-  // M10 G1 — 멀티 에이전트 모드를 지워 컷④(3패널 동시 실작동)를 뺐다.
 })

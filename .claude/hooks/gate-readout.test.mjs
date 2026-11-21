@@ -1,14 +1,4 @@
 #!/usr/bin/env node
-// 게이트 판독 계약 (M02 Phase 3 Step 3·5 · M01 Backlog 12번 앞 두 항목 + 6번).
-//
-// 겨누는 결함 세 가지 —
-//   ① stop-gate가 마감 요약 「3줄」을 검사하지 않는다: 공용 pin의 스탬프 하나만 보므로, 라벨이 빠지거나
-//      값이 비어 있거나 라벨 어휘가 달라도 스탬프만 새로우면 정지가 허용된다.
-//   ② pass-watcher가 세션 첫 Write에서 무장전이다: Write는 사전 텍스트를 재구성할 수 없고 그 세션의
-//      기준선도 아직 없어 「판정 불능 = 무장전」으로 빠진다 — 마감 요약 강제를 통째로 놓치는 fail-open이다.
-//   ③ pin 스탬프 비교가 세션 스코프가 아니다: 코디네이터가 자기 마감으로 pin을 갱신하면 실행 중인
-//      워커의 장전이 남의 스탬프로 충족돼 차단이 무력화된다 (M01 Phase 5 실관찰).
-//
 // 판정 근거는 미러 hook-log 줄과 미러 상태 파일뿐이다 (실저장소는 건드리지 않는다).
 import { join } from 'node:path'
 import { readFileSync, writeFileSync } from 'node:fs'
@@ -54,7 +44,6 @@ function writePinVia(sid, pinRel, stamp) {
 }
 
 try {
-  // ============ Step 3 ① stop-gate 마감 요약 3줄 판정 계약 ==================
   H.setConfig({ planPath: PLAN, workPinPath: pin('full') })
   {
     armSession(A, '2026-08-10T08:59:00+09:00')
@@ -81,7 +70,6 @@ try {
     r.judge('SG-06 장전보다 1초 낡은 스탬프', stop(A).verdict, 'block/마감-요약-미실측', { note: '회귀 불변식' })
   }
 
-  // ============ Step 5 pin 스탬프 비교의 세션 스코프화 ======================
   {
     // 워커 A가 장전한 뒤, 코디네이터 B가 자기 마감으로 pin을 갱신한다 — A의 마감 요약은 없다
     H.setConfig({ planPath: PLAN, workPinPath: pin('full') })
@@ -110,7 +98,6 @@ try {
       { note: '귀속 불능은 종전 판정 유지 — 기존 픽스처 회귀 보호' })
   }
 
-  // ============ Step 3 ② pass-watcher 세션 첫 Write 기준선 부재 ============
   {
     const phase = H.path('.claude', 'hooks', 'fixtures', 'partition-auto-arm', '01_Phase_1.md')
     const base = readFileSync(phase, 'utf8')

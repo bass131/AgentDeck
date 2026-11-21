@@ -11,13 +11,12 @@ export const GIT_CHANNELS = {
   GIT_COMMIT: 'git.commit',
   GIT_PUSH: 'git.push',
   GIT_PULL: 'git.pull',
-  // PR 카드 (M07 G8) — main이 GitHub에서 읽고, 사람이 누른 병합 버튼으로만 병합한다
+  // PR 카드는 사람이 누른 병합 버튼으로만 병합한다
   GIT_PR_READ: 'git.prRead',
   GIT_PR_MERGE: 'git.prMerge',
 } as const
 
-// ── PR 카드 (M07 G8) ──
-// 필수 검사 하나의 결과 — 보인 머리 SHA의 check run·commit status에서 읽는다.
+// 보인 머리 SHA의 check run·commit status에서 읽는다.
 export type PrCheckResult = 'success' | 'pending' | 'failure' | 'missing'
 
 // 카드에 보이는 값은 모두 main이 GitHub에서 읽은 값이다.
@@ -37,7 +36,7 @@ export interface PrView {
   headSha: string
   // base 브랜치에 보호가 걸려 있는가(보호 API가 「Branch not protected」이고 룰셋 규칙도 없으면 false)
   protected: boolean
-  // 고전 보호 없이 룰셋으로만 지키는가 (M11 G3)
+  // 고전 보호 없이 룰셋으로만 지키는가
   byRuleset?: boolean
   // 필수 검사 이름을 읽지 못한 사유 — 있으면 버튼이 꺼진다(닫힌 실패)
   requiredError?: string
@@ -115,7 +114,6 @@ export interface GitFileAt {
   error?: string
 }
 
-// M05 G10 ack 통일: 공용 Ack의 별칭 (모양 무변경)
 export type GitOpResult = Ack
 
 export interface GitRootRequest {

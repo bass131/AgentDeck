@@ -1,4 +1,3 @@
-// 작업 ID: p7 · 옛 이름 p7-shift-tab-mode-cycle.test.tsx
 // @vitest-environment jsdom
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
 import { render, screen, fireEvent, cleanup } from '@testing-library/react'
@@ -203,7 +202,7 @@ describe('Shell 단축키 — Shift+Tab → cyclePickerMode', () => {
     document.body.removeChild(inp)
   })
 
-  // M11 G4(설계 감사 22) — 모달 판정은 클래스 목록이 아니라 모달 층이다
+  // 모달 판정은 클래스 목록이 아니라 모달 층이다
   it('모달 층이 있으면 Shift+Tab → cyclePickerMode 미호출', async () => {
     const { useGlobalShortcuts } = await import('@renderer/12_Window/useGlobalShortcuts')
     const { pushModalLayer } = await import('@renderer/02_Common/modalStack')

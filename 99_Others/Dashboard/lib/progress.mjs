@@ -102,7 +102,7 @@ export function buildGoalList(files, planned, currentPath) {
   return { items, total: items.length, done: n('done'), doing: n('current') + n('draft'), left: n('left'), unknown: n('unknown') };
 }
 
-// ---- 최근 활동: 자동 검사 기록(hook-log)을 고정 규칙으로 분류한다 ----
+// 최근 활동: 자동 검사 기록(hook-log)을 고정 규칙으로 분류한다.
 export const ACTIVITY = Object.freeze({
   read: ['코드를 읽고 있어요', '코드를 읽었어요'],
   test: ['테스트를 돌리고 있어요', '테스트를 돌렸어요'],
@@ -142,7 +142,7 @@ export function activityKind(e) {
   return null;
 }
 
-// ---- 응답 마침 뒤 조용함: hook-log의 마지막 기록(활동으로 세지 않는 기록까지 모두 친다)이 응답 마침이면 그 시각을 준다 ----
+// 응답 마침 뒤 조용함: hook-log의 마지막 기록(활동으로 세지 않는 기록까지 모두 친다)이 응답 마침이면 그 시각을 준다.
 // 응답 마침은 surface-probe의 Stop이다. 같은 Stop에 stop-gate도 기록을 남기고 두 훅의 기록 순서는 보장되지 않으므로,
 // 기록 끝에 이어진 Stop 기록 묶음 안에 surface-probe가 있으면 응답 마침으로 본다.
 // 걸린 시간은 화면 시계가 잰다(public/chime.js quietMinutes). after분을 넘게 조용하면 알아 두면 좋은 사실 줄이다.
@@ -178,7 +178,7 @@ export function summarizeActivity(entries, { window = 8 } = {}) {
     say: who + ACTIVITY[kind][0], sayPast: who + ACTIVITY[kind][1] };
 }
 
-// ---- 지금 하는 일: goal 번호 + 지금 단계의 짧은 이름 ----
+// 지금 하는 일: goal 번호 + 지금 단계의 짧은 이름.
 export function doingLine({ goal, phases }) {
   const P = phases;
   if (!P || P.status !== 'ok') return { text: null, why: '단계 정보를 읽지 못했어요.' };
@@ -198,7 +198,7 @@ export function doingLine({ goal, phases }) {
   return { text: null, why: '「진척 단계」 목록에 항목이 없어요.' };
 }
 
-// ---- 내 손이 필요한 일: 원문에 적힌 사실만으로 정한다. 없으면 빈 목록이고 화면은 「없음」이라고 쓴다 ----
+// 내 손이 필요한 일: 원문에 적힌 사실만으로 정한다. 없으면 빈 목록이고 화면은 「없음」이라고 쓴다.
 // level: stop(멈춤 — 답하기 전엔 진행하지 않음) · todo(사용자가 할 일). fresh가 있는 항목은 그 분 안에서만 보인다(화면 시계로 판정).
 // key: 알림 키. 같은 사실이면 같은 키다(알림음은 키마다 한 번 — public/chime.js, docs/알림.md).
 //   단계 번호와 결정 대장 게이트는 goal마다 되풀이되므로 goal 문서 경로를 키에 넣는다.

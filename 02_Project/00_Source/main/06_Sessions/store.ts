@@ -7,7 +7,7 @@ import { PERMISSION_MODE_TABLE } from '@main/04_Claude/permissionModes'
 import { writeFileAtomicSync } from '@main/05_Loop/realPorts/atomicWrite'
 import type { TokenUsage, SubAgentTool, SubAgentTranscriptItem } from '../../shared/agentEvents'
 
-type ConversationSaveInput =Omit<ConversationRecord, 'createdAt' | 'updatedAt'> & {
+type ConversationSaveInput = Omit<ConversationRecord, 'createdAt' | 'updatedAt'> & {
   id?: string
 }
 
@@ -148,8 +148,8 @@ export function createConversationStore(dir: string): ConversationStore {
 
   const cache = new Map<string, string>()
 
-  // 색인을 못 읽으면 빈 목록으로 두지 않는다 — 다음 저장이 한 건으로 덮는다(M11 G3, Backlog 20).
-  // 읽지 못하면(없음·잠김 포함) 대화 파일들로 다시 짓고, 깨졌으면 `.broken-<시각>`으로 옆에 둔 뒤 다시 짓는다.
+  // 색인을 못 읽으면 빈 목록으로 두지 않는다 — 다음 저장이 한 건으로 덮는다.
+  // 대화 파일들로 다시 짓고, 깨졌으면 `.broken-<시각>`으로 옆에 둔 뒤 다시 짓는다.
   function readIndex(): IndexFile {
     let raw: string | null = null
     try {
@@ -255,7 +255,7 @@ export function createConversationStore(dir: string): ConversationStore {
       const lastUsage = sanitizeUsage(record.lastUsage)
       const subagents = sanitizeSubagents(record.subagents)
       const replMode = typeof record.replMode === 'boolean' ? record.replMode : undefined
-      // model이 없는 저장(배경 run의 done/session 저장)은 기존 선택을 지우지 않는다 (M06 G4).
+      // model이 없는 저장(배경 run의 done/session 저장)은 기존 선택을 지우지 않는다
       const model = sanitizeModel(record.model) ?? sanitizeModel(existing?.model)
       const mode = sanitizeMode(record.mode) ?? sanitizeMode(existing?.mode)
 

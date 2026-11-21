@@ -1,4 +1,3 @@
-// 작업 ID: lr1 · 옛 이름 lr1-resume-bug-held-open-resume.test.ts
 import { describe, it, expect } from 'vitest'
 import { buildClaudeSdkOptions } from '@main/04_Claude/sdkOptions'
 import type { CanUseToolFn } from '@main/04_Claude/permission/permissionCoordinator'

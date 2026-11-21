@@ -1,7 +1,7 @@
 import type { LoopPhase, LoopStatus } from '@shared/ipcContract'
 import { cwdKey } from './loopModel'
 
-type TagTone ='brain' | 'run' | 'stop' | 'merge' | 'idle'
+type TagTone = 'brain' | 'run' | 'stop' | 'merge' | 'idle'
 interface ProjectTag {label: string; tone: TagTone }
 
 const STOP_PHASES: ReadonlySet<LoopPhase> = new Set<LoopPhase>(['halted', 'latched', 'blocked', 'open-failed'])

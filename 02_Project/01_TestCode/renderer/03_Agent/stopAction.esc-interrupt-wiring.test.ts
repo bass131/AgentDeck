@@ -1,6 +1,4 @@
-// 작업 ID: cp1-p06 · 옛 이름 cp1-p06-esc-interrupt-wiring.test.ts
-// M11 G4(설계 감사 24) — 옛 시험은 Shell의 Esc 처리를 사본(makeOnEscape)으로 다시 만들어 모달·작업 모드 가드가 빠져 있었다.
-// 이제 Shell이 부르는 그 함수(shellEscape)를 직접 부른다 — Shell에서 가드를 지우면 이 시험이 실패한다.
+// 사본이 아니라 Shell이 부르는 그 함수(shellEscape)를 직접 부른다 — Shell에서 가드를 지우면 이 시험이 실패한다.
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { pushModalLayer, shellEscape, type EscapeContext } from '@renderer/12_Window/useGlobalShortcuts'
 import type { LoopInfo } from '@shared/agentEvents'

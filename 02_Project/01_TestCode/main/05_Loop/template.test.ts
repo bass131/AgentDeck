@@ -1,6 +1,6 @@
-// M09 G1 템플릿 형식과 스키마 검사 — 실제 `program-dev.json`을 읽고, 스키마 오류 꼴(알 수 없는 노드 종·판정 주체,
+// 실제 `program-dev.json`을 읽고, 스키마 오류 꼴(알 수 없는 노드 종·판정 주체,
 // 중복 id, 없는 id 참조, 빈 순서 등)을 경로와 이유가 담긴 목록으로 거부하는지 고정한다.
-// 근거: goal `01_Milestones/M09_AppLoop/10_Goal-G1-템플릿과-실행기.md` 완료조건. 변형본은 시험 안에서 실제 파일을 가공해 만든다.
+// 변형본은 시험 안에서 실제 파일을 가공해 만든다.
 import { describe, it, expect } from 'vitest'
 import { canonicalJson, loadTemplate, templateHash, validateTemplate, type SchemaError } from '@main/05_Loop/template'
 import { programDevText, variantText, findRawNode } from '../00_Helpers/loopFakes'
@@ -166,7 +166,7 @@ describe('스키마 오류를 경로와 이유로 거부한다', () => {
       '$.branches.goal', '{goal}')).toBe(true)
   })
 
-  // M09 G4 — 기준 브랜치는 템플릿에 두지 않는다. 열 때 작업 저장소 origin의 기본 브랜치를 읽는다(openLoop).
+  // 기준 브랜치는 템플릿에 두지 않는다. 열 때 작업 저장소 origin의 기본 브랜치를 읽는다(openLoop).
   it('브랜치 꼴에는 기준 브랜치(base)가 없고, 적으면 모르는 키로 거부한다', () => {
     const r = loadTemplate(programDevText())
     if (!r.ok) throw new Error('불러오기 실패')

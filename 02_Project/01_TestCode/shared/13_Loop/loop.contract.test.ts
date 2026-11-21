@@ -1,5 +1,3 @@
-// M09 G4 — 앱 안 루프 IPC 묶음(loop)의 계약. invoke 여덟(열기·시작·상태·사람 판정·카드 답·세션 취소·래치 풀기·닫기)과
-// push 하나(상태). 상태 응답과 push는 같은 LoopStatus 한 장이다. 2차분 화면은 이 계약만 보고 만든다.
 import { describe, expect, it } from 'vitest'
 import { API_ROUTES } from '@shared/01_Ipc/apiRoutes'
 import {
@@ -30,7 +28,6 @@ describe('loop IPC 묶음 (M09 G4)', () => {
       'loop.open', 'loop.releaseLatch', 'loop.sessionEvent', 'loop.sessionLog', 'loop.start', 'loop.state', 'loop.status',
     ])
     for (const v of Object.values(LOOP_CHANNELS)) expect(Object.values(IPC_CHANNELS)).toContain(v)
-    // push는 상태 한 장 하나뿐이다 — 카드·승인·래치도 그 안에 실린다
     expect(LOOP_CHANNELS.LOOP_STATE).toBe('loop.state')
   })
 
@@ -124,7 +121,6 @@ describe('loop IPC 묶음 (M09 G4)', () => {
     void mainRow
   })
 
-  // M10 G3 — 사람이 일시 정지 깃발을 내리는 길(판정 칸 없음)과 대상을 고른 취소(메인 턴 / 작업 세션)
   it('깃발 내리기는 cwd만, 취소는 cwd와 대상만 싣는다', () => {
     const lower: ReqOf<'loop.lowerFlag'> = { cwd: 'C:/work/practice' }
     const res: ResOf<'loop.lowerFlag'> = {
@@ -170,7 +166,6 @@ describe('loop IPC 묶음 (M09 G4)', () => {
     void forged
   })
 
-  // G2 독립 검수 — 메인의 일시 정지 깃발 사건(flag-raised·flag-lowered)은 사람이 멈춘 실행을 이어 간 사건(resumed)과 이름이 다르다.
   // 표가 종류 전부를 키로 가져야 컴파일된다 — 종류가 늘거나 줄면 이 표도 바뀐다
   it('실행기 사건의 종류 (M10 G2)', () => {
     const KINDS: Record<LoopEventKind, true> = {
@@ -186,8 +181,7 @@ describe('loop IPC 묶음 (M09 G4)', () => {
 
   it('요청·응답·push 모양이 계약 표에 있다', () => {
     const open: ReqOf<'loop.open'> = { cwd: 'C:/work/practice' }
-    // G4 검수 중요 I5 — 화면은 CI 정책(필수 검사 이름)을 보내지 못한다
-    // @ts-expect-error requiredChecks는 계약에 없다
+    // @ts-expect-error 화면은 CI 정책(필수 검사 이름)을 보내지 못한다
     const withChecks: ReqOf<'loop.open'> = { cwd: 'C:/work/practice', requiredChecks: ['hard-gates'] }
     void withChecks
     const start: ReqOf<'loop.start'> = { cwd: open.cwd, milestoneId: 'M1' }
@@ -200,7 +194,6 @@ describe('loop IPC 묶음 (M09 G4)', () => {
     const r: ResOf<'loop.releaseLatch'> = { ok: true, status: STATUS }
     const pushed: PayloadOf<'loop.state'> = STATUS
     const card: LoopCard = { kind: 'question', requestId: 'q1', node: 'brainstorm', goal: null, text: '무엇을 만들까?', questions: [] }
-    // M10 G3 — 메인 대화의 카드는 상태에도 실리되 inChat 표시가 붙는다(답하는 곳은 메인 대화 화면 한 곳)
     const chatCard: LoopCard = { ...card, requestId: 'q2', inChat: true, restored: true }
     expect([chatCard.inChat, card.inChat]).toEqual([true, undefined])
     // @ts-expect-error inChat은 참·거짓이다

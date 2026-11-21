@@ -1,4 +1,4 @@
-// M10 G5 그래프 탭 캔버스(보기 전용) — 카드는 DOM, 선은 SVG다. 위치는 그래프의 position 칸을 그대로 쓴다.
+// 보기 전용 — 카드는 DOM, 선은 SVG다. 위치는 그래프의 position 칸을 그대로 쓴다.
 import { useEffect, useMemo, useRef, useState, type JSX } from 'react'
 import type { GraphNodeKind, LoopGraph, LoopGraphNode, LoopStatus } from '@shared/ipcContract'
 import {

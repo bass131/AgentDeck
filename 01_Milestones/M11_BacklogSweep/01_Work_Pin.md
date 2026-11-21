@@ -12,7 +12,7 @@
 - 마일스톤 스펙: `01_Milestones/M11_BacklogSweep/00_마일스톤-스펙.md`(분류표 `10_`~`13_분류-*.md`). 다음 `M12_CharterTaste/00_마일스톤-스펙.md`, `M13_Installer/00_마일스톤-스펙.md`.
 - 마일스톤 브랜치: `milestone/m11-backlog-sweep`(`5419b812`에서 가름 — `chore/m10-close` 머리, M10 종결 기록과 브레인스토밍 기록).
 - 사슬 PR: (아직 없음)
-- 현재 goal: G8 가드·설정·CI·헌법 3조 — `80_Goal-G8-가드-설정-CI-헌법3조.md`, 브랜치 `chore/m11-g8-guard-settings-ci`(마일스톤 머리 `f630b36c`에서). G1~G7 종결(PR 108~114, 마지막 병합 `f630b36c`).
+- 현재 goal: G9 주석 전수조사 — `90_Goal-G9-주석-전수조사.md`, 브랜치 `chore/m11-g9-comments`(마일스톤 머리 `9a507a7c`에서). G1~G8 종결(PR 108~115, 마지막 병합 `9a507a7c`).
 - 연습 저장소: `bass131/AgentDeck_Test`(공개, `main` 룰셋 `main-protect`). clone `C:\Dev\AgentDeck_Test`. 연습 토큰 `%USERPROFILE%\.agentdeck-practice\gh-token.txt`(만료 2026-11-27 03:20 UTC, 룰셋 읽기 확인). 연습 앱 데이터는 G1부터 `%USERPROFILE%\.agentdeck-practice\udd`.
 - goal 병합의 정형 절차: ① goal 브랜치를 push하고 독립 검수를 PR 전에 반영한다. ② `gh pr view <N> --json headRefOid,statusCheckRollup`으로 `hard-gates`와 머리 SHA를 읽는다. ③ `git fetch origin` 뒤 로컬 마일스톤 브랜치가 원격과 같은지 확인하고 `git switch milestone/m11-backlog-sweep`, `git merge --no-ff -m "<메시지>" origin/<goal 브랜치>`. ④ 병합한 SHA가 머리 SHA와 같은지 확인한 뒤 `git push -u origin milestone/m11-backlog-sweep`. 작업 트리는 병합 전에 깨끗해야 한다.
 - push는 항상 `-u origin <브랜치>`로 원격 브랜치를 명시합니다. `master`로 가는 병합은 사용자가 직접 합니다.
@@ -22,7 +22,7 @@
 
 ## 마감 요약 (최신 1건 — 3줄: 바뀐 것 / 내린 결정 / 봐야 할 것)
 
-- 스탬프: 2026-11-21T09:40:51+09:00
-- 바뀐 것: goal 8 구현(가드 규칙, 앱 잠금 패리티, 설정, CI SHA 고정, 헌법 3조 보호 표면)을 마치고 push했습니다(머리 `d2e395ea`, 새 가드에서 push 질의 없음). 독립 검수 반영(`64a734e2`, zsh·ksh 긴 옵션 후퇴와 `--track` 꼴)까지 마쳤습니다.
-- 내린 결정: goal 8은 정형 절차 명령(goal 병합·push·PR)이 질의 없이 지나감을 시험으로 먼저 묶고, PowerShell 백틱 꼴은 v2, 하위 에이전트 질의는 실제로 띄우지 않고 근거로 닫습니다. 사람 손 목록: `cwdprobe\`, 연습 `udd/loop`의 e2e 찌꺼기(Backlog 36), stash `pin-g3`, 옛 봉인 때문에 엔진 다시 고르기.
-- 봐야 할 것: 가드가 처음 저장소 상태(HEAD)를 읽습니다(M08-2). 검수 반영 뒤 PR·`hard-gates`·병합이 새 가드·설정에서 질의 없이 지나가는지가 실제 세션 확인입니다.
+- 스탬프: 2026-11-21T11:35:23+09:00
+- 바뀐 것: goal 8을 병합했고(PR 115, `9a507a7c`), 새 가드·설정에서 병합·push·PR이 질의 없이 지나감을 실제로 확인했습니다. goal 9 주석 전수조사를 마쳤습니다(주석 줄 5,776 → 4,460, 이력 꼬리표 987 → 2, 시험 수·결과 기준선과 같음).
+- 내린 결정: 주석 정리는 세 워커가 겹치지 않는 영역(main 소스와 그 시험 / renderer·shared와 나머지 시험 / 훅·현황판)을 같은 작업 트리에서 동시에 맡고, 자기 경로만 커밋합니다. 사람 손 목록: `cwdprobe\`, 연습 `udd/loop`의 e2e 찌꺼기(Backlog 36), stash `pin-g3`, 옛 봉인 때문에 엔진 다시 고르기.
+- 봐야 할 것: goal 9 독립 검수(막는 결함 0)를 반영했습니다. PR·병합 뒤 그다음 goal 10(마일스톤 회귀 검증과 M11 마일스톤 PR, 결과 보고)입니다.

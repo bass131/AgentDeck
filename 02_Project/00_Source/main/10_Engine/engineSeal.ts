@@ -1,13 +1,8 @@
-// 엔진 봉인 (M07 G4) — G8 설계 `30_노드-구조.md` 「보호」 4(바뀜 감지)의 엔진 몫과 5(엔진 교체 확인).
-// 앱의 엔진 선택(engineVersions.setActive)이 봉인을 적고, 엔진 로드(loadActiveQuery)가 실행마다 봉인을 검사한다.
-// 봉인이 없거나 다르면 그 엔진 대신 번들 엔진을 쓴다(G4 결정 대장 — 번들은 앱과 함께 온 코드다).
-// 봉인 파일과 엔진 폴더는 앱 세션에서 잠겨 있다(04_Claude/permission/enginePathLock.ts). CLI 세션이나 다른 프로그램이
-// 고친 경우를 이 봉인이 잡는다. 봉인 파일 자체를 함께 고치면 통과한다 — L1 보호다(설계 「보호」 끝 문단).
-//
-// 검사는 두 층이다 (G4 검수 반영 — 실제 설치본은 파일 약 8천 개, 목록 걷기 한 번 0.4~0.8초).
-//   - 빠른 검사(quickSeal, 동기): 설정·봉인·버전·하한·진입 파일 해시. 상태 칸(getVersionState)이 쓴다.
-//   - 전체 검사(fullSeal, 비동기): 빠른 검사 + 버전 폴더 파일 목록. 로드가 실행마다 쓴다. main 스레드를 막지 않는다.
-//   상태 칸의 파일 목록 판정은 마지막 전체 검사(또는 앱의 선택)의 결과다.
+// 봉인이 없거나 다르면 그 엔진 대신 번들 엔진(앱과 함께 온 코드)을 쓴다.
+// 앱 세션에서는 봉인 파일과 엔진 폴더가 잠겨 있어(enginePathLock.ts), 이 봉인은 CLI 세션이나 다른 프로그램이 고친 경우를 잡는다.
+// 봉인 파일까지 함께 고치면 통과한다(L1 보호).
+// 설치본은 파일 약 8천 개라 목록 걷기가 0.4~0.8초다. 그래서 상태 칸은 동기 빠른 검사(quickSeal)를, 로드는 비동기
+// 전체 검사(fullSeal, 파일 목록 포함)를 쓴다. 상태 칸의 파일 목록 판정은 마지막 전체 검사(또는 앱의 선택)의 결과다.
 import path from 'node:path'
 import fs from 'node:fs'
 import fsp from 'node:fs/promises'
@@ -21,7 +16,7 @@ const SEAL_FILE = 'engine-seal.json'
 // 앱 영역 안의 위쪽 node_modules. 그 위(사용자 홈 등)는 앱 밖이라 다른 프로그램이 정당하게 둘 수 있어 보지 않는다
 const UPPER_MODULES = [['engines', 'node_modules'], ['node_modules']] as const
 
-// 칸의 뜻은 shared/10_Engine/engine.ts의 EngineSealStatus 주석에 둔다 (컨트롤 패널 goal이 화면에서 읽는다)
+// 칸의 뜻은 shared/10_Engine/engine.ts의 EngineSealStatus 주석에 둔다
 type SealStatus = EngineSealStatus
 
 interface Seal {
@@ -69,10 +64,8 @@ function entryHash(userData: string, version: string): string {
   return fs.existsSync(entryPath) ? sha256(fs.readFileSync(entryPath)) : 'absent'
 }
 
-// 버전 폴더 전체의 파일 목록(상대 경로·크기·수정 시각·바뀜 시각) 해시.
-// CLI 바이너리(수백 MB)를 실행마다 해시하지 않으려고 목록으로 본다(G4 「하지 않을 것」). 실측(M11 G3): 실제 설치본 7968개·402MB의
-// 내용 해시는 따뜻할 때 6.3초·차가울 때 16.6초, 목록만은 0.15초였다. 수정 시각은 utimes로 되돌릴 수 있어 바뀜 시각(ctime)을 함께 싣는다
-// — utimes는 ctime을 되돌리지 못한다(M07-11). 봉인 파일까지 고치는 쪽은 원래 막지 못한다(L1, 위 머리 주석).
+// 내용 대신 파일 목록(상대 경로·크기·수정 시각·바뀜 시각)을 해시한다. 실측: 설치본 7968개·402MB의 내용 해시는
+// 6.3~16.6초, 목록만은 0.15초였다. 수정 시각은 utimes로 되돌릴 수 있지만 ctime은 못 되돌려 함께 싣는다.
 function row(root: string, full: string, st: fs.Stats): string {
   return `${path.relative(root, full).replace(/\\/g, '/')}|${st.size}|${Math.floor(st.mtimeMs)}|${st.ctimeMs}`
 }
@@ -165,7 +158,7 @@ function baseSeal(userData: string, active: string | null, installed: string | n
   // 고른 엔진이 없는데 봉인이 남아 있으면 설정이나 폴더가 앱 밖에서 지워진 것이다
   if (!active) return { status: hasSeal ? 'mismatch' : 'none' }
   if (installed !== active) return { status: 'mismatch' }
-  // 버전 폴더 위쪽의 node_modules는 Node가 의존을 찾으며 올라가는 길이다 — 앱이 만들지 않으니 있으면 바뀜이다(M11 G3, M07-11)
+  // 버전 폴더 위쪽의 node_modules는 Node가 의존을 찾으며 올라가는 길이다 — 앱이 만들지 않으니 있으면 바뀜이다
   if (UPPER_MODULES.some((p) => fs.existsSync(path.join(userData, ...p)))) return { status: 'mismatch' }
   if (isBelowFloor(active, floorVersion(bundledSpec))) return { status: 'below-floor' }
   if (!hasSeal) return { status: 'missing' }

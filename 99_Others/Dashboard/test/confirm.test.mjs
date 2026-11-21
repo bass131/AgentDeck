@@ -1,4 +1,4 @@
-// M07 G9 사람 확인 창(lib/confirm.mjs) — 주입한 가짜 execFile로만 본다. 시험은 창을 띄우지 않는다.
+// 사람 확인 창(lib/confirm.mjs) —주입한 가짜 execFile로만 본다. 시험은 창을 띄우지 않는다.
 // 창은 유일한 사람 증명이다. 남이 정한 글(PR 제목·브랜치 이름)은 스크립트·인자에 끼우지 않고 환경변수로만 넘기고,
 // 확인은 전용 출력 한 줄로만 판정한다. 나머지(비정상 종료·빈 출력·다른 출력·시간 초과·띄우지 못함)는 모두 취소다.
 import test from 'node:test';
@@ -35,7 +35,7 @@ test('the script is fixed text: single quotes only, no accelerator, no data; arg
   assert.match(CONFIRM_SCRIPT, /\$f\.ActiveControl=\$no; \[void\]\$no\.Focus\(\)/, '잠금이 풀리면 초점은 취소');
   assert.match(CONFIRM_SCRIPT, /UseMnemonic=\$false/);
   assert.doesNotMatch(CONFIRM_SCRIPT, /UseMnemonic=\$true/);
-  // 키보드로는 확인되지 않는다(PR 75 검수): Space·PerformClick은 Click만 일으키고 MouseClick은 마우스 왼쪽 클릭만 일으킨다(2026-11-18 시험 폼 실측).
+  // 키보드로는 확인되지 않는다: Space·PerformClick은 Click만 일으키고 MouseClick은 마우스 왼쪽 클릭만 일으킨다(2026-11-18 시험 폼 실측).
   // 그래서 병합 단추는 Click이 아니라 왼쪽 MouseClick에만 반응하고, Tab 순서에서도 빠진다
   assert.doesNotMatch(CONFIRM_SCRIPT, /\$ok\.Add_Click/, '병합 단추에 Click 처리기가 없다');
   assert.match(CONFIRM_SCRIPT, /\$ok\.Add_MouseClick\(\{ param\(\$s,\$e\) if \(\$e\.Button -eq 'Left'\) \{ \$r\.yes=\$true; \$f\.Close\(\) \} \}\)/);

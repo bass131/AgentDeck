@@ -1,5 +1,3 @@
-// M10 G5 — Windows 토스트는 AppUserModelID가 있는 앱에서만 뜬다. Electron 문서(tutorial/notifications)는 개발 중에
-// app.setAppUserModelId(process.execPath)를 부르라고 한다. 패키지 빌드는 설치기가 바로 가기와 함께 정하므로 덮지 않는다.
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { applyDevAppUserModelId, devAppUserModelId } from '@main/00_App/appUserModel'
 
@@ -19,7 +17,6 @@ describe('개발 빌드의 AppUserModelID (M10 G5)', () => {
   })
 })
 
-// M11 G4 — 진입점(index.ts)을 electron·조립 지점 대역으로 불러 단일 인스턴스 잠금의 배선을 본다
 describe('단일 인스턴스 (M11 G4)', () => {
   const MOCKED = ['electron', '@main/00_App/bootstrap', '@main/00_App/context', '@main/12_Window/zoom']
   async function boot(lock: boolean) {

@@ -1,4 +1,3 @@
-// 작업 ID: m4-4 · 옛 이름 m4-4-conversation-thinking.test.tsx
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, cleanup, act } from '@testing-library/react'

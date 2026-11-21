@@ -77,7 +77,7 @@ export function Shell(): JSX.Element {
   useModalLayer(profileOpen)
   // 첫 그리기 전에 저장된 작업 폴더를 읽어, 작업 모드가 빈 폴더로 한 번 그려지지 않게 한다
   useState(() => { useWorkStore.getState().hydrate(); return null })
-  // 알림 목록은 모드와 상관없이 구독한다 — Windows 알림을 누르면 그 작업 폴더의 작업 모드로 연다(M10 G5)
+  // 알림 목록은 모드와 상관없이 구독한다 — Windows 알림을 누르면 그 작업 폴더의 작업 모드로 연다
   useEffect(() => startAlerts((cwd) => {
     useAppStore.getState().setWorkspaceMode('work')
     useWorkStore.getState().choose(cwd)

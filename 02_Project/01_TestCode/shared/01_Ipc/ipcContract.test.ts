@@ -31,8 +31,6 @@ describe('ipc-contract', () => {
     for (const ch of expected) expect(values).toContain(ch)
   })
 
-  // M11 G2 — M05 Backlog 54. 채널 이름은 `api.<묶음>.<동작>`과 같은 `<묶음>.<동작>`이다.
-  // 옛 conversation.*·fs.*·reference.* 11개가 묶음 이름(sessions·workspace)과 달랐다.
   it('preload 라우트 표의 채널 이름은 `<묶음>.<동작>`이다', () => {
     const mismatched: string[] = []
     for (const [group, actions] of Object.entries(API_ROUTES)) {
@@ -1452,7 +1450,6 @@ describe('P10 command.list 채널 계약', () => {
   })
 })
 
-// M10 G1 — 멀티 에이전트 모드를 지우며 그 영속 채널(옛 RMW1 multi.* 6채널, ADR-031)을 계약에서 뺐다.
 // 사용자 디스크의 옛 멀티 저장 파일은 지우지도 읽지도 않는다.
 describe('멀티세션 영속 채널 제거 (M10 G1)', () => {
   it('multi.* 네임스페이스 채널이 하나도 없다', () => {

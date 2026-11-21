@@ -2,7 +2,6 @@ import { describe, it, expect, vi } from 'vitest'
 import type { RunResponse } from '@main/03_Agent/AgentBackend'
 import type { RunManager } from '@main/03_Agent/agentRuns'
 
-// 실물 핸들러 검사 — ipcMain.handle을 가로채 registerAgentHandlers가 등록한 QUESTION_RESPOND를 직접 부른다
 const h = vi.hoisted(() => ({ handlers: new Map<string, (...args: unknown[]) => unknown>() }))
 
 vi.mock('electron', () => ({

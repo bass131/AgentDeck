@@ -1,21 +1,7 @@
 #!/usr/bin/env node
-// 진짜 동시 실행 레이스 러너 (M02 Phase 3 Step 7·8·9) — 상태 파일 동시 쓰기의 손실·무손실을
-// 결정론적으로 재현·판정한다. 옆 폴더의 race-scoping/run.cjs와 겨누는 것이 다르다: 저쪽은 세션
-// 스코핑 회귀를 순차(spawnSync) 대본으로 보고, 이쪽은 두 프로세스를 임계구간 문턱에서 만나게 해
-// 겹침 자체를 만든다. 그래서 이쪽만 비동기 spawn 2건 동시 기동이다.
-//
-// 사용: CLAUDE_PROJECT_DIR=<미러 뿌리> node run.cjs post-read|pre-lock
-//   post-read — 보호 없는 read→write 경로(이 Phase 수리 이전 의미론). 임계구간 겹침 + 엔트리 손실이
-//               함께 관측되면 exit 0 (Red 성립). 겹침만으로는 성립시키지 않는다.
-//   pre-lock  — 수리 후 경로. 생존 구간은 겹치되 보호 임계구간이 겹치지 않고 전 스코프가 무손실이면
-//               exit 0 (Green 성립).
-//
-// 대본: 상태 파일에 씨앗(global + seed 세션)을 심어 두고, 서로 다른 세션 id의 33_tdd-guard 두 건을
-// 동시에 띄운다. 두 프로세스가 각자 장벽에서 ready를 내면 러너가 go를 만들어 함께 들여보낸다.
-// 판정 근거는 각 프로세스가 남긴 timeline(read·lock·write·rename 시각)과 최종 상태 파일뿐이다.
-//
-// 보호 규율: 실저장소를 건드리지 않는다 — CLAUDE_PROJECT_DIR가 없으면 실행을 거부하고, 장벽
-// 디렉터리는 OS 임시 폴더에 만들었다가 지운다.
+// 두 33_tdd-guard 프로세스를 seam 장벽에서 함께 들여보내 겹침 자체를 만든다 — race-scoping/run.cjs의 순차 대본과 달리 비동기 spawn 2건이다.
+// 사용: CLAUDE_PROJECT_DIR=<미러 뿌리> node run.cjs post-read|pre-lock. post-read는 임계구간 겹침과 엔트리 손실이 함께 보이면,
+// pre-lock은 임계구간이 겹치지 않고 전 스코프가 무손실이면 exit 0이다. CLAUDE_PROJECT_DIR가 없으면 실저장소를 지키려고 실행을 거부한다.
 'use strict';
 const fs = require('fs');
 const os = require('os');
@@ -105,12 +91,9 @@ function overlap(a, b) { // [start, end] 두 구간의 겹침 길이 (ms) — 0 
       .filter(Boolean);
     out.timelines = timelines.map((t) => ({ pid: t.pid, session: t.session, readAt: t.readAt, readyAt: t.readyAt, goAt: t.goAt, lockAt: t.lockAt, writeAt: t.writeAt, renameAt: t.renameAt, unlockAt: t.unlockAt, error: t.error }));
 
-    // 임계구간 정의 — post-read는 보호 없는 read→rename 전체, pre-lock은 잠금 보유 구간이다.
-    // post-read에서 쓰기가 실패한 쪽(Windows는 같은 대상으로의 동시 rename을 EPERM으로 거부한다)은
-    // renameAt이 없다. 그 쓰기 시도도 보호 없는 임계구간이므로 끝을 writeAt(쓰기 시작)으로 잡는다 —
-    // 실제 끝보다 이르니 겹침을 과소평가하는 보수적 하한이다. 예전엔 이 쪽이 걸러져 판정불능이 됐다 (Backlog 58).
-    // rename 단계의 실패만 그렇게 읽는다 — tmp 쓰기·mkdir 실패(디스크·권한 등 동시성과 무관한 원인)는
-    // 예전처럼 끝점이 없어 판정불능으로 남고, 오류 원문을 otherWriteErrors로 드러낸다 (G11 검수).
+    // 임계구간은 post-read에서 보호 없는 read→rename 전체, pre-lock에서 잠금 보유 구간이다.
+    // Windows는 같은 대상으로의 동시 rename을 EPERM으로 거부해 renameAt이 없을 수 있다 — 그 쪽은 끝을 writeAt으로 잡는다(겹침의 보수적 하한).
+    // rename 밖의 쓰기 실패는 동시성과 무관하니 끝점 없이 판정불능으로 두고 오류 원문을 otherWriteErrors로 드러낸다.
     const renameRefused = (t) => typeof t.error === 'string' && /\brename\b/.test(t.error);
     const critEnd = (t) => (t.renameAt !== undefined ? t.renameAt : (renameRefused(t) ? t.writeAt : undefined));
     const crit = timelines.map((t) => (MODE === 'post-read'

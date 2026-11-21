@@ -1,5 +1,3 @@
-// 작업 ID: fb2-p08 · 옛 이름 fb2-p08-banner-revision.test.tsx
-// M11 G6 — 패널 배너 위치 사례(FB2 P08⑥)는 그리는 곳이 없던 PanelView와 함께 지웠다(M10 Backlog 3).
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'fs'
 import { resolve } from 'path'

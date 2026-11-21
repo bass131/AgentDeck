@@ -1,4 +1,3 @@
-// M06 G3 — 가드가 물은 호출의 승인 카드: 명령 전문, 가드 사유, 「항상 허용」 없음.
 // @vitest-environment jsdom
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, cleanup, act, fireEvent } from '@testing-library/react'
@@ -149,7 +148,7 @@ describe('PermissionCard — 접힌 긴 명령은 펼치기 전에 허용할 수
     expect(onRespond).toHaveBeenCalledTimes(2)
   })
 
-  // M11 G2 — M06 Backlog 12. 펼친 전문도 높이 상한(320px) 아래에서 스크롤된다 — 꼬리를 보기 전에는 허용을 잠근다.
+  // 펼친 전문도 높이 상한(320px) 아래에서 스크롤된다 — 꼬리를 보기 전에는 허용을 잠근다.
   it('펼친 전문이 상자보다 길면 끝까지 스크롤한 뒤에야 허용이 풀린다', async () => {
     const { PermissionCard } = await import('@renderer/03_Agent')
     const onRespond = vi.fn()

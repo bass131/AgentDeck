@@ -1,4 +1,3 @@
-// 작업 ID: f15 · 옛 이름 f15-filemodal.test.tsx
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, fireEvent, act, cleanup } from '@testing-library/react'

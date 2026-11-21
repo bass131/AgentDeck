@@ -1,6 +1,6 @@
 # M11 G8 — 가드·설정·CI·헌법 3조
 
-- 마일스톤: M11 (마일스톤 스펙 `01_Milestones/M11_BacklogSweep/00_마일스톤-스펙.md`) · 작성: 2026-11-21 · 상태: 실행 중 · 검증 강도: 강(판정 장치 변경)
+- 마일스톤: M11 (마일스톤 스펙 `01_Milestones/M11_BacklogSweep/00_마일스톤-스펙.md`) · 작성: 2026-11-21 · 상태: 종결(goal PR 115, 로컬 병합 `9a507a7c`, 2026-11-21) · 검증 강도: 강(판정 장치 변경)
 - 작업 브랜치: `chore/m11-g8-guard-settings-ci` · 기준 브랜치: `milestone/m11-backlog-sweep`(`f630b36c`, G7 병합 머리)
 
 ## 목표
@@ -33,7 +33,7 @@
 - [x] 4. 설정 — 질의 겹침, 병합 꼴, deny의 넓은 꼴
 - [x] 5. 훅 배선, 하위 에이전트 질의 근거, CI 고정, 헌법 3조
 - [x] 6. 닫힘 표, 하드 게이트 다섯 종, `npm test` 차분
-- [>] 7. 독립 검수와 반영, goal PR, `hard-gates`, 로컬 goal 병합
+- [x] 7. 독립 검수와 반영, goal PR, `hard-gates`, 로컬 goal 병합
 
 실행 단계 일괄 승인 대상 (스펙에서 옮김)
 
@@ -48,6 +48,7 @@ DoD
 
 검증 기록
 
+- PASS 2026-11-21T09:46:29+09:00 — goal 병합과 실제 세션 확인: PR 115 `hard-gates` 통과(머리 `69b947f9`) 뒤 정형 절차로 `milestone/m11-backlog-sweep`에 합쳤다(`9a507a7c`, 둘째 부모가 CI 머리와 같음). 새 가드·설정 아래에서 메인의 `git fetch`·`git switch`·`git merge --no-ff -m …`·`git push -u origin milestone/…`·`git switch -c`·`gh pr create`(heredoc 본문)·`gh pr view`가 모두 질의 없이 지나갔다(완료조건 둘째 줄의 실제 확인, Backlog 79·81의 근사 한계를 이 세션이 메움). GitHub가 PR을 병합됨으로 닫았다.
 - PASS 2026-11-21T09:40:51+09:00 — 독립 검수(구현 문맥 없는 검수자, `88e7087e..d2e395ea`): 막는 결함 0, 사슬 멈춤 0(정형 명령과 평소 읽기 명령 전부 무출력 실측), 범위 밖 0, 헌법 두 파일 같은 글. 엄격한 후퇴 하나(bash 긴 옵션 건너뛰기를 zsh·ksh에도 적용해 `zsh -restricted "gh pr merge 1"`이 통과)와 M08-2의 `--track origin/master`·이전 브랜치 꼴 누락을 시험 먼저로 `64a734e2`에 반영했다(가드·`mergeDeny`·`loopLock`, TW-18·19·27). 반영 뒤 dangerous-cmd-guard 1183·cmd-guard-equivalence 268·앱 잠금 vitest 697 통과, 하드 게이트 다섯 종 통과, `npm test` 9154 passed·실패 0. 검수자가 못 본 액션 SHA 둘은 메인이 `git ls-remote`로 v4.4.0 태그와 같음을 확인했다. nit은 Backlog 80~82. 검수자의 즉석 탐침이 새 `앱-데이터-폴더` 규칙에 걸려 사용자에게 승인 창이 여러 번 떴고, 메인이 탐침을 멈추게 했다.
 - PASS 2026-11-21T08:14:09+09:00 — 구현: 작업 하위 에이전트가 커밋 여덟(`08d2c6c1` 정형 절차 시험, `375c1e37` 가드 규칙·`mergeDeny` 패리티·세 판정기 비교 표, `48a9baef` 오탐 넷 좁히기, `ac73f0ac` 설정·`onFailure`, `f49098a1` CI SHA 고정·dependabot·헌법 3조, `8f1a490f` `Start-Process` 배열 꼴, `533df846`·`1556f3d8` 닫힘 표)으로 처리했다. 마지막 머리에서 하드 게이트 다섯 종 통과, `npm test` 9147 passed·실패 0, 훅 시험 dangerous-cmd-guard 1160·cmd-guard-equivalence 259·settings-matcher 74, 앱 잠금 vitest 690 통과. diff가 「건드릴 곳」 밖을 바꾸지 않음(앱 소스는 `mergeDeny.ts`와 두 시험뿐)과 두 헌법 파일의 3조 한 줄이 같은 글임을 메인이 확인했다.
 - PASS 2026-11-21T08:14:09+09:00 — 정형 절차 통과: `dangerous-cmd-guard.test.mjs` 「정형 절차 명령 — 마일스톤 브랜치 머리의 저장소에서 가드 무출력」과 `settings-matcher.test.mjs` 「정형 절차 명령 — 설정 allow」가 `_lib/canonical-commands.mjs`의 명령(goal 병합, 두 push, `gh pr create`, fetch·switch)을 첫 커밋부터 묶는다. 설정 판정은 문서 규칙의 근사라 실제 세션 확인은 이 goal의 병합 절차가 한다(Backlog 79).

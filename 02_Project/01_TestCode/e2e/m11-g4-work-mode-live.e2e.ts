@@ -1,13 +1,13 @@
-// M11 G4 실앱 확인 (opt-in: M11G4LIVE=1, 출력 폴더 M11G4_OUT). 창은 2번 모니터에 둔다(디스플레이가 하나면 그대로 — 놓인 자리를 report에 남긴다).
+// 실앱 확인 (opt-in: M11G4LIVE=1, 출력 폴더 M11G4_OUT). 창은 2번 모니터에 둔다(디스플레이가 하나면 그대로 — 놓인 자리를 report에 남긴다).
 // 연습 앱 데이터(%USERPROFILE%\.agentdeck-practice\udd)로 띄운다. M11G4_TOKEN_FILE을 주면 앱 프로세스에만 GH_TOKEN으로 넣는다(값은 출력하지 않는다).
 // 메인 대화 턴과 알림은 임시 git 저장소에서 낸다 — 연습 저장소의 메인 대화 기록에 시험 턴을 남기지 않는다.
 // 임시 저장소의 실행 상태는 스키마 밖이라 루프가 사람을 부르는 상태(진행 불가 또는 위조 래치)가 되고, 그 Windows 알림 객체에 누름 사건을 낸다.
 // 연습 앱 데이터의 ui-prefs.json·loop/alerts.json·loop/open.json은 시작 때 읽어 두고 끝에 되돌린다.
-//   A) 메인 대화가 추론 중 표시·흘러나오는 글·도구 호출을 채팅과 같은 ThreadView로 보인다(M10-22), 대리 입력 표지(M06-29)
-//   B) 「파일·변경」 탐색기가 작업 폴더를 보인다(M10-13·M10-16)
-//   C) 알림 누름 → 창을 앞으로, 그 폴더의 작업 모드(M10-17)
-//   D) 재기동 직후 알림 표시와 루프 다시 열림(M10-19·M09-10), 기동 직후 클릭(M09-10)
-//   E) 둘째 실행이 첫 창을 앞으로 가져온다(M10-18)
+//   A) 메인 대화가 추론 중 표시·흘러나오는 글·도구 호출을 채팅과 같은 ThreadView로 보인다, 대리 입력 표지
+//   B) 「파일·변경」 탐색기가 작업 폴더를 보인다
+//   C) 알림 누름 → 창을 앞으로, 그 폴더의 작업 모드
+//   D) 재기동 직후 알림 표시와 루프 다시 열림, 기동 직후 클릭
+//   E) 둘째 실행이 첫 창을 앞으로 가져온다
 import { test, expect, _electron as electron } from '@playwright/test'
 import type { ElectronApplication, Page } from '@playwright/test'
 import { spawn, execFileSync } from 'node:child_process'
@@ -48,7 +48,7 @@ function appEnv(): Record<string, string> {
   return env as Record<string, string>
 }
 
-// 기동 직후 첫 클릭까지 잰다(M09-10) — 제목 줄이 뜨자마자 모드 탭을 누르고 화면이 바뀌는지 본다
+// 기동 직후 첫 클릭까지 잰다 — 제목 줄이 뜨자마자 모드 탭을 누르고 화면이 바뀌는지 본다
 async function launch(tag: string): Promise<void> {
   const t0 = Date.now()
   app = await electron.launch({ args: [`--user-data-dir=${UDD}`, join(process.cwd(), 'out', 'main', 'index.js')], env: appEnv() })
@@ -65,11 +65,11 @@ async function launch(tag: string): Promise<void> {
   await placeWindow()
   await page.waitForSelector('.titlebar', { timeout: 30_000 })
   const titlebarMs = Date.now() - t0
-  // 되살린 표시인지 다시 연 루프가 새로 낸 표시인지 가르려고, 제목 줄 직후의 알림 목록과 같은 때의 그 폴더 상태를 함께 남긴다(M10-19)
+  // 되살린 표시인지 다시 연 루프가 새로 낸 표시인지 가르려고, 제목 줄 직후의 알림 목록과 같은 때의 그 폴더 상태를 함께 남긴다
   // 목록을 먼저 읽고 상태를 뒤에 읽는다 — 상태가 아직 열리기 전이면 그 앞에 읽은 표시는 되살린 것이다
   const alertsAtBoot = await page.evaluate(async () => (await (window as unknown as { api: { loop: { alerts(): Promise<{ alerts: unknown[] }> } } }).api.loop.alerts()).alerts).catch((e: unknown) => String(e))
   const probeAtBoot = await page.evaluate(async (cwd) => ((await (window as unknown as { api: { loop: { status(r: { cwd: string }): Promise<{ phase: string }> } } }).api.loop.status({ cwd })).phase), probe).catch((e: unknown) => String(e))
-  // 창이 보이기 전(show 전)에는 화면이 그려지지 않아(requestAnimationFrame 0회) 클릭의 안정 판정이 끝나지 않는다(M09-10).
+  // 창이 보이기 전(show 전)에는 화면이 그려지지 않아(requestAnimationFrame 0회) 클릭의 안정 판정이 끝나지 않는다.
   // 구동기는 창이 보일 때까지 기다리고, 10초 안에 안 보이면 캡처 한 장으로 한 장면을 그리게 한 뒤 다시 본다
   const shown = (): Promise<boolean> => app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]?.isVisible() ?? false).catch(() => false)
   const waitShown = async (ms: number): Promise<number | null> => {
@@ -89,7 +89,7 @@ async function launch(tag: string): Promise<void> {
   }
   // 보이기 전의 setBounds가 보일 때 덮이면 다시 옮긴다 — 실제 놓인 자리를 남긴다
   report[`boot-${tag}-show`] = { shownMs, forcedFrame, display: await placeWindow() }
-  // 첫 시도의 실패 사유를 남기고, 붙을 때까지 짧게 다시 누른다(구동기의 기다림 — M09-10)
+  // 첫 시도의 실패 사유를 남기고, 붙을 때까지 짧게 다시 누른다(구동기의 기다림)
   const tries: string[] = []
   let firstClick = 'ok'
   for (;;) {

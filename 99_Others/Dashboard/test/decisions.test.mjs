@@ -1,4 +1,4 @@
-// 결정 응답의 순수 함수(lib/decisions.mjs): 보드 판독, 목록 서명, 선택 가능 판정, 코멘트 정리, 문장 조립, 고른 답 검사. M05 H7.
+// 결정 응답의 순수 함수(lib/decisions.mjs): 보드 판독, 목록 서명, 선택 가능 판정, 코멘트 정리, 문장 조립, 고른 답 검사.
 // 본보기는 C:\Dev\DawnHolder_Dashboard 의 lib/answer.mjs·web/lib/answers.mjs다. 병합 승인 줄은 들이지 않았다.
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -33,7 +33,7 @@ test('board: a well-formed waiting entry is read as is, with its options, detail
   assert.equal(d.updatedAt, null, '읽을 수 없는 시각은 없는 것으로 본다');
 });
 
-// M07 G8: 병합은 앱 PR 카드의 「병합」 버튼으로만 한다. 보드의 병합 결정(kind: merge)은 없어졌다.
+// 병합은 앱 PR 카드의 「병합」 버튼으로만 한다. 보드의 병합 결정(kind: merge)은 없어졌다.
 test('board: a retired merge kind is read as an ordinary decision with a warning that points to the app merge button', () => {
   const r = parseBoard(board(entry({ kind: 'merge', pr: 55 })));
   assert.equal(r.items.length, 1);

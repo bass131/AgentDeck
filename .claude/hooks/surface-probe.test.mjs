@@ -1,12 +1,3 @@
-// 표피 검사 훅 계약 (M02 Phase 4 Step 2) — 51_surface-probe.cjs의 상수·파서·출력·로그·오류 계약을 실측한다.
-//
-// 계약의 소유자는 계획 문면이다 (04_Phase_4.md Step 2, 결정 대장 [USER] 2026-08-10):
-//   검사 대상 = Stop 입력 transcript의 마지막 assistant 메시지 text 블록을 단일 `\n` 하나로 이어 붙인 본문.
-//   제외 구간 = 코드 펜스·백틱 스팬 내부와 Markdown 링크 목적지.
-//   표피 넷 = 원문자 라틴 1회 · 문장당 균형 괄호 2쌍 · 문장당 화살표 3개 · 문장 200자 초과.
-//   출력 = 항상 exit 0 · decision 부재 · systemMessage는 verdict `발화`에만 정확히 1건.
-//   로그 = 모든 실행이 여섯 필드(hook·event·session·agent_id·ts·verdict) 한 줄.
-//   입력 오류 3형(transcript 부재·JSONL 파싱 실패·assistant text 부재) = fail-open + `판정불가`.
 import { createGateHarness } from './_lib/gate-harness.mjs'
 import { createRunner } from './_lib/runner.mjs'
 
@@ -18,7 +9,6 @@ let seq = 0
 function text(...ts) {
   return ts.map((t) => ({ type: 'text', text: t }))
 }
-// 마지막 assistant 메시지를 만들어 훅을 1회 구동한다 — 판정 결과를 요약해 돌려준다.
 function probe(blocks, opts = {}) {
   seq++
   const tp = h.path(`t-${seq}.jsonl`)
@@ -49,7 +39,6 @@ function raw(extraPayload, opts = {}) {
   return rec
 }
 
-// ── 표피 넷의 경계값 양쪽 ──────────────────────────────────────────────
 r.judge('SP-01 원문자 0개 (①은 목록 관행)', probe(text('① 첫째 항목만 있는 응답이다.')).verdict, '통과')
 r.judge('SP-02 원문자 1개 (ⓐ)', probe(text('ⓐ로 지칭하는 응답이다.')).verdict, '발화')
 r.judge('SP-03 균형 괄호 1쌍', probe(text('괄호가 한 쌍(하나)뿐인 문장이다.')).verdict, '통과')
@@ -61,25 +50,21 @@ r.judge('SP-08 문장 201자', probe(text('가'.repeat(200) + '.')).verdict, '�
 r.judge('SP-09 여는 괄호 3개·짝 0쌍', probe(text('짝이 없는 ((( 문장이다.')).verdict, '통과')
 r.judge('SP-09b 중첩 괄호는 2쌍', probe(text('중첩된 (가 (나)) 문장이다.')).verdict, '발화')
 
-// ── 제외 구간 ──────────────────────────────────────────────────────────
 const fence = probe(text('아래 예시는 판정 대상이 아니다.\n```js\nconst x = (a) + (b) // ⓐ → ⓑ → ⓒ → ⓓ\n```\n본문은 깨끗하다.'))
 r.judge('SP-10 코드 펜스 내부 제외', fence.verdict, '통과')
 r.judge('SP-11 백틱 스팬 내부 제외', probe(text('명령은 `run(a) → run(b) → run(c) → ⓐ`뿐이다.')).verdict, '통과')
 r.judge('SP-12 링크 2개 문장 비발화', probe(text('정본은 [계획](01_Milestones/x.md)과 [규칙](00_Documents/y.md)이다.')).verdict, '통과')
 
-// ── 구조 경계 ──────────────────────────────────────────────────────────
 r.judge('SP-13 목록 두 항목 괄호 비합산', probe(text('- 첫 항목(하나)이다.\n- 둘째 항목(둘)이다.')).verdict, '통과')
 r.judge('SP-13b 한 항목 안 2쌍은 발화', probe(text('- 한 항목(하나)에 둘(둘)이다.')).verdict, '발화')
 r.judge('SP-14 표 행 셀 비합산', probe(text('| 가(하나) | 나(둘) |')).verdict, '통과')
 r.judge('SP-14b 표제 줄 경계', probe(text('# 제목(하나)\n본문(둘)이다.')).verdict, '통과')
 
-// ── text 블록 결합이 단일 `\n`임의 실측 (블록 경계 2건 + 대조군) ────────
 r.judge('SP-15 블록 두 개에 걸친 괄호 비합산', probe(text('앞 블록은 괄호 한 쌍(하나)', '(둘) 뒤 블록이다.')).verdict, '통과')
 r.judge('SP-15b 대조군 — 같은 글자를 한 블록에 두면 발화', probe(text('앞 블록은 괄호 한 쌍(하나)(둘) 뒤 블록이다.')).verdict, '발화')
 r.judge('SP-16 블록 경계에서 문장이 닫힌다', probe(text('가 → 나 → 다', '라 → 마 그리고 바.')).verdict, '통과')
 r.judge('SP-16b 대조군 — 경계가 없으면 화살표 3개로 발화', probe(text('가 → 나 → 다 라 → 마 그리고 바.')).verdict, '발화')
 
-// ── 블록 종류·메시지 선택 ──────────────────────────────────────────────
 const mixed = probe([
   { type: 'thinking', thinking: 'ⓐ 생각은 (가) 검사 (나) 대상이 → → → 아니다.' },
   { type: 'text', text: '실제 답은 깨끗하다.' },
@@ -89,7 +74,6 @@ r.judge('SP-17 thinking·tool_use 블록 제외', mixed.verdict, '통과')
 const older = JSON.stringify({ type: 'assistant', message: { role: 'assistant', content: [{ type: 'text', text: 'ⓐ 앞 메시지는 위반이다.' }] } })
 r.judge('SP-18 마지막 assistant 메시지만 본다', probe(text('마지막 답은 깨끗하다.'), { prelude: [older] }).verdict, '통과')
 
-// ── 입력 오류 3형 (fail-open) ─────────────────────────────────────────
 const noPath = raw({})
 r.judge('SP-19 transcript_path 부재', noPath.verdict, '판정불가')
 const badJson = h.path('broken.jsonl')
@@ -102,13 +86,11 @@ h.write(noText, [
 ].join('\n') + '\n')
 r.judge('SP-21 assistant text 블록 부재', raw({ transcript_path: noText }).verdict, '판정불가')
 
-// ── agent_id 유·무 ────────────────────────────────────────────────────
 const withAgent = probe(text('깨끗한 답이다.'), { payload: { agent_id: 'agt_p4' } })
 r.judge('SP-22 agent_id 있으면 값 기록', withAgent.line ? withAgent.line.agent_id : '(로그 없음)', 'agt_p4')
 const noAgent = probe(text('깨끗한 답이다.'))
 r.judge('SP-23 agent_id 없으면 null 기록', noAgent.line ? noAgent.line.agent_id : '(로그 없음)', null)
 
-// ── 출력·로그 계약 (전 실행 일괄) ─────────────────────────────────────
 r.check('SP-24 모든 실행이 exit 0', runs.every((x) => x.code === 0), `실측 코드: ${[...new Set(runs.map((x) => x.code))].join(',')}`)
 r.check('SP-25 어떤 실행도 decision 필드를 내지 않는다',
   runs.every((x) => !(x.parsed && x.parsed !== 'PARSE_FAIL' && 'decision' in x.parsed)),

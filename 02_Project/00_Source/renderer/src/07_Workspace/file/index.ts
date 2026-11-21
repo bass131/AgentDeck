@@ -1,11 +1,7 @@
-// file 기능 캡슐 — 공개 표면 배럴.
-// 캡슐 밖 소비처(Shell.tsx, 테스트 등)는 이 파일을 통해서만 import한다.
-// 캡슐 내부 파일을 직접 가리키는 import는 캡슐 경계를 우회하므로 지양한다.
+// 캡슐 밖 소비처는 이 파일로만 import한다.
 export { FileBadge } from './FileBadge'
 
-// FileExplorer·FileModal은 원본이 named(비메모)와 default(memo 래핑) export를 分리해 두고
-// 기존 앱 소비처(Shell.tsx)가 memo 버전을 써 왔다 — 배럴에서도 memo 버전을 유지해
-// 재편이 렌더 최적화를 조용히 없애지 않도록 한다.
+// FileExplorer·FileModal은 앱 소비처가 써 온 memo 래핑 default를 내보낸다 — 렌더 최적화를 잃지 않게.
 export { default as FileExplorer } from './FileExplorer'
 export type { ExplorerSource, FileExplorerProps } from './FileExplorer'
 

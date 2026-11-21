@@ -1,4 +1,3 @@
-// 작업 ID: uc1-p05 · 옛 이름 uc1-p05-keyword-segments.test.ts
 import { describe, it, expect } from 'vitest'
 import { segmentOrchestrationKeywords } from '@renderer/03_Agent/orchestrationKeyword'
 

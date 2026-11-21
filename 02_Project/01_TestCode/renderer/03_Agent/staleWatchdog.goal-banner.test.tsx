@@ -1,4 +1,3 @@
-// 작업 ID: bl1-p03 · 옛 이름 bl1-p03-goal-banner-stale-watchdog.test.tsx
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, cleanup, fireEvent } from '@testing-library/react'
@@ -514,7 +513,6 @@ describe('대화 전환 연속성 — BG_RUNS_CAP(8) 초과 축출 후 복귀(�
   })
 })
 
-// M11 G6 — 패널 시험 panelSession.run-core-alignment(M10 Backlog 3로 지움)에서 옮겼다. 단일 bgRuns에 남은 규칙이다.
 describe('E17 — 보관 상한을 넘겨도 실행 중인 run은 버리지 않는다', () => {
   async function seedBackground(runningIdx: number[]): Promise<typeof useAppStore> {
     const { __seedBackgroundRunsForTests } = await import('@renderer/03_Agent/state/backgroundRuns')

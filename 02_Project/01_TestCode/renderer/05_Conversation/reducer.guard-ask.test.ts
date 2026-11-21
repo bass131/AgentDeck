@@ -1,4 +1,4 @@
-// M06 G3 — 가드 질문 카드의 사유(askReason)가 reducer를 지나 pendingPermission까지 간다.
+// 가드 질문 카드의 사유(askReason)가 reducer를 지나 pendingPermission까지 간다.
 import { describe, it, expect } from 'vitest'
 import { applyAgentEvent, makeInitialState } from '@renderer/05_Conversation/state/reducer'
 
@@ -47,7 +47,7 @@ describe('reducer — permission_request askReason 전달', () => {
   })
 })
 
-// M11 G2 — M06 Backlog 12. 먼저 온 요청을 보이고 뒤 요청은 줄을 선다.
+// 먼저 온 요청을 보이고 뒤 요청은 줄을 선다.
 describe('reducer — 권한 요청 줄', () => {
   const req = (requestId: string) => ({
     runId: 'run-q',

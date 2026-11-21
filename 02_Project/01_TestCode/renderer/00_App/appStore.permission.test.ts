@@ -1,4 +1,3 @@
-// 작업 ID: m4-4 · 옛 이름 m4-4-permission-store.test.ts
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import {
   applyAgentEvent,
@@ -80,7 +79,7 @@ describe('Phase 24c — store reducer: pendingPermission', () => {
     expect(s1.pendingPermission).toBeNull()
   })
 
-  // M11 G2 — M06 Backlog 12. 덮어쓰면 보이는 카드의 응답이 뒤 요청에 꽂힌다. 먼저 온 요청을 보이고 뒤 요청은 줄을 선다.
+  // 덮어쓰면 보이는 카드의 응답이 뒤 요청에 꽂힌다. 먼저 온 요청을 보이고 뒤 요청은 줄을 선다.
   it('permission_request 연속 수신 → 첫 요청이 보이고 두 번째는 줄을 선다', () => {
     const s0 = makeInitialState()
     const s1 = applyAgentEvent(s0, {

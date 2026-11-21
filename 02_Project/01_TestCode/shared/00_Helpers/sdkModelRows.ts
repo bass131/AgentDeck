@@ -1,4 +1,4 @@
-// SDK 0.3.325(CLI 2.1.325)의 `supportedModels()` 실측 14행 (M06 G4 3·4단계, 2026-11-16).
+// SDK 0.3.325(CLI 2.1.325)의 `supportedModels()` 실측 14행 (2026-11-16).
 // value·resolvedModel·displayName·supportedEffortLevels는 요청이 돌려준 값 그대로다. description은 줄였다.
 // 시험 고정값이라 모델 ID를 담아도 된다 — 소스의 손 목록은 최소 목록 하나뿐이다.
 import type { ModelRow } from '@shared/03_Agent/models/modelList'

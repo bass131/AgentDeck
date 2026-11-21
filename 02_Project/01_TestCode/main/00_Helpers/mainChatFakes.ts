@@ -1,4 +1,4 @@
-// M10 G2 시험 도우미 — 메인 대화(05_Loop/mainChat.ts)용 대본 백엔드. 세션 id와 resume을 SDK처럼 흉내 낸다.
+// 세션 id와 resume을 SDK처럼 흉내 낸다.
 //   - resume 없이 열면 새 세션 id(`S<n>`)를 알리고, 아는 id로 resume하면 같은 id를 알린다(탐침 A 실측: 같은 id가 이어진다).
 //   - 모르는 id로 resume하면 세션 사건 없이 error와 done만 낸다(탐침 A 실측: 「No conversation found …」 꼴).
 //   - 대본(script)이 그 뒤 사건을 낸다. 질문은 question()으로 내고 answer()로 답을 기다린다. 세션이 끊기면 answer()는 null이다.

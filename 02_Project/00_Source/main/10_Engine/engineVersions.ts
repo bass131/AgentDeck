@@ -113,7 +113,7 @@ export function maskSecrets(line: string): string {
 let sdkCache: { userData: string; version: string; seal: string; query: QueryFn } | null = null
 
 // 이 프로세스가 불러온 엔진의 봉인. 같은 URL의 import()는 이미 불러온 모듈을 돌려주므로(Node ESM 캐시),
-// 같은 버전이 다른 내용으로 다시 봉인되면 재시작 전까지 그 엔진을 쓰지 않는다 (G4 검수 사소 2).
+// 같은 버전이 다른 내용으로 다시 봉인되면 재시작 전까지 그 엔진을 쓰지 않는다.
 const loadedSeals = new Map<string, string>()
 
 function needsRestart(userData: string, version: string): boolean {
@@ -147,7 +147,7 @@ export function setActive(version: string | null, overrideUserData?: string): vo
     if (pkgVersion == null) throw new Error(`버전 ${version}이(가) 설치되어 있지 않습니다.`)
     if (pkgVersion !== version) throw new Error(`폴더 ${version}에 설치된 패키지 버전이 ${pkgVersion}입니다.`)
   }
-  // 앱의 엔진 선택이 곧 사람 확인이다 — 고른 엔진을 봉인하고, 지우면 봉인도 지운다 (M07 G4)
+  // 앱의 엔진 선택이 곧 사람 확인이다 — 고른 엔진을 봉인하고, 지우면 봉인도 지운다
   // 봉인을 먼저 계산하고 쓴다. 실패하면 설정은 그대로라 이전 선택이 남는다(봉인이 어긋나면 번들로 물러난다).
   if (version) {
     writeSeal(userData, computeSeal(userData, version))
@@ -181,8 +181,8 @@ export async function installVersion(
     return { ok: false, error }
   }
 
-  // 빈 임시 형제 폴더에 설치하고 성공하면 바꿔 끼운다 — 미리 놓인 package-lock·node_modules를 npm이 쓰지 않고(M07-9),
-  // 실패하면 기존 버전 폴더가 그대로 남는다(M11 G3 검수 — 활성 버전의 재설치 실패가 엔진을 지우지 않는다)
+  // 빈 임시 형제 폴더에 설치하고 성공하면 바꿔 끼운다 — 미리 놓인 package-lock·node_modules를 npm이 쓰지 않고,
+  // 활성 버전의 재설치가 실패해도 기존 버전 폴더가 그대로 남는다
   const work = path.join(eDir, `.${version}.tmp-${process.pid}-${Date.now()}`)
   try {
     await fsp.mkdir(work, { recursive: true })
@@ -338,7 +338,7 @@ export async function loadActiveQuery(overrideUserData?: string): Promise<QueryF
     return null
   }
 
-  // M07 G4: 봉인은 캐시보다 먼저, 실행마다 본다 — 앱 밖에서 바뀐 엔진은 이미 불러온 적이 있어도 쓰지 않는다.
+  // 봉인은 캐시보다 먼저, 실행마다 본다 — 앱 밖에서 바뀐 엔진은 이미 불러온 적이 있어도 쓰지 않는다.
   // 파일 목록까지 보는 전체 검사는 비동기라 main 스레드를 막지 않는다(실제 설치본 약 8천 개 파일).
   const userData = getUserDataPath(overrideUserData)
   const seal = state.seal === 'ok'
@@ -377,7 +377,7 @@ export async function loadActiveQuery(overrideUserData?: string): Promise<QueryF
   }
 }
 
-// 봉인은 맞지만 불러오기에 실패한 엔진(사용자 데이터·버전·봉인) — 그때 번들이 돈다(M11 G3, M07-12)
+// 봉인은 맞지만 불러오기에 실패한 엔진(사용자 데이터·버전·봉인) — 그때 번들이 돈다
 const loadFailed = new Set<string>()
 
 // 실행이 실제로 쓰는 활성 엔진. 봉인이 맞고, major가 번들과 같고, 같은 봉인으로 불러오기에 실패한 적이 없을 때만. 아니면 null(번들이 돈다)

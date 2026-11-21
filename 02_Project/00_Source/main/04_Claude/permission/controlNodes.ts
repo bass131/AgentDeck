@@ -1,9 +1,6 @@
-// 컨트롤 노드 등록부 (M07 G2) — G8 설계 `01_Milestones/M06_SelfDev/81_G8-컨트롤-설계/30_노드-구조.md`의 노드 모양.
-// 권한 콜백(makeCanUseTool)이 한 함수에 순서대로 적던 분기 여섯을 노드로 옮겼다. 판정 결과는 옮기기 전과 같다
-// (permissionCoordinator.characterization.test.ts가 고정). 노드는 앞에서부터 보고, 처음 정한 노드의 결정이 이긴다.
-// 아무 노드도 정하지 않으면 카드(사람에게 올림)다 — 옮기기 전 함수의 마지막 줄과 같다.
+// 노드는 앞에서부터 보고, 처음 정한 노드의 결정이 이긴다. 아무 노드도 정하지 않으면 카드(사람에게 올림)다.
 
-// 사람에게 올릴 호출의 판별 (M06 G3). 공개 타입(sdk.d.ts의 CanUseTool)의 options에는 훅 유래를 알리는 필드가 없다.
+// 사람에게 올릴 호출의 판별. 공개 타입(sdk.d.ts의 CanUseTool)의 options에는 훅 유래를 알리는 필드가 없다.
 // 블랙박스 실측(독립 clone, default·acceptEdits·bypassPermissions·실행 중 auto)에서
 //   훅 ask는 suggestions가 언제나 없었다. decisionReason은 settings allow 규칙과 겹친 `git push origin HEAD:master`에만 왔고,
 //   settings ask 규칙과 겹친 `gh release --help`·`npm publish --help`에는 오지 않았다.
@@ -76,22 +73,18 @@ type PermissionVerdict =
   | { kind: 'card'; nodeId: string | null; escalation?: Escalation }
   | { kind: 'deny'; nodeId: string; message: string }
 
-// 설계의 칸 — 지점·판정 주체·결과·보호 수준·켜짐(잠금)·실패 정책·시간 상한.
-// 기록 칸(판정마다 한 줄)과 「최근 판정 수」는 아직 없다 — 거처와 크기 상한을 따로 정한다(M07 Backlog, G5).
-// 켜짐 상태는 노드가 아니라 사용자 설정(controlsStore.ts의 controls.json)이 갖는다. 이 칸은 「끌 수 있는가」다.
+// 켜짐 상태는 노드가 아니라 사용자 설정(controlsStore.ts의 controls.json)이 갖는다. locked가 참이면 끌 수 없다.
 export interface ControlNodeInfo {
   readonly id: string
   readonly name: string
-  // canUseTool: 권한 콜백(G2) · permissionRules: 세션을 열 때 넣는 인라인 규칙 · preToolUse: SDK 훅 콜백 (G3)
+  // canUseTool: 권한 콜백 · permissionRules: 세션을 열 때 넣는 인라인 규칙 · preToolUse: SDK 훅 콜백
   readonly point: 'canUseTool' | 'permissionRules' | 'preToolUse'
   // 판정 주체는 노드 자신이 무엇으로 정하는가다. 결과가 ask(카드)여도 노드는 규칙으로 정하고, 카드의 답은 사람이 한다.
   readonly judge: 'rule' | 'model' | 'human'
   readonly results: readonly ('allow' | 'ask' | 'deny' | 'notify' | 'transition')[]
-  // 지금은 L2다 — 앱 소스(이 파일)를 고치면 노드가 꺼진다. L1의 전제 가운데 엔진 경로 보호(G3·G4)는 들어왔고,
-  // 실행 트리 분리는 M08 설치본의 몫이다. 그때 올린다 (G8 설계 30, 보호 수준 절).
+  // 지금은 L2다 — 앱 소스(이 파일)를 고치면 노드가 꺼진다. 실행 트리가 앱 소스와 분리되면 L1로 올린다.
   readonly protection: 'L0' | 'L1' | 'L2' | 'L3'
-  // 끌 수 없는가. 꺼지면 다음 노드로 넘어가 결국 카드가 되는 허용 노드 셋만 풀었다(M07 G5 결정 대장 [USER]) —
-  // 끄는 쪽이 늘 더 엄격하다. `mode-auto-bypass-allow`의 의미는 기준표와 분류기 goal이 다시 정의한다.
+  // 꺼지면 다음 노드로 넘어가 결국 카드가 되는 허용 노드 셋만 풀었다 — 끄는 쪽이 늘 더 엄격하다.
   readonly locked: boolean
   readonly onFailure: 'block'
   // 동기 판정이라 노드 자신은 기다리지 않는다 — null은 「시간 상한 없음」이 아니라 「기다리는 일이 없음」이다.
@@ -146,7 +139,7 @@ export const PERMISSION_NODES: readonly ControlNode[] = Object.freeze([
     name: '자동 모드는 허용',
     results: ['allow'],
     locked: false,
-    // Bypass 모드에서는 SDK가 이 콜백을 부르지 않는다(M11 G2 실측). id는 저장된 켬·끔의 열쇠라 옛 이름 그대로 둔다
+    // Bypass 모드에서는 SDK가 이 콜백을 부르지 않는다(실측). id는 저장된 켬·끔의 열쇠라 옛 이름 그대로 둔다
     decide: (c) => (c.mode === 'auto' || c.mode === 'bypass' ? { kind: 'allow' } : { kind: 'pass' }),
   }),
   builtIn({
@@ -168,8 +161,7 @@ export const PERMISSION_NODES: readonly ControlNode[] = Object.freeze([
   }),
 ])
 
-// 목록 순서: 권한 콜백 노드(판정 순서대로) 뒤에 엔진 경로 노드(G3), 그 뒤에 병합 거부 노드(G8).
-// 컨트롤 패널(G5, renderer ControlsView)이 지점별로 묶어 보인다.
+// 컨트롤 패널이 지점별로 묶어 보인다
 export function listControlNodes(): ControlNodeInfo[] {
   const fromCallback = PERMISSION_NODES.map(({ decide: _decide, ...info }) => info)
   return [...fromCallback, ...ENGINE_PATH_NODES, MERGE_DENY_NODE].map((info) => ({ ...info, results: [...info.results] }))
@@ -177,7 +169,7 @@ export function listControlNodes(): ControlNodeInfo[] {
 
 const DECISION_KINDS: ReadonlySet<string> = new Set(['pass', 'allow', 'question', 'orchestration-denied', 'card'])
 
-// 결정 모양 검사. 잘못된 출력도 실패다 (G8 설계 30 — 「던지거나 잘못된 출력」).
+// 던진 것뿐 아니라 잘못된 출력도 실패다
 function checkDecision(d: unknown): NodeDecision {
   if (!d || typeof d !== 'object') throw new TypeError(`결정이 객체가 아니다: ${String(d)}`)
   const kind = (d as { kind?: unknown }).kind
@@ -194,8 +186,7 @@ export function runPermissionNodes(
     try {
       d = checkDecision(node.decide(ctx))
     } catch (err) {
-      // 실패 정책 「막는다」 — 판정하지 못한 호출은 허용으로 떨어지지 않는다 (G8 설계 30, 노드의 실패 정책 칸).
-      // 카드 없이 거부한다. 원인은 main 로그와 그 노드의 판정 기록(verdictLog, M11 G3)에 남는다.
+      // 판정하지 못한 호출은 허용으로 떨어지지 않고 카드 없이 거부한다. 원인은 main 로그와 판정 기록(verdictLog)에 남는다.
       console.error(`[controls] 노드 「${node.id}」 판정 실패 — 막는다:`, err instanceof Error ? err.message : err)
       const message = `컨트롤 노드 「${node.id}」가 판정하지 못해 막았습니다.`
       recordVerdict(node.id, ctx.toolName, ctx.input, 'deny', message)

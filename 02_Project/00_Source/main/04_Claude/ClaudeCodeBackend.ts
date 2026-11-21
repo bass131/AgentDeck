@@ -15,7 +15,7 @@ interface ClaudeCodeBackendDeps {
   resolvePackageVersion?: () => string | null
   // 실행을 열 때의 컨트롤 검사. 앱 조립 지점(registry)이 닫힌 실패 검사를 넣는다
   controlsAtRunStart?: () => ControlsForRun
-  // 엔진 경로 잠금의 userData 경로. 앱 조립 지점이 넣는다 — 던지면 실행을 열지 않는다(M11 G3)
+  // 엔진 경로 잠금의 userData 경로. 앱 조립 지점이 넣는다 — 던지면 실행을 열지 않는다
   engineLockDir?: () => string
 }
 
@@ -31,8 +31,7 @@ export class ClaudeCodeBackend implements AgentBackend {
   private readonly _engineLockDir: (() => string) | undefined
   private readonly _commandsCache = new Map<string, SlashCommandInfo[]>()
 
-  // skills·MCP provider는 조립 지점(00_App/registry)이 자기 store를 읽는 지연 함수로 넘긴다 (M05 G11).
-  // 넘기지 않으면 비활성 목록 없음(null) — 이 클래스는 store를 만들지 않는다.
+  // 이 클래스는 store를 만들지 않는다. provider를 넘기지 않으면 비활성 목록이 없다(null).
   constructor(
     queryFn?: QueryFn,
     skillOverridesProvider?: () => Record<string, 'off'> | null,
@@ -62,7 +61,7 @@ export class ClaudeCodeBackend implements AgentBackend {
   async version(): Promise<string | null> {
     try {
       const { getVersionState, activeInUse } = await import('@main/10_Engine/engineVersions')
-      // M07 G4·M11 G3: 봉인이 맞지 않거나, major가 다르거나, 불러오기에 실패하면 번들 엔진이 돈다 — 보이는 버전도 번들 쪽이다
+      // 봉인이 맞지 않거나, major가 다르거나, 불러오기에 실패하면 번들 엔진이 돈다 — 보이는 버전도 번들 쪽이다
       const active = activeInUse(getVersionState())
       if (active) return active
     } catch {

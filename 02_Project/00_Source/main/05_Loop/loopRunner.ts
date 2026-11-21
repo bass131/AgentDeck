@@ -1,4 +1,4 @@
-// M09 G1 — 실행기의 바깥 껍질. 포트로 현재 노드를 한 번 실행하고, 그 결과를 판정 하나로 만들어
+// 실행기의 바깥 껍질. 포트로 현재 노드를 한 번 실행하고, 그 결과를 판정 하나로 만들어
 // 순수 상태 기계(applyVerdict)에 넣은 뒤 생존 문서(run-state.json, verification.md)에 쓴다.
 // 상태는 실행기가 소유한다 — step()·submit(verdict)은 상태를 받지 않고 매번 검증된 저장본을 읽으며, 호출은 하나씩 차례로 돈다.
 // 그래서 밖에서 커서를 바꾼 상태 객체를 넣는 길이 없고, 겹친 호출이 서로의 검증 줄을 덮어쓰지 않는다.
@@ -10,29 +10,29 @@
 //   아니면 stop이다. 그래서 「실행은 됐는데 상태 저장 전에 꺼짐」 뒤의 재개가 같은 일을 두 번 하지 않고, 남의 것을 받지도 않는다.
 // 재개: load()가 run-state.json을 다이제스트·스키마·템플릿 해시로 확인하고 같은 노드를 고른다. git·gh와 맞추는 일은 다음 step의 action이 한다.
 //
-// M09 G2 — 앱 쪽 다이제스트(ports.digest). 상태를 쓸 때마다 정규 JSON의 sha256을 앱 영역에 적고, load·step·submit·start는
+// 앱 쪽 다이제스트(ports.digest). 상태를 쓸 때마다 정규 JSON의 sha256을 앱 영역에 적고, load·step·submit·start는
 //   저장본이 그와 다르면 사람을 부른다(kind 'needs-user', 「상태 파일이 실행기 밖에서 바뀌었다」). 다이제스트 없이 파일만 있거나
 //   파일 없이 다이제스트만 있어도 같다 — 다이제스트는 start만 만든다. 불일치 때는 아무것도 쓰지 않는다. 쓰기 직전에도 한 번 더 본다
 //   (작업 노드 세션이 그 노드 동안 상태 파일을 고쳤으면 덮어쓰지 않고 멈춘다).
-//   쓰기 순서는 run-state.json → 다이제스트 → verification.md다. 앞 둘 사이에 꺼지면 재개 때 불일치로 멈춘다(사람이 확인하고 푼다 — G4).
-//   다이제스트는 편집 도구와 순진한 Bash 편집을 잡는 겹이다 — 키 없는 해시라 세션이 앱 영역에 쓰면 맞출 수 있다.
-// M09 G2 — load는 직렬화 줄 밖이다(끝나지 않는 노드 동안에도 읽힌다). 쓰는 중에 읽어 불일치가 나면 그 쓰기가 끝난 뒤 한 번 다시 읽는다.
-// M09 G2 — CI 기다림 상한. pending·gh 오류·머리 불일치로 판정 없이 기다린 시간을 같은 goal·같은 push 머리마다 시계(ports.clock)로 잰다
+//   쓰기 순서는 사본 → run-state.json → 다이제스트 → verification.md다. 상태 파일과 다이제스트 사이에 꺼지면 재개 때 불일치로 멈춘다
+//   (사람이 확인하고 푼다). 다이제스트는 편집 도구와 순진한 Bash 편집을 잡는 겹이다 — 키 없는 해시라 세션이 앱 영역에 쓰면 맞출 수 있다.
+// load는 직렬화 줄 밖이다(끝나지 않는 노드 동안에도 읽힌다). 쓰는 중에 읽어 불일치가 나면 그 쓰기가 끝난 뒤 한 번 다시 읽는다.
+// CI 기다림 상한. pending·gh 오류·머리 불일치로 판정 없이 기다린 시간을 같은 goal·같은 push 머리마다 시계(ports.clock)로 잰다
 //   (ciWaitMs, 기본 60분). 횟수(ciWaitLimit)는 보조 상한이다. 넘으면 그 CI 노드의 stop으로 멈춘다(FAIL로 세지 않는다).
 //   판정이 나거나 멈추면 처음으로 돌아간다. 기다림 기록은 실행기 메모리에만 있다.
-// M09 G2 검수 반영
+// 실행기 쪽 보호
 //   - 위조 래치: 다이제스트 불일치나 git 설정 변경을 한 번 보면 사유를 앱 영역(DigestStore.writeLatch)과 메모리에 남긴다. 걸려 있으면
-//     start·load·step·submit 모두 짝이 맞아도 사람을 부른다. 푸는 길은 사람의 「확인하고 풀기」다(G4 loopDriver — 실행기를 닫고
+//     start·load·step·submit 모두 짝이 맞아도 사람을 부른다. 푸는 길은 사람의 「확인하고 풀기」다(loopDriver — 실행기를 닫고
 //     래치를 지운 뒤 다시 연다. 실행기 자신에게는 푸는 API가 없다). load의 첫 불일치는 쓰기와 겹친 것일 수 있어 한 번 다시
 //     읽고, 다시 읽어도 다르고 진행 중인 쓰기가 없을 때만 래치를 건다.
 //   - git 설정 대조(ports.configGuard): step 앞뒤로 본다. 바뀌었으면 그 노드의 판정을 남기지 않고 래치를 건다.
 //   - 원격과 로컬 대조: 작업 노드는 로컬 브랜치에 커밋할 수 있다. 실행기는 원격에 없는 커밋을 올리지 않는다 —
 //     base·마일스톤에서 가를 때, goal을 병합할 때, 마일스톤 PR을 열 때 로컬 머리가 원격 머리와 같아야 한다. goal 병합의 재개는
 //     「부모가 (원격 머리, PR 머리)인 병합 커밋 하나」만 받아 push한다. 이미 있는 마일스톤 브랜치는 머리가 시작 SHA일 때만 push한다.
-//     G2 재검수 차단 A — 재개 꼴이든 이번 병합이든, push 전에 그 병합 커밋의 트리가 두 부모의 깨끗한 병합(git.verifyMerge)인지 본다.
+//     재개 꼴이든 이번 병합이든, push 전에 그 병합 커밋의 트리가 두 부모의 깨끗한 병합(git.verifyMerge)인지 본다.
 //     부모만 맞춘 위조(commit-tree)와 교체 객체로 바꾼 트리를 원격에 올리지 않는다.
 //     goal 브랜치의 커밋은 일의 결과라 push한다(CI와 PR 머리 대조를 지난다).
-// M09 G4 — 판정은 본 내용에 묶는다(goal 결정 대장 [AI] 2026-11-19).
+// 판정은 본 내용에 묶는다.
 //   - 스펙 승인: watch 없는 사람 게이트의 판정(승인·반려)은 사람이 본 `.agentdeck/milestone-spec.md`의 sha256(specView)을 함께 받는다.
 //     파일이 없거나, 해시가 없거나, 지금 파일의 해시와 다르면 거부한다(blocked, 아무것도 쓰지 않는다). 멈춘 실행의 이어 가기는 묶지 않는다.
 //   - 검수: 실행기가 한 임시 인덱스에서 작업 트리 해시와 마일스톤 브랜치 대비 diff를 만들어(git.reviewSnapshot) goal 문서와 함께
@@ -41,15 +41,14 @@
 //   - 기준 브랜치: 템플릿이 아니라 부르는 쪽(openLoop — origin 기본 브랜치)이 준다. 시작할 때 상태에 적고, 다시 열 때 다르면 멈춘다.
 //   - goal PR 본문에 그 goal의 검증 줄을 싣는다(renderGoalLines). 본문은 PR을 만들 때만 정하므로 CI·병합 줄은 실리지 않는다.
 //   - 세션 취소(실행기 닫기·화면의 취소)는 FAIL로 세지 않고 멈춘다(stop) — 사람의 이어 가기로 같은 노드를 다시 돈다.
-// M09 G4 독립 검수 반영
-//   - I1 상태 사본: 쓰기 순서는 사본(DigestStore.writeCopy) → run-state.json → 다이제스트 → verification.md다. 사본은 상태 파일과
-//     같은 글이다. 상태 위조 래치를 풀 때 구동자가 이 사본으로 상태 파일을 되돌린다(위조본을 받지 않는다).
-//   - I3 스펙 파일이 없으면 해시 없는 반려만 받는다(브레인스토밍으로 돌아가는 길). 승인은 계속 해시가 있어야 한다.
-//   - I6 등급과 검수 diff의 기준은 실행기가 상태에 쥔 goal 시작 SHA(goal.baseSha)다 — 작업 노드가 옮길 수 있는 로컬 ref 이름이 아니다.
-//   - I7 분해 pass가 적은 goal 문서 해시와 스펙 승인 pass가 적은 스펙 해시를 대조한다. goal 문서는 검수 직전과 goal PR 직전,
+//   - 상태 사본(DigestStore.writeCopy)은 상태 파일과 같은 글이다. 상태 위조 래치를 풀 때 구동자가 이 사본으로 상태 파일을 되돌린다
+//     (위조본을 받지 않는다).
+//   - 스펙 파일이 없으면 해시 없는 반려만 받는다(브레인스토밍으로 돌아가는 길). 승인은 계속 해시가 있어야 한다.
+//   - 등급과 검수 diff의 기준은 실행기가 상태에 쥔 goal 시작 SHA(goal.baseSha)다 — 작업 노드가 옮길 수 있는 로컬 ref 이름이 아니다.
+//   - 분해 pass가 적은 goal 문서 해시와 스펙 승인 pass가 적은 스펙 해시를 대조한다. goal 문서는 검수 직전과 goal PR 직전,
 //     스펙은 승인 뒤 매 노드 앞에서 본다. 다르면 멈춘다(stop — FAIL로 세지 않는다).
-//   - I8 goal PR은 SHA를 한 번 읽어 그 커밋의 트리를 대조하고 그 SHA를 push한다(`<sha>:refs/heads/<b>`).
-//   - I9 검수 diff가 상한을 넘으면 검수를 열지 않고 멈춘다(잘린 diff로 낸 pass가 전체 트리에 묶이지 않게).
+//   - goal PR은 SHA를 한 번 읽어 그 커밋의 트리를 대조하고 그 SHA를 push한다(`<sha>:refs/heads/<b>`).
+//   - 검수 diff가 상한을 넘으면 검수를 열지 않고 멈춘다(잘린 diff로 낸 pass가 전체 트리에 묶이지 않게).
 //   - 밖에서 넣는 사람 판정의 facts는 버린다 — 상태 사실은 실행기가 대조한 값만 싣는다.
 import {
   applyVerdict, checkResumable, expectedJudge, judgeCi, judgeCommands, nextStep, oneSentence,
@@ -68,10 +67,10 @@ const DEFAULT_CI_WAIT_LIMIT = 120
 export const DEFAULT_CI_WAIT_MS = 60 * 60_000
 export const TAMPERED_REASON = '상태 파일이 실행기 밖에서 바뀌었다'
 
-// M10 G2 — 메인 노드 방문의 키. 기다리는 동안은 줄이 늘지 않아 같고, 판정(반려·FAIL)이 줄을 더하면 바뀐다.
+// 메인 노드 방문의 키. 기다리는 동안은 줄이 늘지 않아 같고, 판정(반려·FAIL)이 줄을 더하면 바뀐다.
 // 메인 대화 포트(WorkRequest.visit)와 구동자의 쓰기 창 판정이 같이 쓴다.
 export const visitKeyOf = (state: RunState): string => `${state.milestoneId}#${state.lines.length}`
-const LATCH_TAIL ='— 위조 래치가 걸렸다. 사람이 화면에서 확인하고 풀기 전까지 짝이 맞아도 멈춘다.'
+const LATCH_TAIL = '— 위조 래치가 걸렸다. 사람이 화면에서 확인하고 풀기 전까지 짝이 맞아도 멈춘다.'
 
 interface LoopRunnerDeps {
   template: Template
@@ -79,7 +78,7 @@ interface LoopRunnerDeps {
   ports: LoopPorts
   // 작업 저장소 뿌리 — 검사 명령의 cwd, 다이제스트 키(repoKeyOf)
   cwd: string
-  // 기준 브랜치(G4 — openLoop가 origin 기본 브랜치를 읽어 준다). 마일스톤 브랜치를 가르는 곳이자 마일스톤 PR이 가는 곳이다.
+  // 기준 브랜치(openLoop가 origin 기본 브랜치를 읽어 준다). 마일스톤 브랜치를 가르는 곳이자 마일스톤 PR이 가는 곳이다.
   base: string
   // 판정 없이 기다린 CI의 시간 상한(시계 기준, 기본 60분)과 step 수의 보조 상한. 넘으면 멈춘다.
   ciWaitMs?: number
@@ -98,7 +97,7 @@ export type LoadResult =
   | { kind: 'needs-user'; reason: string }
   | { kind: 'ok'; state: RunState; next: NextStep }
 
-// 사람 판정과 함께 오는 것 — 사람이 화면에서 본 내용의 해시(G4)
+// 사람 판정과 함께 오는 것 — 사람이 화면에서 본 내용의 해시
 interface SubmitSeen {specSha256?: string }
 interface SpecView {text: string | null; sha256: string | null }
 
@@ -135,7 +134,7 @@ type Checked =
 
 class Tampered extends Error {}
 
-// M10 G6 — 끝난 실행의 보관 자리(backlog.md는 옮기지 않는다). 보관본은 실행기가 다시 읽지 않는다.
+// 끝난 실행의 보관 자리(backlog.md는 옮기지 않는다). 보관본은 실행기가 다시 읽지 않는다.
 export const ARCHIVE_DIR = `${DOCS.dir}/archive`
 export const finishedNotice = (milestoneId: string): string => `끝난 실행(${milestoneId}) — 새 마일스톤을 시작하면 보관해요`
 class ArchiveFailed extends Error {}
@@ -171,7 +170,7 @@ export function createLoopRunner(deps: LoopRunnerDeps): LoopRunner {
 
   // ── 위조 래치 ──
   let latched: string | null = null
-  // 래치 파일 경로를 사유에 싣는다(G2 재검수 사소) — 사람이 어디를 확인할지 안다. 푸는 길은 화면의 「확인하고 풀기」다(G4).
+  // 래치 파일 경로를 사유에 싣는다 — 사람이 어디를 확인할지 안다. 푸는 길은 화면의 「확인하고 풀기」다.
   const latchFile = ((): string | null => { try { return ports.digest.latchPath?.(repoKey) ?? null } catch { return null } })()
   const latchText = (reason: string): string => `${reason} ${LATCH_TAIL}${latchFile ? ` 래치 파일: ${latchFile}` : ''}`
   async function latchedReason(): Promise<string | null> {
@@ -194,7 +193,7 @@ export function createLoopRunner(deps: LoopRunnerDeps): LoopRunner {
     return reason ? latch(reason) : null
   }
 
-  // 다시 열 때 읽은 기준 브랜치가 시작할 때 적은 것과 같은가(G4). 옛 상태(칸 없음)는 지금 값을 쓴다.
+  // 다시 열 때 읽은 기준 브랜치가 시작할 때 적은 것과 같은가. 옛 상태(칸 없음)는 지금 값을 쓴다.
   const baseMoved = (state: RunState): string | null =>
     state.base != null && state.base !== base
       ? `시작할 때 적은 기준 브랜치 ${state.base}와 지금 읽은 기준 브랜치 ${base}가 다르다 — origin의 기본 브랜치가 바뀌었는지 사람이 확인한다`
@@ -216,7 +215,7 @@ export function createLoopRunner(deps: LoopRunnerDeps): LoopRunner {
   }
 
   // expected: 이번 호출이 읽은 저장본의 다이제스트(새로 시작이면 null — 파일이 없어야 한다).
-  // prepare: 대조 뒤 쓰기 전에 돈다(M10 G6 보관). 같은 persisting 안이라 그 틈에 읽는 load가 래치를 걸지 않는다.
+  // prepare: 대조 뒤 쓰기 전에 돈다(보관). 같은 persisting 안이라 그 틈에 읽는 load가 래치를 걸지 않는다.
   // 상태 파일을 쓰기 전에 실패하면 prepare가 돌려준 되돌리기를 부른다(되돌린 결과를 한 문장으로 돌려준다).
   async function persist(state: RunState, expected: string | null, prepare?: () => Promise<() => Promise<string>>): Promise<void> {
     const run = (async () => {
@@ -224,7 +223,7 @@ export function createLoopRunner(deps: LoopRunnerDeps): LoopRunner {
       const nowDigest = now === null ? null : (() => { try { return stateDigest(JSON.parse(now)) } catch { return 'unreadable' } })()
       if (nowDigest !== expected) throw new Tampered(`${TAMPERED_REASON} — 이번 단계가 읽은 뒤 상태 파일이 바뀌어 덮어쓰지 않았다`)
       const undo = prepare ? await prepare() : null
-      // G4 검수 I1 — 사본 → 상태 파일 → 다이제스트. 어디서 꺼져도 사본은 상태 파일보다 낡지 않다.
+      // 사본 → 상태 파일 → 다이제스트. 어디서 꺼져도 사본은 상태 파일보다 낡지 않다.
       const text = runStateText(state)
       try {
         await ports.digest.writeCopy(repoKey, text)
@@ -257,7 +256,7 @@ export function createLoopRunner(deps: LoopRunnerDeps): LoopRunner {
     throw new Error(`보관 자리 ${stamped}의 이름이 모두 쓰였다`)
   }
 
-  // M10 G6 — persist의 prepare. 돌려주는 함수는 새 상태를 쓰지 못했을 때의 되돌리기다(앱 영역 사본도 옛것으로 둔다).
+  // persist의 prepare. 돌려주는 함수는 새 상태를 쓰지 못했을 때의 되돌리기다(앱 영역 사본도 옛것으로 둔다).
   async function archive(state: RunState): Promise<() => Promise<string>> {
     const moved: [string, string][] = []
     const back = async (): Promise<string[]> => {
@@ -348,7 +347,7 @@ export function createLoopRunner(deps: LoopRunnerDeps): LoopRunner {
     return { kind, state: s, verdict }
   }
 
-  // M10 G2 — 사람 반려가 이 노드로 되돌렸으면 그 줄의 문장(메인 대화의 반려 사유 턴). 마지막 줄이 그 반려일 때만이다.
+  // 사람 반려가 이 노드로 되돌렸으면 그 줄의 문장(메인 대화의 반려 사유 턴). 마지막 줄이 그 반려일 때만이다.
   function rejectedInto(state: RunState, node: WorkNode): string | null {
     const last = state.lines.at(-1)
     if (!last || last.marker !== 'USER-INPUT' || last.judge !== 'human') return null
@@ -356,30 +355,30 @@ export function createLoopRunner(deps: LoopRunnerDeps): LoopRunner {
     return gate?.kind === 'gate' && gate.onFail?.goto === node.id ? last.sentence : null
   }
 
-  // M11 G3(M09-12) — 메인 노드가 직전에 FAIL했으면 그 줄의 문장(다시 도는 세션이 같은 실수를 되풀이하지 않게)
+  // 메인 노드가 직전에 FAIL했으면 그 줄의 문장(다시 도는 세션이 같은 실수를 되풀이하지 않게)
   function failedInto(state: RunState, node: WorkNode): string | null {
     const last = state.lines.at(-1)
     return node.role === 'main' && last?.marker === 'FAIL' && last.node === node.id ? last.sentence : null
   }
 
-  // null: 메인 노드의 여러 턴 대화가 아직 끝나지 않았다(M10 G2 — 판정 없이 기다린다)
+  // null: 메인 노드의 여러 턴 대화가 아직 끝나지 않았다(판정 없이 기다린다)
   async function runWork(node: WorkNode, state: RunState, goal: GoalState | null): Promise<Verdict | null> {
     try {
       const docs = await readNodeDocs(ports.fs, node.docs, goal?.id ?? null)
       const visit = { key: visitKeyOf(state), rejected: rejectedInto(state, node), failed: failedInto(state, node) }
       const res = await ports.session.runWork({ milestoneId: state.milestoneId, node, goal, docs, visit })
-      // M10 G2 — 대화 중(사람을 기다림)은 판정이 아니다. 메인 노드에만 받는다
+      // 대화 중(사람을 기다림)은 판정이 아니다. 메인 노드에만 받는다
       if (res.waiting) {
         if (node.role === 'main') return null
         return v(node, 'fail', `작업자 노드 세션이 끝나지 않은 채 돌아왔다 — ${res.summary}`)
       }
-      // 취소(실행기 닫기·화면의 취소)는 검증 실패가 아니다 — FAIL로 세지 않고 멈춘다(G4, Backlog 3)
+      // 취소(실행기 닫기·화면의 취소)는 검증 실패가 아니다 — FAIL로 세지 않고 멈춘다
       if (res.cancelled) return v(node, 'stop', `작업 세션이 취소됐다 — ${res.summary}. 사람이 이어 가기로 같은 노드를 다시 돌린다`)
       if (!res.ok) return v(node, 'fail', `작업 세션이 일을 마치지 못했다 — ${res.summary}`)
-      // G5 실주행 — 스펙을 다루는 메인 노드(브레인스토밍)는 스펙 파일을 남겨야 끝난 것이다. 없거나 비었으면 다시 돈다.
-      // 독립 검수 중요 1: 반려 뒤나 다음 마일스톤에서는 옛 스펙이 남아 있으므로, 이번 세션에서 스펙이나 결정 대장이 바뀌었는지도 본다
+      // 스펙을 다루는 메인 노드(브레인스토밍)는 스펙 파일을 남겨야 끝난 것이다. 없거나 비었으면 다시 돈다.
+      // 반려 뒤나 다음 마일스톤에서는 옛 스펙이 남아 있으므로, 이번 세션에서 스펙이나 결정 대장이 바뀌었는지도 본다
       // (세션 전 본문은 위 readNodeDocs가 읽어 둔 값이다).
-      // M10 G2 — 메인 대화 포트가 방문의 처음 스펙 해시(baseline)를 주면 스펙만 그것과 대조한다(결정 대장은 턴마다 바뀐다).
+      // 메인 대화 포트가 방문의 처음 스펙 해시(baseline)를 주면 스펙만 그것과 대조한다(결정 대장은 턴마다 바뀐다).
       if (node.role === 'main' && node.docs.includes('milestoneSpec')) {
         const spec = await ports.fs.read(DOCS.milestoneSpec)
         if (spec === null || spec.trim() === '') {
@@ -419,7 +418,7 @@ export function createLoopRunner(deps: LoopRunnerDeps): LoopRunner {
           return { kind: 'verdict', verdict: judgeCommands(node, runs) }
         }
         case 'grade': {
-          // G4 검수 I6 — 기준은 실행기가 쥔 goal 시작 SHA. 없으면 통계 없음(강)이다
+          // 기준은 실행기가 쥔 goal 시작 SHA. 없으면 통계 없음(강)이다
           let stat: FileChange[] | null = null
           try { stat = goal?.baseSha ? await git.diffStat(goal.baseSha) : null } catch { stat = null }
           const g = computeGrade(template.grading, stat === null ? null : stat.filter((f) => !EXECUTOR_OWNED.test(f.path)))
@@ -446,19 +445,19 @@ export function createLoopRunner(deps: LoopRunnerDeps): LoopRunner {
     }
   }
 
-  // 모델 게이트 — 실행기가 검수 입력(goal 문서, 작업 트리 대 마일스톤 브랜치 diff)과 트리 해시를 만들고, pass를 그 트리에 묶는다(G4).
+  // 모델 게이트 — 실행기가 검수 입력(goal 문서, 작업 트리 대 마일스톤 브랜치 diff)과 트리 해시를 만들고, pass를 그 트리에 묶는다.
   async function runReview(node: GateNode, state: RunState, goal: GoalState | null, names: BranchNames): Promise<Verdict> {
     try {
-      // G4 검수 I6 — diff의 기준은 goal을 가를 때 실행기가 적은 시작 SHA다(작업 노드가 옮길 수 있는 로컬 ref 이름이 아니다)
+      // diff의 기준은 goal을 가를 때 실행기가 적은 시작 SHA다(작업 노드가 옮길 수 있는 로컬 ref 이름이 아니다)
       const baseSha = goal?.baseSha ?? null
       if (!baseSha) return v(node, 'stop', '목표 시작 SHA가 상태에 없어 검수 diff의 기준을 정할 수 없다 — 사람 판단이 필요하다')
-      // G4 검수 I7 — 검수 기준 문서가 분해 때 읽은 것과 같은가. 검수에 주는 본문과 대조하는 본문이 같은 읽기다
+      // 검수 기준 문서가 분해 때 읽은 것과 같은가. 검수에 주는 본문과 대조하는 본문이 같은 읽기다
       const goalDoc = goal ? await ports.fs.read(goalDocPath(goal.id)) : null
       const drift = goalDocDrift(goal, goalDoc)
       if (drift) return v(node, 'stop', `${drift} 검수를 열지 않았다`)
       const snap = await git.reviewSnapshot(baseSha)
       if (!snap) return v(node, 'fail', `${names.milestone}의 목표 시작 ${short(baseSha)} 대비 diff를 만들지 못해 검수를 열지 않았다`)
-      // G4 검수 I9 — 잘린 diff로 검수하지 않는다(pass가 전체 트리에 묶이므로). FAIL로 세지 않고 멈춘다
+      // 잘린 diff로 검수하지 않는다(pass가 전체 트리에 묶이므로). FAIL로 세지 않고 멈춘다
       if (snap.tooLarge) {
         return v(node, 'stop', `검수 diff가 ${snap.chars ?? '?'}자로 상한을 넘어 검수를 열지 않았다 — 목표를 나누거나 사람이 판단한다`)
       }
@@ -504,8 +503,8 @@ export function createLoopRunner(deps: LoopRunnerDeps): LoopRunner {
   }
 
   // 브랜치는 시작 SHA의 계보일 때만 이번 실행의 것으로 받는다. 상태에 시작 SHA가 없으면(만든 뒤 저장 전에 꺼짐) from의 원격 머리로 본다
-  // (M11 G3, M09-8 — 로컬 ref는 작업 노드가 옮길 수 있다).
-  // push하는 브랜치(마일스톤)는 머리가 시작 SHA와 같을 때만 받고, 그 SHA를 push한다(M11 G3, M09-9 — 확인 뒤 로컬 브랜치가 옮겨져도 따라가지 않는다).
+  // (로컬 ref는 작업 노드가 옮길 수 있다).
+  // push하는 브랜치(마일스톤)는 머리가 시작 SHA와 같을 때만 받고, 그 SHA를 push한다(확인 뒤 로컬 브랜치가 옮겨져도 따라가지 않는다).
   async function ensureBranch(node: ActionNode, name: string, from: string, recordedStart: string | null, pushNew: boolean): Promise<Verdict> {
     if (await git.branchExists(name)) {
       const start = recordedStart ?? (await git.remoteSha(from))
@@ -536,7 +535,7 @@ export function createLoopRunner(deps: LoopRunnerDeps): LoopRunner {
   }
 
   // inSync: 마일스톤 PR — 로컬 머리가 원격과 같을 때만 연다(push하지 않는다). goal PR은 goal 브랜치의 일을 커밋해 push한다.
-  // reviewedTree: 검수 pass가 묶인 트리(G4). 있으면 커밋 전 작업 트리와 push 전 커밋 트리가 그것과 같아야 한다 — 다르면 멈춘다.
+  // reviewedTree: 검수 pass가 묶인 트리. 있으면 커밋 전 작업 트리와 push 전 커밋 트리가 그것과 같아야 한다 — 다르면 멈춘다.
   async function ensurePr(
     node: ActionNode, head: string, base: string, title: string, body: string, commitFirst: boolean, inSync: boolean,
     reviewedTree: string | null = null,
@@ -556,7 +555,7 @@ export function createLoopRunner(deps: LoopRunnerDeps): LoopRunner {
         }
       }
       if (commitFirst && (await git.hasChanges())) await git.commitAll(title)
-      // G4 검수 I8 — 머리 SHA를 한 번 읽어, 그 커밋의 트리를 대조하고 그 SHA를 push한다(사이에 로컬 브랜치가 옮겨져도 따라가지 않는다).
+      // 머리 SHA를 한 번 읽어, 그 커밋의 트리를 대조하고 그 SHA를 push한다(사이에 로컬 브랜치가 옮겨져도 따라가지 않는다).
       // 작업 노드가 로컬에 커밋해 hasChanges가 거짓이어도 push 전에 커밋한 트리를 본다
       const sha = await git.headSha(head)
       if (!sha) return v(node, 'fail', `${head}의 머리를 읽지 못했다`)
@@ -613,10 +612,10 @@ export function createLoopRunner(deps: LoopRunnerDeps): LoopRunner {
       // 재개 — 「로컬 병합은 됐는데 push 전에 꺼짐」만 받는다: 부모가 (원격 머리, PR 머리)인 병합 커밋 하나.
       const parents = local ? await git.parents(local) : []
       if (local && parents.length === 2 && parents[0] === remote && parents[1] === pr.headSha) {
-        // 부모만 맞춘 위조(commit-tree)를 받지 않는다 — 트리가 두 부모의 깨끗한 병합이어야 한다(G2 재검수 차단 A)
+        // 부모만 맞춘 위조(commit-tree)를 받지 않는다 — 트리가 두 부모의 깨끗한 병합이어야 한다
         const forged = await git.verifyMerge(local, remote, pr.headSha)
         if (forged) return v(node, 'stop', `${ms}의 로컬 머리를 push하지 않았다 — ${forged}. ${NOT_PUSHED}`)
-        // G4 확인 검수 — 확인한 그 병합 SHA를 push한다(goal PR의 I8과 같은 꼴). 확인 뒤 로컬 브랜치가 옮겨져도 따라가지 않는다
+        // 확인한 그 병합 SHA를 push한다(goal PR과 같은 꼴). 확인 뒤 로컬 브랜치가 옮겨져도 따라가지 않는다
         await git.push(ms, local)
         return v(node, 'pass', `${ms}의 로컬 머리 ${short(local)}가 원격 머리와 PR 머리 ${short(pr.headSha)}의 병합 커밋이다 — 다시 병합하지 않고 push만 했다`, { mergedSha: local ?? pr.headSha })
       }
@@ -638,7 +637,7 @@ export function createLoopRunner(deps: LoopRunnerDeps): LoopRunner {
     return [`# ${state.milestoneId} 마일스톤 결과 보고`, '', ...rows, '', '검증 기록은 `.agentdeck/verification.md`에 있다.'].join('\n')
   }
 
-  // G4 검수 I7 — goal 문서가 분해 때 실행기가 읽은 본문과 같은가. 다르면 사유(멈춤), 같거나 옛 상태(해시 없음)면 null.
+  // goal 문서가 분해 때 실행기가 읽은 본문과 같은가. 다르면 사유(멈춤), 같거나 옛 상태(해시 없음)면 null.
   function goalDocDrift(goal: GoalState | null, text: string | null): string | null {
     const recorded = goal?.docSha256 ?? null
     if (!goal || recorded === null) return null
@@ -659,7 +658,7 @@ export function createLoopRunner(deps: LoopRunnerDeps): LoopRunner {
           return await ensureBranch(node, names.goal, names.milestone, goal.baseSha, false)
         case 'openGoalPr': {
           if (!goal || names.goal === null) return v(node, 'fail', 'goal 밖에서 goal PR을 열 수 없다')
-          // G4 검수 I7 — 검수 없는(약 등급) goal도 PR 전에 goal 문서를 대조한다
+          // 검수 없는(약 등급) goal도 PR 전에 goal 문서를 대조한다
           const drift = goalDocDrift(goal, await ports.fs.read(goalDocPath(goal.id)))
           if (drift) return v(node, 'stop', `${drift} 목표 PR을 열지 않았다`)
           const body = `goal ${goal.id} — ${goal.title}\n\n${renderGoalLines(state, goal.id)}\n`
@@ -682,7 +681,7 @@ export function createLoopRunner(deps: LoopRunnerDeps): LoopRunner {
     switch (next.kind) {
       case 'work': {
         const verdict = await runWork(next.node, state, next.goal)
-        // M10 G2 — 메인 노드의 대화가 사람을 기다린다. 판정 없이 기다림으로 돌려준다(줄을 쓰지 않는다)
+        // 메인 노드의 대화가 사람을 기다린다. 판정 없이 기다림으로 돌려준다(줄을 쓰지 않는다)
         return verdict === null ? { kind: 'waiting', on: 'human' } : { kind: 'verdict', verdict }
       }
       case 'gate': return runGate(next.node, state, next.goal, names)
@@ -695,7 +694,7 @@ export function createLoopRunner(deps: LoopRunnerDeps): LoopRunner {
     if (read.kind === 'missing') return read
     if (read.kind === 'tampered') return { kind: 'needs-user', reason: read.reason }
     if (read.kind === 'invalid') return { kind: 'blocked', reason: '실행 상태가 스키마에 맞지 않는다', errors: read.errors }
-    // M10 G6 — 끝난 실행은 위조·스키마 검사를 지난 뒤에만 여기 닿는다. 템플릿이 바뀌었어도 막지 않는다(start가 보관한다)
+    // 끝난 실행은 위조·스키마 검사를 지난 뒤에만 여기 닿는다. 템플릿이 바뀌었어도 막지 않는다(start가 보관한다)
     if (read.state.status === 'done') return { kind: 'ok', state: read.state, next: nextStep(template, read.state) }
     const check = checkResumable(template, hash, read.state)
     if (!check.ok) return { kind: 'blocked', reason: check.reason }
@@ -718,7 +717,7 @@ export function createLoopRunner(deps: LoopRunnerDeps): LoopRunner {
       if (held) return { kind: 'needs-user', reason: held }
       const existing = await readChecked()
       if (existing.kind === 'tampered') return { kind: 'needs-user', reason: await latch(existing.reason) }
-      // M10 G6 — 끝난 실행만 보관하고 새로 연다. 끝나지 않은 실행은 지금처럼 거부한다
+      // 끝난 실행만 보관하고 새로 연다. 끝나지 않은 실행은 지금처럼 거부한다
       const done = existing.kind === 'ok' && existing.state.status === 'done' ? existing : null
       if (existing.kind !== 'missing' && !done) return { kind: 'blocked', reason: '실행 상태가 이미 있다 — 새로 시작하지 않는다(load로 이어 간다)' }
       const created = createRunState(template, hash, milestoneId, base)
@@ -758,7 +757,7 @@ export function createLoopRunner(deps: LoopRunnerDeps): LoopRunner {
       const next = nextStep(template, state)
       if (next.kind === 'done') return { kind: 'done', state, verdict: null }
       if (next.kind === 'needs-user') return { kind: 'halted', state, verdict: null }
-      // G4 검수 I7 — 승인한 스펙이 그 뒤 바뀌었으면 어느 노드도 돌리지 않고 멈춘다. 스펙을 쓰는 노드(메인 노드)와 스펙 승인 게이트 자신은 뺀다
+      // 승인한 스펙이 그 뒤 바뀌었으면 어느 노드도 돌리지 않고 멈춘다. 스펙을 쓰는 노드(메인 노드)와 스펙 승인 게이트 자신은 뺀다
       const writesSpec = (next.kind === 'work' && next.node.role === 'main') || (next.kind === 'gate' && specBound(next.node))
       if (state.specSha256 && !writesSpec) {
         const view = await readSpecView(ports.fs)
@@ -795,14 +794,14 @@ export function createLoopRunner(deps: LoopRunnerDeps): LoopRunner {
       if (state.status === 'running' && next.kind === 'gate' && next.node.watch && verdict.verdict === 'pass') {
         return { kind: 'blocked', reason: `${next.node.id}는 PR 병합 사실로만 통과한다 — 병합 버튼으로 병합한다`, state }
       }
-      // 스펙 승인 판정은 사람이 본 스펙 해시에 묶인다(G4) — 병합 버튼의 「보인 SHA로만」과 같은 규칙이다.
-      // 밖에서 넣는 판정의 facts는 버린다 — 상태 사실(스펙 해시 같은 것)은 실행기가 대조한 값만 싣는다(G4 검수 I7)
+      // 스펙 승인 판정은 사람이 본 스펙 해시에 묶인다 — 병합 버튼의 「보인 SHA로만」과 같은 규칙이다.
+      // 밖에서 넣는 판정의 facts는 버린다 — 상태 사실(스펙 해시 같은 것)은 실행기가 대조한 값만 싣는다
       let bound: Verdict = { node: verdict.node, judge: verdict.judge, verdict: verdict.verdict, evidence: verdict.evidence }
       // 노드 이름과 관계없이 본다 — 다른 이름의 판정은 상태 기계가 거부하지만, 해시 검사가 그 거부에 기대지 않게 한다
       if (state.status === 'running' && next.kind === 'gate' && specBound(next.node)) {
         const view = await readSpecView(ports.fs)
         if (view.sha256 === null) {
-          // G4 검수 I3 — 스펙 파일이 없으면 해시 없는 반려만 받는다(브레인스토밍으로 돌아가는 길). 승인은 받지 않는다
+          // 스펙 파일이 없으면 해시 없는 반려만 받는다(브레인스토밍으로 돌아가는 길). 승인은 받지 않는다
           if (verdict.verdict !== 'fail') return { kind: 'blocked', reason: `${DOCS.milestoneSpec}가 없어 스펙 승인 판정을 받지 않는다 — 반려로 브레인스토밍에 돌아간다`, state }
           return commit(state, cur.digest, { ...bound, evidence: `${verdict.evidence} (스펙 파일 없음)` }, 'outside')
         }

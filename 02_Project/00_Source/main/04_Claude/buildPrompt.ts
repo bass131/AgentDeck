@@ -8,7 +8,7 @@ interface BuildModelContextPromptOptions {
   contextBudgetTokens: number
 }
 
-// 이어받을 세션 없이 대화 기록을 프롬프트로 다시 실을 때의 예산 (M06 G4).
+// 이어받을 세션 없이 대화 기록을 프롬프트로 다시 실을 때의 예산.
 // 대화가 마지막으로 잰 창(modelUsage.contextWindow)을 따르고, 모르면 가장 작은 창 기준으로 보수적으로 잡는다.
 const CONTEXT_FALLBACK_RESERVE_TOKENS = 20_000
 const UNKNOWN_WINDOW_TOKENS = 200_000

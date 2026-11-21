@@ -1,4 +1,3 @@
-// 작업 ID: gap1-p16-s3 · 옛 이름 gap1-p16-s3-hookruns-runid.test.ts
 import { describe, it, expect } from 'vitest'
 import { applyAgentEvent, makeInitialState } from '@renderer/05_Conversation/state/reducer'
 import type { AgentEvent } from '@shared/agentEvents'

@@ -1,6 +1,4 @@
-// M07 G8 PR 서비스 — 주입한 gh 실행기로 PR 읽기, 버튼 활성 판정, 비동기 병합 API 호출과 응답 해석을 고정한다.
-// 실제 병합 API는 부르지 않는다(goal 「하지 않을 것」). 응답 모양은 github/docs pulls.json(merge-async)과
-// `gh api -i` 실측(첫 줄 `HTTP/2.0 404 Not Found`, 빈 줄 뒤 본문, 실패면 exit 1)을 따른다.
+// 실제 병합 API는 부르지 않는다. 응답 모양은 prMerge.ts 머리의 근거를 따른다.
 import { describe, it, expect } from 'vitest'
 import {
   createPrService,

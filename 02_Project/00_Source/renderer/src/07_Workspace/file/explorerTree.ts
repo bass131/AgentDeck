@@ -1,4 +1,4 @@
-// 탐색기의 순수 함수 — 컴포넌트 파일 밖에 두어 Fast Refresh 경계를 지킨다 (M05 Backlog 26)
+// 탐색기의 순수 함수 — 컴포넌트 파일 밖에 두어 Fast Refresh 경계를 지킨다
 type ChangeTag = 'edit'
 
 export function buildChgMaps(changed: Set<string>, viewing: boolean) {

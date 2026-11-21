@@ -1,4 +1,4 @@
-// M07 G10 병합 완료 감지(lib/waitMerge.mjs) — PR을 만든 세션이 뒤에서 걸어 두는 읽기 전용 감시다.
+// 병합 완료 감지(lib/waitMerge.mjs) — PR을 만든 세션이 뒤에서 걸어 두는 읽기 전용 감시다.
 // 병합되면 MERGED 한 줄과 0, 병합 없이 닫히면 CLOSED 한 줄과 3, 읽기 실패가 영구적이거나 일시 실패가 이어지면 ERROR 한 줄과 2로 끝난다.
 // 출력은 세션을 깨우는 방아쇠일 뿐이고, 세션은 끝난 뒤 gh pr view로 다시 읽어 기록한다(헌법 11조).
 import test from 'node:test';

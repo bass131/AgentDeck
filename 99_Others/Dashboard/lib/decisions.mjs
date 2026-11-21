@@ -1,7 +1,5 @@
-// 결정 응답의 순수 함수(M05 H7). 입출력이 없다. 설명은 docs/결정-응답.md, 시험은 test/decisions.test.mjs.
-// 본보기는 C:\Dev\DawnHolder_Dashboard 의 lib/answer.mjs(문장 조립·코멘트 정리)와 web/lib/answers.mjs(고른 답 검사)다.
-// 병합 승인 줄(「병합 승인: PR… head …」)과 단독 전송 규칙은 들이지 않았다.
-// M07 G8부터 병합은 앱 PR 카드의 「병합」 버튼으로만 한다. 보드의 병합 결정(kind: merge)은 없어졌고, 남은 항목은 경고와 함께 일반 결정으로 읽는다.
+// 결정 응답의 순수 함수. 입출력이 없다. 설명은 docs/결정-응답.md다.
+// 병합은 앱 PR 카드의 「병합」 버튼으로만 한다. 보드의 병합 결정(kind: merge)은 받지 않고, 남은 항목은 경고와 함께 일반 결정으로 읽는다.
 //
 // 문장은 한 줄이다. 메인 입력창에 들어간 줄바꿈이나 제어 바이트는 입력을 저절로 제출하거나 터미널을 움직일 수 있다
 // (`orca terminal send`는 --enter 없이 보내면 글을 PTY에 그대로 쓴다). 그래서 보드에서 온 글과 코멘트를 닦고, 조립한 문장 전체를 한 번 더 닦는다.
@@ -52,7 +50,7 @@ export function parseBoard(raw) {
     const title = oneLine(text(d.title));
     if (!title) return warn(id, '제목이 없어 뺐어요.');
     if (oneLine(text(d.state)) !== 'waiting') { skipped++; return; }
-    const kind = null; // 받는 kind 값이 없다(M07 G8에서 merge가 없어졌다). 칸은 모양 호환으로 남긴다
+    const kind = null; // 받는 kind 값이 없다(merge는 없어졌다). 칸은 모양 호환으로 남긴다
     if (d.kind != null) {
       if (String(d.kind).toLowerCase() === RETIRED_MERGE_KIND) warn(id, '병합 결정은 보드에서 없어졌어요 — 병합은 앱 PR 카드의 「병합」 버튼으로 해요. 일반 결정으로 읽어요.');
       else warn(id, `kind 「${oneLine(text(d.kind))}」는 모르는 값이라 일반 결정으로 읽어요.`);

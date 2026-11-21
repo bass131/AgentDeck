@@ -23,8 +23,8 @@ export const MAX_CONSECUTIVE_AUTONOMOUS_TURNS = 100
 
 const AUTO_COMPACT_ASK_MS = 2000
 
-// 엔진 경로 잠금에 넘길 userData 경로 (M07 G3). 실행마다 다시 읽는다 — 임시 --user-data-dir도 그 경로가 잠긴다.
-// 앱 조립 지점(registry)이 engineLockDir를 넣는다 — 그 읽기가 던지면 실행을 열지 않는다(M11 G3, Backlog 18).
+// 실행마다 다시 읽는다 — 임시 --user-data-dir도 그 경로가 잠긴다.
+// 앱 조립 지점(registry)이 engineLockDir를 넣고, 그 읽기가 던지면 실행을 열지 않는다.
 // 넣지 않은 기본(Electron 밖 단위 테스트)은 app이 없어 던지면 잠금 없이 열고 main 로그에 남긴다.
 function defaultEngineLockDir(): string | undefined {
   try {
@@ -35,7 +35,7 @@ function defaultEngineLockDir(): string | undefined {
   }
 }
 
-// 컨트롤 설정 (M07 G5). 실행을 열 때 한 번 읽어 그 실행에 고정한다 — 토글은 다음 실행부터다.
+// 실행을 열 때 한 번 읽어 그 실행에 고정한다 — 토글은 다음 실행부터다.
 // 이어지는(persistent) 실행은 세션을 다시 열 때 반영된다. 봉인이 맞지 않으면 실행을 열지 않는다(controlsStore.ts).
 // userData 경로를 못 얻으면(Electron 밖 단위 테스트) 기본 등록부로 연다 — 에이전트가 만들 수 있는 상태가 아니다.
 function controlsAtRunStart(): ControlsForRun {
@@ -209,7 +209,7 @@ export class ClaudeAgentRun implements AgentRun {
     if (!handle || typeof handle.setModel !== 'function') return
     const prev = this._currentModel
     this._currentModel = resolved
-    // 계기가 다음 턴 결과에서 새 주 모델의 창을 고르게 한다 (M06 G4). 전환이 거절되면 되돌린다.
+    // 계기가 다음 턴 결과에서 새 주 모델의 창을 고르게 한다. 전환이 거절되면 되돌린다.
     this._normalizer.setMainModel(resolved)
     this._autoCompactAsked = false
     const rollback = (): void => {
@@ -224,7 +224,7 @@ export class ClaudeAgentRun implements AgentRun {
     }
   }
 
-  // 지속 세션의 effort 전환 (M06 Backlog 24) — 공개 타입 Query.applyFlagSettings. 지금 모델이 받는 단계로 내린다.
+  // 공개 타입 Query.applyFlagSettings로 바꾼다. 지금 모델이 받는 단계로 내린다.
   setEffort(effort: string): void {
     if (this._req.persistent !== true) return
     const level = runEffortFor(effort, this._currentModel ?? undefined)
@@ -632,7 +632,7 @@ export class ClaudeAgentRun implements AgentRun {
     this._push(e)
   }
 
-  // SDK 자동 압축의 켜짐과 문턱을 묻는다(M06 Backlog 27) — 모델마다 한 번, done을 기다리게 하지 않는다.
+  // 모델마다 한 번 묻고, done을 기다리게 하지 않는다
   private _askAutoCompactOnce(): void {
     const handle = this._queryHandle
     if (this._autoCompactAsked || !handle || typeof handle.getContextUsage !== 'function') return

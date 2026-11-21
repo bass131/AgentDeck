@@ -5,7 +5,7 @@ import { decideStopAction } from '@renderer/03_Agent/stopAction'
 import type { GoalPendingLike } from '@renderer/03_Agent/loopStatus'
 import type { WorkspaceMode } from './windowMode'
 
-// 모달 판정은 열린 모달의 층이다(M11 G4 — 설계 감사 22). 옛 import 자리를 위해 다시 내보낸다
+// 모달 판정은 열린 모달의 층이다. 옛 import 자리를 위해 다시 내보낸다
 export { isAnyModalOpen, pushModalLayer } from '@renderer/02_Common/modalStack'
 
 export interface EscapeContext {
@@ -41,8 +41,8 @@ interface GlobalShortcutOptions {
   onModeSwitch?: () => void
 }
 
-// 전역 Shift+Tab의 모드 순환 대상(P5, 사용자 결정) — 단일 선택기는 「채팅」 모드의 화면에만 있다.
-// 「작업」 모드(M10 G1)에서는 화면에 없는 단일 선택기를 돌리지 않는다.
+// 전역 Shift+Tab의 모드 순환 대상 — 단일 선택기는 「채팅」 모드의 화면에만 있다.
+// 「작업」 모드에서는 화면에 없는 단일 선택기를 돌리지 않는다.
 export function globalModeSwitchFor(
   workspaceMode: WorkspaceMode,
   cycleSingle: () => void,
@@ -100,7 +100,7 @@ export function useGlobalShortcuts(opts: GlobalShortcutOptions): void {
       }
 
       if (e.key === 'Tab' && e.shiftKey) {
-        // 바꿀 모드가 없는 화면(작업 모드)에서는 브라우저 기본 동작(역방향 포커스 이동)을 살린다(M10 G1 검수 사소 5)
+        // 바꿀 모드가 없는 화면(작업 모드)에서는 브라우저 기본 동작(역방향 포커스 이동)을 살린다
         if (isAnyModalOpen(e) || !opts.onModeSwitch) return
         e.preventDefault()
         opts.onModeSwitch()

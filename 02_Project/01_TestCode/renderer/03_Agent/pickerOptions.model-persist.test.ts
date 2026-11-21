@@ -1,4 +1,3 @@
-// 작업 ID: gap1-p02 · 옛 이름 gap1-p02-model-persist.test.ts
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { makeInitialState } from '@renderer/05_Conversation/state/reducer'
 import { buildConversationSavePayload } from '@renderer/06_Sessions/state/conversationPayload'
@@ -127,7 +126,7 @@ describe('GAP1 P02 시나리오 2: conversationSave payload에 model 포함', ()
     expect('mode' in (payload as object)).toBe(false)
   })
 
-  // M11 G2 — M06 Backlog 1. 권한 모드도 같은 길로 저장 payload에 실린다.
+  // 권한 모드도 같은 길로 저장 payload에 실린다.
   it('source.mode → payload.mode', () => {
     const payload = buildConversationSavePayload({ ...sourceWith('haiku'), mode: 'plan' }, 'conv-x')
     expect(payload).toMatchObject({ mode: 'plan', model: 'haiku' })
@@ -160,7 +159,7 @@ describe('GAP1 P02 시나리오 3: loadConversation model 복원(폴백 포함)'
     expect(useAppStore.getState().selectedModel).toBe(DEFAULT_MODEL)
   })
 
-  // M11 G2 — M06 Backlog 17. 모델 없는 옛 레코드의 기본값도 지금 목록의 default 행을 따른다.
+  // 모델 없는 옛 레코드의 기본값도 지금 목록의 default 행을 따른다.
   it('conv.model 없는 레코드 로드 → 지금 목록 default 행의 정식 ID', async () => {
     mockApi.conversationLoad.mockImplementationOnce(async () => ({ conversations: [recordB] }))
     resetStore(useAppStore, 'sonnet')
@@ -171,7 +170,7 @@ describe('GAP1 P02 시나리오 3: loadConversation model 복원(폴백 포함)'
     expect(useAppStore.getState().selectedModel).toBe('claude-fable-5-2')
   })
 
-  // M06 G4: 옛 ID로 저장된 대화는 그 ID 그대로 열리고 이어서 보낼 때도 그 ID로 간다(정식 ID로 몰래 바꾸지 않는다).
+  // 옛 ID로 저장된 대화는 그 ID 그대로 열리고 이어서 보낼 때도 그 ID로 간다(정식 ID로 몰래 바꾸지 않는다).
   it('옛 ID(claude-haiku-4-5) 대화 로드 → selectedModel이 그대로이고 다음 실행 요청에 그 값이 실린다', async () => {
     const oldRecord = { ...recordA, id: 'conv-old', model: 'claude-haiku-4-5' }
     mockApi.conversationLoad.mockImplementationOnce(async () => ({ conversations: [oldRecord] }))

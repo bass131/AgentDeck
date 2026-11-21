@@ -60,7 +60,7 @@ function dotClass(status: SessionStatus): string {
 const MENU_W = 178
 const MENU_H = 127
 
-// 실행 표시(B1, G9c) — 활성 대화면 전경 저장 칸(store isRunning), 아니면 레지스트리의 배경 항목을 본다.
+// 실행 표시 — 활성 대화면 전경 저장 칸(store isRunning), 아니면 레지스트리의 배경 항목을 본다.
 // runningKeys는 실행 중인 레지스트리 항목 키 집합이다.
 function conversationRunning(
   id: string,
@@ -323,7 +323,7 @@ function RecentChats({
   )
 }
 
-// 모드 전환 칸의 두 모드 — 화면 이름 「채팅」·「작업」(M10 G1). 「작업」의 몸체는 루프 화면이다(Shell).
+// 모드 전환 칸의 두 모드 — 화면 이름 「채팅」·「작업」. 「작업」의 몸체는 루프 화면이다(Shell).
 const MODES: ReadonlyArray<{ mode: WorkspaceMode; label: string; Icon: typeof IconSquare }> = [
   { mode: 'single', label: '채팅', Icon: IconSquare },
   { mode: 'work', label: '작업', Icon: IconGrid },
@@ -367,7 +367,7 @@ function SidebarInner({ onCollapse, onOpenSettings }: SidebarProps): JSX.Element
 
   const runningKeys = useSyncExternalStore(sessionRegistry.subscribe, sessionRegistry.runningKeys)
 
-  // 목록은 모드와 관계없이 채팅이다 — 작업 모드의 프로젝트 목록은 G2·G3 몫이다.
+  // 목록은 모드와 관계없이 채팅이다.
   const sessions = useMemo(
     () => conversations.map((rec) =>
       toSessionSummary(rec, conversationRunning(rec.id, conversationId, isRunning, runningKeys))),
@@ -378,7 +378,7 @@ function SidebarInner({ onCollapse, onOpenSettings }: SidebarProps): JSX.Element
     void useAppStore.getState().listConversations()
   }, [])
 
-  // 목록은 늘 채팅이다 — 작업 모드에서 대화를 고르거나 새로 열면 보이는 화면도 채팅으로 바꾼다(M10 G1 검수 사소 6)
+  // 목록은 늘 채팅이다 — 작업 모드에서 대화를 고르거나 새로 열면 보이는 화면도 채팅으로 바꾼다
   const showChat = (): void => {
     const s = useAppStore.getState()
     if (s.workspaceMode !== 'single') s.setWorkspaceMode('single')
@@ -425,7 +425,7 @@ function SidebarInner({ onCollapse, onOpenSettings }: SidebarProps): JSX.Element
       <div className="sb-mode" role="tablist" aria-label="작업 모드">
         {MODES.map(({ mode: m, label, Icon }) => {
           // 탭의 접근 이름을 바꾸지 않도록 점은 aria-hidden, 설명은 title에만 둔다
-          // 작업 쪽 점은 채팅 모드에서만 — 작업 모드에서는 프로젝트 점이 대신한다(M10 G5)
+          // 작업 쪽 점은 채팅 모드에서만 — 작업 모드에서는 프로젝트 점이 대신한다
           const workWaiting = m === 'work' && mode === 'single' && hasLoopAlert
           const waiting = (m === 'single' && chatWaiting) || workWaiting
           return (

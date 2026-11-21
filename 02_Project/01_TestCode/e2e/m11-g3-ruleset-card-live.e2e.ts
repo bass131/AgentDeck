@@ -1,6 +1,6 @@
-// M11 G3 실앱 확인 (opt-in: M11G3LIVE=1, 출력 폴더 M11G3_OUT). 병합 버튼은 누르지 않는다 — 카드 읽기만 본다.
+// 실앱 확인 (opt-in: M11G3LIVE=1, 출력 폴더 M11G3_OUT). 병합 버튼은 누르지 않는다 — 카드 읽기만 본다.
 // 연습 저장소(bass131/AgentDeck_Test)의 `main`은 고전 보호 없이 룰셋(main-protect)으로만 지킨다.
-// PR 카드가 그 base를 「보호가 없다」가 아니라 룰셋으로 읽는지 본다(M07-24·M09-11·M10-23).
+// PR 카드가 그 base를 「보호가 없다」가 아니라 룰셋으로 읽는지 본다.
 // M11G3_TOKEN_FILE(연습 저장소 전용 fine-grained 토큰 파일)을 주면 앱 프로세스에만 GH_TOKEN으로 넣는다. 값은 출력하지 않는다.
 import { test, expect, _electron as electron } from '@playwright/test'
 import type { ElectronApplication, Page } from '@playwright/test'

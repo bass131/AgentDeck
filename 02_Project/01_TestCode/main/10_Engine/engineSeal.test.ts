@@ -1,6 +1,4 @@
-// M07 G4 엔진 봉인 — 앱이 고른 엔진만 불러오고, 앱 밖에서 바뀌면 번들 엔진으로 물러난다.
 // 임시 userData에 가짜 엔진(진입 파일 index.mjs)을 두고 프로덕션 경로(setActive·loadActiveQuery·getVersionState)로만 본다.
-// 파일 목록 판정은 로드가 한다 — 상태 칸은 진입 파일까지 바로 보고, 목록은 마지막 로드의 판정을 쓴다(G4 검수 반영).
 import { describe, it, expect, vi, beforeAll, afterAll, afterEach } from 'vitest'
 import path from 'node:path'
 import fs from 'node:fs'
@@ -16,7 +14,7 @@ vi.mock('electron', () => {
   return { app, default: { app } }
 })
 
-// 하한은 설치된 번들 SDK 버전을 먼저 본다. 테스트는 그 값을 주입한다(null이면 앱 package.json의 의존 명세).
+// 하한은 설치된 번들 SDK 버전을 먼저 본다. 시험은 그 값을 주입한다(null이면 앱 package.json의 의존 명세).
 vi.mock('@main/10_Engine/sdkVersion', async (orig) => ({
   ...(await orig<typeof import('@main/10_Engine/sdkVersion')>()),
   readInstalledSdkVersion: (): string | null => h.installedBundled.value,

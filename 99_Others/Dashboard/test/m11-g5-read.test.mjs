@@ -1,5 +1,4 @@
-// M11 G5 읽기 묶음: 마일스톤 목록(44), 병합 대기 줄과 GitHub 상태(61), 진척 표시 낡음(62), Orca 소식(63),
-// 답을 받아 적은 USER-INPUT 줄(M10-24), 메인 터미널 찾기에서 worker 빼기(M07-35).
+// 수집기·화면 판단의 읽기 묶음. 절마다 한 주제다.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as fsp from 'node:fs/promises';
@@ -37,7 +36,7 @@ function overlay(root, files, planFile = '10_Goal-G1-진행-중.md') {
     } };
 }
 
-// ── 44 ──
+// 마일스톤 목록
 test('[M11-G5 44] the milestone list reads the spec, the single goal file or the goal documents when there is no _MilestonePreview.md', async () => {
   const io = overlay(goalRepo, {
     '01_Milestones/M11_Spec/00_마일스톤-스펙.md': '# M11 — Backlog 정리 · 마일스톤 스펙\n\n- 작성: 2026-11-20 · 상태: 합의(2026-11-20 15:06)\n\n## 목표\n',
@@ -56,7 +55,7 @@ test('[M11-G5 44] the milestone list reads the spec, the single goal file or the
   assert.deepEqual([by.M09_Goals.state, by.M09_Goals.goals, by.M09_Goals.current], ['goals', { total: 5, closed: 1 }, true]);
 });
 
-// ── M10-24 ──
+// 답을 받아 적은 USER-INPUT 줄
 // 실제 goal 문서의 USER-INPUT 줄(2026-08~11)을 표로 쓴다. 답을 적은 줄이라는 표지가 있을 때만 「받은 답」이고, 기다림 표지가 있으면 기다림이다.
 const ANSWERED = [
   '사용자가 「마감」이라고 답했다(코디네이터 세션 b989a371 · HEAD afcbdaf). 재검수의 남은 반례는 Backlog 35번으로 넘긴다.',
@@ -99,7 +98,7 @@ test('[M11-G5 M10-24] a USER-INPUT line that records the answer is not a wait; a
   assert.deepEqual(hand(WAITING[0]).map(h => h.id), ['question']);
 });
 
-// ── 62 ──
+// 진척 표시 낡음
 const load = (file, git) => collect(goalRepo, { now: NOW, git, io: overlay(goalRepo, {}, file) });
 test('[M11-G5 62] a goal doc whose last commit is behind the branch while its [>] stays says the progress mark may be stale', async () => {
   const stale = await load('10_Goal-G1-진행-중.md', fakeGit({ docLog: 'd0c1234', after: 3 }));
@@ -118,7 +117,7 @@ test('[M11-G5 62] a goal doc whose last commit is behind the branch while its [>
   assert.equal(noLog.phases.goal.stale, null);
 });
 
-// ── 63 ──
+// Orca 소식
 const RUN = 'run:run_7b56ca5575c1', TERM = 'term_6f61a247-3d56-4361-9847-e78691fce9a1';
 const full = (over = {}) => ({ id: 'msg_1', type: 'worker_done', from_handle: 'term_45b7ade8-e91f-4672-9372-c14a58a298fe', to_handle: RUN, subject: '현황 진단 완성', body: '긴 본문'.repeat(50), read: 1, created_at: '2026-11-16T23:14:27Z', ...over });
 test('[M11-G5 63] Orca inbox: a configured term_ or run: handle, a read-only inbox call, three message kinds, newest few lines', async () => {
@@ -203,7 +202,7 @@ test('[M11-G5 63] loadConfig validates inboxHandle and keeps it optional', async
   assert.equal((await loadConfig(new URL('../config.example.json', import.meta.url))).inboxHandle, null, '예시 설정은 칸을 보이되 비워 둔다');
 });
 
-// ── M07-35 ──
+// 메인 터미널 찾기에서 worker 빼기
 const H = n => `term_${String(n).padStart(8, '0')}-1111-4222-8333-444444444444`;
 const T = (n, over = {}) => ({ handle: H(n), worktreePath: 'C:/Dev/AgentDeck', agentIdentity: 'claude', connected: true, writable: true, orphaned: false, tabId: `tab${n}`, leafId: `leaf${n}`, title: `제목 ${n}`, ...over });
 const ps = (...agents) => ({ worktrees: [{ path: 'C:/Dev/AgentDeck', agents }] });
@@ -232,7 +231,7 @@ test('[M11-G5 M07-35] the main-terminal finder leaves out orchestration workers 
   assert.equal(seen.length, 1);
 });
 
-// ── 61 ──
+// 병합 대기 줄과 GitHub 상태
 const M = globalThis.AgentDeckMerge;
 const pending = (pr = 9) => ({ id: 'merge', key: 'merge:g.md', level: 'todo', say: `PR ${pr}의 병합을 기다려요`, source: 'goal 문서 머리말', pr });
 const view = (over = {}) => ({ number: 9, state: 'open', merged: false, checks: [{ name: 'hard-gates', result: 'success' }], ...over });

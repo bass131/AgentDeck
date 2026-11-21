@@ -4,7 +4,7 @@ import {
   type ComposerHighlightSegment,
 } from '../composerHighlight'
 
-type OrchestrationHighlightVariant ='active' | 'muted'
+type OrchestrationHighlightVariant = 'active' | 'muted'
 
 interface UseComposerKeywordMirrorReturn {
   segments: ComposerHighlightSegment[]

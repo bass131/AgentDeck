@@ -1,4 +1,4 @@
-// M09 G2 실물 gh 포트 — 실행 층(gh 인자)과 순수 JSON 해석 층을 나눠 본다. 해석은 녹취 JSON 픽스처로 시험한다.
+// 실행 층(gh 인자)과 순수 JSON 해석 층을 나눠 본다. 해석은 녹취 JSON 픽스처로 시험한다.
 // findPr는 열림·병합·닫힘 중 가장 최근 것, ciStatus는 머리 SHA와 검사 묶음을 한 호출로 받고, 새 머리의 검사가 시작 전이거나
 // rollup이 비면 pending이다. 모르는 값은 pending이고(통과로 떨어지지 않는다), PR 상태가 모르는 값이면 던진다.
 import { describe, expect, it } from 'vitest'
@@ -56,7 +56,7 @@ describe('해석 층 — 녹취 픽스처', () => {
     expect(() => parseCiStatus({ statusCheckRollup: [] })).toThrow()
   })
 
-  // M11 G3 — M09-11 뒷절 실측. 같은 머리에 같은 이름 검사가 둘(push·pull_request) 돌면 하나가 끝나도 다른 하나를 기다린다.
+  // 실측: 같은 머리에 같은 이름 검사가 둘(push·pull_request) 돌면 하나가 끝나도 다른 하나를 기다린다.
   it('[M11-G3 M09-11] 같은 이름 검사가 둘이면 모두 성공해야 success다 — 하나가 도는 중이면 pending, 하나가 실패면 failure', () => {
     const run = (status: string, conclusion: string | null) => ({ __typename: 'CheckRun', name: 'hard-gates', status, conclusion })
     const two = (a: unknown, b: unknown) => ({ headRefOid: 'f'.repeat(40), statusCheckRollup: [a, b] })
@@ -72,7 +72,7 @@ describe('해석 층 — 녹취 픽스처', () => {
   })
 })
 
-// G2 검수 차단 1 — gh도 실행기 환경(자격 있음)에서 git을 부를 수 있어, 호출 직전에 git 설정을 대조한다
+// gh도 실행기 환경(자격 있음)에서 git을 부를 수 있어, 호출 직전에 git 설정을 대조한다
 describe('실행 층 — 설정 대조', () => {
   it('대조가 던지면 gh를 부르지 않는다', async () => {
     let asked = 0
@@ -87,7 +87,7 @@ describe('실행 층 — 설정 대조', () => {
   })
 })
 
-// G2 재검수 중요 B — gh는 git 설정(remote.*.gh-resolved)으로 기본 저장소를 고른다. 실행기 gh는 열 때 origin 주소에서 정한
+// gh는 git 설정(remote.*.gh-resolved)으로 기본 저장소를 고른다. 실행기 gh는 열 때 origin 주소에서 정한
 // HOST/OWNER/REPO를 모든 호출에 -R로 준다.
 describe('실행 층 — 저장소 고정(-R)', () => {
   it('모든 gh 호출에 -R HOST/OWNER/REPO를 하위 명령 바로 뒤에 넣고, 업데이트 알림·질의를 끈다', async () => {

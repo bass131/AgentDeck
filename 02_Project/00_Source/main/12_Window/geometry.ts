@@ -59,7 +59,7 @@ export function computeResizeBounds(
   }
 }
 
-type SnapZone ='left' | 'right' | 'maximize' | 'tl' | 'tr' | 'bl' | 'br'
+type SnapZone = 'left' | 'right' | 'maximize' | 'tl' | 'tr' | 'bl' | 'br'
 
 export function computeSnapZone(
   cursor: Point,

@@ -1,10 +1,10 @@
-// M10 G5 — 알림 판정자. 구동자가 내는 LoopStatus를 보고 사람을 부르는 사건을 정한다(구동자·실행기 동작은 그대로다).
+// 알림 판정자. 구동자가 내는 LoopStatus를 보고 사람을 부르는 사건을 정한다(구동자·실행기 동작은 그대로다).
 //   - 바로 알릴 사건: halted·latched·blocked. Windows 알림 한 번(NotifyPort)과 앱 안 표시.
 //   - 나중 사건: waiting-human이면서 milestonePr가 있다. 앱 안 표시만.
 //   - 열쇠는 작업 폴더·phase·노드다(사유 글은 넣지 않는다). 알린 열쇠는 앱 영역의 alerts.json에 남겨 재기동 뒤에도 다시 알리지 않는다.
 //   - 그 폴더가 사건 밖의 상태가 되면 열쇠를 지운다. closed·open-failed는 루프가 닫혔을 뿐이라 표시만 내리고 열쇠는 둔다 —
 //     다시 연 같은 멈춤은 새 사건이 아니다.
-//   - M11 G4 — 앱 안 표시도 alerts.json에 남겨 재기동 직후(그 폴더를 다시 보기 전) 되살린다. 앱 종료는 상태를 내지 않아 표시가 남고,
+//   - 앱 안 표시도 alerts.json에 남겨 재기동 직후(그 폴더를 다시 보기 전) 되살린다. 앱 종료는 상태를 내지 않아 표시가 남고,
 //     사람이 루프를 닫아 내린 표시는 저장본에서도 빠진다. 그 폴더의 첫 상태가 오면 지금 판정으로 바꾼다.
 //   - 판정은 한 줄로 세운다. 저장본 읽기가 끝난 뒤에 첫 상태를 보고, 앞 판정의 열쇠를 본 뒤에 다음 판정을 한다.
 import { promises as fsp } from 'node:fs'
@@ -58,7 +58,7 @@ function validAlert(v: unknown): v is LoopAlert {
     && (a['node'] === null || isStr(a['node'])) && (a['level'] === 'now' || a['level'] === 'later')
 }
 
-// 저장본은 {keys, alerts}다. 열쇠만 있는 옛 꼴(M10 G5)도 읽는다 — 그때는 되살릴 표시가 없다
+// 저장본은 {keys, alerts}다. 열쇠만 있는 옛 꼴도 읽는다 — 그때는 되살릴 표시가 없다
 async function readStore(file: string): Promise<{ keys: Set<string>; alerts: LoopAlert[] }> {
   try {
     const raw = JSON.parse(await fsp.readFile(file, 'utf8')) as { keys?: unknown; alerts?: unknown } | null
@@ -79,7 +79,7 @@ export function createLoopNotifier(o: LoopNotifierOptions): LoopNotifier {
     try { o.onChange?.({ alerts: list() }) } catch { /* 화면 쪽 오류는 판정을 막지 않는다 */ }
   }
 
-  // 재기동 직후 그 폴더를 관찰하기 전에도 풀리지 않은 알림을 보인다(M11 G4). 앱을 끌 때는 상태를 내지 않으므로 표시가 남는다
+  // 재기동 직후 그 폴더를 관찰하기 전에도 풀리지 않은 알림을 보인다. 앱을 끌 때는 상태를 내지 않으므로 표시가 남는다
   let chain: Promise<void> = readStore(file).then(({ keys, alerts }) => {
     sent = keys
     for (const a of alerts) current.set(repoKeyOf(a.cwd), a)

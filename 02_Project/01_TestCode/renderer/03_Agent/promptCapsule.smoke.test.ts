@@ -1,7 +1,4 @@
 // @vitest-environment node
-// 캡슐 경계 스모크 테스트 — prompt 기능 캡슐(02_Project/00_Source/renderer/src/03_Agent/prompt)의
-// 공개 표면이 새 경로에서 정상 import되는지만 얕게 확인한다.
-// 재편(Step 3) 전에는 이 경로가 존재하지 않으므로 import 자체가 실패해 Red여야 한다.
 import { describe, it, expect } from 'vitest'
 import {
   AskModal,
@@ -22,11 +19,9 @@ describe('prompt 캡슐 — 공개 표면 스모크', () => {
     expect(typeof QuestionModal).toBe('function')
   })
 
-  // G4 확인 검수 — 질문 창의 화면 층 값도 캡슐 경로로 낸다(루프 화면이 자기 층을 넘긴다)
   it('DIALOG_LAYER가 캡슐 경로에서 export된다', async () => {
     const { DIALOG_LAYER } = await import('@renderer/03_Agent/prompt')
-    // M10 G1: 루프 화면이 모달을 벗어나 겹침 맥락이 없어져 loop 층(60)을 뺐다.
-    // M11 G2: 질문 창을 다른 모달(최고 300)보다 위로 올렸다(M05 Backlog 49).
+    // 질문 창은 숫자 키를 가져가므로 다른 모달(최고 300)보다 위다.
     expect(DIALOG_LAYER).toEqual({ app: 320 })
   })
 })

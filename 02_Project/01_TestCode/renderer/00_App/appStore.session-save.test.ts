@@ -1,4 +1,3 @@
-// 작업 ID: lr1-phase03 · 옛 이름 lr1-phase03-session-save.test.ts
 // @vitest-environment node
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import type { AgentEventPayload } from '@shared/ipcContract'

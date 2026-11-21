@@ -359,7 +359,7 @@ describe('session-crud — selectConversations 셀렉터', () => {
   })
 })
 
-// M11 G2 — M06 Backlog 1. 권한 모드 선택은 대화마다다 — 새 대화에서 Bypass를 골라도 옛 대화는 자기 모드로 열린다.
+// 권한 모드 선택은 대화마다다 — 새 대화에서 Bypass를 골라도 옛 대화는 자기 모드로 열린다.
 describe('session-crud — 대화마다 권한 모드 (M06-1)', () => {
   const saved: Array<{ id?: string; mode?: string; model?: string }> = []
   const originalLoad = mockApi.conversationLoad
@@ -414,7 +414,7 @@ describe('session-crud — 대화마다 권한 모드 (M06-1)', () => {
     expect(saved).toEqual([])
   })
 
-  // M06 Backlog 18 — 모델을 바꾼 표시(contextWindowStale)는 그 대화의 것이다. 저장된 대화를 열면 내린다.
+  // 모델을 바꾼 표시(contextWindowStale)는 그 대화의 것이다. 저장된 대화를 열면 내린다.
   it('저장된 대화를 열면 contextWindowStale을 내리고 앞 대화의 자동 압축 표시를 지운다', async () => {
     useAppStore.setState({ contextWindowStale: true, autoCompact: { enabled: true, thresholdTokens: 967_000 } } as Parameters<typeof useAppStore.setState>[0])
     await useAppStore.getState().selectConversation('m-plan')
@@ -455,7 +455,7 @@ describe('session-crud — 대화마다 권한 모드 (M06-1)', () => {
   })
 })
 
-// M11 G2 — M05 Backlog 51·52. 대화를 바꾸거나 지우거나 /clear로 비울 때 남는 것이 없어야 한다.
+// 대화를 바꾸거나 지우거나 /clear로 비울 때 남는 것이 없어야 한다.
 describe('session-crud — 전환·삭제·/clear 정리 (M05-51·52)', () => {
   const aborts: string[] = []
   const originalAbort = mockApi.agentAbort

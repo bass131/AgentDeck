@@ -1,4 +1,3 @@
-// 작업 ID: cp1-p05 · 옛 이름 cp1-p05-subagent-persist-store.test.ts
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { useAppStore } from '@renderer/00_App/appStore'
 import { __resetBackgroundRunsForTests } from '@renderer/03_Agent/state/backgroundRuns'

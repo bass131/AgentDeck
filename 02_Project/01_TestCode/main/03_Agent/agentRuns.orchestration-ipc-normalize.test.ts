@@ -5,8 +5,7 @@ import type { AgentBackend, AgentRun, AgentRunInput } from '@main/03_Agent/Agent
 import type { AgentEvent } from '@shared/agentEvents'
 import type { BackendId } from '@shared/ipcContract'
 
-// Layer A 실물 검사 — ipcMain.handle을 가로채 registerAgentHandlers가 등록한 AGENT_RUN 핸들러에
-// 신뢰할 수 없는 orchestration 값을 넣고, runManager.start가 받은 정규화 결과를 읽는다
+// 실물 AGENT_RUN 핸들러에 신뢰할 수 없는 값을 넣고 runManager.start가 받은 정규화 결과를 읽는다
 const h = vi.hoisted(() => ({ handlers: new Map<string, (...args: unknown[]) => unknown>() }))
 
 vi.mock('electron', () => ({
@@ -58,8 +57,7 @@ async function captureRunInput(extra: Record<string, unknown>): Promise<AgentRun
   return captured
 }
 
-// M09 G2: 루프 작업 노드 세션 전용 칸(env·loopLock)은 화면 요청에서 main 실행 입력으로 넘어가지 않는다.
-// 화면이 잠금을 붙이거나 환경을 바꿀 수 없다 — 루프 잠금 노드는 실행기가 연 세션에만 붙는다.
+// 루프 잠금 노드는 실행기가 연 세션에만 붙는다 — 화면이 잠금을 붙이거나 환경을 바꿀 수 없다
 describe('루프 세션 전용 칸은 IPC로 넘어가지 않는다 (M09 G2)', () => {
   it('요청에 env·loopLock이 있어도 실행 입력에는 없다', async () => {
     const input = await captureRunInput({
@@ -71,7 +69,6 @@ describe('루프 세션 전용 칸은 IPC로 넘어가지 않는다 (M09 G2)', (
   })
 })
 
-// M06 G4: 마지막으로 잰 컨텍스트 창은 양의 유한수만 main 실행 입력으로 넘어간다.
 describe('contextWindow 정규화 (M06 G4)', () => {
   it('양의 정수는 그대로 넘긴다', async () => {
     expect((await captureRunInput({ contextWindow: 200_000 })).contextWindow).toBe(200_000)
@@ -234,6 +231,4 @@ describe('B1 — backend.start에 orchestration 전달 보장 (Layer B spy 패�
     const req: AgentRunInput = startSpy.mock.calls[0][0]
     expect(req.orchestration).toBeFalsy()
   })
-  // 「IPC 핸들러 정규화 시뮬레이션」 it 3개(number 1·"true"·{})는 지웠다 — 정규화 식을 테스트 안에서 다시 계산하는
-  // 복제 검사였고, 같은 입력은 위 Layer A가 실제 AGENT_RUN 핸들러로 검사한다 (M05 G3 검수 경미 1).
 })

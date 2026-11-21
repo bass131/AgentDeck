@@ -1,4 +1,3 @@
-// 작업 ID: bf1 · 옛 이름 bf1-interrupt-error-mislabel.test.ts
 import { describe, it, expect, vi } from 'vitest'
 import { ClaudeCodeBackend } from '@main/04_Claude/ClaudeCodeBackend'
 import type { QueryFn } from '@main/04_Claude/ClaudeCodeBackend'

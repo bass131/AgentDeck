@@ -73,7 +73,6 @@ export function createRunManager(): RunManager {
         if (existing && !existing.done) {
           existing.setOrchestrationFn?.(req.orchestration === true)
           if (typeof req.model === 'string') existing.setModelFn?.(req.model)
-          // 턴 사이에 바꾼 effort도 같은 세션에 싣는다(M06 Backlog 24)
           if (typeof req.effort === 'string') existing.setEffortFn?.(req.effort)
           const content = lastUserContent(req)
           if (content !== null) existing.pushFn?.(content)

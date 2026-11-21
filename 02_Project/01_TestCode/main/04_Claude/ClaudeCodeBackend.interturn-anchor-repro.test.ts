@@ -1,4 +1,3 @@
-// 작업 ID: gap1-dogfood · 옛 이름 gap1-dogfood-interturn-anchor.repro.test.ts
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { ClaudeCodeBackend } from '@main/04_Claude/ClaudeCodeBackend'
 import type { QueryFn } from '@main/04_Claude/ClaudeCodeBackend'

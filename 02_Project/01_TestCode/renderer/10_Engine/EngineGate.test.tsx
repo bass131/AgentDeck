@@ -1,4 +1,3 @@
-// 작업 ID: p3 · 옛 이름 engine-gate-p3.test.tsx
 // @vitest-environment jsdom
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'

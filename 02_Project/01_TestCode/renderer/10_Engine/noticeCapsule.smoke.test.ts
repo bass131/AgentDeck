@@ -53,7 +53,7 @@ function domainEdges(): Map<string, string[]> {
   return edges
 }
 
-// M11 G6(M05 Backlog 42) — 2026-11-21에 잰 도메인 사이 양방향 쌍. 새 쌍이 생기면 실패하고, 쌍을 풀면 이 목록에서 뺀다.
+// 2026-11-21에 잰 도메인 사이 양방향 쌍. 새 쌍이 생기면 실패하고, 쌍을 풀면 이 목록에서 뺀다.
 const KNOWN_MUTUAL = [
   '00_App<->03_Agent', '00_App<->05_Conversation', '00_App<->06_Sessions', '00_App<->07_Workspace', '00_App<->12_Window',
   '03_Agent<->05_Conversation', '03_Agent<->06_Sessions', '03_Agent<->12_Window',

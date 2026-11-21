@@ -1,4 +1,3 @@
-// 작업 ID: fb2-p07 · 옛 이름 fb2-p07-subagent-live-probe.test.ts
 import { describe, it, expect } from 'vitest'
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'

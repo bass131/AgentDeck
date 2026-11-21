@@ -1,5 +1,3 @@
-// M06 G4 7단계 실앱에서 드러난 결함 — conversation.save 핸들러가 model을 store에 넘기지 않아
-// 선택한 모델(정식 ID)이 저장되지 않고, 옛 ID로 저장된 대화를 이어 쓰면 그 값이 지워졌다.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import fs from 'node:fs'
 import os from 'node:os'
@@ -63,7 +61,6 @@ describe('conversation.save — 모델 값 저장 (M06 G4)', () => {
     expect(store.load('c-bad')?.model).toBeUndefined()
   })
 
-  // M11 G2 — M06 Backlog 1. 대화마다 고른 권한 모드도 핸들러를 지나 저장된다.
   it('넘긴 권한 모드가 저장되고 다시 읽힌다', () => {
     const { id } = save({ ...base, id: 'c-mode', mode: 'plan' })
     expect(store.load(id)?.mode).toBe('plan')

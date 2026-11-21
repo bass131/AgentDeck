@@ -1,4 +1,3 @@
-// 작업 ID: f12 · 옛 이름 onboarding-f12.test.tsx
 // @vitest-environment jsdom
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, screen, fireEvent, cleanup } from '@testing-library/react'
@@ -205,7 +204,7 @@ describe('UpdateNotes — open=true', () => {
   })
 })
 
-// M11 G6(M05 Backlog 43) — 실제 콘텐츠의 거처는 견본(SampleData) 이름을 쓰지 않는다.
+// 실제 콘텐츠의 거처는 견본(SampleData) 이름을 쓰지 않는다.
 // sidebarSampleData.ts는 시험 전용 견본 SAMPLE_SESSIONS가 섞여 있어 이 항목 밖이다.
 describe('콘텐츠 파일 이름 — *SampleData가 남지 않는다', () => {
   it('renderer 소스에 *SampleData 파일은 sidebarSampleData.ts 하나뿐이다', async () => {

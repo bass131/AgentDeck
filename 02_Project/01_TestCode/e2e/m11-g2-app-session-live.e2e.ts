@@ -1,7 +1,7 @@
-// M11 G2 실앱 확인 (opt-in: M11G2LIVE=1, 출력 폴더 M11G2_OUT). 실제 엔진을 짧게 쓴다(Haiku 5.5, 한 단어 답).
-//   A) 상태 줄 가지 칸이 작업 폴더의 실제 가지를 보인다 — 폴더는 main이 아닌 가지의 임시 git 저장소다(M06 Backlog 3).
-//   B) 도구를 여러 번 부르는 턴 뒤에도 컨텍스트 계기가 창을 넘지 않는다(M06 Backlog 2·26). 자동 압축 상태를 보인다(27).
-//   C) 두 대화가 권한 모드를 따로 기억한다 — 오가도 각자의 모드로 돌아온다(M06 Backlog 1).
+// 실앱 확인 (opt-in: M11G2LIVE=1, 출력 폴더 M11G2_OUT). 실제 엔진을 짧게 쓴다(Haiku 5.5, 한 단어 답).
+//   A) 상태 줄 가지 칸이 작업 폴더의 실제 가지를 보인다 — 폴더는 main이 아닌 가지의 임시 git 저장소다.
+//   B) 도구를 여러 번 부르는 턴 뒤에도 컨텍스트 계기가 창을 넘지 않는다. 자동 압축 상태를 보인다.
+//   C) 두 대화가 권한 모드를 따로 기억한다 — 오가도 각자의 모드로 돌아온다.
 import { test, expect, _electron as electron } from '@playwright/test'
 import type { ElectronApplication, Page } from '@playwright/test'
 import { mkdtempSync, writeFileSync, rmSync, mkdirSync } from 'node:fs'

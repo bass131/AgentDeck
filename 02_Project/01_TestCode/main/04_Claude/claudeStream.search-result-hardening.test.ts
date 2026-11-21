@@ -1,4 +1,3 @@
-// 작업 ID: gap1-p15-r1-s6 · 옛 이름 gap1-p15-r1-s6-search-result-hardening.test.ts
 import { describe, it, expect } from 'vitest'
 import { mapClaudeStreamLine } from '@main/04_Claude/stream/claudeStream'
 import type { AgentEvent } from '@shared/agentEvents'

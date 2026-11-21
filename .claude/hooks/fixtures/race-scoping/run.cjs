@@ -1,22 +1,8 @@
 #!/usr/bin/env node
-// 동시 세션 레이스 재현 픽스처 러너 (M04 Phase 1 · AgentDeck M01 Phase 4 이식) — 세션 2개(A·B)를
-// 합성 stdin으로 모의해 게이트 상태 파일의 세션 무구분 전역성이 만드는 레이스를 재현(red)/부재(green)
-// 판정한다. 판정 근거는 hook-log.jsonl의 추가 줄과 상태 파일 실측뿐이다. 훅 본체는 손대지 않는다.
-//
-// 사용: CLAUDE_PROJECT_DIR=<미러 뿌리> node run.cjs red|green|solo
-//   red   — 스코핑 적용 전 훅에서 레이스 3종이 재현되면(3/3) exit 0
-//   green — 스코핑 적용 후 같은 대본에서 레이스가 부재하면(0/3) exit 0
-//   solo  — 단독 세션 회귀 대본 (스코핑 적용 후 기대 기준)
-//
-// AgentDeck 이식 수정 세 가지:
-//   ① 뿌리는 CLAUDE_PROJECT_DIR로만 받는다 — 환경변수가 없으면 실행을 거부한다. 실저장소의
-//      98_Management/01_GateState/를 픽스처 실행이 오염시키지 않게 하는 안전장치다.
-//   ② 리셋 게이트(31_reset-gate) 시나리오를 통째로 제거했다 — 코어 일곱 종에 없는 훅이다.
-//      33·40·50의 세션 격리 회귀는 그대로 유지한다.
-//   ③ 박힌 절대 경로(소스 프로브 파일·Bash cwd)를 ROOT 기준 경로로 바꿨다.
-//
-// 보호 규율: 시작 시 gate-config.json + 상태 파일 3종을 스냅샷하고 finally에서 원복한다.
-// hook-log.jsonl은 append-only 증거 표면 — 절대 원복·삭제하지 않는다.
+// 세션 2개(A·B)를 합성 stdin으로 모의해, 세션을 가리지 않는 게이트 상태가 만드는 레이스를 재현(red)·부재(green) 판정한다.
+// 사용: CLAUDE_PROJECT_DIR=<미러 뿌리> node run.cjs red|green|solo — red는 레이스 3/3 재현, green은 0/3, solo는 단독 세션 회귀다.
+// CLAUDE_PROJECT_DIR가 없으면 실저장소 01_GateState를 지키려고 실행을 거부한다. 설정·상태 파일은 스냅샷했다가 finally에서 원복하되,
+// hook-log.jsonl은 append-only 증거라 원복·삭제하지 않는다.
 'use strict';
 const fs = require('fs');
 const path = require('path');
@@ -60,7 +46,7 @@ const FIXTURE_CONFIG = {
   workPinPath: '.claude/hooks/fixtures/race-scoping/work-pin.md',
 };
 
-// ---- 내장 템플릿 — 픽스처 md 원복은 runner가 fs로 직접 쓴다 (훅 안 걸림) ----
+// 픽스처 md 원복은 runner가 fs로 직접 쓴다 — 편집 훅을 거치지 않는다
 const TPL_PREVIEW = `# _MilestonePreview — race-scoping 픽스처
 
 이 파일은 동시 세션 레이스 재현 픽스처의 pass-watcher 멤버십용 최소 Preview다.
@@ -98,7 +84,6 @@ function ts() { // 훅과 동일 형식 — 로컬 오프셋 ISO (초 단위)
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}${s}${p(Math.floor(a / 60))}:${p(a % 60)}`;
 }
 
-// ---- 보호 규율: 스냅샷 / 원복 ----
 const PROTECTED = [CONFIG_FILE, STOP_STATE, TDD_STATE, PW_STATE];
 function snapshot() {
   return PROTECTED.map(p => {
@@ -135,7 +120,6 @@ function setStamp(stamp) {
 function readJson(p) { return JSON.parse(fs.readFileSync(p, 'utf8')); }
 function writeJson(p, obj) { fs.writeFileSync(p, JSON.stringify(obj, null, 2) + '\n'); }
 
-// ---- 훅 호출 ----
 function runHook(script, payload, cliArgs) {
   const env = { ...process.env, CLAUDE_PROJECT_DIR: ROOT };
   return spawnSync(process.execPath, [script, ...(cliArgs || [])], {
@@ -144,14 +128,12 @@ function runHook(script, payload, cliArgs) {
   });
 }
 
-// ---- hook-log 단정 — 스텝 전 줄 수를 기록하고 추가된 줄만 파싱 ----
 function logLines() {
   try { return fs.readFileSync(LOG_FILE, 'utf8').split('\n').filter(l => l.trim() !== ''); }
   catch (e) { return []; }
 }
 function parseLine(l) { try { return JSON.parse(l); } catch (e) { return null; } }
 
-// ---- 합성 입력 빌더 ----
 function bashGreen(session) {
   return {
     session_id: session, hook_event_name: 'PostToolUse', tool_name: 'Bash', cwd: ROOT,
@@ -177,7 +159,6 @@ function stopInput(session) {
   return p;
 }
 
-// ---- 스텝 엔진 ----
 const results = [];
 const repro = {}; // 재현 계수 표적 3종 — 기대와 무관하게 실측으로 채운다
 
@@ -288,7 +269,7 @@ function scenarioS1(mode) {
     return { ok, detail: `기대 sessions[${A}] 장전 vs 실측 stop=${JSON.stringify(se || null).slice(0, 80)}` };
   });
   assertState('s1-no-reset-state', () => {
-    // 이식 회귀 — 리셋 장전 경로를 소거했으므로 reset-gate.state.json은 생기지 않아야 한다
+    // 리셋 장전 경로가 없으므로 reset-gate.state.json은 생기지 않아야 한다
     const p = path.join(GATE_DIR, 'reset-gate.state.json');
     const exists = fs.existsSync(p);
     return { ok: !exists, detail: `기대 reset-gate.state.json 부재 vs 실측 ${exists ? '생성됨' : '부재'}` };
@@ -372,7 +353,6 @@ function scenarioSolo() {
     { verdict: 'deny', rule: 'green-증거-부재', session: S });        // 새 세션은 자기 Green 필요 — 의도된 결과
 }
 
-// ==== 메인 ====
 const mode = process.argv[2];
 if (!['red', 'green', 'solo'].includes(mode)) {
   console.error('사용: CLAUDE_PROJECT_DIR=<미러 뿌리> node run.cjs red|green|solo');

@@ -257,7 +257,6 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
     userScrolledUp.current = false
     const imagePaths = images.map((i) => i.path)
     const displayImages = images.map((i) => i.dataUrl)
-    // 엔진 프롬프트 계산은 G9a 코어 하나(E4) — 패널과 같은 규칙이다.
     const promptForEngine = enginePromptFor(text, imagePaths)
     void sendMessage(
       text,
@@ -268,7 +267,7 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
     )
   }, [clearConversationSession, onSlashAsk, setSelectedModel, sendMessage])
 
-  // 실행 중 Enter는 예약, 실행이 끝나면 맨 앞부터 보낸다(C1) — 패널과 같은 공용 훅.
+  // 실행 중 Enter는 예약, 실행이 끝나면 맨 앞부터 보낸다.
   const submit = useQueuedSend({
     isRunning,
     queueLength: queue.length,

@@ -1,4 +1,3 @@
-// 작업 ID: m4-4 · 옛 이름 m4-4-question-store.test.ts
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import {
   applyAgentEvent,

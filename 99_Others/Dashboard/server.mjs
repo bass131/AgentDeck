@@ -16,7 +16,7 @@ export const HEADER = 'X-AgentDeck-Dashboard';
 export const TOKEN_HEADER = 'x-dashboard-token';
 export const BODY_MAX = 64 * 1024;
 export const ANSWER_PATHS = Object.freeze({ '/api/answer/preview': false, '/api/answer/send': true });
-// 병합 세 경로(docs/병합.md): 열린 PR 목록(M07 G11, 읽기 전용), PR 읽기와 확인 창 → 병합(M07 G9). 토큰·출처 검사는 결정 응답과 같고, 사람 증명은 확인 창이다.
+// 병합 세 경로(docs/병합.md): 열린 PR 목록(읽기 전용), PR 읽기와 확인 창 → 병합. 토큰·출처 검사는 결정 응답과 같고, 사람 증명은 확인 창이다.
 export const MERGE_PATHS = Object.freeze({ '/api/merge/list': 'list', '/api/merge/read': 'read', '/api/merge/run': 'run' });
 const isPr = n => Number.isSafeInteger(n) && n > 0 && n <= 1e9;
 // 이 서버가 앞에 문장을 넣은 뒤 다른 문장을 넣을 때 앞에 붙이는 고정 글. 입력창에 앞 문장이 남아 있어도 두 문장이 붙지 않고,
@@ -30,9 +30,9 @@ const types = { '/app.js': 'text/javascript; charset=utf-8', '/chime.js': 'text/
   '/fonts/PretendardVariable.woff2': 'font/woff2' };
 
 // 현황판 서버. 저장소에 쓰는 API와 임의 파일 열기 API는 없다.
-// POST를 받는 곳은 다섯뿐이다. 결정 응답 두 경로(POST /api/answer/preview·send)는 메인 입력창에 문장을 넣기만 하고(M05 H7, docs/결정-응답.md),
+// POST를 받는 곳은 다섯뿐이다. 결정 응답 두 경로(POST /api/answer/preview·send)는 메인 입력창에 문장을 넣기만 하고(docs/결정-응답.md),
 // 병합 세 경로(POST /api/merge/list·read·run)는 열린 PR 목록과 PR을 읽고, 사람 확인 창에서 「병합」을 받은 뒤에만 GitHub 병합 API를 부른다
-// (M07 G9·G11, docs/병합.md). 목록 경로는 읽기만 하고 병합 길(보인 SHA 기억)을 건드리지 않는다.
+// (docs/병합.md). 목록 경로는 읽기만 하고 병합 길(보인 SHA 기억)을 건드리지 않는다.
 // 주입 지점은 함수 인자뿐이다(환경변수·설정 스위치 없음). `type`은 넣는 함수, `prService`는 병합 모듈, `confirm`은 확인 창,
 // `confirmTimeoutMs`는 확인 창 시간 초과, `mergeFn`은 확인 뒤 보내는 함수(없으면 prService.sendMerge)다. 시험과 실측 서버는 가짜를 넘긴다.
 export async function createDashboard(config, { collectFn = collect, watchFn, debounceMs, maxWaitMs, pollMs, pingMs = 15000, now = () => new Date(), type = typeIntoTerminal, findMain = findMainTerminal,
@@ -88,7 +88,7 @@ export async function createDashboard(config, { collectFn = collect, watchFn, de
     try { await collecting; } finally { collecting = null; }
   }
   await refresh();
-  // Orca 워커 보고 소식(M05 Backlog 63, lib/inbox.mjs). 수집과 따로 inboxMs마다 읽고, 바뀌었을 때만 새 판을 민다. handle은 페이지에 싣지 않는다.
+  // Orca 워커 보고 소식(lib/inbox.mjs). 수집과 따로 inboxMs마다 읽고, 바뀌었을 때만 새 판을 민다. handle은 페이지에 싣지 않는다.
   async function pollInbox() {
     let r;
     try { r = await inboxFn(inboxHandle); } catch { r = { status: 'failed' }; }
@@ -149,7 +149,7 @@ export async function createDashboard(config, { collectFn = collect, watchFn, de
     if (!handle && !findMain) return json(response, 200, { ok: false, copy: true, line, reason: '설정에 메인 handle이 없거나 형식이 맞지 않아 넣지 않았어요. 문장을 복사해 메인 입력창에 붙여 넣어 주세요.' });
     // 겹침 막기는 찾기 전에 건다 — 찾는 동안 들어온 두 번째 요청이 함께 넣어 줄이 쌓이지 않게.
     sending = true;
-    // 넣기 직전에 메인 Claude 터미널을 찾는다(M07 G13, lib/deliver.mjs findMainTerminal). 못 찾으면 넣지 않고 복사를 안내한다 —
+    // 넣기 직전에 메인 Claude 터미널을 찾는다(lib/deliver.mjs findMainTerminal). 못 찾으면 넣지 않고 복사를 안내한다 —
     // 아무것도 넣지 않았으니 같은 문장 표시는 건드리지 않는다. Orca에 닿지 못할 때만 설정 handle을 그대로 쓴다.
     let target = handle, terminal;
     if (findMain) {
@@ -158,7 +158,7 @@ export async function createDashboard(config, { collectFn = collect, watchFn, de
       target = found?.handle ? validHandle(found.handle) : found?.unreachable ? handle : null;
       if (!target) { sending = false; return json(response, 200, { ok: false, copy: true, line, reason: `${found?.reason || '메인 터미널을 찾지 못했어요.'} 문장을 복사해 메인 입력창에 붙여 넣어 주세요.` }); }
       if (found?.handle && typeof found.title === 'string' && found.title) terminal = found.title;
-      // 찾는 동안 결정 목록이 바뀌었으면 넣지 않는다 — 화면에서 확인한 문장이 지금 목록의 문장과 같을 때만 넣는다(PR 83 검수 중요 1)
+      // 찾는 동안 결정 목록이 바뀌었으면 넣지 않는다 — 화면에서 확인한 문장이 지금 목록의 문장과 같을 때만 넣는다
       let now;
       try { now = lineFor(currentList(), body); } catch { now = null; }
       if (!now || now.refusal || now.text !== line) { sending = false; return json(response, 409, { ok: false, stale: true, reason: '넣기 직전에 결정 목록이 바뀌어 넣지 않았어요. 「보낼 문장」을 다시 확인하고 눌러 주세요.' }); }

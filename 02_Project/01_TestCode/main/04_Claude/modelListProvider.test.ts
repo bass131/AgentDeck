@@ -1,4 +1,4 @@
-// M06 G4 — main의 모델 목록 공급자. SDK 목록 → 캐시 → 최소 목록 순으로 물러난다.
+// SDK 목록 → 캐시 → 최소 목록 순으로 물러난다.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { mkdtempSync, rmSync, readFileSync, writeFileSync, existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -120,7 +120,6 @@ describe('ModelListProvider — SDK 호출이 실패하면', () => {
     expect((await provider.load()).source).toBe('builtin')
   })
 
-  // M11 G2 — M06 Backlog 13. 시작 때 실패한 결과를 재시작 전까지 붙들고 있었다.
   it('SDK 목록을 못 받았으면 다음 load()가 다시 묻고, 받은 뒤에는 더 묻지 않는다', async () => {
     const fetchRows = vi.fn()
       .mockRejectedValueOnce(new Error('cold start'))
@@ -188,14 +187,14 @@ describe('fetchModelRowsWithoutTurn — 프롬프트 없이 목록만 묻는다'
     expect(seen.options?.['model']).toBeUndefined()
   })
 
-  // G4 검수: 앱을 켤 때마다 ~/.claude/projects에 목록용 세션 기록을 남기지 않는다(공개 옵션 persistSession).
+  // 앱을 켤 때마다 ~/.claude/projects에 목록용 세션 기록을 남기지 않는다(공개 옵션 persistSession).
   it('세션 기록을 디스크에 남기지 않는다(persistSession: false)', async () => {
     const { queryFn, seen } = fakeQuery(Promise.resolve(SDK_MODEL_ROWS_RAW))
     await fetchModelRowsWithoutTurn(queryFn, { cwd: dir, timeoutMs: 1000 })
     expect(seen.options?.['persistSession']).toBe(false)
   })
 
-  // G4 검수: 공개 타입의 Query.close()는 CLI 자식 프로세스까지 끝낸다 — 성공·시간 초과 모두 부른다.
+  // 공개 타입의 Query.close()는 CLI 자식 프로세스까지 끝낸다 — 성공·시간 초과 모두 부른다.
   it('끝나면 close()로 자식 프로세스를 정리한다(성공·시간 초과)', async () => {
     for (const rows of [Promise.resolve(SDK_MODEL_ROWS_RAW), new Promise(() => {})]) {
       let closed = 0

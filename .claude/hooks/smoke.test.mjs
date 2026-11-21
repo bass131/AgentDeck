@@ -1,13 +1,6 @@
 #!/usr/bin/env node
-// 코어 훅 일곱 종 스모크 러너 (M01 Phase 4) — npm run test:hooks에 편입된다.
-//
-// 규율 하나: 이 러너는 실저장소의 98_Management/01_GateState/를 절대 건드리지 않는다.
-// 시작할 때 OS 임시 폴더에 미러(훅 + fixtures + 계획 문서 + gate-config)를 만들고, 모든 훅을
-// CLAUDE_PROJECT_DIR=<미러>로 구동한 뒤, 끝나면 미러를 통째로 지운다. 훅이 만드는 상태 파일과
-// hook-log.jsonl은 전부 미러 안에서 나고 죽는다.
-//
-// 판정 근거는 두 가지뿐이다 — 훅의 stdout(차단 JSON)과 미러 hook-log.jsonl에 추가된 줄.
-// 각 케이스는 「어떤 합성 입력에 어떤 판정 줄이 나와야 하는가」를 이름으로 말한다.
+// 실저장소의 98_Management/01_GateState/는 건드리지 않는다 — OS 임시 폴더의 미러에서 모든 훅을
+// CLAUDE_PROJECT_DIR=<미러>로 구동하고 끝나면 미러를 지운다. 판정 근거는 훅의 stdout과 미러 hook-log.jsonl에 추가된 줄뿐이다.
 import { spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import { dirname, join, resolve } from 'node:path'
@@ -25,7 +18,6 @@ const hook = (n) => join(MIRROR, '.claude', 'hooks', n)
 const REAL_PLAN = '01_Milestones/M01_Bootstrap/_MilestonePreview.md'
 const REAL_PIN = '01_Milestones/M01_Bootstrap/01_Work_Pin.md'
 
-// ---- 미러 구축 -------------------------------------------------------------
 function buildMirror() {
   cpSync(join(REPO, '.claude', 'hooks'), join(MIRROR, '.claude', 'hooks'), { recursive: true })
   cpSync(join(REPO, '01_Milestones', 'M01_Bootstrap'), join(MIRROR, '01_Milestones', 'M01_Bootstrap'), { recursive: true })
@@ -34,7 +26,6 @@ function buildMirror() {
 }
 function setConfig(obj) { writeFileSync(CONFIG_FILE, JSON.stringify(obj, null, 2) + '\n') }
 
-// ---- 판정 보조 -------------------------------------------------------------
 let failed = 0
 function check(label, ok, detail) {
   if (ok) console.log(`  ok   ${label}`)
@@ -73,7 +64,6 @@ function blockReason(res) {
   try { const o = JSON.parse(res.stdout); return o.decision === 'block' ? o.reason : null } catch { return null }
 }
 
-// ---- 합성 입력 -------------------------------------------------------------
 const edit = (session, event, file, oldS, newS, extra) => ({
   session_id: session, hook_event_name: event, tool_name: 'Edit',
   tool_input: { file_path: file, old_string: oldS, new_string: newS }, ...extra,
@@ -87,12 +77,10 @@ const RED_OUT = ' RUN  vitest\n\n Test Files  2 failed | 403 passed (405)\n     
 const PASS_OLD = '- (기록 없음)'
 const PASS_NEW = '- (기록 없음)\n- PASS 2026-08-10T00:00 — 스모크 모의 통과 (픽스처)'
 
-// ============================================================================
 try {
   buildMirror()
   console.log(`미러: ${MIRROR}`)
 
-  // ---- 10_start-brief (SessionStart) --------------------------------------
   console.log('\n10_start-brief — 재개 프로토콜')
   {
     const H = hook('10_start-brief.cjs')
@@ -101,7 +89,7 @@ try {
     expectLine('생존 문서 4종 실존 → allow', r, 'start-brief', 'allow', null)
     check('브리프에 결손 경고가 없다', !ctx.includes('⚠️ 결손'), ctx.slice(0, 120))
     check('브리프에 work-pin 전문이 재부착된다', ctx.includes('--- work-pin 전문 ---'))
-    // 헌법 2조 개정 (M03 Phase 4 Step 4) — 머리 줄은 금지가 아니라 「재개의 정본은 문서다」를 말한다
+    // 헌법 2조 — 머리 줄은 금지가 아니라 「재개의 정본은 문서다」를 말한다
     check('머리 줄이 「재개의 정본은 문서다」를 말한다', ctx.includes('재개의 정본은 문서다'), ctx.split('\n')[0])
     check('머리 줄에 「--resume 금지」가 없다', !ctx.includes('--resume 금지'), ctx.split('\n')[0])
 
@@ -115,15 +103,15 @@ try {
     r = run(H, { session_id: 'smoke-10c', source: 'resume' })
     const ctx3 = (() => { try { return JSON.parse(r.stdout).hookSpecificOutput.additionalContext } catch { return '' } })()
     check('--resume 기동에 안내 줄이 주입된다', ctx3.includes('--resume'))
-    // 헌법 2조 개정 — resume은 위반이 아니다. 안내는 통과 여부를 검증 기록 줄에서 다시 읽으라고 말한다
+    // 헌법 2조 — resume은 위반이 아니다. 안내는 통과 여부를 검증 기록 줄에서 다시 읽으라고 말한다
     check('resume 안내가 「검증 기록 줄에서 다시 읽어라」를 말한다', ctx3.includes('검증 기록 줄에서 다시 읽어라'), ctx3.split('\n').find(l => l.includes('--resume')) ?? '')
     check('resume 안내에 「위반」·「세션을 버리고」가 없다', !ctx3.includes('위반') && !ctx3.includes('세션을 버리고'), ctx3.split('\n').find(l => l.includes('--resume')) ?? '')
-    // checks 네 항목의 판정은 resume이어도 그대로다 (Step 4 — 동작 불변)
+    // checks 네 항목의 판정은 resume이어도 그대로다
     const resumeLine = r.added.find(l => l.hook === 'start-brief')
     check('resume 기동의 checks 네 항목이 전부 참이다', !!resumeLine && resumeLine.verdict === 'allow'
       && ['Phase-Steps', '결정-대장', '검증-기록', 'work-pin'].every(k => resumeLine.checks?.[k] === true), JSON.stringify(resumeLine?.checks))
 
-    // M07 G10 — pin의 현재 goal 줄이 「병합 대기」와 PR 번호를 말하면, 세션이 병합 감시를 다시 걸도록 명령 한 줄을 주입한다.
+    // pin의 현재 goal 줄이 「병합 대기」와 PR 번호를 말하면, 세션이 병합 감시를 다시 걸도록 명령 한 줄을 주입한다.
     // 감시는 세션이 닫히면 사라지므로 재개 때마다 다시 건다. 번호가 없거나 병합 대기가 아니면 주입하지 않는다
     const briefWith = (goalLine, sid) => {
       const pinRel = `01_Milestones/M01_Bootstrap/smoke-pin-${sid}.md`
@@ -138,9 +126,9 @@ try {
     check('감시 줄에 그 PR의 감시 명령이 있다', (w1.watch[0] ?? '').includes('node 99_Others/Dashboard/wait-merge.mjs 77'), w1.watch[0] ?? '')
     check('감시 줄이 백그라운드 실행을 말한다', (w1.watch[0] ?? '').includes('백그라운드'), w1.watch[0] ?? '')
     check('감시 줄이 GitHub에서 다시 읽고 종결 기록을 한 뒤 다음 걸음을 말한다', (w1.watch[0] ?? '').includes('다시 읽') && (w1.watch[0] ?? '').includes('다음 goal'), w1.watch[0] ?? '')
-    // M08 G2(헌법 11조 마일스톤 단위): 「다음 goal」만으로는 옛 뜻(goal마다 다음으로)과 새 뜻을 가리지 못한다 — 마일스톤 PR이면 멈추고 다음 마일스톤을 열지 않는다.
+    // 헌법 11조 — 「다음 goal」만으로는 뜻이 갈린다. 마일스톤 PR이면 멈추고 다음 마일스톤을 열지 않는다.
     check('감시 줄이 마일스톤 PR이면 멈추고 다음 마일스톤을 열지 않는다고 말한다', /goal PR이면[^.]*다음 goal로 가/.test(w1.watch[0] ?? '') && /마일스톤 PR이면[^.]*멈춘다/.test(w1.watch[0] ?? '') && (w1.watch[0] ?? '').includes('다음 마일스톤은 열지 않는다'), w1.watch[0] ?? '')
-    // M08 Backlog 4 — SessionStart는 마일스톤 스펙을 읽지 않아 PR 종류를 모른다. 감시 줄이 PR을 goal이라 단정하지 않는다
+    // SessionStart는 마일스톤 스펙을 읽지 않아 PR 종류를 모른다. 감시 줄이 PR을 goal이라 단정하지 않는다
     check('감시 줄이 PR을 「현재 goal」의 것으로 단정하지 않고 goal·마일스톤 PR 둘 다를 말한다', !(w1.watch[0] ?? '').includes('현재 goal이 PR') && (w1.watch[0] ?? '').includes('goal PR이든 마일스톤 PR이든'), w1.watch[0] ?? '')
     check('판정 기록에 감시 PR 번호가 남는다', w1.res.added.some(l => l.hook === 'start-brief' && l.mergeWatchPr === 77), JSON.stringify(w1.res.added.at(-1)))
     const w2 = briefWith('G9 현황판 병합 버튼 · 상태: 병합 대기 (PR 75)', 'w2')
@@ -149,7 +137,7 @@ try {
     check('병합 대기가 아니면 감시 줄이 없다(다른 줄의 「병합 대기 (PR 999)」도 읽지 않는다)', w3.watch.length === 0, w3.watch.join(' | '))
     const w4 = briefWith('**G9 (병합 대기)** — 번호 없음', 'w4')
     check('PR 번호가 없으면 감시 줄이 없다', w4.watch.length === 0, w4.watch.join(' | '))
-    // PR 77 검수: 다른 구분자와 #, 번호가 앞에 오는 꼴도 읽는다
+    // 다른 구분자와 #, 번호가 앞에 오는 꼴도 읽는다
     for (const [goal, n, sid] of [['G10 (병합 대기 — PR #78)', 78, 'w5'], ['G10 (병합 대기 · PR 79)', 79, 'w6'], ['G6 — PR 80 병합 대기', 80, 'w7']]) {
       const w = briefWith(goal, sid)
       check(`「${goal}」에서 PR ${n}을 읽는다`, (w.watch[0] ?? '').includes(`wait-merge.mjs ${n}`), w.watch.join(' | '))
@@ -168,7 +156,6 @@ try {
     setConfig({ planPath: REAL_PLAN, workPinPath: REAL_PIN })
   }
 
-  // ---- 20_plan-gate (PreToolUse: Task|Agent) ------------------------------
   console.log('\n20_plan-gate — 스폰 게이트 판정 4종')
   {
     const H = hook('20_plan-gate.cjs')
@@ -204,10 +191,8 @@ try {
     expectLine('본문 FAIL 서술 3줄은 집계되지 않는다 → allow', r, 'plan-gate', 'allow', '통과')
   }
 
-  // 30_role-gate 케이스 다섯 건은 M03 Phase 4 Step 5에서 내렸다 — 역할 게이트는 폐기 대상이고(헌법 3조 개정),
-  // 파일 삭제 뒤에도 이 러너가 그 파일을 찾지 않게 한다. 편집 경로 판정은 edit-plan-gate.test.mjs가 소유한다.
+  // 30_role-gate는 폐기한 게이트라 이 러너가 찾지 않는다. 편집 경로 판정은 edit-plan-gate.test.mjs가 소유한다.
 
-  // ---- 33_tdd-guard --------------------------------------------------------
   console.log('\n33_tdd-guard — 검증형 · 휴리스틱 · Green 채집')
   {
     const H = hook('33_tdd-guard.cjs')
@@ -243,7 +228,7 @@ try {
     r = run(H, srcEdit('smoke-33b', 'PreToolUse'))
     expectSilent('리셋 뒤 소스 편집은 다시 열린다', r, 'tdd-guard')
 
-    // 현황판 시험 경로 (M05 H4 2a) — 99_Others/Dashboard/test/의 *.test.*는 테스트, 같은 폴더의 다른 .mjs는 소스다
+    // 현황판 시험 경로 — 99_Others/Dashboard/test/의 *.test.*는 테스트, 같은 폴더의 다른 .mjs는 소스다
     const DASH_SRC = join(MIRROR, '99_Others', 'Dashboard', 'lib', 'probe.mjs')
     const DASH_TEST = join(MIRROR, '99_Others', 'Dashboard', 'test', 'probe.test.mjs')
     const dashEdit = (sid, ev) => edit(sid, ev, DASH_SRC, 'const probe = 0;', 'const probe = 1;')
@@ -269,7 +254,6 @@ try {
     expectLine('vitest Red → 무기록 (증거 아님)', r, 'tdd-guard', '무기록', 'vitest-red')
   }
 
-  // ---- 40_pass-watcher -----------------------------------------------------
   console.log('\n40_pass-watcher — 자동 장전 (마감 게이트 단독)')
   {
     const H = hook('40_pass-watcher.cjs')
@@ -308,7 +292,7 @@ try {
     expectLine('단일 파일 계획도 감지한다 (하위 호환)', r, 'pass-watcher', '장전', 'PASS-추기-감지')
     writeFileSync(SINGLE, sOriginal)
 
-    // M03 Backlog 30 · M04 Backlog 1 — 포인터가 없을 때 종결된 M01 계획을 기본값으로 감시하지 않는다
+    // 포인터가 없을 때 종결된 M01 계획을 기본값으로 감시하지 않는다
     const M01_PHASE = join(MIRROR, '01_Milestones', 'M01_Bootstrap', '01_Phase_1.md')
     const m01 = readFileSync(M01_PHASE, 'utf8')
     const RECORD_AT = m01.match(/^검증 기록\s*$/m)
@@ -325,7 +309,6 @@ try {
     }
   }
 
-  // ---- 41_line-limit -------------------------------------------------------
   console.log('\n41_line-limit — 250줄 상한 사후 피드백')
   {
     const H = hook('41_line-limit.cjs')
@@ -341,7 +324,6 @@ try {
     expectSilent('.md가 아니면 판정 대상이 아니다', r, 'line-limit')
   }
 
-  // ---- 50_stop-gate --------------------------------------------------------
   console.log('\n50_stop-gate — 마감 요약 게이트')
   {
     const H = hook('50_stop-gate.cjs')
@@ -356,7 +338,7 @@ try {
     r = run(H, { session_id: 'smoke-50', hook_event_name: 'Stop' })
     expectLine('장전 + 낡은 스탬프 → block', r, 'stop-gate', 'block', '마감-요약-미실측')
     check('block 사유가 3줄 작성을 지시한다', /마감 요약/.test(blockReason(r) || ''), (blockReason(r) || '').slice(0, 100))
-    // M06 Backlog 5 — 세션 시작 시각은 장전보다 이를 수 있다. 스탬프는 장전 시각 이후여야 한다고 말한다
+    // 세션 시작 시각은 장전보다 이를 수 있다. 스탬프는 장전 시각 이후여야 한다고 말한다
     check('block 사유가 스탬프를 장전 시각 이후로 찍으라고 말한다', /장전 시각\([^)]+\) 이후/.test(blockReason(r) || '') && /세션 시작 시각/.test(blockReason(r) || ''), (blockReason(r) || '').slice(0, 300))
 
     setConfig({ planPath: REAL_PLAN, workPinPath: '.claude/hooks/fixtures/work-pin-fresh.md' })
@@ -366,7 +348,6 @@ try {
     expectSilent('자동 해제 후에는 다시 조용하다', r, 'stop-gate')
   }
 
-  // ---- race-scoping 픽스처 러너 (33·40·50 세션 격리 회귀) -------------------
   console.log('\nrace-scoping — 동시 세션 격리 회귀')
   {
     const RUNNER = join(FIX, 'race-scoping', 'run.cjs')

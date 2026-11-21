@@ -1,5 +1,5 @@
-// M07 G9 병합 모듈(lib/merge.mjs) — 주입한 gh 실행기로 PR 읽기, 「꼭 볼 것」 판정, 버튼 활성 판정, 확인 뒤 비동기 병합 API 호출을 고정한다.
-// 사례 표는 앱 쪽 02_Project/01_TestCode/main/08_Git/prMerge.test.ts(G8, 검수 반영)를 옮겼다. 두 구현이 같은 응답 꼴을 지키는지는 이 표로 맞춰 본다.
+// 병합 모듈(lib/merge.mjs) — 주입한 gh 실행기로 PR 읽기, 「꼭 볼 것」 판정, 버튼 활성 판정, 확인 뒤 비동기 병합 API 호출을 고정한다.
+// 사례 표는 앱 쪽 02_Project/01_TestCode/main/08_Git/prMerge.test.ts를 옮겼다. 두 구현이 같은 응답 꼴을 지키는지는 이 표로 맞춰 본다.
 // 실제 병합 API는 부르지 않는다. 응답 꼴은 `gh api` 실측(실패면 exit 1, stdout에 오류 본문 JSON, stderr `gh: <message> (HTTP n)`,
 // `-i`면 첫 줄 `HTTP/2.0 404 Not Found`)과 contents API 실측(type file, encoding base64, 60자마다 줄바꿈)을 따른다.
 import test from 'node:test';
@@ -73,7 +73,7 @@ const read = async (svc, n = 12) => { const r = await svc.readPr(CWD, { number: 
 const yes = async () => ({ answer: 'yes' });
 const joinedCalls = f => f.calls.map(a => a.join(' '));
 
-// ── origin ──
+// origin
 test('origin: https, ssh and credential-bearing GitHub URLs give owner/repo; others are null', () => {
   assert.deepEqual(parseGithubRepo('https://github.com/bass131/AgentDeck.git'), { owner: 'bass131', repo: 'AgentDeck' });
   assert.deepEqual(parseGithubRepo('https://github.com/bass131/AgentDeck'), { owner: 'bass131', repo: 'AgentDeck' });
@@ -84,7 +84,7 @@ test('origin: https, ssh and credential-bearing GitHub URLs give owner/repo; oth
   assert.equal(parseGithubRepo('https://github.com.evil.io/bass131/AgentDeck.git'), null);
 });
 
-// ── PR 읽기 ──
+// PR 읽기
 test('read: the card values come from GitHub; checks are read at the shown head SHA', async () => {
   const { svc, f } = setup();
   const pr = await read(svc);
@@ -173,7 +173,7 @@ test('read: a PR that cannot be read is an error carrying the status number', as
   assert.equal(r.ok, false); assert.match(r.error, /404/);
 });
 
-// ── 버튼 활성 판정 ──
+// 버튼 활성 판정
 const view = (over = {}) => ({ owner: 'o', repo: 'r', number: 1, title: 't', state: 'open', draft: false, merged: false, mergeable: true,
   baseRef: 'master', headRef: 'x', headSha: SHA, protected: true, checks: [{ name: 'hard-gates', result: 'success' }], mustSee: [], ...over });
 
@@ -198,7 +198,7 @@ test('eligibility: an unprotected base is enabled with a note', () => {
   assert.equal(e.canMerge, true); assert.ok(e.notes.length > 0);
 });
 
-// ── 「꼭 볼 것」 ──
+// 「꼭 볼 것」
 test('must-see paths: harness, constitutions, gate state and workflows — case-insensitive, constitutions at any depth', () => {
   for (const p of ['.claude/hooks/x.cjs', '.claude/settings.json', 'CLAUDE.md', 'AGENTS.md', '98_Management/01_GateState/gate-config.json', '.github/workflows/ci.yml',
     '.Claude/settings.json', 'claude.md', '02_Project/CLAUDE.md', '98_management/01_gatestate/x', '.GitHub/Workflows/a.yml']) assert.ok(mustSeeWhy(p), p);
@@ -311,7 +311,7 @@ test('files: hitting the GitHub cap of 3000, a count that differs from changed_f
   assert.match(broken.filesError, /502/); assert.equal(broken.canMerge, false);
 });
 
-// ── 병합: 마지막으로 보인 SHA → 다시 읽기 → 사람 확인 → 다시 읽기 → PUT ──
+// 병합: 마지막으로 보인 SHA → 다시 읽기 → 사람 확인 → 다시 읽기 → PUT
 const MERGE = /pulls\/12\/merge-async(?: |$)/;
 const POLL = /pulls\/12\/merge-async\/uuid-1$/;
 const pending = (sha = SHA) => http(202, { status: 'pending', details: { message: 'queued', uuid: 'uuid-1', merge_method: 'merge', merge_action: 'direct_merge', expected_head_sha: sha } });
@@ -460,7 +460,7 @@ test('merge: a read that started before the merge used the SHA and lands after i
   assert.equal(calls.length, before);
 });
 
-// ── 사람 확인: 정확히 { answer: 'yes' }일 때만 보낸다 ──
+// 사람 확인: 정확히 { answer: 'yes' }일 때만 보낸다
 test('confirm: anything but exactly { answer: "yes" } — no, YES, true, a bare string, nothing, a throw — sends nothing and spends the SHA', async () => {
   for (const [label, confirm] of [['no', async () => ({ answer: 'no' })], ['YES', async () => ({ answer: 'YES' })], ['true', async () => ({ answer: true })],
     ['bare yes', async () => 'yes'], ['undefined', async () => undefined], ['null', async () => null], ['throw', async () => { throw new Error('창 실패'); }],
@@ -514,7 +514,7 @@ test('confirm: a ticket from prepareMerge alone is not armed — only mergePr ar
   assert.equal(r2.status, 'cancelled'); assert.equal(kept, null, '취소면 send를 부르지도 않는다');
 });
 
-// ── 열린 PR 목록 (M07 G11) ── 실측(2026-11-18, 읽기 전용): `gh pr list --repo bass131/AgentDeck --state open --json <LIST_FIELDS> --limit 51`
+// 열린 PR 목록 — 실측(2026-11-18, 읽기 전용): `gh pr list --repo bass131/AgentDeck --state open --json <LIST_FIELDS> --limit 51`
 // 성공은 exit 0과 JSON 배열(열린 PR이 없으면 `[]`), 실패는 exit 1과 stderr 평문(`GraphQL: Could not resolve to a Repository …`). 봇 작성자는 `app/dependabot`.
 const LIST = /^pr list /;
 const listed = (n, over = {}) => ({ author: { id: 'MDQ6VXNlcjMzMDg0NTkw', is_bot: false, login: 'bass131', name: 'Moodie' }, baseRefName: 'master', headRefName: `feat/x-${n}`,

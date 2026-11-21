@@ -1,4 +1,3 @@
-// 작업 ID: cp1-p06 · 옛 이름 cp1-p06-loop-display-registry-detail.test.ts
 import { describe, it, expect } from 'vitest'
 import {
   createLoopDisplayRegistry,

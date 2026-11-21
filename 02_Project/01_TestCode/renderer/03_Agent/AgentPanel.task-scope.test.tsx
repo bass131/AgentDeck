@@ -1,4 +1,3 @@
-// 작업 ID: b2 · 옛 이름 b2-task-scope-panel.test.tsx
 // @vitest-environment jsdom
 import { describe, it, expect, afterEach } from 'vitest'
 import { render, cleanup, act } from '@testing-library/react'
@@ -58,7 +57,7 @@ describe('B2 — AgentPanel 작업 범위 칩', () => {
     expect(scope?.textContent).toContain('도구 0')
   })
 
-  // M11 G2 — M05 Backlog 5. 구독 selector가 호출마다 새 객체를 주면 store가 바뀔 때마다 패널이 다시 그려진다.
+  // 구독 selector가 호출마다 새 객체를 주면 store가 바뀔 때마다 패널이 다시 그려진다.
   it('selectTaskScope는 입력(changedFiles·thread)이 같으면 같은 객체를, 바뀌면 새 값을 준다', async () => {
     const { useAppStore, selectTaskScope } = await import('@renderer/00_App/appStore')
     const changedFiles = new Set(['a.ts'])

@@ -1,4 +1,3 @@
-// 작업 ID: g9c · 옛 이름 g9c-session-keys.test.ts
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest'
 import {
@@ -10,9 +9,7 @@ import {
   panelPrefix,
 } from '@renderer/03_Agent/state/sessionKeys'
 
-// G9c — 세션 레지스트리 키 하나. 대화는 conv:<id|draft>, 패널은 multi:<id>:slot:<n>.
-// M10 G1 — 멀티 에이전트 모드를 지웠지만 패널 키 형식(REPL 세션키 값)은 G3 세션 탭을 위해 그대로 둔다.
-// 멀티 세션 삭제의 범위 정리와 키에서 멀티 세션 id를 꺼내는 함수는 쓰는 곳이 없어져 뺐다.
+// 패널 키 형식(REPL 세션키 값)은 세션 탭을 위해 그대로 둔다.
 
 describe('G9c sessionKeys — 키 형식', () => {
   it('대화 키는 conv:<id>이고 id가 없는 새 대화는 conv:draft 하나다', () => {

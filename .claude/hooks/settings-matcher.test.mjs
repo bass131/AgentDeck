@@ -1,24 +1,9 @@
 #!/usr/bin/env node
-// settings.json 배선 단정 — 훅 matcher 앵커 (M02 Phase 2 Step 11, Backlog 10).
-//
-// 가드의 matcher만 비앵커 `"Bash"`라 다른 훅과 규약이 갈렸다. Claude Code의 matcher는 정규식이므로
-// 비앵커 `"Bash"`는 이름 안에 Bash를 포함하는 다른 도구에도 걸린다 — 발화 표면이 설계보다 넓다.
-// 이 테스트는 가드를 spawn하지 않고 settings.json을 파싱해 문자열만 대조하므로,
-// 배선이 어떤 상태든 판정이 성립한다 (훅이 실제로 붙었는지와 무관한 정적 단정이다).
-//
-// M03 Phase 2가 둘을 더했다 —
-//   ① PowerShell 도구의 deny (Step 6 · 안건 10 채택). 가드의 matcher는 `^Bash$`이고 판정기는 POSIX 셸
-//      문법 전용이라, PowerShell 도구가 켜진 세션에서는 위험 명령 가드가 아예 걸리지 않는다. 그 도구가
-//      이 세션들의 도구 목록에 없어 발화 프로브가 불가능하므로, 검증 표면은 이 정적 단정이다.
-//      규칙 문법의 근거는 공식 문서다 (code.claude.com/docs/en/permissions 「PowerShell」 절):
-//      「PowerShell permission rules use the same shape as Bash rules, and a bare `PowerShell` or
-//      `PowerShell(*)` matches every command.」 — 도구 전체를 닫는 형태가 그 둘이다.
-//   ② 편집 경로 계획 게이트의 배선 (Step 5·8) — 편집 도구 PreToolUse 항목에 붙었는가.
-//
-// M03 Phase 4 Step 6이 하나를 더했다 —
-//   ③ 내림 단정. 역할 게이트(30_role-gate.cjs)와 스폰 자리(`^(Task|Agent)$`)의 계획 게이트(20_plan-gate.cjs)
-//      배선이 없고, 유지하기로 한 훅(편집 경로 게이트·위험 명령 가드·TDD 가드·자동 장전·250줄·기동·Stop 두 종)의
-//      배선은 남아 있는가. 20_plan-gate.cjs 파일은 판정부를 공유하고 테스트가 직접 구동하므로 남는다 — 배선만 없다.
+// settings.json을 파싱해 문자열만 대조하는 정적 단정이다 — 가드를 spawn하지 않아 배선이 어떤 상태든 판정이 성립한다.
+// matcher는 정규식이라 비앵커 `"Bash"`는 이름에 Bash가 든 다른 도구에도 걸린다 — 전부 앵커 꼴이어야 한다.
+// 가드 판정기는 POSIX 셸 문법 전용이라 PowerShell 도구는 deny로 닫는다 — 공식 permissions 문서 「PowerShell」 절:
+// 「a bare `PowerShell` or `PowerShell(*)` matches every command.」 그 도구가 세션에 없어 발화 프로브 대신 이 단정을 쓴다.
+// 20_plan-gate.cjs는 판정부를 공유하고 테스트가 직접 구동해 파일은 남지만 배선은 없어야 한다.
 import { readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { createRunner } from './_lib/runner.mjs'
@@ -54,13 +39,12 @@ if (settings) {
     r.judge(`가드 matcher (${event})`, entry.matcher, '^Bash$', { note: '정확 일치 앵커 — 비앵커는 발화 표면이 설계보다 넓다' })
   }
 
-  // 규약 정합 — matcher를 갖는 항목은 전부 앵커 형태다 (가드만 예외였다)
+  // 규약 정합 — matcher를 갖는 항목은 전부 앵커 형태다
   const unanchored = entries
     .filter(({ entry }) => typeof entry.matcher === 'string' && entry.matcher !== '' && !ANCHORED.test(entry.matcher))
     .map(({ event, i, entry }) => `${event}[${i}] "${entry.matcher}"`)
   r.check('matcher를 가진 훅 항목이 전부 앵커 형태다', unanchored.length === 0, unanchored.join(', ') || '비앵커 0건')
 
-  // ---- ① PowerShell 도구 deny (M03 Phase 2 Step 6 · 안건 10) ----------------
   const deny = settings.permissions?.deny ?? []
   const pwshHits = deny.filter((rule) => PWSH_CLOSED.includes(rule))
   r.check('PowerShell 도구가 permissions.deny로 닫혀 있다', pwshHits.length >= 1,
@@ -70,7 +54,6 @@ if (settings) {
     .filter((rule) => /^PowerShell(\(|$)/.test(String(rule)))
   r.check('PowerShell 규칙이 allow·ask에는 없다', pwshElsewhere.length === 0, pwshElsewhere.join(', ') || '0건')
 
-  // ---- ② 편집 경로 계획 게이트의 배선 (M03 Phase 2 Step 5·8) ----------------
   const gateEntries = entries.filter(({ entry }) => cmdOf(entry).includes(EDIT_PLAN_GATE))
   r.check('편집 경로 계획 게이트가 settings.json에 배선돼 있다', gateEntries.length === 1, `${gateEntries.length}건`)
   for (const { event, entry } of gateEntries) {
@@ -78,7 +61,7 @@ if (settings) {
     r.judge('편집 게이트 matcher', entry.matcher, EDIT_MATCHER, { note: '편집 도구 네 종' })
   }
 
-  // ---- ③ 내림 단정 (M03 Phase 4 Step 6 · 안건 4·5) -------------------------
+  // 내린 게이트는 배선이 없고, 유지하는 훅은 배선이 남아 있다
   const roleGate = entries.filter(({ entry }) => cmdOf(entry).includes('30_role-gate.cjs'))
   r.check('역할 게이트(30_role-gate.cjs) 배선이 없다', roleGate.length === 0, `${roleGate.length}건`)
   const spawnGate = entries.filter(({ entry }) => cmdOf(entry).includes('20_plan-gate.cjs'))
@@ -90,8 +73,7 @@ if (settings) {
   const missingKept = KEPT.filter((name) => !entries.some(({ entry }) => cmdOf(entry).includes(name)))
   r.check('유지하는 훅 여덟 종의 배선이 남아 있다', missingKept.length === 0, missingKept.join(', ') || '누락 0건')
 
-  // ---- ④ 「병합만 승인」 경계 (M04 Goal Loop · M05 H1 · 헌법 10조 · ADR-004 · [USER] 2026-11-13) ----
-  // `master`는 GitHub 브랜치 보호가 서버에서 지킨다. 작업 브랜치 push는 설정 allow `Bash(git push*)` 하나로 열고,
+  // 「병합만 승인」 경계 (헌법 10조, ADR-004) — `master`는 GitHub 브랜치 보호가 서버에서 지킨다. 작업 브랜치 push는 설정 allow `Bash(git push*)` 하나로 열고,
   // 가드가 그 위에서 강제 push를 차단하고 원격 삭제·`master` 글자·일괄 push를 묻는다 (훅의 ask·deny가 allow보다 우선).
   // push를 여는 규칙은 정확히 그 한 줄이어야 한다 — 통째 `Bash`·`Bash(*)`·`Bash(git *)`는 push 밖의 git까지 연다.
   const allowList = (settings.permissions?.allow ?? []).map(String)
@@ -105,11 +87,10 @@ if (settings) {
   const APPROVAL = ['Bash(gh release*)', 'Bash(npm publish*)', 'Bash(npm run package*)']
   const lostAsk = APPROVAL.filter((rule) => !askList.includes(rule))
   r.check('릴리스·배포 셋이 ask에 남아 있다', lostAsk.length === 0, lostAsk.join(', ') || '누락 0건')
-  // M07 G8(병합 버튼 · 헌법 10조 개정): 병합은 사람이 앱의 병합 버튼으로만 한다. 에이전트의 병합 명령은
-  // 질문 없이 거부한다. 공식 문서(code.claude.com/docs/en/hooks): 「Deny and ask rules are still evaluated
+  // 병합은 사람의 버튼으로만 한다(헌법 10조) — 에이전트의 병합 명령은 질문 없이 거부한다. 공식 문서(code.claude.com/docs/en/hooks): 「Deny and ask rules are still evaluated
   // regardless of what the hook returns.」 — 가드 훅의 ask가 있어도 이 deny가 이긴다.
   const denyList = (settings.permissions?.deny ?? []).map(String)
-  // 규칙은 첫 `*` 앞 글자를 그대로 맞춘다(공식 문서) — 그래서 옵션을 앞에 둔 꼴과 `timeout` 앞붙임을 따로 적는다(G8 검수 중요 1).
+  // 규칙은 첫 `*` 앞 글자를 그대로 맞춘다(공식 문서) — 그래서 옵션을 앞에 둔 꼴과 `timeout` 앞붙임을 따로 적는다.
   // 맨 앞 `*`(`Bash(*gh pr merge*)`)는 쓰지 않는다 — 커밋 메시지·검색어에 든 글자까지 막는다.
   const MERGE_DENY = [
     'Bash(gh pr merge*)',
@@ -118,7 +99,7 @@ if (settings) {
     'Bash(gh pr -R * merge*)',
     'Bash(gh pr --repo * merge*)',
     'Bash(timeout * gh pr merge*)',
-    // M11 goal 8(M11 Backlog 5): 끝점 뒤가 끝·공백·`/`·`-async`일 때만 — 본문 글자 끝에 `…/merge"`가 붙은 댓글 호출은 막지 않는다.
+    // 끝점 뒤가 끝·공백·`/`·`-async`일 때만 — 본문 글자 끝에 `…/merge"`가 붙은 댓글 호출은 막지 않는다.
     //   설정이 놓치는 실제 병합 호출(인용한 끝점, `?`, 리다이렉트)은 가드가 막는다(dangerous-cmd-guard.test.mjs).
     'Bash(gh api *pulls/*/merge)',
     'Bash(gh api *pulls/*/merge *)',
@@ -135,16 +116,15 @@ if (settings) {
   for (const cmd of ['gh api -X PUT repos/o/r/pulls/1/merge', 'gh api repos/o/r/pulls/1/merge -X PUT', 'gh api -X PUT repos/o/r/pulls/1/merge-async']) {
     r.judge(`병합 끝점 호출은 설정이 막는다 \`${cmd}\``, settingsVerdict(perms0, cmd), 'deny')
   }
-  // ask에 병합 축 규칙을 둘 때(M08-3 전략 옵션) 정형 goal 병합과 `gh pr merge`에는 걸리지 않아야 한다
+  // ask에 병합 축 규칙(전략 옵션)을 둘 때 정형 goal 병합과 `gh pr merge`에는 걸리지 않아야 한다
   const askHit = [...CANONICAL_COMMANDS.filter((c) => c.startsWith('git merge')), 'gh pr merge 1']
     .filter((cmd) => settingsVerdict({ ask: askList }, cmd) === 'ask')
   r.check('ask 규칙이 정형 goal 병합과 `gh pr merge`에 걸리지 않는다', askHit.length === 0, askHit.join(', ') || '0건')
   const leaked = [...APPROVAL, ...MERGE_DENY].filter((rule) => allowList.includes(rule))
   r.check('승인·거부 항목이 allow로 새지 않았다', leaked.length === 0, leaked.join(', ') || '0건')
   r.check('`git checkout -b*`가 allow에 없다 (-f가 미커밋 편집을 버린다)', !allowList.some((rule) => /git checkout/.test(rule)), '')
-  // M05 H1 진척 단계 5가 연 실행 단계 명령은 정확히 이 꼴만 둔다 (독립 검수 결함 6 · 재수리) —
-  //   `Bash(date*)`는 `date -s`·`--set`(시스템 시각 변경)까지 열어 `date`와 루프가 쓰는 형식 한 줄로 좁혔다.
-  //   `Bash(date +*)`도 `date +%s -s …`를 열어 정확 일치로 좁혔다 (2차 검수 지적).
+  // 실행 단계 명령은 정확히 이 꼴만 연다 —
+  //   `Bash(date*)`·`Bash(date +*)`는 `date -s`·`--set`(시스템 시각 변경)까지 열어 `date`와 루프가 쓰는 형식 한 줄로 좁혔다.
   //   `Bash(npx eslint*)`는 `npx eslint-다른패키지`(임의 패키지 내려받아 실행)까지 열어 낱말 경계 꼴로 좁혔다.
   //   `git switch *`·`git fetch*`가 여는 파괴 꼴은 가드가 막거나 묻는다 (switch -C·-f·--discard 차단, ref 덮어쓰는 fetch 질의).
   const FAMILIES = [
@@ -152,10 +132,9 @@ if (settings) {
     { re: /^Bash\(\s*npx\s+eslint/, exact: ['Bash(npx eslint *)'] },
     { re: /^Bash\(\s*git\s+fetch/, exact: ['Bash(git fetch*)'] },
     { re: /^Bash\(\s*git\s+switch/, exact: ['Bash(git switch -c*)', 'Bash(git switch *)'] },
-    // M08 G1(헌법 10조 goal 병합의 길): goal 작업 브랜치를 마일스톤 브랜치에 합치는 `git merge --no-ff`만 묻지 않는다.
-    //   넓은 `Bash(git merge*)`는 `--abort` 같은 꼴까지 연다. 이 꼴도 `--no-ff` 뒤의 `-s`·`-X`는 연다(M08 Backlog 3).
-    //   글자에 `master`가 보이는 push는 가드가 묻고 서버가 막는다. 현재 브랜치가 `master`인 맨 push는 묻지 않는다(M08 Backlog 2).
-    // M11 goal 8(M08-6): 로컬 마일스톤 브랜치를 원격에 맞추는 `--ff-only origin/milestone/*` 한 꼴을 더 연다.
+    // goal 병합의 길(헌법 10조): goal 브랜치를 마일스톤 브랜치에 합치는 `git merge --no-ff`와, 로컬 마일스톤 브랜치를
+    //   원격에 맞추는 `--ff-only origin/milestone/*`만 묻지 않는다. 넓은 `Bash(git merge*)`는 `--abort` 같은 꼴까지 연다.
+    //   `--no-ff` 뒤의 `-s`·`-X`는 ask 규칙이 묻는다(아래 전략 옵션 구획).
     { re: /^Bash\(\s*git\s+merge/, exact: ['Bash(git merge --no-ff *)', 'Bash(git merge --ff-only origin/milestone/*)'] },
   ]
   for (const { re, exact } of FAMILIES) {
@@ -171,10 +150,9 @@ if (settings) {
     && cmdOf(entry).includes('dangerous-cmd-guard.mjs'))
   r.check('가드가 PreToolUse ^Bash$에 배선돼 있다', guardOnBash.length === 1, `${guardOnBash.length}건`)
 
-  // ---- ⑤ 판정 장치 정비 (M07 G1 · G8 설계 `30_노드-구조.md` 보호 6, M06 Backlog 30) ----
   // 가드 항목에 timeout이 없으면 기본 600초다. command 훅의 실패(시간 초과, 0·2 밖의 종료 코드, 기동 실패)는
   // 기본 `onFailure: 'continue'`라 도구 호출이 그대로 간다. `'block'`은 실패를 종료 코드 2로 세어 막는다(공개 타입 sdk.d.ts의
-  // Settings.hooks command 항목). G1 실측: 멈추는 훅·죽는 훅 모두 기본값에서는 명령이 실행됐고 'block'에서는 막혔다.
+  // Settings.hooks command 항목). 실측: 멈추는 훅·죽는 훅 모두 기본값에서는 명령이 실행됐고 'block'에서는 막혔다.
   // 실측 판정 시간은 17만 자 heredoc에서도 205ms였다 — 30초는 편집 계획 게이트와 같은 값이다.
   const guardHooks = guardEntries.flatMap(({ entry }) => (entry.hooks ?? []).filter((h) => String(h.command ?? '').includes(GUARD)))
   const guardTimeouts = guardHooks.map((h) => h.timeout)
@@ -184,7 +162,7 @@ if (settings) {
   // 앱 데이터 폴더(Electron userData — package.json name `agentdeck`)에는 엔진 코드와 앱 설정이 있다.
   // main 프로세스가 그 엔진 코드를 import하므로(engineVersions.ts) 파일 도구로 고치지 못하게 닫는다.
   // 공식 permissions 문서: Write·NotebookEdit는 Edit 경로 규칙으로 검사한다(`Write(path)` 규칙은 맞지 않는다), `~/`는 홈 기준.
-  // 폴더 이름은 Electron 기본값(productName ?? name)에서 만든다. 하드코딩 상수와만 비교하면 이름이 바뀌어도 초록이다(G1 검수 3).
+  // 폴더 이름은 Electron 기본값(productName ?? name)에서 만든다. 하드코딩 상수와만 비교하면 이름이 바뀌어도 초록이다.
   const pkg = JSON.parse(readFileSync(join(REPO_ROOT, 'package.json'), 'utf8'))
   const appName = pkg.productName ?? pkg.name
   const APPDATA_DENY = `Edit(~/AppData/Roaming/${appName}/**)`
@@ -195,8 +173,7 @@ if (settings) {
     .filter((f) => /app\.setName\(|setPath\(\s*['"]userData['"]/.test(readFileSync(join(mainSrc, String(f)), 'utf8')))
   r.check('main 소스가 앱 이름·userData 경로를 바꾸지 않는다', renames.length === 0, renames.join(', ') || '0건')
 
-  // ---- ⑥ 정형 절차 명령 (M11 goal 8) — 메인의 goal 병합·push·PR 사슬이 설정에서 질문 없이 지나간다 ----
-  // 판정기는 공식 문서의 규칙을 옮긴 _lib/settings-rules.mjs다. 먼저 문서 표의 행으로 판정기 자체를 맞춰 본다.
+  // 정형 절차 명령 — 메인의 goal 병합·push·PR 사슬이 설정에서 질문 없이 지나간다. 판정기는 공식 문서의 규칙을 옮긴 _lib/settings-rules.mjs다. 먼저 문서 표의 행으로 판정기 자체를 맞춰 본다.
   for (const [rule, cmd, want] of [
     ['Bash(ls *)', 'ls', true], ['Bash(ls *)', 'lsof', false], ['Bash(ls*)', 'lsof', true],
     ['Bash(git log * main)', 'git log --oneline main', true], ['Bash(git log * main)', 'git log main', false],
@@ -212,8 +189,7 @@ if (settings) {
     r.judge(`정형 절차 명령 — 설정 allow \`${cmd}\``, settingsVerdict(perms, cmd), 'allow')
   }
 
-  // ---- ⑦ 병합 전략 옵션 (M11 goal 8 · M08-3 · M08-6) ----
-  // 공식 permissions 문서: 「Rules are evaluated in order: deny, then ask, then allow.」 「a matching ask rule prompts even when
+  // 병합 전략 옵션 — 공식 permissions 문서: 「Rules are evaluated in order: deny, then ask, then allow.」 「a matching ask rule prompts even when
   // a more specific allow rule also matches the same call.」 — ask 규칙이 `Bash(git merge --no-ff *)` allow를 이긴다.
   for (const cmd of ['git merge --no-ff -s ours chore/x', 'git merge -s ours chore/x', 'git merge --no-ff -X theirs chore/x',
     'git merge --no-ff --strategy=ours chore/x', 'git merge --no-ff --strategy ours chore/x', 'git merge --no-ff --strategy-option=theirs chore/x',
@@ -225,10 +201,9 @@ if (settings) {
     r.judge(`그 밖의 병합 꼴은 열지 않는다 \`${cmd}\``, settingsVerdict(perms, cmd), 'prompt')
   }
 
-  // ---- ⑧ 가드 밖 훅의 실패 처리 (M11 goal 8 · M07-3) ----
-  // 공식 hooks 문서: 「On most events, when a hook fails or times out, Claude Code still carries out the action.」 Stop 훅에는
+  // 가드 밖 훅의 실패 처리 — 공식 hooks 문서: 「On most events, when a hook fails or times out, Claude Code still carries out the action.」 Stop 훅에는
   // 「The field has no effect」. 편집 게이트·TDD 가드에 block을 걸면 훅이 깨졌을 때 그 훅을 고칠 Edit·Write까지 막힌다(헌법 8조,
-  // M03-25의 내부 fail-open과 같은 결정). 그래서 가드 밖 훅은 continue를 글로 적고, Stop 훅에는 두지 않는다.
+  // 훅 내부의 fail-open과 같은 결정). 그래서 가드 밖 훅은 continue를 글로 적고, Stop 훅에는 두지 않는다.
   const otherHooks = entries.filter(({ event }) => event !== 'Stop').flatMap(({ event, entry }) => (entry.hooks ?? [])
     .filter((x) => x.type === 'command' && !String(x.command ?? '').includes(GUARD)).map((x) => ({ event, x })))
   const notContinue = otherHooks.filter(({ x }) => x.onFailure !== 'continue').map(({ event, x }) => `${event} ${x.command}`)
@@ -237,7 +212,7 @@ if (settings) {
   const stopWithField = entries.filter(({ event }) => event === 'Stop').flatMap(({ entry }) => entry.hooks ?? []).filter((x) => 'onFailure' in x)
   r.check('Stop 훅에는 onFailure를 두지 않는다 (효과 없음)', stopWithField.length === 0, `${stopWithField.length}건`)
 
-  // ---- ⑨ CI 액션 고정 (M11 goal 8 · M07-21) ----
+  // CI 액션 고정
   const workflow = readFileSync(join(REPO_ROOT, '.github', 'workflows', 'hard-gates.yml'), 'utf8')
   const uses = [...workflow.matchAll(/^\s*-?\s*uses:\s*(\S+)(.*)$/gm)].map((m) => ({ ref: m[1], rest: m[2] }))
   const unpinned = uses.filter(({ ref, rest }) => !/@[0-9a-f]{40}$/.test(ref) || !/#\s*v\d+\.\d+\.\d+/.test(rest)).map(({ ref }) => ref)

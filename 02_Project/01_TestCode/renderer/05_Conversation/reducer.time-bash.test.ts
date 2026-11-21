@@ -1,4 +1,3 @@
-// 작업 ID: w7 · 옛 이름 w7-time-bash.test.ts
 import { describe, it, expect } from 'vitest'
 import { readdirSync, readFileSync } from 'fs'
 import { resolve } from 'path'

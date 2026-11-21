@@ -98,7 +98,7 @@ describe('preload getZoomFactor 화이트리스트 노출', () => {
     expect(api).not.toHaveProperty('zoomIn')
     expect(api).not.toHaveProperty('zoomOut')
     expect(api).not.toHaveProperty('resetZoom')
-    // M05 G10: zoom은 window 묶음에 붙었다 — 최상위와 다른 묶음에도 원시 객체가 없는지 함께 본다
+    // 최상위와 다른 묶음에도 원시 객체가 없는지 함께 본다
     const top = h.exposed.api as Record<string, Record<string, unknown>>
     expect(top).not.toHaveProperty('webFrame')
     for (const group of Object.values(top)) expect(group).not.toHaveProperty('webFrame')

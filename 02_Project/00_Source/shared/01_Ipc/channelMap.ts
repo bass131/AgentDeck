@@ -1,6 +1,4 @@
-// IPC 채널 타입 맵 (M05 G10) — 채널 이름 → 요청·응답 타입의 단일 원천이다.
-// main 등록(`handle`)·push 송신(`sendPush`)·preload 노출이 모두 이 맵에서 타입을 유도한다.
-// 채널 문자열의 런타임 원천은 여전히 `IPC_CHANNELS`이고, 맵 키와의 일치는 아래 양방향 검사가 지킨다.
+// 채널 문자열의 런타임 원천은 `IPC_CHANNELS`이고, 이 맵의 키와의 일치는 아래 양방향 검사가 지킨다.
 import type { IPC_CHANNELS } from '../ipcContract'
 import type {
   AgentRunRequest,
@@ -138,9 +136,7 @@ import type {
   WindowStatePayload,
 } from '../12_Window/window'
 
-// 이름 없던 확인 응답 `{ ok }` 자리는 G10 ack 통일로 공용 Ack { ok, error? }를 쓴다 (02_Common/common.ts).
-
-// renderer → main 요청-응답 채널. `req: void`는 인자 없이 부르는 채널, `| undefined`는 생략 가능한 요청이다.
+// `req: void`는 인자 없이 부르는 채널, `| undefined`는 생략 가능한 요청이다.
 interface IpcInvokeMap {
   'workspace.open': { req: WorkspaceOpenRequest; res: WorkspaceOpenResponse }
   'workspace.tree': { req: WorkspaceTreeRequest; res: WorkspaceTreeResponse }
@@ -220,31 +216,25 @@ interface IpcInvokeMap {
   'window.resizeStart': { req: WindowResizeStartRequest; res: void }
   'window.resizeEnd': { req: void; res: void }
 
-  // M09 G4 — 앱 안 루프(main/05_Loop/loopDriver.ts)
   'loop.open': { req: LoopOpenRequest; res: LoopStatus }
   'loop.start': { req: LoopStartRequest; res: LoopStatus }
   'loop.status': { req: LoopCwdRequest; res: LoopStatus }
   'loop.decide': { req: LoopDecideRequest; res: LoopDecideResponse }
   'loop.answerCard': { req: LoopAnswerCardRequest; res: LoopOkResponse }
-  // M10 G3 — 취소는 대상(메인 턴 main / 작업 세션 worker)을 싣는다
   'loop.cancelSession': { req: LoopCancelRequest; res: LoopOkResponse }
   'loop.releaseLatch': { req: LoopReleaseLatchRequest; res: LoopReleaseLatchResponse }
   'loop.close': { req: LoopCwdRequest; res: LoopOkResponse }
-  // M10 G2 — 메인 대화(main/05_Loop/mainChat.ts). 카드 답은 loop.answerCard다
   'loop.mainRead': { req: LoopCwdRequest; res: MainChatView }
   'loop.mainSend': { req: LoopMainSendRequest; res: LoopMainResponse }
   'loop.mainNew': { req: LoopCwdRequest; res: LoopMainResponse }
-  // M10 G3 — 사람이 일시 정지 깃발을 내린다(판정 칸 없음)
   'loop.lowerFlag': { req: LoopCwdRequest; res: LoopMainResponse }
   'loop.sessionLog': { req: LoopCwdRequest; res: LoopSessionLog }
   'loop.mainArchives': { req: LoopCwdRequest; res: MainChatArchives }
-  // M10 G5 — 그래프 읽기(보기 전용)와 알림 목록 읽기
   'loop.graph': { req: LoopCwdRequest; res: LoopGraphResponse }
   'loop.alerts': { req: void; res: LoopAlertList }
   'loop.listDir': { req: LoopListDirRequest; res: LoopListDirResponse }
 }
 
-// main → renderer push 채널. 값은 payload 타입이다.
 interface IpcPushMap {
   'agent.event': AgentEventPayload
   'engine.installProgress': EngineInstallProgress
@@ -287,7 +277,7 @@ void _mapMatchesChannels
 const _invokePushDisjoint: [Extract<InvokeChannel, PushChannel>] extends [never] ? true : false = true
 void _invokePushDisjoint
 
-// main push 송신 — webContents·event.sender처럼 `send`를 가진 대상이면 된다. 감싸지 않고 그대로 보낸다.
+// webContents·event.sender처럼 `send`를 가진 대상이면 된다.
 export interface PushTarget {
   send(channel: string, ...args: unknown[]): void
 }

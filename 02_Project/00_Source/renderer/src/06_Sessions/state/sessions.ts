@@ -208,7 +208,7 @@ export const createSessionListSlice: StateCreator<AppStore, [], [], SessionListS
   deleteConversation: async (id: string) => {
     const res = await ipc.sessions.delete({ id })
     if (!res.ok) return
-    // 지운 대화의 run이 돌고 있으면 끊는다(M05 Backlog 52) — 남겨 두면 지운 대화의 도구 실행이 계속된다
+    // 지운 대화의 run이 돌고 있으면 끊는다 — 남겨 두면 지운 대화의 도구 실행이 계속된다
     const fg = get()
     const runningRunId = fg.conversationId === id ? fg.currentRunId : (backgroundRunOf(id)?.currentRunId ?? null)
     if (runningRunId !== null) void Promise.resolve(ipc.agent.abort({ runId: runningRunId })).catch(() => {})

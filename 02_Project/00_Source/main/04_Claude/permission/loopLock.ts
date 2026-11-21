@@ -1,4 +1,4 @@
-// 루프 잠금 노드 (M09 G2) — 앱 안 마일스톤 루프의 작업 노드 세션에만 붙는 PreToolUse 잠금. 일반 앱 세션에는 붙지 않는다
+// 앱 안 마일스톤 루프의 작업 노드 세션에만 붙는 PreToolUse 잠금. 일반 앱 세션에는 붙지 않는다
 // (sdkOptions.ts — 실행 입력의 loopLock이 있을 때만 넣는다. IPC 요청은 그 칸을 옮기지 않는다).
 // 노드 세션은 앱 「자동」 모드로 돈다. 훅은 권한 평가의 맨 앞이라(공식 permissions 문서: 훅 → 규칙 → 모드 → canUseTool)
 // 자동 모드의 허용보다 먼저, 질문 없이 거부한다. 거부하는 것:
@@ -10,25 +10,25 @@
 //   ④ 실행기 몫 파일 — .agentdeck/run-state.json·verification.md와 앱 영역(userData의 loop 폴더) 쓰기, git clean -x.
 //   ⑤ Claude 설정 — `.claude/`·`.mcp.json` 쓰기, 그리고 mcp__ 도구 전부(자기 자격으로 원격에 닿는다).
 //   ⑥ 작업 저장소 밖 쓰기 — OS 임시 폴더와 널 장치만 빼고 거부한다(전역 ~/.gitconfig·~/.claude가 실행기와 앱에 닿는다).
-//   ⑦ 셸 위치 (G2 재검수 중요 C) — 명령 안에서 cd를 차례로 따라가고(`&&`면 그 폴더, `;`면 폴더가 있을 때만, `|`·`&`·`||`와
+//   ⑦ 셸 위치 — 명령 안에서 cd를 차례로 따라가고(`&&`면 그 폴더, `;`면 폴더가 있을 때만, `|`·`&`·`||`와
 //      하위 셸은 옛 위치도 남긴다), 훅 인스턴스가 호출 사이로 넘긴다(셸 위치는 호출 사이에 남는다). 훅 입력의 cwd가 따라간 후보 가운데
 //      하나면 그 위치로 좁히고, 아니면 후보에 더한다. 상대 경로는 모든 후보에서 풀어 본다. cd가 보호 폴더(.git·.claude·앱 영역·
 //      .agentdeck 자체)나 저장소 밖을 가리키면 거부한다. `cd -`·맨 `cd`·popd는 거부하지 않고 위치를 「모름」으로 두며, 모르는 위치의
 //      상대 경로 쓰기(압축 풀기·내려받기의 암묵적 「.」 포함)는 거부한다. 맨 이름 run-state.json·verification.md 쓰기는 위치와 관계없이
 //      거부한다. 경로는 `.git`·`.claude`·`.agentdeck`가 어디에 있든 그 이름으로 본다(어느 저장소의 것이든).
-//      G2 3차 검수 중요 E·F — `builtin cd`·`command cd`도 셸의 cd로 따라가고, 그 밖의 래퍼(env·nohup·sudo …) 뒤의 cd는 옛 위치를
+//      `builtin cd`·`command cd`도 셸의 cd로 따라가고, 그 밖의 래퍼(env·nohup·sudo …) 뒤의 cd는 옛 위치를
 //      남긴다. `env -C`·`env --chdir`·`sudo -D`는 그 뒤 명령의 위치로 판정한다(cd와 같은 보호 폴더 거부). eval의 인자는 다시 판독하고
 //      안쪽 cd를 밖으로 내며(판독 못 한 글이면 「모름」을 더한다), source·`.` 뒤는 「모름」이다(다음 호출에서는 훅이 준 cwd로 바뀐다).
 //      CDPATH를 정하는 꼴은 거부한다.
 //      env·sudo 옵션은 getopt처럼 읽고(묶은 짧은 옵션·줄인 긴 옵션), env -S의 문자열은 명령으로 다시 판독한다.
-//      G2 4차 검수 — trap 몸통은 모르는 위치에서 다시 판독하고, 위치를 바꾸거나(cd 류) 모르는 스크립트를 부르는(eval·source·`.`)
+//      trap 몸통은 모르는 위치에서 다시 판독하고, 위치를 바꾸거나(cd 류) 모르는 스크립트를 부르는(eval·source·`.`)
 //      몸통은 거부한다. trap 뒤 위치에는 「모름」을 더한다. BASH_ENV·ENV를 셸에 남기는 꼴은 거부하고, 명령 앞 할당이면 그 셸 -c의
 //      시작 위치를 「모름」으로 본다.
 //      앞에서 폴더를 바꿀 수 있는 명령(읽기 목록 밖 전부 — rm·mv·Remove-Item·git checkout·npm run …)이 돌았으면 뒤의 cd는 실패할 수
 //      있다고 본다(`&&` 바로 뒤의 명령은 cd가 됐을 때만 돈다).
-//   ⑧ 교체 객체 (G2 재검수 차단 A) — git replace, fast-import, update-ref --stdin, refs/replace를 건드리는 ref 쓰기, 맨 위를 덮는
+//   ⑧ 교체 객체 — git replace, fast-import, update-ref --stdin, refs/replace를 건드리는 ref 쓰기, 맨 위를 덮는
 //      fetch refspec(`refs/*:refs/*`). 실행기 git은 교체 객체를 따르지 않지만(gitPort) 심는 길도 막는다.
-//   ⑨ 전역 패키지 설치 (G2 재검수) — npm·pnpm·bun의 -g·--global·--location=global, npm link(맨), yarn global. 실행기가 PATH에서 찾는
+//   ⑨ 전역 패키지 설치 — npm·pnpm·bun의 -g·--global·--location=global, npm link(맨), yarn global. 실행기가 PATH에서 찾는
 //      git·gh 이름을 덮을 수 있다.
 // 노드 문서(.agentdeck/milestone-spec.md·goals/*.md·decisions.md)와 일반 소스 편집, 읽기 명령은 막지 않는다. git rm --cached는
 // 작업 트리를 지우지 않아 지우기로 보지 않는다.
@@ -48,9 +48,9 @@
 //   - source·`.`가 위치를 바꿨는지는 다음 호출의 훅 cwd를 믿는다 — 훅 cwd가 셸의 진짜 위치가 아니면 틀린다.
 //   - 변수 간접 참조(판독 못 한 변수는 쓰기 대상이면 거부), git apply·worktree·clone 같은 간접 쓰기.
 //   - 전역 쓰기의 다른 길(npm config set prefix, corepack enable, PATH 변수 바꾸기).
-//   - 호출 사이 위치 — 훅 입력 cwd의 의미는 G4 실주행에서 실측한다. 한 세션의 Bash·PowerShell·하위 에이전트 호출이 위치 하나를 같이 쓴다.
+//   - 호출 사이 위치 — 훅 입력 cwd의 의미는 실주행에서 실측할 몫이다. 한 세션의 Bash·PowerShell·하위 에이전트 호출이 위치 하나를 같이 쓴다.
 // 상태 위조는 앱 쪽 다이제스트와 위조 래치(05_Loop), 실행기 git 설정·ssh 설정·grafts는 실행기의 설정 대조(05_Loop/configGuard.ts)가
-// 따로 본다. 원격 쓰기의 구조적 보증은 사용자가 범위를 좁힌 토큰이다(이 goal 밖).
+// 따로 본다. 원격 쓰기의 구조적 보증은 사용자가 범위를 좁힌 토큰이다.
 // 셸 판독은 병합 거부 노드(mergeDeny.ts)의 낱말 함수를 같이 쓴다. 명령 마디 나누기는 구분자를 알아야 해서 여기서 한다.
 import fs from 'node:fs'
 import os from 'node:os'
@@ -77,11 +77,11 @@ export interface LoopLockScope {
   vars?: Record<string, string | undefined>
   // 폴더가 있는가 — `cd x; …`에서 cd가 실패할 수 있는지 본다. 기본은 파일 시스템
   isDir?: (p: string) => boolean
-  // M09 G4 — 검수 세션의 읽기 전용 꼴. 위 거부에 더해 저장소 안 쓰기 전부(편집 도구·쓰기 명령·리다이렉트), 읽기 목록 밖 git 하위 명령,
+  // 검수 세션의 읽기 전용 꼴. 위 거부에 더해 저장소 안 쓰기 전부(편집 도구·쓰기 명령·리다이렉트), 읽기 목록 밖 git 하위 명령,
   // 로컬에 내려받는 gh(pr checkout·repo clone·run download), 패키지 설치·npx를 거부한다. 인터프리터와 npm 스크립트의 안은 판독하지
   // 않는다(겹) — 검수 뒤 실행기가 작업 트리 해시를 다시 대조해 바뀌었으면 그 pass를 받지 않는다(loopRunner).
   readOnly?: boolean
-  // M10 G2 — 메인 대화의 꼴(05_Loop/mainChat.ts). 있으면 위 판정 대신 허용 목록으로 본다(fail-closed — mainChatToolReason).
+  // 메인 대화의 꼴(05_Loop/mainChat.ts). 있으면 위 판정 대신 허용 목록으로 본다(fail-closed — mainChatToolReason).
   //   셸은 모두 거부, 편집 도구는 `.agentdeck/milestone-spec.md`·`.agentdeck/decisions.md` 두 경로만 canWrite()가 참일 때(실행기 커서가
   //   브레인스토밍 노드에 있고 그 방문이 열려 있을 때 — 구동자가 훅 시각에 다시 판정한다), MCP 도구는 toolServer(앱 안 도구 서버)의 것만.
   mainChat?: { toolServer: string; canWrite: () => boolean | Promise<boolean> }
@@ -109,7 +109,7 @@ const GLOBAL_PKG = '전역 패키지 설치(npm -g·pnpm add -g·yarn global 등
 // 셸 위치 후보. 경로는 canon 꼴(대소문자 그대로), UNKNOWN은 「모름」이다.
 type Cwd = readonly string[]
 const UNKNOWN = '\u0000?'
-// source·`.` 뒤의 「모름」(M11 G3, M09-6) — 호출 안에서는 UNKNOWN과 같고, 다음 호출에서는 훅이 준 cwd로 바뀐다(startCwd)
+// source·`.` 뒤의 「모름」 — 호출 안에서는 UNKNOWN과 같고, 다음 호출에서는 훅이 준 cwd로 바뀐다(startCwd)
 const SOURCED = '\u0000?source'
 const isUnknown = (base: string): boolean => base === UNKNOWN || base === SOURCED
 
@@ -183,7 +183,7 @@ function canon(raw: string, base: string): string {
 }
 const normalize = (raw: string, base: string): string => canon(raw, base).toLowerCase()
 
-// readonly: 읽기 전용 꼴(G4 검수 세션)에서 저장소 안 쓰기. cd 판정에는 쓰지 않는다(저장소 안 폴더로 옮겨 다니는 것은 읽기다).
+// readonly: 읽기 전용 꼴(검수 세션)에서 저장소 안 쓰기. cd 판정에는 쓰지 않는다(저장소 안 폴더로 옮겨 다니는 것은 읽기다).
 type PathKind = 'executor' | 'config' | 'claude' | 'outside' | 'unreadable' | 'readonly'
 
 const EXECUTOR_FILE = /\/\.agentdeck\/(?:run-state\.json|verification\.md)$/
@@ -281,11 +281,11 @@ const DOTNET_ENV = new RegExp(`SetEnvironmentVariable\\s*\\(\\s*['"](?:${ENV_NAM
 
 const assignName = (t: string): string | null => /^([A-Za-z_][A-Za-z0-9_]*)=/.exec(t)?.[1] ?? null
 const protectedAssign = (t: string): boolean => { const n = assignName(t); return n !== null && PROTECTED_ENV.test(n) }
-// G4 검수 사소 1 — git(과 그 페이저·편집기)이 명령으로 돌리는 환경 변수. 읽기 전용 꼴에서 정하는 꼴을 거부한다(`X=… git diff`, env·export 류).
+// git(과 그 페이저·편집기)이 명령으로 돌리는 환경 변수. 읽기 전용 꼴에서 정하는 꼴을 거부한다(`X=… git diff`, env·export 류).
 // 설정 주입(GIT_CONFIG_*)도 같은 부류다 — -c처럼 명령 키를 넣을 수 있다.
 const EXEC_ENV_NAMES = 'GIT_EXTERNAL_DIFF|GIT_PAGER|PAGER|GIT_EDITOR|EDITOR|VISUAL|GIT_SEQUENCE_EDITOR|GIT_SSH|GIT_SSH_COMMAND|GIT_PROXY_COMMAND|GIT_ASKPASS|SSH_ASKPASS|LESSOPEN|LESSCLOSE|GIT_CONFIG|GIT_CONFIG_PARAMETERS|GIT_CONFIG_COUNT|GIT_CONFIG_KEY_\\d+|GIT_CONFIG_VALUE_\\d+|GIT_CONFIG_GLOBAL|GIT_CONFIG_SYSTEM'
 const EXEC_ENV = new RegExp(`^(?:${EXEC_ENV_NAMES})$`, 'i')
-// M11 G3(M09-8) — PowerShell 꼴(`$env:GIT_PAGER = …`)과 .NET 꼴로 정하는 것도 읽기 전용 꼴에서 거부한다
+// PowerShell 꼴(`$env:GIT_PAGER = …`)과 .NET 꼴로 정하는 것도 읽기 전용 꼴에서 거부한다
 const PS_EXEC_ENV_SET = new RegExp([
   `\\$env:(?:${EXEC_ENV_NAMES})\\s*[+]?=`,
   `(?:set-item|new-item|si|ni)\\b[^;|\\n]*\\benv:[\\\\/]?(?:${EXEC_ENV_NAMES})\\b`,
@@ -355,14 +355,14 @@ const firstWord = (args: string[]): string | undefined => operandsOf(args)[0]?.t
 interface Ctx { r: Resolved; depth: number; cwd: Cwd }
 type Check = (paths: string[], destructive: boolean) => string | null
 
-// 읽기 전용 꼴(G4)의 git 허용 목록 — 저장소·작업 트리·ref를 바꾸지 않는 하위 명령. config·remote는 아래 판정이 따로 본다.
+// 읽기 전용 꼴의 git 허용 목록 — 저장소·작업 트리·ref를 바꾸지 않는 하위 명령. config·remote는 아래 판정이 따로 본다.
 const GIT_READONLY = new Set([
   'status', 'log', 'show', 'diff', 'ls-files', 'ls-tree', 'cat-file', 'rev-parse', 'rev-list', 'blame', 'grep', 'describe',
   'name-rev', 'for-each-ref', 'show-ref', 'branch', 'shortlog', 'merge-base', 'ls-remote', 'help', 'version', 'var',
   'check-ignore', 'check-attr', 'count-objects', 'diff-tree', 'diff-index', 'diff-files', 'range-diff', 'whatchanged',
 ])
 // branch는 목록 꼴만 — 이름 인자가 없거나 --list·-l이 있고, 만들기·지우기·옮기기·추적 바꾸기 옵션이 없다.
-// G4 검수 사소 1 — 짧은 옵션 묶음(-vu)과 붙여 쓴 값(-uorigin/x, -u=origin/x)도 쓰기 옵션으로 본다.
+// 짧은 옵션 묶음(-vu)과 붙여 쓴 값(-uorigin/x, -u=origin/x)도 쓰기 옵션으로 본다.
 const BRANCH_WRITE = /^(?:-[a-zA-Z]*[dDmMcCfu][a-zA-Z]*|-u.+|--delete|--move|--copy|--force|--set-upstream-to(?:=.*)?|--unset-upstream|--edit-description|--track|--no-track|--create-reflog)$/
 function branchIsRead(rest: string[]): boolean {
   if (rest.some((t) => BRANCH_WRITE.test(t))) return false
@@ -385,7 +385,7 @@ function gitReason(args: string[], ctx: Ctx, check: Check): string | null {
   const rest = args.slice(i + 1)
   if (sub === undefined) return null
   if (sub === 'push' || sub === 'send-pack' || sub === 'http-push') return REMOTE
-  // 읽기 전용 꼴(G4) — 읽기 목록 밖 하위 명령은 거부한다. 원격·설정 판정은 아래가 계속 본다(config 쓰기는 CONFIG).
+  // 읽기 전용 꼴 — 읽기 목록 밖 하위 명령은 거부한다. 원격·설정 판정은 아래가 계속 본다(config 쓰기는 CONFIG).
   if (ctx.r.readOnly && sub !== 'config') {
     // remote는 보기 꼴(맨 이름·-v·show·get-url)만 — update·prune은 원격 추적 ref를 쓴다
     if (sub === 'remote') { if (!['', 'show', 'get-url'].includes(firstWord(rest) ?? '')) return READONLY }
@@ -454,7 +454,7 @@ const GH_READ: Readonly<Record<string, readonly string[] | '*'>> = {
   help: '*',
   version: '*',
 }
-// gh api 쓰기 판정 — 가드 ghApiWrites와 같다(M11 G3). GET 밖 메서드는 쓰기다: `-X`·`--method` 값, `--method=X`, `-XPUT`·`-X=PUT`,
+// gh api 쓰기 판정 — 가드 ghApiWrites와 같다. GET 밖 메서드는 쓰기다: `-X`·`--method` 값, `--method=X`, `-XPUT`·`-X=PUT`,
 // `-iX PUT` 묶음. 본문 옵션(-f·-F·--field·--raw-field·--input)은 기본 메서드를 POST로 바꾼다. 짧은 묶음은 값을 먹는 글자(H·p·q·t)에서 멈춘다.
 const API_FIELD_LONG = ['--field', '--raw-field', '--input']
 const API_VALUE_SHORT = 'Hpqt'
@@ -483,7 +483,7 @@ function apiIsWrite(args: string[]): boolean {
   return false
 }
 
-// 읽기 전용 꼴(G4)에서 더 막는 gh — 작업 트리·로컬에 내려받는다
+// 읽기 전용 꼴에서 더 막는 gh — 작업 트리·로컬에 내려받는다
 const GH_LOCAL_WRITE = new Set(['pr checkout', 'repo clone', 'run download'])
 
 function ghReason(args: string[], readOnly = false): string | null {
@@ -521,11 +521,11 @@ function globalPkgReason(b: string, a: string[]): string | null {
   return global && !PKG_GLOBAL_READ.has(ops[0] ?? '') ? GLOBAL_PKG : null
 }
 
-// 읽기 전용 꼴(G4)의 패키지 설치·내려받아 돌리기. 맨 yarn(=install)도 설치다. npm run·test 같은 스크립트는 막지 않는다(겹, 머리 주석).
+// 읽기 전용 꼴의 패키지 설치·내려받아 돌리기. 맨 yarn(=install)도 설치다. npm run·test 같은 스크립트는 막지 않는다(겹, 머리 주석).
 const PKG_INSTALL = new Set(['install', 'i', 'in', 'ins', 'add', 'ci', 'update', 'up', 'upgrade', 'remove', 'rm', 'uninstall', 'un', 'r',
   'link', 'ln', 'unlink', 'prune', 'dedupe', 'ddp', 'rebuild', 'dlx', 'exec', 'x', 'create', 'init'])
 const OTHER_INSTALL = ['install', 'add', 'sync', 'get', 'uninstall', 'remove']
-// G4 검수 사소 1 — 판 붙은 pip(pip3.12), python -m pip, uvx·uv pip·uv tool, corepack을 거친 패키지 관리자도 설치로 본다.
+// 판 붙은 pip(pip3.12), python -m pip, uvx·uv pip·uv tool, corepack을 거친 패키지 관리자도 설치로 본다.
 const PIP = /^pip(?:\d+(?:\.\d+)*)?$/
 const PYTHON = /^(?:python(?:\d+(?:\.\d+)*)?|py)$/
 function pkgInstallReason(b: string, a: string[]): boolean {
@@ -799,7 +799,7 @@ function cdEffect(c: Cmd, b: string, r: Resolved, cwd: Cwd): CdEffect {
 
 const baseOfCmd = (c: Cmd): string => c.base.replace(/\.exe$/, '')
 
-// ── 위치를 바꾸는 다른 꼴 (G2 3차 검수 중요 E) ──────────────────────────────
+// ── 위치를 바꾸는 다른 꼴 ──────────────────────────────────────────────
 // `builtin cd`는 셸의 cd다 — 뒤의 낱말을 명령으로 다시 본다(`command`는 병합 거부 노드의 래퍼 목록에 있다).
 function withBuiltins(cmds: Cmd[], depth = 0): Cmd[] {
   const out: Cmd[] = []
@@ -871,7 +871,7 @@ function wrapperOpts(b: string, args: string[]): WrapperOpts | null {
 // 판정이 펼치는 경로 변수 가운데 셸에서 다시 정하면 판정이 틀어지는 것 — PWD(따라간 위치로 펼친다)와 임시 폴더(쓰기를 허용한다).
 // 홈·APPDATA는 다시 정해도 판정이 실제 값(저장소 밖)으로 펼쳐 거부 쪽으로 틀어진다. 명령 앞 할당(`TMPDIR=x npm test`)은 그 명령의
 // 환경만 바꾸고 같은 줄의 펼치기는 옛 값이라 막지 않는다. 혼자 선 할당·export류·PowerShell $env: 할당만 거부한다.
-// BASH_ENV·ENV(G2 4차 검수)는 비대화형 셸이 시작할 때 읽어 돌리는 파일이다 — 셸에 남기면 뒤의 모든 `bash -c`가 모르는 스크립트를 먼저 돈다.
+// BASH_ENV·ENV는 비대화형 셸이 시작할 때 읽어 돌리는 파일이다 — 셸에 남기면 뒤의 모든 `bash -c`가 모르는 스크립트를 먼저 돈다.
 // 명령 앞 할당은 그 셸의 시작 위치를 「모름」으로 본다(마디 걷기).
 const PATH_VARS = /^(?:PWD|TEMP|TMP|TMPDIR|BASH_ENV|ENV)$/i
 // trap 몸통 안의 위치 바꾸기·모르는 스크립트 — 셸에 남아 뒤의 명령(다음 호출 포함)마다 돌므로 따라갈 수 없다
@@ -893,12 +893,12 @@ function pathVarReason(tokens: string[], cmds: Cmd[]): string | null {
 }
 
 // CDPATH를 정하면 상대 cd가 어디로 갈지 판독할 수 없다 — 정하는 꼴을 거부한다(셸 변수는 호출 사이에 남는다).
-// M11 G3(M09-6) — 셸 꼴은 마디의 낱말로 본다(명령 머리의 할당, 변수를 정하는 명령의 인자). 커밋 메시지 같은 따옴표 안 글자는 보지 않는다.
+// 셸 꼴은 마디의 낱말로 본다(명령 머리의 할당, 변수를 정하는 명령의 인자). 커밋 메시지 같은 따옴표 안 글자는 보지 않는다.
 // PowerShell·.NET 꼴은 스크립트 글자로 본다.
 const CDPATH_PS_SET = /\$env:CDPATH\s*\+?=|(?:set-item|new-item|si|ni)\b[^;|\n]*env:[\\/]?CDPATH\b|SetEnvironmentVariable\s*\(\s*['"]CDPATH/i
 const CDPATH_SETTERS = new Set(['export', 'declare', 'typeset', 'readonly', 'local', 'read', 'mapfile', 'readarray', 'setx', 'set', 'env'])
 const isCdpath = (t: string): boolean => /^CDPATH(?:\+?=|$)/i.test(t)
-// `${CDPATH=…}`·`${CDPATH:=…}`는 어느 자리에서든 펼치는 순간 변수를 정한다 — 작은따옴표 안만 펼치지 않는다(독립 검수 중요)
+// `${CDPATH=…}`·`${CDPATH:=…}`는 어느 자리에서든 펼치는 순간 변수를 정한다 — 작은따옴표 안만 펼치지 않는다
 const CDPATH_EXPAND_SET = /\$\{CDPATH:?=/i
 
 function outsideSingleQuotes(s: string): string {
@@ -935,7 +935,7 @@ function cdpathSet(tokens: string[], cmds: Cmd[]): boolean {
   })
 }
 
-// ── 앞에 돈 명령 (G2 3차 검수 중요 F) ───────────────────────────────────────
+// ── 앞에 돈 명령 ─────────────────────────────────────────────────────────
 // 판정 때 폴더가 있어도, 앞의 명령이 지우거나 옮기면(rm·mv·Remove-Item·git checkout·npm run …) 뒤의 cd는 실패한다. 앞 호출이 남긴
 // 백그라운드 일도 시간이 지나면 지운다 — `sleep 5; cd src`처럼 읽기 명령으로 기다릴 수도 있다. 그래서 cd 밖 명령이 하나라도 앞에
 // 돌았으면 뒤의 cd를 실패할 수 있다고 본다(보수). 앞에 아무것도 없는 cd는 판정 때의 폴더를 믿는다(판정과 실행 사이의 틈은 남는다).
@@ -956,7 +956,7 @@ function cmdReason(c: Cmd, ctx: Ctx): string | null {
   if (CD.has(b) || POP.has(b)) return null
   const env = envCmdReason(b, c.args)
   if (env) return env
-  // G4 검수 사소 1 — 읽기 전용 꼴에서 git이 명령으로 돌리는 환경 변수를 env·export 류로 정하는 꼴(GIT_EXTERNAL_DIFF·GIT_PAGER 등)
+  // 읽기 전용 꼴에서 git이 명령으로 돌리는 환경 변수를 env·export 류로 정하는 꼴(GIT_EXTERNAL_DIFF·GIT_PAGER 등)
   if (ctx.r.readOnly && ENV_SETTERS.has(b) && c.args.some(execEnvAssign)) return READONLY
   const pkg = globalPkgReason(b, c.args)
   if (pkg) return pkg
@@ -1057,7 +1057,7 @@ function scriptReason(script: string, r: Resolved, depth: number, start: Cwd, mu
         pieceMutates = true
         break
       }
-      // trap 몸통은 신호 때마다(DEBUG면 명령마다) 돌고 셸에 남는다 — 모르는 위치에서 판독하고, 위치를 바꾸는 몸통은 거부한다(G2 4차 검수)
+      // trap 몸통은 신호 때마다(DEBUG면 명령마다) 돌고 셸에 남는다 — 모르는 위치에서 판독하고, 위치를 바꾸는 몸통은 거부한다
       if (b === 'trap' && shellPos) {
         const body = c.args[0]
         if (body !== undefined && body !== '-' && !body.startsWith('-')) {
@@ -1139,9 +1139,9 @@ const EDIT_TOOLS = new Set(['Write', 'Edit', 'MultiEdit', 'NotebookEdit'])
 function toolCheck(toolName: string | undefined, toolInput: unknown, r: Resolved, cwd: Cwd): Walk {
   if (toolName !== undefined && toolName.toLowerCase().startsWith('mcp__')) return { reason: MCP, end: cwd, mutated: false }
   const ti = toolInput && typeof toolInput === 'object' ? (toolInput as Record<string, unknown>) : {}
-  // G4 검수 사소 2 — 편집 도구는 command 칸 판독보다 먼저 본다(입력에 command를 끼워 편집 도구 판정을 건너뛰지 못한다)
+  // 편집 도구는 command 칸 판독보다 먼저 본다(입력에 command를 끼워 편집 도구 판정을 건너뛰지 못한다)
   if (toolName !== undefined && EDIT_TOOLS.has(toolName)) {
-    // 읽기 전용 꼴(G4)은 편집 도구를 경로와 관계없이 거부한다
+    // 읽기 전용 꼴은 편집 도구를 경로와 관계없이 거부한다
     if (r.readOnly) return { reason: READONLY, end: cwd, mutated: false }
     const p = typeof ti['file_path'] === 'string' ? ti['file_path'] : ti['notebook_path']
     if (typeof p === 'string') return { reason: reasonOfKind(pathKind(p, r, false, [r.rootRaw])), end: cwd, mutated: false }
@@ -1191,7 +1191,7 @@ function startCwd(tracked: Cwd, hookCwd: string | undefined, r: Resolved): Cwd {
   return union(known, [h])
 }
 
-// ── M10 G2 메인 대화의 꼴 ─────────────────────────────────────────────────
+// ── 메인 대화의 꼴 ────────────────────────────────────────────────────────
 // 허용 목록 밖은 모두 거부한다. 셸이 없으니 셸 위치를 따라가지 않는다 — 편집 도구의 상대 경로는 저장소 뿌리 기준이다.
 const MAIN_SHELL = '메인 대화에서는 셸(Bash·PowerShell)을 쓰지 않습니다 — 루프 일은 실행기가 하고, 메인은 읽기·질문·앱 안 도구(멈춤·이어 가기·Backlog)만 씁니다.'
 const MAIN_TOOL = '메인 대화에서 쓰지 않는 도구입니다 — 읽기 도구, 질문 도구(AskUserQuestion), 앱 안 도구(멈춤·이어 가기·Backlog)만 씁니다.'
@@ -1230,7 +1230,7 @@ export async function mainChatToolReason(toolName: string | undefined, toolInput
     if (toolName === 'NotebookEdit') return MAIN_PATH
     const raw = ti['file_path']
     if (typeof raw !== 'string' || raw.trim() === '') return MAIN_PATH
-    // G2 독립 검수 — 편집 도구는 경로를 글자 그대로 쓴다(셸이 아니다). 변수·물결표·명령 치환을 펼쳐 두 경로로 보면 실제로는
+    // 편집 도구는 경로를 글자 그대로 쓴다(셸이 아니다). 변수·물결표·명령 치환을 펼쳐 두 경로로 보면 실제로는
     // 다른 파일(`$PWD/…` 글자 그대로의 폴더 등)을 쓰는 호출을 지나보낸다 — 펼치지 않고 거부한다
     const p = raw.trim()
     if (/[$%`]/.test(p) || p.startsWith('~')) return MAIN_PATH
@@ -1248,7 +1248,7 @@ export async function mainChatToolReason(toolName: string | undefined, toolInput
 }
 
 // 훅 인스턴스 하나가 작업 노드 세션 하나의 셸 위치를 호출 사이로 넘긴다(workSession이 세션마다 새로 만든다).
-// M10 G2 — scope.mainChat이 있으면 메인 대화의 꼴(mainChatToolReason)로 판정한다.
+// scope.mainChat이 있으면 메인 대화의 꼴(mainChatToolReason)로 판정한다.
 export function buildLoopLockHook(scope: LoopLockScope): LoopLockMatcher {
   if (scope.mainChat) {
     return {
@@ -1282,7 +1282,7 @@ export function buildLoopLockHook(scope: LoopLockScope): LoopLockMatcher {
   }
 }
 
-// 앱 세션 등록부(listControlNodes)에는 넣지 않는다 — 컨트롤 패널은 앱 세션의 노드를 보인다. 루프 화면(G3)이 이 정보를 쓴다.
+// 앱 세션 등록부(listControlNodes)에는 넣지 않는다 — 컨트롤 패널은 앱 세션의 노드를 보인다. 루프 화면이 이 정보를 쓴다.
 export const LOOP_LOCK_NODE: ControlNodeInfo = Object.freeze({
   id: 'loop-lock',
   name: '루프 작업 노드 세션의 원격 쓰기·자격·git 설정·Claude 설정·실행기 몫 파일·저장소 밖 쓰기 잠금',

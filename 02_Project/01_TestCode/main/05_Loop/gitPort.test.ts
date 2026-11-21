@@ -1,4 +1,4 @@
-// M09 G2 실물 git 포트 — 임시 폴더의 작업 저장소와 bare 원격으로 ports.ts 계약을 본다.
+// 임시 폴더의 작업 저장소와 bare 원격으로 ports.ts 계약을 본다.
 // untracked 포함 변경·통계, rename 옛/새 경로, 바이너리 null, 병합 실패 시 merge --abort, syncToRemote의 ff·그대로·갈라짐 throw,
 // `.agentdeck/` 추적 제외(.git/info/exclude), 실행기 git은 작업 저장소의 훅을 돌리지 않는다.
 import fs from 'node:fs'
@@ -8,7 +8,7 @@ import { REVIEW_DIFF_LIMIT, createGitPort, ensureAgentdeckExcluded, qualifyRef, 
 import type { GitPort } from '@main/05_Loop/ports'
 import { makeTempRepos, type TempRepos } from '../00_Helpers/tempGit'
 
-// G4 검수 I6 — 브랜치 이름은 전체 이름으로 읽는다. 전체 SHA·refs/ 경로·HEAD는 그대로다
+// 브랜치 이름은 전체 이름으로 읽는다. 전체 SHA·refs/ 경로·HEAD는 그대로다
 describe('참조 이름 한정', () => {
   it('짧은 브랜치 이름은 refs/heads/로, SHA·refs/·HEAD는 그대로, -로 시작하면 거부한다', () => {
     expect(qualifyRef('milestone/M1')).toBe('refs/heads/milestone/M1')
@@ -79,7 +79,7 @@ describe('브랜치·머리·커밋·push', () => {
     expect(remoteHead('master')).toBe(sha)
   })
 
-  // G4 검수 중요 I6 — 브랜치 이름은 refs/heads/ 전체 이름으로 읽는다. 같은 이름의 태그(작업 노드가 만들 수 있다)가 가리지 못한다
+  // 브랜치 이름은 refs/heads/ 전체 이름으로 읽는다. 같은 이름의 태그(작업 노드가 만들 수 있다)가 가리지 못한다
   it('같은 이름의 태그가 있어도 머리·트리·계보·가르기는 브랜치를 읽는다', async () => {
     await git.createBranch('milestone/M1', 'master')
     const branchSha = repos.git(['rev-parse', 'refs/heads/milestone/M1'])
@@ -99,7 +99,7 @@ describe('브랜치·머리·커밋·push', () => {
     expect(repos.git(['rev-parse', 'refs/heads/goal/M1-G1'])).toBe(branchSha)
   })
 
-  // G4 검수 중요 I8 — push는 대조한 SHA 하나를 `<sha>:refs/heads/<b>`로 올린다. 그 뒤 로컬 브랜치가 앞서도 원격은 그 SHA다
+  // push는 대조한 SHA 하나를 `<sha>:refs/heads/<b>`로 올린다. 그 뒤 로컬 브랜치가 앞서도 원격은 그 SHA다
   it('SHA를 주면 그 커밋만 push한다 — 로컬 브랜치가 그 뒤로 움직였어도', async () => {
     write('a.ts', 'a\n')
     const checked = await git.commitAll('checked')
@@ -126,7 +126,7 @@ describe('브랜치·머리·커밋·push', () => {
   })
 })
 
-// G2 검수 중요 4 — 실행기가 원격과 로컬을 대조하는 데 쓰는 읽기
+// 실행기가 원격과 로컬을 대조하는 데 쓰는 읽기
 describe('remoteSha·parents', () => {
   it('원격 머리를 ls-remote로 읽고, 원격에 없는 브랜치는 null이다', async () => {
     expect(await git.remoteSha('master')).toBe(remoteHead('master'))
@@ -230,7 +230,7 @@ describe('검수 스냅숏과 트리 해시 (M09 G4)', () => {
     expect(await git.treeOf('no-such-branch')).toBeNull()
   })
 
-  // G4 검수 중요 I9 — 잘린 diff로 검수하지 않는다. 상한을 넘으면 diff를 싣지 않고 넘었다는 표시와 전체 길이를 준다(실행기가 멈춘다)
+  // 잘린 diff로 검수하지 않는다. 상한을 넘으면 diff를 싣지 않고 넘었다는 표시와 전체 길이를 준다(실행기가 멈춘다)
   it('diff가 상한을 넘으면 잘린 diff를 주지 않고 tooLarge와 전체 길이를 준다 — 상한 안이면 전문과 길이', async () => {
     const base = await git.headSha('master') as string
     write('big.txt', `${'x'.repeat(100)}\n`.repeat(6000))
@@ -284,7 +284,7 @@ describe('mergeNoFf', () => {
   })
 })
 
-// G2 재검수 차단 A — 작업 노드가 `git replace <PR 머리> <악성 커밋>`을 심으면, 교체 객체를 따르는 git의 `merge --no-ff`는
+// 작업 노드가 `git replace <PR 머리> <악성 커밋>`을 심으면, 교체 객체를 따르는 git의 `merge --no-ff`는
 // 부모를 원래 SHA로 적고 트리는 악성 것으로 만든다(CI를 거치지 않은 트리가 원격에 간다). 실행기 git은 교체 객체를 따르지 않는다
 // (GIT_NO_REPLACE_OBJECTS=1, -c core.useReplaceRefs=false). 판정은 교체 참조가 없는 bare 원격에서 읽는다.
 describe('교체 객체(git replace)를 따르지 않는다 (G2 재검수 차단 A)', () => {

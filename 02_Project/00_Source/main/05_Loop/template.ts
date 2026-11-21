@@ -1,4 +1,3 @@
-// M09 G1 — 선언형 템플릿의 형식과 스키마 검사 (goal `01_Milestones/M09_AppLoop/10_Goal-G1-템플릿과-실행기.md`).
 // 템플릿은 앱 자원이다. 작업 저장소에는 id와 해시만 적는다. 해시는 파싱한 값의 정규 직렬화(키 정렬)의 sha256이라
 // 줄바꿈·들여쓰기 차이(Windows 줄바꿈 변환 포함)로는 바뀌지 않고, 값이 하나라도 바뀌면 바뀐다.
 // 검사는 손으로 한다(새 의존성 없음). 모르는 키도 거부한다 — 오타가 조용히 기본값으로 떨어지지 않게 한다(fail-closed).
@@ -15,7 +14,7 @@ import { createHash } from 'node:crypto'
 export type Judge = 'rule' | 'model' | 'human'
 export type Grade = 'strong' | 'weak'
 export type DocKind = 'milestoneSpec' | 'goal' | 'decisions' | 'verification'
-type ActionKind ='createMilestoneBranch' | 'createGoalBranch' | 'openGoalPr' | 'mergeGoal' | 'openMilestonePr'
+type ActionKind = 'createMilestoneBranch' | 'createGoalBranch' | 'openGoalPr' | 'mergeGoal' | 'openMilestonePr'
 type RuleCheck = { type: 'commands'; commands: string[] } | { type: 'grade' } | { type: 'ci' }
 
 interface OnFail { goto: string }
@@ -59,7 +58,7 @@ export interface GradingPolicy {
   protectedPaths: string[]
 }
 // 브랜치 이름 꼴. {milestone}·{goal} 자리에 id가 들어간다(마일스톤 꼴에는 {goal}을 둘 수 없다).
-// M09 G4 — 기준 브랜치(base)는 템플릿에 두지 않는다. 열 때 작업 저장소 origin의 기본 브랜치를 읽고(openLoop), 시작할 때 상태에 적는다.
+// 기준 브랜치(base)는 템플릿에 두지 않는다. 열 때 작업 저장소 origin의 기본 브랜치를 읽고(openLoop), 시작할 때 상태에 적는다.
 interface BranchPolicy {
   milestone: string
   goal: string
@@ -74,7 +73,7 @@ export interface Template {
 }
 
 export interface SchemaError { path: string; reason: string }
-type TemplateCheck ={ ok: true; template: Template } | { ok: false; errors: SchemaError[] }
+type TemplateCheck = { ok: true; template: Template } | { ok: false; errors: SchemaError[] }
 export type TemplateLoad = { ok: true; template: Template; hash: string } | { ok: false; errors: SchemaError[] }
 
 const DEFAULT_STRONG_LINE_THRESHOLD = 50
@@ -116,7 +115,7 @@ export function templateHash(value: unknown): string {
   return createHash('sha256').update(canonicalJson(value)).digest('hex')
 }
 
-// 템플릿 텍스트를 읽어 검사한다. 파일 읽기는 부르는 쪽(G2 배선·시험)이 한다.
+// 템플릿 텍스트를 읽어 검사한다. 파일 읽기는 부르는 쪽(배선·시험)이 한다.
 export function loadTemplate(text: string): TemplateLoad {
   let raw: unknown
   try {

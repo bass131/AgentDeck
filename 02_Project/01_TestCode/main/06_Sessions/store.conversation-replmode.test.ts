@@ -1,4 +1,3 @@
-// 작업 ID: lr4-p07 · 옛 이름 lr4-p07-conversation-store-replmode.test.ts
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import fs from 'node:fs'
 import os from 'node:os'

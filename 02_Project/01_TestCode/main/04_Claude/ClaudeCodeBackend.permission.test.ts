@@ -20,7 +20,7 @@ type CapturedCanUseTool = (
   opts: { signal: AbortSignal; toolUseID: string; suggestions?: unknown[] }
 ) => Promise<{ behavior: string; updatedInput?: unknown; updatedPermissions?: unknown; message?: string }>
 
-// M06 G3 — 일반 질의의 실측 꼴: SDK는 규칙 제안을 한 개 이상 붙여 보낸다. 제안 없는 호출은 모드와 관계없이 카드로 간다.
+// 일반 질의의 실측 꼴: SDK는 규칙 제안을 한 개 이상 붙여 보낸다. 제안 없는 호출은 모드와 관계없이 카드로 간다.
 const SUGG: unknown[] = [{ type: 'addRules', rules: [{ toolName: 'Bash' }], behavior: 'allow', destination: 'session' }]
 
 interface Captured {

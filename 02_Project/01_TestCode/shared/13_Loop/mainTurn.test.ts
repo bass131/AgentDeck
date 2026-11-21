@@ -1,4 +1,3 @@
-// M11 G4 — 메인 대화 한 턴의 답 글. main의 대화 기록과 화면의 턴 짝짓기가 이 한 규칙을 쓴다.
 import { describe, expect, it } from 'vitest'
 import { mainAnswerOf } from '@shared/13_Loop/mainTurn'
 

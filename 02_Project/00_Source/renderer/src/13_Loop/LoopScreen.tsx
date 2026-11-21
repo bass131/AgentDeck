@@ -38,7 +38,7 @@ export function StatusBoard({ cwd, onCwdChange, onOpenSession, onOpenMain }: Sta
   const folderGen = useRef(0)
   const pushSeq = useRef(0)
   const alive = useRef(true)
-  // 다른 호출이 도는 동안 고른 질문 답의 대기열(G4 검수 사소 8) — 버리지 않고 앞 호출이 끝난 뒤 하나씩 보낸다
+  // 다른 호출이 도는 동안 고른 질문 답을 버리지 않고 앞 호출이 끝난 뒤 하나씩 보낸다
   const queued = useRef<{ card: LoopCard; response: LoopCardResponse }[]>([])
   const drain = useRef<() => void>(() => {})
 
@@ -51,7 +51,6 @@ export function StatusBoard({ cwd, onCwdChange, onOpenSession, onOpenMain }: Sta
     })
   }, [])
 
-  // push 구독 — 화면이 떠 있는 동안만
   useEffect(() => {
     alive.current = true
     const off = ipc.loop.onState((s) => {
@@ -135,8 +134,8 @@ export function StatusBoard({ cwd, onCwdChange, onOpenSession, onOpenMain }: Sta
     }
   }
 
-  // 루프를 열기·닫기·다시 열기 할 때 답한 표시를 비운다(G4 확인 검수) — 닫으면 그 세션의 카드는 거둬지고, 다시 연 뒤의
-  // 새 세션 카드가 옛 표시에 가려지지 않게 한다. 호출을 보내기 전에 비운다(열기 도중 뜬 새 카드에 낸 답의 표시를 지우지 않게).
+  // 닫으면 그 세션의 카드는 거둬지므로 다시 연 뒤의 새 세션 카드가 옛 답한 표시에 가려지지 않게 비운다.
+  // 호출을 보내기 전에 비운다(열기 도중 뜬 새 카드에 낸 답의 표시를 지우지 않게).
   const clearAnswered = (): void => setAnswered(new Set())
   const open = (): void => void run('top', (c) => { clearAnswered(); return ipc.loop.open({ cwd: c }) }, apply)
   const start = (): void => void run('top', (c) => ipc.loop.start({ cwd: c, milestoneId: milestoneId.trim() }), apply)
@@ -146,7 +145,7 @@ export function StatusBoard({ cwd, onCwdChange, onOpenSession, onOpenMain }: Sta
       await ipc.loop.close({ cwd: c })
       return ipc.loop.status({ cwd: c })
     }, apply)
-  // 진행 불가에서 빠져나가는 길(G4 검수 사소 7) — 루프를 닫고 다시 연다(컨트롤 설정 같은 원인을 고친 뒤)
+  // 진행 불가(컨트롤 설정 같은 원인을 고친 뒤)에서 빠져나가는 길
   const reopen = (): void =>
     void run('top', async (c) => {
       clearAnswered()
@@ -157,8 +156,7 @@ export function StatusBoard({ cwd, onCwdChange, onOpenSession, onOpenMain }: Sta
     void run('resume', (c) => ipc.loop.decide({ cwd: c, verdict: 'pass', evidence: RESUME_EVIDENCE, ...expectNode() }), decided('resume'))
   const release = (token: string): void =>
     void run('latch', (c) => ipc.loop.releaseLatch({ cwd: c, token }), decided('latch'))
-  // 대기열에 넣을 때 미리 답한 표시를 하므로, 보내기가 throw하거나 받아지지 않으면 표시를 되돌린다(G4 확인 검수) —
-  // 카드가 남아 있으면 사람이 다시 답할 수 있다. throw의 사유는 run이 그 자리(cards)에 보인다.
+  // 대기열에 넣을 때 미리 답한 표시를 하므로, 보내기가 throw하거나 받아지지 않으면 표시를 되돌려 다시 답할 수 있게 한다.
   const unmark = (id: string): void =>
     setAnswered((prev) => {
       if (!prev.has(id)) return prev
@@ -202,7 +200,7 @@ export function StatusBoard({ cwd, onCwdChange, onOpenSession, onOpenMain }: Sta
   const canOpen = cwd !== null && (status === null || phase === 'closed' || phase === 'open-failed')
   const canStart = status !== null && (phase === 'not-started' || (phase === 'blocked' && status.milestoneId === null))
   const canClose = status !== null && phase !== 'closed'
-  // 메인 대화의 카드는 메인 대화 화면이 답한다(M10 G3) — 구동자 자신의 카드만 남긴다
+  // 메인 대화의 카드는 메인 대화 화면이 답한다 — 구동자 자신의 카드만 남긴다
   const cards = status?.cards.filter((c) => c.inChat !== true) ?? []
   const found = asking === null ? undefined : cards.find((c) => c.requestId === asking)
   const askingCard = found && found.kind === 'question' ? found : null
@@ -398,7 +396,7 @@ export function StatusBoard({ cwd, onCwdChange, onOpenSession, onOpenMain }: Sta
         )}
       </div>
 
-      {/* 현황판에는 겹침 맥락이 없다(M10 G1) — 질문 창은 대화 질문 창과 같은 층(app, z 80)에 뜬다 */}
+      {/* 현황판에는 겹침 맥락이 없다 — 질문 창은 대화 질문 창과 같은 층(app, z 80)에 뜬다 */}
       <QuestionModal
         open={askingCard !== null}
         questions={askingCard?.questions ?? []}

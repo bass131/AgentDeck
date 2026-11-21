@@ -1,4 +1,4 @@
-// M07 G8 실제 경로 프로브 (opt-in: G8MERGECARD=1, 출력 폴더 G8_OUT).
+// PR 병합 카드 실제 경로 프로브 (opt-in: G8MERGECARD=1, 출력 폴더 G8_OUT).
 // 실제 엔진과 실제 GitHub를 쓴다. 병합 버튼은 누르지 않는다 — 카드 읽기와 에이전트 거부만 본다.
 //   A) Git 창에서 PR 번호(G8_PR)를 불러오면 카드의 머리 SHA·필수 검사가 GitHub 값과 같다.
 //   B) 앱 세션의 에이전트가 `gh pr merge`를 부르면 잠금 노드 merge-deny가 거부한다.

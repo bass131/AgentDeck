@@ -1,4 +1,3 @@
-// 작업 ID: f14 · 옛 이름 f14-modals.test.tsx
 // @vitest-environment jsdom
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, screen, fireEvent, act, cleanup } from '@testing-library/react'
@@ -122,7 +121,7 @@ describe('QuestionModal — 다중 질문', () => {
   })
 })
 
-// G4 검수 차단 B2 — 질문 창이 둘 열려 있으면 키(숫자·Enter·Esc)는 맨 위 창 하나만 받는다. 내려두면 그 아래 창이 받는다.
+// 질문 창이 둘 열려 있으면 키(숫자·Enter·Esc)는 맨 위 창 하나만 받는다. 내려두면 그 아래 창이 받는다.
 describe('QuestionModal — 여러 창의 키 입력', () => {
   const A = [{ header: 'A', question: '아래 창 질문', options: [{ label: 'a1', description: '' }], multiSelect: false }]
   const B = [{ header: 'B', question: '위 창 질문', options: [{ label: 'b1', description: '' }], multiSelect: false }]
@@ -192,8 +191,8 @@ describe('QuestionModal — 여러 창의 키 입력', () => {
   })
 })
 
-// G4 확인 검수 — 맨 위 판정은 화면 겹침(층)을 따른다. 낮은 층(여기서는 시험용 60)의 창은 나중에 열려도 z 80 대화 질문 창 아래다.
-// M10 G1부터 앱에 60 층을 쓰는 창은 없다(루프 화면이 모달이 아니다). 층 기계는 G3 세션 탭이 다시 쓸 수 있어 남긴다.
+// 맨 위 판정은 화면 겹침(층)을 따른다. 낮은 층(여기서는 시험용 60)의 창은 나중에 열려도 z 80 대화 질문 창 아래다.
+// 지금 앱에 60 층을 쓰는 창은 없다. 층 기계는 세션 탭이 다시 쓸 수 있어 남긴다.
 // 순서: 펼친 창이 내려둔 창보다 먼저, 그다음 층이 높은 창, 같은 층에서는 연(펼친) 순서.
 describe('QuestionModal — 화면 층', () => {
   const CONV = [{ header: 'C', question: '대화 창 질문', options: [{ label: 'c1', description: '' }], multiSelect: false }]
@@ -260,7 +259,7 @@ describe('QuestionModal — 화면 층', () => {
     expect(loop).not.toHaveBeenCalled()
   })
 
-  // M10 G1 — 루프 화면이 모달에서 작업 모드 몸체로 바뀌어 z 60 루프 오버레이 층이 없어졌다. 층 값은 질문 창 CSS 하나와 대조한다.
+  // 층 값은 질문 창 CSS 하나와 대조한다.
   it('층 값은 질문 창의 CSS z-index와 같다 — 대화·루프 질문 창(.q-overlay) 320, 루프 화면에는 겹침 맥락이 없다', async () => {
     const fs = await import('node:fs')
     const path = await import('node:path')
@@ -278,7 +277,7 @@ describe('QuestionModal — 화면 층', () => {
     expect(loopCss).not.toMatch(/z-index|transform|filter|isolation|contain\s*:/)
   })
 
-  // M11 G2 — M05 Backlog 49. 질문 창은 숫자 키를 가져가므로 다른 모달 겹침(.fs-overlay 제외)보다 위에 그린다.
+  // 질문 창은 숫자 키를 가져가므로 다른 모달 겹침(.fs-overlay 제외)보다 위에 그린다.
   it('질문 창(.q-overlay)은 다른 모달 겹침보다 위다', async () => {
     const fs = await import('node:fs')
     const path = await import('node:path')
@@ -347,7 +346,7 @@ describe('QuestionModal — 화면 층', () => {
     render(<QuestionModal open={true} questions={SAMPLE_QS} onAnswer={vi.fn()} onDismiss={onDismiss} />)
     await act(async () => { fireEvent.keyDown(window, { key: 'Escape' }) })
     expect(document.querySelector('.q-mini-pill')).toBeTruthy()
-    // M11 G4(설계 감사 22) — 다른 모달은 클래스가 아니라 모달 층으로 안다
+    // 다른 모달은 클래스가 아니라 모달 층으로 안다
     const { pushModalLayer } = await import('@renderer/02_Common/modalStack')
     const other = pushModalLayer()
     try {

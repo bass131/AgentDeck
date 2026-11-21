@@ -1,4 +1,4 @@
-// M09 G2 — 저장소당 실행기 하나(M09 Backlog 2). 앱 영역(userData 아래)의 잠금 파일 `<repoKey>.lock`을 배타 생성(wx)으로 잡는다.
+// 저장소당 실행기 하나. 앱 영역(userData 아래)의 잠금 파일 `<repoKey>.lock`을 배타 생성(wx)으로 잡는다.
 // 같은 프로세스 안은 메모리 표로, 다른 프로세스는 파일로 막는다.
 // 죽은 잠금의 처리:
 //   - 파일의 pid가 살아 있는 다른 프로세스 → 거부(사유에 pid와 파일 경로 — 사람이 확인하고 지울 수 있게).
@@ -15,7 +15,7 @@ interface RepoLock {
   readonly file: string
   release(): Promise<void>
 }
-type LockResult ={ ok: true; lock: RepoLock } | { ok: false; reason: string }
+type LockResult = { ok: true; lock: RepoLock } | { ok: false; reason: string }
 
 const KEY = /^[0-9a-f]{64}$/
 const FRESH_MS = 5_000

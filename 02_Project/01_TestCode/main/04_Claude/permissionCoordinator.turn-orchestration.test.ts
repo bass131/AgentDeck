@@ -1,4 +1,3 @@
-// 작업 ID: uc1-p01 · 옛 이름 uc1-p01-turn-orchestration.test.ts
 import { describe, it, expect } from 'vitest'
 import { createRunManager } from '@main/03_Agent/agentRuns'
 import {

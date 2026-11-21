@@ -1,4 +1,3 @@
-// 작업 ID: gap1-p14 · 옛 이름 gap1-p14-splitview-policy.test.ts
 import { describe, it, expect } from 'vitest'
 import {
   MAX_CELLS,

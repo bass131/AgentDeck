@@ -1,4 +1,3 @@
-// 작업 ID: cp1-p05 · 옛 이름 cp1-p05-sanitize-subagents.test.ts
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import fs from 'node:fs'
 import os from 'node:os'

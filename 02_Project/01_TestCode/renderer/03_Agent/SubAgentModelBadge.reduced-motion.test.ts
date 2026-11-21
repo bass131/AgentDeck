@@ -1,4 +1,3 @@
-// 작업 ID: cp1-p06 · 옛 이름 cp1-p06-subagentmodelbadge-reduced-motion.test.ts
 import { describe, it, expect } from 'vitest'
 import fs from 'fs'
 import path from 'path'

@@ -1,4 +1,4 @@
-// PR 카드의 순수 도우미 (M07 G8) — 대화에서 PR URL을 감지하고 카드 문구를 만든다.
+// 대화에서 PR URL을 감지하고 카드 문구를 만든다.
 // 감지한 URL은 번호를 찾는 데만 쓴다. 저장소 비교와 카드의 값은 모두 main이 한다(08_Git/prMerge.ts).
 import type { PrCheckResult, PrMergeResponse, PrView } from '@shared/ipcContract'
 

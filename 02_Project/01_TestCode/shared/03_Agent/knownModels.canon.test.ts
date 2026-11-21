@@ -1,4 +1,3 @@
-// M06 G4 — 모델 어휘는 SDK `supportedModels()` 목록에서 온다. 손으로 쓴 표는 최소 목록 하나뿐이다.
 import { describe, it, expect } from 'vitest'
 import { FALLBACK_MODELS, DEFAULT_MODEL_ID, defaultModelOf, normalizeModel } from '@shared/03_Agent/models/knownModels'
 import {
@@ -10,7 +9,7 @@ import {
 } from '@shared/03_Agent/models/modelList'
 import { EFFORT_LEVELS, clampEffort, isEffortLevel, readEffortLevel } from '@shared/03_Agent/models/modelEffort'
 
-// G4 검수 1-2: 옛 「최소」는 가장 싼 설정이었으므로 low로 읽는다. 다른 비단계 값은 기본 단계(max).
+// 옛 「최소」는 가장 싼 설정이었으므로 low로 읽는다.
 describe('readEffortLevel', () => {
   it('단계는 그대로, minimal은 low, 그 밖은 max', () => {
     expect(readEffortLevel('medium')).toBe('medium')
@@ -40,7 +39,7 @@ describe('최소 목록 — SDK도 캐시도 없을 때의 마지막 폴백', ()
     expect(DEFAULT_MODEL_ID).toBe(canonicalModelId(FALLBACK_MODELS[0]))
   })
 
-  // M11 G2 — M06 Backlog 17. 새 대화 기본 모델은 SDK 목록의 default 행이 풀린 정식 ID다(별칭 'default' 자체가 아니다).
+  // 별칭 'default' 자체가 아니라 그 행이 풀린 정식 ID다.
   it('defaultModelOf — default 행의 정식 ID, 없으면 첫 행, 빈 목록이면 최소 목록 기본값', () => {
     expect(defaultModelOf(SDK_MODEL_ROWS)).toBe('claude-opus-5-5')
     const moved = SDK_MODEL_ROWS.map((r) => (r.value === 'default' ? { ...r, resolvedModel: 'claude-fable-5-2' } : r))
@@ -76,7 +75,6 @@ describe('sanitizeModelRows — SDK·캐시 원자료 검증', () => {
     ])
   })
 
-  // M11 G2 — M06 Backlog 18. 캐시 파일 행의 value에 길이·문자 제한이 없었다.
   it('value·resolvedModel은 모델 ID 꼴(소문자·숫자·.·-, 끝의 […] 표기)이고 128자 이하다', () => {
     const ok = sanitizeModelRows([
       { value: 'claude-opus-5-5[1m]', displayName: 'A' },
@@ -159,7 +157,7 @@ describe('normalizeModel — 신뢰경계 검사, 표 대조가 아니다', () =
     expect(normalizeModel('nova', SDK_MODEL_ROWS)).toBeUndefined()
   })
 
-  // M11 G2 — M06 Backlog 16. 최소 목록만 있을 때 저장된 별칭이 model 키에서 빠져 SDK 기본 모델로 돌았다.
+  // 별칭이 model 키에서 빠지면 SDK 기본 모델로 돈다.
   it('최소 목록만 있어도 저장된 짧은 별칭(opus·fable·sonnet·haiku)이 통과한다', () => {
     for (const alias of ['opus', 'fable', 'sonnet', 'haiku']) {
       expect(normalizeModel(alias, FALLBACK_MODELS), alias).toBe(alias)

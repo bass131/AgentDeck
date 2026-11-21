@@ -1,4 +1,3 @@
-// 작업 ID: lr2-01 · 옛 이름 lr2-01-replmode-default.test.ts
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { resetAppStore } from '../00_Helpers/storeReset'
 import { adaptFlatApi } from '../00_Helpers/windowApiMock'
@@ -82,7 +81,7 @@ describe('LR2-01 T2: 명시적 setReplMode(false) → 단발+resume 페이로드
     expect(cap.resumeSessionId).toBe('sess-prev')
   })
 
-  // M06 G4: 대화가 마지막으로 잰 컨텍스트 창을 실행 요청에 싣는다 — main이 기록 재적재 예산을 그 창으로 정한다.
+  // 대화가 마지막으로 잰 컨텍스트 창을 실행 요청에 싣는다 — main이 기록 재적재 예산을 그 창으로 정한다.
   it('lastContextWindow 보유 상태에서 sendMessage → contextWindow 포함', async () => {
     useAppStore.getState().setReplMode(false)
     useAppStore.setState({ sessionId: 'sess-prev', lastContextWindow: 200_000 } as Parameters<typeof useAppStore.setState>[0])
@@ -101,7 +100,6 @@ describe('LR2-01 T2: 명시적 setReplMode(false) → 단발+resume 페이로드
     expect('contextWindow' in getCapture()).toBe(false)
   })
 
-  // M11 G2 — M06 Backlog 18
   it('모델을 바꾼 뒤 첫 실행은 contextWindow를 싣지 않고, 계기의 창은 그대로다', async () => {
     useAppStore.getState().setReplMode(false)
     useAppStore.setState({ sessionId: 'sess-prev', selectedModel: 'claude-opus-5-5', lastContextWindow: 1_000_000 } as Parameters<typeof useAppStore.setState>[0])

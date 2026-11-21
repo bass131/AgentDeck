@@ -1,4 +1,3 @@
-// 작업 ID: lr3-p01 · 옛 이름 lr3-p01-probe.live.test.ts
 import { describe, it, expect } from 'vitest'
 import { mkdtempSync, rmSync } from 'node:fs'
 import { join } from 'node:path'

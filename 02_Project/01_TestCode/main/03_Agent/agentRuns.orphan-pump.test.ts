@@ -1,4 +1,3 @@
-// 작업 ID: gap1-p12 · 옛 이름 gap1-p12-orphan-pump.test.ts
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { createRunManager } from '@main/03_Agent/agentRuns'
 import { ClaudeCodeBackend } from '@main/04_Claude/ClaudeCodeBackend'

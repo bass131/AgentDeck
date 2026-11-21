@@ -41,7 +41,7 @@ export function useComposerKeyHandler({
             slash.setSlashIdx((i) => (i - 1 + slash.totalSlash) % slash.totalSlash)
           return
         }
-        // 후보가 없는 팔레트는 Enter를 삼키지 않는다 — 아래 전송으로 간다(M05 Backlog 51, 「/clear」를 공백 없이 친 경우)
+        // 후보가 없는 팔레트는 Enter를 삼키지 않는다 — 아래 전송으로 간다(「/clear」를 공백 없이 친 경우)
         if (e.key === 'Tab' || (e.key === 'Enter' && slash.totalSlash > 0)) {
           e.preventDefault()
           if (slash.totalSlash > 0) {

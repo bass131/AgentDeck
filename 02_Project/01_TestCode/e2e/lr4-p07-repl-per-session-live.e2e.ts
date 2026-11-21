@@ -86,7 +86,6 @@ async function launchSingle(
   return { app, page }
 }
 
-// M10 G1 — 멀티 에이전트 모드를 지워 멀티 화면 기동 함수와 S4(멀티 패널 독립+복원)를 뺐다.
 
 function singleToggle(page: Page) {
   return page.locator('.pane.chat').getByRole('button', { name: 'REPL 지속세션 모드 토글' })

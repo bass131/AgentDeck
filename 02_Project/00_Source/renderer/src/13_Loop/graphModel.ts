@@ -1,5 +1,3 @@
-// M10 G5 그래프 탭의 순수 도우미 — 노드 이름 대응, 지금 위치·끝남·실패 수, 묶음 상자, 선의 꼴, 맞춤 배율.
-// 표시는 main이 준 그래프와 LoopStatus 한 장에서만 온다. 같은 입력이면 같은 표시다.
 import { GRAPH_CARD, type GraphNodeKind, type LoopGraph, type LoopGraphEdge, type LoopGraphNode, type LoopStatus } from '@shared/ipcContract'
 
 export const KIND_LABEL: Record<GraphNodeKind, string> = {

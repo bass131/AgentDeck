@@ -1,4 +1,3 @@
-// 작업 ID: lr4-p07 · 옛 이름 lr4-p07-repl-per-session-single.test.ts
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { makeInitialState } from '@renderer/05_Conversation/state/reducer'
 import { buildConversationSavePayload } from '@renderer/06_Sessions/state/conversationPayload'

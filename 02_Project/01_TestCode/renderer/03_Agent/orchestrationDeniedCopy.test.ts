@@ -1,4 +1,3 @@
-// 작업 ID: uc1-p10 · 옛 이름 uc1-p10-orchestration-denied.test.ts
 import { describe, it, expect } from 'vitest'
 import {
   applyAgentEvent,

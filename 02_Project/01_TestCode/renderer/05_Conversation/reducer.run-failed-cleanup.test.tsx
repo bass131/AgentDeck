@@ -1,4 +1,3 @@
-// 작업 ID: fb · 옛 이름 fb-run-failed-cleanup.test.tsx
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { makeInitialState } from '@renderer/05_Conversation/state/reducer'

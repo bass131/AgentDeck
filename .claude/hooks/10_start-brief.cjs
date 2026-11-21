@@ -1,9 +1,6 @@
 #!/usr/bin/env node
-// 재개 프로토콜 (SessionStart) — 세션 기동 시 생존 문서 4종의 로드를 확인하고 work-pin을 재부착한다.
-// 기동 시 현재 시각 한 줄을 함께 주입한다 — 무인 세션의 시계 추정 제거 (M02 결정 대장 [USER] 2026-08-04).
-// 생존 문서 4종: Phase-Steps · work-pin · 결정 대장 · 검증 기록 (뒤 둘은 Phase-Steps 안의 절).
-// 재개의 정본은 문서다 — --resume 기동이면 통과 여부를 검증 기록 줄에서 다시 읽으라는 안내를 주입한다 (헌법 2조, resume은 금지가 아니다).
-// 설계 원 기록: AgentDeck 00_Documents/05_Design_Notes/08_Clear-게이트.
+// 재개 프로토콜 (SessionStart) — 생존 문서 4종의 로드를 확인하고 work-pin과 현재 시각 한 줄을 주입한다(헌법 2조).
+// 시각을 주입하는 이유는 무인 세션이 시계를 추정하지 않게 하려는 것이다.
 'use strict';
 const fs = require('fs');
 const path = require('path');
@@ -36,9 +33,8 @@ function readOrNull(p) { try { return fs.readFileSync(p, 'utf8'); } catch (e) { 
 let planText = planPath ? readOrNull(planPath) : null;
 const pinText = pinPath ? readOrNull(pinPath) : null;
 
-// 파일 구획: planPath가 _MilestonePreview.md를 가리키면 같은 폴더의 NN_Phase_N.md 실존까지
-// 확인 범위에 넣고, 병합 텍스트로 아래 4종 확인을 적용한다. Phase 파일이 0개거나 하나라도
-// 판독 불가면 계획 결손으로 집계한다 (fail-closed).
+// planPath가 _MilestonePreview.md면 같은 폴더의 NN_Phase_N.md를 병합해 확인한다.
+// Phase 파일이 0개거나 하나라도 못 읽으면 계획 결손이다 (fail-closed).
 let planFiles = null;
 if (planText !== null && planPath && path.basename(planPath) === '_MilestonePreview.md') {
   const dir = path.dirname(planPath);
@@ -86,11 +82,8 @@ if (missing.length) {
   lines.push('재개 절차: 위 좌표를 기점으로 Phase-Steps의 현재 Phase 절(목표·Steps·DoD·검증 기록)을 읽고 재개하라. 검증 기록 줄 밖의 통과 주장은 무효다.');
 }
 
-// 병합 감시 재장착 (M07 G10, 헌법 11조) — 감시는 세션이 닫히면 사라진다. pin의 「현재 goal」 줄이
-// 「병합 대기」와 PR 번호를 말하면, 그 PR의 감시를 백그라운드로 다시 걸라는 한 줄을 주입한다.
-// 현재 goal 줄만 읽는다(다른 줄의 옛 PR 번호를 집지 않게). 정본 꼴은 「(병합 대기, PR N)」이고(goal 템플릿 마감 줄),
-// 「병합 대기 (PR N)」·「병합 대기 — PR #N」·「PR N 병합 대기」도 읽는다(PR 77 검수 중요 2).
-// compact는 같은 세션이 이어지는 것이라 감시가 살아 있다 — 다시 걸라고 하지 않는다(중요 3, 중복 감시 방지).
+// 병합 감시는 세션이 닫히면 사라진다(헌법 11조) — pin의 현재 goal 줄이 「병합 대기」와 PR 번호를 말하면 다시 걸라는 한 줄을 주입한다.
+// 현재 goal 줄만 읽어 옛 PR 번호를 집지 않는다. compact는 같은 세션이라 감시가 살아 있으니 다시 걸라고 하지 않는다.
 let mergeWatchPr = null;
 if (!missing.length && source !== 'compact') {
   const goalLine = (pinText.match(/^- 현재 goal:.*$/m) || [''])[0];

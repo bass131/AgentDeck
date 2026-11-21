@@ -506,7 +506,7 @@ describe('ConversationStore (JSON fan-out)', () => {
     })
   })
 
-  // M11 G3 — M11 Backlog 20. 깨진 index.json 뒤의 저장이 색인을 그 한 건으로 덮어써 나머지 대화가 목록에서 사라졌다.
+  // 깨진 index.json 뒤의 저장이 색인을 그 한 건으로 덮어쓰면 나머지 대화가 목록에서 사라진다
   describe('대화 색인의 깨짐과 쓰기 (M11 G3)', () => {
     const indexPath = (): string => path.join(tmpDir, 'index.json')
 

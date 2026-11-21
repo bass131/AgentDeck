@@ -1,4 +1,3 @@
-// 작업 ID: cp1-p07 · 옛 이름 cp1-p07-subagent-backlog.test.ts
 import { describe, it, expect, beforeEach } from 'vitest'
 import { RunEventNormalizer } from '@main/04_Claude/stream/eventNormalizer'
 import type { AgentEvent } from '@shared/agentEvents'

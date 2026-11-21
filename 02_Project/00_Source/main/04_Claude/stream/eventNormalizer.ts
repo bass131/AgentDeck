@@ -57,7 +57,7 @@ export class RunEventNormalizer {
 
   resetStreaming(): void { this._streamedThisMsg = false }
 
-  // 계기가 턴 결과 modelUsage에서 고를 주 모델 (M06 G4) — init의 model, 거절 폴백, 실행 중 전환이 바꾼다.
+  // 계기가 턴 결과 modelUsage에서 고를 주 모델 — init의 model, 거절 폴백, 실행 중 전환이 바꾼다.
   private _mainModel: string | undefined
   private _lastMainUsage: TokenUsage | undefined
 
@@ -159,7 +159,7 @@ export class RunEventNormalizer {
     for (const event of mapClaudeStreamLine(msg, { mainModel: this._mainModel })) {
 
       if (event.type === 'done') {
-        // 계기는 턴 합계(result.usage)가 아니라 마지막 최상위 호출의 크기를 본다(M06 Backlog 2·26)
+        // 턴 합계(result.usage)는 창을 넘으므로 계기는 마지막 최상위 호출의 크기를 본다
         foundDone = this._lastMainUsage ? { ...event, usage: this._lastMainUsage } : event
         this._lastMainUsage = undefined
         for (const e of this._cronTracker.onTurnEnd(turnOrigin)) events.push(e)

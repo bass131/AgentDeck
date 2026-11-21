@@ -3,8 +3,7 @@ import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import appPackage from '../../../../package.json'
 
-// SDK 버전 읽기의 한 곳 (M05 G11) — ClaudeCodeBackend.version()과 engineState의 기본 getVersion이 함께 쓴다.
-// 설치본을 못 읽을 때의 폴백은 앱 package.json 의존 명세에서 접두 기호를 뗀 값이다(M06 Backlog 19).
+// 설치본을 못 읽을 때의 폴백 — Dependabot이 올리는 package.json 의존 명세를 그대로 따른다
 export const SDK_VERSION_FALLBACK: string = appPackage.dependencies['@anthropic-ai/claude-agent-sdk'].replace(/^[\^~]/, '')
 
 export function readInstalledSdkVersion(): string | null {

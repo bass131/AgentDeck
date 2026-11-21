@@ -1,4 +1,3 @@
-// 작업 ID: gap1-p04 · 옛 이름 gap1-p04-turn-signals.golden.test.ts
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'

@@ -1,4 +1,4 @@
-// M10 G2 — 메인 대화 저장. 작업 폴더마다 앱 영역(userData/loop)의 `<repoKey>.main.json` 한 장이다(작업 저장소와 채팅 저장소 밖).
+// 메인 대화 저장. 작업 폴더마다 앱 영역(userData/loop)의 `<repoKey>.main.json` 한 장이다(작업 저장소와 채팅 저장소 밖).
 // 담는 것: SDK 세션 id(재개), 대화 기록(사용자 글·메인 답·실행기 사건·알림, 상한 MAX_ITEMS), 꺼질 때 남은 질문 카드(다시 묻는다),
 // 줄 서 있던 턴(사용자 글·사건·다시 물은 카드의 답), 브레인스토밍 방문(키·방문 처음의 스펙 해시·여는 턴의 상태·반려 사유·끝남),
 // 구동자의 일시 정지 깃발. 실행 상태(run-state)·검증 기록과는 무관하다 — 메인이 이 파일로 실행기를 움직이지 못한다.
@@ -67,9 +67,9 @@ const EVENT_KIND_TABLE: Record<LoopEventKind, true> = {
 }
 const EVENT_KINDS: readonly unknown[] = Object.keys(EVENT_KIND_TABLE)
 
-// 항목 하나 — 종류마다 그 종류가 쓰는 칸을 본다(G2 독립 검수). 칸이 빠진 항목은 생존 문서의 최근 대화(tailLine)를 깨뜨리고,
+// 항목 하나 — 종류마다 그 종류가 쓰는 칸을 본다. 칸이 빠진 항목은 생존 문서의 최근 대화(tailLine)를 깨뜨리고,
 // 그 뒤 새 세션의 턴이 모두 실패한다. 사건은 아는 종류만 받는다 — 이름이 바뀌기 전 빌드의 사건(paused 꼴)이나 모르는 종류는
-// 화면이 그 모양을 찾지 못하므로 버린다(G3 독립 검수 중요 1 — G2 검수 때 옛 사건을 기록으로 남기던 선택을 뒤집었다).
+// 화면이 그 모양을 찾지 못하므로 버린다(옛 사건을 기록으로 남기던 선택을 뒤집었다).
 const validEvent = (e: unknown): boolean => isObj(e) && EVENT_KINDS.includes(e['kind']) && str(e['text'])
 
 function validItem(i: unknown): boolean {

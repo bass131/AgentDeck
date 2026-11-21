@@ -1,6 +1,4 @@
-// 작업 ID: g9b · 옛 이름 g9b-thread-view.test.tsx
 // @vitest-environment jsdom
-// M05 G9b — 스레드 렌더 하나(ThreadView). 이 파일은 그 렌더 자체를 고정한다.
 import { describe, it, expect, afterEach } from 'vitest'
 import { render, cleanup } from '@testing-library/react'
 import type { ThreadItem } from '@renderer/05_Conversation/state/threadTypes'

@@ -1,4 +1,4 @@
-// PR 카드 (M07 G8) — 병합의 길은 사람이 이 카드에서 누르는 「병합」 버튼 하나다.
+// 병합의 길은 사람이 이 카드에서 누르는 「병합」 버튼 하나다.
 // 카드의 값은 모두 main이 GitHub에서 읽어 준 값이다(08_Git/prMerge.ts). 병합은 카드가 보인 머리 SHA를 싣고,
 // main은 자기가 마지막으로 읽어 보인 SHA와 다르면 거부한다. Git 창(번호로 불러오기)과 대화(`gh pr create` 결과)에서 쓴다.
 import { useCallback, useEffect, useRef, useState, type JSX } from 'react'

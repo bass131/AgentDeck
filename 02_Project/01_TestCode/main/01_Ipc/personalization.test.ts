@@ -1,6 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
 
-// 실물 핸들러 검사 — ipcMain.handle을 가로채 registerPersonalizationHandlers가 등록한 핸들러를 직접 부른다
 const h = vi.hoisted(() => ({ handlers: new Map<string, (...args: unknown[]) => unknown>() }))
 
 vi.mock('electron', () => ({

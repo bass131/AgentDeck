@@ -1,4 +1,3 @@
-// 작업 ID: f12 · 옛 이름 gates-profile-f12.test.tsx
 // @vitest-environment jsdom
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, screen, fireEvent, cleanup } from '@testing-library/react'

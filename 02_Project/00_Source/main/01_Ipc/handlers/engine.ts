@@ -40,7 +40,6 @@ export function registerEngineHandlers(): void {
     return app.getVersion()
   })
 
-  // M05 G10: usage.get → engine.usage 재분류와 함께 personalization 핸들러에서 옮겼다 (동작 무변경)
   handle(IPC_CHANNELS.USAGE_GET, async (): Promise<UsageInfo> => {
     return getUsage()
   })

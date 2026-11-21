@@ -1,4 +1,3 @@
-// 작업 ID: lr3-p02 · 옛 이름 lr3-p02-idle-session-lifetime.test.ts
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { ClaudeCodeBackend } from '@main/04_Claude/ClaudeCodeBackend'
 import type { QueryFn } from '@main/04_Claude/ClaudeCodeBackend'

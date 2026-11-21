@@ -1,4 +1,3 @@
-// 작업 ID: gap1-p09 · 옛 이름 gap1-p09-idle-close-bgtask.test.ts
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { ClaudeCodeBackend } from '@main/04_Claude/ClaudeCodeBackend'
 import type { QueryFn } from '@main/04_Claude/ClaudeCodeBackend'

@@ -1,4 +1,3 @@
-// 작업 ID: bl1-followup · 옛 이름 bl1-followup-goal-lifecycle-unify.test.tsx
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import {

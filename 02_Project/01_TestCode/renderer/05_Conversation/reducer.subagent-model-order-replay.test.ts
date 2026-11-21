@@ -1,4 +1,3 @@
-// 작업 ID: fb2-p07 · 옛 이름 fb2-p07-subagent-model-order-replay.test.ts
 import { describe, it, expect } from 'vitest'
 import { makeInitialState, applyAgentEvent } from '@renderer/05_Conversation/state/reducer'
 import type { AgentEventPayload } from '@shared/ipcContract'

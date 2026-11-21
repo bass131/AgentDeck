@@ -1,6 +1,3 @@
-// M07 G5 — agent.run 요청 단계의 컨트롤 설정 검사. 실행 안의 검사(claudeAgentRun._prepareQuery)만 있으면, 오류 이벤트가
-// 화면이 실행 id를 받기(SET_RUN_ID) 전에 도착해 버려진다(앱 리허설 실측 — 화면이 「생각 중」에 멈췄다).
-// 그래서 Claude 실행은 요청 단계에서 먼저 거절해 renderer의 RUN_FAILED 경로로 문장을 보인다.
 import { describe, it, expect, vi, beforeEach, afterAll } from 'vitest'
 import fs from 'node:fs'
 import os from 'node:os'

@@ -98,7 +98,7 @@ export function registerGitHandlers(): void {
     return gitApi.gitPush(req.root)
   })
 
-  // PR 카드 (M07 G8) — 값은 main이 GitHub에서 읽고, 병합은 main이 마지막으로 읽어 보인 SHA로만 한다(prMerge.ts).
+  // 병합은 main이 마지막으로 읽어 보인 SHA로만 한다(prMerge.ts)
   handle(IPC_CHANNELS.GIT_PR_READ, async (_e, req: PrReadRequest): Promise<PrReadResponse> => {
     if (!req?.cwd || typeof req.cwd !== 'string' || !isAbsolute(req.cwd)) {
       return { ok: false, error: 'git.prRead: cwd는 절대 경로여야 합니다' }

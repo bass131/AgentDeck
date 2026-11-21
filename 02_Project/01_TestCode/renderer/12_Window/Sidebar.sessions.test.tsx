@@ -79,7 +79,7 @@ async function renderSidebar(
   return container
 }
 
-// M10 G1 — 모드는 「채팅」(single)과 「작업」(work) 둘이다. 멀티 에이전트 모드는 지웠다.
+// 모드는 「채팅」(single)과 「작업」(work) 둘이다.
 describe('F8-01: sb-mode 토글', () => {
   it('채팅/작업 탭 버튼 2개를 렌더한다', async () => {
     await renderSidebar()

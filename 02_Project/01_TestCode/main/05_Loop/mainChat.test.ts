@@ -1,4 +1,4 @@
-// M10 G2 메인 대화 엔진(05_Loop/mainChat.ts) — 대본 백엔드와 임시 폴더로 프로덕션 모듈을 돈다(실행기 없이, 실행기 쪽 판정은 deps 흉내).
+// 대본 백엔드와 임시 폴더로 프로덕션 모듈을 돈다(실행기 없이, 실행기 쪽 판정은 deps 흉내).
 // 고정하는 것:
 //   - 저장: `<앱 영역>/<repoKey>.main.json`에 세션 id·대화 기록·사건·대기 카드·브레인스토밍 방문·일시 정지 깃발이 산다(채팅 저장소 밖).
 //   - 직렬화: 사용자 턴·시작 턴·사건 턴이 한 줄로 서서 같은 세션을 차례로 이어 쓴다(동시에 둘이 돌지 않는다).
@@ -8,7 +8,7 @@
 //     꺼질 때 기다리던 질문 카드는 다시 묻고(restored), 답은 사용자 턴으로 간다. 줄 서 있던 사용자 글은 다시 줄을 선다.
 //   - 세션 id가 무효면 생존 문서로 새 세션을 연다. 새 메인 대화는 지난 기록을 보관하고 새 세션으로 연다(열린 방문이면 시작 턴).
 //   - 쓰기 창: 잠금에 넘기는 canWrite는 방문이 열려 있고 실행기 판정(deps.canWrite)이 참일 때만 참이다.
-//   - G2 독립 검수: 세션을 열기 전의 틈(도구 서버를 기다리는 동안)에도 닫기·멈춤이 듣고 세션을 열지 않는다. 세션이 받기 전의 글·사건은
+//   - 세션을 열기 전의 틈(도구 서버를 기다리는 동안)에도 닫기·멈춤이 듣고 세션을 열지 않는다. 세션이 받기 전의 글·사건은
 //     저장본 대기열에 남아 다시 열면 한 번 간다(받은 뒤면 다시 보내지 않는다). 새 메인 대화를 여는 동안 들어온 글은 옛 세션을 잇지 않는다.
 //     일시적 실패는 세션 id를 지우지 않는다. 칸이 빠진 저장 항목은 버리고 열며, 저장 실패는 알림으로 한 번 남긴다.
 import { createHash } from 'node:crypto'
@@ -76,7 +76,7 @@ const req = (key: string, rejected: string | null = null, spec: string | null = 
 async function closeAll(): Promise<void> { for (const c of chats.splice(0)) await c.close() }
 const fileOf = (): Record<string, unknown> => JSON.parse(fs.readFileSync(mainChatPath(app, repoKeyOf(root)), 'utf8')) as Record<string, unknown>
 const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms))
-// 고정 대기는 부하에서 첫 start 전에 끝날 수 있다 — 그러면 다시 연 뒤의 첫 start가 n=1 대본을 받아 멈춘다(M11 Backlog 9)
+// 고정 대기는 부하에서 첫 start 전에 끝날 수 있다 — 그러면 다시 연 뒤의 첫 start가 n=1 대본을 받아 멈춘다
 async function untilStarted(fake: ScriptedBackend, n: number): Promise<void> {
   for (let i = 0; i < 500 && fake.starts.length < n; i++) await sleep(10)
   expect(fake.starts).toHaveLength(n)
@@ -417,7 +417,7 @@ describe('새 메인 대화와 일시 정지 깃발 (M10 G2)', () => {
     expect(chat.view(root).sessionId).toBe('S2')
   })
 
-  // G4 검수 3·10 — 세션 id는 새 장을 알리지 못한다(null에서 null). 장 표지가 바뀌고, 새 장의 턴이 돌기 전에 알린다
+  // 세션 id는 새 장을 알리지 못한다(null에서 null). 장 표지가 바뀌고, 새 장의 턴이 돌기 전에 알린다
   it('새 메인 대화는 보기의 장 표지를 바꾸고, 새 장의 첫 사건보다 먼저 onNewChat을 부른다', async () => {
     const fake = scriptedBackend(textOnly('예'))
     const seen: string[] = []
@@ -503,7 +503,7 @@ describe('새 메인 대화와 일시 정지 깃발 (M10 G2)', () => {
   })
 })
 
-// G2 독립 검수 — 세션을 열기 전의 틈(생존 문서·도구 서버를 기다리는 동안)과 세션이 받기 전의 글
+// 세션을 열기 전의 틈(생존 문서·도구 서버를 기다리는 동안)과 세션이 받기 전의 글
 describe('세션을 열기 전의 틈 (M10 G2 검수)', () => {
   it('도구 서버를 기다리는 동안 닫으면 세션을 열지 않고 닫기가 끝난다(저장소 잠금을 쥔 채 남지 않는다)', async () => {
     const tools = deferred<Record<string, unknown> | null>()
@@ -633,8 +633,8 @@ describe('세션을 열기 전의 틈 (M10 G2 검수)', () => {
 })
 
 describe('저장본 검사와 저장 실패 (M10 G2 검수)', () => {
-  // G3 독립 검수 중요 1 — 모르는 사건 종류(이름이 바뀌기 전 빌드의 paused 꼴, 없는 종류)도 버린다. 화면이 모르는 종류의 모양을 찾다 무너지지 않게
-  // 저장본에서 걸러 연다(G2 검수 때는 옛 사건을 기록으로 남겼다 — 그 선택을 뒤집는다)
+  // 모르는 사건 종류(이름이 바뀌기 전 빌드의 paused 꼴, 없는 종류)도 버린다. 화면이 모르는 종류의 모양을 찾다 무너지지 않게
+  // 저장본에서 걸러 연다(옛 사건을 기록으로 남기던 선택을 뒤집었다)
   it('항목의 칸이 종류에 맞지 않거나 사건 종류를 모르면 버리고 연다 — 생존 문서를 싣는 턴이 깨지지 않는다', async () => {
     fs.mkdirSync(app, { recursive: true })
     const at = new Date().toISOString()

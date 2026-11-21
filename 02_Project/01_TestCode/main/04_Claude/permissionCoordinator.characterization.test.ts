@@ -1,6 +1,6 @@
-// M07 G2 판정 특성 테스트 — 권한 콜백을 노드 등록부로 옮기기 전 코드의 판정을 고정한다.
+// 권한 콜백을 노드 등록부로 옮기기 전 코드의 판정을 고정한다.
 // 기대값은 옮기기 전 `makeCanUseTool`의 분기 순서를 그대로 적은 명세 함수(expected)다.
-// 이 테스트는 옮기기 전 코드에서 먼저 통과했고(G2 검증 기록), 옮긴 뒤에도 고치지 않고 통과해야 한다.
+// 이 시험은 옮기기 전 코드에서 먼저 통과했고, 옮긴 뒤에도 고치지 않고 통과해야 한다.
 import { describe, it, expect } from 'vitest'
 import { PermissionCoordinator, type CanUseToolOptions } from '@main/04_Claude/permission/permissionCoordinator'
 import type { AgentEvent } from '@shared/agentEvents'
@@ -25,7 +25,7 @@ type Outcome =
 const READONLY = new Set(['Read', 'Grep', 'Glob', 'NotebookRead', 'WebFetch', 'WebSearch', 'TodoWrite', 'Task', 'Agent',
   'TaskCreate', 'TaskUpdate', 'TaskList', 'TaskGet', 'TaskOutput', 'BashOutput'])
 const MUTATING = new Set(['Write', 'Edit', 'MultiEdit', 'NotebookEdit', 'Bash', 'TaskStop', 'KillShell', 'KillBash'])
-// 두 묶음의 전 구성원과, 묶음 밖 도구를 함께 돌린다 — 묶음에서 하나가 빠지면 판정이 바뀌어 표가 빨개진다 (G2 검수 2).
+// 두 묶음의 전 구성원과, 묶음 밖 도구를 함께 돌린다 — 묶음에서 하나가 빠지면 판정이 바뀌어 표가 빨개진다.
 const TOOLS = ['AskUserQuestion', 'Workflow', 'ExitPlanMode', 'mcp__x__y', ...READONLY, ...MUTATING]
 
 // 옮기기 전 분기 순서의 명세 (permissionCoordinator.ts 150~181행, master ffdfc8a5)

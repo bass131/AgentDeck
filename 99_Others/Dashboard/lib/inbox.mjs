@@ -1,4 +1,4 @@
-// Orca 워커 보고 소식(M05 Backlog 63). 설정 inboxHandle이 가리키는 우편함을 읽기만 한다.
+// Orca 워커 보고 소식. 설정 inboxHandle이 가리키는 우편함을 읽기만 한다.
 // `orca orchestration inbox`는 읽음 표시를 바꾸지 않는다(바꾸는 것은 `check`다). 셸 없이 인자 배열로 부르고, 본문은 싣지 않는다.
 // orca가 없으면 null이라 화면이 소식 절을 그리지 않는다. 그 밖의 실패는 failed다.
 import { execFile } from 'node:child_process';

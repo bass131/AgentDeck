@@ -1,4 +1,3 @@
-// 작업 ID: f11 · 옛 이름 dialogs-f11.test.tsx
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react'

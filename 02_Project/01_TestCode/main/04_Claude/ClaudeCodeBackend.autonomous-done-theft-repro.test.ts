@@ -1,4 +1,3 @@
-// 작업 ID: gap1-p11 · 옛 이름 gap1-p11-autonomous-done-theft.repro.test.ts
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { ClaudeCodeBackend } from '@main/04_Claude/ClaudeCodeBackend'
 import type { QueryFn } from '@main/04_Claude/ClaudeCodeBackend'

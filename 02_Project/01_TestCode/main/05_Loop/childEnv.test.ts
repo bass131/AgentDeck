@@ -1,4 +1,4 @@
-// M09 G2 자격 없는 자식 환경 — 변수 모양과, 그 환경에서 gh·git이 자격을 얻지 못하는 것을 동작으로 본다.
+// 변수 모양과, 그 환경에서 gh·git이 자격을 얻지 못하는 것을 동작으로 본다.
 // 진짜 push·원격 쓰기는 하지 않는다. gh·git이 PATH에 없으면 그 동작 시험만 건너뛴다.
 // 실측(2026-11-18, 이 기계): 빈 GH_CONFIG_DIR만 주면 `gh auth status`는 exit 1인데 `gh auth token`은 keyring에서 40자 토큰을 낸다.
 // 그래서 GH_TOKEN 자리에 가짜 값을 둔다(환경 토큰이 keyring보다 먼저 읽힌다). GCM도 저장소를 빈 평문 폴더로 돌린다.
@@ -91,7 +91,7 @@ describe('자격 없는 환경에서 gh·git은 자격을 얻지 못한다(동�
     expect(fs.existsSync(other.paths.root)).toBe(false)
   })
 
-  // 양성 대조(G2 검수 사소) — 일반 환경에서 gh가 인증돼 있을 때만 의미가 있다. 인증 없는 기계에서는 자식 환경도 당연히 실패해
+  // 양성 대조 —일반 환경에서 gh가 인증돼 있을 때만 의미가 있다. 인증 없는 기계에서는 자식 환경도 당연히 실패해
   // 거짓 통과가 되므로, 그때는 건너뛰고 사유를 시험 이름에 남긴다.
   it.skipIf(!GH_AUTHED)(`gh auth status — 일반 환경은 0(양성 대조), 자식 환경은 0이 아니다${GH_AUTHED ? '' : ` [건너뜀: ${GH_SKIP}]`}`, () => {
     expect(run('gh', ['auth', 'status'], process.env, repos.work).code).toBe(0)

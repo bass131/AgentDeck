@@ -1,4 +1,3 @@
-// 작업 ID: tg1-p06 · 옛 이름 tg1-p06-messagebubble-avatar.test.tsx
 // @vitest-environment jsdom
 import { describe, it, expect, afterEach } from 'vitest'
 import { render, cleanup } from '@testing-library/react'

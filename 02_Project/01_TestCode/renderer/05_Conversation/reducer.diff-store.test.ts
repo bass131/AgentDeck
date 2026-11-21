@@ -1,4 +1,3 @@
-// 작업 ID: phase-b · 옛 이름 phase-b-diff-store.test.ts
 import { describe, it, expect } from 'vitest'
 import {
   applyAgentEvent,

@@ -2,9 +2,8 @@ import { describe, it, expect, vi } from 'vitest'
 import type { RunManager } from '@main/03_Agent/agentRuns'
 import type { AgentRun } from '@main/03_Agent/AgentBackend'
 
-// M05 G11: 권한 모드 매핑 표 네 벌(시작 runArgs, 실행 중 claudeAgentRun, 역매핑 claudeStream, 화이트리스트 agent.ts)을
-// main 안 한 모듈로 모은다. 값은 하나도 바꾸지 않는다(의미 변경은 M06). 여기서는 실물 진입점 넷을 직접 불러
-// 지금 값을 전부 고정한다 — 로직을 테스트 안에 복제하지 않는다.
+// 권한 모드 매핑 표 네 벌(시작 runArgs, 실행 중 claudeAgentRun, 역매핑 claudeStream, 화이트리스트 agent.ts)의
+// 실물 진입점 넷을 직접 불러 지금 값을 전부 고정한다 — 로직을 시험 안에 복제하지 않는다.
 // 끝 사례: 세 표는 일반 객체 조회라 'constructor' 같은 키가 프로토타입 함수를 돌려준다. 화이트리스트는 배열 includes라 걸러진다.
 // 이 끝 사례도 지금 동작 그대로 고정한다(Map·hasOwn으로 바꾸면 달라진다).
 const h = vi.hoisted(() => ({ handlers: new Map<string, (...args: unknown[]) => unknown>() }))
@@ -35,7 +34,7 @@ import path from 'node:path'
 
 // 옮기기 전 네 벌의 값을 글자 그대로 적은 것 — 유도 결과는 이것과 키 순서까지 같아야 한다
 const BEFORE = {
-  // M11 G2 — M05 Backlog 3 결정(G1 결정 대장): 앱 「자동」은 시작도 SDK 공식 auto다. 시작·실행 중 두 칸이 같아졌다.
+  // 앱 「자동」은 시작도 SDK 공식 auto다 — 시작·실행 중 두 칸이 같다.
   start: { normal: 'default', plan: 'plan', acceptEdits: 'acceptEdits', auto: 'auto', bypass: 'bypassPermissions' },
   live: { normal: 'default', plan: 'plan', acceptEdits: 'acceptEdits', auto: 'auto' },
   reverse: { default: 'normal', plan: 'plan', acceptEdits: 'acceptEdits', auto: 'auto', bypassPermissions: 'bypass' },

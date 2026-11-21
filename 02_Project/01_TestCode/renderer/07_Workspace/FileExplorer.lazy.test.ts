@@ -1,4 +1,3 @@
-// 작업 ID: m7 · 옛 이름 m7-explorer-lazy.test.ts
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest'
 import type { FileTreeNode } from '@shared/ipcContract'
@@ -107,7 +106,7 @@ describe('(C) prefs 상대경로 저장/복원', () => {
     expect(normalizeToRel(['C:\\work\\proj\\src\\lib'], 'C:\\work\\proj\\')).toEqual(['src/lib'])
   })
 
-  // M11 G2 — M05 Backlog 25. 루트 밖 Windows 절대 경로(다른 드라이브·UNC)가 상대 경로로 남아 통과하던 틈.
+  // 루트 밖 Windows 절대 경로(다른 드라이브·UNC)가 상대 경로로 남아 통과하면 안 된다.
   it('C-6: 루트 밖 Windows 절대 경로(드라이브·UNC)는 빠지고, `..`로 시작하는 이름만인 폴더는 남는다', () => {
     const root = 'C:\\work\\proj'
     expect(normalizeToRel(['D:\\other\\src'], root)).toEqual([])
@@ -119,7 +118,7 @@ describe('(C) prefs 상대경로 저장/복원', () => {
   })
 })
 
-// 앱의 변경 표시는 모두 edit(M)이다 — 닿지 않던 'new' 우선 규칙은 지웠다(M05 Backlog 20).
+// 앱의 변경 표시는 모두 edit(M)이다.
 describe('(D) 조상 dir 롤업 (buildChgMaps)', () => {
   it('D-2: edit 파일 — 조상 dirs edit', () => {
     const { files, dirs } = buildChgMaps(new Set(['src/index.ts']), false)

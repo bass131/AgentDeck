@@ -1,7 +1,7 @@
 appId: com.bass131.agentdeck
 productName: AgentDeck
 directories:
-  output: release
+  output: ../AgentDeck-release
 files:
   - out/**/*
 asar: true

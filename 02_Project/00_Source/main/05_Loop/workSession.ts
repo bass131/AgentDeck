@@ -18,6 +18,7 @@ import type { LoopSessionTag } from '@shared/13_Loop/loop'
 import type { SessionPort, WorkRequest, WorkResult } from './ports'
 import { DOCS, goalDocPath } from './survivalDocs'
 import type { DocKind } from './template'
+import { createLimitTracker, type LimitReport } from './usageLimit'
 
 export const DEFAULT_SESSION_TIMEOUT_MS = 60 * 60_000
 const SUMMARY_MAX = 300
@@ -49,6 +50,8 @@ export interface WorkSessionOptions {
   onEvent?: (e: AgentEvent, tag: LoopSessionTag) => void
   // 메인 노드(role main)를 메인 대화(mainChat.brainstorm)로 보낸다. 주면 메인 노드에 세션을 열지 않는다
   mainWork?: (req: WorkRequest) => Promise<WorkResult>
+  // 한도 사건의 시각을 거르는 벽시계(ms). 기본은 Date.now
+  now?: () => number
 }
 
 // 세션 꼬리표의 key는 구동자 수명 동안 겹치지 않는 앱 이름(`<무작위 접두>.<차례>`)이다 — 노드 세션 탭이 같은 길을 쓴다.
@@ -125,12 +128,15 @@ export const denyCards = (ev: CardEvent): RunResponse =>
   ev.type === 'question_request' ? { kind: 'question', answers: null } : { kind: 'permission', behavior: 'deny' }
 
 // 세션 한 번의 끝. text는 마지막 최상위 메시지의 전문이다(검수 세션이 마지막 줄을 읽는다).
-type SessionEnd =
+// limited: 거부·초과 사용·한도 오류를 받아 그 자리에서 멈췄다. limit은 세션이 받은 한도 사건의 창별 모음(없으면 null)이다.
+type SessionEnd = (
   | { kind: 'done'; text: string }
   | { kind: 'error'; text: string; error: string }
   | { kind: 'cancelled'; text: string }
+  | { kind: 'limited'; text: string }
   | { kind: 'timeout'; text: string; timeoutMs: number }
   | { kind: 'start-failed'; error: string }
+) & { limit?: LimitReport | null }
 
 interface NodeSessionInput {
   backend: AgentBackend
@@ -141,6 +147,8 @@ interface NodeSessionInput {
   onCard: CardResponder
   cardContext: { node: string; goal: string | null }
   onEvent?: (e: AgentEvent) => void
+  // 한도 사건의 시각을 거르는 벽시계(ms)
+  now?: () => number
 }
 
 // 세션 한 번을 연다. 돌려주는 cancel()은 이 세션을 취소한다(끝났으면 거짓).
@@ -153,6 +161,7 @@ export function runNodeSession(s: NodeSessionInput): { done: Promise<SessionEnd>
     return { done: Promise.resolve({ kind: 'start-failed', error: e instanceof Error ? e.message : String(e) }), cancel: () => false }
   }
   const ended = new AbortController()
+  const limits = createLimitTracker(s.now ?? Date.now)
   let settled = false
   let text = ''
   let resolveDone: (r: SessionEnd) => void = () => {}
@@ -164,7 +173,7 @@ export function runNodeSession(s: NodeSessionInput): { done: Promise<SessionEnd>
     s.signal?.removeEventListener('abort', onAbort)
     ended.abort()
     try { run.abort() } catch { /* 이미 닫힌 세션 */ }
-    resolveDone(r)
+    resolveDone({ ...r, limit: limits.report() })
   }
   const timer = s.timeoutMs === null ? null : setTimeout(() => finish({ kind: 'timeout', text, timeoutMs: s.timeoutMs as number }), s.timeoutMs)
   const onAbort = (): void => finish({ kind: 'cancelled', text })
@@ -180,6 +189,10 @@ export function runNodeSession(s: NodeSessionInput): { done: Promise<SessionEnd>
       for await (const ev of run.events) {
         if (settled) return
         s.onEvent?.(ev)
+        if (limits.observe(ev)) {
+          finish({ kind: 'limited', text })
+          return
+        }
         if (ev.type === 'text') {
           if (ev.parentToolId !== undefined) continue
           if (afterTool || (ev.messageId !== undefined && ev.messageId !== messageId)) { messageId = ev.messageId; text = '' }
@@ -237,15 +250,18 @@ export function createWorkSessionPort(opts: WorkSessionOptions): SessionPort {
         onCard: main ? (opts.mainCard as CardResponder) : (opts.onCard ?? denyCards),
         cardContext: { node: req.node.id, goal: req.goal?.id ?? null },
         onEvent: taggedEvents(opts.onEvent, { key: nextSessionKey(), kind: 'work', node: req.node.id, goal: req.goal?.id ?? null }),
+        ...(opts.now ? { now: opts.now } : {}),
       })
       current = session.cancel
       try {
         const end = await session.done
+        const limit = end.limit ? { limit: end.limit } : {}
         switch (end.kind) {
-          case 'done': return { ok: true, summary: oneLine(end.text) || '요약 없음' }
-          case 'error': return { ok: false, summary: oneLine(`세션 오류 — ${end.error}`) }
-          case 'cancelled': return { ok: false, summary: '취소됐다 — 세션을 멈췄다', cancelled: true }
-          case 'timeout': return { ok: false, summary: `시간 초과(${Math.round(end.timeoutMs / 1000)}초) — 세션을 취소했다` }
+          case 'done': return { ok: true, summary: oneLine(end.text) || '요약 없음', ...limit }
+          case 'error': return { ok: false, summary: oneLine(`세션 오류 — ${end.error}`), ...limit }
+          case 'cancelled': return { ok: false, summary: '취소됐다 — 세션을 멈췄다', cancelled: true, ...limit }
+          case 'limited': return { ok: false, summary: '사용량 한도 사건을 받아 세션을 멈췄다', cancelled: true, ...limit }
+          case 'timeout': return { ok: false, summary: `시간 초과(${Math.round(end.timeoutMs / 1000)}초) — 세션을 취소했다`, ...limit }
           case 'start-failed': return { ok: false, summary: oneLine(`세션을 열지 못했다 — ${end.error}`) }
         }
       } finally {

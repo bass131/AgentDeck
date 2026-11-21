@@ -18,6 +18,7 @@ import type { FileChange } from './grade'
 import type { GoalState, TasteConflict } from './runState'
 import type { TasteCheckItem } from './tasteVerdict'
 import type { DocKind, GateNode, WorkNode } from './template'
+import type { LimitReport } from './usageLimit'
 
 export interface CommandResult { code: number; stdout: string; stderr: string }
 // 템플릿이 적은 검사 명령을 돈다. 원격 자격(GH_TOKEN 같은 것)이 없는 환경에서 돌린다 — 검사 명령이 원격을 만지지 못하게.
@@ -126,7 +127,8 @@ export interface WorkRequest {
 // waiting: 메인 노드(role main)의 여러 턴 대화가 아직 끝나지 않았다(사람을 기다린다). 실행기는 판정도 줄도 남기지 않는다 —
 //   메인 노드에만 받고, 작업자 노드가 돌려주면 FAIL이다. baseline: 메인 대화 포트가 그 방문을 연 때의 스펙 sha256(없었으면 null).
 //   있으면 「이번에 스펙이 바뀌었나」를 실행기가 지금 스펙과 그것으로 대조한다(재기동 뒤 다시 읽은 본문이 기준이 되지 않게).
-export interface WorkResult { ok: boolean; summary: string; cancelled?: boolean; waiting?: boolean; baseline?: { specSha256: string | null } }
+// limit: 세션이 받은 한도 사건의 창별 모음. 멈출지는 실행기가 정한다(usageLimit.decideLimit).
+export interface WorkResult { ok: boolean; summary: string; cancelled?: boolean; waiting?: boolean; baseline?: { specSha256: string | null }; limit?: LimitReport }
 export interface SessionPort {
   runWork(req: WorkRequest): Promise<WorkResult>
   // 돌고 있는 작업 노드 세션을 멈춘다(화면의 취소). 멈춘 세션이 있었으면 true.
@@ -154,7 +156,7 @@ export interface ReviewRequest {
 }
 // tasteConflicts: 검수가 인정한 Taste 충돌(체크리스트가 있을 때만)
 export interface ReviewPort {
-  review(req: ReviewRequest): Promise<{ verdict: 'pass' | 'fail' | 'stop'; evidence: string; tasteConflicts?: TasteConflict[] }>
+  review(req: ReviewRequest): Promise<{ verdict: 'pass' | 'fail' | 'stop'; evidence: string; tasteConflicts?: TasteConflict[]; limit?: LimitReport }>
   cancel?(): boolean
 }
 

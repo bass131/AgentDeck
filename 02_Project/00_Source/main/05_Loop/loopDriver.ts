@@ -226,7 +226,7 @@ async function readText(file: string): Promise<string | null> {
 }
 
 // 사람·메인에게 보이는 낱말 — 저장 값(status·marker)은 그대로다
-const RUN_STATUS_WORD: Record<RunState['status'], string> = { running: '진행 중', 'needs-user': '사람 판정 대기', done: '끝' }
+const RUN_STATUS_WORD: Record<RunState['status'], string> = { running: '진행 중', 'needs-user': '사람 판정 대기', 'usage-limit': '사용량 한도 멈춤', done: '끝' }
 const MARKER_WORD: Record<RunState['lines'][number]['marker'], string> = { PASS: '통과', FAIL: '실패', 'USER-INPUT': '사람 입력' }
 
 // 래치 카드에 보이는 상태 파일 요약(사람이 무엇을 받는지 본다)

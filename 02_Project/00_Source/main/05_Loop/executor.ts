@@ -86,6 +86,7 @@ export function oneSentence(text: string): string {
 export function nextStep(template: Template, state: RunState): NextStep {
   if (state.status === 'done') return { kind: 'done' }
   if (state.status === 'needs-user') return { kind: 'needs-user', reason: state.haltReason ?? '사람 판단을 기다린다' }
+  if (state.status === 'usage-limit') return { kind: 'needs-user', reason: state.haltReason ?? '사용량 한도로 멈췄다' }
   const here = locate(template, state.cursor)
   if (!here) return { kind: 'needs-user', reason: `커서 노드 ${state.cursor.node}가 템플릿에 없다` }
   const goal = state.cursor.goal === null ? null : state.goals[state.cursor.goal] ?? null
@@ -246,6 +247,8 @@ const reject = (reason: string): ApplyResult => ({ ok: false, reason })
 
 export function applyVerdict(template: Template, state: RunState, verdict: Verdict, at: string): ApplyResult {
   if (state.status === 'done') return reject('실행이 이미 끝났다')
+  // 한도 멈춤을 사람 판정으로 풀면 USER-INPUT 줄이 FAIL 계수의 기준점을 옮긴다
+  if (state.status === 'usage-limit') return reject('사용량 한도 멈춤은 판정으로 풀지 않는다 — 한도 이어 가기(자동·「지금 이어 가기」)로만 다시 돈다')
   const here = locate(template, state.cursor)
   if (!here) return reject(`커서 노드 ${state.cursor.node}가 템플릿에 없다`)
   if (verdict.node !== here.node.id) return reject(`현재 노드는 ${here.node.id}다 — ${verdict.node}의 판정은 받지 않는다`)

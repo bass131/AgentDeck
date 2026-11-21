@@ -120,7 +120,8 @@ describe('상태는 실행기가 소유한다', () => {
   it('실행기 껍질에도 건너뛰기·강제 통과·상태 넣기 API가 없다', () => {
     // idle은 직렬화 줄을 기다리기만 한다(닫기용) — 상태를 넣거나 건너뛰지 않는다
     // specView는 스펙 승인 카드가 보일 본문과 해시를 읽기만 한다
-    expect(Object.keys(setup().runner).sort()).toEqual(['idle', 'load', 'specView', 'start', 'step', 'submit'])
+    // resumeLimit은 사용량 한도 멈춤만 푼다 — 줄을 쓰지 않고 커서를 옮기지 않는다(loopRunner.usage-limit.test)
+    expect(Object.keys(setup().runner).sort()).toEqual(['idle', 'load', 'resumeLimit', 'specView', 'start', 'step', 'submit'])
   })
 })
 

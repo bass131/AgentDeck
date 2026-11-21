@@ -47,6 +47,8 @@ function renderVerification(state: RunState): string {
     for (const l of lines) out.push(`- ${l.marker} ${l.at} — ${l.node}(${l.judge}): ${l.sentence}`)
   }
   if (state.status === 'needs-user') out.push('', `사람 판단 대기: ${state.haltReason ?? ''}`)
+  // 마커 줄(- PASS·FAIL·USER-INPUT)이 아니다 — 한도 멈춤은 검증이 아니다
+  if (state.status === 'usage-limit') out.push('', `사용량 한도 멈춤: ${state.haltReason ?? ''}`)
   return `${out.join('\n')}\n`
 }
 

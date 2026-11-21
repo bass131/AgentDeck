@@ -25,6 +25,8 @@ import {
   writeProjectCharter,
   loopDocsAppend,
   loadLoopDocsAppend,
+  TasteWriteError,
+  LOOP_DOC_MAX_BYTES,
 } from '@main/13_Taste/tasteStore'
 import { serializeTaste, serializeCharter, type TasteItem } from '@shared/14_Taste/tasteDoc'
 import type { TasteDocsRead } from '@shared/14_Taste/taste'
@@ -117,9 +119,102 @@ describe('Taste·헌장 저장소', () => {
     if (!r.project.absent) expect(r.project.problems.map((p) => p.kind)).toEqual(['bad-head'])
   })
 
-  it('파일이 없는 것 말고 읽기 실패는 「없음」으로 숨기지 않고 던진다', async () => {
+  it('읽기 실패는 「없음」으로 숨기지 않고 그 장의 문제로 돌려주며, 다른 장은 그대로 읽는다', async () => {
+    await writeProjectCharter(ws, CHARTER)
     fs.mkdirSync(globalTastePath(ud), { recursive: true })
-    await expect(readTasteDocs(ud, ws)).rejects.toThrow()
+    const r = await readTasteDocs(ud, ws)
+    expect(r.global.absent).toBe(false)
+    if (!r.global.absent) {
+      expect(r.global.raw).toBe('')
+      expect(r.global.problems.map((p) => p.kind)).toEqual(['unreadable'])
+    }
+    expect(r.charter).toMatchObject({ absent: false, doc: CHARTER, problems: [] })
+  })
+
+  it('저장소에 docs라는 파일이 있으면(ENOTDIR) 프로젝트 두 장은 「없음」이고 전역 Taste는 그대로 읽는다', async () => {
+    await writeGlobalTaste(ud, ITEMS)
+    fs.writeFileSync(path.join(ws, 'docs'), 'not a folder')
+    const r = await readTasteDocs(ud, ws)
+    expect(r.global).toMatchObject({ absent: false, problems: [] })
+    expect(r.charter.absent).toBe(true)
+    expect(r.project.absent).toBe(true)
+  })
+
+  it('docs/agentdeck이 저장소 밖을 가리키는 junction이면 읽지도 쓰지도 않는다', async () => {
+    const outside = fs.mkdtempSync(path.join(root, 'outside-'))
+    fs.writeFileSync(path.join(outside, 'Taste.md'), serializeTaste({ scope: 'project', items: ITEMS }))
+    fs.mkdirSync(path.join(ws, 'docs'))
+    fs.symlinkSync(outside, path.join(ws, 'docs', 'agentdeck'), 'junction')
+    const r = await readTasteDocs(ud, ws)
+    expect(r.project.absent).toBe(false)
+    if (!r.project.absent) {
+      expect(r.project.raw).toBe('')
+      expect(r.project.problems.map((p) => p.kind)).toEqual(['unreadable'])
+    }
+    await expect(writeProjectCharter(ws, CHARTER)).rejects.toThrow('뿌리 밖')
+    expect(fs.readdirSync(outside)).toEqual(['Taste.md'])
+    const text = await loadLoopDocsAppend(undefined, ws)
+    expect(text ?? '').not.toContain('밀도는 높게')
+  })
+})
+
+describe('쓰기는 구조를 지키지 못하는 입력과 문제 있는 기존 문서를 거절한다', () => {
+  const reason = async (p: Promise<unknown>): Promise<string> => {
+    try {
+      await p
+    } catch (e) {
+      if (e instanceof TasteWriteError) return e.kind
+      throw e
+    }
+    return 'written'
+  }
+
+  it('칸 글의 줄바꿈(다시 읽으면 항목이 둘), 쌍점이 든 칸 이름, 절 머리 꼴의 목표 줄을 bad-input으로 거절한다', async () => {
+    const injected: TasteItem[] = [{ id: 'T1', title: 'a', fields: [{ name: '원칙', text: 'x\n## T9 z\n- 금지: y' }] }]
+    expect(await reason(writeGlobalTaste(ud, injected))).toBe('bad-input')
+    expect(await reason(writeProjectTaste(ws, [{ id: 'T1', title: 'a', fields: [{ name: '원칙: 몰래', text: 'x' }] }]))).toBe('bad-input')
+    expect(await reason(writeProjectCharter(ws, { goal: ['한 줄', '## 하지 않을 것', '- 몰래'], nonGoals: null }))).toBe('bad-input')
+    expect(await reason(writeProjectTaste(ws, [{ id: 'T1', title: '제목\r', fields: [{ name: '원칙', text: 'x' }] }]))).toBe('bad-input')
+    expect(await reason(writeProjectCharter(ws, { goal: ['```'], nonGoals: null }))).toBe('bad-input')
+    expect(fs.existsSync(globalTastePath(ud))).toBe(false)
+    expect(fs.existsSync(path.join(ws, 'docs'))).toBe(false)
+    expect(atomic.files).toEqual([])
+  })
+
+  it('다시 읽으면 문제가 생길 글(칸 없는 항목·빈 목표)도 bad-input이다 — 쓰고 나면 다음 쓰기가 막히는 글을 만들지 않는다', async () => {
+    expect(await reason(writeGlobalTaste(ud, [{ id: 'T1', title: 'a', fields: [] }]))).toBe('bad-input')
+    expect(await reason(writeProjectCharter(ws, { goal: [], nonGoals: null }))).toBe('bad-input')
+  })
+
+  it('지금 파일에 문제가 있으면 덮어쓰지 않고 existing-problems와 그 문제를 돌려준다', async () => {
+    const cases: [string, string, () => Promise<void>][] = [
+      [projectCharterPath(ws), '# 프로젝트 헌장\n\n## 소개\n사람이 쓴 소개\n\n## 목표\na\n', () => writeProjectCharter(ws, CHARTER)],
+      [projectTastePath(ws), '# 프로젝트 Taste\n\n## T1 a\n- 원칙: x\n- see https://x\n', () => writeProjectTaste(ws, ITEMS)],
+      [globalTastePath(ud), '# 전역 Taste\n\n## T1 a\n- 원칙: x\n```\n## T2 b\n```\n', () => writeGlobalTaste(ud, ITEMS)],
+    ]
+    for (const [file, before, write] of cases) {
+      fs.mkdirSync(path.dirname(file), { recursive: true })
+      fs.writeFileSync(file, before)
+      let caught: unknown
+      await write().catch((e: unknown) => { caught = e })
+      expect(caught).toBeInstanceOf(TasteWriteError)
+      expect((caught as TasteWriteError).kind).toBe('existing-problems')
+      expect((caught as TasteWriteError).problems.length).toBeGreaterThan(0)
+      expect(fs.readFileSync(file, 'utf8')).toBe(before)
+    }
+    expect(atomic.files).toEqual([])
+  })
+
+  it('문제 없는 기존 문서와 빈 파일은 덮어쓴다', async () => {
+    await writeProjectTaste(ws, ITEMS)
+    const next: TasteItem[] = [...ITEMS, { id: 'T2', title: 'b', fields: [{ name: '레퍼런스', text: 'https://x.example' }] }]
+    await writeProjectTaste(ws, next)
+    const r = await readTasteDocs(ud, ws)
+    expect(r.project).toMatchObject({ absent: false, doc: { items: next }, problems: [] })
+    fs.mkdirSync(path.dirname(globalTastePath(ud)), { recursive: true })
+    fs.writeFileSync(globalTastePath(ud), '\n')
+    await writeGlobalTaste(ud, ITEMS)
+    expect(fs.readFileSync(globalTastePath(ud), 'utf8')).toBe(serializeTaste({ scope: 'global', items: ITEMS }))
   })
 })
 
@@ -149,6 +244,26 @@ describe('루프 세션에 싣는 Taste·헌장 덧붙임', () => {
     expect(projectOnly).not.toContain('[전역 Taste]')
     expect(projectOnly).toContain('에이전트가 마일스톤을 끝까지 맡는다.')
     expect(await loadLoopDocsAppend(ud, path.join(root, 'no-such-ws'))).toContain('[전역 Taste]')
+  })
+
+  it('크기 상한을 넘는 장은 싣지 않고 그 사실을 한 줄로 알리며 main 로그에 남긴다', async () => {
+    await writeProjectCharter(ws, CHARTER)
+    const big = `# 프로젝트 Taste\n\n## T1 a\n- 원칙: ${'가'.repeat(LOOP_DOC_MAX_BYTES)}\n`
+    fs.writeFileSync(projectTastePath(ws), big)
+    const err = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      const text = await loadLoopDocsAppend(undefined, ws)
+      expect(text).toContain('[프로젝트 헌장')
+      expect(text).toContain(`[프로젝트 Taste — docs/agentdeck/Taste.md] 크기 ${Buffer.byteLength(big)}바이트가 상한 ${LOOP_DOC_MAX_BYTES}바이트를 넘어 싣지 않았다.`)
+      expect(text).not.toContain('가가가')
+      expect(text!.length).toBeLessThan(2000)
+      expect(err).toHaveBeenCalled()
+    } finally {
+      err.mockRestore()
+    }
+    expect(LOOP_DOC_MAX_BYTES).toBe(32 * 1024)
+    expect(loopDocsAppend({ global: { tooLarge: 40000 }, charter: null, project: null }))
+      .toBe('[전역 Taste] 크기 40000바이트가 상한 32768바이트를 넘어 싣지 않았다.')
   })
 
   it('한 장의 읽기 실패는 그 장만 빼고 세션을 막지 않는다', async () => {

@@ -129,7 +129,7 @@ export function buildClaudeSdkOptions(params: {
       ...(skillOverrides ? { skillOverrides } : {}),
       ...(mcpDenied ? { deniedMcpServers: mcpDenied } : {})
     },
-    // 루프 세션은 사용자 전역 지시·자동 기억(user)을 싣지 않는다 — 작업 저장소의 규칙(project·local)과 Taste·헌장만 싣는다
+    // 루프 세션은 설정 원천 user를 읽지 않는다(project·local만)
     settingSources: loopLock ? ['project', 'local'] : ['user', 'project', 'local'],
     // 루프 세션은 사용자 MCP 서버(.mcp.json·사용자 설정·플러그인)를 읽지 않는다(공개 타입 Options.strictMcpConfig의 설명).
     // mcp__ 도구 거부(루프 잠금 훅)는 겹으로 남는다.

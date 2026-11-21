@@ -18,7 +18,7 @@ vi.mock('electron', () => ({
 vi.mock('@main/02_Common/userData', () => ({ getUserDataDir: (): string => h.ud }))
 
 import { registerTasteHandlers } from '@main/01_Ipc/handlers/taste'
-import { writeGlobalTaste, writeProjectCharter } from '@main/13_Taste/tasteStore'
+import { writeProjectCharter } from '@main/13_Taste/tasteStore'
 import { API_ROUTES } from '@shared/01_Ipc/apiRoutes'
 import { IPC_CHANNELS, TASTE_CHANNELS, type ReqOf, type ResOf } from '@shared/ipcContract'
 import type { TasteDocsRead, TasteReadRequest } from '@shared/14_Taste/taste'
@@ -78,7 +78,8 @@ describe('Taste 읽기 IPC', () => {
   })
 
   it('세 문서의 구조·원문·검사 문제·없음 여부를 한 번에 돌려준다', async () => {
-    await writeGlobalTaste(h.ud, [{ id: 'T1', title: 'a', fields: [] }])
+    fs.mkdirSync(path.join(h.ud, 'taste'))
+    fs.writeFileSync(path.join(h.ud, 'taste', 'global-taste.md'), '# 전역 Taste\n\n## T1 a\n')
     await writeProjectCharter(ws, { goal: ['목표 한 줄'], nonGoals: null })
     const r = await call({ cwd: ws })
     expect(r.global.absent).toBe(false)

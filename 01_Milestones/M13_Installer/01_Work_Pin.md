@@ -12,7 +12,8 @@
 - 마일스톤 스펙: `01_Milestones/M13_Installer/00_마일스톤-스펙.md`.
 - 마일스톤 브랜치: `milestone/m13-installer`(`186ccace`에서 가름 — M12 마일스톤 PR 125 머리).
 - 사슬 PR: M11 118, M12 125(둘 다 `master`로, 사용자가 118 → 125 → M13 순서로 병합).
-- 현재 goal: G1 패키징과 설치 — `10_Goal-G1-패키징과-설치.md`, 브랜치 `feat/m13-g1-packaging`(마일스톤 머리 `186ccace`에서).
+- 현재 goal: G2 GitHub 기기 인증과 자격 — `20_Goal-G2-GitHub-기기-인증과-자격.md`, 브랜치 `feat/m13-g2-device-auth`(마일스톤 머리 `12c15838`에서). G1 종결(PR 126).
+- 설치본 빌드: `npm run dist:win` 출력은 저장소 밖 `C:\Dev\AgentDeck-release`. Git Bash에서 NSIS 인자는 `MSYS_NO_PATHCONV=1`로 넘긴다(`/S`가 `S:/`로 바뀜).
 - goal 병합의 정형 절차: ① goal 브랜치를 push하고 독립 검수를 PR 전에 반영한다. ② `gh pr view <N> --json headRefOid,statusCheckRollup`으로 `hard-gates`와 머리 SHA를 읽는다. ③ `git fetch origin` 뒤 로컬 마일스톤 브랜치가 원격과 같은지 확인하고 `git switch milestone/m13-installer`, `git merge --no-ff -m "<메시지>" origin/<goal 브랜치>`. ④ 병합한 SHA가 머리 SHA와 같은지 확인한 뒤 `git push -u origin milestone/m13-installer`. 작업 트리는 병합 전에 깨끗해야 한다.
 - push는 항상 `-u origin <브랜치>`로 원격 브랜치를 명시합니다. `master`로 가는 병합은 사용자가 직접 합니다.
 - 멈추는 곳: 완료조건·범위 변경, FAIL 세 번, 승인 항목(`master` 병합·직접 push, Release 게시, 패키지 배포, 강제 push, 브랜치 삭제, 저장소 만들기·설정 변경, OAuth App 등록). 멈추면 PushNotification.

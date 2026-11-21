@@ -192,7 +192,7 @@ describe('QuestionModal — 여러 창의 키 입력', () => {
 })
 
 // 맨 위 판정은 화면 겹침(층)을 따른다. 낮은 층(여기서는 시험용 60)의 창은 나중에 열려도 z 80 대화 질문 창 아래다.
-// 지금 앱에 60 층을 쓰는 창은 없지만 층 기계는 다른 겹침 맥락을 위해 남긴다.
+// 지금 앱에 60 층을 쓰는 창은 없다. 층 기계는 세션 탭이 다시 쓸 수 있어 남긴다.
 // 순서: 펼친 창이 내려둔 창보다 먼저, 그다음 층이 높은 창, 같은 층에서는 연(펼친) 순서.
 describe('QuestionModal — 화면 층', () => {
   const CONV = [{ header: 'C', question: '대화 창 질문', options: [{ label: 'c1', description: '' }], multiSelect: false }]

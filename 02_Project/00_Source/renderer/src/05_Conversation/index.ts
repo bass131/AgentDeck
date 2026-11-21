@@ -1,5 +1,6 @@
 // 캡슐 밖 앱 소비처는 이 파일로만 import한다. CSS side-effect import와, vi.mock 타이밍을 제어하는 시험은
-// 모듈 파일을 직접 가리킨다. Conversation.tsx의 default export는 e2e만 쓰므로 재수출하지 않는다.
+// 모듈 파일을 직접 가리킨다. Conversation.tsx의 default export는 e2e가 모듈 파일에서
+// 직접 쓰고, 배럴 소비처는 전부 named라 재수출하지 않는다.
 export { Conversation } from './Conversation'
 export type { InjectedInput, ConversationProps } from './Conversation'
 

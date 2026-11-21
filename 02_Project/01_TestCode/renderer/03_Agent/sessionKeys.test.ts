@@ -9,7 +9,7 @@ import {
   panelPrefix,
 } from '@renderer/03_Agent/state/sessionKeys'
 
-// 패널 키 형식은 REPL 세션키 값을 바꾸지 않으려고 그대로 둔다.
+// 패널 키 형식(REPL 세션키 값)은 세션 탭을 위해 그대로 둔다.
 
 describe('G9c sessionKeys — 키 형식', () => {
   it('대화 키는 conv:<id>이고 id가 없는 새 대화는 conv:draft 하나다', () => {

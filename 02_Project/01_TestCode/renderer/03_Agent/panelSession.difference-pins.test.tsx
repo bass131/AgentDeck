@@ -5,7 +5,7 @@ import type { JSX } from 'react'
 import { useAppStore } from '@renderer/00_App/appStore'
 import { adaptFlatApi } from '../00_Helpers/windowApiMock'
 
-// 의도적으로 두는 지금 동작을 고정한다. 바꾸려면 이 테스트를 먼저 고친다.
+// 범위 밖으로 둔 항목(E6·P3·B2)의 지금 동작을 고정한다. 바꾸려면 이 테스트를 먼저 고친다.
 
 const mockApi = {
   windowMinimize: vi.fn().mockResolvedValue(undefined),

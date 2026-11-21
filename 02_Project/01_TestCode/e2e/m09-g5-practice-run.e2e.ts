@@ -9,6 +9,7 @@
 // 메인 대화에 글이 뜨기를 기다리기는 'waitMain'이다. state.txt에 [main] 절을 싣는다.
 // G5_TOKEN_FILE(연습 저장소 전용 fine-grained 토큰 파일)을 주면 앱 프로세스에만 GH_TOKEN을 넣는다(전역 로그인은 그대로).
 // 앱 데이터 폴더는 연습 저장소의 실행 상태 다이제스트를 마일스톤 사이에 이어 쓰는 고정 자리가 기본이고, G5_UDD로 바꾼다.
+// G5_RATE_LIMIT=1이면 앱에 한도 주입을 켜고(AGENTDECK_E2E_RATE_LIMIT), 'injectLimit'이 거부 사건 하나를 넣는다(M12 G5).
 import { test, _electron as electron } from '@playwright/test'
 import type { ElectronApplication, Page } from '@playwright/test'
 import { execFileSync } from 'node:child_process'
@@ -26,6 +27,7 @@ const REPO = process.env.G5_REPO ?? ''
 // git은 전역 설정의 github.com 도우미(`gh auth git-credential`, gh auth setup-git)가 GH_TOKEN을 쓴다. git 설정을 env로 더하면
 // 실행기의 설정 스냅숏 대조(configGuard)가 credential.helper 변경으로 열기를 거부한다(실측 2026-11-20).
 const TOKEN_FILE = process.env.G5_TOKEN_FILE ?? ''
+const LIMIT = process.env.G5_RATE_LIMIT === '1'
 
 // GH_TOKEN은 github.com 도우미가 `gh auth git-credential`일 때만 git에 닿는다. 아니면 git이 다른 자격으로 push하니 시작하지 않는다.
 // 도우미 값 원문은 메시지에 싣지 않는다(인라인 자격이 들어 있을 수 있다).
@@ -67,7 +69,24 @@ type Action =
   | { op: 'wait'; ms: number }
   | { op: 'restart' }
   | { op: 'notify' }
+  | { op: 'injectLimit'; inSec: number; session?: 'work' | 'review'; promptIncludes?: string; window?: string }
   | { op: 'quit' }
+
+// 한도 주입(G5_RATE_LIMIT=1일 때 앱이 읽는다) — 앱 영역의 주입 파일에 거부 사건 하나를 쓴다. 맞는 노드 세션이 가져가면 앱이 지운다
+function injectLimit(userDataDir: string, a: Extract<Action, { op: 'injectLimit' }>): string {
+  if (!LIMIT) throw new Error('G5_RATE_LIMIT=1로 띄운 앱이 아니다')
+  if (!Number.isInteger(a.inSec) || a.inSec < 60 || a.inSec > 3600) throw new Error(`inSec은 60–3600초 정수다 — ${a.inSec}`)
+  const resetsAt = Math.floor(Date.now() / 1000) + a.inSec
+  const file = join(userDataDir, 'loop', 'inject', 'rate-limit.json')
+  mkdirSync(join(userDataDir, 'loop', 'inject'), { recursive: true })
+  const spec = {
+    ...(a.session ? { session: a.session } : {}),
+    ...(a.promptIncludes ? { promptIncludes: a.promptIncludes } : {}),
+    messages: [{ type: 'rate_limit_event', rate_limit_info: { status: 'rejected', rateLimitType: a.window ?? 'five_hour', resetsAt } }],
+  }
+  writeFileSync(file, JSON.stringify(spec))
+  return `injectLimit resetsAt=${resetsAt} (${new Date(resetsAt * 1000).toISOString()})`
+}
 
 const stamp = (): string => new Date().toISOString()
 
@@ -84,6 +103,8 @@ async function launch(userDataDir: string): Promise<{ app: ElectronApplication; 
   }
   delete env.AGENTDECK_E2E
   delete env.ELECTRON_RUN_AS_NODE
+  if (LIMIT) env.AGENTDECK_E2E_RATE_LIMIT = '1'
+  else delete env.AGENTDECK_E2E_RATE_LIMIT
   const app = await electron.launch({
     args: [`--user-data-dir=${userDataDir}`, join(process.cwd(), 'out', 'main', 'index.js')],
     env: env as Record<string, string>,
@@ -282,6 +303,10 @@ test.describe('M09 G5 연습 저장소 실주행 구동기 (opt-in: M09_G5_RUN=1
             }
             if (a.op === 'notify') {
               log.push(`notify ${await probeNotification(app)}`)
+              continue
+            }
+            if (a.op === 'injectLimit') {
+              log.push(injectLimit(userDataDir, a))
               continue
             }
             await runAction(page, a)

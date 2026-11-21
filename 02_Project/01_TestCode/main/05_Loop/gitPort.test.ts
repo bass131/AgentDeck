@@ -54,6 +54,15 @@ beforeEach(() => {
 afterEach(() => { repos.cleanup() })
 
 describe('브랜치·머리·커밋·push', () => {
+  it('체크아웃된 브랜치 이름을 읽고, 분리된 HEAD는 null이다', async () => {
+    expect(await git.currentBranch?.()).toBe('master')
+    await git.createBranch('agentdeck/charter-x', 'master')
+    await git.checkout('agentdeck/charter-x')
+    expect(await git.currentBranch?.()).toBe('agentdeck/charter-x')
+    repos.git(['checkout', '--quiet', '--detach'])
+    expect(await git.currentBranch?.()).toBeNull()
+  })
+
   it('브랜치를 만들고 옮겨 가며, 머리와 계보를 읽는다', async () => {
     const m0 = await git.headSha('master')
     expect(m0).toMatch(/^[0-9a-f]{40}$/)

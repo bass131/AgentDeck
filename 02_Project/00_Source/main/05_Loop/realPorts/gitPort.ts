@@ -119,6 +119,10 @@ export function createGitPort(opts: GitPortOptions): GitPort {
     async checkout(name) {
       await must(git, ['checkout', '--quiet', safeName(name), '--'])
     },
+    async currentBranch() {
+      const ref = await currentBranch()
+      return ref?.startsWith('refs/heads/') ? ref.slice('refs/heads/'.length) : null
+    },
     headSha: (ref) => resolve(ref),
     async hasChanges() {
       const out = await must(git, ['status', '--porcelain=v1', '-z', '--untracked-files=all'])

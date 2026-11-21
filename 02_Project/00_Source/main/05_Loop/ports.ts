@@ -36,6 +36,8 @@ export interface GitPort {
   // from에서 name 브랜치를 만든다(옮겨 가지는 않는다).
   createBranch(name: string, from: string): Promise<void>
   checkout(name: string): Promise<void>
+  // 체크아웃된 브랜치 이름. 분리된 HEAD면 null. 시험의 가짜에는 없을 수 있다.
+  currentBranch?(): Promise<string | null>
   headSha(ref: string): Promise<string | null>
   // 커밋 안 된 변경이 있는가(untracked 포함).
   hasChanges(): Promise<boolean>

@@ -3,12 +3,15 @@ import type { ElectronApplication, Page } from '@playwright/test'
 import { mkdtempSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
+import { dismissOnboarding } from './bootGates'
 
 export interface IsolatedBootOptions {
   echo?: boolean
   nickname?: string
   slug?: string
   env?: Record<string, string>
+  // 참이면 시작하기 안내를 닫지 않고, 안내를 닫게 되는 Esc도 누르지 않는다
+  keepOnboarding?: boolean
 }
 
 export interface IsolatedBootResult {
@@ -75,7 +78,10 @@ export async function isolatedBoot(options: IsolatedBootOptions = {}): Promise<I
     await page.getByRole('button', { name: '건너뛰기' }).click().catch(() => {})
     await whatsNew.waitFor({ state: 'hidden', timeout: 5_000 }).catch(() => {})
   }
-  await page.keyboard.press('Escape').catch(() => {})
+  if (!options.keepOnboarding) {
+    await dismissOnboarding(page)
+    await page.keyboard.press('Escape').catch(() => {})
+  }
 
   // 모드 탭은 「채팅 · 작업」이다.
   const singleTab = page.getByRole('tab', { name: '채팅', exact: true })

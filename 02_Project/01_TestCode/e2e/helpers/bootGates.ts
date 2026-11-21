@@ -7,6 +7,19 @@ export interface BootGateOptions {
   titlebarTimeoutMs?: number
   startupModalTimeoutMs?: number
   engineNoticeTimeoutMs?: number
+  onboardingTimeoutMs?: number
+  // 참이면 시작하기 안내를 닫지 않는다(안내 자체를 보는 시험)
+  keepOnboarding?: boolean
+}
+
+// 시작하기 안내는 새 버전 소개·엔진 알림이 닫힌 뒤에 뜬다. 「나중에」로 닫으면 그 앱 데이터에서는 다시 저절로 뜨지 않는다
+export async function dismissOnboarding(page: Page, timeoutMs = 4000): Promise<void> {
+  const dialog = page.getByRole('dialog', { name: '시작하기' })
+  try {
+    await dialog.waitFor({ state: 'visible', timeout: timeoutMs })
+  } catch { return }
+  await dialog.getByRole('button', { name: '나중에', exact: true }).click().catch(() => {})
+  await dialog.waitFor({ state: 'hidden', timeout: 3000 }).catch(() => {})
 }
 
 export async function dismissStartupModal(page: Page, timeoutMs = 8000): Promise<void> {
@@ -40,6 +53,8 @@ export async function passBootGates(page: Page, opts: BootGateOptions = {}): Pro
     titlebarTimeoutMs = 15_000,
     startupModalTimeoutMs = 10_000,
     engineNoticeTimeoutMs = 12_000,
+    onboardingTimeoutMs = 4000,
+    keepOnboarding = false,
   } = opts
 
   const nick = page.locator('.login-body input#nickname')
@@ -55,6 +70,7 @@ export async function passBootGates(page: Page, opts: BootGateOptions = {}): Pro
   await page.waitForSelector('.titlebar', { timeout: titlebarTimeoutMs })
   await dismissStartupModal(page, startupModalTimeoutMs)
   await dismissEngineNotice(page, engineNoticeTimeoutMs)
+  if (!keepOnboarding) await dismissOnboarding(page, onboardingTimeoutMs)
 }
 
 export interface OpenWorkspaceOptions {

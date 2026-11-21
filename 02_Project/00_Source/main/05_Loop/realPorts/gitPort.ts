@@ -284,6 +284,17 @@ export function createGitPort(opts: GitPortOptions): GitPort {
       const r = await git(['rev-parse', '--verify', '--quiet', `${qualifyRef(ref)}^{tree}`])
       return r.code === 0 ? r.stdout.trim() || null : null
     },
+    // ls-tree로 있음·없음을 가른 뒤 그 blob을 읽는다. 링크(120000)·폴더는 파일이 아니다
+    async fileAt(sha, rel) {
+      const [p] = pathArgs([rel])
+      const commit = await resolve(sha)
+      if (!commit) throw new Error(`커밋 ${sha.slice(0, 12)}을 찾지 못했다`)
+      const entry = await must(git, ['ls-tree', '-z', commit, '--', p])
+      if (entry === '') return null
+      const m = /^(\d+) (\w+) ([0-9a-f]+)\t/.exec(entry)
+      if (!m || m[2] !== 'blob' || !['100644', '100755'].includes(m[1])) throw new Error(`${p}이 커밋 ${commit.slice(0, 8)}에서 파일이 아니다`)
+      return must(git, ['cat-file', 'blob', m[3]])
+    },
   }
 
   // 진짜 인덱스를 복사한 임시 인덱스(저장소 밖)에 add -A 한 뒤 fn을 돈다. 진짜 인덱스는 건드리지 않는다.

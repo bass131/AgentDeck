@@ -1,0 +1,139 @@
+// 검수의 Taste 판. 실행기가 읽은 두 층의 원문으로 체크리스트를 만들고, 검수 세션의 마지막 메시지에서 TASTE 줄을 판독해 판정한다.
+// 판정 규칙: 체크리스트의 항목마다 꼴이 맞는 줄이 정확히 하나여야 하고, 빠짐·중복·모르는 ID·꼴 틀림은 불통과다.
+// 남은 TASTE fail이 하나라도 있으면 불통과다. 충돌 면제는 체크리스트의 P 항목 pass·G 항목 fail 짝일 때만 인정한다.
+import { scanTaste, type TasteScope } from '@shared/14_Taste/tasteDoc'
+import { LOOP_DOC_MAX_BYTES } from '@main/13_Taste/tasteStore'
+import type { TasteConflict } from './runState'
+
+export interface TasteCheckItem { id: string; title: string; fields: { name: string; text: string }[] }
+
+const LAYERS: { key: TasteScope; prefix: string; label: string }[] = [
+  { key: 'project', prefix: 'P', label: '프로젝트 Taste' },
+  { key: 'global', prefix: 'G', label: '전역 Taste' },
+]
+
+export function tasteChecklist(raw: Record<TasteScope, string | null>): { ok: true; items: TasteCheckItem[] } | { ok: false; reason: string } {
+  const items: TasteCheckItem[] = []
+  for (const layer of LAYERS) {
+    const text = raw[layer.key]
+    if (text === null) continue
+    const size = Buffer.byteLength(text, 'utf8')
+    if (size > LOOP_DOC_MAX_BYTES) return { ok: false, reason: `${layer.label}가 ${size}바이트로 상한 ${LOOP_DOC_MAX_BYTES}바이트를 넘는다` }
+    const { doc, problems } = scanTaste(text, layer.key)
+    if (problems.length > 0) {
+      const shown = problems.slice(0, 3).map((p) => `${p.line === null ? '' : `${p.line}행 `}${p.message}`).join('; ')
+      return { ok: false, reason: `${layer.label}에 검사 문제가 ${problems.length}개 있다 — ${shown}` }
+    }
+    for (const item of doc.items) items.push({ id: `${layer.prefix}-${item.id}`, title: item.title, fields: item.fields })
+  }
+  return { ok: true, items }
+}
+
+export function renderChecklist(items: readonly TasteCheckItem[]): string {
+  return items
+    .map((i) => [i.title ? `## ${i.id} ${i.title}` : `## ${i.id}`, ...i.fields.map((f) => (f.text ? `- ${f.name}: ${f.text}` : `- ${f.name}:`))].join('\n'))
+    .join('\n\n')
+}
+
+type TasteMark = 'pass' | 'fail' | 'n/a'
+interface TasteEntry {
+  id: string
+  state: TasteMark | 'missing' | 'duplicate'
+  reason: string | null
+  forbidden: boolean
+  exemptBy: string | null
+}
+interface TasteJudgement {
+  pass: boolean
+  entries: TasteEntry[]
+  // 항목에 묶이지 않는 문제 — 모르는 ID, 꼴이 틀린 TASTE 줄
+  strays: string[]
+  ignoredConflicts: string[]
+  conflicts: TasteConflict[]
+}
+
+const CONFLICT_HEAD = 'TASTE-CONFLICT'
+const MARK_HEAD = 'TASTE '
+const MARK_LINE = /^TASTE (\S+): (pass|fail|n\/a) — (\S.*)$/
+const CONFLICT_LINE = /^TASTE-CONFLICT (\S+) (\S+): (\S.*)$/
+const MALFORMED = '꼴이 틀린 TASTE 줄'
+const NOTE_MAX = 200
+
+// 충돌 줄의 머리가 TASTE 줄의 머리를 품으므로 충돌 머리를 먼저 본다
+export const isTasteLine = (line: string): boolean => line.startsWith(CONFLICT_HEAD) || line.startsWith(MARK_HEAD)
+
+const clip = (s: string, n: number): string => (s.length > n ? `${s.slice(0, Math.max(0, n - 1))}…` : s)
+
+const hasBan = (item: TasteCheckItem): boolean => item.fields.some((f) => f.name === '금지' && f.text.trim() !== '')
+
+export function judgeTaste(items: readonly TasteCheckItem[], text: string): TasteJudgement {
+  const lines = text.split(/\r?\n/).map((l) => l.trim())
+  const known = new Map(items.map((i) => [i.id, i]))
+  const seen = new Map<string, { mark: TasteMark; reason: string }[]>()
+  const strays: string[] = []
+  const conflictLines: { p: string; g: string; note: string; line: string }[] = []
+  const ignoredConflicts: string[] = []
+  for (const line of lines) {
+    if (line.startsWith(CONFLICT_HEAD)) {
+      const m = CONFLICT_LINE.exec(line)
+      if (m) conflictLines.push({ p: m[1], g: m[2], note: m[3], line })
+      else ignoredConflicts.push('꼴 틀림')
+      continue
+    }
+    if (!line.startsWith(MARK_HEAD)) continue
+    const m = MARK_LINE.exec(line)
+    if (!m) { strays.push(`${MALFORMED} — ${clip(line, 60)}`); continue }
+    if (!known.has(m[1])) { strays.push(`모르는 ID ${m[1]}`); continue }
+    seen.set(m[1], [...(seen.get(m[1]) ?? []), { mark: m[2] as TasteMark, reason: m[3] }])
+  }
+  const entries: TasteEntry[] = items.map((item) => {
+    const got = seen.get(item.id) ?? []
+    const state = got.length === 0 ? 'missing' : got.length > 1 ? 'duplicate' : got[0].mark
+    return { id: item.id, state, reason: got.length === 1 ? got[0].reason : null, forbidden: state === 'fail' && hasBan(item), exemptBy: null }
+  })
+  const byId = new Map(entries.map((e) => [e.id, e]))
+  const conflicts: TasteConflict[] = []
+  for (const c of conflictLines) {
+    const p = byId.get(c.p)
+    const g = byId.get(c.g)
+    const recognized = c.p.startsWith('P-') && c.g.startsWith('G-') && p?.state === 'pass' && g?.state === 'fail'
+    if (!recognized || !g) { ignoredConflicts.push(`${c.p} ${c.g}`); continue }
+    if (conflicts.some((x) => x.project === c.p && x.global === c.g)) continue
+    g.exemptBy ??= c.p
+    conflicts.push({ project: c.p, global: c.g, note: clip(c.note, NOTE_MAX) })
+  }
+  const settled = entries.every((e) => e.state === 'pass' || e.state === 'n/a' || (e.state === 'fail' && e.exemptBy !== null))
+  return { pass: settled && strays.length === 0, entries, strays, ignoredConflicts, conflicts }
+}
+
+function tags(e: TasteEntry): string {
+  const t = [...(e.forbidden ? ['금지'] : []), ...(e.exemptBy ? [`면제 ${e.exemptBy}`] : [])]
+  return t.length > 0 ? `(${t.join(', ')})` : ''
+}
+const STATE_WORD: Record<TasteEntry['state'], string> = { pass: 'pass', fail: 'fail', 'n/a': 'n/a', missing: '없음', duplicate: '중복' }
+
+function extras(j: TasteJudgement): string[] {
+  const unknown = j.strays.filter((s) => s.startsWith('모르는 ID ')).map((s) => s.slice('모르는 ID '.length))
+  const malformed = j.strays.filter((s) => s.startsWith(MALFORMED)).length
+  return [
+    ...(unknown.length > 0 ? [`모르는 ID ${unknown.join(' ')}`] : []),
+    ...(malformed > 0 ? [`${MALFORMED} ${malformed}개`] : []),
+    ...(j.ignoredConflicts.length > 0 ? [`인정하지 않은 충돌 ${j.ignoredConflicts.join(', ')}`] : []),
+  ]
+}
+
+// 항목마다 「ID 판정」을 체크리스트 순서로 싣는다. max를 넘으면 판정별로 묶는다(ID를 빼지 않는다).
+export function tasteHead(j: TasteJudgement, max: number): string {
+  const tail = extras(j).map((x) => `; ${x}`).join('')
+  const flat = `Taste ${j.entries.map((e) => `${e.id} ${STATE_WORD[e.state]}${tags(e)}`).join(', ')}${tail}`
+  if (flat.length <= max) return flat
+  const groups = (Object.keys(STATE_WORD) as TasteEntry['state'][])
+    .map((s) => [s, j.entries.filter((e) => e.state === s)] as const)
+    .filter(([, es]) => es.length > 0)
+    .map(([s, es]) => `${STATE_WORD[s]} ${es.map((e) => `${e.id}${tags(e)}`).join(' ')}`)
+  return `Taste ${groups.join('; ')}${tail}`
+}
+
+// fail 항목의 근거 글 — 근거 줄에서 머리 뒤의 남는 자리에 싣는다
+export const tasteFailReasons = (j: TasteJudgement): string[] =>
+  j.entries.filter((e) => e.state === 'fail' && e.reason).map((e) => `${e.id}: ${e.reason}`)

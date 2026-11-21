@@ -11,7 +11,7 @@ import type { AgentBackend, AgentRun, AgentRunInput } from '@main/03_Agent/Agent
 import type { AgentEvent } from '@shared/agentEvents'
 import { TAMPERED_REASON, type LoadResult } from '@main/05_Loop/loopRunner'
 import { openLoop, type OpenedLoop } from '@main/05_Loop/openLoop'
-import type { ReviewPort, SessionPort, WorkRequest } from '@main/05_Loop/ports'
+import type { ReviewPort, ReviewRequest, SessionPort, WorkRequest } from '@main/05_Loop/ports'
 import { DOCS } from '@main/05_Loop/survivalDocs'
 import { BareGh } from '../00_Helpers/bareGh'
 import { labelOf, loaded, variantText, findRawNode } from '../00_Helpers/loopFakes'
@@ -149,6 +149,48 @@ describe('openLoop — 실 git으로 goal 하나를 끝까지', () => {
     // 검사 명령은 자격 없는 환경으로 돌았다(그렇지 않으면 exit 7로 FAIL)
     expect(end.state.lines.filter((l) => l.marker === 'FAIL')).toEqual([])
     expect(session.calls).toEqual(['brainstorm', 'decompose', 'G1/implement'])
+  })
+})
+
+describe('openLoop — 검수의 Taste 판', () => {
+  it('goal 시작 커밋의 프로젝트 Taste와 Taste 거처의 전역 Taste를 검수에 싣는다 — 작업 트리에서 고친 Taste가 아니다', SLOW, async () => {
+    const write = (rel: string, text: string): void => {
+      fs.mkdirSync(path.dirname(path.join(repos.work, rel)), { recursive: true })
+      fs.writeFileSync(path.join(repos.work, rel), text)
+    }
+    write('docs/agentdeck/Taste.md', '# 프로젝트 Taste\n\n## T1 화면\n- 원칙: 시작점의 원칙\n')
+    repos.git(['add', '-A'])
+    repos.git(['commit', '--quiet', '-m', 'Taste'])
+    repos.git(['push', '--quiet', 'origin', 'master'])
+    const tasteDataDir = path.join(repos.root, 'userdata')
+    fs.mkdirSync(path.join(tasteDataDir, 'taste'), { recursive: true })
+    fs.writeFileSync(path.join(tasteDataDir, 'taste', 'global-taste.md'), '# 전역 Taste\n\n## T1 말투\n- 원칙: 평문\n')
+    const strong: SessionPort = {
+      runWork: async (req) => {
+        await session.runWork(req)
+        if (req.node.id === 'implement') {
+          write('src/feature.ts', Array.from({ length: 80 }, (_, i) => `export const f${i} = ${i}`).join('\n'))
+          write('docs/agentdeck/Taste.md', '# 프로젝트 Taste\n\n## T1 화면\n- 원칙: 작업 노드가 고친 원칙\n')
+        }
+        return { ok: true, summary: '끝' }
+      },
+    }
+    const seen: ReviewRequest[] = []
+    const capture: ReviewPort = { review: async (req) => { seen.push(req); return { verdict: 'pass', evidence: '검수 통과' } } }
+    const r = await openLoop({
+      cwd: repos.work, appDataDir: appData, session: strong, review: capture, gh, template: TEMPLATE,
+      executorEnv: repos.env, commandTimeoutMs: 60_000, tasteDataDir,
+    })
+    if (!r.ok) throw new Error(`openLoop 실패: ${r.reason}`)
+    opened.push(r.loop)
+    expect((await r.loop.runner.start('M1')).kind).toBe('ok')
+    await drive(r.loop, 'G1/review')
+    expect((await r.loop.runner.step()).kind).toBe('advanced')
+    expect(seen[0].taste).toEqual([
+      { id: 'P-T1', title: '화면', fields: [{ name: '원칙', text: '시작점의 원칙' }] },
+      { id: 'G-T1', title: '말투', fields: [{ name: '원칙', text: '평문' }] },
+    ])
+    expect(seen[0].tasteDocsChanged).toBe(true)
   })
 })
 

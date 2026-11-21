@@ -50,6 +50,8 @@
 //   - goal PR은 SHA를 한 번 읽어 그 커밋의 트리를 대조하고 그 SHA를 push한다(`<sha>:refs/heads/<b>`).
 //   - 검수 diff가 상한을 넘으면 검수를 열지 않고 멈춘다(잘린 diff로 낸 pass가 전체 트리에 묶이지 않게).
 //   - 밖에서 넣는 사람 판정의 facts는 버린다 — 상태 사실은 실행기가 대조한 값만 싣는다.
+//   - 검수의 Taste 판은 goal 시작 SHA 커밋의 프로젝트 Taste와 검수 시작 때의 전역 Taste다. 읽지 못하거나 검사 문제가 있으면 멈춘다.
+//     검수 pass가 인정한 Taste 충돌은 goal 상태에 남고 마일스톤 PR 본문의 「영역 재설계 안건」에 실린다.
 import {
   applyVerdict, checkResumable, expectedJudge, judgeCi, judgeCommands, nextStep, oneSentence,
   type CommandRun, type NextStep, type Verdict,
@@ -61,7 +63,9 @@ import { createRunState, validateRunState, type GoalState, type RunState } from 
 import {
   DOCS, goalDocPath, readGoalSeeds, readNodeDocs, readSpecView, renderGoalLines, runStateText, sha256Text, writeVerification,
 } from './survivalDocs'
+import { tasteChecklist, type TasteCheckItem } from './tasteVerdict'
 import type { ActionNode, GateNode, SchemaError, StepNode, Template, WorkNode } from './template'
+import { PROJECT_TASTE_REL } from '@main/13_Taste/tasteStore'
 
 const DEFAULT_CI_WAIT_LIMIT = 120
 export const DEFAULT_CI_WAIT_MS = 60 * 60_000
@@ -142,6 +146,8 @@ const ARCHIVED_DOCS = [DOCS.milestoneSpec, DOCS.decisions, DOCS.verification] as
 
 // 실행기가 매 단계 쓰는 생존 문서는 goal의 변경이 아니므로 등급 통계에서 뺀다(템플릿과 관계없이).
 const EXECUTOR_OWNED = /^(\.[\\/])*\.agentdeck[\\/]/
+// 특수 글자가 든 경로는 git이 따옴표로 감싼다
+const TASTE_DOCS_DIFF = /^diff --git "?a\/docs\/agentdeck\//m
 const short = (sha: string | null | undefined): string => (sha ? sha.slice(0, 8) : '(없음)')
 const errorText = (e: unknown): string => oneSentence(e instanceof Error ? e.message : String(e))
 const v = (node: StepNode, verdict: Verdict['verdict'], evidence: string, facts?: Verdict['facts']): Verdict =>
@@ -455,22 +461,42 @@ export function createLoopRunner(deps: LoopRunnerDeps): LoopRunner {
       const goalDoc = goal ? await ports.fs.read(goalDocPath(goal.id)) : null
       const drift = goalDocDrift(goal, goalDoc)
       if (drift) return v(node, 'stop', `${drift} 검수를 열지 않았다`)
+      // 판을 읽지 못하면 Taste 판정이 조용히 꺼지지 않게 멈춘다(설정 문제라 FAIL로 세지 않는다)
+      const plate = await tastePlate(baseSha)
+      if (!plate.ok) return v(node, 'stop', `${plate.reason} — Taste 판을 읽지 못해 검수를 열지 않았다. 사람이 문서를 고치고 이어 간다`)
       const snap = await git.reviewSnapshot(baseSha)
       if (!snap) return v(node, 'fail', `${names.milestone}의 목표 시작 ${short(baseSha)} 대비 diff를 만들지 못해 검수를 열지 않았다`)
       // 잘린 diff로 검수하지 않는다(pass가 전체 트리에 묶이므로). FAIL로 세지 않고 멈춘다
       if (snap.tooLarge) {
         return v(node, 'stop', `검수 diff가 ${snap.chars ?? '?'}자로 상한을 넘어 검수를 열지 않았다 — 목표를 나누거나 사람이 판단한다`)
       }
-      const r = await ports.review.review({ milestoneId: state.milestoneId, node, goal, goalDoc, diff: snap.diff, base: names.milestone, baseSha })
+      const r = await ports.review.review({
+        milestoneId: state.milestoneId, node, goal, goalDoc, diff: snap.diff, base: names.milestone, baseSha,
+        taste: plate.items, tasteDocsChanged: TASTE_DOCS_DIFF.test(snap.diff),
+      })
       if (r.verdict !== 'pass') return { node: node.id, judge: 'model', verdict: r.verdict, evidence: r.evidence }
       const after = await git.worktreeTree()
       if (after !== snap.tree) {
         return v(node, 'stop', `검수 동안 작업 트리가 바뀌었다(${short(snap.tree)} → ${short(after)}) — 검수 pass를 받지 않았다. 사람 판단이 필요하다`)
       }
-      return { node: node.id, judge: 'model', verdict: 'pass', evidence: `${r.evidence} (검수 트리 ${short(snap.tree)})`, facts: { reviewedTree: snap.tree } }
+      const facts = { reviewedTree: snap.tree, ...(r.tasteConflicts?.length ? { tasteConflicts: r.tasteConflicts } : {}) }
+      return { node: node.id, judge: 'model', verdict: 'pass', evidence: `${r.evidence} (검수 트리 ${short(snap.tree)})`, facts }
     } catch (e) {
       return v(node, 'fail', `검수 세션이 판정을 내지 못했다 — ${errorText(e)}`)
     }
+  }
+
+  // 검수의 Taste 판 — 프로젝트 Taste는 goal 시작 SHA의 커밋에서(작업 노드가 작업 트리에서 고쳐도 판은 그대로다), 전역 Taste는 지금 앱 데이터에서
+  async function tastePlate(baseSha: string): Promise<{ ok: true; items: TasteCheckItem[] } | { ok: false; reason: string }> {
+    let project: string | null
+    let global: string | null
+    try { project = await git.fileAt(baseSha, PROJECT_TASTE_REL) } catch (e) {
+      return { ok: false, reason: `목표 시작 ${short(baseSha)}의 프로젝트 Taste를 읽지 못했다(${PROJECT_TASTE_REL} — ${errorText(e)})` }
+    }
+    try { global = (await ports.taste?.readGlobal()) ?? null } catch (e) {
+      return { ok: false, reason: `전역 Taste를 읽지 못했다(${errorText(e)})` }
+    }
+    return tasteChecklist({ project, global })
   }
 
   async function runGate(node: GateNode, state: RunState, goal: GoalState | null, names: BranchNames): Promise<Produced> {
@@ -632,9 +658,16 @@ export function createLoopRunner(deps: LoopRunnerDeps): LoopRunner {
     return v(node, 'pass', `머리 ${short(pr.headSha)}를 ${ms}에 --no-ff로 병합하고 push했다(병합 커밋 ${short(merged)})`, { mergedSha: merged })
   }
 
+  // 「영역 재설계 안건」은 늘 싣는다 — 안건이 없으면 「없음」(절이 빠진 것과 안건이 없는 것을 가른다)
   function milestoneReport(state: RunState): string {
     const rows = state.goals.map((g) => `- ${g.id} ${g.title} — 등급 ${g.grade === 'weak' ? '약' : '강'}, PR ${g.pr ?? '없음'}`)
-    return [`# ${state.milestoneId} 마일스톤 결과 보고`, '', ...rows, '', '검증 기록은 `.agentdeck/verification.md`에 있다.'].join('\n')
+    const agenda = state.goals.flatMap((g) => (g.tasteConflicts ?? []).map((c) =>
+      `- ${g.id} — 프로젝트 ${c.project} 대 전역 ${c.global}, 프로젝트 쪽을 따랐다: ${c.note}`))
+    return [
+      `# ${state.milestoneId} 마일스톤 결과 보고`, '', ...rows, '',
+      '## 영역 재설계 안건', '', ...(agenda.length > 0 ? agenda : ['- 없음']), '',
+      '검증 기록은 `.agentdeck/verification.md`에 있다.',
+    ].join('\n')
   }
 
   // goal 문서가 분해 때 실행기가 읽은 본문과 같은가. 다르면 사유(멈춤), 같거나 옛 상태(해시 없음)면 null.

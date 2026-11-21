@@ -9,7 +9,7 @@ import {
   type ActionNode, type GateNode, type GoalLoopNode, type Grade, type Judge, type StepNode, type Template, type WorkNode,
 } from './template'
 import {
-  FAIL_LIMIT, GOAL_ID, failsSinceUserInput, scopeOf, type Cursor, type GoalState, type Marker, type RunState,
+  FAIL_LIMIT, GOAL_ID, failsSinceUserInput, isTasteConflict, scopeOf, type Cursor, type GoalState, type Marker, type RunState, type TasteConflict,
 } from './runState'
 
 // 헌법 7조의 수. 템플릿이 바꾸지 못하게 코드에 둔다(정본은 runState — 상태 검사도 같은 수를 본다).
@@ -34,6 +34,8 @@ export interface VerdictFacts {
   mergedSha?: string
   // 모델 게이트가 pass를 낸 작업 트리 해시(실행기가 검수 입력을 만든 임시 인덱스의 write-tree)
   reviewedTree?: string
+  // 그 검수가 인정한 Taste 충돌 — goal의 목록을 이것으로 바꾼다
+  tasteConflicts?: TasteConflict[]
 }
 export interface Verdict {
   node: string
@@ -200,7 +202,11 @@ function applyFacts(node: StepNode, s: RunState, goal: GoalState | null, facts: 
   if (node.kind === 'gate' && node.judge === 'model' && goal) {
     const tree = facts?.reviewedTree
     if (!isNonEmptyString(tree)) return '검수 통과에는 검수한 트리 해시가 있어야 한다'
+    const conflicts: unknown = facts?.tasteConflicts ?? []
+    if (!Array.isArray(conflicts) || !conflicts.every(isTasteConflict)) return 'Taste 충돌 꼴이 틀렸다'
     goal.reviewedTree = tree
+    if (conflicts.length > 0) goal.tasteConflicts = conflicts.map((c) => ({ project: c.project, global: c.global, note: c.note }))
+    else delete goal.tasteConflicts
     return null
   }
   if (node.kind !== 'action') return null

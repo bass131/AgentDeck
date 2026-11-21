@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import type { AgentBackend, AgentRun, AgentRunInput } from '@main/03_Agent/AgentBackend'
 import { createLoopDriver, type LoopDriver } from '@main/05_Loop/loopDriver'
 import type { MainActions } from '@main/05_Loop/mainChat'
+import { openLoop } from '@main/05_Loop/openLoop'
 import { DOCS } from '@main/05_Loop/survivalDocs'
 import { globalTastePath } from '@main/13_Taste/tasteStore'
 import type { AgentEvent } from '@shared/agentEvents'
@@ -92,6 +93,21 @@ beforeEach(() => {
 afterEach(async () => {
   for (const d of drivers.splice(0)) await d.closeAll()
   repos.cleanup()
+})
+
+describe('구동자와 검수의 판', () => {
+  it('실행기를 열 때 전역 Taste의 거처를 넘긴다', SLOW, async () => {
+    const { backend } = quietBackend()
+    const given: (string | undefined)[] = []
+    const d = createLoopDriver({
+      appDataDir: appData, tasteDataDir: tasteDir, backend, ciRetryMs: 20, humanPollMs: 20,
+      openExtras: { gh, template: loaded(), executorEnv: repos.env, commandTimeoutMs: 60_000 },
+      openLoopImpl: async (o) => { given.push(o.tasteDataDir); return openLoop(o) },
+    })
+    drivers.push(d)
+    expect((await d.open({ cwd: repos.work })).phase).not.toBe('open-failed')
+    expect(given).toEqual([tasteDir])
+  })
 })
 
 describe('구동자의 문서 초안 길', () => {

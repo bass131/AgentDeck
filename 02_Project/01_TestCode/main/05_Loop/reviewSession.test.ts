@@ -10,6 +10,7 @@ import { ClaudeCodeBackend } from '@main/04_Claude/ClaudeCodeBackend'
 import type { ReviewRequest } from '@main/05_Loop/ports'
 import { buildReviewPrompt, createReviewSessionPort, parseVerdict, type ReviewSessionOptions } from '@main/05_Loop/reviewSession'
 import type { GoalState } from '@main/05_Loop/runState'
+import type { TasteCheckItem } from '@main/05_Loop/tasteVerdict'
 import type { GateNode } from '@main/05_Loop/template'
 import type { AgentEvent } from '@shared/agentEvents'
 import type { BackendId } from '@shared/ipcContract'
@@ -113,6 +114,65 @@ describe('검수 프롬프트', () => {
     // goal 문서는 울타리 안 — 울타리 줄 바로 뒤에 문서 본문이 온다
     expect(p).toMatch(/\n(`{6,})markdown\n# G1\n[\s\S]*\n\1\n/)
     expect(p).toMatch(/\n(`{6,})diff\ndiff --git[\s\S]*\n\1\n/)
+  })
+})
+
+describe('Taste 체크리스트 절', () => {
+  const TASTE: TasteCheckItem[] = [
+    { id: 'P-T3', title: '한 화면', fields: [{ name: '원칙', text: '한 화면에 하나' }, { name: '금지', text: '`````` 울타리 흉내' }] },
+    { id: 'G-T1', title: '말투', fields: [{ name: '레퍼런스', text: 'docs/ref.png' }] },
+  ]
+
+  it('Taste가 없으면 절도 TASTE 줄 형식도 없고, 빈 체크리스트와 같은 프롬프트다', () => {
+    const p = buildReviewPrompt(request())
+    expect(p).toBe(buildReviewPrompt(request({ taste: [] })))
+    expect(p).not.toContain('Taste')
+    expect(p).not.toContain('TASTE')
+  })
+
+  it('goal 문서·diff 뒤에 층 머리 ID와 원칙·레퍼런스·금지 원문, TASTE 줄 형식을 싣고 마지막은 VERDICT 줄이다', () => {
+    const p = buildReviewPrompt(request({ taste: TASTE }))
+    const at = (s: string): number => p.indexOf(s)
+    expect(at('## Taste 체크리스트')).toBeGreaterThan(at('## diff'))
+    expect(p).toContain('## P-T3 한 화면\n- 원칙: 한 화면에 하나\n- 금지: `````` 울타리 흉내\n\n## G-T1 말투\n- 레퍼런스: docs/ref.png')
+    expect(p).toContain('TASTE <ID>: pass — <근거 한 줄>')
+    expect(p).toContain('TASTE-CONFLICT <P-ID> <G-ID>: <한 줄>')
+    expect(p).toContain('프로젝트 Taste를 따른다')
+    expect(p).toMatch(/이미지를 열어 대조하지 않는다/)
+    expect(p.trimEnd().split('\n').slice(-4)).toEqual(['VERDICT: pass', 'VERDICT: fail', '', '마지막 줄이 이 꼴이 아니면 불통과로 센다.'])
+  })
+
+  it('Taste 원문 안의 backtick 줄도 울타리를 닫지 못한다', () => {
+    const p = buildReviewPrompt(request({ taste: TASTE }))
+    const openers = [...p.matchAll(/^(`{3,})(markdown|diff)$/gm)].map((m) => m[1].length)
+    expect(openers).toHaveLength(3)
+    expect(Math.min(...openers)).toBeGreaterThan(6)
+  })
+
+  it('docs/agentdeck/를 바꾼 diff면 근거에 그 사실을 적는다 — Taste가 없어도 판정은 그대로다', async () => {
+    const r = await createReviewSessionPort(opts(fakeBackend(said('좋다.\nVERDICT: pass')).backend)).review(request({ tasteDocsChanged: true }))
+    expect(r.verdict).toBe('pass')
+    expect(r.evidence).toContain('docs/agentdeck/')
+  })
+
+  it('Taste가 있으면 TASTE fail은 VERDICT pass여도 fail이고, 근거 머리에 ID와 판정이 먼저 온다', async () => {
+    const text = '근거.\nTASTE P-T3: fail — 두 화면\nTASTE G-T1: n/a — 색 없음\nVERDICT: pass'
+    const r = await createReviewSessionPort(opts(fakeBackend(said(text)).backend)).review(request({ taste: TASTE }))
+    expect(r.verdict).toBe('fail')
+    expect(r.evidence).toMatch(/^Taste P-T3 fail\(금지\), G-T1 n\/a/)
+    expect(r.evidence).toContain('P-T3: 두 화면')
+    expect(r.evidence).not.toContain('TASTE ')
+    const ok = await createReviewSessionPort(opts(fakeBackend(said('근거.\nTASTE P-T3: pass — a\nTASTE G-T1: pass — b\nVERDICT: pass')).backend)).review(request({ taste: TASTE }))
+    expect(ok.verdict).toBe('pass')
+    expect(ok.tasteConflicts).toEqual([])
+    const vFail = await createReviewSessionPort(opts(fakeBackend(said('근거.\nTASTE P-T3: pass — a\nTASTE G-T1: pass — b\nVERDICT: fail')).backend)).review(request({ taste: TASTE }))
+    expect(vFail.verdict).toBe('fail')
+  })
+
+  it('Taste가 없으면 TASTE 줄을 읽지 않는다 — 판정은 VERDICT 줄 그대로다', async () => {
+    const r = await createReviewSessionPort(opts(fakeBackend(said('TASTE P-T3: fail — x\nVERDICT: pass')).backend)).review(request())
+    expect(r.verdict).toBe('pass')
+    expect(r.evidence).not.toContain('Taste')
   })
 })
 

@@ -242,6 +242,14 @@ export class FakeGit implements GitPort {
     const sha = last(this.local.get(ref)) ?? ref
     return this.commitTrees.get(sha) ?? this.tree
   }
+  // 커밋 안의 파일 — `<sha>:<경로>`, `*:<경로>`는 모든 커밋. fileAtError를 정하면 읽기 오류를 흉내 낸다
+  readonly committed = new Map<string, string>()
+  fileAtError: string | null = null
+  async fileAt(sha: string, rel: string): Promise<string | null> {
+    this.calls.push(`fileAt ${sha} ${rel}`)
+    if (this.fileAtError !== null) throw new Error(this.fileAtError)
+    return this.committed.get(`${sha}:${rel}`) ?? this.committed.get(`*:${rel}`) ?? null
+  }
 }
 
 export interface FakePr { number: number; head: string; base: string; state: PrState; mergedHead: string | null; mergeCommitSha: string | null }

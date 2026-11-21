@@ -15,7 +15,8 @@
 // - 래치 풀기는 사람이 화면에서 한다(loopDriver) — DigestStore.clearLatch·remove가 그 길이다. 실행기 자신은 래치를 풀지 않는다.
 import type { CiStatus } from './executor'
 import type { FileChange } from './grade'
-import type { GoalState } from './runState'
+import type { GoalState, TasteConflict } from './runState'
+import type { TasteCheckItem } from './tasteVerdict'
 import type { DocKind, GateNode, WorkNode } from './template'
 
 export interface CommandResult { code: number; stdout: string; stderr: string }
@@ -77,6 +78,8 @@ export interface GitPort {
   reviewSnapshot(base: string): Promise<ReviewSnapshot | null>
   // 커밋(ref)의 트리 해시. 없으면 null.
   treeOf(ref: string): Promise<string | null>
+  // 커밋 sha 안의 파일 원문(작업 트리가 아니다). 그 커밋에 없으면 null. 커밋이 아니거나 그 자리가 파일이 아니면 던진다.
+  fileAt(sha: string, rel: string): Promise<string | null>
 }
 
 export type PrState = 'open' | 'merged' | 'closed'
@@ -142,10 +145,20 @@ export interface ReviewRequest {
   base: string
   // 실행기가 상태에 쥔 goal 시작 SHA
   baseSha: string
+  // Taste 체크리스트 — goal 시작 SHA의 프로젝트 Taste와 검수 시작 때의 전역 Taste. 비었거나 없으면 절을 싣지 않는다
+  taste?: TasteCheckItem[]
+  // 검수 diff가 docs/agentdeck/를 바꿨다(근거에 적는다 — 판은 그대로다)
+  tasteDocsChanged?: boolean
 }
+// tasteConflicts: 검수가 인정한 Taste 충돌(체크리스트가 있을 때만)
 export interface ReviewPort {
-  review(req: ReviewRequest): Promise<{ verdict: 'pass' | 'fail' | 'stop'; evidence: string }>
+  review(req: ReviewRequest): Promise<{ verdict: 'pass' | 'fail' | 'stop'; evidence: string; tasteConflicts?: TasteConflict[] }>
   cancel?(): boolean
+}
+
+// 앱 데이터의 전역 Taste 원문. 없으면 null, 읽기 오류는 던진다
+interface TastePort {
+  readGlobal(): Promise<string | null>
 }
 
 export interface Clock { now(): string }
@@ -192,4 +205,6 @@ export interface LoopPorts {
   digest: DigestStore
   // 실물은 openLoop가 붙인다. 시험의 가짜 포트에는 없을 수 있다.
   configGuard?: ConfigCheck
+  // 없으면 전역 Taste가 없는 것으로 본다(앱이 Taste 거처를 주지 않았다)
+  taste?: TastePort
 }

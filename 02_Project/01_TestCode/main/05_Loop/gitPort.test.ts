@@ -189,6 +189,30 @@ describe('브랜치·머리·커밋·push', () => {
   })
 })
 
+// 검수의 Taste 판 — 작업 트리가 아니라 커밋 안의 원문을 읽는다
+describe('fileAt', () => {
+  it('커밋의 원문을 읽는다 — 작업 트리에서 고쳐도, 지워도, 그 뒤 커밋해도 그 커밋의 글이다', async () => {
+    write('docs/agentdeck/Taste.md', '# 프로젝트 Taste\n\n## T1 시작점\n- 원칙: 처음\n')
+    const base = await git.commitAll('Taste')
+    write('docs/agentdeck/Taste.md', '# 프로젝트 Taste\n\n## T1 고침\n- 원칙: 나중\n')
+    expect(await git.fileAt(base, 'docs/agentdeck/Taste.md')).toBe('# 프로젝트 Taste\n\n## T1 시작점\n- 원칙: 처음\n')
+    await git.commitAll('고침')
+    expect(await git.fileAt(base, 'docs/agentdeck/Taste.md')).toContain('시작점')
+    fs.rmSync(path.join(repos.work, 'docs'), { recursive: true })
+    expect(await git.fileAt(base, 'docs/agentdeck/Taste.md')).toContain('시작점')
+  })
+
+  it('그 커밋에 없는 파일은 null, 커밋이 아니거나 파일이 아닌 자리·뿌리 밖 경로는 던진다', async () => {
+    const base = await git.headSha('master') as string
+    expect(await git.fileAt(base, 'docs/agentdeck/Taste.md')).toBeNull()
+    write('docs/agentdeck/Taste.md/inner.md', 'x\n')
+    const dir = await git.commitAll('폴더')
+    await expect(git.fileAt(dir, 'docs/agentdeck/Taste.md')).rejects.toThrow()
+    await expect(git.fileAt('f'.repeat(40), 'docs/agentdeck/Taste.md')).rejects.toThrow()
+    await expect(git.fileAt(base, '../x.md')).rejects.toThrow()
+  })
+})
+
 // 실행기가 원격과 로컬을 대조하는 데 쓰는 읽기
 describe('remoteSha·parents', () => {
   it('원격 머리를 ls-remote로 읽고, 원격에 없는 브랜치는 null이다', async () => {

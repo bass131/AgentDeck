@@ -1,17 +1,17 @@
-// M09 G2 — 실행기 조립 진입점. 작업 저장소 하나에 실물 포트를 붙여 실행기를 연다(화면·IPC 연결은 loopDriver, G4).
+// 실행기 조립 진입점. 작업 저장소 하나에 실물 포트를 붙여 실행기를 연다(화면·IPC 연결은 loopDriver).
 //   1. 작업 저장소 뿌리(git rev-parse --show-toplevel의 실제 경로)를 정한다. git 저장소가 아니면 열지 않는다.
 //      실물 gh로 CI를 판정하는데 필수 검사 이름(requiredChecks)이 없으면 열지 않는다(머리의 아무 검사로 통과하지 않게).
 //   2. 저장소당 실행기 하나 — 앱 영역의 잠금(repoLock)을 잡는다. 이미 있으면 열지 않는다.
 //   3. 실물 gh면 origin 주소에서 gh 저장소(HOST/OWNER/REPO)를 정한다 — 모든 gh 호출에 -R로 고정한다. 정하지 못하면 열지 않는다.
 //      실행기 git 설정 대조(configGuard) — 위험 키가 로컬 설정에 있으면 열지 않고, 설정 스냅숏을 앱 영역에 적는다.
-//      지난 실행의 스냅숏과 다르면 열지 않는다. 사람이 화면에서 바뀐 키를 확인하고 받으면(acceptConfigChanged) 그 차이만 새 기준선으로 연다(G4).
-//   4. 기준 브랜치(G4) — origin의 기본 브랜치. `refs/remotes/origin/HEAD`를 먼저 읽고, 없으면 gh의 저장소 정보(defaultBranchRef)를
+//      지난 실행의 스냅숏과 다르면 열지 않는다. 사람이 화면에서 바뀐 키를 확인하고 받으면(acceptConfigChanged) 그 차이만 새 기준선으로 연다.
+//   4. 기준 브랜치 — origin의 기본 브랜치. `refs/remotes/origin/HEAD`를 먼저 읽고, 없으면 gh의 저장소 정보(defaultBranchRef)를
 //      읽는다. 둘 다 못 읽으면 열지 않는다. 부르는 쪽이 base를 주면 그것을 쓴다.
 //   5. `.agentdeck/`를 작업 저장소의 .git/info/exclude에 더한다(확인 뒤 실행, 저장소 파일은 안 바꾼다).
 //   6. 자격 없는 자식 환경을 만든다 — 커밋 신원은 실행기 환경의 git config user.name·user.email을 넘겨받는다.
 //   7. 포트: 명령(자격 없는 환경), git·gh(실행기 환경 — 자격 있음, 묻는 창 없음, 작업 저장소 훅은 끄고 호출마다 설정 대조),
 //      fs(뿌리 밖 거부), 다이제스트·위조 래치(앱 영역).
-//   8. 세션: 부르는 쪽이 백엔드를 주면 실물 작업 노드 세션 포트(workSession.ts)와 실물 검수 세션 포트(reviewSession.ts, G4)를 붙인다 —
+//   8. 세션: 부르는 쪽이 백엔드를 주면 실물 작업 노드 세션 포트(workSession.ts)와 실물 검수 세션 포트(reviewSession.ts)를 붙인다 —
 //      자격 없는 환경, 자동 모드, 루프 잠금(앱 영역 포함, 검수는 읽기 전용 꼴). 시험은 세션·검수 포트를 직접 줄 수 있다(주면 그것이 이긴다).
 //   닫기: 돌고 있는 세션을 멈추고, 진행 중인 step(직렬화 줄)이 끝나기를 기다린 뒤 자식 환경을 지우고 잠금을 푼다.
 // 앱 영역은 부르는 쪽이 준다(실물은 join(getUserDataDir(), 'loop') — 이 모듈은 electron을 import하지 않는다). gh와 템플릿은 시험이 바꿔 끼울 수 있다.
@@ -38,7 +38,7 @@ import { createReviewSessionPort } from './reviewSession'
 import type { Template } from './template'
 import { createWorkSessionPort, type CardResponder } from './workSession'
 
-const DEFAULT_COMMAND_TIMEOUT_MS =30 * 60_000
+const DEFAULT_COMMAND_TIMEOUT_MS = 30 * 60_000
 
 export interface OpenLoopOptions {
   cwd: string
@@ -47,23 +47,23 @@ export interface OpenLoopOptions {
   // 세션 포트를 직접 준다(시험). 없으면 backend로 실물 포트를 만든다. 둘 다 없으면 열지 않는다.
   session?: SessionPort
   backend?: AgentBackend
-  // 작업자 노드 세션 하나의 시간 상한. 기본은 workSession.DEFAULT_SESSION_TIMEOUT_MS. 메인 노드에는 걸지 않는다(G4)
+  // 작업자 노드 세션 하나의 시간 상한. 기본은 workSession.DEFAULT_SESSION_TIMEOUT_MS. 메인 노드에는 걸지 않는다
   sessionTimeoutMs?: number
   // 작업자 노드 세션의 카드 응답자. 기본은 거부·무응답
   onCard?: CardResponder
-  // 메인 노드(브레인스토밍) 세션의 카드 응답자(G4 — 화면으로 보낸다)
+  // 메인 노드(브레인스토밍) 세션의 카드 응답자(화면으로 보낸다)
   mainCard?: CardResponder
-  // M10 G2 — 메인 노드(브레인스토밍)를 메인 대화로 보낸다(실물 세션 포트일 때만 — 시험이 session을 주면 그것이 이긴다)
+  // 메인 노드(브레인스토밍)를 메인 대화로 보낸다(실물 세션 포트일 때만 — 시험이 session을 주면 그것이 이긴다)
   mainWork?: (req: WorkRequest) => Promise<WorkResult>
-  // M10 G2 — 작업·검수 세션의 사건을 세션 꼬리표(kind work·review, key, 노드·goal, SDK 세션 id)와 함께 흘린다
+  // 작업·검수 세션의 사건을 세션 꼬리표(kind work·review, key, 노드·goal, SDK 세션 id)와 함께 흘린다
   onSessionEvent?: (e: AgentEvent, tag: LoopSessionTag) => void
-  // 검수 포트를 직접 준다(시험). 없으면 backend로 실물 검수 세션 포트를 만든다(G4). 둘 다 없으면 열지 않는다.
+  // 검수 포트를 직접 준다(시험). 없으면 backend로 실물 검수 세션 포트를 만든다. 둘 다 없으면 열지 않는다.
   review?: ReviewPort
   reviewTimeoutMs?: number
   clock?: Clock
   // 실행기 자신의 git·gh 환경(자격 있음). 기본은 이 프로세스의 환경. 묻는 창은 언제나 끈다(executorGitEnv)
   executorEnv?: NodeJS.ProcessEnv
-  // 자격 없는 자식 환경의 바탕. 기본은 executorEnv(PATH를 좁히기 전 — M11 G3)
+  // 자격 없는 자식 환경의 바탕. 기본은 executorEnv(PATH를 좁히기 전)
   childBaseEnv?: NodeJS.ProcessEnv
   commandTimeoutMs?: number
   // CI 기다림의 시간 상한(기본 60분)과 횟수 보조 상한
@@ -73,9 +73,9 @@ export interface OpenLoopOptions {
   requiredChecks?: string[]
   gh?: GhPort
   template?: { template: Template; hash: string }
-  // 기준 브랜치를 직접 준다. 없으면 origin의 기본 브랜치를 읽는다(G4)
+  // 기준 브랜치를 직접 준다. 없으면 origin의 기본 브랜치를 읽는다
   base?: string
-  // 사람이 화면에서 확인하고 받은 설정 차이(G4 — 래치 풀기). 지난 스냅숏과의 차이가 이 목록과 같을 때만 연다
+  // 사람이 화면에서 확인하고 받은 설정 차이(래치 풀기). 지난 스냅숏과의 차이가 이 목록과 같을 때만 연다
   acceptConfigChanged?: readonly string[]
 }
 
@@ -83,23 +83,22 @@ export interface OpenedLoop {
   runner: LoopRunner
   // 작업 저장소 뿌리(실제 경로)
   root: string
-  // 다이제스트 키(repoKeyOf(root))와 그 저장소(G4 — 래치 풀기가 쓴다)
+  // 다이제스트 키(repoKeyOf(root))와 그 저장소(래치 풀기가 쓴다)
   repoKey: string
   digest: DigestStore
-  // 기준 브랜치(G4)
   base: string
   // 작업 노드 세션과 검사 명령이 이 환경으로 돈다
   childEnv: CredentialFreeEnv
   // 실물 gh가 모든 호출에 -R로 고정한 저장소(HOST/OWNER/REPO). 부르는 쪽이 gh 포트를 주면 null
   ghRepo: string | null
-  // 열린 뒤 기준선과 달라진 설정 키(G4 — 래치 카드가 보인다)
+  // 열린 뒤 기준선과 달라진 설정 키(래치 카드가 보인다)
   configChanges(): string[]
-  // 돌고 있는 작업·검수 세션을 취소한다(화면의 취소, G4). 멈춘 세션이 있었으면 true
+  // 돌고 있는 작업·검수 세션을 취소한다(화면의 취소). 멈춘 세션이 있었으면 true
   cancelSession(): boolean
   close(): Promise<void>
 }
 
-// changed·root: 설정 스냅숏 차이로 열지 못했을 때(G4 — 화면이 바뀐 키를 보이고 사람이 받는다)
+// changed·root: 설정 스냅숏 차이로 열지 못했을 때(화면이 바뀐 키를 보이고 사람이 받는다)
 export type OpenLoopResult = { ok: true; loop: OpenedLoop } | { ok: false; reason: string; changed?: string[]; root?: string }
 
 class OpenRefused extends Error {
@@ -127,7 +126,7 @@ export async function openLoop(opts: OpenLoopOptions): Promise<OpenLoopResult> {
   }
   const executorEnv = executorGitEnv(opts.executorEnv ?? process.env)
   const probe = await runProcess('git', ['rev-parse', '--show-toplevel'], { cwd: opts.cwd, env: executorEnv, timeoutMs: 30_000 })
-  // 실행기 PATH는 사용자 프로필 아래 폴더를 뺀다(M09-4) — git을 거기에만 두면 실행 파일을 찾지 못한다(code -1)
+  // 실행기 PATH는 사용자 프로필 아래 폴더를 뺀다 — git을 거기에만 두면 실행 파일을 찾지 못한다(code -1)
   if (probe.code === -1) {
     return { ok: false, reason: '실행기가 git을 찾지 못했다 — 실행기 PATH는 사용자 프로필 아래 폴더를 빼니, git·gh를 사용자 프로필 밖(예: C:\\Program Files)에 설치해야 한다' }
   }
@@ -148,7 +147,7 @@ export async function openLoop(opts: OpenLoopOptions): Promise<OpenLoopResult> {
 
   let child: CredentialFreeEnv | null = null
   try {
-    // 실물 gh는 origin 주소(실행기 git이 push하는 곳)에서 정한 HOST/OWNER/REPO로 모든 호출을 고정한다(G2 재검수 중요 B).
+    // 실물 gh는 origin 주소(실행기 git이 push하는 곳)에서 정한 HOST/OWNER/REPO로 모든 호출을 고정한다.
     // 주소는 설정 대조가 본다(remote.origin.url). 부르는 쪽이 gh 포트를 주면 고정은 그 포트의 몫이다.
     // 설정 스냅숏을 적기 전에 정한다 — 열지 못한 실행이 스냅숏을 남기면, origin을 고친 뒤의 다시 열기가 「설정이 바뀌었다」로 막힌다.
     let ghRepo: string | null = null
@@ -167,7 +166,7 @@ export async function openLoop(opts: OpenLoopOptions): Promise<OpenLoopResult> {
     if (!guarded.ok) throw new OpenRefused(guarded.reason, guarded.changed)
     const guard = guarded.guard
     const gh = opts.gh ?? createGhPort(createGhExec({ cwd: root, repo: ghRepo as string, env: executorEnv, guard }), { requiredChecks: opts.requiredChecks })
-    // 기준 브랜치 — 설정 대조가 위험 키를 거른 뒤에 읽는다(G4)
+    // 기준 브랜치 — 설정 대조가 위험 키를 거른 뒤에 읽는다
     const base = opts.base ?? (await readOriginDefaultBranch(root, executorEnv)) ?? (await gh.defaultBranch?.()) ?? null
     if (base === null) {
       throw new Error('origin의 기본 브랜치를 읽지 못했다 — refs/remotes/origin/HEAD가 없고 gh 저장소 정보에서도 읽지 못했다(`git remote set-head origin --auto`로 정한 뒤 다시 연다)')

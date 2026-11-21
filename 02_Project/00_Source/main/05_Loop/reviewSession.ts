@@ -1,4 +1,4 @@
-// M09 G4 — 모델 게이트(독립 검수)의 실물 포트. 검수마다 구현 문맥이 없는 새 세션을 연다.
+// 모델 게이트(독립 검수)의 실물 포트. 검수마다 구현 문맥이 없는 새 세션을 연다.
 //   - 입력: 실행기가 준 goal 문서와 diff(작업 트리 대 마일스톤 브랜치, 실행기가 임시 인덱스에서 만든 것)뿐이다.
 //     마일스톤 id·goal 제목·작업 세션의 대화는 싣지 않는다. 세션은 작업 저장소를 읽어 확인할 수 있다.
 //   - 실행 입력: 앱 「자동」 모드, 자격 없는 환경, 루프 잠금의 읽기 전용 꼴(loopLock readOnly — 저장소 쓰기·git 쓰기 하위 명령·
@@ -15,7 +15,7 @@ import type { ReviewPort, ReviewRequest } from './ports'
 import { DOCS, goalDocPath } from './survivalDocs'
 import { DEFAULT_SESSION_TIMEOUT_MS, denyCards, nextSessionKey, oneLine, runNodeSession, taggedEvents } from './workSession'
 
-const DEFAULT_REVIEW_TIMEOUT_MS =30 * 60_000
+const DEFAULT_REVIEW_TIMEOUT_MS = 30 * 60_000
 
 export interface ReviewSessionOptions {
   backend: AgentBackend
@@ -27,11 +27,11 @@ export interface ReviewSessionOptions {
   model?: string
   effort?: string
   signal?: AbortSignal
-  // M10 G2 — 세션 꼬리표(kind review)와 함께 흘린다
+  // 세션 꼬리표(kind review)와 함께 흘린다
   onEvent?: (e: AgentEvent, tag: LoopSessionTag) => void
 }
 
-// G4 검수 사소 3 — 정확히 일치만 받는다(대소문자·띄어쓰기 구분). 줄 앞뒤 공백만 무시한다.
+// 정확히 일치만 받는다(대소문자·띄어쓰기 구분). 줄 앞뒤 공백만 무시한다.
 const PASS_LINE = 'VERDICT: pass'
 const FAIL_LINE = 'VERDICT: fail'
 const lastLineOf = (text: string): string => text.split(/\r?\n/).map((l) => l.trim()).filter((l) => l !== '').at(-1) ?? ''
@@ -41,7 +41,7 @@ export function parseVerdict(text: string): 'pass' | 'fail' {
   return lastLineOf(text) === PASS_LINE ? 'pass' : 'fail'
 }
 
-// G4 검수 사소 4 — 울타리는 안에 싣는 글의 가장 긴 backtick 줄보다 길게 한다(안의 ``` 줄이 울타리를 닫지 못하게)
+// 울타리는 안에 싣는 글의 가장 긴 backtick 줄보다 길게 한다(안의 ``` 줄이 울타리를 닫지 못하게)
 function fence(...bodies: string[]): string {
   let longest = 0
   for (const b of bodies) for (const m of b.matchAll(/`+/g)) longest = Math.max(longest, m[0].length)
@@ -113,7 +113,7 @@ export function createReviewSessionPort(opts: ReviewSessionOptions): ReviewPort 
         const end = await session.done
         switch (end.kind) {
           case 'done': {
-            // end.text는 마지막 최상위 메시지의 글이다(runNodeSession — 최상위 도구 호출 뒤 글이 없으면 빈 글, G4 검수 사소 5)
+            // end.text는 마지막 최상위 메시지의 글이다(runNodeSession — 최상위 도구 호출 뒤 글이 없으면 빈 글)
             const verdict = parseVerdict(end.text)
             const last = lastLineOf(end.text)
             const lastOk = last === PASS_LINE || last === FAIL_LINE

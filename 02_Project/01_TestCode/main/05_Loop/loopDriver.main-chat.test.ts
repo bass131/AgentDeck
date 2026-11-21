@@ -1,12 +1,12 @@
-// M10 G2 구동자와 메인 대화 — 실 git(임시 작업 저장소 + bare 원격) + 가짜 gh + 대본 백엔드로 프로덕션 createLoopDriver를 돈다.
+// 구동자와 메인 대화 — 실 git(임시 작업 저장소 + bare 원격) + 가짜 gh + 대본 백엔드로 프로덕션 createLoopDriver를 돈다.
 // 고정하는 것:
 //   - 브레인스토밍은 메인 대화의 여러 턴이다. 턴이 스펙 없이 끝나면 FAIL이 아니라 사람 기다림(mainWaiting)이고 검증 줄이 늘지 않는다.
 //     사람의 말이 같은 세션으로 가고(resume), 스펙이 바뀌면 승인 카드가 뜬다. 쓰기 창은 브레인스토밍 동안만 열린다.
 //   - 메인의 「멈춤」은 구동자의 일시 정지 깃발이다 — 실행 상태·검증 기록을 바꾸지 않고, 지금 노드가 끝나면 다음 노드로 가지 않는다.
 //     「이어 가기」는 깃발만 내린다. 스펙 승인 게이트는 여전히 사람의 판정(decide)으로만 지난다. 메인 동작은 USER-INPUT 줄을 쓰지 않는다.
 //   - 사건 줄(스펙 승인·깃발 올림 flag-raised·깃발 내림 flag-lowered·Backlog)은 모델 없이 대화 기록에 남는다 — 깃발 사건은 사람이 멈춘
-//     실행을 이어 간 사건(resumed)과 이름이 다르다(G2 독립 검수). 세션 사건은 꼬리표(key main·kind main·SDK 세션 id)와 함께 나간다.
-//   - 멈춘 실행(needs-user)의 사람 이어 가기도 앱 「자동」 모드 허용 노드가 꺼져 있으면 받지 않는다(G2 독립 검수).
+//     실행을 이어 간 사건(resumed)과 이름이 다르다. 세션 사건은 꼬리표(key main·kind main·SDK 세션 id)와 함께 나간다.
+//   - 멈춘 실행(needs-user)의 사람 이어 가기도 앱 「자동」 모드 허용 노드가 꺼져 있으면 받지 않는다.
 //   - 새 메인 대화는 지난 장을 보관한다. 닫힌 저장소의 대화는 앱 영역 파일에서 읽힌다(root null). 열리지 않은 저장소에는 보내지 못한다.
 import fs from 'node:fs'
 import path from 'node:path'
@@ -30,7 +30,7 @@ const TEMPLATE = loaded(variantText((raw) => {
 }))
 
 // 브레인스토밍 여는 턴은 글로 묻고 끝낸다(스펙 없음). 사람이 「덧셈」을 말하면 결정 대장과 스펙을 쓴다.
-// hangMain: 사람 글에 「오래」가 있으면 메인 턴이 멈출 때까지 돈다(M10 G3 — 취소 대상 시험)
+// hangMain: 사람 글에 「오래」가 있으면 메인 턴이 멈출 때까지 돈다(취소 대상 시험)
 function chatBackend(opts: { hangDecompose?: boolean; hangMain?: boolean } = {}): { backend: AgentBackend; starts: AgentRunInput[] } {
   const starts: AgentRunInput[] = []
   let seq = 0
@@ -233,7 +233,7 @@ describe('멈춤은 일시 정지 깃발이다 (M10 G2)', () => {
     expect(lines.filter((l) => l.marker === 'USER-INPUT')).toHaveLength(0)
     expect(runState().lines.filter((l) => l.marker === 'USER-INPUT')).toHaveLength(0)
     const kinds = rig.d.mainRead(CWD).items.flatMap((i) => (i.kind === 'event' ? [i.event.kind] : []))
-    // G2 독립 검수 — 메인의 깃발 사건은 사람이 멈춘 실행을 이어 간 사건(resumed)과 이름이 다르다
+    // 메인의 깃발 사건은 사람이 멈춘 실행을 이어 간 사건(resumed)과 이름이 다르다
     expect(kinds).toEqual(expect.arrayContaining(['flag-raised', 'flag-lowered', 'spec-approved']))
     expect(kinds).not.toContain('resumed')
   })
@@ -248,7 +248,7 @@ describe('멈춤은 일시 정지 깃발이다 (M10 G2)', () => {
     expect(await rig.actions().appendBacklog('두\n줄')).not.toContain('적었다')
     expect(fs.readFileSync(path.join(repos.work, BACKLOG_PATH), 'utf8')).toBe('# Backlog\n- 설정 화면 정리\n')
     expect(rig.d.mainRead(CWD).items.some((i) => i.kind === 'event' && i.event.kind === 'backlog')).toBe(true)
-    // M10 G5 — 화면에 보이는 사건 문장은 한글이다
+    // 화면에 보이는 사건 문장은 한글이다
     expect(rig.d.mainRead(CWD).items.some((i) => i.kind === 'event' && i.event.text === '미룬 일에 적었다 — 설정 화면 정리')).toBe(true)
     expect(runState().lines).toEqual([])
   })
@@ -301,7 +301,7 @@ describe('멈춤·래치 동안 메인은 아무것도 풀지 못한다 (M10 G2)
     expect(told[0]).toContain('멈췄다')
   })
 
-  // G2 독립 검수 — 사람의 이어 가기(decide의 멈춘 실행 갈래)도 앱 「자동」 모드 허용 노드를 본다. 꺼진 채 받으면 작업자 노드가 거부돼 FAIL이 쌓인다
+  // 사람의 이어 가기(decide의 멈춘 실행 갈래)도 앱 「자동」 모드 허용 노드를 본다. 꺼진 채 받으면 작업자 노드가 거부돼 FAIL이 쌓인다
   it('멈춘 실행의 이어 가기는 자동 모드 허용 노드가 꺼져 있으면 받지 않는다 — 실행 상태는 그대로다', SLOW, async () => {
     let off = false
     const rig = driver({ hangDecompose: true, autoModeCheck: () => (off ? '컨트롤 노드 mode-auto-bypass-allow가 꺼져 있다' : null) })
@@ -369,9 +369,9 @@ describe('메인 대화의 IPC 몫 (M10 G2)', () => {
   })
 })
 
-// M10 G3 — 화면의 판정 경계(main 쪽). 사람이 깃발을 내리는 길(lowerFlag)과 대상을 고른 취소(cancelSession(cwd, target)).
+// 화면의 판정 경계(main 쪽). 사람이 깃발을 내리는 길(lowerFlag)과 대상을 고른 취소(cancelSession(cwd, target)).
 // 둘 다 판정이 아니다 — USER-INPUT 줄을 만들지 않고, 깃발 내리기와 메인 턴 취소는 실행 상태·검증 기록을 바꾸지 않는다.
-// 작업 세션 취소의 멈춤(needs-user)은 실행기의 기존 판정(M09 G4 — 취소는 FAIL이 아니라 stop)이다.
+// 작업 세션 취소의 멈춤(needs-user)은 실행기의 기존 판정(취소는 FAIL이 아니라 stop)이다.
 const userInputs = (): number => runState().lines.filter((l) => l.marker === 'USER-INPUT').length
 const eventsOf = (rig: Rig): { kind: string; text: string }[] =>
   rig.d.mainRead(repos.work).items.flatMap((i) => (i.kind === 'event' ? [{ kind: i.event.kind, text: i.event.text }] : []))
@@ -511,7 +511,7 @@ describe('노드 세션 기록과 상태의 새 칸 (M10 G4)', () => {
     expect(rig.d.status(CWD).sessions.map((r) => r.key)).toContain(row?.key)
   })
 
-  // G4 검수 7 — 끝내기가 정상 반환 뒤에만 있으면, 노드 세션을 돈 단계가 throw할 때 그 줄이 떠 있는 채로 남는다
+  // 끝내기가 정상 반환 뒤에만 있으면, 노드 세션을 돈 단계가 throw할 때 그 줄이 떠 있는 채로 남는다
   it('노드 세션을 돈 단계가 throw해도 그 세션 줄은 끝으로 내려간다', SLOW, async () => {
     let broke = false
     const rig = driver({
@@ -546,7 +546,7 @@ describe('노드 세션 기록과 상태의 새 칸 (M10 G4)', () => {
     expect(Number.isNaN(new Date(archives[0].at).getTime())).toBe(false)
   })
 
-  // G4 검수 10 — 새 장이 열리면 메인 세션 기록(할 일·서브에이전트의 출처)을 비운다. 차례는 이어 가서 화면의 맞물림이 그대로다
+  // 새 장이 열리면 메인 세션 기록(할 일·서브에이전트의 출처)을 비운다. 차례는 이어 가서 화면의 맞물림이 그대로다
   it('새 메인 대화는 메인 세션 기록을 비우고 차례를 이어 가며, 장 표지가 바뀐 보기를 push한다', SLOW, async () => {
     const rig = driver()
     const CWD = repos.work

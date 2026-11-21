@@ -1,4 +1,4 @@
-// M09 G2 — 실물 git 포트(git CLI). ports.ts의 GitPort 계약을 그대로 구현한다.
+// ports.ts의 GitPort 계약을 그대로 구현한다.
 // 실행기 자신의 git이라 일반 환경(자격 있음)으로 돈다. 다만 작업 저장소의 훅은 돌리지 않는다 — hooksPath를 빈 폴더로 준다.
 // 훅은 작업 세션이 쓸 수 있는 코드라, 자격 있는 실행기 환경에서 돌면 안 된다. hooksPath는 만들지 않는 앱 영역 경로다.
 // 설정도 같다 — guard(configGuard.ts)를 주면 모든 git 호출 직전에 설정 스냅숏을 대조하고, 다르면 그 호출을 돌리지 않고 던진다.
@@ -27,12 +27,12 @@ interface GitPortOptions {
   guard?: { assert(): Promise<void> }
 }
 
-const AGENTDECK_EXCLUDE ='.agentdeck/'
+const AGENTDECK_EXCLUDE = '.agentdeck/'
 
 type Git = (args: string[], extraEnv?: NodeJS.ProcessEnv) => Promise<ProcessResult>
 
 // 교체 객체(refs/replace/*)를 따르지 않는다 — 작업 노드가 `git replace <PR 머리> <악성 커밋>`을 심으면, 따르는 git의 병합은 부모를
-// 원래 SHA로 적고 트리는 악성 것으로 만든다(G2 재검수 차단 A). 환경 변수와 명령줄 설정 둘 다 건다(자식 git·gh가 부르는 git도 환경을 받는다).
+// 원래 SHA로 적고 트리는 악성 것으로 만든다. 환경 변수와 명령줄 설정 둘 다 건다(자식 git·gh가 부르는 git도 환경을 받는다).
 export const NO_REPLACE_ENV = { GIT_NO_REPLACE_OBJECTS: '1' } as const
 
 function makeGit(cwd: string, env: NodeJS.ProcessEnv, timeoutMs: number, hooksPath?: string, guard?: GitPortOptions['guard']): Git {
@@ -64,7 +64,7 @@ function safeName(name: string): string {
 }
 
 const SHA_HEX = /^(?:[0-9a-f]{40}|[0-9a-f]{64})$/
-// G4 검수 I6 — 브랜치 이름은 `refs/heads/<이름>`으로 읽는다. 짧은 이름은 같은 이름의 태그(refs/tags)가 먼저 잡혀 가릴 수 있다.
+// 브랜치 이름은 `refs/heads/<이름>`으로 읽는다. 짧은 이름은 같은 이름의 태그(refs/tags)가 먼저 잡혀 가릴 수 있다.
 // 전체 SHA·`refs/` 경로·HEAD는 그대로 둔다.
 export function qualifyRef(ref: string): string {
   const r = safeName(ref)
@@ -129,7 +129,7 @@ export function createGitPort(opts: GitPortOptions): GitPort {
       await must(git, ['commit', '--quiet', '--no-verify', '-m', message])
       return (await must(git, ['rev-parse', 'HEAD'])).trim()
     },
-    // G4 검수 I8 — sha를 주면 그 커밋만 push한다(트리를 대조한 바로 그 커밋. 사이에 로컬 브랜치가 옮겨져도 따라가지 않는다).
+    // sha를 주면 그 커밋만 push한다(트리를 대조한 바로 그 커밋. 사이에 로컬 브랜치가 옮겨져도 따라가지 않는다).
     async push(branch, sha) {
       const b = safeName(branch)
       if (sha !== undefined && !SHA_HEX.test(sha)) throw new Error(`push할 커밋 ${JSON.stringify(sha)}이 SHA 꼴이 아니다`)
@@ -187,7 +187,7 @@ export function createGitPort(opts: GitPortOptions): GitPort {
       const expected = r.stdout.split(/\r?\n/)[0].trim()
       return tree === expected ? null : `병합 커밋 ${c.slice(0, 8)}의 트리 ${tree.slice(0, 8)}가 두 부모를 병합한 트리 ${expected.slice(0, 8)}가 아니다`
     },
-    // base는 해석한 커밋 SHA로 diff에 넘긴다(이름을 다시 읽지 않는다 — G4 검수 I6)
+    // base는 해석한 커밋 SHA로 diff에 넘긴다(이름을 다시 읽지 않는다)
     async diffStat(base) {
       try {
         const b = await resolve(base)
@@ -197,11 +197,11 @@ export function createGitPort(opts: GitPortOptions): GitPort {
         return null
       }
     },
-    // M09 G4 — 검수에 묶는 트리. 같은 임시 인덱스 방식이라 untracked가 들어가고 `.agentdeck/`(exclude)는 빠진다.
+    // 검수에 묶는 트리. 같은 임시 인덱스 방식이라 untracked가 들어가고 `.agentdeck/`(exclude)는 빠진다.
     async worktreeTree() {
       return withTempIndex(async (extra) => (await must(git, ['write-tree'], extra)).trim())
     },
-    // G4 검수 I9 — 상한을 넘으면 잘린 diff를 주지 않는다(tooLarge, 전체 길이). 실행기가 검수를 열지 않고 멈춘다.
+    // 상한을 넘으면 잘린 diff를 주지 않는다(tooLarge, 전체 길이). 실행기가 검수를 열지 않고 멈춘다.
     async reviewSnapshot(base) {
       try {
         const b = await resolve(base)
@@ -238,10 +238,10 @@ export function createGitPort(opts: GitPortOptions): GitPort {
   }
 }
 
-// M09 G4 — 검수 세션에 주는 diff의 상한(문자). 넘으면 자르고 잘렸다고 적는다.
+// 검수 세션에 주는 diff의 상한(문자). 넘으면 자르고 잘렸다고 적는다.
 export const REVIEW_DIFF_LIMIT = 400_000
 
-// M09 G4 — origin의 기본 브랜치(refs/remotes/origin/HEAD가 가리키는 이름). 없거나 읽지 못하면 null이다(부르는 쪽이 gh로 다시 본다).
+// origin의 기본 브랜치(refs/remotes/origin/HEAD가 가리키는 이름). 없거나 읽지 못하면 null이다(부르는 쪽이 gh로 다시 본다).
 export async function readOriginDefaultBranch(cwd: string, env: NodeJS.ProcessEnv = process.env, remote = 'origin'): Promise<string | null> {
   const git = makeGit(cwd, env, 30_000)
   const r = await git(['symbolic-ref', '--quiet', `refs/remotes/${remote}/HEAD`])

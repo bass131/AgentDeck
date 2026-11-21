@@ -1,4 +1,4 @@
-// M09 G2 저장소당 실행기 하나 — 앱 영역의 잠금 파일. 같은 저장소에 두 번째 실행기를 만들면 거부한다.
+// 앱 영역의 잠금 파일. 같은 저장소에 두 번째 실행기를 만들면 거부한다.
 // 죽은 잠금: 잠금 파일의 pid가 죽은 프로세스면 넘겨받는다. 살아 있는 다른 프로세스면 거부하고 pid와 파일 경로를 알린다.
 // 읽히지 않는 잠금 파일은 막 쓰는 중일 수 있어 잠시(5초) 거부하고, 그보다 오래됐으면 넘겨받는다.
 import { spawn } from 'node:child_process'
@@ -38,7 +38,7 @@ describe('저장소 잠금', () => {
     if (third.ok) await third.lock.release()
   })
 
-  // G2 검수 중요 3 — 첫 await 전에 메모리 표에 예약하지 않으면 같은 프로세스의 동시 획득이 둘 다 성공했다
+  // 첫 await 전에 메모리 표에 예약하지 않으면 같은 프로세스의 동시 획득이 둘 다 성공했다
   it('같은 프로세스에서 동시에 잡으면 하나만 성공한다', async () => {
     const k = key()
     const results = await Promise.all([1, 2, 3].map(() => acquireRepoLock(dir, k, { cwd: 'C:/work/race' })))

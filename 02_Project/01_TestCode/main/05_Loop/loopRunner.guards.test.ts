@@ -1,4 +1,4 @@
-// M09 G2 독립 검수 반영 — 실행기 쪽 구조적 고침을 고정한다.
+// 실행기 쪽 구조적 고침을 고정한다.
 //   중요 4: 세션이 로컬 마일스톤(·base) 브랜치에 심은 커밋을 실행기가 push하지 않는다 — 로컬 머리 == 원격 머리일 때만 가르고·병합하고·PR을
 //           열며, 재개 때는 「부모가 (원격 머리, PR 머리)인 병합 커밋 하나」만 받는다.
 //   차단 1: 실행기 git 설정이 바뀌면(configGuard) 단계 앞뒤에서 멈추고 판정을 남기지 않으며 래치를 건다.
@@ -80,7 +80,7 @@ describe('세션이 로컬 브랜치에 심은 커밋을 실행기가 push하지
     expect(calls().filter((c) => c.startsWith('push'))).toEqual([])
   })
 
-  // G2 재검수 차단 A — 부모만 (원격 머리, PR 머리)로 맞추고 트리는 CI를 거치지 않은 위조 병합 커밋(commit-tree)
+  // 부모만 (원격 머리, PR 머리)로 맞추고 트리는 CI를 거치지 않은 위조 병합 커밋(commit-tree)
   it('goal 병합 재개 — 부모가 맞아도 트리가 두 부모의 병합이 아닌 커밋은 push하지 않고 멈춘다', async () => {
     const ctx = setup()
     const at = await until(ctx, 'G1/merge')
@@ -109,7 +109,7 @@ describe('세션이 로컬 브랜치에 심은 커밋을 실행기가 push하지
     expect(calls().filter((c) => c.startsWith('push'))).toEqual([])
   })
 
-  // G4 확인 검수 — goal PR의 I8과 같은 꼴. 확인(verifyMerge)한 병합 SHA를 `<sha>:refs/heads/<마일스톤 브랜치>`로 push한다.
+  // goal PR의 SHA push와 같은 꼴. 확인(verifyMerge)한 병합 SHA를 `<sha>:refs/heads/<마일스톤 브랜치>`로 push한다.
   // 이번 병합(mergeNoFf 뒤)과 재개(로컬 병합은 됐는데 push 전에 꺼짐) 두 길 모두 본다
   it('goal 병합 — 확인과 push 사이에 로컬 마일스톤 브랜치가 옮겨져도 원격에는 확인한 병합 SHA가 간다', async () => {
     const ctx = setup()

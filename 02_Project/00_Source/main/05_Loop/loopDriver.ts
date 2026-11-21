@@ -1,30 +1,30 @@
-// M09 G4 — 앱 안 루프 구동자. 저장소마다 실행기(openLoop) 하나를 열고 step()을 끝까지 돌리며, 상태가 바뀔 때마다 한 장(LoopStatus)을 push한다.
+// 앱 안 루프 구동자. 저장소마다 실행기(openLoop) 하나를 열고 step()을 끝까지 돌리며, 상태가 바뀔 때마다 한 장(LoopStatus)을 push한다.
 //   - 기다림: CI는 ciRetryMs 간격으로 다시 step한다(실행기의 CI 시간 상한이 판정한다). 마일스톤 병합 게이트는 humanPollMs 간격으로
 //     PR 병합 사실을 다시 본다. 스펙 승인은 사람의 판정(decide)을 기다린다.
 //   - 메인 노드(브레인스토밍) 세션의 카드는 상태의 cards로 화면에 가고, 화면의 답(answerCard)이 세션으로 간다. 세션이 끝나면 카드는 빠진다.
 //     작업자 노드와 검수 세션의 카드는 거부·무응답이다(workSession·reviewSession).
-//     화면의 카드 id는 구동자가 세션 차례를 붙인 `s<차례>-<원래 id>`다(G4 검수 I2) — 세션마다 권한 조정자가 같은 id를 다시 써도
+//     화면의 카드 id는 구동자가 세션 차례를 붙인 `s<차례>-<원래 id>`다 — 세션마다 권한 조정자가 같은 id를 다시 써도
 //     새 세션의 카드가 화면에서 답할 수 있게 보이고, 옛 세션의 카드 id로 온 늦은 답은 새 세션에 붙지 않는다.
-//     차례는 `<구동자 접두>.<번호>`다(G4 확인 검수) — 번호는 구동자 전역에서 단조 증가하고(루프를 닫았다 열어도 0부터 다시 세지 않는다),
+//     차례는 `<구동자 접두>.<번호>`다 — 번호는 구동자 전역에서 단조 증가하고(루프를 닫았다 열어도 0부터 다시 세지 않는다),
 //     접두는 구동자마다 무작위라 앱을 다시 켜도 앞 구동자의 id와 겹치지 않는다.
 //   - 사람 판정(decide)의 노드는 구동자가 저장본에서 고른다 — 멈춘 실행이면 커서 노드의 이어 가기, 스펙 승인이면 화면이 보낸 스펙 해시를
 //     함께 넣는다(해시는 요청에서만 온다. 구동자가 채우지 않는다). 마일스톤 병합은 사람 판정으로 넘기지 않는다(병합 버튼 — 헌법 10조).
 //   - 앱 「자동」 모드 허용 노드(mode-auto-bypass-allow)가 꺼져 있으면(autoModeCheck) 시작·이어 가기·구동 전에 사유와 함께 멈춘다 —
 //     꺼진 채 돌면 작업자 노드의 편집이 카드가 되고 거부돼 FAIL이 쌓인다. 켠 뒤 화면의 「다시 열기」(닫고 다시 열기)로 이어 간다.
-//   - CI 판정의 필수 검사 이름은 main이 고정한다(DEFAULT_REQUIRED_CHECKS — G4 검수 I5). 화면 입력으로 바꾸지 못한다.
-//   - 위조 래치 풀기(releaseLatch, G4 검수 I1 반영): 화면이 본 래치(사유·바뀐 키와 값·상태 요약·되돌릴 사본)의 token이 지금 다시 계산한
+//   - CI 판정의 필수 검사 이름은 main이 고정한다(DEFAULT_REQUIRED_CHECKS). 화면 입력으로 바꾸지 못한다.
+//   - 위조 래치 풀기(releaseLatch): 화면이 본 래치(사유·바뀐 키와 값·상태 요약·되돌릴 사본)의 token이 지금 다시 계산한
 //     token과 같을 때만 푼다. 순서: 실행기를 닫는다 → 상태 파일을 다시 읽어 화면이 본 본문(token에 묶인 해시)과 같은지 본다 →
 //     바뀐 설정 줄만 받아(acceptConfigChanged) 다시 연다 → 연 뒤에만 상태를 맞추고 래치를 지운다 → 이어 간다.
 //     상태를 맞추는 법: 상태 파일이 앱의 다이제스트와 맞으면(설정 사유 래치) 그대로 둔다. 맞지 않으면(상태 위조 사유이거나, 설정 래치
 //     동안 상태 파일도 바뀜) 위조본을 받지 않고 실행기가 마지막으로 쓴 사본(DigestStore.readCopy)으로 상태 파일을 되돌리고 다이제스트를
 //     그 사본에 맞춘다. 사본이 없으면 풀지 않는다. 다시 열기가 거부되면(위험 키·grafts·http_unix_socket·hooksPath) 래치는 그대로 남는다.
-//     닫은 뒤 다시 읽은 본문이 화면이 본 것과 다르면 풀지 않고, 그 상태 그대로 새 token의 래치를 다시 보인다(G4 확인 검수).
-//   - 열기·풀기가 기다리는 동안 닫히면(G4 검수 I4) 새로 연 실행기를 닫고 잠금을 푼다 — 고아 실행기가 저장소 잠금을 쥐지 않는다.
-//   - 알림(note — 시작 거부·구동 오류)은 처음 보인 단계 동안만 싣고, 단계가 바뀌면 지운다(G4 검수 사소 6).
+//     닫은 뒤 다시 읽은 본문이 화면이 본 것과 다르면 풀지 않고, 그 상태 그대로 새 token의 래치를 다시 보인다.
+//   - 열기·풀기가 기다리는 동안 닫히면 새로 연 실행기를 닫고 잠금을 푼다 — 고아 실행기가 저장소 잠금을 쥐지 않는다.
+//   - 알림(note — 시작 거부·구동 오류)은 처음 보인 단계 동안만 싣고, 단계가 바뀌면 지운다.
 //   - 다시 열기: 앱을 다시 켜고 open하면 실행기가 저장본에서 같은 노드를 고르고 이어 간다(load). 앱 종료(stopApp)는 closeAll을 기다리지 않는다 —
 //     저장소 잠금은 죽은 프로세스의 것을 넘겨받는다(repoLock). 상태 파일 쓰기와 다이제스트 쓰기 사이에 꺼지면 다음 열기에서 래치가 걸리고,
 //     풀면 사본(상태 파일보다 먼저 쓰므로 같은 내용)으로 맞춰 이어 간다.
-// M10 G2 — 메인 대화(mainChat.ts). 실행기를 열면(백엔드가 있을 때) 작업 폴더의 메인 대화를 함께 연다.
+// 메인 대화(mainChat.ts). 실행기를 열면(백엔드가 있을 때) 작업 폴더의 메인 대화를 함께 연다.
 //   - 브레인스토밍 노드는 메인 대화로 간다(openLoop mainWork). 턴이 끝날 때마다 kick — 실행기가 다시 부르고, 스펙이 바뀌었으면 승인 카드다.
 //     닫기는 브레인스토밍을 멈춤으로 만들지 않는다(대화 턴의 취소는 판정이 아니다). 다시 열면 같은 방문이다.
 //   - 일시 정지 깃발(메인의 「멈춤」)은 메인 대화 장(main.json)에 산다. runSteps가 단계마다 앞에서 보고, 올라 있으면 다음 단계를 돌지 않는다.
@@ -33,7 +33,7 @@
 //   - 사건 줄: 노드 시작(같은 노드는 한 번)·판정·FAIL·멈춤·예외(구동 오류)·goal 병합·마일스톤 PR·스펙 승인/반려·래치·끝,
 //     메인의 깃발(flag-raised·flag-lowered — 사람의 이어 가기 resumed와 다른 이름)을 모델 없이 대화 기록에 남긴다.
 //     경계(goal 병합·멈춤·마일스톤 PR)에서만 메인이 짧은 턴으로 말한다(사건 턴은 줄 서 있는 동안 하나로 합쳐진다).
-//   - 세션 사건: 작업·검수·메인 대화 세션의 사건을 꼬리표와 함께 onSessionEvent로 흘린다(G4 노드 세션 탭이 같은 길을 쓴다).
+//   - 세션 사건: 작업·검수·메인 대화 세션의 사건을 꼬리표와 함께 onSessionEvent로 흘린다(노드 세션 탭이 같은 길을 쓴다).
 // 이 모듈은 electron을 import하지 않는다 — 앱 영역(join(getUserDataDir(), 'loop'))과 push는 조립 지점(bootstrap)이 준다.
 import { createHash, randomBytes } from 'node:crypto'
 import { promises as fsp } from 'node:fs'
@@ -73,7 +73,7 @@ import { validateRunState, type RunState } from './runState'
 import { DOCS } from './survivalDocs'
 import { denyCards, oneLine, type CardEvent, type CardResponder } from './workSession'
 
-const AUTO_MODE_NODE ='mode-auto-bypass-allow'
+const AUTO_MODE_NODE = 'mode-auto-bypass-allow'
 const REOPEN_HINT = '켠 뒤 루프 화면의 「다시 열기」로 이어 간다'
 const OPEN_STORE = 'open.json'
 
@@ -88,7 +88,7 @@ export function autoModeReasonOf(c: ControlsForRun): string | null {
 
 const DEFAULT_CI_RETRY_MS = 60_000
 const DEFAULT_HUMAN_POLL_MS = 60_000
-const DEFAULT_REQUIRED_CHECKS =['hard-gates']
+const DEFAULT_REQUIRED_CHECKS = ['hard-gates']
 const STEP_BUDGET = 1000
 
 interface LoopDriverOptions {
@@ -101,10 +101,10 @@ interface LoopDriverOptions {
   // 앱 「자동」 모드 허용 노드가 켜져 있는가 — 꺼져 있으면 사유
   autoModeCheck?: () => string | null
   onState?: (s: LoopStatus) => void
-  // M10 G2 — 메인 대화 보기가 바뀌었다 / 루프 세션의 사건(꼬리표 동봉)
+  // 메인 대화 보기가 바뀌었다 / 루프 세션의 사건(꼬리표 동봉)
   onMainState?: (v: MainChatView) => void
   onSessionEvent?: (p: LoopSessionEventPayload) => void
-  // M10 G2 시험 이음매 — 메인의 앱 안 도구 서버를 만든다(기본 buildMainTools). 시험은 능력 객체를 받아 직접 부른다
+  // 시험 이음매 — 메인의 앱 안 도구 서버를 만든다(기본 buildMainTools). 시험은 능력 객체를 받아 직접 부른다
   mainTools?: (actions: MainActions) => Promise<Record<string, unknown> | null>
   ciRetryMs?: number
   humanPollMs?: number
@@ -118,24 +118,24 @@ export interface LoopDriver {
   status(cwd: string): LoopStatus
   decide(req: LoopDecideRequest): Promise<LoopDecideResponse>
   answerCard(cwd: string, requestId: string, response: LoopCardResponse): boolean
-  // M10 G3 — 취소는 대상을 고른다: main은 메인 대화의 턴만, worker는 작업·검수 세션만 멈춘다(서로 넘어가지 않는다, Backlog 12)
+  // 취소는 대상을 고른다: main은 메인 대화의 턴만, worker는 작업·검수 세션만 멈춘다(서로 넘어가지 않는다)
   cancelSession(cwd: string, target: LoopCancelTarget): boolean
   releaseLatch(cwd: string, token: string): Promise<LoopReleaseLatchResponse>
   close(cwd: string): Promise<void>
   closeAll(): Promise<void>
-  // M11 G4 — 앱을 끌 때 열려 있던 작업 폴더를 다시 연다(사람이 닫은 폴더는 빠진다). 부팅 때 한 번 부른다
+  // 앱을 끌 때 열려 있던 작업 폴더를 다시 연다(사람이 닫은 폴더는 빠진다). 부팅 때 한 번 부른다
   reopenLast(): Promise<void>
-  // M10 G2 메인 대화 — 읽기(닫힌 저장소는 앱 영역 파일), 사용자 글 보내기, 새 메인 대화
+  // 메인 대화 — 읽기(닫힌 저장소는 앱 영역 파일), 사용자 글 보내기, 새 메인 대화
   mainRead(cwd: string): MainChatView
   mainSend(cwd: string, text: string, opts?: { proxy?: boolean }): LoopMainResponse
   mainNew(cwd: string): Promise<LoopMainResponse>
-  // M10 G3 — 사람이 일시 정지 깃발을 내린다(판정 칸 없음 — 실행 상태·검증 기록을 쓰지 않는다)
+  // 사람이 일시 정지 깃발을 내린다(판정 칸 없음 — 실행 상태·검증 기록을 쓰지 않는다)
   lowerFlag(cwd: string): LoopMainResponse
   sessionLog(cwd: string): LoopSessionLog
   mainArchives(cwd: string): Promise<MainChatArchives>
-  // M11 G4 — 열린 실행기의 작업 저장소 뿌리 아래만 읽는다(작업 모드 탐색기)
+  // 열린 실행기의 작업 저장소 뿌리 아래만 읽는다(작업 모드 탐색기)
   listDir(cwd: string, relDir: string): Promise<LoopListDirResponse>
-  // M10 G5 — 열 때 쓰는 템플릿(openExtras.template, 없으면 번들)의 화면용 그래프. 실행기를 열지 않아도 답한다
+  // 열 때 쓰는 템플릿(openExtras.template, 없으면 번들)의 화면용 그래프. 실행기를 열지 않아도 답한다
   graph(cwd: string): LoopGraphResponse
 }
 
@@ -155,7 +155,7 @@ interface Entry {
   status: LoopStatus
   seq: number
   cards: Map<string, { card: LoopCard; settle: (r: RunResponse) => void }>
-  // 세션 차례(G4 검수 I2) — 카드 맥락의 신호(세션마다 하나)에 차례를 붙인다. 차례 번호는 구동자 전역의 것이다(G4 확인 검수)
+  // 세션 차례 — 카드 맥락의 신호(세션마다 하나)에 차례를 붙인다. 차례 번호는 구동자 전역의 것이다
   turns: WeakMap<AbortSignal, string>
   running: boolean
   again: boolean
@@ -168,12 +168,12 @@ interface Entry {
   notePhase: LoopStatus['phase'] | null
   lastVerdict: LoopStatus['lastVerdict']
   latchSeen: Map<string, LatchSeen>
-  // M10 G2 — 메인 대화, 마지막으로 시작을 적은 노드(같은 노드를 되풀이해 적지 않는다), 마지막 래치 사유
+  // 메인 대화, 마지막으로 시작을 적은 노드(같은 노드를 되풀이해 적지 않는다), 마지막 래치 사유
   chat: MainChat | null
   lastStarted: string | null
   lastLatch: string | null
   chatNotify: boolean
-  // M10 G6 — 이 항목에서 실행이 끝났다(그 동안은 「끝남」으로 보인다). 열 때 이미 끝나 있던 실행은 「시작 전」과 안내 한 줄이다
+  // 이 항목에서 실행이 끝났다(그 동안은 「끝남」으로 보인다). 열 때 이미 끝나 있던 실행은 「시작 전」과 안내 한 줄이다
   finishedHere?: boolean
 }
 
@@ -211,7 +211,7 @@ async function readText(file: string): Promise<string | null> {
   }
 }
 
-// 사람·메인에게 보이는 낱말 — 저장 값(status·marker)은 그대로다(G5 검수 4)
+// 사람·메인에게 보이는 낱말 — 저장 값(status·marker)은 그대로다
 const RUN_STATUS_WORD: Record<RunState['status'], string> = { running: '진행 중', 'needs-user': '사람 판정 대기', done: '끝' }
 const MARKER_WORD: Record<RunState['lines'][number]['marker'], string> = { PASS: '통과', FAIL: '실패', 'USER-INPUT': '사람 입력' }
 
@@ -255,7 +255,7 @@ export function createLoopDriver(opts: LoopDriverOptions): LoopDriver {
     }
   }
   const blank = (cwd: string): LoopStatus => ({ ...blankStatus(cwd), sessions: log.rows(cwd) })
-  // 카드 차례(G4 확인 검수) — 저장소 항목마다가 아니라 구동자 전역에서 단조 증가한다(닫기가 항목을 지워도 0부터 다시 세지 않는다).
+  // 카드 차례 — 저장소 항목마다가 아니라 구동자 전역에서 단조 증가한다(닫기가 항목을 지워도 0부터 다시 세지 않는다).
   // 앱을 다시 켜면 새 구동자의 차례가 앞 구동자의 것과 겹치지 않게 구동자마다 무작위 접두를 붙인다.
   const turnPrefix = randomBytes(4).toString('hex')
   let turnSeq = 0
@@ -322,7 +322,7 @@ export function createLoopDriver(opts: LoopDriverOptions): LoopDriver {
   const superseded = (e: Entry, gen: number): boolean => e.closed || e.gen !== gen || entries.get(e.key) !== e
 
   // 메인 노드 세션의 카드 → 상태. 화면의 답이나 세션의 끝(ctx.signal)이 카드를 거둔다.
-  // M10 G2 — 메인 대화가 있으면 브레인스토밍은 그쪽 카드다(이 응답자는 메인 대화 없이 한 세션으로 도는 길에만 쓰인다).
+  // 메인 대화가 있으면 브레인스토밍은 그쪽 카드다(이 응답자는 메인 대화 없이 한 세션으로 도는 길에만 쓰인다).
   function cardResponder(e: Entry): CardResponder {
     return (ev: CardEvent, ctx) => new Promise<RunResponse>((resolve) => {
       let turn = e.turns.get(ctx.signal)
@@ -350,7 +350,7 @@ export function createLoopDriver(opts: LoopDriverOptions): LoopDriver {
     })
   }
 
-  // M10 G2 — 브레인스토밍 노드 → 메인 대화. 대화가 아직 없으면(열리는 중) 판정 없이 기다린다
+  // 브레인스토밍 노드 → 메인 대화. 대화가 아직 없으면(열리는 중) 판정 없이 기다린다
   async function mainWorkOf(e: Entry, req: WorkRequest): Promise<WorkResult> {
     if (!e.chat) return { ok: false, summary: '메인 대화가 아직 열리지 않았다', waiting: true }
     return e.chat.brainstorm(req)
@@ -370,7 +370,7 @@ export function createLoopDriver(opts: LoopDriverOptions): LoopDriver {
     })
   }
 
-  // ── M10 G2 메인 대화 ──
+  // ── 메인 대화 ──
   const record = (e: Entry, ev: LoopEventItem, speak = false): void => { e.chat?.recordEvent(ev, speak) }
 
   // 보기 변화는 한 틱에 한 번만 밀어 준다(턴 하나에 저장이 여러 번 돈다)
@@ -392,7 +392,7 @@ export function createLoopDriver(opts: LoopDriverOptions): LoopDriver {
     return contextText(r.state, labelOf(r.next))
   }
 
-  // 깃발 내리기 — 메인의 resume 도구와 사람의 loop.lowerFlag(M10 G3)가 같은 길을 쓴다. 깃발만 내리고 kick한다 —
+  // 깃발 내리기 — 메인의 resume 도구와 사람의 loop.lowerFlag가 같은 길을 쓴다. 깃발만 내리고 kick한다 —
   // 실행 상태·검증 기록을 쓰지 않고 사람 판정(decide)을 대신하지 않는다. 사건 이름은 flag-lowered다(사람 판정의 resumed와 다르다)
   function lowerFlagOf(e: Entry, by: 'main' | 'human'): { ok: boolean; reason?: string } {
     const chat = e.chat
@@ -413,7 +413,7 @@ export function createLoopDriver(opts: LoopDriverOptions): LoopDriver {
         if (!chat) return '메인 대화가 닫혔다'
         if (chat.paused()) return '일시 정지 깃발이 이미 올라 있다'
         chat.setPaused(true)
-        // 깃발 사건은 사람의 이어 가기(resumed)와 다른 이름이다(G2 독립 검수)
+        // 깃발 사건은 사람의 이어 가기(resumed)와 다른 이름이다
         record(e, { kind: 'flag-raised', node: null, goal: null, text: '일시 정지 깃발을 올렸다 — 지금 노드가 끝나면 다음 노드로 가지 않는다' })
         void publish(e)
         return '일시 정지 깃발을 올렸다 — 실행 상태와 검증 기록은 그대로다'
@@ -496,7 +496,7 @@ export function createLoopDriver(opts: LoopDriverOptions): LoopDriver {
     const chat = e.chat
     const v: LoopStatus = {
       ...s, root: loop.root, base: loop.base, ghRepo: loop.ghRepo,
-      // M10 G3 — 메인 대화의 카드는 inChat을 붙인다(현황판은 보이고, 답하는 곳은 메인 대화 화면 한 곳이다)
+      // 메인 대화의 카드는 inChat을 붙인다(현황판은 보이고, 답하는 곳은 메인 대화 화면 한 곳이다)
       cards: [...[...e.cards.values()].map((c) => c.card), ...(chat?.cards() ?? []).map((c) => ({ ...c, inChat: true }))],
       sessionActive: e.sessionActive || (chat?.busy() ?? false), lastVerdict: e.lastVerdict, reason: e.note,
       paused: chat?.paused() ?? false, mainBusy: chat?.busy() ?? false, mainWaiting: chat?.waitingUser() ?? false,
@@ -523,7 +523,7 @@ export function createLoopDriver(opts: LoopDriverOptions): LoopDriver {
     }
     if (state.status === 'done' || next.kind === 'done') return { ...filled, phase: 'done' }
     if (state.status === 'needs-user' || next.kind === 'needs-user') return { ...filled, phase: 'halted', reason: state.haltReason }
-    // 구동(kick)과 같은 판단을 상태 계산이 직접 한다 — 여는 쪽의 계산이 구동보다 먼저 끝나도 running 한 장이 끼지 않는다(G5 검수 1)
+    // 구동(kick)과 같은 판단을 상태 계산이 직접 한다 — 여는 쪽의 계산이 구동보다 먼저 끝나도 running 한 장이 끼지 않는다
     const blocked = e.blocked ?? (chat?.paused() ? null : autoCheck())
     if (blocked) return { ...filled, phase: 'blocked', reason: blocked }
     if (next.kind === 'gate' && next.node.judge === 'human') {
@@ -541,7 +541,7 @@ export function createLoopDriver(opts: LoopDriverOptions): LoopDriver {
     let s: LoopStatus
     try { s = await compute(e) } catch (err) { s = { ...e.status, reason: `상태를 읽지 못했다 — ${errText(err)}` } }
     if (seq !== e.seq || e.closed) return s
-    // 알림은 처음 보인 단계 동안만 — 단계가 바뀌면 지운다(G4 검수 사소 6)
+    // 알림은 처음 보인 단계 동안만 — 단계가 바뀌면 지운다
     if (e.note !== null) {
       if (e.notePhase === null) e.notePhase = s.phase
       else if (e.notePhase !== s.phase) {
@@ -568,7 +568,7 @@ export function createLoopDriver(opts: LoopDriverOptions): LoopDriver {
   }
   const alive = (e: Entry, gen: number): boolean => !e.closed && e.gen === gen && e.loop !== null
 
-  // M10 G2 — 판정 하나를 사건 줄로. 경계(goal 병합·마일스톤 PR)는 메인이 말한다
+  // 판정 하나를 사건 줄로. 경계(goal 병합·마일스톤 PR)는 메인이 말한다
   function recordVerdict(e: Entry, next: NextStep, out: Awaited<ReturnType<OpenedLoop['runner']['step']>>): void {
     if (next.kind === 'done' || next.kind === 'needs-user') return
     const node = next.node.id
@@ -608,7 +608,7 @@ export function createLoopDriver(opts: LoopDriverOptions): LoopDriver {
       e.lastLatch = null
       const next = loaded.next
       if (next.kind === 'done' || next.kind === 'needs-user') return
-      // M10 G2 — 일시 정지 깃발이 올라 있으면 다음 단계를 돌지 않는다(실행 상태는 그대로)
+      // 일시 정지 깃발이 올라 있으면 다음 단계를 돌지 않는다(실행 상태는 그대로)
       if (e.chat?.paused()) return
       const why = autoCheck()
       if (why) { e.blocked = why; return }
@@ -656,7 +656,7 @@ export function createLoopDriver(opts: LoopDriverOptions): LoopDriver {
       } while (e.again && !e.closed)
     } catch (err) {
       setNote(e, `구동 오류 — ${errText(err)}`)
-      // M10 G2 검수 — 예외도 사건 줄로 남긴다(모델 턴 없이)
+      // 예외도 사건 줄로 남긴다(모델 턴 없이)
       record(e, { kind: 'error', node: null, goal: null, text: `구동 오류 — ${oneLine(errText(err))}` })
     } finally {
       e.running = false
@@ -671,7 +671,7 @@ export function createLoopDriver(opts: LoopDriverOptions): LoopDriver {
     const loop = e.loop
     e.loop = null
     e.finishedHere = false
-    // M10 G2 — 메인 대화를 먼저 닫는다(돌던 턴을 멈추고 남은 질문 카드를 저장한다 — 다음 열기에서 다시 묻는다)
+    // 메인 대화를 먼저 닫는다(돌던 턴을 멈추고 남은 질문 카드를 저장한다 — 다음 열기에서 다시 묻는다)
     const chat = e.chat
     e.chat = null
     if (chat) await chat.close()
@@ -699,7 +699,7 @@ export function createLoopDriver(opts: LoopDriverOptions): LoopDriver {
     if (!e.loop) {
       const gen = e.gen
       const r = await openFor(e)
-      // G4 검수 I4 — 여는 동안 닫혔으면 새 실행기를 닫고(잠금을 푼다) 그 결과를 쓰지 않는다
+      // 여는 동안 닫혔으면 새 실행기를 닫고(잠금을 푼다) 그 결과를 쓰지 않는다
       if (superseded(e, gen)) {
         if (r.ok) await r.loop.close()
         return entryOf(req.cwd)?.status ?? { ...blankStatus(req.cwd), reason: CLOSED_MEANWHILE }
@@ -739,7 +739,7 @@ export function createLoopDriver(opts: LoopDriverOptions): LoopDriver {
       e.blocked = null
       const r = await e.loop.runner.start(milestoneId)
       setNote(e, r.kind === 'ok' ? null : r.kind === 'missing' ? '실행 상태를 만들지 못했다' : r.reason)
-      // M10 G2 — 새 실행이다. 메인 대화 장의 방문은 앞 실행의 것이라 잊는다(방문 키 M1#0이 겹쳐 여는 턴을 건너뛰지 않게)
+      // 새 실행이다. 메인 대화 장의 방문은 앞 실행의 것이라 잊는다(방문 키 M1#0이 겹쳐 여는 턴을 건너뛰지 않게)
       if (r.kind === 'ok') { e.chat?.resetVisit(); e.lastStarted = null; e.finishedHere = false }
       void kick(e)
       return publish(e)
@@ -795,12 +795,12 @@ export function createLoopDriver(opts: LoopDriverOptions): LoopDriver {
         c.settle(response)
         return true
       }
-      // M10 G2 — 메인 대화의 카드(다시 묻는 카드 포함)
+      // 메인 대화의 카드(다시 묻는 카드 포함)
       return e?.chat?.answerCard(requestId, response) ?? false
     },
 
-    // M10 G3 — 대상을 고른 취소(Backlog 12). main은 메인 대화의 턴만 멈추고(실행 상태와 무관), worker는 작업·검수 세션만 멈춘다 —
-    // 작업 세션 취소의 멈춤(needs-user)은 실행기의 판정이다(M09 G4 — FAIL이 아니라 stop). 한쪽이 없어도 다른 쪽으로 넘어가지 않는다
+    // 대상을 고른 취소. main은 메인 대화의 턴만 멈추고(실행 상태와 무관), worker는 작업·검수 세션만 멈춘다 —
+    // 작업 세션 취소의 멈춤(needs-user)은 실행기의 판정이다(FAIL이 아니라 stop). 한쪽이 없어도 다른 쪽으로 넘어가지 않는다
     cancelSession: (cwd, target) => {
       const e = entryOf(cwd)
       if (target === 'main') return e?.chat?.cancel() ?? false
@@ -824,7 +824,7 @@ export function createLoopDriver(opts: LoopDriverOptions): LoopDriver {
       }
       const root = e.loop?.root ?? e.openFailure?.root
       if (!root) return releaseRefused(e, '작업 저장소 뿌리를 모른다')
-      // G4 검수 I1 — 상태가 다이제스트와 맞지 않으면 위조본을 받지 않고 사본으로 되돌린다. 사본이 없거나 스키마에 맞지 않으면
+      // 상태가 다이제스트와 맞지 않으면 위조본을 받지 않고 사본으로 되돌린다. 사본이 없거나 스키마에 맞지 않으면
       // 풀지 않는다(닫기 전에 본다 — 다시 연 실행기가 되돌리기 도중에 깨져 고아가 되지 않게)
       let restoreDigest: string | null = null
       if (seen.tampered) {
@@ -841,7 +841,7 @@ export function createLoopDriver(opts: LoopDriverOptions): LoopDriver {
       // 세션을 멈춘 뒤 다시 읽은 본문이 화면이 본 본문(token에 묶인 해시)과 같아야 한다
       const text = await readText(path.join(root, DOCS.runState))
       if ((text === null ? null : sha256(text)) !== seen.textSha) {
-        // G4 확인 검수 — 바뀐 그 상태 그대로 새 token의 래치를 다시 보인다(받을 설정 줄은 화면이 본 그 목록). 사람이 다시 보고 누른다
+        // 바뀐 그 상태 그대로 새 token의 래치를 다시 보인다(받을 설정 줄은 화면이 본 그 목록). 사람이 다시 보고 누른다
         e.openFailure = { reason: '화면이 본 뒤 상태 파일이 바뀌어 래치를 풀지 않았다 — 새로 뜬 래치를 다시 보고 푼다', changed: accept, root }
         return releaseRefused(e, e.openFailure.reason)
       }
@@ -852,7 +852,7 @@ export function createLoopDriver(opts: LoopDriverOptions): LoopDriver {
         }
       }
       const r = await openFor(e, accept)
-      // G4 검수 I4 — 풀기가 기다리는 동안 닫혔으면 새 실행기를 닫는다
+      // 풀기가 기다리는 동안 닫혔으면 새 실행기를 닫는다
       if (superseded(e, gen)) {
         if (r.ok) await r.loop.close()
         return { ok: false, reason: CLOSED_MEANWHILE, status: entryOf(cwd)?.status ?? blankStatus(cwd) }
@@ -861,7 +861,7 @@ export function createLoopDriver(opts: LoopDriverOptions): LoopDriver {
         e.openFailure = { reason: r.reason, changed: r.changed, root: r.root ?? root }
         return releaseRefused(e, r.reason)
       }
-      // 연 뒤에만 상태를 맞춘다 — 다시 열기가 거부되면 래치가 남는다. 맞추는 도중 깨지거나 닫히면 새 실행기를 닫는다(I4)
+      // 연 뒤에만 상태를 맞춘다 — 다시 열기가 거부되면 래치가 남는다. 맞추는 도중 깨지거나 닫히면 새 실행기를 닫는다
       const { digest, repoKey } = r.loop
       // 한 걸음마다 닫혔는지 본다 — 닫혔으면 남은 쓰기를 하지 않는다(사람이 닫은 뒤에 상태를 바꾸지 않는다)
       const closedMeanwhile = new Error(CLOSED_MEANWHILE)

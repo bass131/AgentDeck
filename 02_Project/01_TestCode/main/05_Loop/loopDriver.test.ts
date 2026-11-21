@@ -1,10 +1,10 @@
-// M09 G4 구동자 — 저장소마다 실행기 하나를 끝까지 돌리고 상태를 push한다. 실 git(임시 작업 저장소 + bare 원격) + 가짜 gh +
+// 구동자 — 저장소마다 실행기 하나를 끝까지 돌리고 상태를 push한다. 실 git(임시 작업 저장소 + bare 원격) + 가짜 gh +
 // 가짜 백엔드(작업 세션과 검수 세션을 실행 입력의 readOnly 잠금으로 가른다). 이 저장소의 원격에는 닿지 않는다.
 // 고정하는 것: 브레인스토밍(메인 노드)의 질문 카드가 상태에 실리고 화면의 답이 세션으로 간다, 스펙 승인은 사람이 본 해시로만 받는다,
 // goal 둘(G1 강 — 검수 세션, G2 약)을 지나 마일스톤 PR에서 사람의 병합을 기다린다, 새 구동자로 다시 열면 이어 가고 병합을 보면 끝낸다,
 // 자동 모드 허용 노드가 꺼져 있으면 시작 전에 멈춘다, 위조 래치는 사람이 본 token으로만 풀리고 설정 차이는 그 목록만 받는다.
-// G4 확인 검수: 카드 차례는 구동자 전역에서 단조 증가한다(닫았다 열어도, 새 구동자여도 겹치지 않는다), 풀기 중 상태 파일이 바뀌어
-// 거부되면 새 token의 래치가 다시 뜬다. M10 G2 검수: 구동 오류는 메인 대화 기록에 예외 사건(error)으로도 남는다(모델 턴 없이).
+// 카드 차례는 구동자 전역에서 단조 증가한다(닫았다 열어도, 새 구동자여도 겹치지 않는다), 풀기 중 상태 파일이 바뀌어
+// 거부되면 새 token의 래치가 다시 뜬다. 구동 오류는 메인 대화 기록에 예외 사건(error)으로도 남는다(모델 턴 없이).
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -52,7 +52,7 @@ function fakeBackend(): { backend: AgentBackend; rec: Rec } {
       const answered = new Promise<RunResponse>((r) => { answer = r })
       let stop: () => void = () => {}
       const stopped = new Promise<void>((r) => { stop = r })
-      // M10 G2 — 메인 대화는 턴마다 마지막 글만 보낸다(resume). SDK처럼 세션 id를 먼저 알린다
+      // 메인 대화는 턴마다 마지막 글만 보낸다(resume). SDK처럼 세션 id를 먼저 알린다
       const last = String(req.messages.at(-1)?.content ?? '')
       return {
         events: (async function* (): AsyncGenerator<AgentEvent> {
@@ -63,7 +63,7 @@ function fakeBackend(): { backend: AgentBackend; rec: Rec } {
             yield { type: 'done' }
             return
           }
-          // M10 G2 — 다시 물은 카드의 답(앱을 다시 연 뒤)은 사용자 턴으로 온다
+          // 다시 물은 카드의 답(앱을 다시 연 뒤)은 사용자 턴으로 온다
           if (last.startsWith('[다시 물은 질문의 답]')) {
             write(DOCS.milestoneSpec, `# M1 스펙\n\n만들 것: ${last}\n`)
             yield { type: 'done' }
@@ -145,10 +145,10 @@ describe('구동자 — 마일스톤 하나를 사람과 함께 끝까지 (M09 G
     expect((await d.open({ cwd: CWD })).phase).toBe('not-started')
     await d.start(CWD, 'M1')
     const asked = await until((s) => s.cards.length === 1, '브레인스토밍 질문 카드')
-    // M10 G3 — 메인 대화의 카드는 상태에도 실리지만 inChat 표시가 붙는다(답하는 곳은 메인 대화 화면 한 곳)
+    // 메인 대화의 카드는 상태에도 실리지만 inChat 표시가 붙는다(답하는 곳은 메인 대화 화면 한 곳)
     expect(asked.cards[0]).toMatchObject({ kind: 'question', node: 'brainstorm', goal: null, text: '무엇을 만들까?', inChat: true })
     const cardId = asked.cards[0].requestId
-    // 화면의 카드 id는 세션 차례가 붙은 구동자의 id다 — 세션의 원래 id(q-brainstorm)로는 답하지 못한다(G4 검수 I2)
+    // 화면의 카드 id는 세션 차례가 붙은 구동자의 id다 — 세션의 원래 id(q-brainstorm)로는 답하지 못한다
     expect(cardId).not.toBe('q-brainstorm')
     expect(asked.sessionActive).toBe(true)
     expect(d.answerCard(CWD, 'nope', { kind: 'question', answers: null })).toBe(false)
@@ -184,7 +184,7 @@ describe('구동자 — 마일스톤 하나를 사람과 함께 끝까지 (M09 G
     expect(gh.bodies.get('goal/M1-G1')).toMatch(/review\(model\)/)
     // 마일스톤 병합 게이트는 사람 판정으로 넘기지 않는다
     expect((await d.decide({ cwd: CWD, verdict: 'pass', evidence: '끝' })).ok).toBe(false)
-    // M10 G2 — 사건 줄은 모델 없이 기록에 남고, 메인은 경계(goal 병합 둘·마일스톤 PR)에서만 말한다(노드 시작·통과로는 말하지 않는다)
+    // 사건 줄은 모델 없이 기록에 남고, 메인은 경계(goal 병합 둘·마일스톤 PR)에서만 말한다(노드 시작·통과로는 말하지 않는다)
     for (let i = 0; i < 250 && d.mainRead(CWD).busy; i++) await new Promise((r) => setTimeout(r, 20))
     const kinds = d.mainRead(CWD).items.flatMap((i) => (i.kind === 'event' ? [i.event.kind] : []))
     expect(kinds.filter((k) => k === 'goal-merged')).toHaveLength(2)
@@ -195,9 +195,9 @@ describe('구동자 — 마일스톤 하나를 사람과 함께 끝까지 (M09 G
       for (const line of p.split('\n').filter((l) => l.startsWith('- '))) expect(line).toMatch(/목표를 병합했다|마일스톤 PR을 열었다/)
     }
     expect(told.join('\n').match(/목표를 병합했다/g)).toHaveLength(2)
-    // M10 G5 — 사람이 읽는 사건 문장은 한글이다(PR·이름은 그대로)
+    // 사람이 읽는 사건 문장은 한글이다(PR·이름은 그대로)
     const texts = d.mainRead(CWD).items.flatMap((i) => (i.kind === 'event' ? [i.event.text] : []))
-    // 노드 id(goal-branch·goal-pr)와 브랜치(goal/…)는 이름이라 남는다 — 낱말 goal·FAIL·Backlog가 없다(G5 검수 4)
+    // 노드 id(goal-branch·goal-pr)와 브랜치(goal/…)는 이름이라 남는다 — 낱말 goal·FAIL·Backlog가 없다
     for (const t of texts) expect(t, t).not.toMatch(/(?<![\w/-])goal(?![\w/-])|\bFAIL\b|Backlog/i)
     expect(told.join('\n')).toContain('마일스톤 PR을 열었다')
 
@@ -210,7 +210,7 @@ describe('구동자 — 마일스톤 하나를 사람과 함께 끝까지 (M09 G
     expect(reopened.milestonePr).toBe(waiting.milestonePr)
     gh.mergeByHuman(waiting.milestonePr as number)
     expect((await until((s) => s.phase === 'done', '마일스톤 끝')).phase).toBe('done')
-    // M10 G6 — 이 구동자에서 끝난 실행은 「끝남」이고, 다시 열면 시작 전과 안내 한 줄이다(시작하면 보관한다)
+    // 이 구동자에서 끝난 실행은 「끝남」이고, 다시 열면 시작 전과 안내 한 줄이다(시작하면 보관한다)
     await again.closeAll()
     pushed = []
     const later = await driver().d.open({ cwd: CWD })
@@ -220,7 +220,7 @@ describe('구동자 — 마일스톤 하나를 사람과 함께 끝까지 (M09 G
   })
 })
 
-// G4 검수 중요 I2 — 세션마다 권한 조정자가 같은 id(ask-1 꼴)를 다시 쓴다. 구동자가 화면에 보내는 카드 id에 세션 차례를 붙여,
+// 세션마다 권한 조정자가 같은 id(ask-1 꼴)를 다시 쓴다. 구동자가 화면에 보내는 카드 id에 세션 차례를 붙여,
 // 스펙 반려 뒤 새 브레인스토밍 세션의 첫 질문이 화면에서 답할 수 있게 보이고 옛 id로 온 늦은 답은 거부된다.
 describe('카드 id는 세션 차례에 묶인다 (M09 G4 검수 I2)', () => {
   it('스펙 반려 → 새 세션의 같은 원래 id 질문은 새 카드 id로 보이고, 옛 카드 id의 늦은 답은 거부된다', SLOW, async () => {
@@ -245,9 +245,9 @@ describe('카드 id는 세션 차례에 묶인다 (M09 G4 검수 I2)', () => {
   })
 })
 
-// G4 확인 검수 — 차례는 저장소 항목마다가 아니라 구동자 전역에서 단조 증가하고, 시작값에 구동자마다 무작위 접두를 섞는다.
+// 차례는 저장소 항목마다가 아니라 구동자 전역에서 단조 증가하고, 시작값에 구동자마다 무작위 접두를 섞는다.
 // 루프를 닫으면 항목이 지워지므로, 항목마다 0부터 세면 다시 연 뒤 새 세션의 첫 카드가 옛 카드와 같은 id(s1-…)가 된다.
-// M10 G2 — 브레인스토밍은 메인 대화가 소유한다. 닫기는 멈춤(halted)이 아니다 — 다시 열면 같은 방문이고, 꺼질 때 남은 질문 카드는
+// 브레인스토밍은 메인 대화가 소유한다. 닫기는 멈춤(halted)이 아니다 — 다시 열면 같은 방문이고, 꺼질 때 남은 질문 카드는
 // 같은 id로 다시 묻는다(restored). 새로 뜨는 카드의 차례는 여전히 구동자 전역에서 이어지고 새 구동자의 접두는 다르다.
 describe('카드 차례는 구동자 전역에서 단조 증가한다 (M09 G4 확인 검수, M10 G2)', () => {
   it('루프를 닫았다 열면 같은 브레인스토밍이고 남은 카드를 다시 묻는다 — 새 카드 id는 구동자 전역 차례로 이어지고 새 구동자에서도 겹치지 않는다', SLOW, async () => {
@@ -290,7 +290,7 @@ describe('카드 차례는 구동자 전역에서 단조 증가한다 (M09 G4 �
   })
 })
 
-// G5 검수 4 — 래치 카드의 상태 요약(사람이 본다)과 메인 에이전트의 실행 상태 요약은 사건 문장과 같은 어휘(목표·실패)다
+// 래치 카드의 상태 요약(사람이 본다)과 메인 에이전트의 실행 상태 요약은 사건 문장과 같은 어휘(목표·실패)다
 describe('상태 요약의 어휘 (M10 G5 검수 4)', () => {
   const state = (): RunState => {
     const s = createRunState(TEMPLATE.template, TEMPLATE.hash, 'M1', 'main')
@@ -325,11 +325,11 @@ describe('자동 모드 허용 노드 판독 (M09 G4)', () => {
   it('컨트롤을 못 읽거나 노드가 꺼져 있으면 사유, 켜져 있으면 null', () => {
     expect(autoModeReasonOf({ ok: false, status: 'error', message: '읽지 못했다' })).toContain('읽지 못했다')
     expect(autoModeReasonOf({ ok: true, nodes: [] })).toContain('mode-auto-bypass-allow')
-    // G4 검수 사소 7 — 진행 불가에서 빠져나가는 길은 화면의 「다시 열기」다(이어 가기 버튼은 멈춤에만 있다)
+    // 진행 불가에서 빠져나가는 길은 화면의 「다시 열기」다(이어 가기 버튼은 멈춤에만 있다)
     expect(autoModeReasonOf({ ok: true, nodes: [] })).toContain('「다시 열기」')
     expect(autoModeReasonOf({ ok: false, status: 'error', message: '읽지 못했다' })).toContain('「다시 열기」')
     expect(autoModeReasonOf({ ok: true, nodes: [{ id: 'mode-auto-bypass-allow' } as never] })).toBeNull()
-    // G5 검수 4 — 화면에 보이는 사유는 한글 어휘다
+    // 화면에 보이는 사유는 한글 어휘다
     expect(autoModeReasonOf({ ok: true, nodes: [] })).toContain('실패가 쌓인다')
     expect(autoModeReasonOf({ ok: true, nodes: [] })).not.toMatch(/\bFAIL\b/)
   })
@@ -361,7 +361,7 @@ describe('구동자 — 멈추는 곳 (M09 G4)', () => {
     await d.start(repos.work, 'M1')
     await until((x) => x.cards.length === 1, '켜면 시작한다')
     expect(rec.starts).toHaveLength(1)
-    // 다시 열 때도 본다 — 닫기는 브레인스토밍을 멈춤으로 만들지 않고(M10 G2, FAIL 아님), 꺼진 채면 구동 전에 사유와 함께 멈춘다
+    // 다시 열 때도 본다 — 닫기는 브레인스토밍을 멈춤으로 만들지 않고(FAIL 아님), 꺼진 채면 구동 전에 사유와 함께 멈춘다
     off = true
     await d.closeAll()
     const again = driver({ autoModeCheck: () => (off ? '컨트롤 노드 mode-auto-bypass-allow가 꺼져 있다' : null) })
@@ -404,7 +404,7 @@ describe('구동자 — 멈추는 곳 (M09 G4)', () => {
     expect(released.ok).toBe(true)
     expect(released.status.phase).toBe('waiting-human')
     expect(released.status.latch).toBeNull()
-    // G4 검수 중요 I1 — 위조본을 받지 않는다. 상태 파일은 실행기가 마지막으로 쓴 사본으로 되돌아갔다
+    // 위조본을 받지 않는다. 상태 파일은 실행기가 마지막으로 쓴 사본으로 되돌아갔다
     expect((JSON.parse(fs.readFileSync(file, 'utf8')) as { milestoneBase: string | null }).milestoneBase).toBeNull()
     expect(fs.readFileSync(file, 'utf8')).toBe(legit)
 
@@ -419,7 +419,7 @@ describe('구동자 — 멈추는 곳 (M09 G4)', () => {
     expect(ok.status.phase).not.toBe('latched')
   })
 
-  // G4 검수 중요 I1 — 설정 사유 래치가 상태 위조를 가리지 않는다. 설정 래치가 걸린 동안 상태 파일도 고쳤으면 풀 때 사본으로 되돌린다
+  // 설정 사유 래치가 상태 위조를 가리지 않는다. 설정 래치가 걸린 동안 상태 파일도 고쳤으면 풀 때 사본으로 되돌린다
   it('설정 래치가 걸린 뒤 상태 파일도 고쳤으면, 풀 때 상태 위조로 보고 사본으로 되돌린다', SLOW, async () => {
     const { d } = driver()
     const CWD = repos.work
@@ -445,7 +445,7 @@ describe('구동자 — 멈추는 곳 (M09 G4)', () => {
     expect(fs.readFileSync(file, 'utf8')).toBe(legit)
   })
 
-  // G4 검수 중요 I1 — 앱 종료가 상태 파일 쓰기와 다이제스트 쓰기 사이에 끼면 다음 열기에서 래치가 걸린다. 사본은 상태 파일보다 먼저 쓰므로
+  // 앱 종료가 상태 파일 쓰기와 다이제스트 쓰기 사이에 끼면 다음 열기에서 래치가 걸린다. 사본은 상태 파일보다 먼저 쓰므로
   // 사본으로 되돌리면 그 상태 파일과 같은 내용이 되고, 다이제스트가 맞춰져 이어 간다.
   it('상태 파일과 다이제스트 사이에서 꺼진 꼴은 사본으로 되돌리면 같은 내용이 되고 이어 간다', SLOW, async () => {
     const { d } = driver()
@@ -455,7 +455,7 @@ describe('구동자 — 멈추는 곳 (M09 G4)', () => {
     await until((s) => s.cards.length === 1, '질문 카드')
     await d.closeAll()
     pushed = []
-    // 실행기가 마지막으로 쓴 상태(M10 G2 — 닫기는 브레인스토밍을 멈추지 않는다)의 다음 쓰기를 흉내 낸다 — 사본과 상태 파일은 새것,
+    // 실행기가 마지막으로 쓴 상태(닫기는 브레인스토밍을 멈추지 않는다)의 다음 쓰기를 흉내 낸다 — 사본과 상태 파일은 새것,
     // 다이제스트는 옛것. 다음 쓰기는 사람이 멈춘 실행(needs-user)이라고 둔다
     const file = path.join(repos.work, DOCS.runState)
     const next = JSON.parse(fs.readFileSync(file, 'utf8')) as { haltReason: string | null; status: string }
@@ -508,7 +508,7 @@ describe('구동자 — 멈추는 곳 (M09 G4)', () => {
     expect(bad.status.phase).toBe('latched')
   })
 
-  // G4 검수 중요 I4 — 열기·풀기가 기다리는 동안 닫으면, 새로 연 실행기를 닫고 잠금을 푼다(고아 실행기가 잠금을 쥐지 않는다)
+  // 열기·풀기가 기다리는 동안 닫으면, 새로 연 실행기를 닫고 잠금을 푼다(고아 실행기가 잠금을 쥐지 않는다)
   it('열기 도중 닫으면 새로 연 실행기를 닫는다 — 다시 열면 열린다', SLOW, async () => {
     const { d } = driver()
     const CWD = repos.work
@@ -552,7 +552,7 @@ describe('구동자 — 멈추는 곳 (M09 G4)', () => {
     expect(reopened.phase).not.toBe('open-failed')
   })
 
-  // G4 확인 검수 — 풀기가 실행기를 닫은 뒤 다시 읽은 상태 파일이 화면이 본 것과 달라 거부되면, 그 상태 그대로 새 token의 래치를 보인다
+  // 풀기가 실행기를 닫은 뒤 다시 읽은 상태 파일이 화면이 본 것과 달라 거부되면, 그 상태 그대로 새 token의 래치를 보인다
   // (래치 카드 없이 open-failed만 남지 않는다). 사람이 다시 보고 그 token으로 풀면 사본으로 되돌리고 이어 간다.
   it('풀기 중 상태 파일이 바뀌어 거부되면 새 token의 래치 카드가 다시 뜨고, 그 token으로 풀린다', SLOW, async () => {
     let tamper: (() => void) | null = null
@@ -654,7 +654,7 @@ describe('구동자 — 멈추는 곳 (M09 G4)', () => {
   })
 })
 
-// G4 검수 사소 6 — 구동 오류 같은 알림(note)은 단계가 바뀌면 지운다(오래 남아 다른 단계의 사유처럼 보이지 않게)
+// 구동 오류 같은 알림(note)은 단계가 바뀌면 지운다(오래 남아 다른 단계의 사유처럼 보이지 않게)
 describe('알림은 단계가 바뀌면 지운다 (M09 G4 검수 사소 6)', () => {
   it('알림은 그 단계 동안만 보이고, 단계가 바뀐 상태에는 남지 않는다', SLOW, async () => {
     // 첫 step 한 번만 깨지게 한다 — 구동 오류 알림이 running 단계에 뜬다
@@ -682,7 +682,7 @@ describe('알림은 단계가 바뀌면 지운다 (M09 G4 검수 사소 6)', () 
     await d.start(CWD, 'M1')
     const noted = await until((s) => s.reason?.includes('한 번 깨진 단계') === true, '구동 오류 알림')
     expect(noted.phase).toBe('running')
-    // M10 G2 검수 — 구동 오류는 메인 대화 기록에 예외 사건(error)으로도 남는다. 모델 턴은 열지 않는다
+    // 구동 오류는 메인 대화 기록에 예외 사건(error)으로도 남는다. 모델 턴은 열지 않는다
     const errors = d.mainRead(CWD).items.flatMap((i) => (i.kind === 'event' && i.event.kind === 'error' ? [i.event.text] : []))
     expect(errors).toHaveLength(1)
     expect(errors[0]).toContain('한 번 깨진 단계')
@@ -698,7 +698,7 @@ describe('알림은 단계가 바뀌면 지운다 (M09 G4 검수 사소 6)', () 
   })
 })
 
-// M10 G5 — 그래프 읽기는 실행기를 열지 않아도 답한다(원격 없는 저장소처럼 열기가 실패한 폴더도). 열 때 쓰는 템플릿과 같은 것을 쓴다
+// 그래프 읽기는 실행기를 열지 않아도 답한다(원격 없는 저장소처럼 열기가 실패한 폴더도). 열 때 쓰는 템플릿과 같은 것을 쓴다
 describe('구동자 그래프 읽기 (M10 G5)', () => {
   it('열지 않은 폴더에도 실행기가 쓸 템플릿(시험이 끼운 것, 없으면 번들)의 그래프를 준다', () => {
     const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'ad-graph-'))
@@ -715,9 +715,9 @@ describe('구동자 그래프 읽기 (M10 G5)', () => {
   })
 })
 
-// M10 G5 검수 1 — 자동 모드가 꺼진 채 다시 열면, 여는 쪽의 상태 계산과 구동(kick)의 읽기가 경쟁해도 running 한 장이 끼지 않는다.
+// 자동 모드가 꺼진 채 다시 열면, 여는 쪽의 상태 계산과 구동(kick)의 읽기가 경쟁해도 running 한 장이 끼지 않는다.
 // running이 끼면 알림기가 열쇠를 지워 같은 blocked를 또 알린다
-// M10 G6 — 끝난 실행이 있는 폴더(G5 뒤의 옛 템플릿 해시 포함)를 열면 시작 전과 안내 한 줄이고, 새 마일스톤을 시작하면 보관하고 새 실행을 연다
+// 끝난 실행이 있는 폴더(옛 템플릿 해시 포함)를 열면 시작 전과 안내 한 줄이고, 새 마일스톤을 시작하면 보관하고 새 실행을 연다
 describe('두 번째 마일스톤 (M10 G6)', () => {
   async function plant(status: 'done' | 'running'): Promise<string> {
     const made = createRunState(TEMPLATE.template, 'a'.repeat(64), 'M01', 'master')

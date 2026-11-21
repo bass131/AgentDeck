@@ -1,4 +1,4 @@
-// M10 G5 — 실물 알림 포트(Electron Notification). 알림 하나를 띄우고, 사람이 누르면 onClick을 한 번 부른다.
+// 실물 알림 포트(Electron Notification). 알림 하나를 띄우고, 사람이 누르면 onClick을 한 번 부른다.
 // 누르거나 닫을 때까지 알림 객체를 쥐고 있다(놓으면 Windows에서 누름이 오지 않을 수 있다). 지원하지 않는 곳에서는 띄우지 않는다.
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 

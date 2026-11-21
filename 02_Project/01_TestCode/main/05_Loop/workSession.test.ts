@@ -1,4 +1,4 @@
-// M09 G2 작업 노드 세션 포트 — 노드마다 새 세션을 백엔드로 열고, 지시와 그 노드의 생존 문서만 프롬프트로 준다.
+// 노드마다 새 세션을 백엔드로 열고, 지시와 그 노드의 생존 문서만 프롬프트로 준다.
 // 자동 모드·작업 저장소 cwd·자격 없는 환경·루프 잠금을 실행 입력으로 넘기고, 시간 초과·취소·실패는 ok:false다.
 import fs from 'node:fs'
 import os from 'node:os'
@@ -56,7 +56,7 @@ function fakeBackend(events: AgentEvent[] | 'hang', opts: { id?: BackendId; thro
       return {
         events: (async function* () {
           if (events === 'hang') { await aborted; return }
-          // 목록 안의 'hang'은 그 자리에서 취소까지 멈춘다(G4 — 카드 뒤에 기다리는 메인 세션)
+          // 목록 안의 'hang'은 그 자리에서 취소까지 멈춘다(카드 뒤에 기다리는 메인 세션)
           for (const e of events as (AgentEvent | 'hang')[]) {
             if (e === 'hang') { await aborted; return }
             await Promise.resolve(); yield e
@@ -90,7 +90,7 @@ describe('작업 노드 프롬프트 (M09 G2)', () => {
     expect(p).not.toContain('첫 goal 제목')
   })
 
-  // G5 실주행 — 메인 노드 세션은 한 턴이라 일반 글로 물으면 사람이 답할 길이 없다. 묻는 길을 질문 도구로 못 박는다
+  // 메인 노드 세션은 한 턴이라 일반 글로 물으면 사람이 답할 길이 없다. 묻는 길을 질문 도구로 못 박는다
   it('사람과 이야기하는 세션(메인 노드와 화면 응답자)에만 끝에 「질문 도구로만 묻고 스펙을 쓴 뒤 끝낸다」 규칙을 붙인다', () => {
     const mainReq = request({ node: { ...NODE, id: 'brainstorm', role: 'main', docs: ['milestoneSpec'] }, goal: null })
     expect(talksToHuman(mainReq, () => ({ kind: 'question', answers: null }))).toBe(true)
@@ -99,7 +99,7 @@ describe('작업 노드 프롬프트 (M09 G2)', () => {
     const main = buildWorkPrompt(mainReq, true)
     expect(main.endsWith(MAIN_NODE_RULE)).toBe(true)
     expect(main).toContain('AskUserQuestion')
-    // G5 독립 검수 사소 2·4 — 받은 답은 바로 결정 대장에 적고, 끝내기 전에 스펙이나 결정 대장을 갱신한다
+    // 받은 답은 바로 결정 대장에 적고, 끝내기 전에 스펙이나 결정 대장을 갱신한다
     expect(MAIN_NODE_RULE).toContain('결정 대장에 바로')
     expect(MAIN_NODE_RULE).toContain('갱신')
     expect(main).toContain('노드가 고르지 않은 스펙 본문')
@@ -142,7 +142,7 @@ describe('작업 노드 세션 결과 (M09 G2)', () => {
     expect(rec.aborts).toBe(1)
   })
 
-  // G4 검수 사소 5 — 요약(검수에서는 판정)은 마지막 최상위 메시지의 글이다. 최상위 도구 호출 뒤 글 없이 끝나면 앞 메시지의 글을 쓰지 않는다
+  // 요약(검수에서는 판정)은 마지막 최상위 메시지의 글이다. 최상위 도구 호출 뒤 글 없이 끝나면 앞 메시지의 글을 쓰지 않는다
   it('최상위 도구 호출 뒤 글 없이 끝나면 요약에 앞 메시지의 글을 쓰지 않는다', async () => {
     const { backend } = fakeBackend([
       { type: 'text', delta: '다 했다고 말하고', messageId: 'm1' },
@@ -241,7 +241,7 @@ describe('작업 노드 세션의 카드 (M09 G2)', () => {
     expect(seen).toEqual(['permission_request', 'question_request', 'done'])
   })
 
-  // M10 G2 — 세션 사건은 꼬리표(kind work, 앱이 정한 key, 노드·goal, session 사건을 본 뒤의 SDK 세션 id)와 함께 나간다
+  // 세션 사건은 꼬리표(kind work, 앱이 정한 key, 노드·goal, session 사건을 본 뒤의 SDK 세션 id)와 함께 나간다
   it('세션 사건에 꼬리표가 붙는다 — key는 세션마다 다르고, SDK 세션 id는 session 사건부터 실린다', async () => {
     const tags: { type: string; key: string; kind: string; node: string | null; goal: string | null; sessionId: string | null }[] = []
     const onEvent = (e: AgentEvent, t: { key: string; kind: string; node: string | null; goal: string | null; sessionId: string | null }): void => {

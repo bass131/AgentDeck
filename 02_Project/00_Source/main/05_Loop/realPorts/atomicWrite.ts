@@ -1,6 +1,5 @@
-// M09 G2 — 같은 폴더의 임시 파일에 쓴 뒤 이름을 바꾼다. 읽는 쪽이 반쯤 쓴 파일을 보지 않는다.
+// 같은 폴더의 임시 파일에 쓴 뒤 이름을 바꾼다. 읽는 쪽이 반쯤 쓴 파일을 보지 않는다.
 // Windows에서는 백신·색인기가 대상 파일을 잠깐 붙들어 rename이 EPERM·EACCES·EBUSY로 실패할 수 있어 몇 번 다시 해 본다.
-// fs 포트(작업 저장소의 생존 문서)와 다이제스트 저장소(앱 영역)가 같이 쓴다. fs 포트의 옮기기도 같은 재시도를 쓴다(M10 G6).
 import { randomBytes } from 'node:crypto'
 import fs, { promises as fsp } from 'node:fs'
 
@@ -18,7 +17,7 @@ export async function renameRetrying(from: string, to: string): Promise<void> {
   }
 }
 
-// 동기 쓰기만 하는 저장소(대화 색인, M11 G3)가 쓰는 같은 꼴
+// 동기 쓰기만 하는 저장소(대화 색인)가 쓰는 같은 꼴
 export function writeFileAtomicSync(file: string, text: string): void {
   const tmp = `${file}.${process.pid}.${randomBytes(4).toString('hex')}.tmp`
   try {

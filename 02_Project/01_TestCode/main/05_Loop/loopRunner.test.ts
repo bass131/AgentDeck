@@ -1,4 +1,4 @@
-// M09 G1 실행기 껍질 — 가짜 포트(fs·git·gh·명령·세션·검수)로 프로덕션 createLoopRunner를 돈다.
+// 가짜 포트(fs·git·gh·명령·세션·검수)로 프로덕션 createLoopRunner를 돈다.
 // 고정하는 것: 실제 템플릿으로 완주, 상태는 실행기가 저장본에서 읽어 소유한다(밖에서 상태를 넣는 길이 없다, 호출은 직렬),
 // 규칙 게이트 증거(검증 줄)를 실행기가 직접 쓴다, 에이전트가 쓴 「PASS」 글로는 나아가지 않는다, 재개는 같은 노드를 고른다,
 // action은 확인 뒤 실행이고 이미 있는 브랜치·PR은 이번 실행의 것일 때만 받는다, CI·병합은 push한 머리에 묶인다,
@@ -118,8 +118,8 @@ describe('상태는 실행기가 소유한다', () => {
   })
 
   it('실행기 껍질에도 건너뛰기·강제 통과·상태 넣기 API가 없다', () => {
-    // idle은 직렬화 줄을 기다리기만 한다(닫기용, G2 검수 사소) — 상태를 넣거나 건너뛰지 않는다
-    // specView는 스펙 승인 카드가 보일 본문과 해시를 읽기만 한다(G4)
+    // idle은 직렬화 줄을 기다리기만 한다(닫기용) — 상태를 넣거나 건너뛰지 않는다
+    // specView는 스펙 승인 카드가 보일 본문과 해시를 읽기만 한다
     expect(Object.keys(setup().runner).sort()).toEqual(['idle', 'load', 'specView', 'start', 'step', 'submit'])
   })
 })
@@ -461,7 +461,7 @@ describe('재개는 같은 노드를 고르고, action은 확인 뒤 실행이�
     expect(count(ctx.rig.git.calls, 'merge ')).toBe(1)
     expect(ctx.rig.git.calls.at(-1)).toBe('push milestone/M1')
     expect(out.kind === 'advanced' && out.verdict?.evidence).toContain('push만')
-    // 받는 것은 부모가 (원격 머리, PR 머리)인 병합 커밋 하나뿐이다(G2 검수 중요 4 — 그 밖은 loopRunner.guards.test.ts)
+    // 받는 것은 부모가 (원격 머리, PR 머리)인 병합 커밋 하나뿐이다(그 밖은 loopRunner.guards.test.ts)
     expect(ctx.rig.git.remote.get('milestone/M1')?.at(-1)).toBe(merged)
   })
 

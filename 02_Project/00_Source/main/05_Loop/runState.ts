@@ -1,4 +1,4 @@
-// M09 G1 — 실행 상태 스키마. 작업 저장소의 `.agentdeck/run-state.json`에 실린다.
+// 작업 저장소의 `.agentdeck/run-state.json`에 실린다.
 // 템플릿 내용은 싣지 않고 id와 해시만 적는다(해시가 앱의 템플릿과 다르면 실행기가 멈춘다).
 // 검증 줄은 실행기만 쓴다(by: 'executor'). FAIL 계수는 줄 목록에서 다시 셀 수 있는 값이라 불러올 때 다시 센다.
 // 저장된 계수가 다시 센 값과 다르거나, running인데 그 범위의 FAIL이 이미 FAIL_LIMIT 이상이거나,
@@ -15,7 +15,7 @@ import {
 export const FAIL_LIMIT = 3
 
 export type Marker = 'PASS' | 'FAIL' | 'USER-INPUT'
-type LineJudge =Judge | 'executor'
+type LineJudge = Judge | 'executor'
 interface VerificationLine {
   marker: Marker
   at: string
@@ -26,7 +26,7 @@ interface VerificationLine {
   goal: string | null
   judge: LineJudge
 }
-type GoalStatus ='pending' | 'active' | 'done'
+type GoalStatus = 'pending' | 'active' | 'done'
 export interface GoalState {
   id: string
   title: string
@@ -39,23 +39,23 @@ export interface GoalState {
   pushedSha: string | null
   ciSha: string | null
   mergedSha: string | null
-  // M09 G4 — 모델 게이트(검수)가 pass를 낸 작업 트리 해시. goal PR 동작이 커밋·push 직전에 지금 트리와 대조한다.
+  // 모델 게이트(검수)가 pass를 낸 작업 트리 해시. goal PR 동작이 커밋·push 직전에 지금 트리와 대조한다.
   // 옛 상태에는 없을 수 있다(없으면 null로 읽는다).
   reviewedTree?: string | null
-  // M09 G4 검수 I7 — 분해 노드가 pass할 때 실행기가 읽은 goal 문서의 sha256. 검수 직전과 goal PR 직전에 지금 문서와 대조한다.
+  // 분해 노드가 pass할 때 실행기가 읽은 goal 문서의 sha256. 검수 직전과 goal PR 직전에 지금 문서와 대조한다.
   // 옛 상태에는 없을 수 있다(없으면 대조하지 않는다).
   docSha256?: string | null
 }
 // goal은 goal 고리 안이면 goal 목록의 위치, 마일스톤 구획이면 null.
 export interface Cursor { node: string; goal: number | null }
-type RunStatus ='running' | 'needs-user' | 'done'
+type RunStatus = 'running' | 'needs-user' | 'done'
 export interface RunState {
   schema: 1
   milestoneId: string
   template: { id: string; hash: string }
-  // M09 G4 — 시작할 때 읽은 기준 브랜치(origin 기본 브랜치). 다시 열 때 읽은 값과 다르면 실행기가 멈춘다. 옛 상태에는 없을 수 있다.
+  // 시작할 때 읽은 기준 브랜치(origin 기본 브랜치). 다시 열 때 읽은 값과 다르면 실행기가 멈춘다. 옛 상태에는 없을 수 있다.
   base?: string | null
-  // M09 G4 검수 I7 — 사람이 스펙 승인에서 본 스펙의 sha256(실행기가 대조한 값). 그 뒤 노드에서 스펙 파일이 다르면 실행기가 멈춘다.
+  // 사람이 스펙 승인에서 본 스펙의 sha256(실행기가 대조한 값). 그 뒤 노드에서 스펙 파일이 다르면 실행기가 멈춘다.
   specSha256?: string | null
   status: RunStatus
   haltReason: string | null
@@ -67,9 +67,9 @@ export interface RunState {
   failCount: number
   lines: VerificationLine[]
 }
-type RunStateCheck ={ ok: true; state: RunState } | { ok: false; errors: SchemaError[] }
+type RunStateCheck = { ok: true; state: RunState } | { ok: false; errors: SchemaError[] }
 
-const MILESTONE_ID =/^[A-Za-z0-9][A-Za-z0-9._-]*$/
+const MILESTONE_ID = /^[A-Za-z0-9][A-Za-z0-9._-]*$/
 export const GOAL_ID = /^[A-Za-z0-9][A-Za-z0-9._-]*$/
 const HASH = /^[0-9a-f]{64}$/
 const MARKERS: readonly Marker[] = ['PASS', 'FAIL', 'USER-INPUT']

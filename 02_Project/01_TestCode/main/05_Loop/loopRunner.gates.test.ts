@@ -1,4 +1,4 @@
-// M09 G4 실행기 껍질의 사람·모델 게이트 — 가짜 포트로 프로덕션 createLoopRunner를 돈다.
+// 실행기 껍질의 사람·모델 게이트 — 가짜 포트로 프로덕션 createLoopRunner를 돈다.
 // 고정하는 것: 스펙 승인 판정은 사람이 본 스펙 해시에 묶인다(파일이 다르면 거부), 검수 입력은 goal 문서와 실행기가 만든 diff다,
 // 검수 pass는 검수한 트리 해시에 묶여 goal 커밋·push 직전에 다시 대조된다(다르면 멈춤), 기준 브랜치는 시작할 때 상태에 적고
 // 다시 열 때 다르면 멈춘다, goal PR 본문에 그 goal의 검증 줄이 실린다, 세션 취소는 FAIL로 세지 않고 멈춘다.
@@ -62,7 +62,7 @@ describe('스펙 승인은 사람이 본 스펙 해시에 묶인다', () => {
     expect(labelOf(nextStep(ctx.template, (await ctx.runner.load() as { state: RunState }).state))).toBe('spec-approval')
   })
 
-  // G5 실주행 — 브레인스토밍은 스펙 파일 없이 pass하지 않는다(아래). 승인 대기 중에 파일이 사라진 경우를 본다
+  // 브레인스토밍은 스펙 파일 없이 pass하지 않는다(아래). 승인 대기 중에 파일이 사라진 경우를 본다
   it('스펙 파일이 없으면 승인할 수 없다', async () => {
     const ctx = setup()
     await until(ctx, 'spec-approval')
@@ -73,7 +73,7 @@ describe('스펙 승인은 사람이 본 스펙 해시에 묶인다', () => {
     expect((await ctx.runner.submit(human('pass'))).kind).toBe('blocked')
   })
 
-  // G4 검수 중요 I3 — 스펙 파일이 없을 때 빠져나갈 길: 해시 없는 반려는 받아 브레인스토밍으로 돌아간다(승인은 계속 해시가 필요하다)
+  // 스펙 파일이 없을 때 빠져나갈 길: 해시 없는 반려는 받아 브레인스토밍으로 돌아간다(승인은 계속 해시가 필요하다)
   it('스펙 파일이 없으면 해시 없는 반려를 받아 브레인스토밍으로 돌아간다 — FAIL이 아니라 USER-INPUT이다', async () => {
     const ctx = setup()
     await until(ctx, 'spec-approval')
@@ -87,7 +87,7 @@ describe('스펙 승인은 사람이 본 스펙 해시에 묶인다', () => {
     expect(r.state?.specSha256 ?? null).toBeNull()
   })
 
-  // G5 실주행 — 실제 모델이 일반 글로 묻고 턴을 끝내 스펙 없이 브레인스토밍이 pass했다. 스펙 파일이 없거나 비면 FAIL로 다시 돈다
+  // 실제 모델이 일반 글로 묻고 턴을 끝내 스펙 없이 브레인스토밍이 pass했다. 스펙 파일이 없거나 비면 FAIL로 다시 돈다
   it.each([['없음', null], ['빈 파일', '  \n']])('브레인스토밍이 스펙 파일(%s) 없이 끝나면 FAIL이고 브레인스토밍을 다시 돈다', async (_label, body) => {
     const ctx = setup()
     ctx.rig.session.onWork = async (req) => {
@@ -105,7 +105,7 @@ describe('스펙 승인은 사람이 본 스펙 해시에 묶인다', () => {
     expect(st.lines.at(-1)?.sentence).toContain(DOCS.milestoneSpec)
   })
 
-  // G5 독립 검수 중요 1 — 반려 뒤(또는 다음 마일스톤에서) 옛 스펙이 남아 있으면, 아무것도 쓰지 않고 끝난 세션도 통과하던 길
+  // 반려 뒤(또는 다음 마일스톤에서) 옛 스펙이 남아 있으면, 아무것도 쓰지 않고 끝난 세션도 통과하던 길
   it('반려 뒤 다시 돈 브레인스토밍이 스펙도 결정 대장도 바꾸지 않고 끝나면 FAIL이다', async () => {
     const ctx = setup()
     await until(ctx, 'spec-approval')
@@ -142,7 +142,7 @@ describe('모델 게이트의 입력과 트리 해시 묶기', () => {
     expect(req.goalDoc).toBe(ctx.rig.fs.files.get(goalDocPath('G1')))
     expect(req.diff).toBe(ctx.rig.git.reviewDiff)
     expect(req.base).toBe('milestone/M1')
-    // G4 검수 중요 I6 — diff·등급의 기준은 로컬 ref 이름이 아니라 goal을 가를 때 실행기가 적은 시작 SHA다
+    // diff·등급의 기준은 로컬 ref 이름이 아니라 goal을 가를 때 실행기가 적은 시작 SHA다
     const baseSha = out.state?.goals[0].baseSha as string
     expect(baseSha).toBeTruthy()
     expect(req.baseSha).toBe(baseSha)
@@ -152,7 +152,7 @@ describe('모델 게이트의 입력과 트리 해시 묶기', () => {
     expect(out.state?.goals[0].reviewedTree).toBe('t0')
   })
 
-  // G4 검수 중요 I9 — diff가 상한을 넘으면 잘린 diff로 검수하지 않는다(pass가 전체 트리에 묶이므로). 멈추고 FAIL로 세지 않는다
+  // diff가 상한을 넘으면 잘린 diff로 검수하지 않는다(pass가 전체 트리에 묶이므로). 멈추고 FAIL로 세지 않는다
   it('diff가 상한을 넘으면 검수 세션을 열지 않고 멈춘다 — FAIL 줄이 없다', async () => {
     const ctx = setup()
     await until(ctx, 'G1/review')
@@ -166,7 +166,7 @@ describe('모델 게이트의 입력과 트리 해시 묶기', () => {
     expect(out.state?.lines.filter((l) => l.marker === 'FAIL')).toEqual([])
   })
 
-  // G5 검수 4 — 사람이 읽는 판정 문장은 목표·실패 어휘다(브랜치 이름은 그대로)
+  // 사람이 읽는 판정 문장은 목표·실패 어휘다(브랜치 이름은 그대로)
   it('diff를 만들지 못하면 검수를 열지 않는 실패이고, 그 문장은 「목표 시작」이다', async () => {
     const ctx = setup()
     await until(ctx, 'G1/review')
@@ -187,7 +187,7 @@ describe('모델 게이트의 입력과 트리 해시 묶기', () => {
     expect(out.kind === 'advanced' ? out.verdict?.evidence : null).toMatch(/^목표 \d+개로 나눴다 — /)
   })
 
-  // G4 검수 중요 I8 — 트리를 대조한 SHA 하나를 push한다. 대조와 push 사이에 로컬 브랜치가 움직여도 그 커밋은 원격에 가지 않는다
+  // 트리를 대조한 SHA 하나를 push한다. 대조와 push 사이에 로컬 브랜치가 움직여도 그 커밋은 원격에 가지 않는다
   it('goal PR은 트리를 대조한 그 SHA를 push한다 — 대조 뒤 로컬 브랜치에 얹힌 커밋은 올리지 않는다', async () => {
     const ctx = setup()
     await until(ctx, 'G1/goal-pr')
@@ -241,7 +241,7 @@ describe('모델 게이트의 입력과 트리 해시 묶기', () => {
   })
 })
 
-// G4 검수 중요 I7 — 검수 기준 문서(goal 문서·승인한 스펙)는 실행기가 적은 해시에 묶인다. 구현 노드가 고치면 검수·PR 전에 멈춘다
+// 검수 기준 문서(goal 문서·승인한 스펙)는 실행기가 적은 해시에 묶인다. 구현 노드가 고치면 검수·PR 전에 멈춘다
 describe('검수 기준 문서의 해시', () => {
   const sha = (t: string): string => createHash('sha256').update(t, 'utf8').digest('hex')
 
@@ -306,7 +306,7 @@ describe('검수 기준 문서의 해시', () => {
   })
 })
 
-// G4 검수 중요 I6 실물 — 프로브 refmove.ts의 꼴. 작업 노드가 `git branch -f milestone/M1 HEAD`로 로컬 마일스톤 브랜치를 goal 머리로
+// 프로브 refmove.ts의 꼴. 작업 노드가 `git branch -f milestone/M1 HEAD`로 로컬 마일스톤 브랜치를 goal 머리로
 // 옮겨도, 등급과 검수 diff는 goal을 가를 때 적은 시작 SHA로 계산한다. 같은 이름의 태그로 브랜치를 가려도 브랜치를 읽는다.
 describe('기준 SHA — 실제 git (M09 G4 검수 I6)', () => {
   let repos: TempRepos

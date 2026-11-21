@@ -1,4 +1,4 @@
-// M09 G2 — 자격 없는 자식 환경. 명령 포트(템플릿의 검사 명령)와 작업 노드 세션이 이 환경으로 돈다.
+// 자격 없는 자식 환경. 명령 포트(템플릿의 검사 명령)와 작업 노드 세션이 이 환경으로 돈다.
 // 변수만 빼는 것이 아니라 자격이 들어오는 길을 끊는다.
 //   gh  — GH_TOKEN·GH_ENTERPRISE_TOKEN 자리에 가짜 값, GH_CONFIG_DIR은 빈 임시 폴더.
 //         실측(2026-11-18, 이 기계): 빈 GH_CONFIG_DIR만 주면 `gh auth status`는 exit 1이지만 `gh auth token`은 keyring(Windows

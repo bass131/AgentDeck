@@ -127,7 +127,7 @@ function TasteDraftCard({ card, blocked, onAnswer }: {
   const off = blocked || pending || confirming
   const send = async (response: TasteAnswer): Promise<void> => {
     setPending(true)
-    if (!(await onAnswer(card, response))) setPending(false)
+    try { await onAnswer(card, response) } finally { setPending(false) }
   }
   return (
     <div className="mc-card ask" data-testid={`mc-card-${card.requestId}`}>

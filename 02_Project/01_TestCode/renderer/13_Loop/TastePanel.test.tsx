@@ -33,10 +33,11 @@ type Fn = ReturnType<typeof vi.fn>
 let api: Record<string, Fn>
 let mainHandlers: Set<(v: MainChatView) => void>
 
-function install(docs: TasteDocsRead): void {
+function install(docs: TasteDocsRead, view: MainChatView = mv()): void {
   mainHandlers = new Set()
   api = {
     tasteRead: vi.fn().mockResolvedValue(docs),
+    loopMainRead: vi.fn().mockResolvedValue(view),
     loopTasteOpen: vi.fn().mockResolvedValue({ ok: true, view: mv() }),
     loopMainSend: vi.fn(),
     onLoopMainState: vi.fn((cb: (v: MainChatView) => void) => { mainHandlers.add(cb); return () => mainHandlers.delete(cb) }),
@@ -49,8 +50,8 @@ const click = async (el: HTMLElement): Promise<void> => { await act(async () => 
 const panel = (): HTMLElement => screen.getByRole('region', { name: '헌장·Taste' })
 const doc = (name: string): HTMLElement => within(panel()).getByRole('region', { name })
 
-async function renderPanel(docs: TasteDocsRead, onOpened = vi.fn()): Promise<Fn> {
-  install(docs)
+async function renderPanel(docs: TasteDocsRead, onOpened = vi.fn(), view: MainChatView = mv()): Promise<Fn> {
+  install(docs, view)
   const { TastePanel } = await import('@renderer/13_Loop/TastePanel')
   render(<TastePanel cwd={CWD} onOpened={onOpened} />)
   await flush()
@@ -113,5 +114,38 @@ describe('「헌장·Taste」 보기', () => {
     await act(async () => { for (const h of [...mainHandlers]) h(mv()) })
     await flush()
     expect(api.tasteRead).toHaveBeenCalledTimes(3)
+  })
+
+  it('확정이 연 PR이 아직 로컬에 들어오지 않았으면 그 PR을 보이고, 그 문서는 없다고 재촉하지 않는다', async () => {
+    const text = '# 프로젝트 헌장\n\n## 목표\n\n에이전트가 끝까지 맡는다.\n'
+    const pr = { pr: 4, branch: 'agentdeck/charter-20261121T050000', doc: 'charter' as const, text }
+    await renderPanel(ABSENT, vi.fn(), mv({ tastePr: pr }))
+    expect(within(panel()).getByText(/PR #4/).textContent).toContain('프로젝트 헌장')
+    const hint = within(panel()).getByRole('note')
+    expect(hint.textContent).toContain('전역 Taste')
+    expect(hint.textContent).not.toContain('프로젝트 헌장')
+    cleanup()
+    const merged: TasteDocsRead = { ...OK, charter: { ...OK.charter, raw: text } as TasteDocsRead['charter'] }
+    await renderPanel(merged, vi.fn(), mv({ tastePr: pr }))
+    expect(within(panel()).queryByText(/PR #4/)).toBeNull()
+  })
+
+  it('읽기 오류는 다시 읽어 성공하면 걷히고, 문답 열기 오류와 따로 보인다', async () => {
+    install(ABSENT)
+    api.tasteRead.mockRejectedValueOnce(new Error('읽기 실패'))
+    const { TastePanel } = await import('@renderer/13_Loop/TastePanel')
+    render(<TastePanel cwd={CWD} onOpened={vi.fn()} />)
+    await flush()
+    expect(within(panel()).getByText(/읽기 실패/)).toBeTruthy()
+    api.loopTasteOpen.mockResolvedValue({ ok: false, reason: '루프가 닫혔다', view: mv() })
+    await click(within(panel()).getByRole('button', { name: '전역 Taste 문답 열기' }))
+    expect(within(panel()).getByText(/읽기 실패/)).toBeTruthy()
+    expect(within(panel()).getByText(/루프가 닫혔다/)).toBeTruthy()
+    const card = { kind: 'taste' as const, requestId: 'taste-1', node: 'main', goal: null, text: '초안', draft: { doc: 'global-taste' as const, items: [] }, preview: '' }
+    await act(async () => { for (const h of [...mainHandlers]) h(mv({ cards: [card] })) })
+    await flush()
+    expect(within(panel()).queryByText(/읽기 실패/)).toBeNull()
+    expect(within(panel()).getByText(/루프가 닫혔다/)).toBeTruthy()
+    expect(doc('전역 Taste')).toBeTruthy()
   })
 })

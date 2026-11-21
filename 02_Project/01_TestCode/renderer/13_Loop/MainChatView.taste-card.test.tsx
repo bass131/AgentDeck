@@ -55,9 +55,15 @@ describe('대화 안 문서 초안 카드', () => {
     const box = await renderCard(card())
     expect(within(box).getByText('프로젝트 헌장 초안')).toBeTruthy()
     expect(box.querySelector('pre')?.textContent).toBe(PREVIEW)
+    let settle: (v: { ok: boolean }) => void = () => {}
+    api.loopAnswerCard.mockImplementation(() => new Promise((r) => { settle = r }))
     await click(button(box, '확정'))
     expect(api.loopAnswerCard).toHaveBeenCalledWith({ cwd: CWD, requestId: 'taste-1', response: { kind: 'taste', decision: 'confirm' } })
     expect(button(box, '확정').disabled).toBe(true)
+    // 답이 돌아오면 기다림을 푼다 — 확정 중 표시는 main이 보낸 카드가 맡는다
+    await act(async () => { settle({ ok: true }) })
+    await flush()
+    expect(button(box, '확정').disabled).toBe(false)
     expect(api.loopDecide).not.toHaveBeenCalled()
   })
 

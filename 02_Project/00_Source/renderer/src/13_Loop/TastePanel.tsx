@@ -1,6 +1,6 @@
 // 읽기 전용 — 고치는 길은 메인 대화의 문답과 초안 카드의 확정뿐이다. 이 칸은 턴을 스스로 보내지 않는다.
 import { useEffect, useRef, useState, type JSX } from 'react'
-import type { DocRead, TasteDialogScope, TasteDocsRead } from '@shared/ipcContract'
+import { TASTE_DOC_LABEL, type DocRead, type MainChatView, type TasteDialogScope, type TasteDocsRead, type TastePrNote } from '@shared/ipcContract'
 import type { CharterDoc, TasteDoc } from '@shared/14_Taste/tasteDoc'
 import { ipc } from '@renderer/01_Ipc'
 import { errText, sameCwd } from './loopModel'
@@ -54,11 +54,20 @@ function DocSection<T>({ title, read, body }: { title: string; read: DocRead<T>;
 const tasteIds = (cards: readonly { kind: string; requestId: string }[]): string =>
   cards.filter((c) => c.kind === 'taste').map((c) => c.requestId).sort().join('\n')
 
+// PR이 쓴 원문이 아직 로컬 문서와 다르면(병합 전이거나 받기 전) 그 PR을 보인다
+function pendingPr(docs: TasteDocsRead | null, note: TastePrNote | undefined): TastePrNote | null {
+  if (docs === null || note === undefined) return null
+  const local = note.doc === 'charter' ? docs.charter : docs.project
+  return !local.absent && local.raw === note.text ? null : note
+}
+
 export function TastePanel({ cwd, onOpened }: { cwd: string | null; onOpened: () => void }): JSX.Element {
   const [docs, setDocs] = useState<TasteDocsRead | null>(null)
-  const [error, setError] = useState<string | null>(null)
+  const [readError, setReadError] = useState<string | null>(null)
+  const [openError, setOpenError] = useState<string | null>(null)
   const [opening, setOpening] = useState(false)
   const [reads, setReads] = useState(0)
+  const [prNote, setPrNote] = useState<TastePrNote | undefined>(undefined)
   const cwdRef = useRef(cwd)
   const cardIds = useRef<string | null>(null)
 
@@ -66,23 +75,36 @@ export function TastePanel({ cwd, onOpened }: { cwd: string | null; onOpened: ()
     cwdRef.current = cwd
     cardIds.current = null
     setDocs(null)
-    setError(null)
+    setReadError(null)
+    setOpenError(null)
+    setPrNote(undefined)
     if (cwd === null) return
+    let live = true
+    let pushed = false
     // 초안 카드가 생기거나 사라지면(확정·반려) 문서가 바뀌었을 수 있다
-    return ipc.loop.onMainState((v) => {
-      if (!sameCwd(v.cwd, cwdRef.current)) return
+    const seen = (v: MainChatView): void => {
       const ids = tasteIds(v.cards)
       if (cardIds.current !== null && cardIds.current !== ids) setReads((n) => n + 1)
       cardIds.current = ids
+      setPrNote(v.tastePr)
+    }
+    const off = ipc.loop.onMainState((v) => {
+      if (!sameCwd(v.cwd, cwdRef.current)) return
+      pushed = true
+      seen(v)
     })
+    ipc.loop.mainRead({ cwd })
+      .then((v) => { if (live && !pushed) seen(v) })
+      .catch(() => { /* 대화 기록을 못 읽어도 문서는 보인다 */ })
+    return () => { live = false; off() }
   }, [cwd])
 
   useEffect(() => {
     if (cwd === null) return
     let live = true
     ipc.taste.read({ cwd })
-      .then((d) => { if (live) setDocs(d) })
-      .catch((e: unknown) => { if (live) setError(errText(e)) })
+      .then((d) => { if (live) { setDocs(d); setReadError(null) } })
+      .catch((e: unknown) => { if (live) setReadError(errText(e)) })
     return () => { live = false }
   }, [cwd, reads])
 
@@ -90,33 +112,41 @@ export function TastePanel({ cwd, onOpened }: { cwd: string | null; onOpened: ()
     const c = cwdRef.current
     if (c === null || opening) return
     setOpening(true)
-    setError(null)
+    setOpenError(null)
     try {
       const r = await ipc.loop.tasteOpen({ cwd: c, scope })
       if (!sameCwd(c, cwdRef.current)) return
       if (r.ok) onOpened()
-      else setError(r.reason ?? '문답을 열지 못했어요')
+      else setOpenError(r.reason ?? '문답을 열지 못했어요')
     } catch (e) {
-      setError(errText(e))
+      setOpenError(errText(e))
     } finally {
       setOpening(false)
     }
   }
 
-  const missing = docs === null ? [] : [docs.global.absent && '전역 Taste', docs.charter.absent && '프로젝트 헌장'].filter((x): x is string => x !== false)
+  const pr = pendingPr(docs, prNote)
+  const missing = docs === null ? [] : [
+    docs.global.absent && '전역 Taste',
+    docs.charter.absent && pr?.doc !== 'charter' && '프로젝트 헌장',
+  ].filter((x): x is string => typeof x === 'string')
 
   return (
     <section className="files-panel" aria-label="헌장·Taste">
       {missing.length > 0 && (
         <div className="loop-notice" role="note">{`${missing.join('·')}이 아직 없어요 — 아래 「문답 열기」로 메인과 같이 써요`}</div>
       )}
+      {pr !== null && (
+        <div className="loop-notice" role="status">{`${TASTE_DOC_LABEL[pr.doc]} 확정 PR #${pr.pr}(${pr.branch})이 열려 있어요 — 병합해 이 브랜치로 받으면 아래에 보여요`}</div>
+      )}
       <div className="loop-actions">
         <button type="button" className="loop-btn" disabled={cwd === null || opening} onClick={() => void open('global')}>전역 Taste 문답 열기</button>
         <button type="button" className="loop-btn" disabled={cwd === null || opening} onClick={() => void open('project')}>헌장·Taste 문답 열기</button>
       </div>
-      {error !== null && <div className="loop-err">{error}</div>}
+      {openError !== null && <div className="loop-err">{openError}</div>}
+      {readError !== null && <div className="loop-err">{`문서를 읽지 못했어요 — ${readError}`}</div>}
       {docs === null ? (
-        error === null && <div className="board-empty">문서를 읽는 중…</div>
+        readError === null && <div className="board-empty">문서를 읽는 중…</div>
       ) : (
         <>
           <DocSection title="전역 Taste" read={docs.global} body={(d) => <TasteBody doc={d} />} />

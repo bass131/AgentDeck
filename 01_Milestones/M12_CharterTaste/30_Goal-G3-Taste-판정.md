@@ -29,11 +29,11 @@
 진척 단계
 
 - [x] 1. goal 준비 — 이 문서, `gate-config.json` `planPath` 전환(판정 장치)
-- [ ] 2. 판의 고정과 체크리스트 절, 시험
-- [ ] 3. TASTE 줄 판독과 판정 규칙, 시험
-- [ ] 4. 검증 기록 근거와 충돌 안건, 마일스톤 PR 본문, 시험
-- [ ] 5. 하드 게이트 다섯 종, `npm test`
-- [ ] 6. 독립 검수와 반영, goal PR, `hard-gates`, 로컬 goal 병합
+- [x] 2. 판의 고정과 체크리스트 절, 시험
+- [x] 3. TASTE 줄 판독과 판정 규칙, 시험
+- [x] 4. 검증 기록 근거와 충돌 안건, 마일스톤 PR 본문, 시험
+- [x] 5. 하드 게이트 다섯 종, `npm test`
+- [>] 6. 독립 검수와 반영, goal PR, `hard-gates`, 로컬 goal 병합
 
 실행 단계 일괄 승인 대상 (스펙에서 옮김)
 
@@ -46,7 +46,7 @@ DoD
 
 검증 기록
 
-- (기록 없음)
+- PASS 2026-11-21T16:16:36+09:00 — 구현: 작업 하위 에이전트 `723254a8`·`a40c0bfa`와 메인 `1b63eccf`. 판의 고정(시작점 커밋 원문, 작업 트리 수정 무시) `loopRunner.taste.test.ts:73`, 절 없음 `:89`, 한 층만 `:99`, 읽기 오류·검사 문제면 stop이고 FAIL 줄 없음 `:107`, 실 git `gitPort.test.ts:193`·`openLoop.test.ts:155`. 판정 규칙 `tasteVerdict.test.ts:54`(fail)·`:60`(누락·중복·모르는 ID)·`:72`(꼴 틀림)·`:91·100·114`(충돌 인정·불인정)·`:121`(금지), VERDICT pass라도 fail `reviewSession.test.ts:158`, Taste 없으면 지금 그대로 `:172`. 기록 줄 근거의 ID·판정 `loopRunner.taste.test.ts:128`, 30항목 길이 `:141`, 「영역 재설계 안건」 `:161`·없음 `:176`, 옛 상태 파일 `:183`. 검수 세션이 작업 트리 Taste 원문을 싣지 않음(Backlog 8을 goal 안에서 고침) `sdkOptions.taste.test.ts:39`. 메인이 다시 돌린 하드 게이트 다섯 종 exit 0, `npm test` Test Files 481 passed·6 skipped(487), Tests 9318 passed·10 skipped, 실패 0.
 
 ## 결정 대장
 

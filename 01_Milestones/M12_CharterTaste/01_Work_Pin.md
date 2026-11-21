@@ -11,8 +11,8 @@
 - 재개 신호: 세션 안 예약(매시 17분, 30일 만료, 세션이 끝나면 사라짐). 세션을 새로 열었다면 예약이 없으니, 사슬 진행 중이면 다시 예약한다.
 - 마일스톤 스펙: `01_Milestones/M12_CharterTaste/00_마일스톤-스펙.md`. 다음 `M13_Installer/00_마일스톤-스펙.md`.
 - 마일스톤 브랜치: `milestone/m12-charter-taste`(`6c31c299`에서 가름 — M11 마일스톤 PR 118 머리).
-- 사슬 PR: M11 118(`master`로, 사용자 병합 대기 — 감시는 사슬 끝에서 건다).
-- 현재 goal: G6 마일스톤 회귀 검증과 마일스톤 PR — `60_Goal-G6-회귀검증과-마일스톤-PR.md`, 브랜치 `feat/m12-g6-regression`(마일스톤 머리 `b0a19b3d`에서). G1…G5 종결(PR 119–123).
+- 사슬 PR: M11 118, M12 125(둘 다 `master`로, 사용자가 118 → 125 순서로 병합 — 감시는 사슬 끝에서 건다).
+- 현재 goal: 없음 — M12 goal 1~6 종결(PR 119–124), 마일스톤 PR 125. 다음은 M13(사슬 규칙대로 M12 PR 머리에서 가른다).
 - 연습 저장소: `bass131/AgentDeck_Test`(공개, `main` 룰셋 `main-protect`). clone `C:\Dev\AgentDeck_Test`. 연습 토큰 `%USERPROFILE%\.agentdeck-practice\gh-token.txt`(만료 2026-11-27 03:20 UTC). 연습 앱 데이터 `%USERPROFILE%\.agentdeck-practice\udd`.
 - goal 병합의 정형 절차: ① goal 브랜치를 push하고 독립 검수를 PR 전에 반영한다. ② `gh pr view <N> --json headRefOid,statusCheckRollup`으로 `hard-gates`와 머리 SHA를 읽는다. ③ `git fetch origin` 뒤 로컬 마일스톤 브랜치가 원격과 같은지 확인하고 `git switch milestone/m12-charter-taste`, `git merge --no-ff -m "<메시지>" origin/<goal 브랜치>`. ④ 병합한 SHA가 머리 SHA와 같은지 확인한 뒤 `git push -u origin milestone/m12-charter-taste`. 작업 트리는 병합 전에 깨끗해야 한다.
 - push는 항상 `-u origin <브랜치>`로 원격 브랜치를 명시합니다. `master`로 가는 병합은 사용자가 직접 합니다.

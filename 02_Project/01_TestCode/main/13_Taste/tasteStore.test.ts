@@ -28,6 +28,7 @@ import {
   TasteWriteError,
   LOOP_DOC_MAX_BYTES,
   checkTasteDraft,
+  projectDraftFile,
   writeTasteDraft,
 } from '@main/13_Taste/tasteStore'
 import { serializeTaste, serializeCharter, type TasteItem } from '@shared/14_Taste/tasteDoc'
@@ -235,6 +236,12 @@ describe('쓰기는 구조를 지키지 못하는 입력과 문제 있는 기존
     await expect(checkTasteDraft({ doc: 'project-taste', items: big }, dirs)).rejects.toThrow(String(LOOP_DOC_MAX_BYTES))
     expect(await reason(writeTasteDraft({ doc: 'project-taste', items: big }, dirs))).toBe('bad-input')
     expect(atomic.files).toEqual([])
+  })
+
+  it('프로젝트 문서 초안은 저장소 상대 경로와 쓸 글을 파일을 읽지 않고 낸다', () => {
+    expect(projectDraftFile({ doc: 'charter', charter: CHARTER })).toEqual({ rel: 'docs/agentdeck/헌장.md', text: serializeCharter(CHARTER) })
+    expect(projectDraftFile({ doc: 'project-taste', items: ITEMS })).toEqual({ rel: 'docs/agentdeck/Taste.md', text: serializeTaste({ scope: 'project', items: ITEMS }) })
+    expect(() => projectDraftFile({ doc: 'global-taste', items: ITEMS })).toThrow('프로젝트 문서')
   })
 
   it('초안 쓰기는 종류에 맞는 거처에 쓰고 그 경로를 돌려준다', async () => {

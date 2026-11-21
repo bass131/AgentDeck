@@ -61,20 +61,22 @@ import type { NextStep } from './executor'
 import { templateGraph } from './templateGraph'
 import { createFileDigestStore, repoKeyOf, stateDigest } from './digestStore'
 import { TAMPERED_REASON, finishedNotice, visitKeyOf } from './loopRunner'
-import { openMainChat, readMainChatView, type MainActions, type MainChat } from './mainChat'
+import { openMainChat, readMainChatView, type MainActions, type MainChat, type TasteConfirmCtx } from './mainChat'
 import { listArchives } from './mainChatStore'
 import { createSessionLog } from './sessionLog'
 import { appendBacklogLine, buildMainTools } from './mainChatTools'
 import { openLoop, type OpenedLoop, type OpenLoopOptions, type OpenLoopResult } from './openLoop'
-import type { DigestStore, WorkRequest, WorkResult } from './ports'
+import type { DigestStore, GitPort, WorkRequest, WorkResult } from './ports'
 import { createFsPort } from './realPorts/fsPort'
 import { writeFileAtomic } from './realPorts/atomicWrite'
 import { validateRunState, type RunState } from './runState'
 import { DOCS } from './survivalDocs'
-import { openCharterPr } from '@main/13_Taste/charterPr'
+import { openCharterPr, type CharterGit } from '@main/13_Taste/charterPr'
 import { OPEN_LINE, openingPrompt, tasteCheck, tasteProblemText } from '@main/13_Taste/tasteDialog'
-import { readTasteDocs, writeTasteDraft, type TasteDirs } from '@main/13_Taste/tasteStore'
-import { TASTE_DOC_LABEL, type TasteDialogScope, type TasteDraft } from '@shared/14_Taste/taste'
+import { projectDraftFile, readTasteDocs, writeTasteDraft, type TasteDirs } from '@main/13_Taste/tasteStore'
+import { TASTE_DOC_LABEL, type TasteDialogScope, type TasteDraft, type TastePrNote } from '@shared/14_Taste/taste'
+
+const STARTING = '실행을 시작하는 중이다 — 시작이 끝난 뒤(또는 마일스톤이 끝난 뒤) 다시 확정한다'
 import { denyCards, oneLine, type CardEvent, type CardResponder } from './workSession'
 
 const AUTO_MODE_NODE = 'mode-auto-bypass-allow'
@@ -183,6 +185,8 @@ interface Entry {
   chatNotify: boolean
   // 프로젝트 문서 확정이 작업 트리를 쥐고 있다 — 그동안 실행을 시작하지 않는다
   tasteBusy: boolean
+  // 실행을 시작하는 중(실행 상태를 쓰는 중) — 그동안 문서를 확정하지 않는다
+  starting: boolean
   // 이 항목에서 실행이 끝났다(그 동안은 「끝남」으로 보인다). 열 때 이미 끝나 있던 실행은 「시작 전」과 안내 한 줄이다
   finishedHere?: boolean
 }
@@ -317,7 +321,7 @@ export function createLoopDriver(opts: LoopDriverOptions): LoopDriver {
       key: repoKeyOf(cwd), cwd, gen: 0, closed: false, loop: null, openFailure: null,
       status: blankStatus(cwd), seq: 0, cards: new Map(), turns: new WeakMap(), running: false, again: false, timer: null,
       sessionActive: false, waitingCi: false, blocked: null, note: null, notePhase: null, lastVerdict: null, latchSeen: new Map(),
-      chat: null, lastStarted: null, lastLatch: null, chatNotify: false, tasteBusy: false,
+      chat: null, lastStarted: null, lastLatch: null, chatNotify: false, tasteBusy: false, starting: false,
     }
     entries.set(e.key, e)
     return e
@@ -463,7 +467,7 @@ export function createLoopDriver(opts: LoopDriverOptions): LoopDriver {
       buildTools: () => mainTools(actions),
       taste: {
         check: (draft) => tasteCheck(draft, dirs),
-        confirm: (draft) => confirmDraft(e, loop, draft, dirs),
+        confirm: (draft, ctx) => confirmDraft(e, loop, draft, dirs, ctx),
       },
     })
   }
@@ -471,6 +475,7 @@ export function createLoopDriver(opts: LoopDriverOptions): LoopDriver {
   // 실행기 밖에서 작업 트리를 바꾸는 확정은 실행이 없거나 끝났을 때만 — 기다리는 실행(CI·사람)도 다음 단계에서 브랜치를 옮긴다
   async function executorBusy(e: Entry, loop: OpenedLoop): Promise<string | null> {
     if (e.closed || e.loop !== loop) return '실행기가 닫혔다'
+    if (e.starting) return STARTING
     const r = await loop.runner.load()
     if (r.kind !== 'missing' && !(r.kind === 'ok' && r.state.status === 'done')) {
       return '실행 중인 마일스톤이 있다 — 프로젝트 문서는 마일스톤이 끝난 뒤(또는 시작 전에) 확정한다'
@@ -478,24 +483,59 @@ export function createLoopDriver(opts: LoopDriverOptions): LoopDriver {
     return e.running || e.sessionActive ? '실행기가 단계를 돌고 있다 — 멈춘 뒤 다시 확정한다' : null
   }
 
-  async function confirmDraft(e: Entry, loop: OpenedLoop, draft: TasteDraft, dirs: TasteDirs): Promise<{ ok: true; summary: string } | { ok: false; reason: string }> {
-    if (draft.doc === 'global-taste') {
+  type Confirmed = { ok: true; summary: string; pr?: TastePrNote } | { ok: false; reason: string }
+
+  function charterGitOf(g: GitPort): CharterGit | null {
+    const { currentBranch, changedPaths, commitPaths, discardPaths } = g
+    if (!currentBranch || !changedPaths || !commitPaths || !discardPaths) return null
+    return { ...g, currentBranch, changedPaths, commitPaths, discardPaths }
+  }
+
+  // 열려 있는 문서 PR이 있으면 둘째 PR을 열지 않는다. 닫혔거나 병합됐으면 기록을 지운다
+  async function openPrReason(loop: OpenedLoop, ctx: TasteConfirmCtx): Promise<string | null> {
+    const note = ctx.openPr
+    if (note === null) return null
+    let state: string | null
+    try { state = (await loop.gh.getPr(note.pr))?.state ?? null } catch (err) {
+      return `PR #${note.pr}의 상태를 읽지 못했다 — ${err instanceof Error ? err.message : String(err)}`
+    }
+    if (state === 'open') return `${TASTE_DOC_LABEL[note.doc]} PR #${note.pr}(${note.branch})이 아직 열려 있다 — 병합하거나 닫은 뒤 다시 확정한다`
+    ctx.prGone()
+    return null
+  }
+
+  async function confirmDraft(e: Entry, loop: OpenedLoop, draft: TasteDraft, dirs: TasteDirs, ctx: TasteConfirmCtx): Promise<Confirmed> {
+    const doc = draft.doc
+    if (doc === 'global-taste') {
       try { return { ok: true, summary: `${await writeTasteDraft(draft, dirs)}에 썼다` } } catch (err) { return { ok: false, reason: tasteProblemText(err) } }
     }
     if (e.tasteBusy) return { ok: false, reason: '다른 프로젝트 문서를 확정하는 중이다' }
+    if (e.starting) return { ok: false, reason: STARTING }
+    const git = charterGitOf(loop.git)
+    if (git === null) return { ok: false, reason: '이 실행기의 git 포트는 문서 확정을 지원하지 않는다' }
+    let file: { rel: string; text: string }
+    try { file = projectDraftFile(draft) } catch (err) { return { ok: false, reason: tasteProblemText(err) } }
     e.tasteBusy = true
     try {
-      const title = `docs(agentdeck): ${TASTE_DOC_LABEL[draft.doc]} 확정`
+      const why = ctx.openPr === null ? null : await openPrReason(loop, ctx)
+      if (why !== null) return { ok: false, reason: why }
+      const label = TASTE_DOC_LABEL[doc]
+      const title = `docs(agentdeck): ${label} 확정`
       const out = await openCharterPr({
-        git: loop.git, gh: loop.gh, base: loop.base, now: new Date(),
+        git, gh: loop.gh, base: loop.base, now: new Date(), paths: [file.rel],
         executorBusy: () => executorBusy(e, loop),
+        onCut: (cut) => ctx.cut(cut),
         write: async () => { await writeTasteDraft(draft, dirs).catch((err: unknown) => { throw new Error(tasteProblemText(err)) }) },
         title,
-        body: `AgentDeck 메인 대화의 문답에서 사람이 확정한 ${TASTE_DOC_LABEL[draft.doc]}이다. 병합은 사람이 PR 카드의 병합 버튼으로 한다.`,
+        body: `AgentDeck 메인 대화의 문답에서 사람이 확정한 ${label}이다. 병합은 사람이 PR 카드의 병합 버튼으로 한다.`,
       })
       if (!out.ok) return out
       const warn = out.warning ? ` (${out.warning})` : ''
-      return { ok: true, summary: `${out.branch}에서 ${loop.base}로 가는 PR #${out.pr}을 열었다 — 병합하면 기본 브랜치에 들어간다${warn}` }
+      return {
+        ok: true,
+        summary: `${out.branch}에서 ${loop.base}로 가는 PR #${out.pr}을 열었다 — 병합하면 기본 브랜치에 들어간다${warn}`,
+        pr: { pr: out.pr, branch: out.branch, doc, text: file.text },
+      }
     } finally {
       e.tasteBusy = false
     }
@@ -787,7 +827,9 @@ export function createLoopDriver(opts: LoopDriverOptions): LoopDriver {
       const why = autoCheck()
       if (why) { e.blocked = why; return publish(e) }
       e.blocked = null
-      const r = await e.loop.runner.start(milestoneId)
+      e.starting = true
+      let r
+      try { r = await e.loop.runner.start(milestoneId) } finally { e.starting = false }
       setNote(e, r.kind === 'ok' ? null : r.kind === 'missing' ? '실행 상태를 만들지 못했다' : r.reason)
       // 새 실행이다. 메인 대화 장의 방문은 앞 실행의 것이라 잊는다(방문 키 M1#0이 겹쳐 여는 턴을 건너뛰지 않게)
       if (r.kind === 'ok') { e.chat?.resetVisit(); e.lastStarted = null; e.finishedHere = false }

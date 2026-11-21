@@ -2,7 +2,7 @@
 import type { AgentEvent } from '../agentEvents'
 import type { AgentQuestion } from '../03_Agent/events/interaction'
 import type { FileTreeNode } from '../07_Workspace/workspace'
-import type { TasteDialogScope, TasteDraft } from '../14_Taste/taste'
+import type { TasteCut, TasteDialogScope, TasteDraft, TastePrNote } from '../14_Taste/taste'
 
 export const LOOP_CHANNELS = {
   LOOP_OPEN: 'loop.open',
@@ -64,7 +64,7 @@ interface LoopCardBase { requestId: string; node: string; goal: string | null; t
 export type LoopCard =
   | (LoopCardBase & { kind: 'question'; questions: AgentQuestion[] })
   | (LoopCardBase & { kind: 'permission'; toolName: string; summary: string })
-  | (LoopCardBase & { kind: 'taste'; draft: TasteDraft; preview: string; confirming?: boolean; refused?: string })
+  | (LoopCardBase & { kind: 'taste'; draft: TasteDraft; preview: string; confirming?: boolean; refused?: string; cut?: TasteCut })
 
 // 판정(decide)은 이 sha256을 함께 보내야 받는다(파일이 바뀌었으면 거부)
 export interface LoopApproval { node: string; title: string; spec: string | null; sha256: string | null }
@@ -147,6 +147,8 @@ export interface MainChatView {
   paused: boolean
   // 돌고 있는 턴 제외
   queued: number
+  // 프로젝트 문서 확정이 마지막으로 연 PR(열려 있을 수 있다)
+  tastePr?: TastePrNote
 }
 export interface LoopMainSendRequest { cwd: string; text: string; proxy?: boolean }
 // 「문답 열기」 — 여는 턴의 글은 main이 지금 문서 원문과 꼴 규칙으로 만든다(화면은 범위만 보낸다)

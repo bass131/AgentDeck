@@ -8,6 +8,7 @@ import fs from 'node:fs'
 import { promises as fsp } from 'node:fs'
 import path from 'node:path'
 import type { LoopCard, LoopEventItem, LoopEventKind, MainChatArchive, MainChatItem, MainTurnKind } from '@shared/13_Loop/loop'
+import type { TastePrNote } from '@shared/14_Taste/taste'
 import { writeFileAtomic } from './realPorts/atomicWrite'
 
 export const MAX_ITEMS = 500
@@ -41,6 +42,7 @@ export interface MainChatRecord {
   queue: StoredTurn[]
   visit: StoredVisit | null
   paused: boolean
+  tastePr?: TastePrNote
 }
 
 export const mainChatPath = (appDataDir: string, repoKey: string): string => path.join(appDataDir, `${repoKey}.main.json`)
@@ -97,9 +99,13 @@ function validDraft(d: unknown): boolean {
   return d['doc'] === 'charter' && isObj(c) && strs(c['goal']) && (c['nonGoals'] === null || strs(c['nonGoals']))
 }
 // 문서 초안 카드는 확정에 쓰는 구조(draft)와 사람이 본 원문(preview)이 함께 있어야 받는다
+const validCut = (v: unknown): boolean => isObj(v) && str(v['original']) && str(v['branch'])
+const validPrNote = (v: unknown): v is TastePrNote =>
+  isObj(v) && Number.isInteger(v['pr']) && str(v['branch']) && (v['doc'] === 'charter' || v['doc'] === 'project-taste') && str(v['text'])
 const validTasteCard = (c: Record<string, unknown>): boolean =>
   str(c['preview']) && validDraft(c['draft'])
   && (c['confirming'] === undefined || typeof c['confirming'] === 'boolean') && (c['refused'] === undefined || str(c['refused']))
+  && (c['cut'] === undefined || validCut(c['cut']))
 const validCard = (c: unknown): boolean =>
   isObj(c) && str(c['requestId']) && str(c['text']) && (
     (c['kind'] === 'question' && Array.isArray(c['questions']) && (c['questions'] as unknown[]).every(validQuestion))
@@ -138,6 +144,7 @@ function parseRecord(text: string, root: string): MainChatRecord | null {
     queue,
     visit: validVisit(raw['visit']) ? raw['visit'] : null,
     paused: raw['paused'] === true,
+    ...(validPrNote(raw['tastePr']) ? { tastePr: raw['tastePr'] } : {}),
   }
 }
 

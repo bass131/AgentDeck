@@ -158,6 +158,13 @@ function planOfDoc(draft: TasteDraft, dirs: TasteDirs): Plan {
   }
 }
 
+// 프로젝트 문서의 저장소 상대 경로와 쓸 글(뿌리를 읽지 않는다 — 확정 브랜치에서 쓰기 전에 커밋할 경로를 정한다)
+export function projectDraftFile(draft: TasteDraft): { rel: string; text: string } {
+  if (draft.doc === 'global-taste') throw new Error('전역 Taste는 프로젝트 문서가 아니다')
+  const p = planOf(draft, { userDataDir: null, root: '' })
+  return { rel: p.rel, text: p.text }
+}
+
 // 쓰기와 같은 검사를 돌리되 쓰지 않는다. 통과하면 쓸 글을 돌려준다.
 export async function checkTasteDraft(draft: TasteDraft, dirs: TasteDirs): Promise<string> {
   const p = planOf(draft, dirs)

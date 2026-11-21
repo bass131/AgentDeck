@@ -8,8 +8,8 @@ import os from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { repoKeyOf } from '@main/05_Loop/digestStore'
-import { openMainChat, type MainChat, type MainChatDeps } from '@main/05_Loop/mainChat'
-import { mainChatPath } from '@main/05_Loop/mainChatStore'
+import { openMainChat, readMainChatView, type MainChat, type MainChatDeps } from '@main/05_Loop/mainChat'
+import { loadRecordSync, mainChatPath } from '@main/05_Loop/mainChatStore'
 import { createFsPort } from '@main/05_Loop/realPorts/fsPort'
 import { tasteCheck } from '@main/13_Taste/tasteDialog'
 import { globalTastePath, writeTasteDraft } from '@main/13_Taste/tasteStore'
@@ -20,6 +20,7 @@ import { scriptedBackend, textOnly, type ScriptedBackend } from '../00_Helpers/m
 
 const ITEMS: TasteItem[] = [{ id: 'T1', title: '정보 밀도', fields: [{ name: '원칙', text: '한 화면에 카드 여섯 장 이상' }] }]
 const GLOBAL: TasteDraft = { doc: 'global-taste', items: ITEMS }
+const CHARTER: TasteDraft = { doc: 'charter', charter: { goal: ['끝까지 맡는다.'], nonGoals: null } }
 
 let tmp: string
 let root: string
@@ -235,5 +236,88 @@ describe('문서 초안 카드의 확정과 반려', () => {
     const [back] = tasteCards(again)
     expect(back.confirming).toBe(false)
     expect(back.refused).toContain('확인')
+  })
+
+  it('저장본의 PR 기록과 카드의 가른 브랜치는 꼴이 맞을 때만 읽는다', () => {
+    const file = path.join(tmp, 'rec.json')
+    const card = { kind: 'taste', requestId: 'taste-1', node: 'main', goal: null, text: '헌장 초안', draft: CHARTER, preview: '# 프로젝트 헌장\n' }
+    const write = (over: Record<string, unknown>): void => {
+      fs.writeFileSync(file, JSON.stringify({ version: 1, items: [], queue: [], cards: [], ...over }))
+    }
+    write({ tastePr: { pr: 3, branch: 'b', doc: 'charter', text: 'x' }, cards: [{ ...card, cut: { original: 'feat/a', branch: 'b' } }] })
+    const ok = loadRecordSync(file, root)
+    expect(ok?.tastePr).toEqual({ pr: 3, branch: 'b', doc: 'charter', text: 'x' })
+    expect(ok?.cards[0]).toMatchObject({ cut: { original: 'feat/a', branch: 'b' } })
+    write({ tastePr: { pr: '3', branch: 'b', doc: 'global-taste', text: 'x' }, cards: [{ ...card, cut: { original: 1 } }] })
+    const bad = loadRecordSync(file, root)
+    expect(bad?.tastePr).toBeUndefined()
+    expect(bad?.cards).toEqual([])
+    write({ cards: [card] })
+    expect(loadRecordSync(file, root)?.cards[0]).not.toHaveProperty('cut')
+  })
+
+  it('확정 중 가른 브랜치는 카드에 바로 적히고, 그때 꺼지면 다시 열 때 남았을 수 있는 브랜치와 원래 브랜치를 알린다(옮기지 않는다)', async () => {
+    let release: () => void = () => {}
+    const first = open(scriptedBackend(textOnly('')), {
+      taste: {
+        check: (d) => tasteCheck(d, { userDataDir: ud, root }),
+        confirm: (_d, ctx) => {
+          ctx.cut({ original: 'feat/side', branch: 'agentdeck/charter-20261121T050000' })
+          return new Promise((r) => { release = () => r({ ok: false, reason: '끝' }) })
+        },
+      },
+    })
+    await first.proposeTasteDoc(CHARTER)
+    const [card] = tasteCards(first)
+    first.answerCard(card.requestId, { kind: 'taste', decision: 'confirm' })
+    const file = mainChatPath(app, repoKeyOf(root))
+    let mid = ''
+    for (let i = 0; i < 100 && !mid.includes('agentdeck/charter-20261121T050000'); i++) {
+      await new Promise((r) => setTimeout(r, 10))
+      try { mid = fs.readFileSync(file, 'utf8') } catch { mid = '' }
+    }
+    expect(tasteCards(first)[0]).toMatchObject({ confirming: true, cut: { original: 'feat/side', branch: 'agentdeck/charter-20261121T050000' } })
+    release()
+    await first.idle()
+    expect(tasteCards(first)[0]).toMatchObject({ confirming: false, refused: '끝' })
+    await closeAll()
+    fs.writeFileSync(file, mid)
+    const [back] = tasteCards(open(scriptedBackend(textOnly(''))))
+    expect(back.confirming).toBe(false)
+    expect(back.refused).toContain('agentdeck/charter-20261121T050000')
+    expect(back.refused).toContain('feat/side')
+  })
+
+  it('확정이 연 PR은 기록에 남아 다음 확정에 넘어가고, 새 메인 대화와 재기동 뒤에도 보기에 남는다. 닫혔다고 하면 지운다', async () => {
+    const seen: (unknown)[] = []
+    let gone = false
+    const deps = (): Partial<MainChatDeps> => ({
+      taste: {
+        check: (d) => tasteCheck(d, { userDataDir: ud, root }),
+        confirm: async (_d, ctx) => {
+          seen.push(ctx.openPr)
+          if (gone) { ctx.prGone(); return { ok: false, reason: '다른 이유' } }
+          return { ok: true, summary: 'PR #7', pr: { pr: 7, branch: 'agentdeck/charter-x', doc: 'charter', text: '# 프로젝트 헌장\n' } }
+        },
+      },
+    })
+    const chat = open(scriptedBackend(textOnly('')), deps())
+    expect(chat.view(root).tastePr).toBeUndefined()
+    await chat.proposeTasteDoc(CHARTER)
+    chat.answerCard(tasteCards(chat)[0].requestId, { kind: 'taste', decision: 'confirm' })
+    await chat.idle()
+    expect(chat.view(root).tastePr).toEqual({ pr: 7, branch: 'agentdeck/charter-x', doc: 'charter', text: '# 프로젝트 헌장\n' })
+    await chat.newChat()
+    expect(chat.view(root).tastePr?.pr).toBe(7)
+    await closeAll()
+    expect(readMainChatView(app, root).tastePr?.pr).toBe(7)
+    const again = open(scriptedBackend(textOnly('')), deps())
+    expect(again.view(root).tastePr?.pr).toBe(7)
+    gone = true
+    await again.proposeTasteDoc(CHARTER)
+    again.answerCard(tasteCards(again)[0].requestId, { kind: 'taste', decision: 'confirm' })
+    await again.idle()
+    expect(seen).toEqual([null, expect.objectContaining({ pr: 7 })])
+    expect(again.view(root).tastePr).toBeUndefined()
   })
 })

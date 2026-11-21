@@ -115,6 +115,7 @@ describe('구동자의 문서 초안 길', () => {
   it('프로젝트 헌장 확정은 기본 브랜치로 가는 PR이 되고 원래 브랜치로 돌아온다', SLOW, async () => {
     repos.git(['checkout', '--quiet', '-b', 'feat/side'])
     const rig = await opened()
+    expect(rig.d.mainRead(repos.work).tastePr).toBeUndefined()
     await rig.actions().proposeTasteDoc(CHARTER)
     const [card] = tasteCards(rig)
     expect(rig.d.answerCard(repos.work, card.requestId, { kind: 'taste', decision: 'confirm' })).toBe(true)
@@ -128,6 +129,52 @@ describe('구동자의 문서 초안 길', () => {
     expect(fs.existsSync(path.join(repos.work, 'docs', 'agentdeck', '헌장.md'))).toBe(false)
     const notice = rig.d.mainRead(repos.work).items.filter((i) => i.kind === 'notice').at(-1)
     expect(notice).toMatchObject({ text: expect.stringContaining('PR #1') })
+    expect(repos.bare(['show', '-z', '--name-only', '--format=', made[0]]).split('\0').filter((x) => x.trim() !== '')).toEqual(['docs/agentdeck/헌장.md'])
+    expect(rig.d.mainRead(repos.work).tastePr).toEqual({ pr: 1, branch: made[0], doc: 'charter', text: card.preview })
+    // 그 PR이 열려 있는 동안의 다음 확정은 두 번째 PR을 열지 않는다
+    await rig.actions().proposeTasteDoc({ doc: 'charter', charter: { goal: ['고친 목표다.'], nonGoals: null } })
+    const [next] = tasteCards(rig)
+    rig.d.answerCard(repos.work, next.requestId, { kind: 'taste', decision: 'confirm' })
+    expect((await settled(rig, next.requestId))?.refused).toContain('PR #1')
+    expect(gh.prs).toHaveLength(1)
+    expect(branch()).toBe('feat/side')
+  })
+
+  it('기본 브랜치에서 갈라 옮기자 지금 브랜치에서만 무시되던 파일이 드러나면 커밋·push하지 않고 그 파일을 그대로 둔다', SLOW, async () => {
+    repos.git(['checkout', '--quiet', '-b', 'feat/side'])
+    fs.writeFileSync(path.join(repos.work, '.gitignore'), '.env\ndist/\n')
+    repos.git(['add', '.gitignore'])
+    repos.git(['commit', '--quiet', '-m', 'ignore'])
+    fs.writeFileSync(path.join(repos.work, '.env'), 'TOKEN=secret\n')
+    fs.mkdirSync(path.join(repos.work, 'dist'))
+    fs.writeFileSync(path.join(repos.work, 'dist', 'app.js'), 'x\n')
+    const rig = await opened()
+    await rig.actions().proposeTasteDoc(CHARTER)
+    const [card] = tasteCards(rig)
+    rig.d.answerCard(repos.work, card.requestId, { kind: 'taste', decision: 'confirm' })
+    const after = await settled(rig, card.requestId)
+    expect(after?.refused).toContain('.env')
+    expect(remoteBranches()).toEqual(['master'])
+    expect(gh.prs).toEqual([])
+    expect(branch()).toBe('feat/side')
+    expect(fs.readFileSync(path.join(repos.work, '.env'), 'utf8')).toBe('TOKEN=secret\n')
+    expect(fs.existsSync(path.join(repos.work, 'docs', 'agentdeck', '헌장.md'))).toBe(false)
+    const local = repos.git(['for-each-ref', '--format=%(refname:short)', 'refs/heads/agentdeck/'])
+    for (const b of local.split('\n').filter((x) => x !== '')) {
+      expect(repos.git(['ls-tree', '-r', '--name-only', b])).not.toContain('.env')
+    }
+  })
+
+  it('실행을 시작하는 중에 온 확정은 쓰지 않는다', SLOW, async () => {
+    const rig = await opened()
+    await rig.actions().proposeTasteDoc(CHARTER)
+    const [card] = tasteCards(rig)
+    const starting = rig.d.start(repos.work, 'M1')
+    rig.d.answerCard(repos.work, card.requestId, { kind: 'taste', decision: 'confirm' })
+    expect((await settled(rig, card.requestId))?.refused).toContain('시작하는 중')
+    expect((await starting).reason ?? '').not.toContain('문서를 확정하는 중')
+    expect(fs.existsSync(path.join(repos.work, DOCS.runState))).toBe(true)
+    expect(remoteBranches().some((b) => b.startsWith('agentdeck/charter-'))).toBe(false)
   })
 
   it('작업 트리가 더러우면 쓰지 않고 이유를 카드와 대화에 남긴다', SLOW, async () => {
@@ -138,6 +185,7 @@ describe('구동자의 문서 초안 길', () => {
     rig.d.answerCard(repos.work, card.requestId, { kind: 'taste', decision: 'confirm' })
     const after = await settled(rig, card.requestId)
     expect(after?.refused).toContain('커밋하지 않은 변경')
+    expect(rig.d.mainRead(repos.work).tastePr).toBeUndefined()
     expect(remoteBranches()).toEqual(['master'])
     expect(branch()).toBe('master')
     expect(rig.d.mainRead(repos.work).items.filter((i) => i.kind === 'notice').at(-1)).toMatchObject({ text: expect.stringContaining('커밋하지 않은 변경') })

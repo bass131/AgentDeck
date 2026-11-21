@@ -27,7 +27,7 @@ import type {
   LoopCard, LoopCardResponse, LoopEventItem, LoopSessionTag, MainChatItem, MainChatView, MainTurnKind,
 } from '@shared/13_Loop/loop'
 import { mainAnswerOf } from '@shared/13_Loop/mainTurn'
-import { TASTE_DOC_LABEL, type TasteDraft } from '@shared/14_Taste/taste'
+import { TASTE_DOC_LABEL, type TasteCut, type TasteDraft, type TastePrNote } from '@shared/14_Taste/taste'
 import { repoKeyOf } from './digestStore'
 import {
   MAX_ITEMS, archiveRecord, blankRecord, loadRecordSync, mainChatPath, peekRecordSync, saveRecord,
@@ -62,7 +62,12 @@ const BRAINSTORM_RULE = [
   '- 마일스톤 스펙 파일(.agentdeck/milestone-spec.md)은 초안이 준비됐을 때만 쓴다. 스펙이 바뀌면 브레인스토밍이 끝나고 사람에게 승인 카드가 뜬다.',
 ].join('\n')
 
-const INTERRUPTED_CONFIRM = '앱이 꺼질 때 확정 중이었다 — 문서·PR이 생겼는지 확인한 뒤 다시 확정하거나 반려한다'
+// 앱은 브랜치를 옮기지 않는다 — 어디에 남았을 수 있는지만 알린다
+const interruptedConfirm = (cut: TasteCut | undefined): string =>
+  '앱이 꺼질 때 확정 중이었다 — 문서·PR이 생겼는지 확인한 뒤 다시 확정하거나 반려한다'
+  + (cut ? `. 작업 트리가 ${cut.branch}에 남았을 수 있다 — 원래 브랜치는 ${cut.original}다(앱은 옮기지 않는다)` : '')
+
+type TasteCard = Extract<LoopCard, { kind: 'taste' }>
 
 // 대리 입력 턴의 글 끝에 붙는다
 const PROXY_NOTE = '[대리 입력] 이 글은 사람이 아니라 사람에게 위임받은 대리인이 보냈다. 이 글로 정한 것은 결정 대장에 [USER·위임]으로 적는다.'
@@ -75,10 +80,16 @@ export interface MainActions {
 }
 
 type TasteOutcome<T> = ({ ok: true } & T) | { ok: false; reason: string }
+// 확정 중의 기록 — cut은 가른 브랜치를 카드에, openPr·prGone은 마지막으로 연 프로젝트 문서 PR을 다룬다
+export interface TasteConfirmCtx {
+  cut(cut: TasteCut): void
+  openPr: TastePrNote | null
+  prGone(): void
+}
 // 문서 초안 — check는 쓰지 않는 쓰기 검사(통과하면 쓸 원문), confirm은 사람 확정 뒤의 쓰기다
 interface TasteDeps {
   check(draft: TasteDraft): Promise<TasteOutcome<{ preview: string }>>
-  confirm(draft: TasteDraft): Promise<TasteOutcome<{ summary: string }>>
+  confirm(draft: TasteDraft, ctx: TasteConfirmCtx): Promise<TasteOutcome<{ summary: string; pr?: TastePrNote }>>
 }
 
 export interface MainChatDeps {
@@ -169,7 +180,8 @@ function viewOf(rec: MainChatRecord, cwd: string, root: string | null, chapter: 
   const brainstorming = rec.visit !== null && !rec.visit.done
   return {
     cwd, root, chapter, sessionId: rec.sessionId, items: rec.items, cards: rec.cards,
-    busy: false, waitingUser: false, brainstorming, paused: rec.paused, queued: rec.queue.length, ...extra,
+    busy: false, waitingUser: false, brainstorming, paused: rec.paused, queued: rec.queue.length,
+    ...(rec.tastePr ? { tastePr: rec.tastePr } : {}), ...extra,
   }
 }
 
@@ -193,7 +205,7 @@ export function openMainChat(deps: MainChatDeps): MainChat {
   let chapter = newId()
   // 쓰는 중에 꺼진 초안 카드는 쓰였는지 모른다 — 확정 중을 풀고 사람에게 결과를 확인하게 한다
   rec.cards = rec.cards.map((c) => (c.kind === 'taste' && c.confirming === true
-    ? { ...c, restored: true, confirming: false, refused: INTERRUPTED_CONFIRM }
+    ? { ...c, restored: true, confirming: false, refused: interruptedConfirm(c.cut) }
     : { ...c, restored: true }))
   const queue: Turn[] = rec.queue.map((t) => ({ ...t }))
   const live = new Map<string, LiveCard>()
@@ -467,17 +479,28 @@ export function openMainChat(deps: MainChatDeps): MainChat {
     if (!taste) return false
     card.confirming = true
     delete card.refused
+    delete card.cut
     persist()
     const draft = card.draft
+    // 새 메인 대화가 장을 갈았어도 카드는 옮겨 가 있다 — 지금 장에서 id로 다시 찾는다
+    const current = (): TasteCard | undefined => rec.cards.find((c): c is TasteCard => c.kind === 'taste' && c.requestId === requestId)
+    const ctx: TasteConfirmCtx = {
+      cut: (cut) => {
+        const now = current()
+        if (now) { now.cut = { ...cut }; persist() }
+      },
+      openPr: rec.tastePr ? { ...rec.tastePr } : null,
+      prGone: () => { delete rec.tastePr; persist() },
+    }
     const job = (async () => {
-      const r = await taste.confirm(draft).catch((e: unknown) => ({ ok: false as const, reason: errText(e) }))
-      // 새 메인 대화가 장을 갈았어도 카드는 옮겨 가 있다 — 지금 장에서 id로 다시 찾는다
-      const now = rec.cards.find((c) => c.requestId === requestId)
+      const r = await taste.confirm(draft, ctx).catch((e: unknown) => ({ ok: false as const, reason: errText(e) }))
+      const now = current()
       if (r.ok) {
+        if (r.pr) rec.tastePr = { ...r.pr }
         dropCard(requestId)
         notice(`${label} 초안을 확정했다 — ${oneLine(r.summary)}`)
       } else {
-        if (now?.kind === 'taste') { now.confirming = false; now.refused = oneLine(r.reason) }
+        if (now) { now.confirming = false; now.refused = oneLine(r.reason) }
         notice(`${label} 초안을 쓰지 않았다 — ${oneLine(r.reason)}`)
       }
       persist()
@@ -608,10 +631,11 @@ export function openMainChat(deps: MainChatDeps): MainChat {
         const old = rec
         // 여는 동안 들어온 글·사건은 새 장으로 옮긴다 — 줄 선 턴의 itemId가 새 장의 항목을 가리킨다
         const carried = old.items.filter((i) => arrived.includes(i.id) && (i.kind === 'user' || i.kind === 'event'))
-        // 문서 초안 카드는 세션과 무관해 새 장으로 옮긴다
+        // 문서 초안 카드와 마지막 문서 PR은 세션과 무관해 새 장으로 옮긴다
         rec = {
           ...blankRecord(deps.root), paused: old.paused, visit: old.visit ? { ...old.visit, open: 'queued' } : null,
           cards: old.cards.filter((c) => c.kind === 'taste'),
+          ...(old.tastePr ? { tastePr: old.tastePr } : {}),
         }
         chapter = newId()
         deps.onNewChat?.()

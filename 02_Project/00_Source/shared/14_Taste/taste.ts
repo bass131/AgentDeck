@@ -12,6 +12,11 @@ export type TasteDraft =
   | { doc: 'global-taste' | 'project-taste'; items: TasteItem[] }
   | { doc: 'charter'; charter: CharterDoc }
 
+// 프로젝트 문서 확정이 연 PR. text는 PR이 쓴 원문 — 로컬 문서가 같아지면 병합이 들어온 것이다
+export interface TastePrNote { pr: number; branch: string; doc: 'charter' | 'project-taste'; text: string }
+// 확정이 가른 브랜치와 돌아갈 브랜치
+export interface TasteCut { original: string; branch: string }
+
 export const TASTE_DOC_LABEL: Record<TasteDocKind, string> = {
   'global-taste': '전역 Taste',
   'project-taste': '프로젝트 Taste',

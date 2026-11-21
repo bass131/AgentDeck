@@ -1,10 +1,4 @@
 // @vitest-environment jsdom
-// M10 G3 메인 대화 안 카드 — 메인의 질문 카드(다시 묻는 카드 restored 포함)·권한 카드와 스펙 승인 카드가 대화 흐름 안에 뜨고,
-// 사람의 답이 맞는 loop IPC로 간다. 고정하는 것:
-//   - 사람 판정은 사람만(화면 쪽): 승인·반려(「스펙 승인」·「이어서 고치기」)는 사람이 카드 버튼을 눌렀을 때만 decide로 가고,
-//     받은 sha256과 expectNode를 그대로 싣는다(M09 G4 루프 화면의 승인 카드 시험을 옮겼다). 메인 글(마크다운) 안의 어떤 내용도
-//     decide·카드 답·깃발 내리기·취소를 부르지 못한다.
-//   - 카드는 대화 안 한 곳에서만 답한다 — 같은 카드와 승인 카드가 루프 화면(LoopScreen)에 다시 뜨지 않는다.
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
 import { render, screen, fireEvent, cleanup, act, within } from '@testing-library/react'
 import type { LoopCard, LoopStatus, MainChatItem, MainChatView } from '@shared/ipcContract'
@@ -113,7 +107,7 @@ describe('대화 안 질문·권한 카드 (M10 G3)', () => {
     expect(api.loopAnswerCard).toHaveBeenLastCalledWith({ cwd: CWD, requestId: permission.requestId, response: { kind: 'permission', behavior: 'allow' } })
   })
 
-  // G3 독립 검수 사소 8 — 옛 폴더의 카드 답 응답이 늦게 오면 새 폴더에 그 거부 알림을 보이지 않는다
+  // 옛 폴더의 카드 답 응답이 늦게 오면 새 폴더에 그 거부 알림을 보이지 않는다
   it('카드 답의 응답이 작업 폴더를 바꾼 뒤에 오면 새 폴더에 「받아지지 않았어요」를 보이지 않는다', async () => {
     install(mv({ cards: [permission] }))
     let resolveAnswer: (r: { ok: boolean }) => void = () => {}

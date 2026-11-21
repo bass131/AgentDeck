@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// G4 검수 1 — 세션 push 하나가 작업 화면 전체를 다시 그리지 않는다. 그리기 횟수를 세려고 무거운 칸을 대역으로 바꾼다
+// 세션 push 하나가 작업 화면 전체를 다시 그리지 않는다. 그리기 횟수를 세려고 무거운 칸을 대역으로 바꾼다
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
 import { render, screen, cleanup, act, within } from '@testing-library/react'
 import type { AgentEvent, LoopSessionEventPayload, LoopSessionLog, LoopSessionTag, LoopStatus, MainChatView } from '@shared/ipcContract'
@@ -68,7 +68,7 @@ const emit = async (session: LoopSessionTag, seq: number, event: AgentEvent): Pr
 const snapshotOf = (): { main: number; board: number; thread: number; panel: number } => ({ ...counts })
 
 describe('세션 push의 다시 그리기 범위 (M10 G4 검수 1)', () => {
-  // M11 G4 — 메인 대화가 메인 세션의 사건을 그리므로(M10-22) 메인의 글 조각은 메인 대화만 다시 그린다
+  // 메인 대화가 메인 세션의 사건을 그리므로 메인의 글 조각은 메인 대화만 다시 그린다
   it('노드 세션 글 조각은 메인 대화·현황판·파일 칸을 다시 그리지 않고, 메인의 글 조각은 메인 대화만 다시 그리고 할 일·서브에이전트를 다시 접지 않는다', async () => {
     const { WorkView, useWorkStore } = await import('@renderer/13_Loop')
     useWorkStore.setState({ hydrated: true, cwd: CWD, projects: [CWD], center: 'main', extraTabs: [], right: 'files', archives: [] })

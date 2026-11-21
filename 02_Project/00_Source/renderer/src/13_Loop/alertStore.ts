@@ -1,4 +1,3 @@
-// M10 G5 — 앱 안 알림 표시의 원천. main이 정한 알림 목록을 loop.alerts로 한 번 읽고 loop.alertsState push로 갈아 끼운다.
 // 채팅 모드의 「작업」 버튼 점은 작업 화면이 떠 있지 않아도 맞아야 하므로 Shell 수명으로 구독한다(startAlerts).
 import { create } from 'zustand'
 import type { LoopAlert } from '@shared/ipcContract'

@@ -76,7 +76,7 @@ describe('프로젝트 목록과 진행 꼬리표 (M10 G4)', () => {
     await act(async () => { for (const h of [...stateHandlers]) h(st('c:/work/practice/', { phase: 'halted' })) })
     expect(rows()[0].querySelector('.sb-proj-tag')?.textContent).toBe('M02 · 멈춤')
     expect(rows()[0].querySelector('.sb-proj-tag')?.getAttribute('data-tone')).toBe('stop')
-    // M10 G5 — 꼬리표 옆 점은 main이 정한 알림 목록에서만 온다(상태의 멈춤만으로는 붙지 않는다 — alerts.test)
+    // 꼬리표 옆 점은 main이 정한 알림 목록에서만 온다(상태의 멈춤만으로는 붙지 않는다 — alerts.test)
     expect(rows().map((r) => r.querySelector('.sb-proj-alert'))).toEqual([null, null])
   })
 
@@ -118,7 +118,7 @@ describe('프로젝트 목록과 진행 꼬리표 (M10 G4)', () => {
     expect(within(rows()[1]).queryByRole('button', { name: '메인 대화' })).toBeNull()
   })
 
-  // G4 검수 3 — 세션 id로는 새 장을 알 수 없다(새 장은 null로 시작하고, 마운트 뒤 첫 push는 비교할 앞 값이 없다)
+  // 세션 id로는 새 장을 알 수 없다(새 장은 null로 시작하고, 마운트 뒤 첫 push는 비교할 앞 값이 없다)
   it('메인 대화의 장 표지가 바뀌면 지난 메인 대화 목록을 다시 읽는다 — 마운트 뒤 첫 push도, 세션 id가 null에서 null이어도', async () => {
     await renderSide()
     expect(api.loopMainArchives).toHaveBeenCalledTimes(1)
@@ -135,7 +135,7 @@ describe('프로젝트 목록과 진행 꼬리표 (M10 G4)', () => {
     expect(api.loopMainArchives).toHaveBeenCalledTimes(3)
   })
 
-  // G4 검수 8 — 브랜치는 goal이 바뀌면 바뀐다. 폴더를 고를 때 한 번만 읽지 않는다
+  // 브랜치는 goal이 바뀌면 바뀐다. 폴더를 고를 때 한 번만 읽지 않는다
   it('고른 프로젝트의 노드·단계가 바뀌면 브랜치를 다시 읽는다', async () => {
     await renderSide()
     const reads = git.status.mock.calls.length

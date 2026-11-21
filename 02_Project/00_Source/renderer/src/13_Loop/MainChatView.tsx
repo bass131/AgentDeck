@@ -1,16 +1,6 @@
-// M10 G3 메인 대화 보기 — 작업 폴더 하나의 메인 대화(main/05_Loop/mainChat.ts가 소유)를 그리고 사람의 말·답을 보낸다.
-// 작업 폴더만 받는 독립 컴포넌트다 — 지금은 작업 모드 몸체의 가운데에 놓이고, G4가 탭 하나로 그대로 올린다.
-//   · 받기: 폴더가 정해지면 loop.mainRead·loop.status, 그 뒤 loop.mainState·loop.state push. 다른 폴더의 push는 버린다.
-//     읽기·보내기·새로 열기·깃발 내리기 응답의 보기는 그 호출 중에 이 폴더의 push가 오지 않았을 때만 쓴다(낡은 보기로 되돌아가지 않는다).
-//   · 기록: 사람 글(줄 섬·보냄), 메인 글(MarkdownView — 원시 HTML을 그리지 않는다), 사건 줄(종류별 모양 — 깃발과 사람의 이어 가기는 다르다),
-//     알림(오류·저장 실패). 그 뒤에 대화 안 카드 — 메인의 질문·권한 카드(다시 묻는 카드 restored)와 스펙 승인 카드(LoopStatus.approval).
-//     기록 한 줄은 내용이 같으면 다시 그리지 않고, 쓰는 글은 입력칸(Composer)이 쥔다 — 글자 하나·push 하나에 기록 전체(최대 500줄)를
-//     다시 그리지 않는다(G3 독립 검수 중요 2). 모르는 사건 종류는 종류 이름·muted로 그린다(화면이 무너지지 않는다, 중요 1).
-//   · 사람 판정은 사람만: 승인·고치기는 승인 카드의 버튼을 사람이 눌렀을 때만 loop.decide로 간다(받은 sha256·expectNode를 그대로 싣는다).
-//     메인 글은 버튼·링크 동작을 갖지 않는다 — 어떤 글도 판정·카드 답·깃발·취소를 부르지 못한다.
-//   · 일시 정지: 깃발이 올라 있으면 표시와 「이어 가기」 — 깃발만 내린다(loop.lowerFlag, 판정 칸 없음). 멈춘 실행의 사람 이어 가기(decide)는
-//     루프 화면의 예외 한 줄에 그대로 있다. 취소는 대상(메인 턴 main / 작업 세션 worker)을 골라 보낸다(Backlog 9·12).
-//   · 새 메인 대화는 확인을 한 번 받은 뒤 loop.mainNew다. 화면이 내려가도 대화를 닫지 않는다(구독만 푼다).
+// 사람 판정은 사람만 — 승인·고치기는 승인 카드의 버튼을 사람이 눌렀을 때만 loop.decide로 간다.
+// 메인 글은 버튼·링크 동작을 갖지 않는다 — 어떤 글도 판정·카드 답·깃발·취소를 부르지 못한다.
+// 호출 응답의 보기는 그 호출 중에 이 폴더의 push가 오지 않았을 때만 쓴다(낡은 보기로 되돌아가지 않는다).
 import { memo, useCallback, useEffect, useMemo, useRef, useState, type JSX, type KeyboardEvent } from 'react'
 import type { LoopCancelTarget, LoopCard, LoopCardResponse, LoopSessionRecord, LoopStatus, MainChatItem, MainChatView as ChatView } from '@shared/ipcContract'
 import { ipc } from '@renderer/01_Ipc'
@@ -27,9 +17,9 @@ import './LoopScreen.css'
 import './MainChat.css'
 
 export interface MainChatViewProps {
-  // 작업 폴더(루프 화면에서 고른 저장소). null이면 아무것도 읽지 않는다
+  // null이면 아무것도 읽지 않는다
   cwd: string | null
-  // 메인 세션의 사건 기록(세션 기록 키 main) — 추론 중·흘러나오는 글·도구 호출을 채팅 모드의 스레드 그리기로 보인다(M11 G4)
+  // 메인 세션의 사건 기록(세션 기록 키 main) — 채팅 모드의 스레드 그리기로 보인다
   session?: LoopSessionRecord
 }
 
@@ -122,8 +112,8 @@ function ChatCard({ card, done, blocked, onAsk, onPermission }: {
   )
 }
 
-// 입력칸 — 쓰는 글(draft)과 보내는 중 표시를 이 컴포넌트가 쥔다. 글자 하나가 기록을 다시 그리지 않는다.
-// onSend는 받아졌는지를 돌려준다. 받아지면 입력칸을 비우되, 기다리는 동안 새로 쓴 글은 지우지 않는다(G3 독립 검수 사소 5).
+// 쓰는 글(draft)을 이 컴포넌트가 쥐어 글자 하나가 기록을 다시 그리지 않는다.
+// onSend는 받아졌는지를 돌려준다. 받아지면 입력칸을 비우되, 기다리는 동안 새로 쓴 글은 지우지 않는다.
 // 폴더가 바뀌어도 쓰던 글은 그대로다(이 컴포넌트를 폴더로 다시 만들지 않는다)
 const Composer = memo(function Composer({ blocked, error, onSend }: {
   blocked: string | null
@@ -236,13 +226,13 @@ export function MainChatView({ cwd, session }: MainChatViewProps): JSX.Element {
     }
   }, [cwd, setError])
 
-  // 새 글이 오면 기록의 끝을 보인다 — 길이가 아니라 마지막 줄의 id를 본다(상한 500에 닿으면 길이가 그대로다, G3 독립 검수 사소 6)
+  // 길이가 아니라 마지막 줄의 id를 본다 — 상한 500에 닿으면 길이가 그대로다
   const items = view?.items ?? []
   const lastId = items.length > 0 ? items[items.length - 1].id : null
   const turnBusy = view?.busy ?? false
   const viewItems = view?.items
   const rows = useMemo(() => mainChatRows(viewItems ?? [], session, turnBusy), [viewItems, session, turnBusy])
-  // 사람이 위로 올려 읽는 중이면 끌어내리지 않는다 — 채팅의 userScrolledUp과 같은 판정이다(M11 G4)
+  // 사람이 위로 올려 읽는 중이면 끌어내리지 않는다 — 채팅의 userScrolledUp과 같은 판정이다
   const scrolledUp = useRef(false)
   const onThreadScroll = useCallback(() => {
     const el = threadRef.current
@@ -304,7 +294,7 @@ export function MainChatView({ cwd, session }: MainChatViewProps): JSX.Element {
       return next
     })
   // 카드 답은 다른 호출을 기다리지 않는다(질문 창에서 고른 답을 버리지 않는다). 받아지지 않으면 답한 표시를 되돌린다.
-  // 응답이 오기 전에 폴더가 바뀌었으면 새 폴더에 옛 폴더의 거부·오류를 보이지 않는다(G3 독립 검수 사소 8)
+  // 응답이 오기 전에 폴더가 바뀌었으면 새 폴더에 옛 폴더의 거부·오류를 보이지 않는다
   const answer = async (card: LoopCard, response: LoopCardResponse): Promise<void> => {
     const c = cwdRef.current
     if (c === null) return
@@ -330,7 +320,7 @@ export function MainChatView({ cwd, session }: MainChatViewProps): JSX.Element {
   }
   const approve = (sha: string): void =>
     void run('approval', (c) => ipc.loop.decide({ cwd: c, verdict: 'pass', evidence: CHAT_APPROVE_EVIDENCE, specSha256: sha, ...expectNode() }), decided)
-  // 「이어서 고치기」는 반려다 — 고칠 점이 근거다. 스펙 파일이 없으면 해시 없이 보낸다(main은 해시 없는 반려만 받는다, M09 G4 검수 I3)
+  // 「이어서 고치기」는 반려다 — 고칠 점이 근거다. 스펙 파일이 없으면 해시 없이 보낸다(main은 해시 없는 반려만 받는다)
   const revise = (sha: string | null, reason: string): void =>
     void run('approval', (c) => ipc.loop.decide({
       cwd: c, verdict: 'fail', evidence: reason, ...(sha !== null ? { specSha256: sha } : {}), ...expectNode(),
@@ -359,7 +349,7 @@ export function MainChatView({ cwd, session }: MainChatViewProps): JSX.Element {
   const workLive = workSessionLive(status, view)
   const stoppable = mainBusy || workLive
 
-  // 멈출 것(메인 턴·작업 세션)이 모두 사라지면 멈추기 실패 알림도 걷는다 — 버튼 없는 알림이 남지 않는다(G3 독립 검수 사소 4)
+  // 멈출 것(메인 턴·작업 세션)이 모두 사라지면 멈추기 실패 알림도 걷는다 — 버튼 없는 알림이 남지 않는다
   useEffect(() => {
     if (!stoppable && errors.cancel !== undefined) setError('cancel', null)
   }, [stoppable, errors.cancel, setError])

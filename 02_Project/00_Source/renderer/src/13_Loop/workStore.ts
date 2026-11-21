@@ -10,7 +10,7 @@ const WORK_PROJECTS_PREF = 'work.projects'
 
 export type CenterTab = 'graph' | 'main' | `session:${string}` | `archive:${string}`
 // node(「노드 설정」)는 그래프 탭이 열려 있을 때만 있다 — 가운데가 그래프를 떠나면 현황판으로 돌아간다
-type RightTab ='node' | 'board' | 'files'
+type RightTab = 'node' | 'board' | 'files'
 
 interface WorkStore {
   hydrated: boolean
@@ -50,7 +50,7 @@ export const useWorkStore = create<WorkStore>((set, get) => ({
     const saved = getPref<unknown>(WORK_CWD_PREF, null)
     const cwd = typeof saved === 'string' && saved.trim() !== '' ? saved : null
     let projects = strings(getPref<unknown>(WORK_PROJECTS_PREF, []))
-    // G3 때 고른 작업 폴더는 목록 설정이 생기기 전에 저장됐다
+    // 목록 설정이 생기기 전에 저장된 작업 폴더도 목록에 넣는다
     if (cwd !== null) projects = addProject(projects, cwd)
     set({ hydrated: true, cwd, projects })
   },

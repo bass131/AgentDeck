@@ -33,7 +33,7 @@ describe('스냅숏과 push 맞물리기 (M10 G4)', () => {
     expect([...s.keys()]).toEqual(['b.1'])
   })
 
-  // G4 검수 1 — 글자 조각마다 사건이 하나씩 쌓이면 기록이 끝없이 길어진다. main과 같이 잇고 같은 상한으로 자른다
+  // 글자 조각마다 사건이 하나씩 쌓이면 기록이 끝없이 길어진다. main과 같이 잇고 같은 상한으로 자른다
   it('스냅숏 끝의 이어 붙인 글에 같은 messageId 조각이 오면 한 사건으로 합친다 — next는 조각마다 오른다', () => {
     const snap: LoopSessionLog = {
       cwd: CWD,

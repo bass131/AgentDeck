@@ -1,6 +1,4 @@
 // @vitest-environment jsdom
-// M09 G4 루프 화면의 카드 — 예외 한 줄, 질문·권한 카드, 스펙 승인 카드, 래치 풀기 카드, 마일스톤 PR 카드가 상태에 따라 보이고
-// 사람의 답이 맞는 loop IPC 호출(인자 포함)로 간다. 스펙 승인은 받은 sha256과 expectNode를 그대로 싣는다.
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
 import { render, screen, fireEvent, cleanup, act, within } from '@testing-library/react'
 import type { LoopCard, LoopPhase, LoopStatus } from '@shared/ipcContract'
@@ -126,7 +124,7 @@ describe('예외 한 줄 (M09 G4)', () => {
     expect(screen.getByText('화면이 본 노드와 지금 노드가 다르다')).toBeTruthy()
   })
 
-  // G4 검수 사소 7 — 진행 불가(설정을 고친 뒤 다시 열어야 하는 꼴)에서 빠져나갈 버튼. 닫고 다시 연다
+  // 진행 불가(설정을 고친 뒤 다시 열어야 하는 꼴)에서 빠져나갈 버튼. 닫고 다시 연다
   it('blocked면 「다시 열기」가 close 뒤 open을 보낸다', async () => {
     await renderScreen(st({ phase: 'blocked', reason: '자동 모드 허용 노드가 꺼져 있다 — 켠 뒤 루프 화면의 「다시 열기」' }))
     api.loopStatus.mockResolvedValue(st({ phase: 'closed' }))
@@ -187,7 +185,7 @@ describe('질문 카드와 권한 카드 (M09 G4)', () => {
     expect(screen.getByText(/카드 답이 받아지지 않았어요/)).toBeTruthy()
   })
 
-  // G4 검수 사소 8 — 다른 호출이 도는 동안 낸 질문 답을 버리지 않는다. 앞 호출이 끝난 뒤 보낸다
+  // 다른 호출이 도는 동안 낸 질문 답을 버리지 않는다. 앞 호출이 끝난 뒤 보낸다
   it('다른 호출이 도는 동안 낸 질문 답은 버리지 않고 그 호출이 끝난 뒤 보낸다', async () => {
     const second: LoopCard = { ...question, requestId: 'q-2', text: '두 번째' }
     await renderScreen(st({ cards: [question, second], sessionActive: true }))
@@ -212,7 +210,7 @@ describe('질문 카드와 권한 카드 (M09 G4)', () => {
     expect(api.loopAnswerCard).toHaveBeenLastCalledWith({ cwd: CWD, requestId: 'q-2', response: { kind: 'question', answers: [['작게']] } })
   })
 
-  // G4 확인 검수 — 대기열에 든 답의 보내기가 실패하면(throw) 답한 표시를 되돌리고 사유를 보인다(카드가 남아 있으면 다시 답할 수 있다)
+  // 대기열에 든 답의 보내기가 실패하면(throw) 답한 표시를 되돌리고 사유를 보인다(카드가 남아 있으면 다시 답할 수 있다)
   it('대기열 답의 보내기가 throw하면 답하기를 다시 켜고 사유를 보인다', async () => {
     const second: LoopCard = { ...question, requestId: 'q-2', text: '두 번째' }
     await renderScreen(st({ cards: [question, second], sessionActive: true }))
@@ -256,7 +254,7 @@ describe('질문 카드와 권한 카드 (M09 G4)', () => {
     expect(screen.getByText(/카드 답이 받아지지 않았어요/)).toBeTruthy()
   })
 
-  // G4 확인 검수 — 루프를 닫았다 다시 열면 답한 표시를 비운다. 새 세션의 첫 질문 카드가 옛 카드와 같은 id여도 답할 수 있게 보인다
+  // 루프를 닫았다 다시 열면 답한 표시를 비운다. 새 세션의 첫 질문 카드가 옛 카드와 같은 id여도 답할 수 있게 보인다
   it('루프를 닫았다 열고 이어 가면 새 세션의 첫 질문 카드가 답할 수 있는 상태로 보인다', async () => {
     await renderScreen(st({ cards: [question], sessionActive: true }))
     await click(btn('답하기'))
@@ -282,8 +280,8 @@ describe('질문 카드와 권한 카드 (M09 G4)', () => {
     expect(btn('답하기').disabled).toBe(false)
   })
 
-  // M10 G1 — 루프 화면은 모달이 아니라 작업 모드의 몸체라 겹침 맥락이 없다. 루프 질문 창은 대화 질문 창과 같은 층(app, z 80)이고,
-  // 같은 층에서는 나중에 연 창이 키를 받는다(옛 G4의 z 60 루프 오버레이 층은 없어졌다).
+  // 루프 화면은 모달이 아니라 작업 모드의 몸체라 겹침 맥락이 없다. 루프 질문 창은 대화 질문 창과 같은 층(app, z 80)이고,
+  // 같은 층에서는 나중에 연 창이 키를 받는다.
   it('루프 질문 창은 대화 질문 창과 같은 층이다 — 나중에 연 루프 질문 창이 숫자 키를 받는다', async () => {
     install(st({ cards: [question], sessionActive: true }))
     const { StatusBoard } = await import('@renderer/13_Loop')
@@ -305,14 +303,14 @@ describe('질문 카드와 권한 카드 (M09 G4)', () => {
     expect(api.loopAnswerCard).toHaveBeenCalledTimes(1)
   })
 
-  // M10 G3 — 메인 턴의 취소는 메인 대화 화면이 대상 main으로 보낸다. 루프 화면의 취소는 작업 세션(worker)이다(Backlog 12)
+  // 메인 턴의 취소는 메인 대화 화면이 대상 main으로 보낸다. 루프 화면의 취소는 작업 세션(worker)이다
   it('작업 세션 취소는 cancelSession({cwd, target: worker})다', async () => {
     await renderScreen(st({ cards: [permission], sessionActive: true }))
     await click(btn('작업 세션 취소'))
     expect(api.loopCancelSession).toHaveBeenCalledWith({ cwd: CWD, target: 'worker' })
   })
 
-  // G3 독립 검수 사소 3 — 상태의 sessionActive는 메인 턴도 센다. 실행이 노드를 돌지 않는데(사람 기다림) 메인 턴만 돌면 작업 세션이 아니다.
+  // 상태의 sessionActive는 메인 턴도 센다. 실행이 노드를 돌지 않는데(사람 기다림) 메인 턴만 돌면 작업 세션이 아니다.
   // 메인 대화 화면의 「작업 세션 멈추기」와 같은 판단(mainChatModel.workSessionLive)을 쓴다
   it('메인 턴만 돌고 실행이 노드를 돌지 않으면 작업 세션 취소를 보이지 않는다', async () => {
     await renderScreen(st({ phase: 'waiting-human', sessionActive: true, mainBusy: true }))
@@ -349,8 +347,7 @@ describe('질문 카드와 권한 카드 (M09 G4)', () => {
   })
 })
 
-// M10 G3 — 스펙 승인 카드는 메인 대화 안으로 옮겼다(MainChatView.cards.test.tsx가 승인·반려 시험을 이어받는다).
-// 루프 화면은 예외 한 줄로 「사람 대기」만 보이고 승인·반려 버튼을 그리지 않는다(카드에 답하는 곳은 한 곳)
+// 승인·반려 시험은 MainChatView.cards.test.tsx에 있다. 루프 화면은 예외 한 줄로 「사람 대기」만 보이고 승인·반려 버튼을 그리지 않는다(카드에 답하는 곳은 한 곳)
 describe('스펙 승인은 메인 대화에서 답한다 (M10 G3)', () => {
   const approval = { node: 'spec-approve', title: '스펙 승인', spec: '# 마일스톤 스펙\n\n목표: 작게', sha256: SHA }
 
@@ -367,7 +364,7 @@ describe('스펙 승인은 메인 대화에서 답한다 (M10 G3)', () => {
 describe('래치 풀기 카드 (M09 G4)', () => {
   const latch = { reason: '실행기 git 설정이 바뀌었다', file: 'C:\\app\\x.latch', changed: ['core.hooksPath', '.git/config'], state: 'cursor G1/implement', restore: null, token: TOKEN }
 
-  // G4 검수 중요 I1 — 상태 위조 래치는 풀면 실행기가 마지막으로 쓴 사본으로 되돌린다. 그 사본을 보인다
+  // 상태 위조 래치는 풀면 실행기가 마지막으로 쓴 사본으로 되돌린다. 그 사본을 보인다
   it('되돌릴 사본이 있으면 「풀면 되돌릴 상태」로 보인다', async () => {
     await renderScreen(st({ phase: 'latched', reason: '상태 파일 위조', latch: { ...latch, changed: [], restore: 'cursor brainstorm (사본)' } }))
     const card = screen.getByTestId('loop-latch')
@@ -379,7 +376,7 @@ describe('래치 풀기 카드 (M09 G4)', () => {
     await renderScreen(st({ phase: 'latched', reason: latch.reason, latch }))
     const card = screen.getByTestId('loop-latch')
     expect(within(card).getByText('core.hooksPath')).toBeTruthy()
-    // 바뀐 목록은 main이 준 글(키·값·출처 파일) 그대로다(G4 검수 B1)
+    // 바뀐 목록은 main이 준 글(키·값·출처 파일) 그대로다
     expect(within(card).getByText('바뀐 설정·파일(값과 출처 포함)')).toBeTruthy()
     expect(within(card).getByText('.git/config')).toBeTruthy()
     expect(within(card).getByText('cursor G1/implement')).toBeTruthy()
@@ -395,7 +392,7 @@ describe('래치 풀기 카드 (M09 G4)', () => {
     expect(screen.getByText('화면이 본 래치와 지금 래치가 다르다')).toBeTruthy()
   })
 
-  // G4 확인 검수 — 풀기 중 상태 파일이 바뀌어 거부되면 main이 새 token의 래치를 싣는다. 화면은 그 카드를 다시 보이고, 다시 누르면 새 token을 보낸다
+  // 풀기 중 상태 파일이 바뀌어 거부되면 main이 새 token의 래치를 싣는다. 화면은 그 카드를 다시 보이고, 다시 누르면 새 token을 보낸다
   it('풀기가 거부되며 새 token의 래치가 오면 카드를 다시 보이고, 다시 누르면 새 token으로 보낸다', async () => {
     const NEXT = 'ef'.repeat(32)
     await renderScreen(st({ phase: 'latched', reason: latch.reason, latch }))

@@ -14,7 +14,7 @@ interface FilesPanelProps {
 
 const UNAVAILABLE = '루프 화면에서 이 폴더의 실행기를 열면 파일이 보여요'
 
-// 탐색기는 작업 폴더를 받아 그 트리만 그린다 — 채팅 모드의 폴더·참조 폴더는 읽지도 바꾸지도 않는다(M11 G4)
+// 채팅 모드의 폴더·참조 폴더는 읽지도 바꾸지도 않는다
 function workSource(cwd: string): ExplorerSource {
   return { root: cwd, list: (relDir) => ipc.loop.listDir({ cwd, relDir }), unavailable: UNAVAILABLE }
 }

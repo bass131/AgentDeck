@@ -197,7 +197,7 @@ describe('「파일·변경」 탭 (M10 G4)', () => {
     expect(within(files).getByText('Explore')).toBeTruthy()
   })
 
-  // G4 검수 10 — 새 메인 대화 뒤에 지난 장의 할 일·서브에이전트가 남지 않는다. main이 비운 기록을 다시 읽고, 차례는 이어 붙는다
+  // 새 메인 대화 뒤에 지난 장의 할 일·서브에이전트가 남지 않는다. main이 비운 기록을 다시 읽고, 차례는 이어 붙는다
   it('메인 대화의 장 표지가 바뀌면 세션 기록을 다시 읽어 지난 장의 할 일·서브에이전트를 지운다', async () => {
     await renderWork()
     await click(within(tabs('오른쪽 탭')).getByRole('tab', { name: '파일·변경' }))
@@ -219,7 +219,7 @@ describe('「파일·변경」 탭 (M10 G4)', () => {
     expect(api.loopSessionLog).toHaveBeenCalledTimes(reads + 1)
   })
 
-  // M11 G4 — 옛 「채팅에서 연 폴더가 없으면 … 알린다」(M10 G4)를 새 동작으로 바꿨다: 탐색기는 채팅 폴더와 상관없이 작업 폴더를 그린다
+  // 탐색기는 채팅 폴더와 상관없이 작업 폴더를 그린다
   it('[M11-G4 M10-16] 채팅에서 연 폴더가 없어도 탐색기는 작업 폴더의 트리를 보인다', async () => {
     const { useAppStore } = await import('@renderer/00_App/appStore')
     useAppStore.setState({ workspaceRoot: null } as never)

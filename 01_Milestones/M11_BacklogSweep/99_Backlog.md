@@ -3,6 +3,12 @@
 - 범위 밖 발견을 한 줄로 남긴다(헌법 11조). 최신 번호가 위다.
 - M01~M10 Backlog의 닫힘은 각 파일의 「## 닫힘 (M11)」 표가 갖는다. 여기에는 M11 진행 중 새로 생긴 것과 해결됨 항목의 남은 갈래만 둔다.
 
+88. (M11 G9) 훅 33·40·50에 `ts()`·`normalizeV2`·`capSessions`가 겹쳐 있고 `50_stop-gate.cjs`의 `const m = stampM;`은 쓸모없는 별칭이다 — `_lib`로 모을 후보(동작 무변경 정리라 판정 장치 goal의 계획에 적어야 한다).
+87. (M11 G9) 시험 표면 문자열(시험 이름 `[M11-G5 …]`·`(M07 G8)`, `m11-g5-*`·`m09-g5-*` 파일명, `console.log` 구획 라벨, 단정 메시지, 동등성 표 `note:`)과 M05 차이 목록 꼬리표(E6·P3·B2·SL1~4)에 이력 꼬리표가 남는다. 이름을 바꾸면 시험 출력과 파일 이동이 따라 goal 9 범위에서 뺐다. `ComposerView.tsx:76` 「compact는 멀티 패널 외형이다」는 패널 삭제 뒤 낡은 도메인 문장이다(55와 함께).
+86. (M11 G9) `collection-baseline.test.ts`의 goal별 시험 수 변경 기록을 걷었다. 지난 goal 문서(M05 G9~G11 등)와 M02 `99_Backlog.md:13`이 「사유와 함께 그 파일에 적는다」고 가리키는데 이제 그 자리가 없다 — 시험 수 변경의 사유 거처를 커밋 메시지로 할지 정할 것.
+85. (M11 G9) CSS 주석의 이력 꼬리표가 남는다(`PermissionCard.css:76`, `panelCard.css:2`, `Composer.css:884`, `GitModal.css:208`, `PrCard.css:1`, `ControlsView.css:1`, `shell.css:40,45`, `Graph.css:1`, `MainChat.css:1-2`). 현황판 `styles.css`의 구획 머리는 시험이 블록을 찾는 기준이라 남겼다. 같은 실수의 `{` 뒤 띄어쓰기 빠짐(`shared/graph.ts` `{x`, 13_Loop `{alerts`·`{label`·`{kind`)도 있다.
+84. (M11 G9) 현황판 `app.js`·`chime.js`는 구획 머리 주석을 남기고 훅·`lib`의 짧은 파일은 장식 줄을 지워 꼴이 갈린다. `decide-view.test.mjs`의 「사용자 요청(…)」 인용은 남고 `app.js`의 같은 인용은 지워졌다.
+83. (M11 G9) 설계 계약을 담은 긴 머리 주석(`main/05_Loop/loopRunner.ts` 약 50줄, `loopDriver.ts` 약 37줄, `ports.ts`, `04_Claude/permission/loopLock.ts`의 알려진 틈 목록)은 다른 주석이 가리키고 있어 꼬리표만 걷었다. 설계 문서로 옮기고 코드에는 한 줄 포인터만 둘 후보다.
 82. (M11 G8 검수) 현재 브랜치 읽기(`currentBranch`)는 작업 폴더가 저장소의 하위 폴더일 때 위로 올라가 `.git`을 찾는 길을 시험하지 않는다 — 시험은 저장소 뿌리와 worktree 뿌리만 본다.
 81. (M11 G8 검수) `_lib/settings-rules.mjs:8,21`의 근사가 더 어긋난다 — `SEPARATORS`의 `&`가 `2>&1`을 끊고, 인용 추적이 `"$(cat <<'EOF' … EOF)"` 안에서 닫힌다. 정형 목록의 `gh pr create`는 `--body "…"` 꼴만 보고 메인이 실제로 쓰는 heredoc 본문 꼴은 보지 않는다(79의 연장).
 80. (M11 G8 검수) `Start-Process -FilePath '<공백 든 경로>'`는 가드 `evaluatedScriptOf`와 `mergeDeny.startProcessScript`가 `[file, ...list].join(' ')`로 이으며 인용을 잃어, `Start-Process -FilePath 'C:\Program Files\GitHub CLI\gh.exe' -ArgumentList 'pr merge 1'`이 둘 다 지나간다. goal 8 전부터 있던 꼴이고 셋의 판독은 같다.
@@ -25,7 +31,7 @@
 63. 현황판 알림음 기억(`public/chime.js:13` `RUNG_MAX = 200`)이 넘치면 계속 보이는 항목이 한 번 더 울린다 — M05 Backlog 60의 현황판 갈래다. 판정 장치가 아니라 goal 7 범위 밖이다 (M11 G7 관찰).
 62. `98_Management/03_Tools/check-readme-links.cjs`는 뿌리의 `README.md` 하나만 읽는다. goal 7이 현황판 README를 그 폴더를 뿌리로 돌려 실물 검사에 넣었지만(RL-29), `99_Others/Dashboard/docs/*.md`의 링크는 스크립트가 다른 파일 이름을 받게 해야 본다 — 그 스크립트는 goal 7 「건드릴 곳」 밖이다 (M07 Backlog 28 남은 몫, M11 G7).
 61. `02_Project/01_TestCode/hooks/tdd-guard-hook-test-recognition.test.ts:55`의 `delete env.MOODIE_SESSION_ROLE`이 남는다 — 아무것도 읽지 않는 변수를 지우는 무해한 줄이고, 앱 시험 폴더라 goal 7 「건드릴 곳」 밖이다 (M03 Backlog 15 ②, M11 G7).
-60. `0a2f4157`이 export를 걷으며 선언 39줄에서 `=` 뒤 띄어쓰기를 삼켰다(`const AUTO_MODE_NODE ='…'`, `type RouteFn<R> =R extends …` 등, `main/05_Loop`·`main/08_Git`·`renderer/src/05_Conversation`·`13_Loop`·`shared/01_Ipc` 외). 한 줄(`configGuard.ts:54`)만 고쳤다 — 시험이 따르지 않는 소스 편집을 tdd-guard가 두 번마다 막아 서식 수리 38줄에 전체 시험 약 15회가 든다. 소스를 넓게 만지는 goal 9가 함께 고친다. 목록은 `git diff 74ac0922..0a2f4157 -U0`의 추가 줄 중 ` =[^ =>]` (M11 G6 검수).
+60. `0a2f4157`이 export를 걷으며 선언 39줄에서 `=` 뒤 띄어쓰기를 삼켰다(`const AUTO_MODE_NODE ='…'`, `type RouteFn<R> =R extends …` 등, `main/05_Loop`·`main/08_Git`·`renderer/src/05_Conversation`·`13_Loop`·`shared/01_Ipc` 외). 한 줄(`configGuard.ts:54`)만 고쳤다 — 시험이 따르지 않는 소스 편집을 tdd-guard가 두 번마다 막아 서식 수리 38줄에 전체 시험 약 15회가 든다. 소스를 넓게 만지는 goal 9가 함께 고친다. 목록은 `git diff 74ac0922..0a2f4157 -U0`의 추가 줄 중 ` =[^ =>]` (M11 G6 검수). → 고침(M11 goal 9, `74f240eb`·`09e65124`·`2d86bf75`·`98b1ff4a`·`bd7a285a`·`045a5430`·`3f60c14f`): 남은 38줄을 모두 고쳤다 — 소스 전체에서 continuation이 아닌 ` =[^ =>]` 선언 줄이 0이다.
 59. `.eslintrc.cjs:19`의 `TSImportType[argument.literal.value=…]`는 typescript-eslint가 폐기 예고한 `argument` 속성을 쓴다(`source`로 바꾸라는 경고). 올림에서 속성이 빠지면 선택자가 조용히 아무것도 안 잡는다 — `eslintBoundary` 고정물이 실패로 알린다 (M11 G6 검수).
 58. 래칫 두 개의 약한 곳 — `integration/unusedExports.test.ts`는 다른 파일의 같은 이름 낱말(주석, 무관한 지역 `Options`)을 사용으로 세고 `export { … }` 목록과 `export default`를 보지 않는다. `noticeCapsule.smoke.test.ts`의 도메인 래칫은 새 쌍만 막고, 풀린 `KNOWN_MUTUAL` 항목이 남아 다시 엉켜도 통과하며 쌍 안 import 수는 늘어도 된다 (M11 G6 검수).
 57. `39147bc2`가 이미 자기 창을 2번 모니터로 옮기던 e2e(`m09-g5-practice-run`, `m11-g4-work-mode-live`)에도 `moveToSecondDisplay(app)`을 더해 창이 두 번 옮겨진다. 해는 없고, 옛 옮기기 블록을 헬퍼로 합치면 된다 (M11 G6 검수).

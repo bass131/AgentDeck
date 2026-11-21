@@ -1,4 +1,4 @@
-// M07 G13 메인 터미널 자동 지정 — 결정 응답을 넣기 직전에 Orca 목록에서 이 저장소의 Claude 터미널을 찾는다.
+// 메인 터미널 자동 지정 —결정 응답을 넣기 직전에 Orca 목록에서 이 저장소의 Claude 터미널을 찾는다.
 // 찾기는 주입한 가짜 execFile·findMain으로만 본다. 시험은 orca를 부르지 않고 어떤 터미널에도 글을 넣지 않는다.
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -36,7 +36,7 @@ test('pick: several candidates use the configured handle only when it is among t
   assert.equal(two.handle, null);
   assert.match(two.reason, /2개/);
   assert.equal(pickMain({ terminals: [T(1), T(2)] }, REPO, H(3)).handle, null, '설정이 후보 밖이면 넣지 않는다');
-  // 설정 handle이 있는데 후보 밖이면 자동으로 고르지 않는다 — 사용자가 다른 곳(child worktree·Codex)을 메인으로 지정했을 수 있다 (PR 83 검수 중요 3).
+  // 설정 handle이 있는데 후보 밖이면 자동으로 고르지 않는다 — 사용자가 다른 곳(child worktree·Codex)을 메인으로 지정했을 수 있다.
   // 설정은 보통 null이라(README) 자동이 기본이고, 낡은 설정은 복사 안내로 끝난다
   const stale = pickMain({ terminals: [T(1)] }, REPO, H(9));
   assert.equal(stale.handle, null);
@@ -66,7 +66,7 @@ test('findMainTerminal: no shell, a timeout, windowsHide; a missing folder is �
     const r = await findMainTerminal(REPO, null, { execFileFn: fake(err, out) });
     assert.equal(r.handle, null); assert.equal(r.unreachable, true, String(out || err.message));
   }
-  // Orca가 읽히는 답으로 거절하거나 모양이 틀리면 찾지 못함이다 — 설정 handle로 넣지 않는다 (PR 83 검수 중요 2)
+  // Orca가 읽히는 답으로 거절하거나 모양이 틀리면 찾지 못함이다 — 설정 handle로 넣지 않는다
   for (const [err, out] of [[Object.assign(new Error('Command failed'), { code: 1 }), '{"ok":false,"error":{"code":"selector_ambiguous"}}'],
     [null, '{"ok":false,"error":{"code":"runtime_unavailable"}}'], [null, '{"ok":true,"result":{}}'], [null, '{"ok":true}'], [null, 'null']]) {
     const r = await findMainTerminal(REPO, H(9), { execFileFn: fake(err, out) });
@@ -77,7 +77,7 @@ test('findMainTerminal: no shell, a timeout, windowsHide; a missing folder is �
   assert.equal(sync.unreachable, true);
 });
 
-// ── 서버 넣기 길 ──
+// 서버 넣기 길
 const opt = (key, label) => ({ key, label, effect: `${label}를 고르면 일어나는 일이다.` });
 const listOf = (...decisions) => { const { items, warnings } = parseBoard(JSON.stringify({ decisions })); return { sourceId: 'decisions', status: 'ok', path: BOARD, items, warnings, skipped: 0, kept: false, sig: decisionSig(items) }; };
 const one = { id: 'g13-q', title: '물음', state: 'waiting', options: [opt('A', '가'), opt('B', '나')] };

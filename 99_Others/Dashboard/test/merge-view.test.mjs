@@ -1,4 +1,4 @@
-// M07 G9 병합 카드의 화면 쪽: chime.js의 전역 AgentDeckMerge(순수 판단)와 app.js·index.html·styles.css 배선.
+// 병합 카드의 화면 쪽: chime.js의 전역 AgentDeckMerge(순수 판단)와 app.js·index.html·styles.css 배선.
 // 「꼭 볼 것」 펼침 게이트는 화면 쪽이다 — 주소를 직접 부르면 건너뛰므로, 확인 창이 같은 파일 이름을 한 번 더 보인다.
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -60,7 +60,7 @@ test('patch rows: added, removed, hunk and context lines keep their text (escapi
   assert.deepEqual(M.patchRows(null), []);
 });
 
-// M11 G5(Backlog 71): 토큰 요청·게이트·펼침과 링크의 본 표시·다시 칠하기에도 남는 펼침·SHA 소비·읽기 실패·GitHub 링크·병합 대기 줄의 카드 가리키기는
+// 토큰 요청·게이트·펼침과 링크의 본 표시·다시 칠하기에도 남는 펼침·SHA 소비·읽기 실패·GitHub 링크·병합 대기 줄의 카드 가리키기는
 // test/m11-g5-dom.test.mjs가 app.js를 jsdom에서 돌려 동작으로 본다. 여기에는 DOM으로 보기 어려운 「없는 길」과 옛 페이지 대비만 남긴다.
 test('app.js: opened files never reach page storage or the fold memory; an old index.html still gets the merge area; the write statement stays', async () => {
   const app = await read('../public/app.js'), body = bodyOf(app);
@@ -72,8 +72,8 @@ test('app.js: opened files never reach page storage or the fold memory; an old i
   assert.match(app, /쓰기는 결정 응답\(메인 입력창에 글 넣기\)과 병합 카드\(확인 창을 거친 PR 병합\)뿐입니다/);
 });
 
-// ── 열린 PR 목록 (M07 G11) ── 목록은 요약만 보이고, 필수 검사·「꼭 볼 것」·병합 단추는 고른 PR 하나의 카드에서만 판정한다.
-// 시험은 이스케이프 함수를 베끼지 않고 app.js의 실제 esc를 꺼내 쓴다(PR 79 검수 중요 2). 따옴표가 빠지면 아래 단정이 깨진다
+// 열린 PR 목록 — 목록은 요약만 보이고, 필수 검사·「꼭 볼 것」·병합 단추는 고른 PR 하나의 카드에서만 판정한다.
+// 시험은 이스케이프 함수를 베끼지 않고 app.js의 실제 esc를 꺼내 쓴다. 따옴표가 빠지면 아래 단정이 깨진다
 const APP_SRC = (await readFile(new URL('../public/app.js', import.meta.url), 'utf8')).replace(/\r\n/g, '\n');
 const pageEsc = new Function(`return ${APP_SRC.match(/^const esc = (s => .+);$/m)[1]}`)();
 
@@ -81,7 +81,7 @@ test("the page escaper (app.js esc) covers & < > \" ' — list titles land insid
   assert.equal(pageEsc(`&<>"'`), '&amp;&lt;&gt;&quot;&#39;');
 });
 
-// 병합 대기 PR이 목록에 없을 때 한 번 다시 읽기는 test/m11-g5-dom.test.mjs가 본다(M11 G5, Backlog 71)
+// 병합 대기 PR이 목록에 없을 때 한 번 다시 읽기는 test/m11-g5-dom.test.mjs가 본다
 test('review fixes (PR 79): a card SHA that differs from its row re-reads it; picking while the window is up says why', () => {
   const b = bodyOf(APP_SRC);
   assert.match(b('loadMerge'), /row && row\.sha !== r\.pr\.headSha/, '카드 SHA와 목록 행 SHA가 다르면 목록을 다시 읽는다');
@@ -196,7 +196,7 @@ test('styles.css: the merge card uses the existing tokens only — no new colour
   assert.match(block, /@container dash \(width < 720px\)/);
   assert.match(block, /\.mg-act \[disabled\]\{[^}]*cursor:not-allowed/, '꺼진 병합 단추는 꺼져 보인다');
   assert.ok(!block.includes('/api/'), '주석에 경로를 쓰지 않는다(별표·빗금이 주석을 일찍 닫을 수 있다)');
-  // 열린 PR 목록(G11): 항목 3개 높이를 넘으면 목록 안에서만 세로 스크롤한다. 고른 항목은 노랑 테두리로 남는다
+  // 열린 PR 목록: 항목 3개 높이를 넘으면 목록 안에서만 세로 스크롤한다. 고른 항목은 노랑 테두리로 남는다
   assert.match(block, /\.mg-list\.is-scroll\{[^}]*max-height:calc\(var\(--mg-row\) \* 3[^}]*overflow-y:auto/);
   assert.match(block, /\.mg-list\.is-scroll\{[^}]*overscroll-behavior:contain/, '목록 끝에서 페이지가 따라 스크롤되지 않는다');
   assert.match(block, /\.mg-row\{[^}]*height:var\(--mg-row\)/, '항목 높이가 고정이라 세 개 높이가 정확하다');
@@ -204,7 +204,7 @@ test('styles.css: the merge card uses the existing tokens only — no new colour
   assert.match(block, /\.mg-row\[aria-current="true"\]\{[^}]*var\(--todo\)/);
 });
 
-// ── 닫힌 PR 정리 (M07 G15) ── 병합되거나 닫힌 PR의 큰 카드가 병합 영역을 차지하지 않는다.
+// 닫힌 PR 정리 — 병합되거나 닫힌 PR의 큰 카드가 병합 영역을 차지하지 않는다.
 const openList = (...nums) => ({ ok: true, more: false, items: nums.map(n => item(n)) });
 test('card fate: an auto card whose PR is no longer the pending one is dropped; a manual card is kept', () => {
   assert.equal(M.cardFate({ cardPr: 86, manual: false, pending: null, list: openList() }), 'drop', 'goal이 더는 그 PR을 기다리지 않는다');

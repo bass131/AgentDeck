@@ -1,4 +1,4 @@
-// 서버의 병합 세 경로: POST /api/merge/list(열린 PR 목록, M07 G11), /api/merge/read(PR 읽기)와 /api/merge/run(확인 창 → 병합, M07 G9).
+// 서버의 병합 세 경로: POST /api/merge/list(열린 PR 목록), /api/merge/read(PR 읽기)와 /api/merge/run(확인 창 → 병합).
 // 결정 응답과 같은 토큰·출처·Host·본문 검사를 거친다. 토큰은 페이지에서 읽을 수 있으므로 사람 증명이 아니다 — 사람 증명은 확인 창이다.
 // 병합 서비스·확인 함수·보내기 함수는 createDashboard의 함수 인자로만 주입한다. 시험은 gh·PowerShell을 부르지 않는다.
 import test from 'node:test';
@@ -176,7 +176,7 @@ test('run: without an injected send the service default sendMerge is used, and t
   assert.doesNotMatch(src, /config\.(merge|confirm)/i, '설정 파일로 바꾸는 스위치도 없다');
 });
 
-// 불변식 문장은 느슨하게 풀지 않고 경로를 이름으로 들어 좁혀 다시 적는다(G9 병합 두 경로, G11 목록 경로 하나 더) — 바깥 쓰기는 넣기와 병합 둘을 이름으로 든다.
+// 불변식 문장은 느슨하게 풀지 않고 경로를 이름으로 들어 좁혀 적는다 — 바깥 쓰기는 넣기와 병합 둘을 이름으로 든다.
 test('the invariant sentences name both outside writes: orca typing and the confirmed merge', async () => {
   const at = p => readFile(new URL(p, import.meta.url), 'utf8');
   const [deliver, server, readme] = await Promise.all([at('../lib/deliver.mjs'), at('../server.mjs'), at('../README.md')]);

@@ -80,7 +80,7 @@ kbd{font-family:var(--mono); font-size:var(--fs-cap); padding:1px 6px; border:1p
 .g-ok, .g-done{color:var(--ok)} .g-note{color:var(--todo)} .g-block, .g-stopped{color:var(--broken)}
 .g-current{color:var(--info)} .g-waiting, .g-quiet, .g-unknown{color:var(--ink-3)}
 .g-note{--g-ink:var(--todo-ink)} .g-block, .g-stopped{--g-ink:#FFFFFF}
-/* 상태 알약(lozenge: 짧은 상태 글을 담은 작은 둥근 표). .lz·.tag·.state·.doing-word가 한 부품이다(H8 체크리스트 10).
+/* 상태 알약(lozenge: 짧은 상태 글을 담은 작은 둥근 표). .lz·.tag·.state·.doing-word가 한 부품이다.
    기본은 옅은 면과 상태색 글이고 테두리가 없다. 꽉 찬 면은 할 일(노랑)과 멈춤·깨짐(빨강)에만 쓰고, 점선은 대기·후보 모양이다 */
 .lz, .tag, .state, .doing-word{display:inline-flex; align-items:center; gap:5px; min-height:22px; padding:2px 9px; border-radius:999px; border:1px solid transparent; font-size:var(--fs-cap); font-weight:var(--fw-2); line-height:1.2; white-space:nowrap; vertical-align:middle; color:var(--ink-2); background:color-mix(in srgb, var(--ink) 8%, transparent)}
 .state{padding-left:6px}
@@ -153,9 +153,9 @@ kbd{font-family:var(--mono); font-size:var(--fs-cap); padding:1px 6px; border:1p
 .ghost{border:1px solid var(--rule-2); background:none; border-radius:4px; font-size:var(--fs-sm); padding:4px 12px; color:var(--ink-2); cursor:pointer}
 .ghost:hover{color:var(--ink); border-color:var(--ink-3)}
 
-/* ---------- 지금 하는 일: 화면에서 가장 큰 것. 결정 요청이 바로 밑에, 「내 손」·「어디쯤」(#brief)이 그다음에 온다(H8) ---------- */
+/* ---------- 지금 하는 일: 화면에서 가장 큰 것. 결정 요청이 바로 밑에, 「내 손」·「어디쯤」(#brief)이 그다음에 온다 ---------- */
 .now{padding-top:var(--sp-5)}
-/* 세 질문 공통: 라벨은 답 위의 작은 머리말이고, 폭과 무관하게 왼쪽 끝이 하나다(H8 체크리스트 3·7) */
+/* 세 질문 공통: 라벨은 답 위의 작은 머리말이고, 폭과 무관하게 왼쪽 끝이 하나다 */
 .q{display:grid; grid-template-columns:minmax(0,1fr); gap:var(--sp-2); padding:var(--sp-5) 0; border-top:1px solid var(--rule)}
 .q-k{font-size:var(--fs-cap); font-weight:var(--fw-2); color:var(--ink-3); line-height:1.4; letter-spacing:0}
 .q-a{min-width:0; display:grid; justify-items:start; gap:var(--sp-2)}
@@ -214,7 +214,7 @@ kbd{font-family:var(--mono); font-size:var(--fs-cap); padding:1px 6px; border:1p
 .q-src{font-size:var(--fs-cap); color:var(--ink-3); line-height:1.5; overflow-wrap:anywhere}
 .q-src .src{display:inline-flex; vertical-align:middle}
 .q .fold.raw{margin-top:0}
-/* 내 손이 필요한 일: 없으면 초록 「없음」, 할 일은 노랑, 멈춤은 빨강. 결정만 기다리면 노랑 세모와 「결정 요청」을 가리키는 줄이다(H8) */
+/* 내 손이 필요한 일: 없으면 초록 「없음」, 할 일은 노랑, 멈춤은 빨강. 결정만 기다리면 노랑 세모와 「결정 요청」을 가리키는 줄이다 */
 .q-head{display:flex; align-items:center; flex-wrap:wrap; gap:4px var(--sp-3); min-width:0}
 .q-line.is-none, .q-line.is-defer{display:flex; align-items:center; gap:8px}
 .q-line.is-none{color:var(--ok)}
@@ -235,10 +235,10 @@ kbd{font-family:var(--mono); font-size:var(--fs-cap); padding:1px 6px; border:1p
 /* 조용함 줄: 회색 시계와 점선 알약. 쉼(회색)이라 할 일·주의의 노랑 세모 줄과 모양이 다르다 */
 .q-notes .is-quiet{color:var(--ink-3); padding:2px 12px 2px 8px; border:1px dashed var(--rule-2); border-radius:999px; margin-top:2px}
 .q-notes .is-quiet b{color:var(--ink-2)} .q-notes .is-quiet small{margin-left:6px}
-/* 깨짐 줄: 읽지 못한 원문은 할 일이 아니라 깨짐이라 빨강 글과 빨강 네모다(M05 Backlog 64) */
+/* 깨짐 줄: 읽지 못한 원문은 할 일이 아니라 깨짐이라 빨강 글과 빨강 네모다 */
 .q-notes li.is-broken{color:var(--broken-text)}
 .hand-more.is-ok{display:flex; align-items:baseline; gap:8px; color:var(--ink-2)} .hand-more.is-ok .g{align-self:center}
-/* Orca 워커 소식(M05 Backlog 63): 읽기만 하는 작은 목록. 할 일 색을 쓰지 않는다 */
+/* Orca 워커 소식: 읽기만 하는 작은 목록. 할 일 색을 쓰지 않는다 */
 .inbox{margin-top:var(--sp-2); font-size:var(--fs-sm); color:var(--ink-2)}
 .inbox ul{display:grid; gap:2px; margin-top:4px}
 .inbox li{display:flex; align-items:baseline; gap:8px; min-width:0}
@@ -259,7 +259,7 @@ button.sound-state b{text-decoration:underline; text-underline-offset:2px}
 .sound-chip .g{width:14px; height:14px}
 .sound-chip:hover{background:var(--todo); color:var(--todo-ink); border-color:var(--todo)}
 .sound-chip:active{transform:scale(.97)}
-/* 전체 중 어디쯤: 진척 띠 한 줄(H8 체크리스트 1). 칸 하나가 goal 하나이고 위치가 곧 진척이다.
+/* 전체 중 어디쯤: 진척 띠 한 줄. 칸 하나가 goal 하나이고 위치가 곧 진척이다.
    완료=초록 칸, 지금=파랑 채움에 더 높은 칸과 바깥 고리, 남음=면 없는 점선 칸. 칸 이름과 PR은 title과 「goal 이름 모두 보기」에 있다 */
 .band-head{display:flex; align-items:baseline; justify-content:space-between; flex-wrap:wrap; gap:2px var(--sp-4); width:100%}
 .band-head b{font-size:var(--fs-lg); font-weight:var(--fw-3); letter-spacing:-0.015em}
@@ -293,7 +293,7 @@ button.sound-state b{text-decoration:underline; text-underline-offset:2px}
   .collected{font-size:0} .collected time{font-size:var(--fs-sm)}
 }
 
-/* ---------- 영역 공통: 영역 사이는 48px 여백과 1px 약한 선으로 가른다(H8 체크리스트 5·11) ---------- */
+/* ---------- 영역 공통: 영역 사이는 48px 여백과 1px 약한 선으로 가른다 ---------- */
 main{padding-bottom:96px}
 .board{display:grid; grid-template-columns:minmax(0,7fr) minmax(0,5fr); gap:var(--sp-7); margin-top:var(--sp-7); align-items:start}
 .col{display:grid; gap:var(--sp-7); align-content:start; min-width:0}
@@ -342,7 +342,7 @@ details[open] > summary .chev{transform:rotate(45deg)}
 .sents li{position:relative; padding-left:14px; text-wrap:pretty}
 .sents li::before{content:""; position:absolute; left:1px; top:.68em; width:5px; height:5px; border-radius:50%; background:var(--ink-3)}
 
-/* ---------- 이 goal의 단계: 타임라인(H8 체크리스트 12). 완료 줄은 압축하고, 지금 단계는 면 없이 고리로 튄다 ---------- */
+/* ---------- 이 goal의 단계: 타임라인. 완료 줄은 압축하고, 지금 단계는 면 없이 고리로 튄다 ---------- */
 .goal-intro{display:grid; gap:6px; margin-bottom:var(--sp-3)}
 .goal-name{font-size:var(--fs-body); font-weight:var(--fw-2); color:var(--ink); text-wrap:pretty}
 .goal-rec{display:flex; align-items:center; flex-wrap:wrap; gap:6px 12px; font-size:var(--fs-sm); color:var(--ink-2); margin:4px 0 2px}
@@ -402,7 +402,7 @@ details[open] > summary .chev{transform:rotate(45deg)}
 .act time{color:var(--ink-3); font-size:var(--fs-cap); white-space:nowrap}
 .act-say{display:flex; align-items:baseline; gap:7px; min-width:0}
 .act-say .g{width:12px; height:12px; align-self:center}
-/* 통과·쉼 줄은 이웃과 상태가 같아 모양을 작게 둔다. 다른 상태의 줄만 모양이 튄다(H8 체크리스트 13) */
+/* 통과·쉼 줄은 이웃과 상태가 같아 모양을 작게 둔다. 다른 상태의 줄만 모양이 튄다 */
 .act.is-ok .act-say .g, .act.is-quiet .act-say .g{width:10px; height:10px}
 .act-say > span{min-width:0}
 .times{font-size:var(--fs-cap); font-weight:var(--fw-2); color:var(--ink-3); white-space:nowrap}
@@ -500,7 +500,7 @@ details[open] > summary .chev{transform:rotate(45deg)}
 @keyframes beat{from{transform:scale(1); opacity:.95} to{transform:scale(3.6); opacity:0}}
 @keyframes pulse{0%,100%{opacity:1} 50%{opacity:.25}}
 
-/* ---------- 결정 응답 (M05 H7): 결정 카드와 보낼 문장. H8에서 「지금 하는 일」 바로 밑 「결정 요청」으로 옮겼다. 노랑 = 사용자가 할 일 ---------- */
+/* ---------- 결정 응답: 결정 카드와 보낼 문장. 「지금 하는 일」 바로 밑 「결정 요청」 자리다. 노랑 = 사용자가 할 일 ---------- */
 .decide{padding:var(--sp-5) 0}
 .decide[hidden]{display:none}
 .brief > .q:last-child{padding-bottom:0}
@@ -550,7 +550,7 @@ details[open] > summary .chev{transform:rotate(45deg)}
 .send-manual{width:100%; margin-top:6px; padding:8px; border-radius:4px; border:1px solid var(--todo); background:var(--bg); color:var(--ink); font-family:var(--mono); font-size:var(--fs-sm)}
 @container dash (width < 720px){ .decide{padding-top:var(--sp-4)} .dec{padding:16px} .dec-opts{grid-template-columns:minmax(0,1fr)} .send{padding:12px 16px} }
 
-/* ---------- 병합 카드 (M07 G9): 결정 요청과 「내 손이 필요한 일」 사이. 노랑 = 사용자가 할 일, 새 색은 없다. 병합은 확인 창에서만 나간다 ---------- */
+/* ---------- 병합 카드: 결정 요청과 「내 손이 필요한 일」 사이. 노랑 = 사용자가 할 일, 새 색은 없다. 병합은 확인 창에서만 나간다 ---------- */
 .merge{padding:0 0 var(--sp-5)}
 .merge[hidden]{display:none}
 .merge-head .q-k{color:var(--todo-text)}
@@ -577,7 +577,7 @@ details[open] > summary .chev{transform:rotate(45deg)}
 .mg-act{margin-top:var(--sp-3)}
 .mg-act .send-actions{margin-top:0}
 .mg-act [disabled]{opacity:.45; cursor:not-allowed; transform:none}
-/* 열린 PR 목록 (G11): 카드 위. 항목 높이(--mg-row)를 고정해 항목 3개 높이가 정확하고, 넘으면 목록 안에서만 세로 스크롤한다.
+/* 열린 PR 목록: 카드 위. 항목 높이(--mg-row)를 고정해 항목 3개 높이가 정확하고, 넘으면 목록 안에서만 세로 스크롤한다.
    안쪽 여백 3px은 초점 테두리가 스크롤 상자에 잘리지 않게 하려는 것이다. 고른 항목은 결정 카드의 고른 선택지와 같은 노랑 테두리다 */
 .mg-list-box{--mg-row:60px; margin-top:var(--sp-3)}
 .mg-list-box:empty{display:none}

@@ -1,4 +1,4 @@
-// 결정 응답의 화면 쪽(M05 H7): chime.js의 전역 AgentDeckDecide(알림 항목, 고른 답 정리, 요청 본문)와 app.js·index.html·styles.css 배선.
+// 결정 응답의 화면 쪽: chime.js의 전역 AgentDeckDecide(알림 항목, 고른 답 정리, 요청 본문)와 app.js·index.html·styles.css 배선.
 // 문장은 늘 서버가 만든다. 페이지는 id와 키만 보내고, 서버가 준 문장을 보이기만 한다.
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -11,7 +11,7 @@ const read = async p => (await readFile(new URL(p, import.meta.url), 'utf8')).re
 const item = (id, over = {}) => ({ id, title: `${id} 제목`, kind: null, options: [{ key: 'A', label: '가' }, { key: 'B', label: '나' }], ...over });
 const list = (...items) => ({ status: 'ok', items, sig: 'abc' });
 
-// M07 G8: 병합은 앱 PR 카드의 「병합」 버튼으로 한다. 보드의 병합 결정 표시와 「메인 세션이 승인 창을 거쳐 병합」 안내는 없어졌다.
+// 병합은 앱 PR 카드의 「병합」 버튼으로 한다. 보드의 병합 결정 표시와 「메인 세션이 승인 창을 거쳐 병합」 안내는 없어졌다.
 test('app.js no longer shows a merge-decision tag or tells the main session to merge through the approval dialog', async () => {
   const app = await read('../public/app.js');
   assert.doesNotMatch(app, /병합 결정/);
@@ -92,7 +92,7 @@ test('cards key: a detail-only or warning-text-only change repaints the cards; t
   assert.equal(typeof D.cardsKey({}, new Map()), 'string', '빈 목록도 키를 준다');
 });
 
-// M11 G5(Backlog 71): 다시 칠하기 키·바뀐 선택지 알림·고쳐 고름 note·미리보기 기다림·「지금」과 #brief 배치·토큰 요청·canType은
+// 다시 칠하기 키·바뀐 선택지 알림·고쳐 고름 note·미리보기 기다림·「지금」과 #brief 배치·토큰 요청·canType은
 // test/m11-g5-dom.test.mjs가 app.js를 jsdom에서 돌려 동작으로 본다. 여기에는 DOM으로 보기 어려운 「없는 길」 단정만 남긴다.
 test('app.js: the toast for two notices is one call', async () => {
   const app = await read('../public/app.js');
@@ -114,11 +114,11 @@ test('index.html: the decision section sits right under 「지금」 and outside
   assert.match(html, /<section class="now" id="now"[^>]*><\/section>\s*<section class="decide" id="decide"[^>]*>/);
   assert.match(html, /<div id="decide-list"><\/div>/);
   assert.match(html, /<div class="send" id="decide-send"[^>]*><\/div>/);
-  // H8(사용자 「결정요청 UI는 지금하는일 UI 바로 밑에」): 「지금 하는 일」 → 결정 요청 → 「내 손」·「어디쯤」(#brief) 순서다
+  // 사용자 요청(「결정요청 UI는 지금하는일 UI 바로 밑에」): 「지금 하는 일」 → 결정 요청 → 「내 손」·「어디쯤」(#brief) 순서다
   assert.match(html, /<section class="decide" id="decide"[\s\S]*?<\/section>\s*<section class="brief" id="brief"[^>]*><\/section>\s*<div class="board">/);
 });
 
-// H8(Backlog 70): 같은 결정이 「내 손」 한 줄과 결정 카드로 두 번 보이지 않게, 표시용으로만 결정 항목을 가른다.
+// 같은 결정이 「내 손」 한 줄과 결정 카드로 두 번 보이지 않게, 표시용으로만 결정 항목을 가른다.
 test('hand display: decision items leave the hand list (the cards above show them) but are still counted; facts stay', () => {
   const fact = { key: 'merge:PR9', level: 'todo', say: '병합을 승인해 주세요' }, stop = { key: 'stop:3', level: 'stop', say: '멈췄어요' };
   const decs = D.decisionHand(list(item('a'), item('b')));

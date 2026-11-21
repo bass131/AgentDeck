@@ -127,7 +127,7 @@ export async function collect(repoPath, { revision = 1, now = new Date(), io = d
     catch (e) { if (e.code === 'ENOENT') return { status: 'absent', path: voicePath, milestone: null, phases: {}, overview, note: `현재 마일스톤 폴더에 ${VOICE_FILE}가 없어요. 원문을 그대로 보여 줘요.` }; throw e; }
   });
 
-  // 진척 표시 낡음(M05 Backlog 62): goal 문서의 마지막 커밋 뒤에 그 브랜치 커밋이 더 있으면 그 수. 문서를 고치는 중(커밋 전)이거나 git을 못 읽으면 null이다.
+  // 진척 표시 낡음: goal 문서의 마지막 커밋 뒤에 그 브랜치 커밋이 더 있으면 그 수. 문서를 고치는 중(커밋 전)이거나 git을 못 읽으면 null이다.
   async function staleMark(file) {
     if (worktree.status !== 'ok' || (worktree.changes || []).some(c => c.path === file)) return null;
     try {
@@ -198,7 +198,7 @@ export async function collect(repoPath, { revision = 1, now = new Date(), io = d
     return { ...l, ref: { path: l.file, line: l.line } };
   });
 
-  // 4. 마일스톤 목록: 폴더마다 첫머리 문서 하나(HEAD_FILES 순서). 셋 다 없으면 머리말 「상태:」가 있는 goal 문서를 센다(M05 Backlog 44).
+  // 4. 마일스톤 목록: 폴더마다 첫머리 문서 하나(HEAD_FILES 순서). 셋 다 없으면 머리말 「상태:」가 있는 goal 문서를 센다.
   const milestones = await block('milestones', '마일스톤 목록', MILESTONES + '/', { items: [] }, async () => {
     let entries;
     try { entries = await io.readdir(abs(MILESTONES), { withFileTypes: true }); } catch (e) { e.target = MILESTONES; throw e; }
@@ -268,7 +268,7 @@ export async function collect(repoPath, { revision = 1, now = new Date(), io = d
         aim: (a => a && { ...a, path: planPath })(parseGoalAim(await read(planPath))) };
     });
 
-  // 9. 결정 보드(M05 H7): 사용자 결정을 기다리는 항목. 메인 세션이 쓰는 로컬 파일이라 포인터와 무관하게 읽는다.
+  // 9. 결정 보드: 사용자 결정을 기다리는 항목. 메인 세션이 쓰는 로컬 파일이라 포인터와 무관하게 읽는다.
   //    없으면 실패가 아니라 「없음」이다. 반쯤 쓰였거나 읽지 못하면 그 블록만 실패로 알리고, 직전 수집의 정상 목록(previous)을 그대로 둔다.
   const kept = previous?.decisions && Array.isArray(previous.decisions.items) ? previous.decisions : null;
   const decisions = await block('decisions', '결정 보드', BOARD,

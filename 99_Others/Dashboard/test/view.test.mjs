@@ -1,4 +1,4 @@
-// 화면 모양의 판단(public/chime.js의 AgentDeckView): 「지금 하는 일」 카드 상태, 단계 진척 링, 등장 동작 대상. M05 H6.
+// 화면 모양의 판단(public/chime.js의 AgentDeckView): 「지금 하는 일」 카드 상태, 단계 진척 링, 등장 동작 대상.
 // chime.js는 classic script라 전역에 붙는다. 시험은 파일을 불러 그 전역을 쓴다.
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -89,7 +89,7 @@ test('enter keys: the memory it returns is a fresh map and the input is untouche
 
 const read = async p => (await readFile(new URL(p, import.meta.url), 'utf8')).replace(/\r\n/g, '\n');
 
-// app.js 배선(등장 동작·띠 읽은 시각·빗금 링·어디쯤 띠·검증 기록 숫자 카드)은 test/m11-g5-dom.test.mjs가 jsdom에서 동작으로 본다(M11 G6, Backlog 41).
+// app.js 배선(등장 동작·띠 읽은 시각·빗금 링·어디쯤 띠·검증 기록 숫자 카드)은 test/m11-g5-dom.test.mjs가 jsdom에서 동작으로 본다.
 const ruleOf = css => sel => (css.match(new RegExp(`(?:^|\\n)${sel.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\{[^}]*\\}`)) || [''])[0];
 
 test('styles: the doing card and the progress band use only the existing colour meanings and no CSS animation', async () => {
@@ -102,14 +102,14 @@ test('styles: the doing card and the progress band use only the existing colour 
   assert.doesNotMatch(rule('.doing-card.tone-todo'), /--broken/, '내 손 필요(노랑)는 멈춤(빨강)과 다르다');
   assert.doesNotMatch(rule('.doing-card.tone-rest'), /--info|--todo|--broken|--ok/, '대기는 회색(쉼)');
   for (const sel of ['.doing-card', '.band', '.bc', '.bc.is-here', '.ring', '.stat']) assert.doesNotMatch(rule(sel), /animation\s*:/, `${sel}에는 CSS 동작이 없다`);
-  // H8 체크리스트 4: 카드는 옅은 면과 1px 상태색 테두리 두 장치만 쓴다. 그라데이션 바림, 6px 안쪽 막대, 그림자는 없다
+  // 카드는 옅은 면과 1px 상태색 테두리 두 장치만 쓴다. 그라데이션 바림, 6px 안쪽 막대, 그림자는 없다
   for (const tone of ['live', 'todo', 'stop', 'done']) {
     const r = rule(`.doing-card.tone-${tone}`);
     assert.doesNotMatch(r, /transparent \d+%|inset 6px|--shadow-card/, `tone-${tone}`);
     assert.match(r, /-tint\)/, `tone-${tone}은 옅은 면`);
   }
   assert.doesNotMatch(rule('.doing-card'), /--shadow-card|border:1\.5px/);
-  // H8 체크리스트 8: 읽는 면은 약한 테두리(--rule), 확인 안 됨의 점선은 보이도록 한 단 강하게(--rule-2)
+  // 읽는 면은 약한 테두리(--rule), 확인 안 됨의 점선은 보이도록 한 단 강하게(--rule-2)
   assert.match(rule('.q.doing-card'), /border-color:var\(--rule\)/);
   assert.match(rule('.doing-card.tone-unknown'), /border-color:var\(--rule-2\)/);
   // 지금 칸이 띠에서 가장 눈에 띈다: 파랑 채움, 더 높은 칸, 바깥 고리. 남은 goal은 면 없이 점선이다
@@ -126,7 +126,7 @@ test('styles: under 720px the card puts its text under the head and ring so the 
   assert.ok(Number(block.match(/\.ring\{[^}]*width:(\d+)px/)[1]) <= 64, '좁은 폭의 링은 64px 이하');
 });
 
-// H8 체크리스트 2·3·7: 굵기 3단, 크기 5단. 큰 글은 「지금 하는 일」 한 줄뿐이고, 라벨은 답 위의 작은 머리말이다. 폭과 무관하게 왼쪽 끝이 하나다.
+// 굵기 3단, 크기 5단. 큰 글은 「지금 하는 일」 한 줄뿐이고, 라벨은 답 위의 작은 머리말이다. 폭과 무관하게 왼쪽 끝이 하나다.
 test('styles: hierarchy — three weights, five sizes, the doing line is the only display size, labels sit above their answers', async () => {
   const css = await read('../public/styles.css');
   const rule = ruleOf(css), root = rule(':root');
@@ -142,7 +142,7 @@ test('styles: hierarchy — three weights, five sizes, the doing line is the onl
   assert.match(rule('.q'), /grid-template-columns:minmax\(0,1fr\)/, '라벨 열이 없다 — 라벨은 답 위');
 });
 
-// H8 체크리스트 5·10: 영역 머리의 2px 잉크 줄과 빨강 사선 장식이 없고, 상태 알약은 한 부품이다.
+// 영역 머리의 2px 잉크 줄과 빨강 사선 장식이 없고, 상태 알약은 한 부품이다.
 test('styles: no 2px ink rules or red hatch decoration; lozenges share one base rule', async () => {
   const css = await read('../public/styles.css');
   const rule = ruleOf(css);
@@ -155,7 +155,7 @@ test('styles: no 2px ink rules or red hatch decoration; lozenges share one base 
   assert.doesNotMatch(rule('.state-done'), /background:var\(--ok\)/, '완료는 꽉 찬 면이 아니다');
 });
 
-// H8 체크리스트 12: 지금 단계는 면 대신 고리로 튄다. 멈춘 단계(지금 단계이기도 하다)의 고리는 파랑이 아니라 빨강이다.
+// 지금 단계는 면 대신 고리로 튄다. 멈춘 단계(지금 단계이기도 하다)의 고리는 파랑이 아니라 빨강이다.
 test('styles: the step timeline rings the current step in blue, a stopped step in red, and drops the gradient fill', async () => {
   const css = await read('../public/styles.css');
   const rule = ruleOf(css);

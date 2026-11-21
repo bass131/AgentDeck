@@ -1,4 +1,4 @@
-// 결정 응답의 쓰기 경로(M05 H7): POST /api/answer/preview·send, 넣기 모듈(lib/deliver.mjs), 설정의 메인 handle, 수집 블록.
+// 결정 응답의 쓰기 경로: POST /api/answer/preview·send, 넣기 모듈(lib/deliver.mjs), 설정의 메인 handle, 수집 블록.
 // 넣기는 주입한 가짜 함수로만 본다. 시험은 어떤 터미널에도 글을 넣지 않고, 파일을 쓰지 않는다.
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -29,7 +29,7 @@ async function appFor(t, opts = {}) {
   const state = { list, typed: [] };
   const collectFn = async (repo, opts) => ({ schema: 'ad-dashboard/1', revision: opts.revision, collectedAt: '2026-11-16T04:40:00+09:00', sources: [], decisions: state.list });
   const typeFn = type || (async (h, text) => { state.typed.push([h, text]); return { ok: true }; });
-  // 메인 터미널 찾기(M07 G13)는 끈다 — 이 파일은 설정 handle 길을 본다. 찾기 길은 find-main.test.mjs가 본다
+  // 메인 터미널 찾기는 끈다 — 이 파일은 설정 handle 길을 본다. 찾기 길은 find-main.test.mjs가 본다
   const app = await createDashboard({ repoPath: 'C:/fake', port: 0, mainTerminalHandle: handle }, { collectFn, watchFn: fakeWatch(), pingMs: 60000, type: typeFn, findMain: null });
   t.after(() => app.close());
   const html = await (await fetch(app.origin)).text();
@@ -96,7 +96,7 @@ test('403: no token, a wrong token of any length, a foreign or missing Origin, a
 });
 
 // 넣기 단추가 설정 handle이나 찾기 배선을 따르는지(스냅샷과 미리보기)는 동작으로 본다 — 위 'canType follows the handle'과
-// find-main.test.mjs 'canType is true with no configured handle when finding is wired'. 소스 정규식 시험은 지웠다(M11 G5, M07 Backlog 35·71).
+// find-main.test.mjs 'canType is true with no configured handle when finding is wired'.
 
 test('400 and 413: not JSON, a broken JSON body, a body over 64 KB', async t => {
   const app = await appFor(t);
@@ -258,7 +258,7 @@ test('deliver: ok:false, a non-zero exit, a missing orca and a refused input are
   assert.deepEqual(await kind(typeIntoTerminal(HANDLE, '문장', { execFileFn: fail(null, 'not json') })), UNSURE);
 });
 
-// 병합 세 경로(POST /api/merge/list·read·run, M07 G9·G11)도 POST만 받는다. 그 검사는 test/merge-server.test.mjs에 있다.
+// 병합 세 경로(POST /api/merge/list·read·run)도 POST만 받는다. 그 검사는 test/merge-server.test.mjs에 있다.
 test('only the two answer paths and the three merge paths take POST; every other method and path stays 405 or 404', async t => {
   const app = await appFor(t);
   const h = goodHeaders(app);

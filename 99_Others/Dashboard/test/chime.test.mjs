@@ -24,7 +24,7 @@ test('the module is pure: no DOM, no audio, no page storage of its own; it hangs
   assert.equal(RUNG_MAX, 200);
 });
 
-// app.js의 알림 배선·소리 상태·띠 손 줄은 test/m11-g5-dom.test.mjs가 jsdom에서 동작으로 본다(M11 G6, Backlog 41).
+// app.js의 알림 배선·소리 상태·띠 손 줄은 test/m11-g5-dom.test.mjs가 jsdom에서 동작으로 본다.
 // 동작으로 보이지 않는 소스 구조 두 가지만 글자로 남긴다.
 test('app.js source: only chime.js knows the storage key, and setSound is the one writer of the sound marker', async () => {
   const app = (await readFile(new URL('../public/app.js', import.meta.url), 'utf8')).replace(/\r\n/g, '\n');
@@ -169,7 +169,7 @@ test('strip hand line: the first shown item, a stop first when there is one, and
   assert.deepEqual(stripHand([{ level: 'todo', say: '가' }, { level: 'stop', say: '나' }, null]), { level: 'stop', say: '나', more: 1, to: '#brief' });
 });
 
-// H8: 「내 손」 목록은 결정 요청 밑(#brief)으로 옮겼고, 결정 항목은 「결정 요청」 카드(#decide)에만 보인다.
+// 「내 손」 목록은 결정 요청 밑(#brief)에 있고, 결정 항목은 「결정 요청」 카드(#decide)에만 보인다.
 // 그래서 띠의 손 줄은 고른 항목이 결정이면 카드로, 아니면 「내 손」 목록으로 간다(#now는 이제 큰 카드뿐이다).
 test('strip hand line: jumps to the decision cards for a decision item, to the hand list otherwise', async () => {
   const app = (await readFile(new URL('../public/app.js', import.meta.url), 'utf8')).replace(/\r\n/g, '\n');

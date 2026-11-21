@@ -1,4 +1,4 @@
-// M11 G5(M07 Backlog 26): 병합 카드의 브라우저 수준 e2e. 실제 Edge(Playwright channel msedge, 창 없음)로 현황판 서버를 연다.
+// 병합 카드의 브라우저 수준 e2e. 실제 Edge(Playwright channel msedge, 창 없음)로 현황판 서버를 연다.
 // opt-in이다 — DASHBOARD_E2E=1일 때만 돈다(기본 `node --test`에서는 건너뜀). 브라우저 내려받기(playwright install)는 하지 않는다.
 // 서버 쪽 병합은 가짜다: PR 목록·읽기·병합은 주입한 prService, 확인 창은 주입한 confirm, 보내기는 기록만 하는 mergeFn이다. GitHub도 gh도 부르지 않는다.
 // GitHub diff 링크가 여는 새 탭은 브라우저 안에서 가로채 빈 쪽으로 답한다.

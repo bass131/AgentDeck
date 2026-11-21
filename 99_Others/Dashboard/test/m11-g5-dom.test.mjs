@@ -1,5 +1,4 @@
-// M11 G5: app.js를 jsdom에서 실제로 돌려 화면 배선을 본다(Backlog 71). 서버 요청은 가짜 fetch, 실시간 연결은 가짜 EventSource다.
-// 정규식으로 소스 글자를 읽던 시험 가운데 같은 동작을 여기서 덮는 것은 지웠다. M11 G6에서 view·chime 시험의 app.js 절도 옮겼다(Backlog 41).
+// app.js를 jsdom에서 실제로 돌려 화면 배선을 본다. 서버 요청은 가짜 fetch, 실시간 연결은 가짜 EventSource다.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
@@ -51,7 +50,7 @@ async function page(t, vm, routes = {}, { setup } = {}) {
     hideNow() { for (const o of seen.filter(o => o.el?.id === 'now')) o.cb([{ isIntersecting: false }]); }, click(s) { const el = typeof s === 'string' ? $(s) : s; assert.ok(el, `누를 것이 없어요: ${s}`); el.click(); } };
 }
 
-// ── 71: 결정 카드 배선 (decide-view.test.mjs의 app.js 정규식 절을 옮김) ──
+// 결정 카드 배선
 const opt = (key, label, effect = `${label} 효과`) => ({ key, label, effect });
 const decision = (over = {}) => ({ id: 'g5-a', title: '첫 결정', options: [opt('A', '가'), opt('B', '나')], recommended: 'A', pr: null, detail: [], ...over });
 const board = (items, sig = 's1') => ({ sourceId: 'decisions', status: 'ok', path: BOARD, items, sig, warnings: [], skipped: 0, kept: false });
@@ -145,7 +144,7 @@ test('[M11-G5 71] the insert button follows canType; without it only copy is off
   assert.match(p.text('#decide-send .send-note'), /복사만/);
 });
 
-// ── 병합 카드 공통 ──
+// 병합 카드 공통
 const SHA = 'f4e0ff3a5f2c4c1f9e2b7d6a8c0e1b2d3f4a5b6c';
 const mergeItem = (pr = 9) => ({ id: 'merge', key: 'merge:g.md', level: 'todo', say: `PR ${pr}의 병합을 기다려요 — 위 병합 카드의 「병합」 버튼으로 해 주세요(바탕화면 확인 창에서 한 번 더 눌러요).`, source: 'goal 문서 머리말 「상태: 병합 대기」', ref: null, pr });
 const prView = (n = 9, over = {}) => ({ number: n, title: `PR ${n} 제목`, state: 'open', merged: false, url: `https://github.com/o/r/pull/${n}`, baseRef: 'milestone/m11', headRef: `chore/x-${n}`, headSha: SHA,
@@ -158,7 +157,7 @@ const mergeRoutes = ({ views = { 9: prView(9) }, list = [9], run } = {}) => ({
 });
 const withHand = async (...hand) => { const vm = await baseVm(); vm.summary = { ...vm.summary, hand }; return vm; };
 
-// ── 71: 병합 카드 배선 (merge-view.test.mjs의 app.js 정규식 절을 옮김) ──
+// 병합 카드 배선
 const must = (path, patch) => ({ path, why: '판정 장치', patch, diffUrl: `https://github.com/o/r/pull/9/files#diff-${path.length}`, previousPath: null });
 test('[M11-G5 71] merge card: the run button opens only after every must-see file is expanded or its GitHub diff link is clicked; diff text is escaped', async t => {
   const v = prView(9, { mustSee: [must('.claude/a.cjs', '@@ -1 +1 @@\n-<b>\n+<i>'), must('CLAUDE.md', null)] });
@@ -225,7 +224,6 @@ test('[M11-G5 71] merge card: a PR number loads by the button or Enter; while th
   await wait(30);
 });
 
-// ── 72 ──
 test('[M11-G5 72] the waiting-merge fact folds into the merge card showing the same PR; it still counts, and a card that failed to load keeps the full line', async t => {
   const p = await page(t, await withHand(mergeItem(9)), mergeRoutes());
   await until(() => p.$('#merge-card .mg'), '병합 카드');
@@ -239,7 +237,6 @@ test('[M11-G5 72] the waiting-merge fact folds into the merge card showing the s
   assert.match(failed.text('#brief .hand-list'), /PR 7의 병합을 기다려요 — 위 병합 카드/, '카드가 그 PR을 못 보이면 사실 줄이 남는다(병합 카드는 위에 있다)');
 });
 
-// ── 61 ──
 test('[M11-G5 61] once the card reads the pending PR as merged, the hand stops asking to merge and says only the goal document is left', async t => {
   const p = await page(t, await withHand(mergeItem(9)), mergeRoutes({ views: { 9: prView(9, { state: 'closed', merged: true }) } }));
   await until(() => p.text('#merge-card').includes('병합됐어요'), '닫힌 카드');
@@ -276,7 +273,6 @@ test('[M11-G5 61] the strip hand line follows the card: it asks to merge while t
   assert.equal(p.$('#strip-status .mini-hand'), null, '병합됐으면 띠의 손 줄이 사라진다');
 });
 
-// ── M07-27 ──
 test('[M11-G5 M07-27] after the confirm window closes without merging, the card says it once', async t => {
   const p = await page(t, await withHand(mergeItem(9)), mergeRoutes());
   await until(() => p.$('[data-merge-run]') && !p.$('[data-merge-run]').disabled, '병합 단추');
@@ -293,7 +289,6 @@ test('[M11-G5 M07-27] after the confirm window closes without merging, the card 
   await until(() => !p.text('#merge-act').includes('확인 창에서 병합하지 않았어요') && p.$('[data-merge-run]') && !p.$('[data-merge-run]').disabled, '다시 읽은 뒤 단추');
 });
 
-// ── M07-32 ──
 test('[M11-G5 M07-32] a new pending PR number re-reads the list by itself; the reload buttons keep keyboard focus while reading', async t => {
   const routes = mergeRoutes({ views: { 9: prView(9), 10: prView(10) }, list: [9, 10] }), listOnce = routes['/api/merge/list'], gate = { hold: false, go: null };
   routes['/api/merge/list'] = body => gate.hold ? new Promise(r => { gate.go = () => r(listOnce(body)); }) : listOnce(body);
@@ -328,7 +323,6 @@ test('[M11-G5 M07-32] a new pending PR number re-reads the list by itself; the r
   assert.ok(p.doc.activeElement?.matches('[data-merge-reload]'));
 });
 
-// ── 62·63 배선 ──
 test('[M11-G5 62] the stale-progress fact shows as a small line under the hand', async t => {
   const vm = await baseVm(); vm.phases.goal.stale = { after: 3, commit: 'd0c1234' };
   const p = await page(t, vm, mergeRoutes({ list: [] }));
@@ -361,7 +355,6 @@ test('[M11-G5 63] Orca worker news: a few escaped lines when the snapshot carrie
   assert.equal(off.$('#brief .inbox'), null);
 });
 
-// ── 64 ──
 test('[M11-G5 64] unread sources are a red broken fact, not a yellow to-do; the unused strip classes are gone; no Web Audio shows 「알림음 없음」', async t => {
   const vm = await baseVm(); vm.sources = [...vm.sources, { id: 'x', label: '시험 원문', target: 'x', status: 'failed', collectedAt: vm.collectedAt, error: '못 읽음' }];
   const p = await page(t, vm, mergeRoutes({ list: [] }));
@@ -382,7 +375,6 @@ test('[M11-G5 64] unread sources are a red broken fact, not a yellow to-do; the 
   assert.ok(p.$('#brief .sound-state').classList.contains('is-unsupported'));
 });
 
-// ── 68 ──
 test('[M11-G5 68] 「N단계 중 k개 완료」 is said once; a hook time ahead of the page clock never says 「미래 시각」', async t => {
   const vm = await baseVm();
   const act = ms => ({ kind: 'edit', actor: 'main', at: new Date(Date.now() + ms).toISOString(), count: 1, of: 1, detail: null, say: '메인 세션이 파일을 고치고 있어요', sayPast: '메인 세션이 파일을 고쳤어요' });
@@ -398,7 +390,6 @@ test('[M11-G5 68] 「N단계 중 k개 완료」 is said once; a hook time ahead 
   assert.match(far.text('#now .q-doing'), /마지막 활동 시각이 이 화면의 시계보다 앞서요/, '크게 앞서면 시계가 어긋났다고 말한다');
 });
 
-// ── 44 화면 ──
 test('[M11-G5 44] the milestone panel shows a spec status line and a goal-documents count instead of 「계획 문서 없음」', async t => {
   const vm = await baseVm();
   vm.milestones = { ...vm.milestones, status: 'ok', items: [
@@ -411,7 +402,7 @@ test('[M11-G5 44] the milestone panel shows a spec status line and a goal-docume
   assert.ok(!p.text('#milestones').includes('계획 문서 없음'));
 });
 
-// ── 41: 등장 동작·띠 읽은 시각·링·어디쯤·검증 기록 (view.test.mjs의 app.js 정규식 절을 옮김, M11 G6) ──
+// 등장 동작·띠 읽은 시각·링·어디쯤·검증 기록
 const recorder = () => {
   const log = [];
   return { log, setup(w) { w.Element.prototype.animate = function (frames, opts) { log.push({ el: this, frames, opts }); return { cancel() {}, finished: Promise.resolve() }; }; } };
@@ -518,7 +509,7 @@ test('[M11-G6 41] verification record: pass / fail / user-input number cards in 
   assert.equal(missing.$('#phases dl.stats'), null);
 });
 
-// ── 41: 알림 배선·소리 상태·띠 손 줄 (chime.test.mjs의 app.js 정규식 절을 옮김, M11 G6) ──
+// 알림 배선·소리 상태·띠 손 줄
 test('[M11-G6 41] notify on render: a snapshot with a new hand key rings once, badges the title and is remembered under the chime module key — also with reduced motion and a hidden tab', async t => {
   const vm = await baseVm();
   const p = await page(t, vm, quietRoutes(), { setup: w => { reduced(w); hidden(w); } });

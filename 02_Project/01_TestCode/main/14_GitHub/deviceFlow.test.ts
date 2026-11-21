@@ -120,23 +120,49 @@ describe('토큰 폴링', () => {
     expect(calls).toHaveLength(1)
   })
 
-  it('요청이 던지거나 본문 없는 5xx면 끝내지 않고 간격을 두 배로 늘려 다시 묻는다', async () => {
-    const replies: (HttpResponse | 'throw')[] = ['throw', { status: 502, body: null }, pending, granted]
-    const http = async (): Promise<HttpResponse> => {
-      const next = replies.shift()
-      if (next === 'throw' || !next) throw new Error(`boom ${TOKEN}`)
-      return next
-    }
+  const withFailures = (replies: (HttpResponse | 'throw')[]) => async (): Promise<HttpResponse> => {
+    const next = replies.shift()
+    if (next === 'throw' || !next) throw new Error(`boom ${TOKEN}`)
+    return next
+  }
+
+  it('요청이 던지거나 본문 없는 5xx면 끝내지 않고 간격을 두 배로 늘려 다시 묻고, 정상 응답이 오면 기본 간격으로 돌아간다', async () => {
     const c = clock()
-    const r = await pollForToken(http, { webBase: WEB, clientId: 'x', code: CODE, signal: new AbortController().signal, ...c })
+    const r = await pollForToken(withFailures(['throw', { status: 502, body: null }, pending, pending, granted]), { webBase: WEB, clientId: 'x', code: CODE, signal: new AbortController().signal, ...c })
     expect(r).toEqual({ ok: true, token: TOKEN })
-    expect(c.slept).toEqual([5000, 10000, 20000, 20000])
+    expect(c.slept).toEqual([5000, 10000, 20000, 5000, 5000])
   })
 
-  it('네트워크 오류가 이어져도 만료 시각이 지나면 만료로 끝나고 사유에 토큰을 싣지 않는다', async () => {
+  it('물러남 뒤 slow_down이 오면 그 응답이 정한 간격으로 돌아간다', async () => {
+    const c = clock()
+    const slowTo8: HttpResponse = { status: 200, body: { error: 'slow_down', interval: 8 } }
+    const r = await pollForToken(withFailures(['throw', 'throw', slowTo8, pending, granted]), { webBase: WEB, clientId: 'x', code: CODE, signal: new AbortController().signal, ...c })
+    expect(r).toEqual({ ok: true, token: TOKEN })
+    expect(c.slept).toEqual([5000, 10000, 20000, 8000, 8000])
+  })
+
+  it('물러남 간격은 60초를 넘지 않는다', async () => {
+    const c = clock()
+    const replies: (HttpResponse | 'throw')[] = [...Array.from({ length: 6 }, (): 'throw' => 'throw'), granted]
+    const r = await pollForToken(withFailures(replies), { webBase: WEB, clientId: 'x', code: { ...CODE, expiresIn: 3600 }, signal: new AbortController().signal, ...c })
+    expect(r).toEqual({ ok: true, token: TOKEN })
+    expect(c.slept).toEqual([5000, 10000, 20000, 40000, 60000, 60000, 60000])
+  })
+
+  it('네트워크 오류가 이어져도 만료 시각에서 끝나고, 잠이 만료 시각을 넘지 않으며 사유에 토큰을 싣지 않는다', async () => {
+    const c = clock()
     const http = async (): Promise<HttpResponse> => { throw new Error(`boom ${TOKEN}`) }
-    const r = await pollForToken(http, { webBase: WEB, clientId: 'x', code: { ...CODE, expiresIn: 60 }, signal: new AbortController().signal, ...clock() })
+    const r = await pollForToken(http, { webBase: WEB, clientId: 'x', code: { ...CODE, expiresIn: 30 }, signal: new AbortController().signal, ...c })
     expect(r).toEqual({ ok: false, failure: 'expired' })
+    expect(c.slept).toEqual([5000, 10000, 15000])
+    expect(c.now()).toBe(30_000)
+  })
+
+  it('기다림만 이어질 때도 마지막 잠은 만료 시각까지로 잘린다', async () => {
+    const c = clock()
+    const r = await pollForToken(scripted([pending, pending]).http, { webBase: WEB, clientId: 'x', code: { ...CODE, expiresIn: 12 }, signal: new AbortController().signal, ...c })
+    expect(r).toEqual({ ok: false, failure: 'expired' })
+    expect(c.slept).toEqual([5000, 5000, 2000])
   })
 
   it('본문에 error가 있는 5xx는 그 오류로 끝난다', async () => {

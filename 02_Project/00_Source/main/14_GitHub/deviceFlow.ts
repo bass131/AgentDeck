@@ -1,7 +1,8 @@
 // GitHub 기기 인증(device flow). 근거는 GitHub Docs 「Authorizing OAuth apps」의 Device flow 절이다.
 //   1. POST {web}/login/device/code (client_id, scope) → device_code·user_code·verification_uri·expires_in·interval
 //   2. POST {web}/login/oauth/access_token (client_id, device_code, grant_type) — 오류는 본문의 error 칸으로 오고, slow_down은 새 interval을 싣는다.
-//      연결 오류·본문 없는 5xx는 간격을 두 배로 늘려 다시 묻는다(RFC 8628 3.5). 만료 시각이 지나면 끝난다
+//      연결 오류·본문 없는 5xx는 간격을 두 배로(60초까지) 늘려 다시 묻고(RFC 8628 3.5),
+//      정상 응답이 오면 기본 간격으로 돌아간다. 잠은 만료 시각을 넘지 않는다
 //   3. GET {api}/user → login
 // HTTP 함수를 주입받는 순수 모듈이다. 실패 사유에는 토큰·기기 코드를 싣지 않는다.
 
@@ -19,6 +20,7 @@ export const GITHUB_SCOPE = 'repo workflow'
 const DEVICE_GRANT = 'urn:ietf:params:oauth:grant-type:device_code'
 const SLOW_DOWN_STEP_S = 5
 const DEFAULT_INTERVAL_S = 5
+const MAX_BACKOFF_S = 60
 
 export interface DeviceCode {
   deviceCode: string
@@ -93,9 +95,11 @@ export async function pollForToken(http: HttpJson, opts: PollOptions): Promise<{
   const sleep = opts.sleep ?? abortableSleep
   const deadline = now() + opts.code.expiresIn * 1000
   const cancelled: FlowFailure = { ok: false, failure: 'cancelled' }
-  let interval = opts.code.interval
+  let base = opts.code.interval
+  let interval = base
+  const backOff = (): void => { interval = Math.max(base, Math.min(interval * 2, MAX_BACKOFF_S)) }
   for (;;) {
-    await sleep(interval * 1000, opts.signal)
+    await sleep(Math.max(0, Math.min(interval * 1000, deadline - now())), opts.signal)
     if (opts.signal.aborted) return cancelled
     if (now() >= deadline) return { ok: false, failure: 'expired' }
     let res: HttpResponse
@@ -105,21 +109,23 @@ export async function pollForToken(http: HttpJson, opts: PollOptions): Promise<{
       }, opts.signal))
     } catch {
       if (opts.signal.aborted) return cancelled
-      interval *= 2
+      backOff()
       continue
     }
     const b = rec(res.body)
     const token = text(b['access_token'])
     if (res.status === 200 && token) return { ok: true, token }
     if (res.status >= 500 && b['error'] === undefined) {
-      interval *= 2
+      backOff()
       continue
     }
     switch (b['error']) {
       case 'authorization_pending':
+        interval = base
         continue
       case 'slow_down':
-        interval = positive(b['interval']) ?? interval + SLOW_DOWN_STEP_S
+        base = positive(b['interval']) ?? base + SLOW_DOWN_STEP_S
+        interval = base
         continue
       case 'expired_token':
         return { ok: false, failure: 'expired' }

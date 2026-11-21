@@ -76,7 +76,7 @@ export interface MainActions {
 
 type TasteOutcome<T> = ({ ok: true } & T) | { ok: false; reason: string }
 // 문서 초안 — check는 쓰지 않는 쓰기 검사(통과하면 쓸 원문), confirm은 사람 확정 뒤의 쓰기다
-export interface TasteDeps {
+interface TasteDeps {
   check(draft: TasteDraft): Promise<TasteOutcome<{ preview: string }>>
   confirm(draft: TasteDraft): Promise<TasteOutcome<{ summary: string }>>
 }

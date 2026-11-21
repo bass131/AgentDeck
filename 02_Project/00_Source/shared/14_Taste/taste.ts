@@ -6,7 +6,7 @@ export const TASTE_CHANNELS = {
 
 export interface TasteReadRequest { cwd: string }
 
-export type TasteDocKind = 'global-taste' | 'project-taste' | 'charter'
+type TasteDocKind ='global-taste' | 'project-taste' | 'charter'
 // 메인 대화가 제안하는 문서 한 장의 구조. 앱이 쓰기 검사를 거쳐 사람 확정 뒤에만 쓴다.
 export type TasteDraft =
   | { doc: 'global-taste' | 'project-taste'; items: TasteItem[] }

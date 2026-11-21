@@ -8,7 +8,7 @@ export interface CharterGit extends Pick<GitPort,
   currentBranch?(): Promise<string | null>
 }
 
-export interface CharterPrRequest {
+interface CharterPrRequest {
   git: CharterGit
   gh: Pick<GhPort, 'createPr'>
   // 원격의 기본 브랜치 이름
@@ -22,7 +22,7 @@ export interface CharterPrRequest {
   body: string
 }
 
-export type CharterPrResult = { ok: true; pr: number; branch: string; warning?: string } | { ok: false; reason: string }
+type CharterPrResult = { ok: true; pr: number; branch: string; warning?: string } | { ok: false; reason: string }
 
 const errText = (e: unknown): string => (e instanceof Error ? e.message : String(e))
 const refuse = (reason: string): CharterPrResult => ({ ok: false, reason })

@@ -43,7 +43,7 @@ function itemsOf(v: unknown): TasteItem[] | null {
 }
 
 // 도구 입력을 초안으로 읽는다. 꼴이 틀리면 사유 글
-export function draftOf(args: Record<string, unknown>): TasteDraft | string {
+function draftOf(args: Record<string, unknown>): TasteDraft | string {
   const doc = args['doc']
   if (doc === 'global-taste' || doc === 'project-taste') {
     const items = itemsOf(args['items'])

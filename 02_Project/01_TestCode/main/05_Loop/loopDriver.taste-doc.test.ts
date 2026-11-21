@@ -1,9 +1,4 @@
-// 구동자의 문서 초안 길 — 실 git(임시 작업 저장소 + bare 원격) + 가짜 gh + 대본 백엔드로 프로덕션 createLoopDriver를 돈다.
-// 고정하는 것:
-//   - 메인의 propose_taste_doc은 쓰기 검사를 통과한 초안만 카드로 띄운다. 전역 Taste 확정은 앱 데이터 폴더에 쓴다.
-//   - 프로젝트 문서 확정은 원격 기본 머리에서 가른 브랜치의 커밋·push·PR이고, 끝나면 원래 브랜치로 돌아온다.
-//     실행 중인 마일스톤이 있거나 작업 트리가 더러우면 쓰지 않고 이유를 카드와 대화에 남긴다.
-//   - 「문답 열기」는 지금 문서와 꼴 규칙을 실은 여는 턴을 보내고, 대화 기록에는 짧은 한 줄이 남는다.
+// 실 git(임시 작업 저장소 + bare 원격) + 가짜 gh + 대본 백엔드로 프로덕션 createLoopDriver를 돈다.
 import fs from 'node:fs'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'

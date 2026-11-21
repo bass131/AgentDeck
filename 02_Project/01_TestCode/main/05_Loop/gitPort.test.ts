@@ -226,6 +226,20 @@ describe('fileAt', () => {
   })
 })
 
+describe('pathsBetween', () => {
+  it('두 커밋 사이에 바뀐 경로를 낸다 — rename은 옛·새 경로 둘 다, 작업 트리의 변경은 아니다', async () => {
+    write('docs/agentdeck/Taste.md', 'a\n')
+    const base = await git.commitAll('처음')
+    write('Docs2/x.md', 'x\n')
+    repos.git(['mv', 'docs/agentdeck/Taste.md', 'docs/agentdeck/Taste2.md'])
+    const head = await git.commitAll('옮김')
+    write('untracked.md', 'u\n')
+    expect((await git.pathsBetween(base, head)).sort()).toEqual(['Docs2/x.md', 'docs/agentdeck/Taste.md', 'docs/agentdeck/Taste2.md'])
+    expect(await git.pathsBetween(head, head)).toEqual([])
+    await expect(git.pathsBetween('f'.repeat(40), head)).rejects.toThrow()
+  })
+})
+
 // 실행기가 원격과 로컬을 대조하는 데 쓰는 읽기
 describe('remoteSha·parents', () => {
   it('원격 머리를 ls-remote로 읽고, 원격에 없는 브랜치는 null이다', async () => {

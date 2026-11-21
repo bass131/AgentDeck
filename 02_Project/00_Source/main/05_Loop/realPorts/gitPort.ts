@@ -307,6 +307,12 @@ export function createGitPort(opts: GitPortOptions): GitPort {
       if (hit.type !== 'blob' || !['100644', '100755'].includes(hit.mode)) throw new Error(`${hit.path}이 커밋 ${commit.slice(0, 8)}에서 파일이 아니다`)
       return must(git, ['cat-file', 'blob', hit.sha])
     },
+    async pathsBetween(from, to) {
+      const [a, b] = [await resolve(from), await resolve(to)]
+      if (!a || !b) throw new Error(`커밋 ${(a ? to : from).slice(0, 12)}을 찾지 못했다`)
+      const out = await must(git, ['diff', '--name-only', '-z', '--no-renames', '--no-ext-diff', a, b, '--'])
+      return out.split('\0').filter((p) => p !== '')
+    },
   }
 
   // 진짜 인덱스를 복사한 임시 인덱스(저장소 밖)에 add -A 한 뒤 fn을 돈다. 진짜 인덱스는 건드리지 않는다.

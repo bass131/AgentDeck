@@ -122,6 +122,8 @@ export function buildReviewPrompt(req: ReviewRequest): string {
 const DOCS_NOTE = 'diff가 docs/agentdeck/를 바꿨다(Taste의 판은 마일스톤 시작점 커밋의 원문이다)'
 const OVERRULED = 'VERDICT는 pass였지만 Taste 판정으로 불통과'
 const MODEL_FAILED = '검수 세션이 VERDICT: fail을 냈다'
+// 머리가 길어도 이유(fail 근거·본문)는 이만큼 받는다
+const REASON_MIN = 100
 
 function fitEvidence(musts: string[], rest: string[], max: number): string {
   let out = musts.join(' — ')
@@ -145,7 +147,7 @@ function judged(text: string, req: ReviewRequest): { verdict: 'pass' | 'fail'; e
   const modelPass = parseVerdict(text) === 'pass'
   const verdictNote = modelPass ? (j.pass ? [] : [OVERRULED]) : [lastOk ? MODEL_FAILED : said]
   const others = [...verdictNote, ...note]
-  const head = tasteHead(j, EVIDENCE_MAX - others.reduce((n, s) => n + s.length + 3, 0))
+  const head = tasteHead(j, EVIDENCE_MAX - others.reduce((n, s) => n + s.length + 3, 0) - REASON_MIN - 3)
   const body = oneLine(before.split(/\r?\n/).filter((l) => !isTasteLine(l.trim())).join('\n')) || '근거 없음'
   return {
     verdict: modelPass && j.pass ? 'pass' : 'fail',

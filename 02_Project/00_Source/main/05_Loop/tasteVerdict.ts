@@ -58,6 +58,7 @@ const MALFORMED = '꼴이 틀린 TASTE 줄'
 const NOTE_MAX = 200
 
 const TOKEN_MAX = 24
+const REASON_ITEM_MAX = 80
 const LIST_MAX = 5
 const BAD_CONFLICT = '꼴 틀림'
 
@@ -149,4 +150,4 @@ export function tasteHead(j: TasteJudgement, max: number): string {
 }
 
 export const tasteFailReasons = (j: TasteJudgement): string[] =>
-  j.entries.filter((e) => e.state === 'fail' && e.reason).map((e) => `${e.id}: ${e.reason}`)
+  j.entries.filter((e) => e.state === 'fail' && e.reason).map((e) => `${e.id}: ${clip(e.reason ?? '', REASON_ITEM_MAX)}`)

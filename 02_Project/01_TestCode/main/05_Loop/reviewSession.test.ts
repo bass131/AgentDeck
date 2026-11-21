@@ -201,6 +201,33 @@ describe('Taste 체크리스트 절', () => {
       expect(r.evidence).not.toContain('X'.repeat(30))
       expect(r.evidence.length).toBeLessThanOrEqual(380)
     })
+
+    // 머리를 펼치면 예산을 거의 다 쓰는 띠(24~29개) — 이유는 늘 최소 예산(100자)을 받는다
+    it.each([24, 28, 29])('항목 %i개에서도 VERDICT fail의 이유와 fail 항목의 이유가 최소 예산만큼 실린다', async (n) => {
+      const items = MANY.slice(0, n)
+      const body = '본문이유'.repeat(60)
+      const ask = async (lines: string[]) => createReviewSessionPort(opts(fakeBackend(said([body, ...lines].join('\n'))).backend)).review(request({ taste: items }))
+      const allPass = await ask([...items.map((m) => `TASTE ${m.id}: pass — 맞다`), 'VERDICT: fail'])
+      expect(allPass.verdict).toBe('fail')
+      expect(allPass.evidence).toContain(`검수 세션 — ${body.slice(0, 90)}`)
+      expect(allPass.evidence.length).toBeLessThanOrEqual(380)
+      const why = '그라데이션 배경이 들어갔고 버튼 그림자도 짙다'
+      const oneFail = await ask([...items.map((m) => `TASTE ${m.id}: ${m.id === 'P-T15' ? `fail — ${why}` : 'pass — 맞다'}`), 'VERDICT: pass'])
+      expect(oneFail.verdict).toBe('fail')
+      expect(oneFail.evidence).toContain(`P-T15: ${why}`)
+      expect(oneFail.evidence.length).toBeLessThanOrEqual(380)
+    })
+
+    it('fail 항목마다 근거 글에 상한이 있어 첫 근거가 길어도 뒤 fail의 이유가 함께 남는다', async () => {
+      const items = MANY.slice(0, 3)
+      const lines = ['TASTE P-T1: fail — ' + '첫근거'.repeat(140), 'TASTE P-T2: fail — 두 번째 이유', 'TASTE P-T3: fail — 세 번째 이유', 'VERDICT: fail']
+      const r = await createReviewSessionPort(opts(fakeBackend(said(['근거.', ...lines].join('\n'))).backend)).review(request({ taste: items }))
+      expect(r.evidence).toContain('P-T1: 첫근거')
+      expect(r.evidence).not.toContain('첫근거'.repeat(30))
+      expect(r.evidence).toContain('P-T2: 두 번째 이유')
+      expect(r.evidence).toContain('P-T3: 세 번째 이유')
+      expect(r.evidence.length).toBeLessThanOrEqual(380)
+    })
   })
 
   it('Taste가 없으면 TASTE 줄을 읽지 않는다 — 판정은 VERDICT 줄 그대로다', async () => {

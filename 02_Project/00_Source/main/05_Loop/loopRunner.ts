@@ -147,6 +147,7 @@ const ARCHIVED_DOCS = [DOCS.milestoneSpec, DOCS.decisions, DOCS.verification] as
 const EXECUTOR_OWNED = /^(\.[\\/])*\.agentdeck[\\/]/
 // 특수 글자가 든 경로는 git이 따옴표로 감싼다
 const TASTE_DOCS_DIFF = /^diff --git "?a\/docs\/agentdeck\//im
+const PLATE_BROKEN = '판정 장치 이상 — 사람 판단이 필요하다'
 const short = (sha: string | null | undefined): string => (sha ? sha.slice(0, 8) : '(없음)')
 const errorText = (e: unknown): string => oneSentence(e instanceof Error ? e.message : String(e))
 const v = (node: StepNode, verdict: Verdict['verdict'], evidence: string, facts?: Verdict['facts']): Verdict =>
@@ -485,16 +486,30 @@ export function createLoopRunner(deps: LoopRunnerDeps): LoopRunner {
     }
   }
 
-  async function projectPlate(state: RunState): Promise<{ ok: true; text: string | null } | { ok: false; reason: string }> {
-    const base = state.milestoneBase
-    if (!base) return { ok: false, reason: '마일스톤 시작 SHA가 상태에 없어 프로젝트 Taste의 판을 정할 수 없다 — 사람 판단이 필요하다' }
-    const fixed = `판은 마일스톤 시작점 커밋 ${short(base)}의 원문이라 이 실행에서는 고칠 수 없다. 기본 브랜치에서 고친 뒤 새 실행으로`
+  async function plateAt(sha: string): Promise<{ ok: true; text: string | null } | { ok: false; reason: string }> {
     let text: string | null
-    try { text = await git.fileAt(base, PROJECT_TASTE_REL) } catch (e) {
-      return { ok: false, reason: `${fixed} — 일시적인 읽기 오류면 이어 가기로 다시 읽는다. 마일스톤 시작 ${short(base)}의 프로젝트 Taste를 읽지 못했다(${PROJECT_TASTE_REL} — ${errorText(e)})` }
+    try { text = await git.fileAt(sha, PROJECT_TASTE_REL) } catch (e) {
+      return { ok: false, reason: `${short(sha)}의 프로젝트 Taste를 읽지 못했다(${PROJECT_TASTE_REL} — ${errorText(e)})` }
     }
     const checked = tasteChecklist({ project: text, global: null })
-    return checked.ok ? { ok: true, text } : { ok: false, reason: `${fixed} — ${checked.reason}` }
+    return checked.ok ? { ok: true, text } : { ok: false, reason: checked.reason }
+  }
+
+  // 판은 마일스톤 브랜치를 가를 때 확인했다 — 그 뒤에 보이는 문제는 사람이 고칠 길이 없는 이상이다
+  async function projectPlate(state: RunState): Promise<{ ok: true; text: string | null } | { ok: false; reason: string }> {
+    const base = state.milestoneBase
+    if (!base) return { ok: false, reason: `${PLATE_BROKEN} — 마일스톤 시작 SHA가 상태에 없어 프로젝트 Taste의 판을 정할 수 없다` }
+    const plate = await plateAt(base)
+    return plate.ok ? plate : { ok: false, reason: `${PLATE_BROKEN} — 판은 마일스톤 시작점 커밋 ${short(base)}의 원문이다. ${plate.reason}` }
+  }
+
+  async function milestonePlateCheck(start: string, existing: boolean, names: BranchNames): Promise<string | null> {
+    const plate = await plateAt(start)
+    if (plate.ok) return null
+    const how = existing
+      ? `판은 이미 있는 ${names.milestone}의 시작점 ${short(start)}의 ${PROJECT_TASTE_REL}다 — 사람 판단이 필요하다`
+      : `판은 ${names.base}의 원격 머리 ${short(start)}의 ${PROJECT_TASTE_REL}다. 기본 브랜치의 ${PROJECT_TASTE_REL}를 고치고 이어 가기를 누르면 원격 머리를 다시 읽는다`
+    return `프로젝트 Taste를 판으로 쓸 수 없어 ${names.milestone}을 ${existing ? '옮겨 가지' : '가르지'} 않았다 — ${how} — ${plate.reason}`
   }
 
   async function tastePlate(state: RunState): Promise<{ ok: true; items: TasteCheckItem[] } | { ok: false; reason: string }> {
@@ -541,12 +556,17 @@ export function createLoopRunner(deps: LoopRunnerDeps): LoopRunner {
   // 브랜치는 시작 SHA의 계보일 때만 이번 실행의 것으로 받는다. 상태에 시작 SHA가 없으면(만든 뒤 저장 전에 꺼짐) from의 원격 머리로 본다
   // (로컬 ref는 작업 노드가 옮길 수 있다).
   // push하는 브랜치(마일스톤)는 머리가 시작 SHA와 같을 때만 받고, 그 SHA를 push한다(확인 뒤 로컬 브랜치가 옮겨져도 따라가지 않는다).
-  async function ensureBranch(node: ActionNode, name: string, from: string, recordedStart: string | null, pushNew: boolean): Promise<Verdict> {
+  async function ensureBranch(
+    node: ActionNode, name: string, from: string, recordedStart: string | null, pushNew: boolean,
+    check?: (start: string, existing: boolean) => Promise<string | null>,
+  ): Promise<Verdict> {
     if (await git.branchExists(name)) {
       const start = recordedStart ?? (await git.remoteSha(from))
       if (!start || !(await git.isAncestor(start, name))) {
         return v(node, 'stop', `${name} 브랜치가 이미 있는데 이번 실행이 가른 계보(시작 ${short(start)})가 아니다 — 사람 판단이 필요하다`)
       }
+      const blocked = await check?.(start, true)
+      if (blocked) return v(node, 'stop', blocked)
       if (pushNew) {
         const head = await git.headSha(name)
         if (head !== start) return v(node, 'stop', `이미 있는 ${name}의 머리 ${short(head)}가 시작 ${short(start)}가 아니다 — ${NOT_PUSHED}`)
@@ -560,6 +580,8 @@ export function createLoopRunner(deps: LoopRunnerDeps): LoopRunner {
     if (drift) return v(node, 'stop', `${name}을 가르지 않았다 — ${drift}`)
     const start = await git.headSha(from)
     if (!start) return v(node, 'fail', `${from}의 머리를 읽지 못해 ${name}을 가르지 않았다`)
+    const blocked = await check?.(start, false)
+    if (blocked) return v(node, 'stop', blocked)
     await git.createBranch(name, from)
     await git.checkout(name)
     if (pushNew) {
@@ -669,15 +691,29 @@ export function createLoopRunner(deps: LoopRunnerDeps): LoopRunner {
   }
 
   // 「영역 재설계 안건」은 늘 싣는다 — 안건이 없으면 「없음」(절이 빠진 것과 안건이 없는 것을 가른다)
-  function milestoneReport(state: RunState): string {
+  async function milestoneReport(state: RunState, branch: string): Promise<string> {
     const rows = state.goals.map((g) => `- ${g.id} ${g.title} — 등급 ${g.grade === 'weak' ? '약' : '강'}, PR ${g.pr ?? '없음'}`)
     const agenda = state.goals.flatMap((g) => (g.tasteConflicts ?? []).map((c) =>
       `- ${g.id} — 프로젝트 ${c.project} 대 전역 ${c.global}, 프로젝트 쪽을 따랐다: ${c.note}`))
     return [
       `# ${state.milestoneId} 마일스톤 결과 보고`, '', ...rows, '',
       '## 영역 재설계 안건', '', ...(agenda.length > 0 ? agenda : ['- 없음']), '',
+      '## Taste 문서 변경', '', ...(await tasteDocChanges(state, branch)), '',
       '검증 기록은 `.agentdeck/verification.md`에 있다.',
     ].join('\n')
+  }
+
+  // 약 등급 goal이 검수 없이 고친 Taste가 다음 마일스톤의 판이 되기 전에 병합 버튼 앞의 사람이 보게 한다
+  async function tasteDocChanges(state: RunState, branch: string): Promise<string[]> {
+    const confirm = '다음 마일스톤의 Taste 판이 된다 — 병합 전에 확인'
+    try {
+      const head = await git.remoteSha(branch)
+      if (!state.milestoneBase || !head) throw new Error('마일스톤 시작점이나 원격 머리가 없다')
+      const paths = (await git.pathsBetween(state.milestoneBase, head)).filter((p) => p.toLowerCase().startsWith('docs/agentdeck/'))
+      return paths.length === 0 ? ['- 없음'] : [...paths.map((p) => `- ${p}`), '', confirm]
+    } catch (e) {
+      return [`- 확인하지 못했다(${errorText(e)}) — 바뀌었다면 ${confirm}`]
+    }
   }
 
   // goal 문서가 분해 때 실행기가 읽은 본문과 같은가. 다르면 사유(멈춤), 같거나 옛 상태(해시 없음)면 null.
@@ -695,12 +731,12 @@ export function createLoopRunner(deps: LoopRunnerDeps): LoopRunner {
     try {
       switch (node.action) {
         case 'createMilestoneBranch':
-          return await ensureBranch(node, names.milestone, names.base, state.milestoneBase, true)
+          // 프로젝트 판은 이 노드가 가를 시작점에 고정되므로 가르기 전에 본다. 전역 판은 사람이 고치면 풀리므로 검수 때 본다
+          return await ensureBranch(node, names.milestone, names.base, state.milestoneBase, true, (start, existing) => milestonePlateCheck(start, existing, names))
         case 'createGoalBranch': {
           if (!goal || names.goal === null) return v(node, 'fail', 'goal 밖에서 goal 브랜치를 가를 수 없다')
-          // 프로젝트 판은 이 실행에서 고칠 수 없으니 작업을 쓰기 전에 멈춘다. 전역 판은 사람이 고치면 풀리므로 검수 때 본다
           const plate = await projectPlate(state)
-          if (!plate.ok) return v(node, 'stop', `프로젝트 Taste를 판으로 쓸 수 없어 ${names.goal}을 가르지 않았다 — ${plate.reason}`)
+          if (!plate.ok) return v(node, 'stop', `${names.goal}을 가르지 않았다 — ${plate.reason}`)
           return await ensureBranch(node, names.goal, names.milestone, goal.baseSha, false)
         }
         case 'openGoalPr': {
@@ -715,7 +751,7 @@ export function createLoopRunner(deps: LoopRunnerDeps): LoopRunner {
           if (!goal) return v(node, 'fail', 'goal 밖에서 goal을 병합할 수 없다')
           return await mergeGoal(node, goal, names)
         case 'openMilestonePr':
-          return await ensurePr(node, names.milestone, names.base, `${state.milestoneId} 마일스톤`, milestoneReport(state), false, true)
+          return await ensurePr(node, names.milestone, names.base, `${state.milestoneId} 마일스톤`, await milestoneReport(state, names.milestone), false, true)
       }
     } catch (e) {
       return v(node, 'fail', `${node.title} 중 오류 — ${errorText(e)}`)

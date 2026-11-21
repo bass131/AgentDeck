@@ -80,6 +80,8 @@ export interface GitPort {
   treeOf(ref: string): Promise<string | null>
   // 커밋 sha 안의 파일 원문(작업 트리가 아니다). 그 커밋에 없으면 null. 커밋이 아니거나 그 자리가 파일이 아니면 던진다.
   fileAt(sha: string, rel: string): Promise<string | null>
+  // 두 커밋 사이에 바뀐 경로(rename은 옛·새 경로 둘 다). 커밋이 아니면 던진다.
+  pathsBetween(from: string, to: string): Promise<string[]>
 }
 
 export type PrState = 'open' | 'merged' | 'closed'
@@ -145,7 +147,7 @@ export interface ReviewRequest {
   base: string
   // 실행기가 상태에 쥔 goal 시작 SHA
   baseSha: string
-  // Taste 체크리스트 — goal 시작 SHA의 프로젝트 Taste와 검수 시작 때의 전역 Taste. 비었거나 없으면 절을 싣지 않는다
+  // Taste 체크리스트 — 마일스톤 시작점 커밋의 프로젝트 Taste와 검수 시작 때의 전역 Taste. 비었거나 없으면 절을 싣지 않는다
   taste?: TasteCheckItem[]
   // 검수 diff가 docs/agentdeck/를 바꿨다(근거에 적는다 — 판은 그대로다)
   tasteDocsChanged?: boolean

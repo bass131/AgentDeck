@@ -148,11 +148,11 @@ describe('그래프 탭 캔버스 (M10 G5)', () => {
 describe('「노드 설정」 탭 (M10 G5)', () => {
   it('그래프 탭이 열려 있을 때만 오른쪽 첫 탭이다. 가운데를 바꾸면 사라지고 현황판으로 돌아간다', async () => {
     const { canvas, useWorkStore } = await renderGraph()
-    expect(tabNames('오른쪽 탭')).toEqual(['노드 설정', '현황판', '파일·변경'])
+    expect(tabNames('오른쪽 탭')).toEqual(['노드 설정', '현황판', '파일·변경', '헌장·Taste'])
     await click(card(canvas, 'checks'))
     expect(useWorkStore.getState().right).toBe('node')
     await click(within(tabs('가운데 탭')).getByRole('tab', { name: '메인 대화' }))
-    expect(tabNames('오른쪽 탭')).toEqual(['현황판', '파일·변경'])
+    expect(tabNames('오른쪽 탭')).toEqual(['현황판', '파일·변경', '헌장·Taste'])
     expect(within(tabs('오른쪽 탭')).getByRole('tab', { name: '현황판' }).getAttribute('aria-selected')).toBe('true')
   })
 

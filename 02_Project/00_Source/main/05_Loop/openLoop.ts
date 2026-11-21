@@ -38,6 +38,7 @@ import { createReviewSessionPort } from './reviewSession'
 import { readGlobalTaste } from '@main/13_Taste/tasteStore'
 import type { Template } from './template'
 import { createWorkSessionPort, type CardResponder } from './workSession'
+import { withLimitInjection } from './limitInjection'
 
 const DEFAULT_COMMAND_TIMEOUT_MS = 30 * 60_000
 
@@ -80,6 +81,8 @@ export interface OpenLoopOptions {
   acceptConfigChanged?: readonly string[]
   // 전역 Taste의 거처(실물은 getUserDataDir()). 검수 때마다 여기서 전역 Taste를 읽는다. 없으면 전역 Taste가 없는 것으로 본다
   tasteDataDir?: string
+  // 사용량 한도 주입 파일(limitInjection — 켜는 곳은 main 조립 지점뿐). 작업·검수 세션의 백엔드만 감싼다
+  limitInjectFile?: string
 }
 
 export interface OpenedLoop {
@@ -180,8 +183,14 @@ export async function openLoop(opts: OpenLoopOptions): Promise<OpenLoopResult> {
     await ensureAgentdeckExcluded(root, executorEnv)
     child = createCredentialFreeEnv(opts.childBaseEnv ?? promptlessGitEnv(opts.executorEnv ?? process.env), await readIdentity(root, executorEnv))
     const sessions = new AbortController()
+    const clock = opts.clock ?? isoNow
+    // 한도 사건의 시각은 실행기와 같은 시계로 거른다
+    const now = (): number => Date.parse(clock.now())
+    const sessionBackend = (kind: 'work' | 'review'): AgentBackend =>
+      opts.limitInjectFile ? withLimitInjection(opts.backend as AgentBackend, opts.limitInjectFile, kind) : opts.backend as AgentBackend
     const session = opts.session ?? createWorkSessionPort({
-      backend: opts.backend as AgentBackend,
+      now,
+      backend: sessionBackend('work'),
       cwd: root,
       env: child.env,
       appLoopDir: opts.appDataDir,
@@ -193,7 +202,8 @@ export async function openLoop(opts: OpenLoopOptions): Promise<OpenLoopResult> {
       ...(opts.onSessionEvent ? { onEvent: opts.onSessionEvent } : {}),
     })
     const review = opts.review ?? createReviewSessionPort({
-      backend: opts.backend as AgentBackend,
+      now,
+      backend: sessionBackend('review'),
       cwd: root,
       env: child.env,
       appLoopDir: opts.appDataDir,
@@ -217,7 +227,7 @@ export async function openLoop(opts: OpenLoopOptions): Promise<OpenLoopResult> {
         fs: createFsPort(root),
         session,
         review,
-        clock: opts.clock ?? isoNow,
+        clock,
         digest,
         configGuard: guard,
         ...(opts.tasteDataDir !== undefined ? { taste: { readGlobal: () => readGlobalTaste(opts.tasteDataDir as string) } } : {}),

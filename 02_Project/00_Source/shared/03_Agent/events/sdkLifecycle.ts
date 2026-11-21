@@ -83,6 +83,22 @@ export interface SearchResultMatch {
   text?: string
 }
 
+// SDK rate_limit_event의 공개 칸 가운데 판단에 쓰는 것만 옮긴다. resetsAt은 유닉스 초다.
+export interface AgentEventRateLimit {
+  type: 'rate_limit'
+  status: 'allowed' | 'allowed_warning' | 'rejected'
+  resetsAt?: number
+  rateLimitType?: string
+  utilization?: number
+  isUsingOverage?: boolean
+  overageInUse?: boolean
+}
+
+// assistant 메시지의 error가 'rate_limit'이다(사건 없이 올 수 있다)
+export interface AgentEventRateLimitError {
+  type: 'rate_limit_error'
+}
+
 export interface AgentEventSearchResult {
   type: 'search_result'
   toolUseId?: string

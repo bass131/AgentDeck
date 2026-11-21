@@ -12,7 +12,7 @@
 - 마일스톤 스펙: `01_Milestones/M12_CharterTaste/00_마일스톤-스펙.md`. 다음 `M13_Installer/00_마일스톤-스펙.md`.
 - 마일스톤 브랜치: `milestone/m12-charter-taste`(`6c31c299`에서 가름 — M11 마일스톤 PR 118 머리).
 - 사슬 PR: M11 118(`master`로, 사용자 병합 대기 — 감시는 사슬 끝에서 건다).
-- 현재 goal: G3 Taste 판정 — `30_Goal-G3-Taste-판정.md`, 브랜치 `feat/m12-g3-taste-verdict`(마일스톤 머리 `8c456887`에서). G1 종결(PR 119), G2 종결(PR 120).
+- 현재 goal: G4 사용량 한도 — `40_Goal-G4-사용량-한도.md`, 브랜치 `feat/m12-g4-usage-limit`(마일스톤 머리 `47e87bcd`에서). G1 종결(PR 119), G2 종결(PR 120), G3 종결(PR 121).
 - 연습 저장소: `bass131/AgentDeck_Test`(공개, `main` 룰셋 `main-protect`). clone `C:\Dev\AgentDeck_Test`. 연습 토큰 `%USERPROFILE%\.agentdeck-practice\gh-token.txt`(만료 2026-11-27 03:20 UTC). 연습 앱 데이터 `%USERPROFILE%\.agentdeck-practice\udd`.
 - goal 병합의 정형 절차: ① goal 브랜치를 push하고 독립 검수를 PR 전에 반영한다. ② `gh pr view <N> --json headRefOid,statusCheckRollup`으로 `hard-gates`와 머리 SHA를 읽는다. ③ `git fetch origin` 뒤 로컬 마일스톤 브랜치가 원격과 같은지 확인하고 `git switch milestone/m12-charter-taste`, `git merge --no-ff -m "<메시지>" origin/<goal 브랜치>`. ④ 병합한 SHA가 머리 SHA와 같은지 확인한 뒤 `git push -u origin milestone/m12-charter-taste`. 작업 트리는 병합 전에 깨끗해야 한다.
 - push는 항상 `-u origin <브랜치>`로 원격 브랜치를 명시합니다. `master`로 가는 병합은 사용자가 직접 합니다.
@@ -22,7 +22,7 @@
 
 ## 마감 요약 (최신 1건 — 3줄: 바뀐 것 / 내린 결정 / 봐야 할 것)
 
-- 스탬프: 2026-11-21T17:36:32+09:00
-- 바뀐 것: goal 2를 병합했습니다(PR 120). goal 3(Taste 판정)을 구현하고 독립 검수 두 차례의 지적을 반영해 goal PR 121을 열었습니다(`npm test` 9338 passed, 실패 0).
-- 내린 결정: 프로젝트 Taste의 판은 마일스톤 시작점 커밋이고, 판 문제는 마일스톤 브랜치를 가르기 전에 stop이라 기본 브랜치를 고치고 이어 가면 풀립니다. 마일스톤 PR 본문에 Taste 문서 변경을 싣습니다.
-- 봐야 할 것: PR 121의 `hard-gates`를 기다립니다. 통과하면 로컬 병합 뒤 goal 4(사용량 한도)입니다. GUI 레이아웃 재구성안 캔버스는 사람의 답(Backlog로 둘지)을 기다립니다.
+- 스탬프: 2026-11-21T20:28:36+09:00
+- 바뀐 것: goal 4 독립 검수(막음 0)를 반영하고 두 번째 `PASS` 줄을 남긴 뒤 goal PR 122를 열었습니다. 목업 PNG 세 장을 바탕화면 `AgentDeck 레이아웃 목업` 폴더에 두었습니다.
+- 내린 결정: 완료조건 셋째 줄을 결정 대장에 맞춰 「거부·초과 사건을 본 세션」으로 정정했습니다. 사람 대기 한도 멈춤의 Windows 알림은 스펙대로 「나중」에 두고 Backlog 14로 넘겼습니다.
+- 봐야 할 것: PR 122의 `hard-gates` 뒤 로컬 goal 병합, 그다음 goal 5 실주행(토큰 만료 2026-11-27)입니다. GUI 재구성안은 사람의 답(Backlog로 둘지)을 기다립니다.

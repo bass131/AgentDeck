@@ -58,6 +58,8 @@ export type {
   AgentEventBgTask,
   SearchResultMatch,
   AgentEventSearchResult,
+  AgentEventRateLimit,
+  AgentEventRateLimitError,
 } from './03_Agent/events/sdkLifecycle'
 
 import type {
@@ -97,6 +99,8 @@ import type {
   AgentEventThinkingDelta,
   AgentEventBgTask,
   AgentEventSearchResult,
+  AgentEventRateLimit,
+  AgentEventRateLimitError,
 } from './03_Agent/events/sdkLifecycle'
 
 export type AgentEvent =
@@ -128,4 +132,6 @@ export type AgentEvent =
   | AgentEventThinkingDelta
   | AgentEventBgTask
   | AgentEventSearchResult
+  | AgentEventRateLimit
+  | AgentEventRateLimitError
   | AgentEventError

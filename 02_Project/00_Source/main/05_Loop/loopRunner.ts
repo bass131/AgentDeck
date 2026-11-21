@@ -64,6 +64,7 @@ import {
 } from './survivalDocs'
 import { tasteChecklist, type TasteCheckItem } from './tasteVerdict'
 import type { ActionNode, GateNode, SchemaError, StepNode, Template, WorkNode } from './template'
+import { decideLimit, holdForLimit, resumeFromLimit, settleStreak, type LimitDecision, type LimitReport } from './usageLimit'
 import { PROJECT_TASTE_REL } from '@main/13_Taste/tasteStore'
 
 const DEFAULT_CI_WAIT_LIMIT = 120
@@ -88,8 +89,9 @@ interface LoopRunnerDeps {
   ciWaitLimit?: number
 }
 
+// limited: 사용량 한도로 멈췄다(검증 줄 없음 — 경고면 그 노드의 판정만 남았다)
 export type StepOutcome =
-  | { kind: 'advanced' | 'failed' | 'halted' | 'resumed' | 'done'; state: RunState; verdict: Verdict | null }
+  | { kind: 'advanced' | 'failed' | 'halted' | 'resumed' | 'done' | 'limited'; state: RunState; verdict: Verdict | null }
   | { kind: 'waiting'; on: 'human' | 'ci'; state: RunState }
   | { kind: 'blocked'; reason: string; state: RunState | null; errors?: SchemaError[] }
   | { kind: 'needs-user'; reason: string; state: null }
@@ -109,6 +111,8 @@ export interface LoopRunner {
   load(): Promise<LoadResult>
   step(): Promise<StepOutcome>
   submit(verdict: Verdict, seen?: SubmitSeen): Promise<StepOutcome>
+  // 사용량 한도 멈춤을 푼다 — 판정이 아니라 줄을 쓰지 않는다. auto는 풀리는 시각이 지났을 때만 받는다(시계는 ports.clock)
+  resumeLimit(by: 'auto' | 'human'): Promise<StepOutcome>
   // 스펙 승인 카드가 보일 본문과 해시(직렬화 줄 밖 — 읽기만 한다)
   specView(): Promise<SpecView>
   // 직렬화 줄의 지금 끝까지 기다린다(닫기 전에 진행 중인 step의 쓰기를 마치게).
@@ -173,6 +177,8 @@ export function createLoopRunner(deps: LoopRunnerDeps): LoopRunner {
   }
   let persisting: Promise<void> | null = null
   let ciWait: { key: string; count: number; since: number } | null = null
+  // 이번 step의 노드 세션이 받은 한도 사건(step마다 비운다)
+  let observed: LimitReport | null = null
 
   // ── 위조 래치 ──
   let latched: string | null = null
@@ -328,7 +334,16 @@ export function createLoopRunner(deps: LoopRunnerDeps): LoopRunner {
     }
   }
 
-  async function commit(state: RunState, digest: string, verdict: Verdict, origin: 'executor' | 'outside'): Promise<StepOutcome> {
+  // 거부·초과·한도 오류 — 판정을 만들지 않고(줄·계수·커서 그대로) 지금 커서에 한도 멈춤을 건다
+  async function holdLimit(state: RunState, digest: string, d: LimitDecision): Promise<StepOutcome> {
+    ciWait = null
+    const s = holdForLimit(state, d, ports.clock.now())
+    const refused = await save(s, digest)
+    return refused ?? { kind: 'limited', state: s, verdict: null }
+  }
+
+  // warning: 이 판정을 낸 세션이 받은 경고. 판정을 남긴 뒤 실행이 계속 돌 상태면 다음 노드 앞에서 한도 멈춤을 건다
+  async function commit(state: RunState, digest: string, verdict: Verdict, origin: 'executor' | 'outside', warning: LimitDecision | null = null): Promise<StepOutcome> {
     ciWait = null
     let applied = applyVerdict(template, state, verdict, ports.clock.now())
     if (!applied.ok) {
@@ -343,9 +358,10 @@ export function createLoopRunner(deps: LoopRunnerDeps): LoopRunner {
       if (refused) return refused
       return { kind: 'halted', state: applied.state, verdict: stop }
     }
-    const s = applied.state
+    const s = warning ? holdForLimit(applied.state, warning, ports.clock.now()) : settleStreak(applied.state)
     const refused = await save(s, digest)
     if (refused) return refused
+    if (s.status === 'usage-limit') return { kind: 'limited', state: s, verdict }
     if (state.status === 'needs-user' && s.status === 'running') return { kind: 'resumed', state: s, verdict }
     const kind = s.status === 'done' ? 'done'
       : s.status === 'needs-user' ? 'halted'
@@ -373,6 +389,7 @@ export function createLoopRunner(deps: LoopRunnerDeps): LoopRunner {
       const docs = await readNodeDocs(ports.fs, node.docs, goal?.id ?? null)
       const visit = { key: visitKeyOf(state), rejected: rejectedInto(state, node), failed: failedInto(state, node) }
       const res = await ports.session.runWork({ milestoneId: state.milestoneId, node, goal, docs, visit })
+      observed = res.limit ?? null
       // 대화 중(사람을 기다림)은 판정이 아니다. 메인 노드에만 받는다
       if (res.waiting) {
         if (node.role === 'main') return null
@@ -474,6 +491,7 @@ export function createLoopRunner(deps: LoopRunnerDeps): LoopRunner {
         milestoneId: state.milestoneId, node, goal, goalDoc, diff: snap.diff, base: names.milestone, baseSha,
         taste: plate.items, tasteDocsChanged: TASTE_DOCS_DIFF.test(snap.diff),
       })
+      observed = r.limit ?? null
       if (r.verdict !== 'pass') return { node: node.id, judge: 'model', verdict: r.verdict, evidence: r.evidence }
       const after = await git.worktreeTree()
       if (after !== snap.tree) {
@@ -507,7 +525,7 @@ export function createLoopRunner(deps: LoopRunnerDeps): LoopRunner {
     const plate = await plateAt(start)
     if (plate.ok) return null
     const how = existing
-      ? `판은 이미 있는 ${names.milestone}의 시작점 ${short(start)}의 ${PROJECT_TASTE_REL}다 — 사람 판단이 필요하다`
+      ? `판은 이미 있는 ${names.milestone}의 시작점 ${short(start)}의 ${PROJECT_TASTE_REL}라 이어 가기만으로는 같은 판을 다시 본다. 사람이 ${names.milestone} 브랜치를 지우고(원격에도 있으면 원격도) ${names.base}의 ${PROJECT_TASTE_REL}를 고친 뒤 이어 가기를 누르면 고친 원격 머리에서 다시 가른다`
       : `판은 ${names.base}의 원격 머리 ${short(start)}의 ${PROJECT_TASTE_REL}다. 기본 브랜치의 ${PROJECT_TASTE_REL}를 고치고 이어 가기를 누르면 원격 머리를 다시 읽는다`
     return `프로젝트 Taste를 판으로 쓸 수 없어 ${names.milestone}을 ${existing ? '옮겨 가지' : '가르지'} 않았다 — ${how} — ${plate.reason}`
   }
@@ -849,11 +867,16 @@ export function createLoopRunner(deps: LoopRunnerDeps): LoopRunner {
           return commit(state, cur.digest, stop, 'executor')
         }
       }
+      observed = null
       const produced = await produce(next, state)
       // 노드 동안(작업 세션 포함) 실행기 git 설정이 바뀌었으면 그 판정을 남기지 않는다.
       const after = await configTripped()
       if (after) return tamperedStep(after)
       if (!produced) return { kind: 'halted', state, verdict: null }
+      // 세션이 어떤 모양으로 끝났든(오류·시간 초과 포함) 거부·초과·한도 오류를 봤으면 판정을 남기지 않는다
+      const limit = decideLimit(observed, state.usageLimit?.acks ?? [], Date.parse(ports.clock.now()))
+      observed = null
+      if (limit?.kind === 'hard') return holdLimit(state, cur.digest, limit)
       if (produced.kind === 'waiting') {
         if (produced.on !== 'ci' || next.kind !== 'gate') return { kind: 'waiting', on: produced.on, state }
         const exceeded = ciWaitExceeded(`${next.goal?.id ?? ''}@${next.goal?.pushedSha ?? ''}`)
@@ -861,7 +884,7 @@ export function createLoopRunner(deps: LoopRunnerDeps): LoopRunner {
         const stop = v(next.node, 'stop', `CI 기다림이 ${exceeded}을 넘었다 — 마지막: ${produced.why ?? '판정 없음'}`)
         return commit(state, cur.digest, stop, 'executor')
       }
-      return commit(state, cur.digest, produced.verdict, 'executor')
+      return commit(state, cur.digest, produced.verdict, 'executor', limit)
     }),
 
     // seen은 기본값이 있어 submit.length는 1이다 — 상태를 받는 자리가 없다.
@@ -903,6 +926,15 @@ export function createLoopRunner(deps: LoopRunnerDeps): LoopRunner {
         }
       }
       return commit(state, cur.digest, bound, 'outside')
+    }),
+
+    resumeLimit: (by) => exclusive(async () => {
+      const cur = await readCurrent()
+      if (!cur.ok) return cur.outcome
+      const r = resumeFromLimit(cur.state, by, Date.parse(ports.clock.now()))
+      if (!r.ok) return { kind: 'blocked', reason: r.reason, state: cur.state }
+      const refused = await save(r.state, cur.digest)
+      return refused ?? { kind: 'resumed', state: r.state, verdict: null }
     }),
 
     specView: () => readSpecView(ports.fs),

@@ -20,6 +20,8 @@ export const EVENT_LOOK: Record<LoopEventKind, { label: string; tone: EventTone 
   backlog: { label: '미룬 일', tone: 'muted' },
   latched: { label: '래치', tone: 'fail' },
   done: { label: '끝', tone: 'ok' },
+  'usage-limit': { label: '한도 멈춤', tone: 'flag' },
+  'limit-resumed': { label: '한도 풀림', tone: 'run' },
 }
 
 // 표에 없는 종류(옛 빌드가 남긴 이름, 객체 원형의 이름)는 그 이름을 muted로 그린다 — 모르는 종류 하나가 화면을 무너뜨리지 않는다

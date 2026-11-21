@@ -126,7 +126,7 @@ describe('메인 대화 기록 (M10 G3)', () => {
     const { EVENT_LOOK } = await import('@renderer/13_Loop/mainChatModel')
     const kinds: LoopEventKind[] = [
       'node-start', 'node-end', 'fail', 'halt', 'error', 'goal-merged', 'milestone-pr', 'spec-approved', 'spec-rejected',
-      'flag-raised', 'flag-lowered', 'resumed', 'backlog', 'latched', 'done',
+      'flag-raised', 'flag-lowered', 'resumed', 'backlog', 'latched', 'done', 'usage-limit', 'limit-resumed',
     ]
     expect(Object.keys(EVENT_LOOK).sort()).toEqual([...kinds].sort())
     for (const k of kinds) expect(EVENT_LOOK[k].label.trim().length, k).toBeGreaterThan(0)

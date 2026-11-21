@@ -9,6 +9,7 @@
 //   - 판정은 한 줄로 세운다. 저장본 읽기가 끝난 뒤에 첫 상태를 보고, 앞 판정의 열쇠를 본 뒤에 다음 판정을 한다.
 import { promises as fsp } from 'node:fs'
 import path from 'node:path'
+import { localClockLabel } from '@shared/13_Loop/clock'
 import type { LoopAlert, LoopAlertList, LoopPhase, LoopStatus } from '@shared/13_Loop/loop'
 import { repoKeyOf } from './digestStore'
 import type { NotifyPort } from './ports'
@@ -35,14 +36,25 @@ export interface LoopNotifier {
   list(): LoopAlert[]
 }
 
+// 한도 멈춤은 「나중」이다 — 사람이 없어도 풀리는 시각에 스스로 이어 간다
 function levelOf(s: LoopStatus): LoopAlert['level'] | null {
   if (NOW_PHASES.has(s.phase)) return 'now'
   if (s.phase === 'waiting-human' && s.milestonePr !== null) return 'later'
+  if (s.phase === 'limit') return 'later'
   return null
+}
+
+function limitTextOf(s: LoopStatus): string {
+  const l = s.limit
+  const head = ['사용량 한도 멈춤', s.node].filter((x) => x !== null && x !== '').join(' · ')
+  if (!l) return head
+  const at = l.human ? '사람의 「지금 이어 가기」를 기다려요' : l.resumeAt ? `${localClockLabel(Date.parse(l.resumeAt)) ?? l.resumeAt} 뒤 스스로 이어 가요` : '풀리는 시각을 몰라 「지금 이어 가기」를 기다려요'
+  return `${head} — ${at}`
 }
 
 function textOf(s: LoopStatus): string {
   if (s.phase === 'waiting-human') return `마일스톤 PR #${s.milestonePr ?? ''} 병합을 기다려요`
+  if (s.phase === 'limit') return limitTextOf(s)
   const head = [LABEL[s.phase] ?? s.phase, s.node].filter((x) => x !== null && x !== '').join(' · ')
   const reason = (s.reason ?? '').replace(/\s+/g, ' ').trim()
   if (reason === '') return head

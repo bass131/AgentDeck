@@ -33,6 +33,8 @@ export interface ReviewSessionOptions {
   signal?: AbortSignal
   // 세션 꼬리표(kind review)와 함께 흘린다
   onEvent?: (e: AgentEvent, tag: LoopSessionTag) => void
+  // 한도 사건의 시각을 거르는 벽시계(ms). 기본은 Date.now
+  now?: () => number
 }
 
 // 정확히 일치만 받는다(대소문자·띄어쓰기 구분). 줄 앞뒤 공백만 무시한다.
@@ -181,16 +183,19 @@ export function createReviewSessionPort(opts: ReviewSessionOptions): ReviewPort 
         onCard: denyCards,
         cardContext: { node: req.node.id, goal: req.goal?.id ?? null },
         onEvent: taggedEvents(opts.onEvent, { key: nextSessionKey(), kind: 'review', node: req.node.id, goal: req.goal?.id ?? null }),
+        ...(opts.now ? { now: opts.now } : {}),
       })
       current = session.cancel
       try {
         const end = await session.done
+        const limit = end.limit ? { limit: end.limit } : {}
         switch (end.kind) {
           // end.text는 마지막 최상위 메시지의 글이다(runNodeSession — 최상위 도구 호출 뒤 글이 없으면 빈 글)
-          case 'done': return judged(end.text, req)
-          case 'error': return { verdict: 'fail', evidence: oneLine(`검수 세션 오류 — ${end.error}`) }
-          case 'cancelled': return { verdict: 'stop', evidence: '검수 세션이 취소됐다 — 사람이 이어 가기로 다시 돌린다' }
-          case 'timeout': return { verdict: 'fail', evidence: `검수 세션 시간 초과(${Math.round(end.timeoutMs / 1000)}초)` }
+          case 'done': return { ...judged(end.text, req), ...limit }
+          case 'error': return { verdict: 'fail', evidence: oneLine(`검수 세션 오류 — ${end.error}`), ...limit }
+          case 'cancelled': return { verdict: 'stop', evidence: '검수 세션이 취소됐다 — 사람이 이어 가기로 다시 돌린다', ...limit }
+          case 'limited': return { verdict: 'stop', evidence: '검수 세션이 사용량 한도 사건을 받아 멈췄다', ...limit }
+          case 'timeout': return { verdict: 'fail', evidence: `검수 세션 시간 초과(${Math.round(end.timeoutMs / 1000)}초)`, ...limit }
           case 'start-failed': return { verdict: 'fail', evidence: oneLine(`검수 세션을 열지 못했다 — ${end.error}`) }
         }
       } finally {

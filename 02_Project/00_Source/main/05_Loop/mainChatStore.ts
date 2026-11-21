@@ -65,7 +65,7 @@ const TURN_KINDS: readonly unknown[] = ['user', 'start', 'rejected', 'event', 'c
 const EVENT_KIND_TABLE: Record<LoopEventKind, true> = {
   'node-start': true, 'node-end': true, fail: true, halt: true, error: true, 'goal-merged': true, 'milestone-pr': true,
   'spec-approved': true, 'spec-rejected': true, 'flag-raised': true, 'flag-lowered': true, resumed: true, backlog: true,
-  latched: true, done: true,
+  latched: true, done: true, 'usage-limit': true, 'limit-resumed': true,
 }
 const EVENT_KINDS: readonly unknown[] = Object.keys(EVENT_KIND_TABLE)
 

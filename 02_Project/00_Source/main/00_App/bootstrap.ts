@@ -1,11 +1,12 @@
-import { app, type BrowserWindow } from 'electron'
+import { app, powerMonitor, type BrowserWindow } from 'electron'
 import { join } from 'node:path'
 import { getUserDataDir } from '@main/02_Common/userData'
 import { getWorkspaceRootPath } from '@main/07_Workspace/roots'
 import { registerIpc } from '@main/01_Ipc/index'
 import { pushAlertOpen, pushAlerts, pushLoopState, pushMainState, pushSessionEvent } from '@main/01_Ipc/handlers/loop'
 import { controlsForRun } from '@main/04_Claude/permission/controlsStore'
-import { autoModeReasonOf, createLoopDriver, type LoopDriver } from '@main/05_Loop/loopDriver'
+import { limitInjectFileOf } from '@main/05_Loop/limitInjection'
+import { autoModeReasonOf, createLoopDriver, recheckOnResume, type LoopDriver } from '@main/05_Loop/loopDriver'
 import { createLoopNotifier } from '@main/05_Loop/loopNotifier'
 import { createNotifyPort } from '@main/05_Loop/realPorts/notifyPort'
 import { disposeLspManager } from '@main/09_Lsp/manager'
@@ -71,10 +72,12 @@ export function attachWindow(win: BrowserWindow): void {
     },
   })
 
+  const limitInjectFile = limitInjectFileOf(process.env, loopAppDir)
   _loopDriver = createLoopDriver({
     appDataDir: loopAppDir,
     tasteDataDir: getUserDataDir(),
     backend: getBackend('claude-code'),
+    ...(limitInjectFile ? { openExtras: { limitInjectFile } } : {}),
     // 자동 모드 허용 노드는 구동마다 다시 읽는다
     autoModeCheck: () => autoModeReasonOf(controlsForRun(getUserDataDir())),
     onState: (s) => {
@@ -103,6 +106,7 @@ export function attachWindow(win: BrowserWindow): void {
 
   // 앱을 끌 때 열려 있던 작업 폴더를 다시 연다. 화면의 열기와 겹쳐도 구동자가 한 줄로 세운다
   void _loopDriver.reopenLast().catch((err) => console.error('[main] 루프 다시 열기 실패:', err))
+  recheckOnResume(powerMonitor, _loopDriver)
 }
 
 // 루프 구동자 닫기는 기다리지 않는다. 세션 취소·잠금 해제가 끝나기 전에 프로세스가 끝나도

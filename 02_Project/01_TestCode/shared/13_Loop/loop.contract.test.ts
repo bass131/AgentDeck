@@ -186,7 +186,7 @@ describe('loop IPC 묶음 (M09 G4)', () => {
     const KINDS: Record<LoopEventKind, true> = {
       'node-start': true, 'node-end': true, fail: true, halt: true, error: true, 'goal-merged': true, 'milestone-pr': true,
       'spec-approved': true, 'spec-rejected': true, 'flag-raised': true, 'flag-lowered': true, resumed: true, backlog: true,
-      latched: true, done: true,
+      latched: true, done: true, 'usage-limit': true, 'limit-resumed': true,
     }
     expect(Object.keys(KINDS)).not.toContain('paused')
     // @ts-expect-error 「paused」는 사건 종류가 아니다(깃발은 flag-raised)

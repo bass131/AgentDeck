@@ -167,6 +167,10 @@ describe('AgentEvent 망라', () => {
         return e.kind
       case 'search_result':
         return String(e.total ?? 0)
+      case 'rate_limit':
+        return e.status
+      case 'rate_limit_error':
+        return 'rate_limit_error'
       case 'done':
         return 'done'
       case 'error':
@@ -227,13 +231,15 @@ describe('AgentEvent 망라', () => {
       { type: 'thinking_delta', estimatedTokens: 42 },
       { type: 'bg_task', kind: 'started', taskId: 'task-1' },
       { type: 'search_result', total: 3 },
+      { type: 'rate_limit', status: 'allowed_warning', rateLimitType: 'five_hour', resetsAt: 1795518000 },
+      { type: 'rate_limit_error' },
       { type: 'done' },
       { type: 'error', message: 'boom' }
     ]
     expect(samples.map(summarize)).toEqual([
       'hi', 'bash', 'true', 'modify', '생각 중', 'thinking_clear', '1', '탐색 에이전트',
       '배포 단계', 'running', 'orchestration-off', 'Bash', 'acceptEdits', '1', 'claude-fable-5', 'sess-abc-123', '1',
-      'started', 'notice', 'Bash', '1', 'status', 'running', '42', 'started', '3', 'done', 'boom'
+      'started', 'notice', 'Bash', '1', 'status', 'running', '42', 'started', '3', 'allowed_warning', 'rate_limit_error', 'done', 'boom'
     ])
   })
 })

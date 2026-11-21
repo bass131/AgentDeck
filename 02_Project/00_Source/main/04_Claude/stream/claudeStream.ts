@@ -333,6 +333,29 @@ function mapToolUseSearchResult(raw: unknown, toolUseId: string | undefined): Ag
   return []
 }
 
+const RATE_LIMIT_STATUSES = ['allowed', 'allowed_warning', 'rejected'] as const
+
+// 실험 칸(unifiedWindows 같은 공개 타입 밖의 칸)은 읽지 않는다
+function mapRateLimit(info: unknown): AgentEvent[] {
+  if (!isObject(info)) return []
+  const status = RATE_LIMIT_STATUSES.find((s) => s === info['status'])
+  if (status === undefined) return []
+  const resetsAt = info['resetsAt']
+  const rateLimitType = info['rateLimitType']
+  const utilization = info['utilization']
+  const isUsingOverage = info['isUsingOverage']
+  const overageInUse = info['overageInUse']
+  return [{
+    type: 'rate_limit',
+    status,
+    ...(isNumber(resetsAt) && Number.isFinite(resetsAt) ? { resetsAt } : {}),
+    ...(isString(rateLimitType) && rateLimitType.length > 0 ? { rateLimitType } : {}),
+    ...(isNumber(utilization) && Number.isFinite(utilization) ? { utilization } : {}),
+    ...(typeof isUsingOverage === 'boolean' ? { isUsingOverage } : {}),
+    ...(typeof overageInUse === 'boolean' ? { overageInUse } : {}),
+  }]
+}
+
 export function mapUsage(usageRaw: unknown): TokenUsage | undefined {
   if (!isObject(usageRaw)) return undefined
   const inputTokens = usageRaw['input_tokens']
@@ -425,8 +448,13 @@ export function mapClaudeStreamLine(obj: unknown, ctx: StreamLineContext = {}): 
       if (!isArray(content)) return []
       const rawParentId = obj['parent_tool_use_id']
       const parentToolId = isString(rawParentId) ? rawParentId : undefined
-      return mapAssistantContent(content, parentToolId)
+      const events = mapAssistantContent(content, parentToolId)
+      if (obj['error'] === 'rate_limit') events.push({ type: 'rate_limit_error' })
+      return events
     }
+
+    case 'rate_limit_event':
+      return mapRateLimit(obj['rate_limit_info'])
 
     case 'user': {
       if (obj['isReplay'] === true) {

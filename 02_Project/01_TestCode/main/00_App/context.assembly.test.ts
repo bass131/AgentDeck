@@ -9,12 +9,14 @@ const h = vi.hoisted(() => ({
   conversationStores: [] as { close: () => void }[],
   handlers: new Map<string, (...args: unknown[]) => unknown>(),
   handleCalls: 0,
+  powerEvents: [] as string[],
 }))
 
 vi.mock('electron', () => ({
   app: { getPath: () => h.userData, getAppPath: () => h.userData, getVersion: () => '0.0.0', isPackaged: false, setAppUserModelId: (): void => {} },
   ipcMain: { handle: (ch: string, fn: (...a: unknown[]) => unknown): void => { h.handleCalls++; h.handlers.set(ch, fn) } },
   dialog: {},
+  powerMonitor: { on: (ev: string): void => { h.powerEvents.push(ev) } },
 }))
 
 vi.mock('@main/06_Sessions/store', async (importOriginal) => {
@@ -227,6 +229,8 @@ describe('기동·종료 배선 — 00_App/bootstrap 한 곳 (M05 G11 4단계)',
     for (const ch of [IPC_CHANNELS.WORKSPACE_OPEN, IPC_CHANNELS.AGENT_RUN, IPC_CHANNELS.CONVERSATION_LOAD, IPC_CHANNELS.SKILL_LIST, IPC_CHANNELS.LSP_STATUS, IPC_CHANNELS.LOOP_OPEN, IPC_CHANNELS.LOOP_CLOSE]) {
       expect(h.handlers.has(ch)).toBe(true)
     }
+    // 잠에서 깨면 한도 멈춤의 벽시계를 다시 본다
+    expect(h.powerEvents).toEqual(['resume'])
 
     const win2 = { id: 2 } as never
     const handleCalls = h.handleCalls

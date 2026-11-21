@@ -152,6 +152,10 @@ export const API_ROUTES = {
     openVerification: call0(IPC_CHANNELS.GITHUB_OPEN_VERIFICATION),
     onState: push(IPC_CHANNELS.GITHUB_STATE),
   },
+  onboarding: {
+    ghCheck: call0(IPC_CHANNELS.ONBOARDING_GH_CHECK),
+    openGhInstall: call0(IPC_CHANNELS.ONBOARDING_OPEN_GH_INSTALL),
+  },
 } as const
 
 type ApiRoutes = typeof API_ROUTES

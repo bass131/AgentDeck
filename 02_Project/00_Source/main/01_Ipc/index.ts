@@ -23,6 +23,7 @@ import { registerWindowHandlers } from './handlers/window'
 import { registerLoopHandlers, type LoopDriverApi } from './handlers/loop'
 import { registerTasteHandlers } from './handlers/taste'
 import { registerGithubHandlers } from './handlers/github'
+import { registerOnboardingHandlers } from './handlers/onboarding'
 import type { GithubAuth } from '@main/14_GitHub/githubAuth'
 
 // 등록만 한다. 한 번만 등록하는 가드와 store 초기화는 조립 지점(00_App/bootstrap)이 쥔다.
@@ -43,6 +44,8 @@ interface IpcDeps {
   loopAlerts?: { list(): LoopAlert[] }
   // 없으면 GitHub 연결 채널을 등록하지 않는다
   githubAuth?: GithubAuth
+  // 없으면 gh 설치 안내를 열지 못한다고 답한다
+  openExternal?: (url: string) => Promise<void>
 }
 
 export function registerIpc(deps: IpcDeps): void {
@@ -70,6 +73,7 @@ export function registerIpc(deps: IpcDeps): void {
     getProfileStore: deps.getProfileStore,
   })
   registerTasteHandlers()
+  registerOnboardingHandlers({ ...(deps.openExternal ? { openExternal: deps.openExternal } : {}) })
   if (deps.githubAuth) registerGithubHandlers({ auth: deps.githubAuth })
   if (deps.loopDriver) registerLoopHandlers({ driver: deps.loopDriver, ...(deps.loopAlerts ? { alerts: deps.loopAlerts } : {}) })
 }

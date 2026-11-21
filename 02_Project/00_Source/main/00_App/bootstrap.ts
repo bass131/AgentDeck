@@ -106,6 +106,7 @@ export function attachWindow(win: BrowserWindow): void {
 
   registerIpc({
     githubAuth,
+    openExternal: (url) => shell.openExternal(url),
     loopDriver: _loopDriver,
     loopAlerts: notifier,
     state: ipcState,

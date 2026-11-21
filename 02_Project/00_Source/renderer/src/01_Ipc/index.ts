@@ -43,4 +43,7 @@ export const ipc: IpcApi = {
   get github(): IpcApi['github'] {
     return window.api.github
   },
+  get onboarding(): IpcApi['onboarding'] {
+    return window.api.onboarding
+  },
 }

@@ -124,6 +124,9 @@ export const FLAT_ROUTES = {
   githubDisconnect: { group: 'github', action: 'disconnect' },
   githubOpenVerification: { group: 'github', action: 'openVerification' },
   onGithubState: { group: 'github', action: 'onState' },
+
+  onboardingGhCheck: { group: 'onboarding', action: 'ghCheck' },
+  onboardingOpenGhInstall: { group: 'onboarding', action: 'openGhInstall' },
 } as const satisfies Record<string, FlatRoute>
 
 export type FlatKey = keyof typeof FLAT_ROUTES
@@ -248,6 +251,8 @@ const DEFAULT_RESULTS: { [C in InvokeChannel]?: ResOf<C> } = {
   'github.cancel': { phase: 'disconnected' },
   'github.disconnect': { phase: 'disconnected' },
   'github.openVerification': { ok: true },
+  'onboarding.ghCheck': { state: 'absent' },
+  'onboarding.openGhInstall': { ok: true },
 }
 
 const SYNC_RESULTS: Partial<Record<FlatKey, unknown>> = {

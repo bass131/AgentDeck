@@ -132,6 +132,7 @@ import type {
 import type { LoopGraphResponse } from '../13_Loop/graph'
 import type { TasteDocsRead, TasteReadRequest } from '../14_Taste/taste'
 import type { GithubAuthStatus } from '../15_GitHub/github'
+import type { GhCheckResult } from '../16_Onboarding/onboarding'
 import type { Ack } from '../02_Common/common'
 import type {
   WindowMaximizedResponse,
@@ -245,6 +246,9 @@ interface IpcInvokeMap {
   'github.cancel': { req: void; res: GithubAuthStatus }
   'github.disconnect': { req: void; res: GithubAuthStatus }
   'github.openVerification': { req: void; res: Ack }
+
+  'onboarding.ghCheck': { req: void; res: GhCheckResult }
+  'onboarding.openGhInstall': { req: void; res: Ack }
 }
 
 interface IpcPushMap {

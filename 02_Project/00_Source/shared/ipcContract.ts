@@ -22,6 +22,7 @@ import { PERSONALIZATION_CHANNELS } from './11_Settings/personalization'
 import { LOOP_CHANNELS } from './13_Loop/loop'
 import { TASTE_CHANNELS } from './14_Taste/taste'
 import { GITHUB_CHANNELS } from './15_GitHub/github'
+import { ONBOARDING_CHANNELS } from './16_Onboarding/onboarding'
 
 export * from './07_Workspace/workspace'
 export * from './03_Agent/agent'
@@ -38,6 +39,7 @@ export * from './13_Loop/loop'
 export * from './13_Loop/graph'
 export * from './14_Taste/taste'
 export * from './15_GitHub/github'
+export * from './16_Onboarding/onboarding'
 export * from './01_Ipc/channelMap'
 
 export const IPC_CHANNELS = {
@@ -55,4 +57,5 @@ export const IPC_CHANNELS = {
   ...LOOP_CHANNELS,
   ...TASTE_CHANNELS,
   ...GITHUB_CHANNELS,
+  ...ONBOARDING_CHANNELS,
 } as const

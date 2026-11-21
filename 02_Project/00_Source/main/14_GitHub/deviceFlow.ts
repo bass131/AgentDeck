@@ -1,6 +1,7 @@
 // GitHub 기기 인증(device flow). 근거는 GitHub Docs 「Authorizing OAuth apps」의 Device flow 절이다.
 //   1. POST {web}/login/device/code (client_id, scope) → device_code·user_code·verification_uri·expires_in·interval
-//   2. POST {web}/login/oauth/access_token (client_id, device_code, grant_type) — 오류는 본문의 error 칸으로 오고, slow_down은 새 interval을 싣는다
+//   2. POST {web}/login/oauth/access_token (client_id, device_code, grant_type) — 오류는 본문의 error 칸으로 오고, slow_down은 새 interval을 싣는다.
+//      연결 오류·본문 없는 5xx는 간격을 두 배로 늘려 다시 묻는다(RFC 8628 3.5). 만료 시각이 지나면 끝난다
 //   3. GET {api}/user → login
 // HTTP 함수를 주입받는 순수 모듈이다. 실패 사유에는 토큰·기기 코드를 싣지 않는다.
 
@@ -103,11 +104,17 @@ export async function pollForToken(http: HttpJson, opts: PollOptions): Promise<{
         client_id: opts.clientId, device_code: opts.code.deviceCode, grant_type: DEVICE_GRANT,
       }, opts.signal))
     } catch {
-      return opts.signal.aborted ? cancelled : { ok: false, failure: 'error', detail: 'network' }
+      if (opts.signal.aborted) return cancelled
+      interval *= 2
+      continue
     }
     const b = rec(res.body)
     const token = text(b['access_token'])
     if (res.status === 200 && token) return { ok: true, token }
+    if (res.status >= 500 && b['error'] === undefined) {
+      interval *= 2
+      continue
+    }
     switch (b['error']) {
       case 'authorization_pending':
         continue
@@ -144,10 +151,16 @@ export async function fetchLogin(http: HttpJson, opts: { apiBase: string; token:
   }
 }
 
-export const fetchJson: HttpJson = async (req) => {
-  const res = await fetch(req.url, { method: req.method, headers: req.headers, body: req.body, signal: req.signal })
-  const raw = await res.text()
-  let body: unknown = null
-  try { body = raw ? JSON.parse(raw) : null } catch { body = null }
-  return { status: res.status, body }
+export function createFetchJson(timeoutMs: number): HttpJson {
+  return async (req) => {
+    const timeout = AbortSignal.timeout(timeoutMs)
+    const signal = req.signal ? AbortSignal.any([req.signal, timeout]) : timeout
+    const res = await fetch(req.url, { method: req.method, headers: req.headers, body: req.body, signal })
+    const raw = await res.text()
+    let body: unknown = null
+    try { body = raw ? JSON.parse(raw) : null } catch { body = null }
+    return { status: res.status, body }
+  }
 }
+
+export const fetchJson: HttpJson = createFetchJson(30_000)

@@ -100,7 +100,7 @@ describe('토큰 폴링', () => {
     expect(await run({ error: 'incorrect_device_code' })).toEqual({ ok: false, failure: 'error', detail: 'incorrect_device_code' })
   })
 
-  it('서버가 답하지 않아도 expires_in이 지나면 만료다', async () => {
+  it('계속 기다림이어도 expires_in이 지나면 만료다', async () => {
     const replies = Array.from({ length: 10 }, () => pending)
     const c = clock()
     const r = await pollForToken(scripted(replies).http, { webBase: WEB, clientId: 'x', code: { ...CODE, expiresIn: 12 }, signal: new AbortController().signal, ...c })
@@ -120,10 +120,28 @@ describe('토큰 폴링', () => {
     expect(calls).toHaveLength(1)
   })
 
-  it('요청이 던지면 실패로 끝나고 토큰이나 코드를 사유에 싣지 않는다', async () => {
+  it('요청이 던지거나 본문 없는 5xx면 끝내지 않고 간격을 두 배로 늘려 다시 묻는다', async () => {
+    const replies: (HttpResponse | 'throw')[] = ['throw', { status: 502, body: null }, pending, granted]
+    const http = async (): Promise<HttpResponse> => {
+      const next = replies.shift()
+      if (next === 'throw' || !next) throw new Error(`boom ${TOKEN}`)
+      return next
+    }
+    const c = clock()
+    const r = await pollForToken(http, { webBase: WEB, clientId: 'x', code: CODE, signal: new AbortController().signal, ...c })
+    expect(r).toEqual({ ok: true, token: TOKEN })
+    expect(c.slept).toEqual([5000, 10000, 20000, 20000])
+  })
+
+  it('네트워크 오류가 이어져도 만료 시각이 지나면 만료로 끝나고 사유에 토큰을 싣지 않는다', async () => {
     const http = async (): Promise<HttpResponse> => { throw new Error(`boom ${TOKEN}`) }
-    const r = await pollForToken(http, { webBase: WEB, clientId: 'x', code: CODE, signal: new AbortController().signal, ...clock() })
-    expect(r).toEqual({ ok: false, failure: 'error', detail: 'network' })
+    const r = await pollForToken(http, { webBase: WEB, clientId: 'x', code: { ...CODE, expiresIn: 60 }, signal: new AbortController().signal, ...clock() })
+    expect(r).toEqual({ ok: false, failure: 'expired' })
+  })
+
+  it('본문에 error가 있는 5xx는 그 오류로 끝난다', async () => {
+    const r = await pollForToken(scripted([{ status: 503, body: { error: 'unavailable' } }]).http, { webBase: WEB, clientId: 'x', code: CODE, signal: new AbortController().signal, ...clock() })
+    expect(r).toEqual({ ok: false, failure: 'error', detail: 'unavailable' })
   })
 })
 

@@ -103,7 +103,78 @@ describe('흐름의 끝', () => {
     expect(t.store.read()).toEqual({ kind: 'none' })
   })
 
-  it('기다리는 동안 취소하면 폴링을 멈추고 저장하지 않는다', async () => {
+  it('기기 코드를 받는 중에 취소하면 그 요청을 끊고 기다림 없이 취소로 끝난다', async () => {
+    let codeSignal: AbortSignal | undefined
+    const http = (req: HttpRequest): Promise<HttpResponse> => new Promise((resolve, reject) => {
+      codeSignal = req.signal
+      req.signal?.addEventListener('abort', () => reject(new Error('aborted')))
+      setTimeout(() => resolve(codeReply()), 2_000)
+    })
+    const t = setup([], { http })
+    const connecting = t.auth.connect()
+    await vi.waitFor(() => { if (!codeSignal) throw new Error('요청 전') })
+    expect(t.auth.cancel()).toEqual({ phase: 'disconnected', error: '연결을 취소했어요' })
+    expect(codeSignal?.aborted).toBe(true)
+    expect(await connecting).toEqual({ phase: 'disconnected', error: '연결을 취소했어요' })
+    expect(t.auth.status().phase).toBe('disconnected')
+    expect(t.states.some((s) => s.phase === 'pending')).toBe(false)
+  })
+
+  it('기기 코드를 받는 중에 연결 해제를 눌러도 그 요청을 끊는다', async () => {
+    let codeSignal: AbortSignal | undefined
+    const http = (req: HttpRequest): Promise<HttpResponse> => new Promise((resolve, reject) => {
+      codeSignal = req.signal
+      req.signal?.addEventListener('abort', () => reject(new Error('aborted')))
+      setTimeout(() => resolve(codeReply()), 2_000)
+    })
+    const t = setup([], { http })
+    const connecting = t.auth.connect()
+    await vi.waitFor(() => { if (!codeSignal) throw new Error('요청 전') })
+    await t.auth.disconnect()
+    expect(codeSignal?.aborted).toBe(true)
+    expect((await connecting).phase).toBe('disconnected')
+  })
+
+  it('토큰을 받은 뒤 계정 이름을 읽는 중에 취소하면 저장하지 않는다', async () => {
+    let releaseUser: () => void = () => undefined
+    let userAsked = false
+    const userGate = new Promise<void>((r) => { releaseUser = r })
+    const http = async (req: HttpRequest): Promise<HttpResponse> => {
+      if (req.url.endsWith('/user')) { userAsked = true; await userGate; return { status: 200, body: { login: 'octo' } } }
+      return req.url.endsWith('/login/device/code') ? codeReply() : { status: 200, body: { access_token: TOKEN } }
+    }
+    const t = setup([], { http })
+    const write = vi.spyOn(t.store, 'write')
+    await t.auth.connect()
+    await vi.waitFor(() => { if (!userAsked) throw new Error('계정 이름 요청 전') })
+    t.auth.cancel()
+    releaseUser()
+    await new Promise((r) => setTimeout(r, 20))
+    expect(write).not.toHaveBeenCalled()
+    expect(t.store.read()).toEqual({ kind: 'none' })
+  })
+
+  it('저장을 쓰는 중에 취소하면 쓴 것을 지워 연결이 남지 않는다', async () => {
+    const store = createTokenStore({ file: path.join(dir, 'github-auth.bin'), safeStorage: safe() })
+    const realWrite = store.write
+    let release: () => void = () => undefined
+    const gate = new Promise<void>((r) => { release = r })
+    store.write = async (a) => { const r = await realWrite(a); await gate; return r }
+    const t = setup((req) => {
+      if (req.url.endsWith('/login/device/code')) return codeReply()
+      if (req.url.endsWith('/user')) return { status: 200, body: { login: 'octo' } }
+      return { status: 200, body: { access_token: TOKEN } }
+    }, { store })
+    await t.auth.connect()
+    await vi.waitFor(() => { if (store.read().kind !== 'ok') throw new Error('쓰기 전') })
+    t.auth.cancel()
+    release()
+    await new Promise((r) => setTimeout(r, 20))
+    expect(store.read()).toEqual({ kind: 'none' })
+    expect(t.auth.status()).toEqual({ phase: 'disconnected', error: '연결을 취소했어요' })
+  })
+
+  it('기다리는 동안 취소하면 폴링을 멈추고 연결 없음으로 남는다', async () => {
     let polls = 0
     const t = setup((req) => {
       if (req.url.endsWith('/login/device/code')) return codeReply()

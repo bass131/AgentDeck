@@ -70,6 +70,7 @@ export function createGithubAuth(deps: GithubAuthDeps): GithubAuth {
   const now = deps.now ?? Date.now
   let pending: Pending | null = null
   let starting: Promise<GithubAuthStatus> | null = null
+  let requesting: AbortController | null = null
   let lastError: string | null = null
 
   const status = (): GithubAuthStatus => {
@@ -113,7 +114,10 @@ export function createGithubAuth(deps: GithubAuthDeps): GithubAuth {
     if (!clientId) return settle(NOT_READY)
     if (!deps.store.available()) return settle(NO_SAFE_STORAGE)
     const abort = new AbortController()
-    const r = await requestDeviceCode(deps.http, { webBase: deps.bases.web, clientId })
+    requesting = abort
+    const r = await requestDeviceCode(deps.http, { webBase: deps.bases.web, clientId, signal: abort.signal })
+      .finally(() => { if (requesting === abort) requesting = null })
+    if (abort.signal.aborted) return settle(CANCELLED)
     if (!r.ok) return settle(messageOf(r))
     const entry: Pending = { code: r.code, clientId, expiresAt: new Date(now() + r.code.expiresIn * 1000).toISOString(), abort }
     pending = entry
@@ -131,12 +135,17 @@ export function createGithubAuth(deps: GithubAuthDeps): GithubAuth {
       return starting
     },
     cancel() {
+      if (requesting) {
+        requesting.abort()
+        return settle(CANCELLED)
+      }
       if (!pending) return status()
       pending.abort.abort()
       pending = null
       return settle(CANCELLED)
     },
     async disconnect() {
+      requesting?.abort()
       pending?.abort.abort()
       pending = null
       await deps.store.clear()

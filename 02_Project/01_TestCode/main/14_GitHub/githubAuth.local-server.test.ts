@@ -6,7 +6,7 @@ import type { AddressInfo } from 'node:net'
 import os from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { fetchJson } from '@main/14_GitHub/deviceFlow'
+import { createFetchJson, fetchJson } from '@main/14_GitHub/deviceFlow'
 import { createGithubAuth, githubBasesOf } from '@main/14_GitHub/githubAuth'
 import { createTokenStore, storedToken, type SafeStorageLike } from '@main/14_GitHub/tokenStore'
 import type { GithubAuthStatus } from '@shared/15_GitHub/github'
@@ -107,5 +107,26 @@ describe('로컬 시험 서버로 끝까지', () => {
     expect(await auth.disconnect()).toEqual({ phase: 'disconnected' })
     expect(fs.existsSync(file)).toBe(false)
     expect(storedToken(store)).toBeNull()
+  })
+})
+
+describe('HTTP 시간 제한', () => {
+  it('답하지 않는 서버에는 시간 제한으로 끝나고, 부르는 쪽의 취소도 먹는다', async () => {
+    const hang = http.createServer(() => undefined)
+    await new Promise<void>((r) => hang.listen(0, '127.0.0.1', r))
+    const url = `http://127.0.0.1:${(hang.address() as AddressInfo).port}/login/device/code`
+    try {
+      const t0 = Date.now()
+      await expect(createFetchJson(150)({ method: 'POST', url, headers: {} })).rejects.toThrow()
+      expect(Date.now() - t0).toBeLessThan(5_000)
+      const ac = new AbortController()
+      const pendingReq = createFetchJson(60_000)({ method: 'POST', url, headers: {}, signal: ac.signal })
+      setTimeout(() => ac.abort(), 50)
+      await expect(pendingReq).rejects.toThrow()
+      expect(Date.now() - t0).toBeLessThan(10_000)
+    } finally {
+      hang.closeAllConnections()
+      await new Promise<void>((r) => hang.close(() => r()))
+    }
   })
 })

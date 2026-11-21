@@ -1,6 +1,6 @@
 # M12 G4 — 사용량 한도
 
-- 마일스톤: M12 (마일스톤 스펙 `01_Milestones/M12_CharterTaste/00_마일스톤-스펙.md`) · 작성: 2026-11-21 · 상태: 실행 중 · 검증 강도: 강(앱 소스 50줄 이상, 실행기 멈춤·재개 변경)
+- 마일스톤: M12 (마일스톤 스펙 `01_Milestones/M12_CharterTaste/00_마일스톤-스펙.md`) · 작성: 2026-11-21 · 상태: 종결(goal PR 122, 로컬 병합 `b54891a6`) · 검증 강도: 강(앱 소스 50줄 이상, 실행기 멈춤·재개 변경)
 - 작업 브랜치: `feat/m12-g4-usage-limit` · 기준 브랜치: `milestone/m12-charter-taste`(`47e87bcd`, goal 3 병합 머리)
 
 ## 목표
@@ -39,7 +39,7 @@
 - [x] 3. 기록과 자동 이어 가기·재기동, 시험
 - [x] 4. 앱 안 표시와 주입 자리(renderer·main), 시험
 - [x] 5. 하드 게이트 다섯 종, `npm test`
-- [ ] 6. 독립 검수와 반영, goal PR, `hard-gates`, 로컬 goal 병합
+- [x] 6. 독립 검수와 반영, goal PR, `hard-gates`, 로컬 goal 병합
 
 실행 단계 일괄 승인 대상 (스펙에서 옮김)
 
@@ -54,6 +54,7 @@ DoD
 
 - PASS 2026-11-21T19:41:37+09:00 — 구현(`06f1b35c`·`c2e9343a`·`9bd5fc1b`) 뒤 메인이 다시 돌린 하드 게이트 다섯 종이 모두 0이고 `npm test`가 488 passed·6 skipped(494)·실패 0이며, 완료조건 1–5의 시험이 `loopRunner`·`loopDriver`·`usageLimit`·`workSession`·`claudeStream`·`limitInjection`·`LoopScreen`의 usage-limit 시험 파일에 있다(독립 검수 전).
 - PASS 2026-11-21T20:28:06+09:00 — 독립 검수(goal 3 `fd3bc2e2` 포함, 막음 0) 반영 뒤 하드 게이트 다섯 종이 모두 0이고 `npm test`가 488 passed·6 skipped(494)·실패 0이다. 고침 권장·사소 여덟 건은 `778a50ff`, 알림 글의 지역 시각은 뒤 커밋이 각각 빨강 확인 뒤 고쳤고, 나머지는 Backlog 14–19로 넘겼다.
+- PASS 2026-11-21T20:34:25+09:00 — goal PR 122의 머리 `976625ea`에서 `hard-gates` 통과를 읽고, 원격과 같던 `milestone/m12-charter-taste`(`47e87bcd`)에 `--no-ff`로 병합해 `b54891a6`(둘째 부모 `976625ea`)을 push했다. GitHub가 PR 122를 병합됨으로 닫았다.
 
 ## 결정 대장
 

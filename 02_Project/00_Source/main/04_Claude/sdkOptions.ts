@@ -82,8 +82,10 @@ export function buildClaudeSdkOptions(params: {
   onUserDialog: OnUserDialogFn
   // 있으면 엔진 경로 잠금(거부 규칙과 Bash 잠금 훅)을 넣는다. 실행은 늘 넘긴다.
   userDataDir?: string
+  // Taste·헌장 원문(tasteStore.loopDocsAppend). 루프 세션에만 싣는다
+  loopDocs?: string
 }): Record<string, unknown> {
-  const { req, abortController, canUseTool, skillOverrides, mcpDenied, onUserDialog, userDataDir } = params
+  const { req, abortController, canUseTool, skillOverrides, mcpDenied, onUserDialog, userDataDir, loopDocs } = params
   const lock = userDataDir
     ? { deny: enginePathDenyRules(userDataDir), hook: withVerdictLog('engine-path-bash-lock', buildEnginePathLockHook(userDataDir)) }
     : null
@@ -105,6 +107,7 @@ export function buildClaudeSdkOptions(params: {
     userAppend,
     WORKFLOW_GATE_NOTICE,
     req.resumeSessionId ? MEMORY_CONTINUITY_GUIDE : undefined,
+    loopLock ? loopDocs?.trim() : undefined,
   ].filter(Boolean) as string[]).join('\n\n') || undefined
 
   return {
@@ -126,7 +129,8 @@ export function buildClaudeSdkOptions(params: {
       ...(skillOverrides ? { skillOverrides } : {}),
       ...(mcpDenied ? { deniedMcpServers: mcpDenied } : {})
     },
-    settingSources: ['user', 'project', 'local'],
+    // 루프 세션은 사용자 전역 지시·자동 기억(user)을 싣지 않는다 — 작업 저장소의 규칙(project·local)과 Taste·헌장만 싣는다
+    settingSources: loopLock ? ['project', 'local'] : ['user', 'project', 'local'],
     // 루프 세션은 사용자 MCP 서버(.mcp.json·사용자 설정·플러그인)를 읽지 않는다(공개 타입 Options.strictMcpConfig의 설명).
     // mcp__ 도구 거부(루프 잠금 훅)는 겹으로 남는다.
     ...(loopLock ? { strictMcpConfig: true } : {}),

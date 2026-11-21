@@ -2,6 +2,7 @@
 // 끝나면(실패해도) 원래 브랜치로 돌아온다. 커밋하지 못한 문서는 돌아가기 전에 되돌려 사람의 브랜치로 따라가지 않는다.
 // 병합은 사람이 PR 카드의 병합 버튼으로 한다 — 이 모듈은 병합하지 않는다.
 import type { GhPort, GitPort } from '@main/05_Loop/ports'
+import type { TasteCut } from '@shared/14_Taste/taste'
 
 export interface CharterGit extends Pick<GitPort, 'syncToRemote' | 'headSha' | 'remoteSha' | 'branchExists' | 'createBranch' | 'checkout' | 'push'> {
   currentBranch(): Promise<string | null>
@@ -9,8 +10,6 @@ export interface CharterGit extends Pick<GitPort, 'syncToRemote' | 'headSha' | '
   commitPaths(paths: string[], message: string): Promise<string>
   discardPaths(paths: string[]): Promise<void>
 }
-
-export interface CharterCut { original: string; branch: string }
 
 interface CharterPrRequest {
   git: CharterGit
@@ -23,7 +22,7 @@ interface CharterPrRequest {
   // 돌고 있으면 사유
   executorBusy(): Promise<string | null>
   // 브랜치를 가른 직후, 옮겨 가기 전에 부른다(앱이 꺼져도 사람에게 알릴 수 있게)
-  onCut?(cut: CharterCut): void
+  onCut?(cut: TasteCut): void
   // 지금 체크아웃된 작업 트리에 문서를 쓴다. 거절하면 쓰기 전에 던진다
   write(): Promise<void>
   title: string
@@ -32,7 +31,7 @@ interface CharterPrRequest {
 
 type CharterPrResult = { ok: true; pr: number; branch: string; warning?: string } | { ok: false; reason: string }
 
-export const CHARTER_BRANCH_PREFIX = 'agentdeck/charter-'
+const CHARTER_BRANCH_PREFIX = 'agentdeck/charter-'
 const errText = (e: unknown): string => (e instanceof Error ? e.message : String(e))
 const refuse = (reason: string): CharterPrResult => ({ ok: false, reason })
 const listed = (ps: string[]): string => ps.slice(0, 5).join(', ') + (ps.length > 5 ? ` 외 ${ps.length - 5}개` : '')

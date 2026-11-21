@@ -104,6 +104,17 @@ export function createGitPort(opts: GitPortOptions): GitPort {
     const r = await git(['rev-parse', '--verify', '--quiet', `${qualifyRef(ref)}^{commit}`])
     return r.code === 0 ? r.stdout.trim() || null : null
   }
+  // 마디마다 맞는 이름을 모두 따라간다 — 대소문자만 다른 폴더가 둘이면 둘 다 본다
+  const findIgnoringCase = async (tree: string, parts: string[], prefix: string): Promise<{ mode: string; type: string; sha: string; path: string }[]> => {
+    const want = parts[0].toLowerCase()
+    const hits = (await must(git, ['ls-tree', '-z', tree])).split('\0').flatMap((rec) => {
+      const m = /^(\d+) (\w+) ([0-9a-f]+)\t([\s\S]+)$/.exec(rec)
+      return m && m[4].toLowerCase() === want ? [{ mode: m[1], type: m[2], sha: m[3], path: `${prefix}${m[4]}` }] : []
+    })
+    if (parts.length === 1) return hits
+    const deeper = await Promise.all(hits.filter((h) => h.type === 'tree').map((h) => findIgnoringCase(h.sha, parts.slice(1), `${h.path}/`)))
+    return deeper.flat()
+  }
   const isAncestor = async (sha: string, ref: string): Promise<boolean> => {
     const a = await resolve(sha)
     const b = await resolve(ref)
@@ -283,6 +294,24 @@ export function createGitPort(opts: GitPortOptions): GitPort {
     async treeOf(ref) {
       const r = await git(['rev-parse', '--verify', '--quiet', `${qualifyRef(ref)}^{tree}`])
       return r.code === 0 ? r.stdout.trim() || null : null
+    },
+    // 링크(120000)·폴더는 파일이 아니다
+    async fileAt(sha, rel) {
+      const [p] = pathArgs([rel])
+      const commit = await resolve(sha)
+      if (!commit) throw new Error(`커밋 ${sha.slice(0, 12)}을 찾지 못했다`)
+      const hits = await findIgnoringCase(commit, p.split('/'), '')
+      if (hits.length === 0) return null
+      if (hits.length > 1) throw new Error(`대소문자만 다른 ${p}가 커밋 ${commit.slice(0, 8)}에 ${hits.length}개 있다(${hits.map((h) => h.path).join(', ')})`)
+      const [hit] = hits
+      if (hit.type !== 'blob' || !['100644', '100755'].includes(hit.mode)) throw new Error(`${hit.path}이 커밋 ${commit.slice(0, 8)}에서 파일이 아니다`)
+      return must(git, ['cat-file', 'blob', hit.sha])
+    },
+    async pathsBetween(from, to) {
+      const [a, b] = [await resolve(from), await resolve(to)]
+      if (!a || !b) throw new Error(`커밋 ${(a ? to : from).slice(0, 12)}을 찾지 못했다`)
+      const out = await must(git, ['diff', '--name-only', '-z', '--no-renames', '--no-ext-diff', a, b, '--'])
+      return out.split('\0').filter((p) => p !== '')
     },
   }
 

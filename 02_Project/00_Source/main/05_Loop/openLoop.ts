@@ -35,6 +35,7 @@ import { createGhExec, createGhPort } from './realPorts/ghPort'
 import { createGitPort, ensureAgentdeckExcluded, readOriginDefaultBranch } from './realPorts/gitPort'
 import { acquireRepoLock } from './repoLock'
 import { createReviewSessionPort } from './reviewSession'
+import { readGlobalTaste } from '@main/13_Taste/tasteStore'
 import type { Template } from './template'
 import { createWorkSessionPort, type CardResponder } from './workSession'
 
@@ -77,6 +78,8 @@ export interface OpenLoopOptions {
   base?: string
   // 사람이 화면에서 확인하고 받은 설정 차이(래치 풀기). 지난 스냅숏과의 차이가 이 목록과 같을 때만 연다
   acceptConfigChanged?: readonly string[]
+  // 전역 Taste의 거처(실물은 getUserDataDir()). 검수 때마다 여기서 전역 Taste를 읽는다. 없으면 전역 Taste가 없는 것으로 본다
+  tasteDataDir?: string
 }
 
 export interface OpenedLoop {
@@ -217,6 +220,7 @@ export async function openLoop(opts: OpenLoopOptions): Promise<OpenLoopResult> {
         clock: opts.clock ?? isoNow,
         digest,
         configGuard: guard,
+        ...(opts.tasteDataDir !== undefined ? { taste: { readGlobal: () => readGlobalTaste(opts.tasteDataDir as string) } } : {}),
       },
     })
     const env = child

@@ -374,6 +374,7 @@ export function createLoopDriver(opts: LoopDriverOptions): LoopDriver {
     return openImpl({
       cwd: e.cwd,
       appDataDir: opts.appDataDir,
+      ...(opts.tasteDataDir !== undefined ? { tasteDataDir: opts.tasteDataDir } : {}),
       ...(opts.backend ? { backend: opts.backend } : {}),
       requiredChecks: DEFAULT_REQUIRED_CHECKS,
       mainCard: cardResponder(e),

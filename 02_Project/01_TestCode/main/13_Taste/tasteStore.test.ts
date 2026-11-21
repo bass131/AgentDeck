@@ -30,6 +30,7 @@ import {
   checkTasteDraft,
   projectDraftFile,
   writeTasteDraft,
+  readGlobalTaste,
 } from '@main/13_Taste/tasteStore'
 import { serializeTaste, serializeCharter, type TasteItem } from '@shared/14_Taste/tasteDoc'
 import type { TasteDocsRead } from '@shared/14_Taste/taste'
@@ -325,5 +326,16 @@ describe('루프 세션에 싣는 Taste·헌장 덧붙임', () => {
     } finally {
       err.mockRestore()
     }
+  })
+})
+
+describe('검수의 판 — 전역 Taste 원문', () => {
+  it('없으면 null, 있으면 원문, 읽기 실패는 「없음」과 섞지 않고 던진다', async () => {
+    expect(await readGlobalTaste(ud)).toBeNull()
+    await writeGlobalTaste(ud, ITEMS)
+    expect(await readGlobalTaste(ud)).toBe(fs.readFileSync(globalTastePath(ud), 'utf8'))
+    fs.rmSync(globalTastePath(ud))
+    fs.mkdirSync(globalTastePath(ud))
+    await expect(readGlobalTaste(ud)).rejects.toThrow()
   })
 })

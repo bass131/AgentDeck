@@ -1,6 +1,6 @@
 # M12 G2 — 문답 엔진과 화면
 
-- 마일스톤: M12 (마일스톤 스펙 `01_Milestones/M12_CharterTaste/00_마일스톤-스펙.md`) · 작성: 2026-11-21 · 상태: 실행 중 · 검증 강도: 강(앱 소스 50줄 이상)
+- 마일스톤: M12 (마일스톤 스펙 `01_Milestones/M12_CharterTaste/00_마일스톤-스펙.md`) · 작성: 2026-11-21 · 상태: 종결(goal PR 120, 로컬 병합 `8c456887`, 2026-11-21) · 검증 강도: 강(앱 소스 50줄 이상)
 - 작업 브랜치: `feat/m12-g2-taste-dialog` · 기준 브랜치: `milestone/m12-charter-taste`(`e544d797`, goal 1 병합 머리)
 
 ## 목표
@@ -34,7 +34,7 @@
 - [x] 3. 확정 쓰기 — 전역과 프로젝트 PR 길, 시험
 - [x] 4. 작업 모드 보기와 문답 여는 길(renderer), 시험
 - [x] 5. 하드 게이트 다섯 종, `npm test`
-- [>] 6. 독립 검수와 반영, goal PR, `hard-gates`, 로컬 goal 병합
+- [x] 6. 독립 검수와 반영, goal PR, `hard-gates`, 로컬 goal 병합
 
 실행 단계 일괄 승인 대상 (스펙에서 옮김)
 
@@ -47,6 +47,7 @@ DoD
 
 검증 기록
 
+- PASS 2026-11-21T15:27:00+09:00 — goal 병합: PR 120 `hard-gates` 통과(머리 `95f4c389`) 뒤 정형 절차로 `milestone/m12-charter-taste`에 합쳤다(`8c456887`, 둘째 부모가 CI 머리와 같음, 로컬 마일스톤 머리가 원격 `e544d797`과 같았음). GitHub가 PR 120을 병합됨으로 닫았다(06:25:28Z).
 - PASS 2026-11-21T15:11:55+09:00 — 반영분 재검수(다른 검수자, `ab50d9f3..142eb982`): 막는 결함 0, 확정 길은 문서 경로 말고는 커밋·push하지 않음을 확인(한글 경로 pathspec 실 git 통과). 지적 6 반영(`9d66e7c3`~`de69bce8`) — 기본 브랜치가 문서 경로를 무시하면 쓰지 않고 따로 된 사유로 거절하며 쓴 파일은 무시 여부와 관계없이 지운다(`gitPort.test.ts:87`, `charterPr.test.ts:155·168`, 실 git `loopDriver.taste-doc.test.ts:168`). 가르기 전 GitHub에서 열린 `agentdeck/charter-*` PR을 찾아 거절·기록하고 `createPr` 실패 뒤 한 번 찾는다(`ghPort.test.ts:177`, `charterPr.test.ts:187·194`, `loopDriver.taste-doc.test.ts:206`). 배너는 BOM·CRLF를 가리지 않고 PR 상태를 GitHub에 물어 열림일 때만(`tasteDoc.test.ts:226`, `TastePanel.test.tsx:133·141`, `loopDriver.taste-doc.test.ts:229`). 저장소 뿌리 캐시에 null을 담지 않음(`git.test.ts:79`). 무시된 채 있는 파일을 기본 브랜치가 추적하면 가르지 않아 `.env`를 잃지 않음(`gitPort.test.ts:102`, 실 git `loopDriver.taste-doc.test.ts:184`). 문서 PR은 하나씩, 거절 메시지가 막은 PR을 알림(`:115`). 하드 게이트 다섯 종 exit 0, `npm test` Test Files 479 passed·6 skipped(485), Tests 9282 passed·10 skipped, 실패 0(워커 보고). 범위 밖 변경 0.
 - PASS 2026-11-21T14:25:09+09:00 — 독립 검수(구현 문맥 없는 검수자, `06ee4cd3..ab50d9f3`): 막는 결함 1, 고칠 것 3, 사소 4. 반영(`acf27416`~`142eb982`, 커밋 일곱) — 막는 결함: 확정 커밋이 `git add -A`로 사용자 브랜치에서만 무시되던 `.env`·`dist/`까지 쓸어 담던 것을 문서 두 경로만 커밋하고, 확정 브랜치로 옮긴 직후 문서 밖 경로가 보이면 쓰지 않고 돌아가게 고쳤다(`gitPort.test.ts:66`, `charterPr.test.ts:121`, 실 git `.gitignore`가 갈리는 경우 `loopDriver.taste-doc.test.ts:143`). 쓴 뒤 실패의 정리(`charterPr.test.ts:153`), 재기동 안내에 두 브랜치 이름(`mainChat.taste-draft.test.ts:259`), charter 브랜치 위 거절(`charterPr.test.ts:106`), 열린 PR 동안 새 확정 거절(`loopDriver.taste-doc.test.ts:134`), 읽기 뿌리를 git 최상위로(Backlog 6, `taste.handler.test.ts:96`)와 열린 PR 표시(`TastePanel.test.tsx:119`), 초안·여는 턴 크기 상한(`tasteStore.test.ts:232`, `tasteDialog.test.ts:27`), 시작 중 확정 거절(`loopDriver.taste-doc.test.ts:168`), 오류 분리(`TastePanel.test.tsx:133`), 카드 기다림 풀기(`MainChatView.taste-card.test.tsx:63`). 하드 게이트 다섯 종 exit 0, `npm test` Test Files 479 passed·6 skipped(485), Tests 9266 passed·10 skipped, 실패 0(워커 보고). 막는 결함이 있었으므로 반영분을 다른 검수자가 다시 본다.
 - PASS 2026-11-21T13:43:59+09:00 — 구현: 작업 하위 에이전트가 커밋 열(`61f62a1b`~`ab50d9f3`, 42파일). 제안 도구 통과·거절 `mainChat.taste-draft.test.ts:86·95`·`mainChatTools.test.ts:33`, 전역 확정 쓰기 `mainChat.taste-draft.test.ts:119`·`loopDriver.taste-doc.test.ts:98`, 반려가 다음 턴 `:170`, 두 번 확정 불가 `:130`, 재기동 복원 `:199·212`. 프로젝트 확정 git 순서 `charterPr.test.ts:56`(실 git `loopDriver.taste-doc.test.ts:115`), 실행 중 거절 `charterPr.test.ts:73`·`loopDriver.taste-doc.test.ts:146·168`, 더러운 작업 트리 거절 `charterPr.test.ts:80`·`loopDriver.taste-doc.test.ts:133`. 보기 세 상태 `TastePanel.test.tsx:64·76·85`, 「문답 열기」의 여는 턴 `:92`·`WorkView.test.tsx:115`·`tasteDialog.test.ts:13`, 화면을 여는 것만으로 턴이 가지 않음 `TastePanel.test.tsx:64`. 하드 게이트 다섯 종 exit 0, `npm test` Test Files 479 passed·6 skipped(485), Tests 9251 passed·10 skipped, 실패 0(워커 보고, 그 앞 두 번의 실패는 채널 수 고정값과 안 쓰는 export 래칫 — `2a957f11`·`ab50d9f3`에서 고침). 메인이 범위 밖 변경 0을 확인했다.

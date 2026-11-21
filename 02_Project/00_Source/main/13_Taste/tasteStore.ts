@@ -20,7 +20,7 @@ import type { DocRead, TasteDocsRead, TasteDraft } from '@shared/14_Taste/taste'
 
 const GLOBAL_REL = 'taste/global-taste.md'
 const CHARTER_REL = 'docs/agentdeck/헌장.md'
-const PROJECT_TASTE_REL = 'docs/agentdeck/Taste.md'
+export const PROJECT_TASTE_REL = 'docs/agentdeck/Taste.md'
 
 export const LOOP_DOC_MAX_BYTES = 32 * 1024
 
@@ -67,6 +67,9 @@ async function readDoc<T>(root: string, rel: string, scan: Scan<T>): Promise<Doc
 }
 
 const tasteScan = (scope: TasteScope): Scan<TasteDoc> => (t) => scanTaste(t, scope)
+
+// 검수의 판 — 전역 Taste 원문. 없으면 null, 그 밖의 실패는 던진다
+export const readGlobalTaste = (userDataDir: string): Promise<string | null> => readRaw(userDataDir, GLOBAL_REL)
 
 export async function readTasteDocs(userDataDir: string, root: string): Promise<TasteDocsRead> {
   const [global, charter, project] = await Promise.all([

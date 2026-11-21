@@ -53,6 +53,7 @@ DoD
 검증 기록
 
 - PASS 2026-11-21T19:41:37+09:00 — 구현(`06f1b35c`·`c2e9343a`·`9bd5fc1b`) 뒤 메인이 다시 돌린 하드 게이트 다섯 종이 모두 0이고 `npm test`가 488 passed·6 skipped(494)·실패 0이며, 완료조건 1–5의 시험이 `loopRunner`·`loopDriver`·`usageLimit`·`workSession`·`claudeStream`·`limitInjection`·`LoopScreen`의 usage-limit 시험 파일에 있다(독립 검수 전).
+- PASS 2026-11-21T20:28:06+09:00 — 독립 검수(goal 3 `fd3bc2e2` 포함, 막음 0) 반영 뒤 하드 게이트 다섯 종이 모두 0이고 `npm test`가 488 passed·6 skipped(494)·실패 0이다. 고침 권장·사소 여덟 건은 `778a50ff`, 알림 글의 지역 시각은 뒤 커밋이 각각 빨강 확인 뒤 고쳤고, 나머지는 Backlog 14–19로 넘겼다.
 
 ## 결정 대장
 

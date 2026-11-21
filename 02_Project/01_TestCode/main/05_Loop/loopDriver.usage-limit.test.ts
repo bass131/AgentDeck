@@ -10,6 +10,7 @@ import { createLoopNotifier } from '@main/05_Loop/loopNotifier'
 import type { MainActions } from '@main/05_Loop/mainChat'
 import { createRunState, type RunState } from '@main/05_Loop/runState'
 import { DOCS, runStateText } from '@main/05_Loop/survivalDocs'
+import { localClockLabel } from '@shared/13_Loop/clock'
 import type { AgentEvent } from '@shared/agentEvents'
 import type { LoopStatus } from '@shared/ipcContract'
 import { BareGh } from '../00_Helpers/bareGh'
@@ -169,6 +170,7 @@ describe('한도 멈춤의 화면과 알림', () => {
     expect(s.reason).toContain('사용률 모름')
     await sleep(200)
     expect(notifier.list()).toEqual([expect.objectContaining({ phase: 'limit', level: 'later', node: 'decompose' })])
+    expect(notifier.list()[0].text).toContain(`${localClockLabel(START + HOUR + 120_000)} 뒤 스스로 이어 가요`)
     expect(shown).toEqual([])
     const events = rig.d.mainRead(repos.work).items.flatMap((i) => (i.kind === 'event' ? [i.event.kind] : []))
     expect(events).toContain('usage-limit')

@@ -37,4 +37,7 @@ export const ipc: IpcApi = {
   get loop(): IpcApi['loop'] {
     return window.api.loop
   },
+  get taste(): IpcApi['taste'] {
+    return window.api.taste
+  },
 }

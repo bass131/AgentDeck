@@ -129,6 +129,7 @@ import type {
   LoopListDirResponse,
 } from '../13_Loop/loop'
 import type { LoopGraphResponse } from '../13_Loop/graph'
+import type { TasteDocsRead, TasteReadRequest } from '../14_Taste/taste'
 import type { Ack } from '../02_Common/common'
 import type {
   WindowMaximizedResponse,
@@ -233,6 +234,8 @@ interface IpcInvokeMap {
   'loop.graph': { req: LoopCwdRequest; res: LoopGraphResponse }
   'loop.alerts': { req: void; res: LoopAlertList }
   'loop.listDir': { req: LoopListDirRequest; res: LoopListDirResponse }
+
+  'taste.read': { req: TasteReadRequest; res: TasteDocsRead }
 }
 
 interface IpcPushMap {

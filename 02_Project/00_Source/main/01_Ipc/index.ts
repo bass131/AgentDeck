@@ -21,6 +21,7 @@ import { registerControlsHandlers } from './handlers/controls'
 import { registerPersonalizationHandlers } from './handlers/personalization'
 import { registerWindowHandlers } from './handlers/window'
 import { registerLoopHandlers, type LoopDriverApi } from './handlers/loop'
+import { registerTasteHandlers } from './handlers/taste'
 
 // 등록만 한다. 한 번만 등록하는 가드와 store 초기화는 조립 지점(00_App/bootstrap)이 쥔다.
 interface IpcDeps {
@@ -64,5 +65,6 @@ export function registerIpc(deps: IpcDeps): void {
     getPrefsStore: deps.getPrefsStore,
     getProfileStore: deps.getProfileStore,
   })
+  registerTasteHandlers()
   if (deps.loopDriver) registerLoopHandlers({ driver: deps.loopDriver, ...(deps.loopAlerts ? { alerts: deps.loopAlerts } : {}) })
 }

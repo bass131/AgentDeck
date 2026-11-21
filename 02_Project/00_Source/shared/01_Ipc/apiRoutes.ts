@@ -140,6 +140,9 @@ export const API_ROUTES = {
     onAlertOpen: push(IPC_CHANNELS.LOOP_ALERT_OPEN),
     listDir: call(IPC_CHANNELS.LOOP_LIST_DIR),
   },
+  taste: {
+    read: call(IPC_CHANNELS.TASTE_READ),
+  },
 } as const
 
 type ApiRoutes = typeof API_ROUTES

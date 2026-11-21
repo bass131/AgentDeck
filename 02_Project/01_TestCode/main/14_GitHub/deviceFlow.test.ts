@@ -77,12 +77,20 @@ describe('토큰 폴링', () => {
     })
   })
 
-  it('slow_down이면 간격을 5초씩 늘린다', async () => {
-    const slow: HttpResponse = { status: 200, body: { error: 'slow_down', interval: 10 } }
+  it('slow_down 응답에 interval이 없으면 간격을 5초씩 늘린다', async () => {
+    const slow: HttpResponse = { status: 200, body: { error: 'slow_down' } }
     const c = clock()
     const r = await pollForToken(scripted([slow, slow, pending, granted]).http, { webBase: WEB, clientId: 'x', code: CODE, signal: new AbortController().signal, ...c })
     expect(r.ok).toBe(true)
     expect(c.slept).toEqual([5000, 10000, 15000, 15000])
+  })
+
+  it('slow_down 응답에 interval이 있으면 그 값을 다음 간격으로 쓴다', async () => {
+    const slowTo = (interval: unknown): HttpResponse => ({ status: 200, body: { error: 'slow_down', interval } })
+    const c = clock()
+    const r = await pollForToken(scripted([slowTo(12), slowTo(7), slowTo('x'), pending, granted]).http, { webBase: WEB, clientId: 'x', code: CODE, signal: new AbortController().signal, ...c })
+    expect(r.ok).toBe(true)
+    expect(c.slept).toEqual([5000, 12000, 7000, 12000, 12000])
   })
 
   it('expired_token은 만료, access_denied는 거부, 그 밖 오류는 실패로 끝난다', async () => {

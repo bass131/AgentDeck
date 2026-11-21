@@ -1,6 +1,6 @@
 // GitHub 기기 인증(device flow). 근거는 GitHub Docs 「Authorizing OAuth apps」의 Device flow 절이다.
 //   1. POST {web}/login/device/code (client_id, scope) → device_code·user_code·verification_uri·expires_in·interval
-//   2. POST {web}/login/oauth/access_token (client_id, device_code, grant_type) — 오류도 200 본문의 error 칸으로 온다
+//   2. POST {web}/login/oauth/access_token (client_id, device_code, grant_type) — 오류는 본문의 error 칸으로 오고, slow_down은 새 interval을 싣는다
 //   3. GET {api}/user → login
 // HTTP 함수를 주입받는 순수 모듈이다. 실패 사유에는 토큰·기기 코드를 싣지 않는다.
 
@@ -112,7 +112,7 @@ export async function pollForToken(http: HttpJson, opts: PollOptions): Promise<{
       case 'authorization_pending':
         continue
       case 'slow_down':
-        interval += SLOW_DOWN_STEP_S
+        interval = positive(b['interval']) ?? interval + SLOW_DOWN_STEP_S
         continue
       case 'expired_token':
         return { ok: false, failure: 'expired' }

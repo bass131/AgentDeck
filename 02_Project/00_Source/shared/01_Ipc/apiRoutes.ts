@@ -144,6 +144,14 @@ export const API_ROUTES = {
   taste: {
     read: call(IPC_CHANNELS.TASTE_READ),
   },
+  github: {
+    status: call0(IPC_CHANNELS.GITHUB_STATUS),
+    connect: call0(IPC_CHANNELS.GITHUB_CONNECT),
+    cancel: call0(IPC_CHANNELS.GITHUB_CANCEL),
+    disconnect: call0(IPC_CHANNELS.GITHUB_DISCONNECT),
+    openVerification: call0(IPC_CHANNELS.GITHUB_OPEN_VERIFICATION),
+    onState: push(IPC_CHANNELS.GITHUB_STATE),
+  },
 } as const
 
 type ApiRoutes = typeof API_ROUTES

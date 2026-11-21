@@ -117,6 +117,13 @@ export const FLAT_ROUTES = {
   loopTasteOpen: { group: 'loop', action: 'tasteOpen' },
 
   tasteRead: { group: 'taste', action: 'read' },
+
+  githubStatus: { group: 'github', action: 'status' },
+  githubConnect: { group: 'github', action: 'connect' },
+  githubCancel: { group: 'github', action: 'cancel' },
+  githubDisconnect: { group: 'github', action: 'disconnect' },
+  githubOpenVerification: { group: 'github', action: 'openVerification' },
+  onGithubState: { group: 'github', action: 'onState' },
 } as const satisfies Record<string, FlatRoute>
 
 export type FlatKey = keyof typeof FLAT_ROUTES
@@ -236,6 +243,11 @@ const DEFAULT_RESULTS: { [C in InvokeChannel]?: ResOf<C> } = {
     charter: { absent: true, path: '' },
     project: { absent: true, path: '' },
   },
+  'github.status': { phase: 'disconnected' },
+  'github.connect': { phase: 'disconnected' },
+  'github.cancel': { phase: 'disconnected' },
+  'github.disconnect': { phase: 'disconnected' },
+  'github.openVerification': { ok: true },
 }
 
 const SYNC_RESULTS: Partial<Record<FlatKey, unknown>> = {

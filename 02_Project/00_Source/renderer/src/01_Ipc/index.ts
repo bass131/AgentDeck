@@ -40,4 +40,7 @@ export const ipc: IpcApi = {
   get taste(): IpcApi['taste'] {
     return window.api.taste
   },
+  get github(): IpcApi['github'] {
+    return window.api.github
+  },
 }

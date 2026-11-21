@@ -6,6 +6,7 @@
 // 바로 뒤에 넣는다(`gh pr view -R h/o/r 1`). gh-resolved 키 자체도 설정 대조가 본다(configGuard).
 // 실측(gh 2.96.0, 2026-11-19): AgentDeck 작업 폴더에서 `gh pr list -R github.com/octocat/Hello-World`가 그 저장소를 읽고,
 // `gh pr view -R github.com/<소유자>/AgentDeck 93`이 그 PR을 읽었다. pr create -R은 PR을 실제로 만들어야 재므로 실측하지 않았다.
+import { GITHUB_HOST, withGhToken } from '../../14_GitHub/appToken'
 import type { CommandResult, GhPort } from '../ports'
 import { runProcess } from './exec'
 import { parseCiStatus, parsePr, parsePrHeads, pickLatestPr, prNumberFromUrl, REPO_SLUG } from './ghParse'
@@ -23,14 +24,18 @@ interface GhExecOptions {
   guard?: { assert(): Promise<void> }
   // 프로세스 실행(시험이 gh 인자를 본다). 기본은 runProcess.
   run?: typeof runProcess
+  // 앱 토큰(14_GitHub). repo 호스트가 github.com일 때만 호출마다 읽고, 있으면 그 호출의 GH_TOKEN이 된다. 없으면 env 그대로다.
+  token?: () => string | null
 }
 
 export function createGhExec(opts: GhExecOptions): GhExec {
   if (!REPO_SLUG.test(opts.repo)) throw new Error(`gh 저장소 ${JSON.stringify(opts.repo)}가 HOST/OWNER/REPO 꼴이 아니다`)
-  const env = { ...(opts.env ?? process.env), GH_PROMPT_DISABLED: '1', GH_NO_UPDATE_NOTIFIER: '1', NO_COLOR: '1', GIT_NO_REPLACE_OBJECTS: '1' }
+  const base = { ...(opts.env ?? process.env), GH_PROMPT_DISABLED: '1', GH_NO_UPDATE_NOTIFIER: '1', NO_COLOR: '1', GIT_NO_REPLACE_OBJECTS: '1' }
   const run = opts.run ?? runProcess
+  const token = opts.repo.split('/')[0] === GITHUB_HOST ? opts.token : undefined
   return async (args, input) => {
     await opts.guard?.assert()
+    const env = withGhToken(base, token?.() ?? null)
     // 하위 명령(`pr view`) 바로 뒤 — 실행기가 부르는 gh는 모두 두 낱말 하위 명령이다.
     // `repo view`에는 -R이 없고 위치 인자 [<repository>]가 그 자리다(실측) — 같은 저장소를 위치 인자로 넣는다.
     const repoView = args[0] === 'repo' && args[1] === 'view'

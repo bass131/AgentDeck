@@ -2,6 +2,12 @@
 
 M13 진행 중 범위 밖으로 발견한 것을 한 줄씩 남긴다. 새 줄은 위에 쌓는다.
 
+16. (M13 G2 재검수) PR 카드의 gh(`prMerge.ts` `ghRunner`)는 `gh api <path>`를 `--hostname`·`-R` 없이 `process.env`로 부른다 — 사용자 환경에 `GH_HOST=acme.ghe.com`이 있으면 앱 토큰이 그 호스트로 갈 수 있다(미실측). 호출에 `--hostname github.com`을 고정할 후보.
+15. (M13 G2 검수) 앱 토큰을 무조건 우선하므로, 조직이 「OAuth App 접근 제한」을 켜 두면 개발 PC에서 앱을 연결하는 순간 그 조직 저장소의 PR 카드와 실행기 gh가 막힐 수 있다(예전에는 승인된 gh 로그인으로 돌았다). 미실측 추정 — goal 6 실측 때 본다.
+14. (M13 G2) OAuth App 클라이언트 ID를 넣는 화면이 없다 — 지금은 `ui-prefs.json`의 `githubClientId`(렌더러의 `settings.setUiPref`로도 쓸 수 있다)뿐이다. 등록(goal 6) 뒤 설치본에 기본값을 싣는 길을 첫 실행 안내(goal 3)나 릴리스 후보(goal 5)에서 정할 후보.
+13. (M13 G2) 앱 토큰 파일(`userData/github-auth.bin`)은 루프 잠금이 쓰기만 막고(저장소 밖 쓰기) 읽기는 막지 않는다 — `loopLock.ts`에 읽기 차단 규칙이 없다. 내용은 safeStorage(DPAPI) 암호문이지만 같은 OS 사용자 프로세스는 `Local State`의 키로 풀 수 있다(미실측 추정, childEnv 한계와 같은 부류).
+12. (M13 G2) origin이 ssh 주소면 앱 토큰이 있어도 실행기 git은 사용자 ssh 키로 돈다 — 토큰 도우미는 `https://github.com` 원격에만 걸린다. 설치본만 쓰는 사람(goal 6)의 ssh origin 저장소는 push가 실패할 수 있다.
+11. (M13 G2) Git 패널의 push·pull(`08_Git/git.ts` 320·328·341행)은 앱 토큰을 쓰지 않고 사용자 자격으로 돈다 — goal 2의 「건드릴 곳」 밖이다. 설치본만 쓰는 사람은 gh·GCM 로그인이 없으면 Git 패널 push가 실패할 수 있다.
 10. (M13 G1 재검수) 빌드 출력 `../AgentDeck-release`는 프로젝트 폴더 기준 상대 경로다 — 워크트리(`.claude/worktrees/<id>`)에서 빌드하면 저장소 안으로 가고, goal 5가 `v0.2.0`·`v0.2.1`을 연달아 빌드하면 둘째가 `win-unpacked`·`latest.yml`을 덮어쓴다. goal 5에서 빌드 사이에 산출물을 옮겨 담는다.
 9. (M13 G1 재검수) 설치 폴더 `%LOCALAPPDATA%\Programs\agentdeck\resources`(앱이 이제 명시적으로 띄우는 `claude.exe` 포함)는 사용자 권한으로 쓸 수 있는데, 엔진 경로 잠금(`enginePathLock.ts`)은 앱 데이터의 `engines`만 지킨다 — 설치본의 에이전트가 그 실행 파일을 고칠 수 있다(미실측 추정).
 8. (M13 G1 검수) `appUserModel.ts`는 패키징본에서 AppUserModelID를 정하지 않는다 — Electron 알림 문서가 자동 설정을 말하는 것은 Squirrel 설치기뿐이라 NSIS 설치본의 Windows 알림(`notifyPort.ts`)이 안 뜨거나 이름이 어긋날 수 있다(미실측). 후보: 패키징본이면 `appId`(`com.bass131.agentdeck`)로 정한다.

@@ -10,13 +10,24 @@ const h = vi.hoisted(() => ({
   handlers: new Map<string, (...args: unknown[]) => unknown>(),
   handleCalls: 0,
   powerEvents: [] as string[],
+  encryption: false,
+  packaged: false,
+  githubBases: [] as { web: string; api: string }[],
+  loopDriverOpts: [] as { openExtras?: { githubToken?: () => string | null } }[],
+  tokenStores: [] as { file: string; store: { write(a: { token: string; login: string }): Promise<unknown>; clear(): Promise<void> } }[],
 }))
 
 vi.mock('electron', () => ({
-  app: { getPath: () => h.userData, getAppPath: () => h.userData, getVersion: () => '0.0.0', isPackaged: false, setAppUserModelId: (): void => {} },
+  app: { getPath: () => h.userData, getAppPath: () => h.userData, getVersion: () => '0.0.0', get isPackaged() { return h.packaged }, setAppUserModelId: (): void => {} },
   ipcMain: { handle: (ch: string, fn: (...a: unknown[]) => unknown): void => { h.handleCalls++; h.handlers.set(ch, fn) } },
   dialog: {},
   powerMonitor: { on: (ev: string): void => { h.powerEvents.push(ev) } },
+  safeStorage: {
+    isEncryptionAvailable: () => h.encryption,
+    encryptString: (s: string) => Buffer.from(`enc:${s}`),
+    decryptString: (b: Buffer) => b.toString().slice(4),
+  },
+  shell: { openExternal: async (): Promise<void> => {} },
 }))
 
 vi.mock('@main/06_Sessions/store', async (importOriginal) => {
@@ -56,6 +67,40 @@ vi.mock('@main/11_Settings/mcp', async (importOriginal) => {
       v.spyOn(s, 'deniedMcpServers')
       return s
     }),
+  }
+})
+
+vi.mock('@main/05_Loop/loopDriver', async (importOriginal) => {
+  const orig = await importOriginal<typeof import('@main/05_Loop/loopDriver')>()
+  return {
+    ...orig,
+    createLoopDriver: (...a: Parameters<typeof orig.createLoopDriver>) => {
+      h.loopDriverOpts.push(a[0])
+      return orig.createLoopDriver(...a)
+    },
+  }
+})
+
+vi.mock('@main/14_GitHub/tokenStore', async (importOriginal) => {
+  const orig = await importOriginal<typeof import('@main/14_GitHub/tokenStore')>()
+  return {
+    ...orig,
+    createTokenStore: (...a: Parameters<typeof orig.createTokenStore>) => {
+      const store = orig.createTokenStore(...a)
+      h.tokenStores.push({ file: a[0].file, store })
+      return store
+    },
+  }
+})
+
+vi.mock('@main/14_GitHub/githubAuth', async (importOriginal) => {
+  const orig = await importOriginal<typeof import('@main/14_GitHub/githubAuth')>()
+  return {
+    ...orig,
+    createGithubAuth: (...a: Parameters<typeof orig.createGithubAuth>) => {
+      h.githubBases.push(a[0].bases)
+      return orig.createGithubAuth(...a)
+    },
   }
 })
 
@@ -226,7 +271,7 @@ describe('기동·종료 배선 — 00_App/bootstrap 한 곳 (M05 G11 4단계)',
     attachWindow(win1)
     expect(ipcState.win).toBe(win1)
     expect(calls(createSkillsStore) - skills0).toBe(1)
-    for (const ch of [IPC_CHANNELS.WORKSPACE_OPEN, IPC_CHANNELS.AGENT_RUN, IPC_CHANNELS.CONVERSATION_LOAD, IPC_CHANNELS.SKILL_LIST, IPC_CHANNELS.LSP_STATUS, IPC_CHANNELS.LOOP_OPEN, IPC_CHANNELS.LOOP_CLOSE]) {
+    for (const ch of [IPC_CHANNELS.WORKSPACE_OPEN, IPC_CHANNELS.AGENT_RUN, IPC_CHANNELS.CONVERSATION_LOAD, IPC_CHANNELS.SKILL_LIST, IPC_CHANNELS.LSP_STATUS, IPC_CHANNELS.LOOP_OPEN, IPC_CHANNELS.LOOP_CLOSE, IPC_CHANNELS.GITHUB_STATUS, IPC_CHANNELS.GITHUB_CONNECT]) {
       expect(h.handlers.has(ch)).toBe(true)
     }
     // 잠에서 깨면 한도 멈춤의 벽시계를 다시 본다
@@ -272,6 +317,25 @@ describe('기동·종료 배선 — 00_App/bootstrap 한 곳 (M05 G11 4단계)',
     expect(closeAll).toHaveBeenCalledTimes(1)
     expect(disposeAll).toHaveBeenCalledTimes(1)
     expect(s.close).toHaveBeenCalledTimes(1)
+  })
+
+  it('루프 구동자의 openExtras.githubToken은 조립 지점이 만든 토큰 저장소를 읽는다(M13 G2)', async () => {
+    assembled()
+    const read = h.loopDriverOpts.at(-1)?.openExtras?.githubToken
+    const { file, store } = h.tokenStores.at(-1)!
+    expect(path.basename(file)).toBe('github-auth.bin')
+    expect(read?.()).toBeNull()
+    fs.mkdirSync(path.dirname(file), { recursive: true })
+    h.encryption = true
+    try {
+      await store.write({ token: 'gho_assemblyWiring55', login: 'octo' })
+      expect(read?.()).toBe('gho_assemblyWiring55')
+      await store.clear()
+      expect(read?.()).toBeNull()
+    } finally {
+      h.encryption = false
+      await store.clear()
+    }
   })
 
   it('loop.status는 조립된 구동자를 읽는다 — 열린 실행기가 없으면 closed', async () => {
@@ -323,5 +387,34 @@ describe('기동·종료 배선 — 00_App/bootstrap 한 곳 (M05 G11 4단계)',
     expect(src).toMatch(/\bstopApp\(\)/)
     // 창 생성은 수명주기(activate)와 같이 다니는 Electron 표면이라 진입점에 남는다
     expect(callersOf(/new BrowserWindow\(/)).toEqual(['index.ts'])
+  })
+})
+
+describe('GitHub 연결 주소 — 패키징본은 시험 서버 환경변수를 읽지 않는다 (M13 G2)', () => {
+  const KEY = 'AGENTDECK_E2E_GITHUB_BASE'
+  let saved: string | undefined
+  beforeEach(() => { saved = process.env[KEY] })
+  afterEach(() => {
+    h.packaged = false
+    if (saved === undefined) delete process.env[KEY]
+    else process.env[KEY] = saved
+  })
+
+  // attachWindow는 모듈 수준 1회 가드라 모듈을 새로 읽어 다시 조립한다
+  const assembleFresh = async (): Promise<{ web: string; api: string } | undefined> => {
+    vi.resetModules()
+    const boot = await import('@main/00_App/bootstrap')
+    boot.attachWindow({ id: 90 } as never)
+    const bases = h.githubBases.at(-1)
+    boot.stopApp()
+    return bases
+  }
+
+  it('개발 실행본은 환경변수의 시험 서버로, 패키징본은 같은 환경변수가 있어도 github.com으로 조립한다', async () => {
+    process.env[KEY] = 'http://127.0.0.1:9'
+    h.packaged = false
+    expect(await assembleFresh()).toEqual({ web: 'http://127.0.0.1:9', api: 'http://127.0.0.1:9' })
+    h.packaged = true
+    expect(await assembleFresh()).toEqual({ web: 'https://github.com', api: 'https://api.github.com' })
   })
 })

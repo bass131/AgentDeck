@@ -145,9 +145,9 @@ function routeCases(): void {
 void routeCases
 
 describe('M05 G10 — IPC 채널 타입 맵', () => {
-  it('채널 수는 재실측 기준에서 미사용 3개를 빼고 M06 G4의 agent.listModels, M07 G5의 컨트롤 셋, M07 G8의 PR 카드 둘, M09 G4의 loop 아홉, M10 G2의 메인 대화 다섯, M10 G3의 깃발 내리기 하나, M10 G4의 기록 읽기 둘, M10 G5의 그래프·알림 넷, M11 G2의 agent.setEffort, Taste 읽기·문답 열기 둘을 더하고 M10 G1의 multi 여섯을 뺀 수다 (invoke 67+1+3+2+8-6+3+1+2+2+1+2=86 + push 3+1+2+2)', () => {
-    expect(Object.values(IPC_CHANNELS)).toHaveLength(95)
-    expect(new Set(Object.values(IPC_CHANNELS)).size).toBe(95)
+  it('채널 수는 재실측 기준에서 미사용 3개를 빼고 M06 G4의 agent.listModels, M07 G5의 컨트롤 셋, M07 G8의 PR 카드 둘, M09 G4의 loop 아홉, M10 G2의 메인 대화 다섯, M10 G3의 깃발 내리기 하나, M10 G4의 기록 읽기 둘, M10 G5의 그래프·알림 넷, M11 G2의 agent.setEffort, Taste 읽기·문답 열기 둘, M13 G2의 GitHub 연결 다섯과 상태 push 하나를 더하고 M10 G1의 multi 여섯을 뺀 수다 (invoke 67+1+3+2+8-6+3+1+2+2+1+2+5=91 + push 3+1+2+2+1)', () => {
+    expect(Object.values(IPC_CHANNELS)).toHaveLength(101)
+    expect(new Set(Object.values(IPC_CHANNELS)).size).toBe(101)
     const values = Object.values(IPC_CHANNELS) as string[]
     for (const gone of ['window.getBounds', 'window.setBounds', 'engine.versionState']) expect(values).not.toContain(gone)
   })

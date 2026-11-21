@@ -9,6 +9,7 @@ import {
   IconRefresh,
   IconCheck,
   IconShieldChk,
+  IconGitBranch,
   type IconProps,
 } from '@renderer/02_Common/icons'
 import { ProviderBrandIcon } from '@renderer/02_Common/ProviderBrandIcon'
@@ -22,12 +23,14 @@ import type { SkillInfo, McpServerInfo, EngineState } from '@shared/ipcContract'
 import { ProviderStatusPanel } from '@renderer/03_Agent'
 import { ipc } from '@renderer/01_Ipc'
 import { ControlsView } from './ControlsView'
+import { GitHubAccountView } from './GitHubAccountView'
 import './SettingsModal.css'
 
-type NavId = 'version' | 'controls' | 'mcp' | 'skill' | 'lsp' | 'appearance'
+type NavId = 'version' | 'github' | 'controls' | 'mcp' | 'skill' | 'lsp' | 'appearance'
 
 const NAV: { id: NavId; label: string; Icon: (p: IconProps) => JSX.Element }[] = [
   { id: 'version', label: 'Claude Code', Icon: ProviderBrandIcon },
+  { id: 'github', label: 'GitHub 계정', Icon: IconGitBranch },
   { id: 'controls', label: '컨트롤', Icon: IconShieldChk },
   { id: 'mcp', label: 'MCP', Icon: IconServer },
   { id: 'skill', label: 'Skill', Icon: IconBook },
@@ -470,6 +473,7 @@ export function SettingsModal({ onClose }: { onClose: () => void }): JSX.Element
 
         <div className="set-body">
           {nav === 'version' && <VersionView />}
+          {nav === 'github' && <GitHubAccountView />}
           {nav === 'controls' && <ControlsView />}
           {nav === 'mcp' && <McpView />}
           {nav === 'skill' && <SkillView />}

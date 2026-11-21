@@ -1,9 +1,14 @@
-import { app, powerMonitor, type BrowserWindow } from 'electron'
+import { app, powerMonitor, safeStorage, shell, type BrowserWindow } from 'electron'
 import { join } from 'node:path'
 import { getUserDataDir } from '@main/02_Common/userData'
 import { getWorkspaceRootPath } from '@main/07_Workspace/roots'
 import { registerIpc } from '@main/01_Ipc/index'
+import { pushGithubState } from '@main/01_Ipc/handlers/github'
 import { pushAlertOpen, pushAlerts, pushLoopState, pushMainState, pushSessionEvent } from '@main/01_Ipc/handlers/loop'
+import { appGithubToken, setAppTokenSource } from '@main/14_GitHub/appToken'
+import { fetchJson } from '@main/14_GitHub/deviceFlow'
+import { createGithubAuth, githubBasesOf, githubClientIdOf } from '@main/14_GitHub/githubAuth'
+import { GITHUB_AUTH_FILE, createTokenStore, storedToken } from '@main/14_GitHub/tokenStore'
 import { controlsForRun } from '@main/04_Claude/permission/controlsStore'
 import { limitInjectFileOf } from '@main/05_Loop/limitInjection'
 import { autoModeReasonOf, createLoopDriver, recheckOnResume, type LoopDriver } from '@main/05_Loop/loopDriver'
@@ -72,12 +77,23 @@ export function attachWindow(win: BrowserWindow): void {
     },
   })
 
+  const githubStore = createTokenStore({ file: join(getUserDataDir(), GITHUB_AUTH_FILE), safeStorage })
+  setAppTokenSource(() => storedToken(githubStore))
+  const githubAuth = createGithubAuth({
+    store: githubStore,
+    http: fetchJson,
+    clientId: async () => githubClientIdOf(await getPrefsStore()?.getAll()),
+    bases: githubBasesOf(process.env, app.isPackaged),
+    openExternal: (url) => shell.openExternal(url),
+    onChange: (s) => pushGithubState(ipcState, s),
+  })
+
   const limitInjectFile = limitInjectFileOf(process.env, loopAppDir)
   _loopDriver = createLoopDriver({
     appDataDir: loopAppDir,
     tasteDataDir: getUserDataDir(),
     backend: getBackend('claude-code'),
-    ...(limitInjectFile ? { openExtras: { limitInjectFile } } : {}),
+    openExtras: { githubToken: appGithubToken, ...(limitInjectFile ? { limitInjectFile } : {}) },
     // 자동 모드 허용 노드는 구동마다 다시 읽는다
     autoModeCheck: () => autoModeReasonOf(controlsForRun(getUserDataDir())),
     onState: (s) => {
@@ -89,6 +105,7 @@ export function attachWindow(win: BrowserWindow): void {
   })
 
   registerIpc({
+    githubAuth,
     loopDriver: _loopDriver,
     loopAlerts: notifier,
     state: ipcState,

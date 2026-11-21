@@ -6,6 +6,7 @@
 // `-i` 없이 실패하면 stdout에 오류 본문 JSON, stderr에 `gh: <message> (HTTP 404)`가 온다.
 import { execFile } from 'node:child_process'
 import type { PrCheckResult, PrMergeResponse, PrReadResponse, PrView } from '../../shared/ipcContract'
+import { appGithubToken, withGhToken } from '../14_GitHub/appToken'
 import { maskCredentials } from './git'
 
 export interface GhResult {
@@ -431,12 +432,12 @@ export function createPrService(deps: PrServiceDeps) {
   return { readPr, mergePr }
 }
 
-function run(cmd: string, args: string[], cwd: string, timeout: number): Promise<GhResult> {
+function run(cmd: string, args: string[], cwd: string, timeout: number, env: NodeJS.ProcessEnv = process.env): Promise<GhResult> {
   return new Promise((resolve) => {
     execFile(
       cmd,
       args,
-      { cwd, timeout, maxBuffer: 16 * 1024 * 1024, windowsHide: true, env: { ...process.env, GH_PROMPT_DISABLED: '1', NO_COLOR: '1' } },
+      { cwd, timeout, maxBuffer: 16 * 1024 * 1024, windowsHide: true, env: { ...env, GH_PROMPT_DISABLED: '1', NO_COLOR: '1' } },
       (err, stdout, stderr) => {
         const code = err ? (typeof (err as { code?: unknown }).code === 'number' ? ((err as { code: number }).code) : -1) : 0
         resolve({ code, stdout: String(stdout ?? ''), stderr: String(stderr ?? '') || (err ? err.message : '') })
@@ -445,7 +446,8 @@ function run(cmd: string, args: string[], cwd: string, timeout: number): Promise
   })
 }
 
-const ghRunner: GhRunner = (args, cwd) => run('gh', args, cwd, 60_000)
+// 앱이 GitHub에 연결돼 있으면 그 토큰으로, 아니면 사용자 환경의 gh 로그인으로 돈다
+const ghRunner: GhRunner = (args, cwd) => run('gh', args, cwd, 60_000, withGhToken(process.env, appGithubToken()))
 
 async function gitOriginUrl(cwd: string): Promise<string | null> {
   const r = await run('git', ['remote', 'get-url', 'origin'], cwd, 10_000)

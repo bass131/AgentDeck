@@ -715,6 +715,26 @@ describe('구동자 그래프 읽기 (M10 G5)', () => {
   })
 })
 
+describe('구동자 openExtras.githubToken (M13 G2)', () => {
+  it('앱 토큰 읽기 함수를 실행기 열기 선택지에 그대로 넘긴다', async () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'ad-ghtoken-'))
+    const githubToken = (): string | null => 'gho_driverWiring55'
+    const seen: Parameters<typeof openLoop>[0][] = []
+    try {
+      const d = createLoopDriver({
+        appDataDir: tmp, openExtras: { githubToken },
+        openLoopImpl: async (o) => { seen.push(o); return { ok: false, reason: '시험 — 열지 않는다' } },
+      })
+      drivers.push(d)
+      await d.open({ cwd: tmp })
+      expect(seen).toHaveLength(1)
+      expect(seen[0].githubToken).toBe(githubToken)
+    } finally {
+      fs.rmSync(tmp, { recursive: true, force: true })
+    }
+  })
+})
+
 // 자동 모드가 꺼진 채 다시 열면, 여는 쪽의 상태 계산과 구동(kick)의 읽기가 경쟁해도 running 한 장이 끼지 않는다.
 // running이 끼면 알림기가 열쇠를 지워 같은 blocked를 또 알린다
 // 끝난 실행이 있는 폴더(옛 템플릿 해시 포함)를 열면 시작 전과 안내 한 줄이고, 새 마일스톤을 시작하면 보관하고 새 실행을 연다

@@ -651,3 +651,42 @@
   font-weight: 600;
   color: var(--text);
 }
+
+.gh-pending {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 14px 18px 16px;
+  border-top: 1px solid var(--line);
+}
+.gh-code {
+  font-family: var(--font-mono);
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: var(--text);
+  padding: 4px 12px;
+  border-radius: 8px;
+  background: var(--surface-2);
+  user-select: all;
+}
+.inst-btn.ghost.gh-copy:hover {
+  color: var(--text);
+  background: var(--surface-2);
+}
+.gh-expiry {
+  font-size: 11.5px;
+  color: var(--text-4);
+}
+.gh-ok {
+  margin-right: 6px;
+}
+.gh-error {
+  margin-top: 12px;
+  padding: 9px 12px;
+  border-radius: 8px;
+  font-size: 12.5px;
+  color: var(--red);
+  background: var(--red-soft);
+}

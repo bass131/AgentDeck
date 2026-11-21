@@ -83,6 +83,7 @@ describe('SettingsModal — nav 5탭 (F7)', () => {
     expect(labels.some((l) => l?.includes('Skill'))).toBe(true)
     expect(labels.some((l) => l?.includes('Code') && !l?.includes('Claude'))).toBe(true)
     expect(labels.some((l) => l?.includes('테마'))).toBe(true)
+    expect(labels).toContain('GitHub 계정')
   })
 
   it('기본 탭은 Claude Code (version 뷰 set-h1)', async () => {

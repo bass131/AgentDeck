@@ -131,11 +131,13 @@ describe('구동자의 문서 초안 길', () => {
     expect(notice).toMatchObject({ text: expect.stringContaining('PR #1') })
     expect(repos.bare(['show', '-z', '--name-only', '--format=', made[0]]).split('\0').filter((x) => x.trim() !== '')).toEqual(['docs/agentdeck/헌장.md'])
     expect(rig.d.mainRead(repos.work).tastePr).toEqual({ pr: 1, branch: made[0], doc: 'charter', text: card.preview })
-    // 그 PR이 열려 있는 동안의 다음 확정은 두 번째 PR을 열지 않는다
-    await rig.actions().proposeTasteDoc({ doc: 'charter', charter: { goal: ['고친 목표다.'], nonGoals: null } })
+    // 그 PR이 열려 있는 동안의 다음 확정은 다른 문서여도 두 번째 PR을 열지 않고, 막은 PR을 이름으로 알린다
+    expect(await rig.actions().proposeTasteDoc({ doc: 'project-taste', items: ITEMS })).toContain('승인 카드')
     const [next] = tasteCards(rig)
     rig.d.answerCard(repos.work, next.requestId, { kind: 'taste', decision: 'confirm' })
-    expect((await settled(rig, next.requestId))?.refused).toContain('PR #1')
+    const refused = (await settled(rig, next.requestId))?.refused ?? ''
+    expect(refused).toContain(`프로젝트 헌장 PR #1(${made[0]})`)
+    expect(refused).toContain('프로젝트 Taste을 확정하지 않았다')
     expect(gh.prs).toHaveLength(1)
     expect(branch()).toBe('feat/side')
   })

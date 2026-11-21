@@ -196,20 +196,28 @@ function takesValue(spec: WrapperSpec, t: string): boolean {
 // M11 G8(M03-28): `+c`도 -c 모드이고, 묶음의 `o`·`O`마다 값을 하나씩 먹으며, 대시 하나짜리 긴 옵션(`-login`)은 값을 먹지 않는다.
 const SHELL_VALUE_LONG = new Set(['--rcfile', '--init-file'])
 const SHELL_LONG_WORDS = new Set(['login', 'noprofile', 'norc', 'posix', 'restricted', 'verbose', 'version', 'help', 'debugger', 'noediting', 'dump-strings', 'dump-po-strings', 'pretty-print'])
-function shellScriptsOf(args: string[]): string[] {
-  const at = new Set<number>()
+// 대시 하나 긴 옵션은 bash만 읽는다 — zsh·ksh·dash·ash에서 `-restricted`는 `c`가 든 짧은 묶음이다(G8 독립 검수 1).
+// sh는 bash일 수도 dash일 수도 있어 두 판독의 합집합이다. 셸을 모르면 합집합이다.
+const LONG_WORD_SHELLS = new Set(['bash', 'bash.exe'])
+const EITHER_SHELLS = new Set(['sh', 'sh.exe'])
+function shellScriptStart(args: string[], longWords: boolean): number {
   let cMode = false
   let i = 0
   while (i < args.length) {
     const t = args[i]
     if (t === '--' || t === '-') { i++; break }
     if (t.startsWith('--')) { i += SHELL_VALUE_LONG.has(t) ? 2 : 1; continue }
-    if (t[0] === '-' && SHELL_LONG_WORDS.has(t.slice(1))) { i++; continue }
+    if (longWords && t[0] === '-' && SHELL_LONG_WORDS.has(t.slice(1))) { i++; continue }
     if (!/^[-+][A-Za-z]+$/.test(t)) break
     if (t.includes('c')) cMode = true
     i += 1 + (t.match(/[oO]/g)?.length ?? 0)
   }
-  if (cMode && i < args.length) at.add(i)
+  return cMode && i < args.length ? i : -1
+}
+function shellScriptsOf(args: string[], shell?: string): string[] {
+  const readings = shell !== undefined && LONG_WORD_SHELLS.has(shell) ? [true]
+    : shell === undefined || EITHER_SHELLS.has(shell) ? [true, false] : [false]
+  const at = new Set<number>(readings.map((lw) => shellScriptStart(args, lw)).filter((j) => j >= 0))
   const k = args.findIndex((t) => RE_SHELL_C.test(t))
   if (k >= 0 && k + 1 < args.length) at.add(k + 1)
   return [...at].map((j) => args[j])
@@ -428,7 +436,7 @@ function scriptReason(script: string, rawText: string, depth: number): string | 
         continue
       }
       if (SHELLS.has(c.base)) {
-        for (const s of shellScriptsOf(c.args)) {
+        for (const s of shellScriptsOf(c.args, c.base)) {
           const r = scriptReason(s, rawText, depth + 1)
           if (r) return r
         }

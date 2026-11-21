@@ -3,6 +3,9 @@
 - 범위 밖 발견을 한 줄로 남긴다(헌법 11조). 최신 번호가 위다.
 - M01~M10 Backlog의 닫힘은 각 파일의 「## 닫힘 (M11)」 표가 갖는다. 여기에는 M11 진행 중 새로 생긴 것과 해결됨 항목의 남은 갈래만 둔다.
 
+82. (M11 G8 검수) 현재 브랜치 읽기(`currentBranch`)는 작업 폴더가 저장소의 하위 폴더일 때 위로 올라가 `.git`을 찾는 길을 시험하지 않는다 — 시험은 저장소 뿌리와 worktree 뿌리만 본다.
+81. (M11 G8 검수) `_lib/settings-rules.mjs:8,21`의 근사가 더 어긋난다 — `SEPARATORS`의 `&`가 `2>&1`을 끊고, 인용 추적이 `"$(cat <<'EOF' … EOF)"` 안에서 닫힌다. 정형 목록의 `gh pr create`는 `--body "…"` 꼴만 보고 메인이 실제로 쓰는 heredoc 본문 꼴은 보지 않는다(79의 연장).
+80. (M11 G8 검수) `Start-Process -FilePath '<공백 든 경로>'`는 가드 `evaluatedScriptOf`와 `mergeDeny.startProcessScript`가 `[file, ...list].join(' ')`로 이으며 인용을 잃어, `Start-Process -FilePath 'C:\Program Files\GitHub CLI\gh.exe' -ArgumentList 'pr merge 1'`이 둘 다 지나간다. goal 8 전부터 있던 꼴이고 셋의 판독은 같다.
 79. (M11 G8) 설정 판정 시험(`_lib/settings-rules.mjs`)은 공식 permissions 문서의 규칙을 옮긴 근사다 — 실제 Claude Code의 인용부·래퍼 처리와 다를 수 있어, 정형 절차 명령이 실제 세션에서 질의 없이 지나가는지는 메인의 다음 goal 병합 사슬이 실물로 확인한다.
 78. (M11 G8) M06-28의 증상(설정 ask와 가드 ask가 겹치면 앱 승인 카드에 가드 사유가 빠진다)은 겹침을 유지하기로 닫았고, 사유 표시는 앱 카드 몫으로 남는다 — 릴리스·배포 셋(`gh release`·`npm publish`·`npm run package`)이 지금 겹친다.
 77. (M11 G8) 앱 데이터 폴더 질의(M07-1)는 경로가 글로 보일 때만 문다 — 변수로 조립한 경로, 다른 곳으로 `cd`한 뒤의 상대 경로(`../agentdeck`), 스크립트 파일 안의 경로는 판독 밖이고, 훅 ask가 창이 아닌 모드에서는 규범에 기댄다(M04-6).

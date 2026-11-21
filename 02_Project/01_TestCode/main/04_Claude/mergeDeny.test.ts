@@ -308,6 +308,11 @@ describe('merge-deny — 가드와 같은 판독 (M11 G8)', () => {
     'bash -login -ce "gh pr merge 1"',
     'dash.exe -c "gh pr merge 1"',
     'zsh.exe -c "gh pr merge 1"',
+    // 독립 검수 1 — 대시 하나 긴 옵션은 bash만 읽는다. zsh·ksh에서 `-restricted`는 `c`가 든 묶음, sh는 두 판독의 합집합
+    'zsh -restricted "gh pr merge 1"',
+    'ksh -restricted "gh pr merge 1"',
+    'sh -restricted "gh pr merge 1"',
+    'sh -login -c "gh pr merge 1"',
   ]
   for (const cmd of probes) {
     it(`[M11-G8 M11-28 M03-28] 거부: ${JSON.stringify(cmd)}`, () => {
@@ -320,6 +325,7 @@ describe('merge-deny — 가드와 같은 판독 (M11 G8)', () => {
     'Start-Process gh -ArgumentList "pr view 1"',
     'git commit -m "iex gh pr merge 1 은 막힌다"',
     'bash -login -c "npm test"',
+    'bash -restricted "gh pr merge 1"',
   ]
   for (const cmd of passed) {
     it(`통과: ${JSON.stringify(cmd)}`, () => {

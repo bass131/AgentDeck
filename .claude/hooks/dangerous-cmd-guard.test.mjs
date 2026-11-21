@@ -1393,6 +1393,13 @@ try {
     'zsh.exe -c "rm -rf dist"',
   ]) expectDeny(cmd)
   for (const cmd of ['bash -login -c "npm test"', 'bash +x run.sh', 'zsh.exe run.sh']) expectSilent(cmd)
+  // 대시 하나 긴 옵션은 bash만 읽는다(독립 검수 1) — zsh·ksh·dash·ash에서 `-restricted`는 `c`가 든 짧은 묶음이라 -c 모드다.
+  // sh는 bash일 수도 dash일 수도 있어 두 판독의 합집합으로 본다.
+  for (const cmd of ['zsh -restricted "gh pr merge 1"', 'ksh -restricted "gh pr merge 1"', 'dash -restricted "gh pr merge 1"',
+    'ash -restricted "gh pr merge 1"', 'zsh.exe -restricted "gh pr merge 1"', 'sh -restricted "gh pr merge 1"', 'sh -login -c "gh pr merge 1"']) {
+    expectDenyRule(cmd, 'gh-pr-merge')
+  }
+  for (const cmd of ['bash -restricted "gh pr merge 1"', 'bash.exe -restricted "gh pr merge 1"']) expectSilent(cmd) // bash는 긴 옵션 뒤 낱말을 파일 이름으로 읽는다
 
   console.log('heredoc 면제 판독의 이스케이프 — 인용부 밖 `\\"`가 리다이렉트를 가리지 않는다 (M03-32)')
   expectDeny("cat -\\\" -->run.sh <<'EOF'\nrm -rf dist\nEOF")
@@ -1486,6 +1493,13 @@ try {
       'git switch -c chore/y master && git push -u origin chore/y', 'git checkout -b chore/y master && git push -u origin chore/y',
       'git rebase master && git push -u origin chore/y', 'git switch -c chore/y origin/master && git push -u origin chore/y']) expectSilent(cmd)
     expectAsk('git checkout -B master origin/master && git push origin HEAD')
+    // 독립 검수 2 — `--track <원격>/master`는 로컬 master를 만들어 옮기고, `-`·`@{-N}`은 이전 브랜치라 대상을 못 읽어 묻는 쪽으로 본다
+    for (const cmd of ['git switch --track origin/master && git push', 'git checkout --track origin/master && git merge --no-ff chore/y',
+      'git switch -t origin/master && git push origin HEAD', 'git checkout --track=direct origin/master && git push',
+      'git switch - && git push', 'git checkout - && git push origin HEAD', 'git checkout @{-1} && git merge --no-ff chore/y',
+      'git switch @{-2} && git push']) expectAsk(cmd)
+    for (const cmd of ['git switch --track origin/chore/y && git push', 'git switch -c chore/z --track origin/master && git push',
+      'git switch -', 'git checkout -', 'git checkout @{-1}', 'git rebase - && git push -u origin chore/y']) expectSilent(cmd)
     expectDeny('git switch -C master && git push') // switch -C는 브랜치를 덮어 원래 차단이다
   }
 

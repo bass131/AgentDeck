@@ -731,6 +731,8 @@ describe('loop-lock — 가드와 같은 판독 (M11 G8)', () => {
     'bash +c "git push origin x"',
     'bash -login -ce "git push origin x"',
     'zsh.exe -c "gh pr merge 1"',
+    'zsh -restricted "git push origin x"',
+    'ksh -restricted "gh pr merge 1"',
   ]
   for (const cmd of probes) {
     it(`[M11-G8 M11-28 M03-28] 거부: ${JSON.stringify(cmd)}`, () => {

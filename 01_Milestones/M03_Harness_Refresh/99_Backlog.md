@@ -38,7 +38,7 @@ M11 Backlog 정리(`01_Milestones/M11_BacklogSweep/`)가 닫은 항목이다. �
 | 25 | 닫음(판단) | G1 결정 대장 [USER·위임] — catch의 fail-open을 그대로 둔다. |
 | 26 | 닫음(판단) | G1 결정 대장 [USER·위임] — 포인터 결손은 사용자가 복구한다. |
 | 27 | 닫음(판단) | G1 결정 대장 [USER·위임] — 해가 없는 상위 집합이라 MultiEdit 매처를 둔다. |
-| 28 | 고침(M11 goal 8) | `375c1e37` — 가드와 앱 `mergeDeny.ts`의 `shellScriptsOf`가 `+c`를 -c 모드로, 묶음의 `o`·`O`마다 값 하나를, 대시 하나짜리 긴 옵션(`-login`·`-posix`·`-noprofile` 등)을 값 없는 옵션으로 읽고, 셸 목록에 `dash.exe`·`zsh.exe`·`ksh.exe`·`ash.exe`를 더했다(`loopLock`은 물려받는다). 시험: `dangerous-cmd-guard.test.mjs` 「셸 -c 옵션 구간」, `mergeDeny.test.ts`·`loopLock.test.ts` 「가드와 같은 판독 (M11 G8)」. 깊이 상한 3은 설계값 그대로. |
+| 28 | 고침(M11 goal 8) | `375c1e37` — 가드와 앱 `mergeDeny.ts`의 `shellScriptsOf`가 `+c`를 -c 모드로, 묶음의 `o`·`O`마다 값 하나를, 대시 하나짜리 긴 옵션(`-login`·`-posix`·`-noprofile` 등)을 값 없는 옵션으로 읽고(bash만이다 — zsh·ksh·dash·ash에서 `-restricted`는 `c`가 든 묶음이고 sh는 두 판독의 합집합, 독립 검수 반영), 셸 목록에 `dash.exe`·`zsh.exe`·`ksh.exe`·`ash.exe`를 더했다(`loopLock`은 물려받는다). 시험: `dangerous-cmd-guard.test.mjs` 「셸 -c 옵션 구간」, `mergeDeny.test.ts`·`loopLock.test.ts` 「가드와 같은 판독 (M11 G8)」. 깊이 상한 3은 설계값 그대로. |
 | 29 | 고침(M11 goal 7) | 포인터와 계획 문서의 BOM을 벗기고 읽는다(`_lib/plan-verdict.cjs` `stripBom`, EP-34, `303876ee`). |
 | 30 | 고침(M11 goal 7) | `40_pass-watcher.cjs`가 포인터 없을 때 M01 기본값을 두지 않고 계획 감시를 하지 않는다 — 옛 「plan-gate와 동일」 주석도 지웠다(smoke 「포인터 부재 — M01 계획 PASS 추기에 장전하지 않는다」, `88394dac`). |
 | 31 | v2로 | G1 결정 대장 [USER·위임] — 줄 이음은 M06 G5가 고쳤고(`dangerous-cmd-guard.mjs:7-8`), `\ ` 이스케이프 공백은 가드 판독 재설계와 함께 다룬다. |

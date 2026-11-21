@@ -691,20 +691,27 @@ const SHELL_VALUE_LONG = new Set(['--rcfile', '--init-file'])
 const SHELL_LONG_WORDS = new Set(['login', 'noprofile', 'norc', 'posix', 'restricted', 'verbose', 'version', 'help', 'debugger', 'noediting', 'dump-strings', 'dump-po-strings', 'pretty-print'])
 const RE_SHELL_BUNDLE = /^[-+][A-Za-z]+$/
 
-function shellScriptsOf(args) {
-  const at = new Set()
+// 대시 하나 긴 옵션은 bash만 읽는다 — zsh·ksh·dash·ash에서 `-restricted`는 `c`가 든 짧은 묶음이다(독립 검수 1).
+// sh는 bash일 수도 dash일 수도 있어 두 판독의 합집합이다. 셸을 모르면 합집합이다.
+const LONG_WORD_SHELLS = new Set(['bash', 'bash.exe'])
+const EITHER_SHELLS = new Set(['sh', 'sh.exe'])
+function shellScriptStart(args, longWords) {
   let cMode = false
   let i = 0
   while (i < args.length) {
     const t = args[i]
     if (t === '--' || t === '-') { i++; break }
     if (t.startsWith('--')) { i += SHELL_VALUE_LONG.has(t) ? 2 : 1; continue }
-    if (t[0] === '-' && SHELL_LONG_WORDS.has(t.slice(1))) { i++; continue }
+    if (longWords && t[0] === '-' && SHELL_LONG_WORDS.has(t.slice(1))) { i++; continue }
     if (!RE_SHELL_BUNDLE.test(t)) break
     if (t.includes('c')) cMode = true
     i += 1 + (t.match(/[oO]/g)?.length ?? 0)
   }
-  if (cMode && i < args.length) at.add(i)
+  return cMode && i < args.length ? i : -1
+}
+function shellScriptsOf(args, shell) {
+  const readings = LONG_WORD_SHELLS.has(shell) ? [true] : shell === undefined || EITHER_SHELLS.has(shell) ? [true, false] : [false]
+  const at = new Set(readings.map((lw) => shellScriptStart(args, lw)).filter((j) => j >= 0))
   const k = args.findIndex((t) => RE_SHELL_C.test(t))
   if (k >= 0 && k + 1 < args.length) at.add(k + 1)
   return [...at].map((j) => args[j])
@@ -1169,7 +1176,7 @@ function contextsOf(command, depth = 0) {
       const evaluated = evaluatedScriptOf(c)
       if (evaluated) out.push(...contextsOf(evaluated, depth + 1))
       if (!SHELLS.has(c.base)) continue
-      for (const script of shellScriptsOf(c.args)) {
+      for (const script of shellScriptsOf(c.args, c.base)) {
         if (typeof script === 'string' && script.trim()) out.push(...contextsOf(script, depth + 1))
       }
     }
@@ -1284,15 +1291,21 @@ function movesToMaster(c) {
   if (sub !== 'switch' && sub !== 'checkout' && sub !== 'rebase') return false
   const args = c.git.slice(1)
   const operands = []
+  let track = false
   for (let i = 0; i < args.length; i++) {
     const t = args[i]
     if (t === '--') break
     if (sub !== 'rebase' && NEW_BRANCH_OPT.test(t)) return low(args[i + 1] ?? '') === MASTER
     if (sub !== 'rebase' && /^--(?:create|force-create|orphan)=/.test(t)) return low(t.slice(t.indexOf('=') + 1)) === MASTER
+    // 이전 브랜치(`-`·`@{-N}`)는 대상을 못 읽는다 — 묻는 쪽으로 본다(독립 검수 2). 끝 `}`는 묶음 닫기로 떨어져 올 수 있다
+    if (sub !== 'rebase' && (t === '-' || /^@\{-\d+\}?$/.test(t))) return true
+    if (sub !== 'rebase' && (t === '--track' || t === '-t' || t.startsWith('--track='))) { track = true; continue }
     if (sub === 'rebase' && ['--onto', '-s', '--strategy', '-X', '--strategy-option', '-x', '--exec'].includes(t)) { i++; continue }
     if (!t.startsWith('-')) operands.push(low(t))
   }
-  return (sub === 'rebase' ? operands[1] : operands[0]) === MASTER
+  const target = sub === 'rebase' ? operands[1] : operands[0]
+  // `--track <원격>/master`는 원격 이름을 뗀 로컬 master를 만들어 옮긴다
+  return target === MASTER || (track && target?.slice(target.indexOf('/') + 1) === MASTER)
 }
 // master 위에서 묻는 꼴 — 병합 전부와 맨 push(refspec 없음, 원격만)·HEAD push. 다른 브랜치를 이름으로 밀면 master가 아니다.
 const PUSH_VALUE_OPTS = new Set(['-o', '--push-option', '--repo', '--receive-pack', '--exec'])

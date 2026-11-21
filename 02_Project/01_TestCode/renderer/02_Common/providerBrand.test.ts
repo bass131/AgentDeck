@@ -1,4 +1,3 @@
-// 작업 ID: tg1-p09 · 옛 이름 tg1-p09-provider-brand.test.ts
 import { describe, it, expect } from 'vitest'
 import { getProviderBrand } from '@renderer/02_Common/providerBrand'
 import claudeSparkClay from '@renderer/02_Common/brand/claude-spark-clay.svg'

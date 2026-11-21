@@ -1,4 +1,3 @@
-// 작업 ID: gap1-p15-r2-a · 옛 이름 gap1-p15-r2-a-click-to-line.test.tsx
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, fireEvent, act, cleanup } from '@testing-library/react'

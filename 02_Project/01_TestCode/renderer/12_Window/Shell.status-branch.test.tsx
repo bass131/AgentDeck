@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// M11 G2 — M06 Backlog 3. 상태 줄의 가지 칸은 폴더가 열려 있으면 늘 'main'이었다. 실제 가지를 git에서 읽는다.
+// 상태 줄의 가지 칸은 실제 가지를 git에서 읽는다('main' 고정이 아니다).
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, act, cleanup } from '@testing-library/react'
 import { installWindowApi } from '../00_Helpers/windowApiMock'

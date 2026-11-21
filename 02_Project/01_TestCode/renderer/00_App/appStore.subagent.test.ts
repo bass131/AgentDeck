@@ -1,4 +1,3 @@
-// 작업 ID: m4-4 · 옛 이름 m4-4-subagent-store.test.ts
 import { describe, it, expect } from 'vitest'
 import {
   applyAgentEvent,

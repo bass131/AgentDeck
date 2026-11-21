@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// M07 G5 컨트롤 패널 — 노드를 지점별로 보이고, 풀린 노드만 토글한다. 봉인이 깨지면 맨 위에 경고와 확인 버튼을 둔다.
+// 노드를 지점별로 보이고, 풀린 노드만 토글한다. 봉인이 깨지면 맨 위에 경고와 확인 버튼을 둔다.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, cleanup, waitFor } from '@testing-library/react'
 import type { ControlsState, ControlNodeView } from '@shared/ipcContract'
@@ -148,7 +148,7 @@ describe('컨트롤 패널 (M07 G5)', () => {
   it('머리말은 SDK가 먼저 승인하는 호출은 노드까지 오지 않는다고 밝힌다 (G5 검수 중요 3)', async () => {
     await renderView()
     expect(document.body.textContent).toMatch(/노드까지 오지 않/)
-    // M11 G2 — M07 Backlog 17 실측: Bypass는 모든 호출, 자동 모드는 SDK 분류기가 승인한 호출이 콜백을 거치지 않는다
+    // 실측: Bypass는 모든 호출, 자동 모드는 SDK 분류기가 승인한 호출이 콜백을 거치지 않는다
     expect(document.body.textContent).toMatch(/Bypass 모드의 모든 호출/)
     expect(document.body.textContent).toMatch(/자동 모드에서 SDK 분류기가 승인한 호출/)
   })
@@ -173,7 +173,7 @@ describe('컨트롤 패널 (M07 G5)', () => {
     expect(screen.queryByRole('alert')).toBeNull()
   })
 
-  // M11 G3 — M07 Backlog 13. 노드마다 메모리에 남은 최근 판정 수를 보인다
+  // 노드마다 메모리에 남은 최근 판정 수를 보인다
   it('[M11-G3 M07-13] 노드 줄에 「최근 판정」 수를 보인다', async () => {
     api.getControlsState.mockResolvedValue(state({
       nodes: [

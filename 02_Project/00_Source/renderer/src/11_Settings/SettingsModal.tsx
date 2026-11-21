@@ -28,7 +28,6 @@ type NavId = 'version' | 'controls' | 'mcp' | 'skill' | 'lsp' | 'appearance'
 
 const NAV: { id: NavId; label: string; Icon: (p: IconProps) => JSX.Element }[] = [
   { id: 'version', label: 'Claude Code', Icon: ProviderBrandIcon },
-  // M07 G5 컨트롤 패널
   { id: 'controls', label: '컨트롤', Icon: IconShieldChk },
   { id: 'mcp', label: 'MCP', Icon: IconServer },
   { id: 'skill', label: 'Skill', Icon: IconBook },

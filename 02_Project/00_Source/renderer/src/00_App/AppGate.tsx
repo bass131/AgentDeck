@@ -32,7 +32,7 @@ export function AppGate(): JSX.Element {
       })
   }, [])
 
-  // 앱 시작 때 main에 모델 목록을 한 번 묻는다 (M06 G4) — 선택기는 그 SDK 목록으로 그린다. 실패하면 최소 목록 그대로다.
+  // 앱 시작 때 main에 모델 목록을 한 번 묻는다 — 선택기는 그 SDK 목록으로 그린다. 실패하면 최소 목록 그대로다.
   useEffect(() => {
     void useAppStore.getState().loadModelRows()
   }, [])

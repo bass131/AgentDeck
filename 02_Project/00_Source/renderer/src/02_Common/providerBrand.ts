@@ -15,7 +15,7 @@ interface ProviderBrandFallback {
   displayName: string
 }
 
-type ProviderBrandDescriptor =ProviderBrandLogo | ProviderBrandFallback
+type ProviderBrandDescriptor = ProviderBrandLogo | ProviderBrandFallback
 
 export function getProviderBrand(providerId: string, theme: Theme): ProviderBrandDescriptor {
   if (providerId === 'claude-code') {

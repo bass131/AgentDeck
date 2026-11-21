@@ -1,6 +1,5 @@
-// 작업 ID: p6, f14 · 옛 이름 global-shortcuts-p6.test.tsx, shortcuts-f14.test.tsx
 // @vitest-environment jsdom
-// M11 G4(설계 감사 22) — 모달 판정은 CSS 클래스 목록이 아니라 열린 모달이 오르는 층(02_Common/modalStack)이다.
+// 모달 판정은 CSS 클래스 목록이 아니라 열린 모달이 오르는 층(02_Common/modalStack)이다.
 // Esc는 맨 위 모달 하나만 받는다. 권한 카드·최소화 알약·선택 막대는 층에 오르되(Shell 중단·Shift+Tab을 막는다) 맨 위가 되지 않는다.
 import { readdirSync, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
@@ -133,7 +132,7 @@ describe('Shell의 Esc 배선 (M11 G4 24)', () => {
     expect(src).not.toMatch(/appUpdateOpen|AppUpdateGate/)
   })
 
-  // 손으로 적은 목록은 다음 누락을 못 잡는다(독립 검수 중요 1 — 사이드바 이름 변경·삭제 창). 화면 덮개(*-overlay)를 그리는 파일을 모두 모은다.
+  // 손으로 적은 목록은 다음 누락을 못 잡는다. 화면 덮개(*-overlay)를 그리는 파일을 모두 모은다.
   // 덮개의 Esc는 층이 준다 — 'Escape'를 직접 보는 줄은 층에 넘기려고 손을 떼는 줄(… 'Escape') return)뿐이어야 한다.
   // 예외 하나: 사이드바의 오른쪽 클릭 메뉴는 덮개가 아닌 떠 있는 메뉴라 제 Esc로 닫는다
   it('[M11-G4 22] 화면 덮개(*-overlay)를 그리는 renderer 파일은 모두 useModalLayer로 층에 오르고, 제 Esc 처리기를 따로 두지 않는다', () => {
@@ -141,7 +140,6 @@ describe('Shell의 Esc 배선 (M11 G4 24)', () => {
     const files = (readdirSync(SRC, { recursive: true }) as string[]).filter((f) => f.endsWith('.tsx'))
     const overlay = /className=[{"'`][^>\n]*?\b[a-z0-9]+(?:-[a-z0-9]+)*-overlay\b/
     const drawers = files.filter((f) => overlay.test(readFileSync(resolve(SRC, f), 'utf8')))
-    // M11 G6: 16 → 15. 앱 호출부가 없던 FolderSwitchDialog를 지웠다(M10 Backlog 3).
     expect(drawers.length).toBeGreaterThanOrEqual(15)
     const missing = drawers.filter((f) => !/useModalLayer\(/.test(readFileSync(resolve(SRC, f), 'utf8')))
     expect(missing).toEqual([])

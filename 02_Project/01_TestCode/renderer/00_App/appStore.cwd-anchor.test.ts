@@ -1,4 +1,3 @@
-// 작업 ID: adr020 · 옛 이름 adr020-cwd-anchor.test.ts
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { useAppStore } from '@renderer/00_App/appStore'
 import type { ConversationRecord, FileTreeNode } from '@shared/ipcContract'

@@ -1,4 +1,3 @@
-// 작업 ID: f15 · 옛 이름 f15-fileexplorer.test.tsx
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, cleanup, act } from '@testing-library/react'

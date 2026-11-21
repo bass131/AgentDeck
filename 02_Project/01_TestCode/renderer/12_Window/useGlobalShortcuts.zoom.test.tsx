@@ -1,4 +1,3 @@
-// 작업 ID: p05 · 옛 이름 zoom-shortcut-p05.test.tsx
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { renderHook, act, cleanup } from '@testing-library/react'

@@ -1,4 +1,3 @@
-// 작업 ID: p13 · 옛 이름 p13-file-tree-refresh.test.ts
 // @vitest-environment node
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 

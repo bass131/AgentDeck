@@ -1,4 +1,3 @@
-// 작업 ID: w6 · 옛 이름 w6-selection-ask.test.tsx
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, act, cleanup, screen, fireEvent } from '@testing-library/react'
@@ -234,7 +233,7 @@ describe('W6b — SelectionAskBar', () => {
       container = result.container
     })
     expect(container.querySelector('[data-testid="sel-bar"]')).toBeTruthy()
-    // M11 G4(설계 감사 22) — 선택 막대는 곁 층이다(열린 것으로 세되 맨 위 모달이 되지 않는다)
+    // 선택 막대는 곁 층이다(열린 것으로 세되 맨 위 모달이 되지 않는다)
     const { isAnyModalOpen, isBlockingModalOpen } = await import('@renderer/02_Common/modalStack')
     expect([isAnyModalOpen(), isBlockingModalOpen()]).toEqual([true, false])
   })

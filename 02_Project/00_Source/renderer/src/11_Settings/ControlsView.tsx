@@ -1,6 +1,5 @@
-// 컨트롤 패널 (M07 G5) — G8 설계 `01_Milestones/M06_SelfDev/81_G8-컨트롤-설계/30_노드-구조.md` 「공통 GUI」.
 // 노드를 지점별로 묶어 보이고, 잠금이 풀린 노드만 켜고 끈다. 토글은 다음 실행부터 반영된다.
-// 맨 위의 바뀜 경고는 둘이다 — controls.json 봉인(확인 버튼)과 엔진 봉인(G4, 그 엔진 다시 고르기).
+// 맨 위의 바뀜 경고는 둘이다 — controls.json 봉인(확인 버튼)과 엔진 봉인(그 엔진 다시 고르기).
 import { useState, useEffect, useCallback, type JSX } from 'react'
 import { IconAlert } from '@renderer/02_Common/icons'
 import type { ControlsState, ControlNodeView } from '@shared/ipcContract'
@@ -73,7 +72,7 @@ function NodeRow({ node, frozen, onToggle }: NodeRowProps): JSX.Element {
   )
 }
 
-// 바뀜 경고의 문장 — 상태와 파일을 읽을 수 있는지로 갈린다(G5 검수 중요 2·사소 4)
+// 바뀜 경고의 문장 — 상태와 파일을 읽을 수 있는지로 갈린다
 function controlsWarning(state: ControlsState): { main: string; sub: string; confirm: boolean } | null {
   if (state.status === 'error') {
     return {
@@ -95,7 +94,7 @@ function controlsWarning(state: ControlsState): { main: string; sub: string; con
 export function ControlsView(): JSX.Element {
   const [state, setState] = useState<ControlsState | null>(null)
   const [error, setError] = useState<string | null>(null)
-  // 요청 중인 토글 — 응답 전 두 번 누르면 묵은 켜짐으로 같은 요청이 두 번 나간다(G5 검수 사소 7)
+  // 요청 중인 토글 — 응답 전 두 번 누르면 묵은 켜짐으로 같은 요청이 두 번 나간다
   const [pending, setPending] = useState<string | null>(null)
 
   const load = useCallback(async (): Promise<void> => {

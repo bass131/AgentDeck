@@ -96,7 +96,7 @@ export const createConversationSlice: StateCreator<AppStore, [], [], Conversatio
     get().refreshStaleWatchdog()
   },
 
-  // /clear — 화면을 비우고 이 대화의 REPL 세션(runId는 세션키)도 끝낸다(M05 Backlog 51)
+  // /clear — 화면을 비우고 이 대화의 REPL 세션(runId는 세션키)도 끝낸다
   clearConversationSession: () => {
     const { conversationId, currentSessionKey } = get()
     void Promise.resolve(ipc.agent.abort({ runId: conversationId ?? currentSessionKey })).catch(() => {})

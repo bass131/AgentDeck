@@ -1,5 +1,3 @@
-// 작업 ID: g10 · 옛 이름 g10-ipc-client.test.ts
-// M05 G10 — renderer IPC 클라이언트(01_Ipc)와 「window.api 직접 호출 0」 고정.
 import { describe, it, expect, afterEach } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -9,7 +7,7 @@ import { installFlatWindowApi, installWindowApi } from '../00_Helpers/windowApiM
 
 const SRC_ROOT = fileURLToPath(new URL('../../../00_Source/renderer/src/', import.meta.url))
 
-// G10에서 클라이언트로 옮긴 파일(32개, M10 G1·M11 G6에 지운 넷을 빼 28개) — 전수 검사가 이 파일들을 실제로 훑는지 함께 본다.
+// 클라이언트로 옮긴 파일 — 전수 검사가 이 파일들을 실제로 훑는지 함께 본다.
 const MIGRATED: string[] = [
   '00_App/AppGate.tsx',
   'main.tsx',
@@ -41,7 +39,7 @@ const MIGRATED: string[] = [
   '12_Window/useGlobalZoom.ts',
 ]
 
-// `window.api`·`window?.api`·`typeof window.api.x`, 캐스트(`(window as any).api`), 대괄호(`window['api']`), 구조 분해(`const { api } = window`)를 잡는다 (M05 Backlog 56).
+// `window.api`·`window?.api`·`typeof window.api.x`, 캐스트(`(window as any).api`), 대괄호(`window['api']`), 구조 분해(`const { api } = window`)를 잡는다.
 const DIRECT = /window\s*\??\.\s*api\b|\(\s*window\s+as\s+[^)]*\)\s*\??\.\s*api\b|window\s*(\?\.)?\s*\[\s*['"`]api['"`]\s*\]|\{[^}=]*\bapi\b[^}=]*\}\s*=\s*window\b/
 
 // window.api를 직접 읽어도 되는 곳 — 클라이언트 자신(01_Ipc/)뿐이다.
@@ -72,8 +70,6 @@ describe('M05 G10 — window.api 직접 호출 0', () => {
     expect(offenders).toEqual([])
   })
 
-  // M10 G1: 32 → 29. 멀티 에이전트 모드를 지우며 그 세 파일(멀티 세션 상태·멀티 저장 훅·멀티 화면)이 없어졌다.
-  // M11 G6: 29 → 28. 그리는 곳이 없던 패널 세션(panelSession.ts)을 지웠다(M10 Backlog 3).
   it('전수 검사는 옮긴 파일(G10의 32에서 지운 넷을 뺀 28)을 모두 훑는다', () => {
     expect(MIGRATED).toHaveLength(28)
     for (const rel of MIGRATED) expect(files).toContain(rel)
@@ -222,7 +218,7 @@ describe('M05 G10 — 클라이언트', () => {
     expect(ipc.sessions.rename).toBe(conversationRename)
   })
 
-  // M10 G1 — 멀티 에이전트 모드의 sessions 멀티 명령을 지워, 위치 인자 어댑터는 engine 묶음으로 본다.
+  // 위치 인자 어댑터는 engine 묶음으로 본다.
   it('engine 묶음: install·setActive는 요청 객체를 받아 평면 위치 인자로 넘긴다 (옛 평면 mock 어댑터)', async () => {
     const calls: unknown[][] = []
     const rec = (name: string) => async (...args: unknown[]): Promise<unknown> => {

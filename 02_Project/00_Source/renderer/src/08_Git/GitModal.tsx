@@ -381,7 +381,7 @@ export function GitModal({
               )}
             </button>
 
-            {/* PR 병합 (M07 G8) — CLI 세션이 만든 PR도 번호로 불러와 카드에서 병합한다 */}
+            {/* PR 병합 — CLI 세션이 만든 PR도 번호로 불러와 카드에서 병합한다 */}
             <div className="gitm-sec">PR 병합</div>
             <form
               className="gitm-pr"

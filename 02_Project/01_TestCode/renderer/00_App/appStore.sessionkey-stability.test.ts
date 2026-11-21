@@ -1,4 +1,3 @@
-// 작업 ID: lr2-04 · 옛 이름 lr2-04-sessionkey-stability.test.ts
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { resetAppStore } from '../00_Helpers/storeReset'
 import { adaptFlatApi } from '../00_Helpers/windowApiMock'

@@ -83,6 +83,22 @@ describe('실행기의 gh', () => {
     expect(seen[0].GH_TOKEN).toBe(TOKEN)
     expect(seen[1].GH_TOKEN).toBe('user-env-token')
   })
+
+  it('토큰은 고정 저장소의 호스트가 github.com일 때만 싣는다 — ghe.com 테넌트·GHES 호스트에는 준 환경 그대로다', async () => {
+    const envOf = async (repo: string): Promise<NodeJS.ProcessEnv> => {
+      let seen: NodeJS.ProcessEnv = {}
+      const exec = createGhExec({
+        cwd: '.', repo, env: { PATH: 'x', GH_TOKEN: 'user-env-token' }, token: () => TOKEN,
+        run: async (_file, _args, o) => { seen = o.env ?? {}; return { code: 0, stdout: '[]', stderr: '', timedOut: false } },
+      })
+      await createGhPort(exec).findPr('goal/x', 'master')
+      return seen
+    }
+    expect((await envOf('github.com/acme/widgets')).GH_TOKEN).toBe(TOKEN)
+    expect((await envOf('acme.ghe.com/acme/widgets')).GH_TOKEN).toBe('user-env-token')
+    expect((await envOf('git.example.com/acme/widgets')).GH_TOKEN).toBe('user-env-token')
+    expect((await envOf('api.github.com/acme/widgets')).GH_TOKEN).toBe('user-env-token')
+  })
 })
 
 describe('자격 없는 환경', () => {

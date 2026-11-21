@@ -25,13 +25,23 @@ interface GitPortOptions {
   hooksPath?: string
   // 모든 git 호출 직전의 설정 대조. 던지면 그 호출을 돌리지 않는다.
   guard?: { assert(): Promise<void> }
-  // 앱 토큰(14_GitHub). 원격 호출(push·ls-remote·fetch)마다 읽고, 있으면 그 주소의 자격으로만 쓴다. 없으면 사용자 자격 그대로다.
+  // 앱 토큰(14_GitHub). 원격 호출(push·ls-remote·fetch)마다 읽고, 있고 원격 주소가 그 주소(스킴·호스트)일 때만 자격으로 쓴다. 없으면 사용자 자격 그대로다.
   credential?: { url: string; token: () => string | null }
 }
 
 // 그 주소의 자격 도우미 목록을 비우고(빈 값 리셋 — 명령줄 설정이 마지막에 읽힌다) GH_TOKEN을 내는 도우미 하나를 둔다.
 // 토큰 값은 명령줄에 싣지 않고 그 호출의 환경으로만 넘긴다. store·erase는 무시한다(사용자 자격 저장소에 남기지 않는다).
 const TOKEN_HELPER = '!f() { test "$1" = get || exit 0; echo username=x-access-token; echo "password=$GH_TOKEN"; }; f'
+export function tokenRemoteMatches(remoteUrl: string, credentialUrl: string): boolean {
+  try {
+    const r = new URL(remoteUrl.trim())
+    const c = new URL(credentialUrl)
+    return r.protocol === c.protocol && r.host === c.host
+  } catch {
+    return false
+  }
+}
+
 export function tokenCredentialArgs(url: string): string[] {
   const key = `credential.${url}.helper`
   return ['-c', `${key}=`, '-c', `${key}=${TOKEN_HELPER}`]
@@ -109,9 +119,12 @@ export function createGitPort(opts: GitPortOptions): GitPort {
   const remote = opts.remote ?? 'origin'
   const env = opts.env ?? process.env
   const git = makeGit(opts.cwd, env, opts.timeoutMs ?? 120_000, opts.hooksPath, opts.guard)
-  const remoteGit: Git = (args) => {
+  const remoteGit: Git = async (args) => {
     const token = opts.credential?.token() ?? null
-    return opts.credential && token ? git([...tokenCredentialArgs(opts.credential.url), ...args], { GH_TOKEN: token }) : git(args)
+    if (!opts.credential || !token) return git(args)
+    const url = await git(['remote', 'get-url', remote])
+    if (url.code !== 0 || !tokenRemoteMatches(url.stdout, opts.credential.url)) return git(args)
+    return git([...tokenCredentialArgs(opts.credential.url), ...args], { GH_TOKEN: token })
   }
 
   const resolve = async (ref: string): Promise<string | null> => {

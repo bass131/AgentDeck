@@ -83,7 +83,16 @@ describe('openLoop — 앱 토큰이 실물 gh·git 포트에 닿는다 (M13 G2)
     expect(auths.every((a) => a === basic('user', 'user-secret'))).toBe(true)
   })
 
+  it('origin이 ghe.com 테넌트면 실행기 gh 호출에 토큰을 싣지 않는다', async () => {
+    repos.git(['remote', 'set-url', 'origin', 'https://acme.ghe.com/acme/widgets.git'])
+    const opened = await open(() => TOKEN)
+    await opened.gh.openPrHeads?.('master')
+    expect(ghEnvs.length).toBeGreaterThan(0)
+    expect(ghEnvs.every((e) => e.GH_TOKEN !== TOKEN)).toBe(true)
+  })
+
   it('실행기 gh 호출의 환경에 토큰이 GH_TOKEN으로 실리고, 토큰을 지우면 실리지 않는다', async () => {
+    repos.git(['remote', 'set-url', 'origin', 'https://github.com/acme/widgets.git'])
     let token: string | null = TOKEN
     const opened = await open(() => token)
     await opened.gh.openPrHeads?.('master')

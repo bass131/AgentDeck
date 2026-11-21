@@ -40,6 +40,7 @@ import { readGlobalTaste } from '@main/13_Taste/tasteStore'
 import type { Template } from './template'
 import { createWorkSessionPort, type CardResponder } from './workSession'
 import { withLimitInjection } from './limitInjection'
+import { GITHUB_GIT_URL } from '@main/14_GitHub/appToken'
 
 const DEFAULT_COMMAND_TIMEOUT_MS = 30 * 60_000
 
@@ -91,7 +92,6 @@ export interface OpenLoopOptions {
   ghRun?: typeof runProcess
 }
 
-const GITHUB_GIT_URL = 'https://github.com'
 
 export interface OpenedLoop {
   runner: LoopRunner

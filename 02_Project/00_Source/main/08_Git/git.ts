@@ -43,15 +43,18 @@ export function maskCredentials(msg: string): string {
   return msg.replace(/([a-z][a-z0-9+.-]*:\/\/)[^/@\s]+@/gi, '$1***@')
 }
 
-const rootCache = new Map<string, string | null>()
+// 저장소가 아님(null)은 담지 않는다 — 열어 둔 폴더에서 git init을 하면 다음 읽기에 잡힌다
+const rootCache = new Map<string, string>()
 
 export async function gitRoot(cwd: string, force = false): Promise<string | null> {
   if (!cwd) return null
   const key = cwd.replace(/[\\/]+/g, '/').toLowerCase()
-  if (!force && rootCache.has(key)) return rootCache.get(key) ?? null
+  const cached = rootCache.get(key)
+  if (!force && cached !== undefined) return cached
   const out = await gitTry(cwd, ['rev-parse', '--show-toplevel'], 10_000)
   const root = out ? path.normalize(out.trim()) : null
-  rootCache.set(key, root)
+  if (root === null) rootCache.delete(key)
+  else rootCache.set(key, root)
   return root
 }
 

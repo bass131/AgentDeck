@@ -112,6 +112,50 @@ function ChatCard({ card, done, blocked, onAsk, onPermission }: {
   )
 }
 
+type TasteCard = Extract<LoopCard, { kind: 'taste' }>
+type TasteAnswer = Extract<LoopCardResponse, { kind: 'taste' }>
+
+// 확정은 main이 쥔 초안을 쓴다 — 화면은 원문을 보이고 결정만 보낸다. 확정 중·거절로 카드가 바뀌면 부모가 다시 만든다
+function TasteDraftCard({ card, blocked, onAnswer }: {
+  card: TasteCard
+  blocked: boolean
+  onAnswer: (card: TasteCard, response: TasteAnswer) => Promise<boolean>
+}): JSX.Element {
+  const [reason, setReason] = useState('')
+  const [pending, setPending] = useState(false)
+  const confirming = card.confirming === true
+  const off = blocked || pending || confirming
+  const send = async (response: TasteAnswer): Promise<void> => {
+    setPending(true)
+    if (!(await onAnswer(card, response))) setPending(false)
+  }
+  return (
+    <div className="mc-card ask" data-testid={`mc-card-${card.requestId}`}>
+      <div className="mc-card-hd">
+        <span>{card.text}</span>
+        <span className="mc-tag">{confirming ? '확정하는 중이에요' : '확정할지 골라 줘'}</span>
+      </div>
+      <div className="mc-card-bd">
+        <pre className="loop-pre loop-spec">{card.preview}</pre>
+        {card.refused !== undefined && <div className="loop-err">{`쓰지 않았어요 — ${card.refused}`}</div>}
+        <input
+          className="loop-input"
+          aria-label="반려 이유"
+          placeholder="무엇을 고칠지 한 줄로 적어요 — 메인이 고쳐 다시 제안해요"
+          value={reason}
+          maxLength={500}
+          disabled={off}
+          onChange={(e) => setReason(e.target.value)}
+        />
+        <div className="loop-actions mc-card-btns">
+          <button type="button" className="loop-btn" disabled={off || reason.trim() === ''} onClick={() => void send({ kind: 'taste', decision: 'reject', reason: reason.trim() })}>반려</button>
+          <button type="button" className="loop-btn pri" disabled={off} onClick={() => void send({ kind: 'taste', decision: 'confirm' })}>확정</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // 쓰는 글(draft)을 이 컴포넌트가 쥐어 글자 하나가 기록을 다시 그리지 않는다.
 // onSend는 받아졌는지를 돌려준다. 받아지면 입력칸을 비우되, 기다리는 동안 새로 쓴 글은 지우지 않는다.
 // 폴더가 바뀌어도 쓰던 글은 그대로다(이 컴포넌트를 폴더로 다시 만들지 않는다)
@@ -314,6 +358,21 @@ export function MainChatView({ cwd, session }: MainChatViewProps): JSX.Element {
     }
   }
 
+  const answerTaste = useCallback(async (card: LoopCard, response: LoopCardResponse): Promise<boolean> => {
+    const c = cwdRef.current
+    if (c === null) return false
+    setError('cards', null)
+    try {
+      const r = await ipc.loop.answerCard({ cwd: c, requestId: card.requestId, response })
+      if (!alive.current || !sameCwd(c, cwdRef.current)) return false
+      if (!r.ok) setError('cards', CARD_REFUSED)
+      return r.ok
+    } catch (e) {
+      if (alive.current && sameCwd(c, cwdRef.current)) setError('cards', errText(e))
+      return false
+    }
+  }, [setError])
+
   const decided = (r: { ok: boolean; reason?: string; status: LoopStatus }, _m: boolean, freshState: boolean): void => {
     if (!r.ok) setError('approval', r.reason ?? '거부됐어요')
     if (freshState) setStatus(r.status)
@@ -406,7 +465,9 @@ export function MainChatView({ cwd, session }: MainChatViewProps): JSX.Element {
           {rows.map((r) => (r.kind === 'item'
             ? <ChatItem key={r.item.id} item={r.item} turn={r.turn} cwd={cwd} />
             : <MainTurnView key={r.turn.key} turn={r.turn} live={r.live} cwd={cwd} />))}
-          {cards.map((c) => (
+          {cards.map((c) => (c.kind === 'taste' ? (
+            <TasteDraftCard key={`${c.requestId}:${c.confirming === true}:${c.refused ?? ''}`} card={c} blocked={blocked !== null} onAnswer={answerTaste} />
+          ) : (
             <ChatCard
               key={c.requestId}
               card={c}
@@ -415,7 +476,7 @@ export function MainChatView({ cwd, session }: MainChatViewProps): JSX.Element {
               onAsk={(card) => setAsking(card.requestId)}
               onPermission={(card, behavior) => void answer(card, { kind: 'permission', behavior })}
             />
-          ))}
+          )))}
           {errors.cards !== undefined && <div className="loop-err">{errors.cards}</div>}
           {approval !== null && (
             <div className="mc-card approval">

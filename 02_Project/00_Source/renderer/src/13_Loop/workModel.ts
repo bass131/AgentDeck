@@ -26,6 +26,7 @@ export function decisionsOf(s: LoopStatus): Decision[] {
   for (const c of s.cards) {
     if (c.inChat !== true) continue
     if (c.kind === 'question') out.push({ kind: 'chat', title: `질문 ${c.questions.length}개 — 메인 대화에 있어`, text: c.questions[0]?.question ?? c.text })
+    else if (c.kind === 'taste') out.push({ kind: 'chat', title: '문서 확정 — 메인 대화에 있어', text: c.text })
     else out.push({ kind: 'chat', title: '권한 요청 — 메인 대화에 있어', text: `${c.toolName} ${c.summary}` })
   }
   if (s.approval !== null) out.push({ kind: 'chat', title: `${s.approval.title} — 메인 대화에 있어`, text: s.approval.title })

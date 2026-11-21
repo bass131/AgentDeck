@@ -1,30 +1,26 @@
-// M10 G3 메인 대화 보기 — 작업 폴더 하나의 메인 대화(main/05_Loop/mainChat.ts가 소유)를 그리고 사람의 말·답을 보낸다.
-// 작업 폴더만 받는 독립 컴포넌트다 — 지금은 작업 모드 몸체의 가운데에 놓이고, G4가 탭 하나로 그대로 올린다.
-//   · 받기: 폴더가 정해지면 loop.mainRead·loop.status, 그 뒤 loop.mainState·loop.state push. 다른 폴더의 push는 버린다.
-//     읽기·보내기·새로 열기·깃발 내리기 응답의 보기는 그 호출 중에 이 폴더의 push가 오지 않았을 때만 쓴다(낡은 보기로 되돌아가지 않는다).
-//   · 기록: 사람 글(줄 섬·보냄), 메인 글(MarkdownView — 원시 HTML을 그리지 않는다), 사건 줄(종류별 모양 — 깃발과 사람의 이어 가기는 다르다),
-//     알림(오류·저장 실패). 그 뒤에 대화 안 카드 — 메인의 질문·권한 카드(다시 묻는 카드 restored)와 스펙 승인 카드(LoopStatus.approval).
-//     기록 한 줄은 내용이 같으면 다시 그리지 않고, 쓰는 글은 입력칸(Composer)이 쥔다 — 글자 하나·push 하나에 기록 전체(최대 500줄)를
-//     다시 그리지 않는다(G3 독립 검수 중요 2). 모르는 사건 종류는 종류 이름·muted로 그린다(화면이 무너지지 않는다, 중요 1).
-//   · 사람 판정은 사람만: 승인·고치기는 승인 카드의 버튼을 사람이 눌렀을 때만 loop.decide로 간다(받은 sha256·expectNode를 그대로 싣는다).
-//     메인 글은 버튼·링크 동작을 갖지 않는다 — 어떤 글도 판정·카드 답·깃발·취소를 부르지 못한다.
-//   · 일시 정지: 깃발이 올라 있으면 표시와 「이어 가기」 — 깃발만 내린다(loop.lowerFlag, 판정 칸 없음). 멈춘 실행의 사람 이어 가기(decide)는
-//     루프 화면의 예외 한 줄에 그대로 있다. 취소는 대상(메인 턴 main / 작업 세션 worker)을 골라 보낸다(Backlog 9·12).
-//   · 새 메인 대화는 확인을 한 번 받은 뒤 loop.mainNew다. 화면이 내려가도 대화를 닫지 않는다(구독만 푼다).
-import { memo, useCallback, useEffect, useRef, useState, type JSX, type KeyboardEvent } from 'react'
-import type { LoopCancelTarget, LoopCard, LoopCardResponse, LoopStatus, MainChatItem, MainChatView as ChatView } from '@shared/ipcContract'
+// 사람 판정은 사람만 — 승인·고치기는 승인 카드의 버튼을 사람이 눌렀을 때만 loop.decide로 간다.
+// 메인 글은 버튼·링크 동작을 갖지 않는다 — 어떤 글도 판정·카드 답·깃발·취소를 부르지 못한다.
+// 호출 응답의 보기는 그 호출 중에 이 폴더의 push가 오지 않았을 때만 쓴다(낡은 보기로 되돌아가지 않는다).
+import { memo, useCallback, useEffect, useMemo, useRef, useState, type JSX, type KeyboardEvent } from 'react'
+import type { LoopCancelTarget, LoopCard, LoopCardResponse, LoopSessionRecord, LoopStatus, MainChatItem, MainChatView as ChatView } from '@shared/ipcContract'
 import { ipc } from '@renderer/01_Ipc'
+import { isScrolledUp } from '@renderer/02_Common/scrollHelpers'
 import { MarkdownView } from '@renderer/05_Conversation'
+import { ThreadView } from '@renderer/05_Conversation/ThreadView'
 import { QuestionModal } from '@renderer/03_Agent/prompt'
 import { ApprovalCard } from './LoopCards'
 import { errText, sameCwd } from './loopModel'
-import { CHAT_APPROVE_EVIDENCE, blockedReason, clockOf, lookOf, sameItem, workSessionLive } from './mainChatModel'
+import { CHAT_APPROVE_EVIDENCE, blockedReason, clockOf, lookOf, mainChatRows, sameItem, sameTurn, workSessionLive, type MainTurn } from './mainChatModel'
+import { foldMainTurn } from './sessionLogModel'
+import '@renderer/05_Conversation/Conversation.css'
 import './LoopScreen.css'
 import './MainChat.css'
 
 export interface MainChatViewProps {
-  // 작업 폴더(루프 화면에서 고른 저장소). null이면 아무것도 읽지 않는다
+  // null이면 아무것도 읽지 않는다
   cwd: string | null
+  // 메인 세션의 사건 기록(세션 기록 키 main) — 채팅 모드의 스레드 그리기로 보인다
+  session?: LoopSessionRecord
 }
 
 type Where = 'top' | 'send' | 'cards' | 'approval' | 'flag' | 'cancel' | 'new'
@@ -33,11 +29,21 @@ type Errors = Partial<Record<Where, string>>
 const CARD_REFUSED = '카드 답이 받아지지 않았어요 — 턴이 이미 끝났거나 카드가 바뀌었을 수 있어요'
 export const PLACEHOLDER = '메인에게 말하기 — 질문, 「멈춰」, 「이어 가」, 「미룬 일로」…'
 
-function ChatItemView({ item }: { item: MainChatItem }): JSX.Element {
+const NOOP = (): void => {}
+
+function TurnThread({ turn, live, cwd }: { turn: MainTurn; live: boolean; cwd: string | null }): JSX.Element | null {
+  const state = useMemo(() => foldMainTurn(turn.events, live), [turn, live])
+  if (!live && state.thread.length === 0) return null
+  return <ThreadView state={state} onOpenSubagent={NOOP} className="thread mc-turn" cwd={cwd} />
+}
+const MainTurnView = memo(TurnThread, (a, b) => a.live === b.live && a.cwd === b.cwd && sameTurn(a.turn, b.turn))
+
+function ChatItemView({ item, turn = null, cwd = null }: { item: MainChatItem; turn?: MainTurn | null; cwd?: string | null }): JSX.Element {
   switch (item.kind) {
     case 'user':
       return (
         <div className="mc-msg user" data-item={item.id} data-state={item.state}>
+          {item.proxy === true && <span className="mc-proxy">대리 입력</span>}
           <div className="mc-text">{item.text}</div>
           <span className="mc-state">{item.state === 'queued' ? '줄 서 있어요' : '보냄'}</span>
         </div>
@@ -46,7 +52,7 @@ function ChatItemView({ item }: { item: MainChatItem }): JSX.Element {
       return (
         <div className="mc-msg assistant" data-item={item.id}>
           <div className="mc-who">{`메인${item.turn === 'event' ? ' · 사건' : ''} · ${clockOf(item.at)}`}</div>
-          <MarkdownView source={item.text} />
+          {turn !== null ? <MainTurnView turn={turn} live={false} cwd={cwd} /> : <MarkdownView source={item.text} />}
         </div>
       )
     case 'event': {
@@ -66,7 +72,7 @@ function ChatItemView({ item }: { item: MainChatItem }): JSX.Element {
 }
 
 // push는 매번 새 객체를 준다 — id와 그리는 칸이 같으면 그 줄을 다시 그리지 않는다
-export const ChatItem = memo(ChatItemView, (a, b) => sameItem(a.item, b.item))
+export const ChatItem = memo(ChatItemView, (a, b) => sameItem(a.item, b.item) && a.cwd === b.cwd && sameTurn(a.turn ?? null, b.turn ?? null))
 
 function ChatCard({ card, done, blocked, onAsk, onPermission }: {
   card: LoopCard
@@ -106,8 +112,52 @@ function ChatCard({ card, done, blocked, onAsk, onPermission }: {
   )
 }
 
-// 입력칸 — 쓰는 글(draft)과 보내는 중 표시를 이 컴포넌트가 쥔다. 글자 하나가 기록을 다시 그리지 않는다.
-// onSend는 받아졌는지를 돌려준다. 받아지면 입력칸을 비우되, 기다리는 동안 새로 쓴 글은 지우지 않는다(G3 독립 검수 사소 5).
+type TasteCard = Extract<LoopCard, { kind: 'taste' }>
+type TasteAnswer = Extract<LoopCardResponse, { kind: 'taste' }>
+
+// 확정은 main이 쥔 초안을 쓴다 — 화면은 원문을 보이고 결정만 보낸다. 확정 중·거절로 카드가 바뀌면 부모가 다시 만든다
+function TasteDraftCard({ card, blocked, onAnswer }: {
+  card: TasteCard
+  blocked: boolean
+  onAnswer: (card: TasteCard, response: TasteAnswer) => Promise<boolean>
+}): JSX.Element {
+  const [reason, setReason] = useState('')
+  const [pending, setPending] = useState(false)
+  const confirming = card.confirming === true
+  const off = blocked || pending || confirming
+  const send = async (response: TasteAnswer): Promise<void> => {
+    setPending(true)
+    try { await onAnswer(card, response) } finally { setPending(false) }
+  }
+  return (
+    <div className="mc-card ask" data-testid={`mc-card-${card.requestId}`}>
+      <div className="mc-card-hd">
+        <span>{card.text}</span>
+        <span className="mc-tag">{confirming ? '확정하는 중이에요' : '확정할지 골라 줘'}</span>
+      </div>
+      <div className="mc-card-bd">
+        <pre className="loop-pre loop-spec">{card.preview}</pre>
+        {card.refused !== undefined && <div className="loop-err">{`쓰지 않았어요 — ${card.refused}`}</div>}
+        <input
+          className="loop-input"
+          aria-label="반려 이유"
+          placeholder="무엇을 고칠지 한 줄로 적어요 — 메인이 고쳐 다시 제안해요"
+          value={reason}
+          maxLength={500}
+          disabled={off}
+          onChange={(e) => setReason(e.target.value)}
+        />
+        <div className="loop-actions mc-card-btns">
+          <button type="button" className="loop-btn" disabled={off || reason.trim() === ''} onClick={() => void send({ kind: 'taste', decision: 'reject', reason: reason.trim() })}>반려</button>
+          <button type="button" className="loop-btn pri" disabled={off} onClick={() => void send({ kind: 'taste', decision: 'confirm' })}>확정</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// 쓰는 글(draft)을 이 컴포넌트가 쥐어 글자 하나가 기록을 다시 그리지 않는다.
+// onSend는 받아졌는지를 돌려준다. 받아지면 입력칸을 비우되, 기다리는 동안 새로 쓴 글은 지우지 않는다.
 // 폴더가 바뀌어도 쓰던 글은 그대로다(이 컴포넌트를 폴더로 다시 만들지 않는다)
 const Composer = memo(function Composer({ blocked, error, onSend }: {
   blocked: string | null
@@ -155,7 +205,7 @@ const Composer = memo(function Composer({ blocked, error, onSend }: {
   )
 })
 
-export function MainChatView({ cwd }: MainChatViewProps): JSX.Element {
+export function MainChatView({ cwd, session }: MainChatViewProps): JSX.Element {
   const [view, setView] = useState<ChatView | null>(null)
   const [status, setStatus] = useState<LoopStatus | null>(null)
   const [errors, setErrors] = useState<Errors>({})
@@ -220,13 +270,22 @@ export function MainChatView({ cwd }: MainChatViewProps): JSX.Element {
     }
   }, [cwd, setError])
 
-  // 새 글이 오면 기록의 끝을 보인다 — 길이가 아니라 마지막 줄의 id를 본다(상한 500에 닿으면 길이가 그대로다, G3 독립 검수 사소 6)
+  // 길이가 아니라 마지막 줄의 id를 본다 — 상한 500에 닿으면 길이가 그대로다
   const items = view?.items ?? []
   const lastId = items.length > 0 ? items[items.length - 1].id : null
+  const turnBusy = view?.busy ?? false
+  const viewItems = view?.items
+  const rows = useMemo(() => mainChatRows(viewItems ?? [], session, turnBusy), [viewItems, session, turnBusy])
+  // 사람이 위로 올려 읽는 중이면 끌어내리지 않는다 — 채팅의 userScrolledUp과 같은 판정이다
+  const scrolledUp = useRef(false)
+  const onThreadScroll = useCallback(() => {
+    const el = threadRef.current
+    if (el) scrolledUp.current = isScrolledUp({ scrollHeight: el.scrollHeight, scrollTop: el.scrollTop, clientHeight: el.clientHeight })
+  }, [])
   useEffect(() => {
     const el = threadRef.current
-    if (el) el.scrollTop = el.scrollHeight
-  }, [lastId, view?.cards.length, status?.approval?.sha256])
+    if (el && !scrolledUp.current) el.scrollTop = el.scrollHeight
+  }, [lastId, view?.cards.length, status?.approval?.sha256, session?.next])
 
   // 호출 하나(판정·깃발·취소·새로 열기) — 요청 중에는 그 버튼들을 끈다. freshMain·freshState는 호출 중 그 push가 없었다는 뜻이다
   const run = async <R,>(where: Where, call: (c: string) => Promise<R>, done: (r: R, freshMain: boolean, freshState: boolean) => void): Promise<void> => {
@@ -257,6 +316,7 @@ export function MainChatView({ cwd }: MainChatViewProps): JSX.Element {
     const c = cwdRef.current
     if (c === null) return false
     setError('send', null)
+    scrolledUp.current = false
     const m0 = mainSeq.current
     try {
       const r = await ipc.loop.mainSend({ cwd: c, text })
@@ -278,7 +338,7 @@ export function MainChatView({ cwd }: MainChatViewProps): JSX.Element {
       return next
     })
   // 카드 답은 다른 호출을 기다리지 않는다(질문 창에서 고른 답을 버리지 않는다). 받아지지 않으면 답한 표시를 되돌린다.
-  // 응답이 오기 전에 폴더가 바뀌었으면 새 폴더에 옛 폴더의 거부·오류를 보이지 않는다(G3 독립 검수 사소 8)
+  // 응답이 오기 전에 폴더가 바뀌었으면 새 폴더에 옛 폴더의 거부·오류를 보이지 않는다
   const answer = async (card: LoopCard, response: LoopCardResponse): Promise<void> => {
     const c = cwdRef.current
     if (c === null) return
@@ -298,13 +358,28 @@ export function MainChatView({ cwd }: MainChatViewProps): JSX.Element {
     }
   }
 
+  const answerTaste = useCallback(async (card: LoopCard, response: LoopCardResponse): Promise<boolean> => {
+    const c = cwdRef.current
+    if (c === null) return false
+    setError('cards', null)
+    try {
+      const r = await ipc.loop.answerCard({ cwd: c, requestId: card.requestId, response })
+      if (!alive.current || !sameCwd(c, cwdRef.current)) return false
+      if (!r.ok) setError('cards', CARD_REFUSED)
+      return r.ok
+    } catch (e) {
+      if (alive.current && sameCwd(c, cwdRef.current)) setError('cards', errText(e))
+      return false
+    }
+  }, [setError])
+
   const decided = (r: { ok: boolean; reason?: string; status: LoopStatus }, _m: boolean, freshState: boolean): void => {
     if (!r.ok) setError('approval', r.reason ?? '거부됐어요')
     if (freshState) setStatus(r.status)
   }
   const approve = (sha: string): void =>
     void run('approval', (c) => ipc.loop.decide({ cwd: c, verdict: 'pass', evidence: CHAT_APPROVE_EVIDENCE, specSha256: sha, ...expectNode() }), decided)
-  // 「이어서 고치기」는 반려다 — 고칠 점이 근거다. 스펙 파일이 없으면 해시 없이 보낸다(main은 해시 없는 반려만 받는다, M09 G4 검수 I3)
+  // 「이어서 고치기」는 반려다 — 고칠 점이 근거다. 스펙 파일이 없으면 해시 없이 보낸다(main은 해시 없는 반려만 받는다)
   const revise = (sha: string | null, reason: string): void =>
     void run('approval', (c) => ipc.loop.decide({
       cwd: c, verdict: 'fail', evidence: reason, ...(sha !== null ? { specSha256: sha } : {}), ...expectNode(),
@@ -333,7 +408,7 @@ export function MainChatView({ cwd }: MainChatViewProps): JSX.Element {
   const workLive = workSessionLive(status, view)
   const stoppable = mainBusy || workLive
 
-  // 멈출 것(메인 턴·작업 세션)이 모두 사라지면 멈추기 실패 알림도 걷는다 — 버튼 없는 알림이 남지 않는다(G3 독립 검수 사소 4)
+  // 멈출 것(메인 턴·작업 세션)이 모두 사라지면 멈추기 실패 알림도 걷는다 — 버튼 없는 알림이 남지 않는다
   useEffect(() => {
     if (!stoppable && errors.cancel !== undefined) setError('cancel', null)
   }, [stoppable, errors.cancel, setError])
@@ -382,13 +457,17 @@ export function MainChatView({ cwd }: MainChatViewProps): JSX.Element {
         </div>
       )}
 
-      <div className="mc-thread" ref={threadRef} role="log" aria-label="메인 대화 기록">
+      <div className="mc-thread" ref={threadRef} role="log" aria-label="메인 대화 기록" onScroll={onThreadScroll}>
         <div className="mc-col">
           {view !== null && items.length === 0 && cards.length === 0 && approval === null && (
             <div className="loop-muted mc-empty">아직 대화가 없어요 — 메인에게 먼저 말을 걸거나, 루프를 시작하면 메인이 브레인스토밍을 열어요.</div>
           )}
-          {items.map((item) => <ChatItem key={item.id} item={item} />)}
-          {cards.map((c) => (
+          {rows.map((r) => (r.kind === 'item'
+            ? <ChatItem key={r.item.id} item={r.item} turn={r.turn} cwd={cwd} />
+            : <MainTurnView key={r.turn.key} turn={r.turn} live={r.live} cwd={cwd} />))}
+          {cards.map((c) => (c.kind === 'taste' ? (
+            <TasteDraftCard key={`${c.requestId}:${c.confirming === true}:${c.refused ?? ''}`} card={c} blocked={blocked !== null} onAnswer={answerTaste} />
+          ) : (
             <ChatCard
               key={c.requestId}
               card={c}
@@ -397,7 +476,7 @@ export function MainChatView({ cwd }: MainChatViewProps): JSX.Element {
               onAsk={(card) => setAsking(card.requestId)}
               onPermission={(card, behavior) => void answer(card, { kind: 'permission', behavior })}
             />
-          ))}
+          )))}
           {errors.cards !== undefined && <div className="loop-err">{errors.cards}</div>}
           {approval !== null && (
             <div className="mc-card approval">

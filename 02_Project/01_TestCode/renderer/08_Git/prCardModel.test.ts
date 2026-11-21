@@ -1,4 +1,4 @@
-// M07 G8 PR 카드의 순수 도우미 — 대화의 `gh pr create` 결과에서 PR URL 감지, 카드 문구 만들기를 고정한다.
+// 대화의 `gh pr create` 결과에서 PR URL 감지, 카드 문구 만들기를 고정한다.
 import { describe, it, expect } from 'vitest'
 import {
   prUrlFromToolCall,

@@ -1,4 +1,4 @@
-import type { LoopInfo } from '../../../shared/agentEvents'
+import type { LoopInfo } from '@shared/agentEvents'
 
 export interface GoalPendingLike {
   name: string
@@ -6,7 +6,7 @@ export interface GoalPendingLike {
   detail?: string | null
 }
 
-export interface GoalRunLike {
+interface GoalRunLike {
   turns: number
   detail: string | null
 }

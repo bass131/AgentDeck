@@ -1,4 +1,3 @@
-// 작업 ID: gap1-p07 · 옛 이름 gap1-p07-plan-approval-backend.test.ts
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
@@ -7,7 +6,7 @@ import {
   PermissionCoordinator,
   permissionSummary,
 } from '@main/04_Claude/permission/permissionCoordinator'
-import type { AgentEvent } from '../../../../02_Project/00_Source/shared/agentEvents'
+import type { AgentEvent } from '@shared/agentEvents'
 
 const FIXTURE_DIR = fileURLToPath(new URL('../../fixtures/gap1-p03/', import.meta.url))
 

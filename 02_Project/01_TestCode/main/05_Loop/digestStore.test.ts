@@ -1,4 +1,4 @@
-// M09 G2 실행 상태의 앱 쪽 다이제스트 — 파일 저장소(작업 저장소 밖), 키·정규 해시, 그리고 실행기가 다르면 멈추는 것.
+// 파일 저장소(작업 저장소 밖), 키·정규 해시, 그리고 실행기가 다르면 멈추는 것.
 // 멈춤은 blocked가 아니라 사람을 부르는 꼴(needs-user)이고 사유는 「상태 파일이 실행기 밖에서 바뀌었다」다. 불일치 때는 아무것도 쓰지 않는다.
 // 다이제스트는 새로 시작할 때만 만든다 — 상태 파일은 있는데 다이제스트가 없거나, 다이제스트는 있는데 상태 파일이 없으면 멈춘다.
 // 다이제스트 파일 쓰기는 fs 포트와 같은 임시 파일 뒤 이름 바꾸기(재시도 포함)다.
@@ -39,12 +39,12 @@ describe('파일 다이제스트 저장소와 키', () => {
     expect(await store.readLatch(key)).toContain(TAMPERED)
     expect(await store.read(key)).toBeNull()
     await expect(store.writeLatch('../escape', 'x')).rejects.toThrow()
-    // 래치 파일 경로를 알려 준다(사유 문구에 싣는다 — G2 재검수 사소)
+    // 래치 파일 경로를 알려 준다(사유 문구에 싣는다)
     expect(store.latchPath?.(key)).toBe(path.join(dir, 'latch', `${key}.latch`))
     expect(fs.existsSync(store.latchPath?.(key) as string)).toBe(true)
   })
 
-  // M09 G4 — 사람의 「확인하고 풀기」(loopDriver)만 부른다. 없는 것을 지워도 오류가 아니다.
+  // 사람의 「확인하고 풀기」(loopDriver)만 부른다. 없는 것을 지워도 오류가 아니다.
   it('래치 지우기와 다이제스트 지우기는 그 파일만 지운다', async () => {
     const store = createFileDigestStore(path.join(dir, 'clear'))
     const key = repoKeyOf('C:/work/clear')
@@ -60,7 +60,7 @@ describe('파일 다이제스트 저장소와 키', () => {
     await expect(store.clearLatch('../escape')).rejects.toThrow()
   })
 
-  // G4 검수 중요 I1 — 실행기가 쓴 상태 본문의 사본. 위조 래치를 풀 때 이 사본으로 상태 파일을 되돌린다(위조본을 받지 않는다).
+  // 실행기가 쓴 상태 본문의 사본. 위조 래치를 풀 때 이 사본으로 상태 파일을 되돌린다(위조본을 받지 않는다).
   it('상태 사본 — 없으면 null, 쓴 글을 바이트 그대로 돌려주고(앞뒤 공백 포함) 다이제스트·래치와 따로 산다', async () => {
     const store = createFileDigestStore(path.join(dir, 'copy'))
     const key = repoKeyOf('C:/work/copy')
@@ -160,7 +160,7 @@ describe('실행기는 다이제스트가 다르면 멈춘다', () => {
     expect(rig.digest.digests.get(repoKeyOf(CWD))).toBe(digestBefore)
   })
 
-  // G2 검수 중요 6 — 키 없는 해시라 세션이 짝을 맞출 수 있다. 한 번 본 불일치는 래치로 남겨, 짝이 다시 맞아도 멈춘다.
+  // 키 없는 해시라 세션이 짝을 맞출 수 있다. 한 번 본 불일치는 래치로 남겨, 짝이 다시 맞아도 멈춘다.
   it('위조 래치 — 한 번 불일치를 보면 상태 파일을 되돌려도, 실행기를 새로 만들어도 멈춘다', async () => {
     const { rig, runner } = await started()
     await runLoop(runner, rig, { until: 'G1/checks' })

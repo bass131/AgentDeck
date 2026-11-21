@@ -1,9 +1,7 @@
 // @vitest-environment jsdom
-// M10 G5 — 그래프 탭 캔버스와 「노드 설정」 탭. 노드마다 카드 하나, 다음 선과 점선, 지금 노드 강조와 끝난 노드 흐림,
-// 같은 상태면 같은 표시. 노드를 고르면 「노드 설정」이 입력칸 없이 그 노드의 설정을 보이고, 세션이 있으면 세션 탭을 연다.
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
 import { render, screen, fireEvent, cleanup, act, within } from '@testing-library/react'
-import type { LoopGraph, LoopGraphNode, LoopStatus, MainChatView } from '../../../../02_Project/00_Source/shared/ipcContract'
+import type { LoopGraph, LoopGraphNode, LoopStatus, MainChatView } from '@shared/ipcContract'
 import { installWindowApi, type InstalledWindowApi } from '../00_Helpers/windowApiMock'
 
 const CWD = 'C:\\work\\practice'
@@ -90,7 +88,7 @@ describe('그래프 탭 캔버스 (M10 G5)', () => {
     expect(canvas.querySelectorAll('path[data-edge="fail"]')).toHaveLength(1)
     expect(canvas.querySelectorAll('path[data-edge="repeat"]')).toHaveLength(1)
     expect(within(canvas).getByText('목표 반복 — G1 ✓ · 지금 G2')).toBeTruthy()
-    // 글자에 되돌아갈 곳이 있어 어느 선인지 읽힌다(G5 검수 3)
+    // 글자에 되돌아갈 곳이 있어 어느 선인지 읽힌다
     expect(within(canvas).getByText('실패 → 구현 (최대 3)')).toBeTruthy()
     expect(within(canvas).getByText(/보기 전용/)).toBeTruthy()
     // 범례는 노드 종류 다섯 가지를 카드와 같은 색 표식으로 보인다
@@ -113,7 +111,7 @@ describe('그래프 탭 캔버스 (M10 G5)', () => {
     expect(card(canvas, 'checks').getAttribute('data-done')).toBe('true')
   })
 
-  // G5 검수 5 — 약 등급 목표에서 강 등급 노드(독립 검수)는 끝남(흐림·✓)이 아니라 건너뜀이다
+  // 약 등급 목표에서 강 등급 노드(독립 검수)는 끝남(흐림·✓)이 아니라 건너뜀이다
   it('지금 목표의 등급에서 켜지지 않는 노드는 「건너뜀」 표시이고 ✓가 없다', async () => {
     const review = node('review', '독립 검수', 'goal', 360, 202, { kind: 'model', role: null, when: { grade: 'strong' } })
     const g = { ...GRAPH, nodes: [...GRAPH.nodes.slice(0, 3), review, ...GRAPH.nodes.slice(3)] }
@@ -150,11 +148,11 @@ describe('그래프 탭 캔버스 (M10 G5)', () => {
 describe('「노드 설정」 탭 (M10 G5)', () => {
   it('그래프 탭이 열려 있을 때만 오른쪽 첫 탭이다. 가운데를 바꾸면 사라지고 현황판으로 돌아간다', async () => {
     const { canvas, useWorkStore } = await renderGraph()
-    expect(tabNames('오른쪽 탭')).toEqual(['노드 설정', '현황판', '파일·변경'])
+    expect(tabNames('오른쪽 탭')).toEqual(['노드 설정', '현황판', '파일·변경', '헌장·Taste'])
     await click(card(canvas, 'checks'))
     expect(useWorkStore.getState().right).toBe('node')
     await click(within(tabs('가운데 탭')).getByRole('tab', { name: '메인 대화' }))
-    expect(tabNames('오른쪽 탭')).toEqual(['현황판', '파일·변경'])
+    expect(tabNames('오른쪽 탭')).toEqual(['현황판', '파일·변경', '헌장·Taste'])
     expect(within(tabs('오른쪽 탭')).getByRole('tab', { name: '현황판' }).getAttribute('aria-selected')).toBe('true')
   })
 
@@ -179,7 +177,7 @@ describe('「노드 설정」 탭 (M10 G5)', () => {
     expect(within(panel).queryByRole('button', { name: '세션 열기' })).toBeNull()
   })
 
-  // G5 검수 2 — 사람의 반려는 USER-INPUT이라 실패로 세지 않는다. 사람 게이트에는 횟수 문구가 없다
+  // 사람의 반려는 USER-INPUT이라 실패로 세지 않는다. 사람 게이트에는 횟수 문구가 없다
   it('사람 게이트의 되돌아가는 길은 횟수 없이 「반려 → 되돌아갈 곳」이고, 「노드 설정」에도 횟수가 없다', async () => {
     const approval = node('spec-approval', '스펙 승인', 'milestone', 200, 40, { kind: 'human', role: null, next: 'goal-branch', onFail: { goto: 'brainstorm', limit: null } })
     api.loopGraph.mockResolvedValue({

@@ -1,4 +1,3 @@
-// 작업 ID: m4-4 · 옛 이름 m4-4-subagent-store.test.ts
 import { describe, it, expect } from 'vitest'
 import {
   applyAgentEvent,
@@ -6,7 +5,7 @@ import {
 } from '@renderer/05_Conversation/state/reducer'
 import type { AppState } from '@renderer/05_Conversation/state/reducer'
 import type { ThreadItem } from '@renderer/05_Conversation/state/threadTypes'
-import type { AgentEventPayload } from '../../../../02_Project/00_Source/shared/ipcContract'
+import type { AgentEventPayload } from '@shared/ipcContract'
 
 function allThreadToolCards(state: AppState) {
   return state.thread

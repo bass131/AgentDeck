@@ -1,4 +1,4 @@
-// M09 G2 실물 git 포트 — 임시 폴더의 작업 저장소와 bare 원격으로 ports.ts 계약을 본다.
+// 임시 폴더의 작업 저장소와 bare 원격으로 ports.ts 계약을 본다.
 // untracked 포함 변경·통계, rename 옛/새 경로, 바이너리 null, 병합 실패 시 merge --abort, syncToRemote의 ff·그대로·갈라짐 throw,
 // `.agentdeck/` 추적 제외(.git/info/exclude), 실행기 git은 작업 저장소의 훅을 돌리지 않는다.
 import fs from 'node:fs'
@@ -8,7 +8,7 @@ import { REVIEW_DIFF_LIMIT, createGitPort, ensureAgentdeckExcluded, qualifyRef, 
 import type { GitPort } from '@main/05_Loop/ports'
 import { makeTempRepos, type TempRepos } from '../00_Helpers/tempGit'
 
-// G4 검수 I6 — 브랜치 이름은 전체 이름으로 읽는다. 전체 SHA·refs/ 경로·HEAD는 그대로다
+// 브랜치 이름은 전체 이름으로 읽는다. 전체 SHA·refs/ 경로·HEAD는 그대로다
 describe('참조 이름 한정', () => {
   it('짧은 브랜치 이름은 refs/heads/로, SHA·refs/·HEAD는 그대로, -로 시작하면 거부한다', () => {
     expect(qualifyRef('milestone/M1')).toBe('refs/heads/milestone/M1')
@@ -54,6 +54,69 @@ beforeEach(() => {
 afterEach(() => { repos.cleanup() })
 
 describe('브랜치·머리·커밋·push', () => {
+  it('체크아웃된 브랜치 이름을 읽고, 분리된 HEAD는 null이다', async () => {
+    expect(await git.currentBranch?.()).toBe('master')
+    await git.createBranch('agentdeck/charter-x', 'master')
+    await git.checkout('agentdeck/charter-x')
+    expect(await git.currentBranch?.()).toBe('agentdeck/charter-x')
+    repos.git(['checkout', '--quiet', '--detach'])
+    expect(await git.currentBranch?.()).toBeNull()
+  })
+
+  it('바뀐 경로를 untracked까지 읽고, 준 경로만 커밋하며, 준 경로만 머리 상태로 되돌린다', async () => {
+    expect(await git.changedPaths?.()).toEqual([])
+    write('docs/agentdeck/헌장.md', '# 프로젝트 헌장\n')
+    write('.env', 'SECRET=1\n')
+    write('README.md', '# 바뀜\n')
+    expect([...(await git.changedPaths?.() ?? [])].sort()).toEqual(['.env', 'README.md', 'docs/agentdeck/헌장.md'])
+    const sha = await git.commitPaths?.(['docs/agentdeck/헌장.md'], 'docs: 헌장')
+    expect(repos.git(['show', '-z', '--name-only', '--format=', sha as string]).split('\0').filter((x) => x.trim() !== '')).toEqual(['docs/agentdeck/헌장.md'])
+    expect([...(await git.changedPaths?.() ?? [])].sort()).toEqual(['.env', 'README.md'])
+    write('docs/agentdeck/헌장.md', '# 고침\n')
+    write('docs/agentdeck/Taste.md', '# 프로젝트 Taste\n')
+    repos.git(['add', '--', 'docs/agentdeck/Taste.md'])
+    await git.discardPaths?.(['docs/agentdeck/헌장.md', 'docs/agentdeck/Taste.md'])
+    expect(fs.readFileSync(path.join(repos.work, 'docs', 'agentdeck', '헌장.md'), 'utf8')).toBe('# 프로젝트 헌장\n')
+    expect(fs.existsSync(path.join(repos.work, 'docs', 'agentdeck', 'Taste.md'))).toBe(false)
+    expect([...(await git.changedPaths?.() ?? [])].sort()).toEqual(['.env', 'README.md'])
+    for (const bad of [[], ['../x.md'], ['/abs.md'], ['-n'], [':(glob)*'], ['']]) {
+      await expect(git.commitPaths?.(bad, 'x')).rejects.toThrow(/경로/)
+    }
+  })
+
+  it('무시되는 경로를 읽고, 되돌리기는 무시된 채 쓴 문서도 지운다', async () => {
+    write('.gitignore', 'docs/\n')
+    repos.git(['add', '.gitignore'])
+    repos.git(['commit', '--quiet', '-m', 'ignore docs'])
+    expect(await git.ignoredPaths?.(['docs/agentdeck/헌장.md', 'README.md'])).toEqual(['docs/agentdeck/헌장.md'])
+    expect(await git.ignoredPaths?.(['README.md'])).toEqual([])
+    expect(await git.ignoredPaths?.(['docs/agentdeck/Taste.md', 'README.md', 'docs/agentdeck/헌장.md'])).toEqual(['docs/agentdeck/Taste.md', 'docs/agentdeck/헌장.md'])
+    write('docs/agentdeck/헌장.md', '# 프로젝트 헌장\n')
+    write('docs/keep.md', '남는다\n')
+    expect(await git.changedPaths?.()).toEqual([])
+    await git.discardPaths?.(['docs/agentdeck/헌장.md'])
+    expect(fs.existsSync(path.join(repos.work, 'docs', 'agentdeck', '헌장.md'))).toBe(false)
+    expect(fs.readFileSync(path.join(repos.work, 'docs', 'keep.md'), 'utf8')).toBe('남는다\n')
+  })
+
+  it('지금 브랜치에서 무시된 채 있는 파일 가운데 다른 브랜치가 추적하는 것을 찾는다', async () => {
+    repos.git(['checkout', '--quiet', '-b', 'feat/side'])
+    write('.env', 'BASE=1\n')
+    write('cache/keep/a.txt', 'a\n')
+    repos.git(['add', '.env', 'cache/keep/a.txt'])
+    repos.git(['commit', '--quiet', '-m', 'track'])
+    repos.git(['checkout', '--quiet', 'master'])
+    write('.gitignore', '.env\ncache/\nnode_modules/\n')
+    repos.git(['add', '.gitignore'])
+    repos.git(['commit', '--quiet', '-m', 'ignore'])
+    expect(await git.ignoredTrackedIn?.('feat/side')).toEqual([])
+    write('.env', 'MINE=1\n')
+    write('node_modules/x/index.js', 'x\n')
+    expect(await git.ignoredTrackedIn?.('feat/side')).toEqual(['.env'])
+    write('cache/keep/a.txt', '내 것\n')
+    expect(await git.ignoredTrackedIn?.('feat/side')).toEqual(['.env', 'cache/keep/a.txt'])
+  })
+
   it('브랜치를 만들고 옮겨 가며, 머리와 계보를 읽는다', async () => {
     const m0 = await git.headSha('master')
     expect(m0).toMatch(/^[0-9a-f]{40}$/)
@@ -79,7 +142,7 @@ describe('브랜치·머리·커밋·push', () => {
     expect(remoteHead('master')).toBe(sha)
   })
 
-  // G4 검수 중요 I6 — 브랜치 이름은 refs/heads/ 전체 이름으로 읽는다. 같은 이름의 태그(작업 노드가 만들 수 있다)가 가리지 못한다
+  // 브랜치 이름은 refs/heads/ 전체 이름으로 읽는다. 같은 이름의 태그(작업 노드가 만들 수 있다)가 가리지 못한다
   it('같은 이름의 태그가 있어도 머리·트리·계보·가르기는 브랜치를 읽는다', async () => {
     await git.createBranch('milestone/M1', 'master')
     const branchSha = repos.git(['rev-parse', 'refs/heads/milestone/M1'])
@@ -99,7 +162,7 @@ describe('브랜치·머리·커밋·push', () => {
     expect(repos.git(['rev-parse', 'refs/heads/goal/M1-G1'])).toBe(branchSha)
   })
 
-  // G4 검수 중요 I8 — push는 대조한 SHA 하나를 `<sha>:refs/heads/<b>`로 올린다. 그 뒤 로컬 브랜치가 앞서도 원격은 그 SHA다
+  // push는 대조한 SHA 하나를 `<sha>:refs/heads/<b>`로 올린다. 그 뒤 로컬 브랜치가 앞서도 원격은 그 SHA다
   it('SHA를 주면 그 커밋만 push한다 — 로컬 브랜치가 그 뒤로 움직였어도', async () => {
     write('a.ts', 'a\n')
     const checked = await git.commitAll('checked')
@@ -126,7 +189,58 @@ describe('브랜치·머리·커밋·push', () => {
   })
 })
 
-// G2 검수 중요 4 — 실행기가 원격과 로컬을 대조하는 데 쓰는 읽기
+// 검수의 Taste 판 — 작업 트리가 아니라 커밋 안의 원문을 읽는다
+describe('fileAt', () => {
+  it('커밋의 원문을 읽는다 — 작업 트리에서 고쳐도, 지워도, 그 뒤 커밋해도 그 커밋의 글이다', async () => {
+    write('docs/agentdeck/Taste.md', '# 프로젝트 Taste\n\n## T1 시작점\n- 원칙: 처음\n')
+    const base = await git.commitAll('Taste')
+    write('docs/agentdeck/Taste.md', '# 프로젝트 Taste\n\n## T1 고침\n- 원칙: 나중\n')
+    expect(await git.fileAt(base, 'docs/agentdeck/Taste.md')).toBe('# 프로젝트 Taste\n\n## T1 시작점\n- 원칙: 처음\n')
+    await git.commitAll('고침')
+    expect(await git.fileAt(base, 'docs/agentdeck/Taste.md')).toContain('시작점')
+    fs.rmSync(path.join(repos.work, 'docs'), { recursive: true })
+    expect(await git.fileAt(base, 'docs/agentdeck/Taste.md')).toContain('시작점')
+  })
+
+  it('그 커밋에 없는 파일은 null, 커밋이 아니거나 파일이 아닌 자리·뿌리 밖 경로는 던진다', async () => {
+    const base = await git.headSha('master') as string
+    expect(await git.fileAt(base, 'docs/agentdeck/Taste.md')).toBeNull()
+    write('docs/agentdeck/Taste.md/inner.md', 'x\n')
+    const dir = await git.commitAll('폴더')
+    await expect(git.fileAt(dir, 'docs/agentdeck/Taste.md')).rejects.toThrow()
+    await expect(git.fileAt('f'.repeat(40), 'docs/agentdeck/Taste.md')).rejects.toThrow()
+    await expect(git.fileAt(base, '../x.md')).rejects.toThrow()
+  })
+
+  it('경로의 대소문자를 가리지 않고 찾고, 대소문자만 다른 경로가 둘 이상 맞으면 던진다', async () => {
+    write('Docs/AgentDeck/taste.md', '# 프로젝트 Taste\n\n## T1 다른 대소문자\n- 원칙: x\n')
+    const one = await git.commitAll('다른 대소문자')
+    expect(repos.git(['ls-tree', '-r', '--name-only', one]).split('\n')).toContain('Docs/AgentDeck/taste.md')
+    expect(await git.fileAt(one, 'docs/agentdeck/Taste.md')).toContain('## T1 다른 대소문자')
+    const blob = repos.git(['hash-object', '-w', '--stdin'], undefined, '# 프로젝트 Taste\n')
+    repos.git(['-c', 'core.ignorecase=false', 'update-index', '--add', '--cacheinfo', `100644,${blob},docs/agentdeck/Taste.md`])
+    repos.git(['commit', '--quiet', '-m', '두 경로'])
+    const two = repos.git(['rev-parse', 'HEAD'])
+    expect(repos.git(['ls-tree', '-r', '--name-only', two]).split('\n')).toEqual(expect.arrayContaining(['Docs/AgentDeck/taste.md', 'docs/agentdeck/Taste.md']))
+    await expect(git.fileAt(two, 'docs/agentdeck/Taste.md')).rejects.toThrow(/2개/)
+  })
+})
+
+describe('pathsBetween', () => {
+  it('두 커밋 사이에 바뀐 경로를 낸다 — rename은 옛·새 경로 둘 다, 작업 트리의 변경은 아니다', async () => {
+    write('docs/agentdeck/Taste.md', 'a\n')
+    const base = await git.commitAll('처음')
+    write('Docs2/x.md', 'x\n')
+    repos.git(['mv', 'docs/agentdeck/Taste.md', 'docs/agentdeck/Taste2.md'])
+    const head = await git.commitAll('옮김')
+    write('untracked.md', 'u\n')
+    expect((await git.pathsBetween(base, head)).sort()).toEqual(['Docs2/x.md', 'docs/agentdeck/Taste.md', 'docs/agentdeck/Taste2.md'])
+    expect(await git.pathsBetween(head, head)).toEqual([])
+    await expect(git.pathsBetween('f'.repeat(40), head)).rejects.toThrow()
+  })
+})
+
+// 실행기가 원격과 로컬을 대조하는 데 쓰는 읽기
 describe('remoteSha·parents', () => {
   it('원격 머리를 ls-remote로 읽고, 원격에 없는 브랜치는 null이다', async () => {
     expect(await git.remoteSha('master')).toBe(remoteHead('master'))
@@ -230,7 +344,7 @@ describe('검수 스냅숏과 트리 해시 (M09 G4)', () => {
     expect(await git.treeOf('no-such-branch')).toBeNull()
   })
 
-  // G4 검수 중요 I9 — 잘린 diff로 검수하지 않는다. 상한을 넘으면 diff를 싣지 않고 넘었다는 표시와 전체 길이를 준다(실행기가 멈춘다)
+  // 잘린 diff로 검수하지 않는다. 상한을 넘으면 diff를 싣지 않고 넘었다는 표시와 전체 길이를 준다(실행기가 멈춘다)
   it('diff가 상한을 넘으면 잘린 diff를 주지 않고 tooLarge와 전체 길이를 준다 — 상한 안이면 전문과 길이', async () => {
     const base = await git.headSha('master') as string
     write('big.txt', `${'x'.repeat(100)}\n`.repeat(6000))
@@ -284,7 +398,7 @@ describe('mergeNoFf', () => {
   })
 })
 
-// G2 재검수 차단 A — 작업 노드가 `git replace <PR 머리> <악성 커밋>`을 심으면, 교체 객체를 따르는 git의 `merge --no-ff`는
+// 작업 노드가 `git replace <PR 머리> <악성 커밋>`을 심으면, 교체 객체를 따르는 git의 `merge --no-ff`는
 // 부모를 원래 SHA로 적고 트리는 악성 것으로 만든다(CI를 거치지 않은 트리가 원격에 간다). 실행기 git은 교체 객체를 따르지 않는다
 // (GIT_NO_REPLACE_OBJECTS=1, -c core.useReplaceRefs=false). 판정은 교체 참조가 없는 bare 원격에서 읽는다.
 describe('교체 객체(git replace)를 따르지 않는다 (G2 재검수 차단 A)', () => {

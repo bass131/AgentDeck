@@ -17,6 +17,7 @@ import {
   IconSearch,
 } from '@renderer/02_Common/icons'
 import { ProviderBrandIcon } from '@renderer/02_Common/ProviderBrandIcon'
+import { useModalLayer } from '@renderer/02_Common/modalStack'
 import { ipc } from '@renderer/01_Ipc'
 import { PrCard } from './PrCard'
 import './GitModal.css'
@@ -127,13 +128,7 @@ export function GitModal({
 
   useEffect(refresh, [refresh])
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent): void => {
-      if (e.key === 'Escape') onClose()
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [onClose])
+  useModalLayer(true, onClose)
 
   useEffect(() => {
     if (!selHash || details[selHash]) return
@@ -386,7 +381,7 @@ export function GitModal({
               )}
             </button>
 
-            {/* PR 병합 (M07 G8) — CLI 세션이 만든 PR도 번호로 불러와 카드에서 병합한다 */}
+            {/* PR 병합 — CLI 세션이 만든 PR도 번호로 불러와 카드에서 병합한다 */}
             <div className="gitm-sec">PR 병합</div>
             <form
               className="gitm-pr"

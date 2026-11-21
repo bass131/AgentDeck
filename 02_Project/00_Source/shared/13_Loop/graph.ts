@@ -1,13 +1,10 @@
-// M10 G5 — 화면용 그래프 계약. main이 열린 작업 폴더의 템플릿을 이 꼴로 바꿔 loop.graph로 준다(보기 전용).
-// position은 그래프 좌표의 카드 왼쪽 위다. 지금은 main의 자동 배치가 채우고, 뒤의 그래프 편집이 같은 칸을 고친다.
-// 카드 크기는 main의 배치와 화면의 선 그리기가 같이 쓴다.
-
+// position은 그래프 좌표의 카드 왼쪽 위다. 카드 크기는 main의 배치와 화면의 선 그리기가 같이 쓴다.
 export const GRAPH_CARD = { width: 120, height: 52 } as const
 
 // work 작업 노드 · action 실행기 동작 · rule·model·human 판정 주체별 게이트
 export type GraphNodeKind = 'work' | 'action' | 'rule' | 'model' | 'human'
 
-export interface GraphPosition { x: number; y: number }
+interface GraphPosition {x: number; y: number }
 
 export interface LoopGraphNode {
   id: string

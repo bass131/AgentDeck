@@ -1,4 +1,4 @@
-// M09 G2 시험 도우미 — gh CLI 출력 픽스처. 「녹취」는 2026-11-18 이 저장소(AgentDeck)에서 읽기 명령으로 받은 출력 그대로다.
+// 「녹취」는 2026-11-18 이 저장소(AgentDeck)에서 읽기 명령으로 받은 출력 그대로다.
 //   gh pr list --state all --limit 3 --json number,state,headRefName,baseRefName,headRefOid,mergeCommit,createdAt,mergedAt,closedAt
 //   gh pr view 93 --json number,state,headRefOid,mergeCommit,statusCheckRollup,mergedAt,closedAt
 //   gh pr list --state closed ... (병합 없이 닫힌 PR 30), gh pr list --json number,statusCheckRollup (빈 rollup — PR 70·71)

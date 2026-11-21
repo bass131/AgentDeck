@@ -1,6 +1,6 @@
 export type ToolKind = 'read' | 'write' | 'edit' | 'bash' | 'web' | 'search' | 'mcp' | 'git' | 'other'
 
-export interface ToolMeta {
+interface ToolMeta {
   kind: ToolKind
   verb: string
   color: string

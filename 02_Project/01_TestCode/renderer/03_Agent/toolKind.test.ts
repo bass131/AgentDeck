@@ -1,4 +1,3 @@
-// 작업 ID: gap1-p02 · 옛 이름 toolKind.test.ts, gap1-p02-toolkind.test.ts
 import { describe, it, expect } from 'vitest'
 import { toolMetaFor, toolTarget } from '@renderer/03_Agent/toolKind'
 

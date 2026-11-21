@@ -1,11 +1,10 @@
-// 작업 ID: cp1-p01 · 옛 이름 cp1-p01-list-root-contract.test.ts
 import { describe, it, expect, vi, beforeAll, beforeEach } from 'vitest'
-import { IPC_CHANNELS } from '../../../../02_Project/00_Source/shared/ipcContract'
+import { IPC_CHANNELS } from '@shared/ipcContract'
 import type {
   SkillListRequest,
   CommandListRequest,
   AgentRunRequest,
-} from '../../../../02_Project/00_Source/shared/ipcContract'
+} from '@shared/ipcContract'
 
 describe('SkillListRequest 타입 계약 (CP1 P01, additive)', () => {
   it('root 없이도 유효하다 (빈 객체 — 기존 무인자 호출과 동등)', () => {
@@ -100,14 +99,13 @@ vi.mock('electron', () => ({
 }))
 
 beforeAll(async () => {
-  await import('../../../../02_Project/00_Source/preload/index')
+  await import('@preload/index')
 })
 
 beforeEach(() => {
   h.invoke.mockClear()
 })
 
-// M05 G10: preload가 묶였다 — listSkills → settings.listSkills, listSlashCommands → settings.listCommands
 describe('preload listSkills(req?) — SKILL_LIST 통과 배선 (CP1 P01)', () => {
   it('무인자 호출 시 invoke가 undefined req로 호출된다 (기존 거동 불변, 회귀 가드)', async () => {
     const api = (h.exposed.api as { settings: unknown }).settings as { listSkills: () => Promise<unknown> }

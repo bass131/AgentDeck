@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { IPC_CHANNELS } from '../../../../02_Project/00_Source/shared/ipcContract'
+import { IPC_CHANNELS } from '@shared/ipcContract'
 import type {
   GitFileStatus,
   GitChange,
@@ -30,8 +30,8 @@ import type {
   PrReadResponse,
   PrMergeRequest,
   PrMergeResponse,
-} from '../../../../02_Project/00_Source/shared/ipcContract'
-import { API_ROUTES } from '../../../../02_Project/00_Source/shared/01_Ipc/apiRoutes'
+} from '@shared/ipcContract'
+import { API_ROUTES } from '@shared/01_Ipc/apiRoutes'
 
 describe('git IPC_CHANNELS 9채널', () => {
   it('GIT_ROOT 채널이 정확한 문자열로 존재한다', () => {
@@ -128,7 +128,7 @@ describe('PR 카드 채널 (M07 G8)', () => {
     const other: PrReadResponse = { ok: false, error: '다른 저장소 PR — 불러오지 않음', otherRepo: true }
     const merge: PrMergeRequest = { cwd: '/p', number: 12, sha: 'a'.repeat(40) }
     const merged: PrMergeResponse = { status: 'merged', message: 'ok', mergeSha: 'b'.repeat(40) }
-    // 보낸 뒤 HTTP 상태 없이 끝나면 결과를 모른다 (독립 검수 사소 4)
+    // 보낸 뒤 HTTP 상태 없이 끝나면 결과를 모른다
     const unknown: PrMergeResponse = { status: 'unknown', message: '결과 모름 — 다시 읽기로 확인하세요' }
     expect(unknown.status).toBe('unknown')
     expect([byNumber.number, byUrl.url, other.ok, merge.sha.length, merged.status]).toEqual([12, 'https://github.com/o/r/pull/12', false, 40, 'merged'])

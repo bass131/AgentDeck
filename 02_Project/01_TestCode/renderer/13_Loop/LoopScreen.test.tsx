@@ -1,12 +1,10 @@
 // @vitest-environment jsdom
-// M09 G4 루프 화면 — 폴더 고르기·열기·시작·닫기가 맞는 loop IPC로 가고, 상태는 loop.status와 loop.state push로 받는다.
-// 다른 저장소의 push는 버리고, 호출 중에 push가 오면 늦게 온 응답의 상태로 덮지 않는다. goal 목록과 지금 노드를 보인다.
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
 import { render, screen, fireEvent, cleanup, act, within } from '@testing-library/react'
 import { useState, type JSX } from 'react'
 import fs from 'node:fs'
 import path from 'node:path'
-import type { LoopStatus } from '../../../../02_Project/00_Source/shared/ipcContract'
+import type { LoopStatus } from '@shared/ipcContract'
 import { adaptFlatApi } from '../00_Helpers/windowApiMock'
 
 const CWD = 'C:\\work\\practice'
@@ -124,7 +122,7 @@ describe('루프 화면 — 폴더와 열기·시작·닫기 (M09 G4)', () => {
     expect(api.loopClose).toHaveBeenCalledTimes(1)
   })
 
-  // M10 G1 — 루프 화면은 작업 모드의 몸체다. 모달·화면 닫기 버튼·Esc 닫기가 없고, 사라지는 것(모드 전환)은 루프를 닫지 않는다.
+  // 사라지는 것(모드 전환)은 루프를 닫지 않는다.
   it('모달이 아니다 — 겹침 창·화면 닫기 버튼이 없고, 화면이 내려가도 loop.close를 부르지 않는다', async () => {
     install(st())
     const r = await renderScreen()
@@ -147,7 +145,7 @@ describe('루프 화면 — 폴더와 열기·시작·닫기 (M09 G4)', () => {
     expect(btn('열기').disabled).toBe(false)
   })
 
-  // G4 검수 5 — 옛 폴더의 호출이 도는 동안 폴더를 바꾸면, 그 호출의 바쁨·오류·끝이 새 폴더 현황판에 번지지 않는다
+  // 옛 폴더의 호출이 도는 동안 폴더를 바꾸면, 그 호출의 바쁨·오류·끝이 새 폴더 현황판에 번지지 않는다
   it('호출 중에 폴더가 바뀌면 옛 호출의 바쁨·오류가 새 폴더로 넘어가지 않고, 옛 호출의 끝이 새 호출의 바쁨을 풀지 않는다', async () => {
     const OTHER = 'C:\\work\\other'
     let rejectOld!: (e: Error) => void
@@ -225,7 +223,7 @@ describe('루프 화면 — goal 목록과 지금 노드 (M09 G4)', () => {
     expect(screen.getByText('구현')).toBeTruthy()
     expect(screen.getByText('main')).toBeTruthy()
     expect(screen.getByText('실패 1')).toBeTruthy()
-    // M10 G5 — 작업 모드의 화면 글은 한글로 맞춘다(goal→목표, FAIL→실패)
+    // 작업 모드의 화면 글은 한글로 맞춘다(goal→목표, FAIL→실패)
     expect(screen.getByRole('region', { name: '목표 목록' })).toBeTruthy()
     expect(screen.queryByRole('region', { name: 'goal 목록' })).toBeNull()
     expect(screen.getByRole('region', { name: '목표 목록' }).querySelector('.loop-h')?.textContent).toBe('목표')
@@ -241,10 +239,10 @@ describe('루프 화면 — goal 목록과 지금 노드 (M09 G4)', () => {
 })
 
 describe('루프 화면 — 껍데기 (M09 G4)', () => {
-  // M10 G1 — 루프 화면은 「작업」 모드의 가운데 칸이라 모달이 아니다. 전역 단축키가 모달로 보면 작업 모드의 단축키가 막힌다.
+  // 루프 화면은 「작업」 모드의 가운데 칸이라 모달이 아니다. 전역 단축키가 모달로 보면 작업 모드의 단축키가 막힌다.
   // Esc가 뒤 대화의 실행을 멈추지 않는 것은 Shell의 Esc 처리가 채팅 배치에서만 도는 것으로 지킨다(panelSession.difference-pins B2).
   it('화면이 떠 있어도 전역 단축키는 모달로 보지 않는다(모달 아님)', async () => {
-    const { isAnyModalOpen } = await import('@renderer/12_Window/useGlobalShortcuts')
+    const { isAnyModalOpen } = await import('@renderer/02_Common/modalStack')
     await renderScreen()
     expect(isAnyModalOpen()).toBe(false)
   })

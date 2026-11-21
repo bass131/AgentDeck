@@ -1,4 +1,4 @@
-// M10 G5 — Windows 토스트는 AppUserModelID가 있는 앱에서만 뜬다. Electron 문서(tutorial/notifications)대로 개발 중에는
+// Windows 토스트는 AppUserModelID가 있는 앱에서만 뜬다. Electron 문서(tutorial/notifications)대로 개발 중에는
 // 실행 파일 경로를 id로 쓴다. 패키지 빌드는 설치기가 바로 가기와 함께 정한 id를 쓰므로 덮지 않는다.
 
 export function devAppUserModelId(env: { platform: string; isPackaged: boolean; execPath: string }): string | null {

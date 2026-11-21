@@ -3,17 +3,13 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 
-// M05 G11 4단계: 워크스페이스 루트의 원천을 하나로 모은다(`currentWorkspaceRoot`와 `roots` 두 원천 → `roots`).
-// 실물 핸들러(workspace·fs)를 ipcMain.handle 가로채기로 등록해, 루트를 읽는 다섯 채널
-// (workspace.tree, listFiles, fs.listDir 기본 루트, fs.read 기본 루트, fs.diff)이 같은 값을 보는지 고정한다.
-// 요청에 실려 오는 루트(renderer가 보내는 값)는 범위 밖이다.
 const h = vi.hoisted(() => ({
   handlers: new Map<string, (...args: unknown[]) => unknown>(),
   diffRoots: [] as string[],
 }))
 
-// fs.diff는 git 저장소가 있어야 줄을 내므로, 실물 핸들러가 diff 계산에 넘기는 루트를 기록해 고정한다(G11 검수 비차단 2).
-vi.mock('@main/08_Git/diff', () => ({
+// fs.diff는 git 저장소가 있어야 줄을 내므로, 실물 핸들러가 diff 계산에 넘기는 루트를 기록한다
+vi.mock('@main/08_Git/fsDiff', () => ({
   resolveFsDiffLines: async (root: string): Promise<unknown[]> => { h.diffRoots.push(root); return [{ root }] },
 }))
 
@@ -26,7 +22,7 @@ vi.mock('electron', () => ({
 import { registerWorkspaceHandlers } from '@main/01_Ipc/handlers/workspace'
 import { registerFsHandlers } from '@main/01_Ipc/handlers/fs'
 import { createRootRegistry } from '@main/07_Workspace/roots'
-import { IPC_CHANNELS } from '../../../../02_Project/00_Source/shared/ipcContract'
+import { IPC_CHANNELS } from '@shared/ipcContract'
 
 function call(channel: string, req?: unknown): Promise<unknown> {
   const fn = h.handlers.get(channel)

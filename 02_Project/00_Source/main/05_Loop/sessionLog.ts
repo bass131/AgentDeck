@@ -3,17 +3,17 @@ import type { LoopSessionLog, LoopSessionRecord, LoopSessionRow, LoopSessionTag 
 import { MAX_SESSION_EVENTS, appendSessionEvent } from '@shared/13_Loop/sessionMerge'
 import { repoKeyOf } from './digestStore'
 
-export const DEFAULT_MAX_EVENTS = MAX_SESSION_EVENTS
-export const DEFAULT_MAX_SESSIONS = 40
-export const DEFAULT_MAX_FOLDERS = 16
+const DEFAULT_MAX_EVENTS = MAX_SESSION_EVENTS
+const DEFAULT_MAX_SESSIONS = 40
+const DEFAULT_MAX_FOLDERS = 16
 
-export interface SessionLogOptions {
+interface SessionLogOptions {
   maxEvents?: number
   maxSessions?: number
   maxFolders?: number
 }
 
-export interface SessionLog {
+interface SessionLog {
   record(cwd: string, tag: LoopSessionTag, event: AgentEvent): { seq: number; isNew: boolean }
   // 꼬리표에는 끝 신호가 없어서, 구동자가 실행기 단계 경계에서 떠 있는 노드 세션을 끝낸다
   endAll(cwd: string): boolean

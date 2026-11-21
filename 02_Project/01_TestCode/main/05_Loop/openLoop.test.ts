@@ -1,16 +1,17 @@
-// M09 G2 실 git 통합 — openLoop(실물 GitPort·FsPort·CommandPort·다이제스트·잠금) + 가짜 gh(bare 원격을 읽어 병합을 흉내) + 가짜 세션.
+// 실 git 통합 — openLoop(실물 GitPort·FsPort·CommandPort·다이제스트·잠금) + 가짜 gh(bare 원격을 읽어 병합을 흉내) + 가짜 세션.
 // 임시 폴더(AgentDeck 저장소 밖)의 작업 저장소와 bare 원격으로 goal 하나가 브랜치 가르기→커밋·push→PR→CI→로컬 --no-ff 병합→push,
 // 그리고 마일스톤 PR과 사람 병합까지 간다. 「실행은 됐는데 저장 전에 꺼짐」 뒤 실행기를 새로 만들어도 이미 된 일을 다시 하지 않고,
 // 상태 파일을 밖에서 고치면 멈추며, 저장소당 실행기는 하나다.
-// 재검수 반영: 실물 gh는 origin에서 정한 저장소로 고정하고(-R), PR 머리를 git replace로 바꿔치기해도 원격 병합 트리는 CI 머리의 트리다.
+// 실물 gh는 origin에서 정한 저장소로 고정하고(-R), PR 머리를 git replace로 바꿔치기해도 원격 병합 트리는 CI 머리의 트리다.
 import fs from 'node:fs'
+import os from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import type { AgentBackend, AgentRun, AgentRunInput } from '@main/03_Agent/AgentBackend'
 import type { AgentEvent } from '@shared/agentEvents'
 import { TAMPERED_REASON, type LoadResult } from '@main/05_Loop/loopRunner'
 import { openLoop, type OpenedLoop } from '@main/05_Loop/openLoop'
-import type { ReviewPort, SessionPort, WorkRequest } from '@main/05_Loop/ports'
+import type { ReviewPort, ReviewRequest, SessionPort, WorkRequest } from '@main/05_Loop/ports'
 import { DOCS } from '@main/05_Loop/survivalDocs'
 import { BareGh } from '../00_Helpers/bareGh'
 import { labelOf, loaded, variantText, findRawNode } from '../00_Helpers/loopFakes'
@@ -75,7 +76,7 @@ async function drive(loop: OpenedLoop, until?: string): Promise<LoadResult> {
     if (out.kind === 'waiting' && out.on === 'human' && r.next.kind === 'gate') {
       if (r.next.node.watch && r.state.milestonePr !== null) gh.mergeByHuman(r.state.milestonePr)
       else {
-        // 스펙 승인은 사람이 본 스펙의 해시에 묶인다(G4)
+        // 스펙 승인은 사람이 본 스펙의 해시에 묶인다
         const seen = await loop.runner.specView()
         await loop.runner.submit({ node: r.next.node.id, judge: 'human', verdict: 'pass', evidence: '사람이 승인했다' }, { specSha256: seen.sha256 ?? '' })
       }
@@ -106,6 +107,20 @@ afterEach(async () => {
   repos.cleanup()
 })
 
+describe('openLoop — 실행기 PATH와 자식 PATH (M11 G3)', () => {
+  it('[M11-G3 M09-4] 작업 노드 세션(자식 환경)의 PATH는 좁히지 않는다 — 좁히는 것은 실행기 git·gh 환경뿐이다', async () => {
+    const user = path.join(repos.root, 'user')
+    const npmDir = path.join(user, 'AppData', 'Roaming', 'npm')
+    const key = Object.keys(repos.env).find((k) => k.toUpperCase() === 'PATH') ?? 'PATH'
+    const executorEnv = { ...repos.env, USERPROFILE: user, [key]: `${repos.env[key] ?? ''}${path.delimiter}${npmDir}` }
+    const r = await openLoop({ cwd: repos.work, appDataDir: appData, session, review, gh, template: TEMPLATE, executorEnv })
+    if (!r.ok) throw new Error(`openLoop 실패: ${r.reason}`)
+    opened.push(r.loop)
+    const childPath = Object.entries(r.loop.childEnv.env).find(([k]) => k.toUpperCase() === 'PATH')?.[1] ?? ''
+    expect(childPath.split(path.delimiter)).toContain(npmDir)
+  })
+})
+
 describe('openLoop — 실 git으로 goal 하나를 끝까지', () => {
   it('브랜치 가르기→커밋 push→PR→CI→로컬 --no-ff 병합→push, 그리고 마일스톤 PR과 사람 병합까지 간다', SLOW, async () => {
     // 작업 저장소의 훅(세션이 쓸 수 있는 코드)은 자격 있는 실행기 git에서 돌지 않는다 — 돌면 checkout·merge·commit이 막힌다
@@ -134,6 +149,48 @@ describe('openLoop — 실 git으로 goal 하나를 끝까지', () => {
     // 검사 명령은 자격 없는 환경으로 돌았다(그렇지 않으면 exit 7로 FAIL)
     expect(end.state.lines.filter((l) => l.marker === 'FAIL')).toEqual([])
     expect(session.calls).toEqual(['brainstorm', 'decompose', 'G1/implement'])
+  })
+})
+
+describe('openLoop — 검수의 Taste 판', () => {
+  it('goal 시작 커밋의 프로젝트 Taste와 Taste 거처의 전역 Taste를 검수에 싣는다 — 작업 트리에서 고친 Taste가 아니다', SLOW, async () => {
+    const write = (rel: string, text: string): void => {
+      fs.mkdirSync(path.dirname(path.join(repos.work, rel)), { recursive: true })
+      fs.writeFileSync(path.join(repos.work, rel), text)
+    }
+    write('docs/agentdeck/Taste.md', '# 프로젝트 Taste\n\n## T1 화면\n- 원칙: 시작점의 원칙\n')
+    repos.git(['add', '-A'])
+    repos.git(['commit', '--quiet', '-m', 'Taste'])
+    repos.git(['push', '--quiet', 'origin', 'master'])
+    const tasteDataDir = path.join(repos.root, 'userdata')
+    fs.mkdirSync(path.join(tasteDataDir, 'taste'), { recursive: true })
+    fs.writeFileSync(path.join(tasteDataDir, 'taste', 'global-taste.md'), '# 전역 Taste\n\n## T1 말투\n- 원칙: 평문\n')
+    const strong: SessionPort = {
+      runWork: async (req) => {
+        await session.runWork(req)
+        if (req.node.id === 'implement') {
+          write('src/feature.ts', Array.from({ length: 80 }, (_, i) => `export const f${i} = ${i}`).join('\n'))
+          write('docs/agentdeck/Taste.md', '# 프로젝트 Taste\n\n## T1 화면\n- 원칙: 작업 노드가 고친 원칙\n')
+        }
+        return { ok: true, summary: '끝' }
+      },
+    }
+    const seen: ReviewRequest[] = []
+    const capture: ReviewPort = { review: async (req) => { seen.push(req); return { verdict: 'pass', evidence: '검수 통과' } } }
+    const r = await openLoop({
+      cwd: repos.work, appDataDir: appData, session: strong, review: capture, gh, template: TEMPLATE,
+      executorEnv: repos.env, commandTimeoutMs: 60_000, tasteDataDir,
+    })
+    if (!r.ok) throw new Error(`openLoop 실패: ${r.reason}`)
+    opened.push(r.loop)
+    expect((await r.loop.runner.start('M1')).kind).toBe('ok')
+    await drive(r.loop, 'G1/review')
+    expect((await r.loop.runner.step()).kind).toBe('advanced')
+    expect(seen[0].taste).toEqual([
+      { id: 'P-T1', title: '화면', fields: [{ name: '원칙', text: '시작점의 원칙' }] },
+      { id: 'G-T1', title: '말투', fields: [{ name: '원칙', text: '평문' }] },
+    ])
+    expect(seen[0].tasteDocsChanged).toBe(true)
   })
 })
 
@@ -204,9 +261,19 @@ describe('openLoop — 위조 방어와 저장소당 하나', () => {
     const r = await openLoop({ cwd: plain, appDataDir: appData, session, review, gh, template: TEMPLATE, executorEnv: repos.env })
     expect(r.ok).toBe(false)
   })
+
+  it('[M11-G3 M09-4 검수] 좁힌 PATH에서 git을 못 찾으면 「저장소가 아니다」가 아니라 사용자 프로필 밖 설치를 안내한다', async () => {
+    const env: NodeJS.ProcessEnv = {}
+    for (const [k, v] of Object.entries(repos.env)) if (k.toLowerCase() !== 'path') env[k] = v
+    env.PATH = path.join(os.homedir(), 'agentdeck-no-such-bin')
+    const r = await openLoop({ cwd: repos.work, appDataDir: appData, session, review, gh, template: TEMPLATE, executorEnv: env })
+    expect(r.ok).toBe(false)
+    expect(!r.ok && r.reason).toContain('사용자 프로필 밖')
+    expect(!r.ok && r.reason).not.toContain('git 작업 저장소가 아니다')
+  })
 })
 
-// M09 G2 2차분 — 세션 포트 대신 백엔드를 주면 실물 작업 노드 세션 포트(workSession.ts)를 붙인다.
+// 세션 포트 대신 백엔드를 주면 실물 작업 노드 세션 포트(workSession.ts)를 붙인다.
 interface BackendRec { starts: AgentRunInput[]; aborts: number }
 function recordingBackend(mode: 'done' | 'hang'): { backend: AgentBackend; rec: BackendRec } {
   const rec: BackendRec = { starts: [], aborts: 0 }
@@ -286,11 +353,11 @@ describe('openLoop — 실물 작업 노드 세션 포트 (M09 G2)', () => {
     let settled = false
     void pending.then(() => { settled = true })
     await close(loop)
-    // 닫기는 세션을 멈춘 뒤 진행 중인 step(직렬화 줄)이 끝나기를 기다리고, 그다음에 잠금을 푼다(G2 검수 사소)
+    // 닫기는 세션을 멈춘 뒤 진행 중인 step(직렬화 줄)이 끝나기를 기다리고, 그다음에 잠금을 푼다
     expect(settled).toBe(true)
     const out = (await pending) as { kind: string; state?: { failCount: number; haltReason: string | null } | null; verdict?: { verdict: string; evidence: string } | null }
     expect(rec.aborts).toBeGreaterThanOrEqual(1)
-    // 그 step은 세션의 취소를 멈춤(stop)으로 바꿔 상태와 검증 기록에 남긴다 — FAIL로 세지 않는다(G4). 잠금을 풀기 전의 저장이다
+    // 그 step은 세션의 취소를 멈춤(stop)으로 바꿔 상태와 검증 기록에 남긴다 — FAIL로 세지 않는다. 잠금을 풀기 전의 저장이다
     expect(out.kind).toBe('halted')
     expect(out.verdict?.verdict).toBe('stop')
     expect(out.state?.failCount).toBe(0)
@@ -398,11 +465,18 @@ describe('openLoop — 기준 브랜치·설정 받기·검수 포트 (M09 G4)',
     expect(r.loop.base).toBe('main')
   })
 
+  it('실행기와 같은 git·gh 포트를 내보낸다 — 실행기 밖의 확정 쓰기가 같은 설정 대조를 지난다', async () => {
+    const loop = await open()
+    expect(loop.gh).toBe(gh)
+    expect(await loop.git.currentBranch?.()).toBe('master')
+    expect(await loop.git.headSha('master')).toBe(repos.git(['rev-parse', 'master']))
+  })
+
   it('지난 스냅숏과 설정이 다르면 바뀐 키를 구조로 돌려주고, 그 목록을 받으면 연다', async () => {
     await close(await open())
     repos.git(['config', 'user.name', 'Someone Else'])
     const refused = await openLoop({ cwd: repos.work, appDataDir: appData, session, review, gh, template: TEMPLATE, executorEnv: repos.env })
-    // G4 검수 B1 — 바뀐 것은 키만이 아니라 값과 출처를 담은 줄로 돌려주고, 받기도 그 줄(값)에 묶인다
+    // 바뀐 것은 키만이 아니라 값과 출처를 담은 줄로 돌려주고, 받기도 그 줄(값)에 묶인다
     const changed = !refused.ok ? refused.changed ?? [] : []
     expect(changed).toHaveLength(1)
     expect(changed[0]).toMatch(/^user\.name: .*→ "Someone Else"/)

@@ -4,12 +4,13 @@ import { buildQueryOptions } from './runArgs'
 import { fallbackNotice } from './stream/modelFallback'
 import type { CanUseToolFn } from './permission/permissionCoordinator'
 import { enginePathDenyRules, buildEnginePathLockHook } from './permission/enginePathLock'
-import { buildMergeDenyHook } from './permission/mergeDeny'
+import { buildMergeDenyHook, MERGE_DENY_NODE } from './permission/mergeDeny'
+import { withVerdictLog } from './permission/verdictLog'
 import { buildLoopLockHook } from './permission/loopLock'
 import type { AgentRunInput } from '@main/03_Agent/AgentBackend'
 import type { AgentEvent } from '../../shared/agentEvents'
 
-export function resolveSafeCwd(workspaceRoot?: string): string {
+function resolveSafeCwd(workspaceRoot?: string): string {
   if (!workspaceRoot || !isAbsolute(workspaceRoot)) return process.cwd()
   try {
     if (!existsSync(workspaceRoot)) return process.cwd()
@@ -40,7 +41,7 @@ type DialogResult =
   | { behavior: 'cancelled' }
   | { behavior: 'completed'; result: string }
 
-export type OnUserDialogFn = (
+type OnUserDialogFn = (
   dlg: { dialogKind: string; payload?: Record<string, unknown> }
 ) => Promise<DialogResult>
 
@@ -79,14 +80,18 @@ export function buildClaudeSdkOptions(params: {
   skillOverrides: Record<string, 'off'> | null
   mcpDenied: { serverName: string }[] | null
   onUserDialog: OnUserDialogFn
-  // 앱 userData 경로. 있으면 엔진 경로 잠금(거부 규칙과 Bash 잠금 훅)을 넣는다 (M07 G3). 실행은 늘 넘긴다.
+  // 있으면 엔진 경로 잠금(거부 규칙과 Bash 잠금 훅)을 넣는다. 실행은 늘 넘긴다.
   userDataDir?: string
+  // Taste·헌장 원문(tasteStore.loopDocsAppend). 루프 세션에만 싣는다
+  loopDocs?: string
 }): Record<string, unknown> {
-  const { req, abortController, canUseTool, skillOverrides, mcpDenied, onUserDialog, userDataDir } = params
+  const { req, abortController, canUseTool, skillOverrides, mcpDenied, onUserDialog, userDataDir, loopDocs } = params
   const lock = userDataDir
-    ? { deny: enginePathDenyRules(userDataDir), hook: buildEnginePathLockHook(userDataDir) }
+    ? { deny: enginePathDenyRules(userDataDir), hook: withVerdictLog('engine-path-bash-lock', buildEnginePathLockHook(userDataDir)) }
     : null
-  // 루프 작업 노드 세션에만 붙는 잠금 (M09 G2). 일반 앱 세션의 입력에는 loopLock이 없다.
+  // 병합 거부 훅의 판정 기록은 여기서 감싼다 — mergeDeny.ts는 가드 같음 시험이 타입만 불러 쓰므로 런타임 import를 두지 않는다
+  const mergeDeny = withVerdictLog(MERGE_DENY_NODE.id, buildMergeDenyHook())
+  // 일반 앱 세션의 입력에는 loopLock이 없다
   const loopLock = req.loopLock ? buildLoopLockHook(req.loopLock) : null
 
   const optionsPatch = buildQueryOptions({
@@ -102,12 +107,14 @@ export function buildClaudeSdkOptions(params: {
     userAppend,
     WORKFLOW_GATE_NOTICE,
     req.resumeSessionId ? MEMORY_CONTINUITY_GUIDE : undefined,
+    // 검수(읽기 전용)의 Taste 판은 실행기가 시작점 커밋에서 읽어 준 체크리스트뿐이다 — 작업 트리 원문을 싣지 않는다
+    req.loopLock && !req.loopLock.readOnly ? loopDocs?.trim() : undefined,
   ].filter(Boolean) as string[]).join('\n\n') || undefined
 
   return {
     ...optionsPatch,
     cwd: resolveSafeCwd(req.workspaceRoot),
-    // 루프 작업 노드 세션은 자격 없는 자식 환경(req.env)으로 연다 — 이 프로세스의 환경을 섞지 않는다 (M09 G2)
+    // 루프 작업 노드 세션은 자격 없는 자식 환경(req.env)으로 연다 — 이 프로세스의 환경을 섞지 않는다
     env: { ...(req.env ?? process.env), CLAUDE_CODE_EMIT_SESSION_STATE_EVENTS: '1' },
     abortController,
     includePartialMessages: true,
@@ -123,15 +130,15 @@ export function buildClaudeSdkOptions(params: {
       ...(skillOverrides ? { skillOverrides } : {}),
       ...(mcpDenied ? { deniedMcpServers: mcpDenied } : {})
     },
-    settingSources: ['user', 'project', 'local'],
-    // 루프 세션(M09 G4)은 사용자 MCP 서버(.mcp.json·사용자 설정·플러그인)를 읽지 않는다 — mcpServers 옵션을 주지 않으므로 MCP 서버가 없다.
-    // 공개 타입 Options.strictMcpConfig의 설명을 따른다. mcp__ 도구 거부(루프 잠금 훅)는 겹으로 남는다.
+    // 루프 세션은 설정 원천 user를 읽지 않는다(project·local만)
+    settingSources: loopLock ? ['project', 'local'] : ['user', 'project', 'local'],
+    // 루프 세션은 사용자 MCP 서버(.mcp.json·사용자 설정·플러그인)를 읽지 않는다(공개 타입 Options.strictMcpConfig의 설명).
+    // mcp__ 도구 거부(루프 잠금 훅)는 겹으로 남는다.
     ...(loopLock ? { strictMcpConfig: true } : {}),
-    // M10 G2 — 메인 대화의 앱 안 도구 서버. 루프 잠금이 붙은 입력에서만 싣는다(잠금의 메인 대화 꼴이 그 서버의 mcp__ 도구만 지나보낸다)
+    // 잠금의 메인 대화 꼴이 이 서버의 mcp__ 도구만 지나보낸다
     ...(loopLock && req.loopMcpServers ? { mcpServers: req.loopMcpServers } : {}),
-    // 병합 거부 훅(M07 G8)은 userData 경로가 필요 없어 언제나 넣는다. 엔진 경로 잠금 훅 뒤에 붙인다.
-    // 루프 잠금 훅(M09 G2)은 루프 작업 노드 세션에만, 맨 앞에 붙인다.
-    hooks: { PreToolUse: [...(loopLock ? [loopLock] : []), ...(lock ? [lock.hook] : []), buildMergeDenyHook()] },
+    // 병합 거부 훅은 userData 경로가 필요 없어 언제나 넣는다. 루프 잠금 훅은 맨 앞이다.
+    hooks: { PreToolUse: [...(loopLock ? [loopLock] : []), ...(lock ? [lock.hook] : []), mergeDeny] },
     canUseTool,
     supportedDialogKinds: ['refusal_fallback_prompt'],
     onUserDialog,

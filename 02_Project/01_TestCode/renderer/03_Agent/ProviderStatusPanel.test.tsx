@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, act, cleanup } from '@testing-library/react'
-import type { BackendStatus } from '../../../../02_Project/00_Source/shared/ipcContract'
+import type { BackendStatus } from '@shared/ipcContract'
 import { adaptFlatApi } from '../00_Helpers/windowApiMock'
 
 const mockListBackends = vi.fn<() => Promise<BackendStatus[]>>()

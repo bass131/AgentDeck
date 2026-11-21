@@ -1,5 +1,4 @@
-// M09 G2·G4 시험 도우미 — GitHub 흉내. 원격(bare)의 브랜치를 읽는다. 원격 base가 PR 머리를 품으면 병합됨으로 닫는다(GitHub가 하는 일).
-// openLoop.test.ts와 loopDriver.test.ts가 함께 쓴다. 이 저장소의 원격에는 닿지 않는다(임시 bare 원격만).
+// GitHub 흉내 — 원격 base가 PR 머리를 품으면 병합됨으로 닫는다(GitHub가 하는 일). 임시 bare 원격에만 닿는다.
 import type { CiStatus } from '@main/05_Loop/executor'
 import type { GhPort, PrInfo, PrState } from '@main/05_Loop/ports'
 import type { TempRepos } from './tempGit'
@@ -9,7 +8,7 @@ interface BarePr { number: number; head: string; base: string; state: PrState; m
 export class BareGh implements GhPort {
   readonly calls: string[] = []
   readonly prs: BarePr[] = []
-  // PR 머리 브랜치 → 본문(G4 — goal PR 본문의 검증 줄)
+  // PR 머리 브랜치 → 본문(goal PR 본문의 검증 줄)
   readonly bodies = new Map<string, string>()
   constructor(private readonly repos: TempRepos) {}
   tip(branch: string): string | null {
@@ -45,7 +44,11 @@ export class BareGh implements GhPort {
     this.prs.push(pr)
     return this.view(pr)
   }
-  // 앞으로 몇 번의 CI 조회를 「도는 중」으로 돌려줄지(G4 — 구동자의 CI 재시도)
+  async openPrHeads(base: string): Promise<{ number: number; head: string }[]> {
+    this.calls.push(`openPrHeads ${base}`)
+    return this.prs.filter((p) => p.base === base && this.view(p).state === 'open').map((p) => ({ number: p.number, head: p.head }))
+  }
+  // 앞으로 몇 번의 CI 조회를 「도는 중」으로 돌려줄지(구동자의 CI 재시도)
   ciPending = 0
   ciPolls = 0
   async ciStatus(number: number): Promise<CiStatus> {

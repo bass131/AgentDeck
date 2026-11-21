@@ -1,4 +1,4 @@
-// M10 G5 — 템플릿을 화면용 그래프(shared/13_Loop/graph.ts)로 바꾼다. 보기 전용이고 템플릿 값을 고치지 않는다.
+// 템플릿을 화면용 그래프(shared/13_Loop/graph.ts)로 바꾼다. 보기 전용이고 템플릿 값을 고치지 않는다.
 // 자동 배치: 목표 반복 틀 앞의 노드는 첫 줄, 틀 안 노드는 둘째 줄, 틀 뒤의 노드는 셋째 줄에 왼쪽부터 놓는다.
 import { GRAPH_CARD, type GraphNodeKind, type LoopGraph, type LoopGraphEdge, type LoopGraphNode } from '@shared/13_Loop/graph'
 import { FAIL_LIMIT } from './runState'

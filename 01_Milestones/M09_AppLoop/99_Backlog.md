@@ -2,6 +2,25 @@
 
 - 범위 밖 발견을 한 줄로 남긴다(헌법 11조). 최신 번호가 위다.
 
+## 닫힘 (M11)
+
+M11 Backlog 정리(`01_Milestones/M11_BacklogSweep/`)가 닫은 항목이다. 아래 항목 줄은 그대로 두고 닫힘은 이 표가 갖는다. 표에 없는 항목은 M11 goal 2~9가 고치면서 더한다.
+
+| 항목 | 닫힘 | 근거 |
+|---|---|---|
+| 1 | 해결됨 | 잠금이 `.agentdeck/` 실행기 파일 쓰기를 거부하고(`main/04_Claude/permission/loopLock.ts:185`) 열 때 exclude에 더하며(`main/05_Loop/openLoop.ts:10`) FAIL 계수 메모는 M11 Backlog로 옮겼다. |
+| 2 | 해결됨 | load를 직렬화 줄 밖에 두고 저장소 잠금·세션 시간 상한·CI 기다림 상한을 뒀다(`main/05_Loop/loopRunner.ts:19,67-68`, `openLoop.ts:4,50`, `2907b225`). |
+| 3 | 해결됨 | 루프 세션은 `strictMcpConfig`로 사용자 MCP를 싣지 않고(`main/04_Claude/sdkOptions.ts:129`, `ce4e5844`) 카드 응답자·취소 stop·자동 모드 검사가 있으며 사용자 설정 몫은 M10-11이 맡는다. |
+| 4 | 고침(M11 goal 3) | 실행기 git·gh 환경(`executorGitEnv`)의 PATH에서 사용자 프로필 아래 폴더를 뺀다(`main/05_Loop/configGuard.ts:72,79`, `a6e7f88a`). 작업 노드 세션의 PATH는 좁히지 않는다(`openLoop.ts` `promptlessGitEnv`, `bc920e64`). 좁힌 PATH에서 git을 못 찾으면 「git·gh를 사용자 프로필 밖에 설치해야 한다」고 안내한다(독립 검수). |
+| 5 | 고침(M11 goal 3) | G1 결정 대장대로 거부 안내가 바뀐 키 값과 복구 절차(사람이 되돌리기, 사람이 바꾼 것이면 스냅숏 파일 지우기)를 적는다(`main/05_Loop/configGuard.ts:449,472`, `a6e7f88a`). `core.hooksPath`·단독 `ENV=`는 그대로 둔다. |
+| 6 | 고침(M11 goal 3) | CDPATH 설정은 명령 머리의 할당과 설정 명령의 인자에서만 본다 — 커밋 메시지 글자는 걸리지 않는다(`main/04_Claude/permission/loopLock.ts:904`, `a6e7f88a`, 머리 낱말 `bc920e64`). 작은따옴표 밖의 `${CDPATH=…}`·`${CDPATH:=…}` 펼치기도 막는다(독립 검수, `loopLock.ts` `CDPATH_EXPAND_SET`). `source` 뒤 위치 모름은 다음 호출에서 훅 cwd로 바뀐다(`loopLock.ts:113,1164`) — 공개 `query()` 실측(SDK 0.3.325, Haiku)에서 `source x.sh`(`cd sub`) 다음 호출의 훅 `cwd`가 `…\repo\sub`였다(`00_Documents/00_Architecture/01_SDK-재실측-절차.md`). 셋째 오탐(앞 명령 뒤 `cd`)은 goal 3 결정 대장대로 그대로 두고 닫는다. `env -S`는 M09 G3가 고쳤다(`mergeDeny.test.ts:183`). |
+| 7 | 일부 고침(M11 goal 3·8), 나머지 v2로 | 앱 `mergeDeny`가 래퍼 값 옵션의 묶음·줄임(`timeout -vs KILL`, `sudo -iu`, `env --chd`)과 `--argv0`·`chroot`를 가드처럼 읽고(`a6e7f88a`, M11 Backlog 17), 세 판정기(가드·`mergeDeny`·`loopLock`)의 판정이 같은 말뭉치에서 같음을 비교 표 TW-01~44가 묶는다(`375c1e37`·`64a734e2`). 모르는 래퍼(`setsid`·`flock`·`runuser` 등), `-S` 고유 이스케이프, 다시 판독 깊이 한도의 차이는 낱말 판독으로 따라잡을 수 없는 꼴이라 M11 스펙 「하지 않을 것」(가드 판독 재설계와 공개 셸 파서는 v2)으로 보낸다. 이 행은 M11 goal 10 회귀 검증이 빠진 행으로 찾아 더했다. |
+| 8 | 고침(M11 goal 3) | 읽기 전용 잠금이 `$env:`·`Set-Item env:`·`SetEnvironmentVariable`로 실행 환경 키(`GIT_PAGER` 등)를 바꾸는 꼴을 막는다(`loopLock.ts:289`, `a6e7f88a`, `bc920e64`). 기록된 시작점이 없으면 원격 머리에서 가른다(`main/05_Loop/loopRunner.ts:511`). |
+| 9 | 고침(M11 goal 3) | 브랜치 push는 확인한 머리 SHA로 보낸다(`loopRunner.ts:520,533`). `remote.<이름>.proxy`·`http.curloptResolve`는 화면 풀기로 받지 않는다(`configGuard.ts:440`, `a6e7f88a`). 대기열 답 화면은 goal 3 결정 대장대로 고치지 않고 닫는다(main이 이중 답을 거부한다). |
+| 10 | 고침(M11 goal 4) | 검수 세션 프롬프트가 시험·명령은 앞의 검사 게이트가 이미 돌렸으니 다시 돌리지 말라고 알린다(`main/05_Loop/reviewSession.ts:55`, `abde4069`). 앱을 끌 때 열려 있던 루프를 `loop/open.json`에 남겨 다시 켜면 연다(`main/05_Loop/loopDriver.ts:78,284,719`, `main/00_App/bootstrap.ts:112`). 실앱 e2e `m11-g4-work-mode-live.e2e.ts` D(`18f0ed09`)에서 재기동 뒤 두 폴더가 「열기」 없이 다시 열렸다. 기동 직후 클릭 실패는 창이 보이기 전(그리기 0회)이라 안정 판정이 끝나지 않는 탓이었다 — Playwright로 띄운 창은 캡처 한 장으로 한 장면을 그려야 보였고(두 기동 모두 약 11.4초), 구동기가 그 뒤에 누르면 첫 시도에 붙었다(그 e2e의 `launch`, M11 Backlog 33). 메인 노드 한 턴 몫은 M10 메인 대화가 맡았다. |
+| 11 | 고침(M11 goal 3, 앞절) | PR 카드가 룰셋의 필수 검사를 읽는다(M07-24 행, `2af8fd68`). 뒷절 실측: 연습 저장소 PR 2·4·5의 머리에는 `hard-gates` 실행이 둘(push·pull_request, 다른 check suite)이고 `statusCheckRollup`에 둘 다 실렸다. 앱의 두 판독(PR 카드 `prMerge.ts` `checkResult`, 루프 CI `realPorts/ghParse.ts` `parseCiStatus`)은 실린 같은 이름 검사가 모두 끝나야 success다(`prMerge.test.ts:187`, `ghPort.test.ts` 「[M11-G3 M09-11]」, `2af8fd68`). 두 번째 실행이 아직 rollup에 오지 않은 순간은 이름만으로 가릴 수 없어 goal 3 보고의 결정 요청으로 올렸다. |
+| 12 | 고침(M11 goal 3) | 프롬프트 규칙과 카드 응답자가 술어 `talksToHuman` 하나를 쓴다(`main/05_Loop/workSession.ts:111,223`) — 응답자 없이 만든 포트는 질문 도구 규칙을 붙이지 않는다. 스펙 확인(`loopRunner.ts:383`)은 「이 노드가 스펙을 써야 하는가」라 `role main`과 `docs`의 milestoneSpec으로 그대로 둔다. 메인 노드 FAIL 뒤의 방문이 직전 FAIL 문장을 싣고 시작 턴 프롬프트에 「직전 시도의 FAIL」 절을 둔다(`loopRunner.ts:360`, `workSession.ts:106`, `mainChat.ts:239,259`, `a6e7f88a`). |
+
 12. (범위 밖, G5 독립 검수 사소 3) 「스펙을 쓰는 노드」 판정이 세 곳에서 갈린다 — 프롬프트 규칙은 `role main`, 카드 응답자는 `role main`과 화면 응답자 있음, 스펙 확인은 `role main`과 `docs`에 milestoneSpec(읽는 문서 목록). 화면 응답자 없이 포트를 만들면 규칙이 질문 도구를 요구하는데 카드가 거부돼 FAIL이 쌓인다(지금 프로덕션은 늘 응답자를 준다). 술어 하나로 모을지, 템플릿에 「쓰는 문서」를 둘지 정한다. 메인 노드 FAIL 뒤 재시도 프롬프트에 직전 FAIL 사유를 싣는 것도 함께 본다.
 11. (범위 밖, G5 실주행 관찰) 앱 PR 카드는 고전 브랜치 보호만 읽는다 — 룰셋으로 지키는 `main`을 「보호가 없어 필수 검사가 없어요」로 보이고, fine-grained 토큰에 Administration 읽기가 없으면 403으로 버튼을 닫는다(닫힌 실패는 의도). 룰셋의 필수 검사(`rules/branches/<b>`)를 함께 읽을지 정한다. CI 게이트는 같은 머리에 `hard-gates`가 둘(push·pull_request) 돌 때 하나가 성공하면 다른 하나가 도는 중이어도 pass했다 — 같은 이름의 검사가 모두 끝날 때까지 기다릴지 정한다.
 10. (범위 밖, G5 실주행 관찰) 메인 노드는 세션 한 턴이라 글로 물으면 대화가 끊긴다 — G5는 질문 도구 규칙과 스펙 파일 확인으로 막았고, 이어지는 대화는 M10 화면(메인 세션 대화 안의 브레인스토밍, 로드맵 M10 행)에서 다룬다. 작업자·검수 노드는 자동 판정이 묻기로 넘긴 호출을 기본 거부해(7회) 검수 세션이 시험을 직접 돌리지 못한다. 재기동 뒤 루프 화면은 사람이 다시 열어야 실행기가 돈다. e2e 구동기는 기동 직후 사이드바 버튼 클릭이 두 번 실패해 다시 눌렀다.

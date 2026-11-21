@@ -1,4 +1,3 @@
-// 작업 ID: lr2-04 · 옛 이름 lr2-04-sessionkey-stability.test.ts
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { resetAppStore } from '../00_Helpers/storeReset'
 import { adaptFlatApi } from '../00_Helpers/windowApiMock'
@@ -12,7 +11,7 @@ const mockApi = {
     capturedRuns.push(req)
     return { runId: (req.sessionKey as string) ?? `r${capturedRuns.length}` }
   }),
-  agentAbort: async () => ({ accepted: true }),
+  agentAbort: async () => ({ ok: true }),
   onAgentEvent: () => () => {},
   listFiles: async () => ({ files: [] }),
   getUsage: async () => ({ fiveHour: null, weekly: null }),

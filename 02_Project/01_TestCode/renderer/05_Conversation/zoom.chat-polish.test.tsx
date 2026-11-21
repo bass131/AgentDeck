@@ -1,4 +1,3 @@
-// 작업 ID: f14 · 옛 이름 chat-polish-f14.test.tsx
 // @vitest-environment jsdom
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
 import { render, screen, cleanup, fireEvent } from '@testing-library/react'
@@ -92,7 +91,7 @@ describe('MessageBubble — 타임스탬프', () => {
 
 describe('ThinkingItem', () => {
   it('.msg.ai-msg + 접이식 thinking-block + thinking-toggle 렌더(접힘 기본)', async () => {
-    const { ThinkingItem } = await import('@renderer/05_Conversation/Conversation')
+    const { ThinkingItem } = await import('@renderer/05_Conversation/ThreadView')
     const { container } = render(<ThinkingItem text="분석 중" />)
     expect(container.querySelector('.msg.ai-msg')).toBeTruthy()
     expect(container.querySelector('[data-testid="thinking-block"]')).toBeTruthy()
@@ -101,7 +100,7 @@ describe('ThinkingItem', () => {
   })
 
   it('text 내용 — 펼침 후에만 전문 노출(접힘 기본이라 펼치기 전 미노출)', async () => {
-    const { ThinkingItem } = await import('@renderer/05_Conversation/Conversation')
+    const { ThinkingItem } = await import('@renderer/05_Conversation/ThreadView')
     const { container } = render(<ThinkingItem text="분석 중" />)
     expect(screen.queryByText('분석 중')).toBeFalsy()
     fireEvent.click(container.querySelector('[data-testid="thinking-toggle"]')!)
@@ -113,7 +112,7 @@ describe('ThinkingItem', () => {
 
 describe('NoticeItem', () => {
   it('.notice-row + .notice-ic(IconAlert) + .notice-text 렌더', async () => {
-    const { NoticeItem } = await import('@renderer/05_Conversation/Conversation')
+    const { NoticeItem } = await import('@renderer/05_Conversation/ThreadView')
     const { container } = render(<NoticeItem text="정책 거부로 모델 전환됨" time="오후 3:00" />)
     expect(container.querySelector('.notice-row')).toBeTruthy()
     expect(container.querySelector('.notice-ic')).toBeTruthy()
@@ -121,7 +120,7 @@ describe('NoticeItem', () => {
   })
 
   it('notice-time 렌더', async () => {
-    const { NoticeItem } = await import('@renderer/05_Conversation/Conversation')
+    const { NoticeItem } = await import('@renderer/05_Conversation/ThreadView')
     const { container } = render(<NoticeItem text="알림" time="오후 4:00" />)
     expect(container.querySelector('.notice-time')).toBeTruthy()
     expect(screen.getByText('오후 4:00')).toBeTruthy()
@@ -148,6 +147,9 @@ describe('SelectionToolbar', () => {
       <SelectionToolbar scrollRef={scrollRef} onElaborate={onElaborate} />
     )
     expect(container.querySelector('.sel-bar')).toBeFalsy()
+    // 막대가 떠 있지 않으면 곁 층에도 오르지 않는다
+    const { isAnyModalOpen } = await import('@renderer/02_Common/modalStack')
+    expect(isAnyModalOpen()).toBe(false)
     document.body.removeChild(el)
   })
 })

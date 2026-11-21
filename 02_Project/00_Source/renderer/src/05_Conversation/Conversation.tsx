@@ -41,37 +41,23 @@ import {
 } from '@renderer/00_App/appStore'
 import type { AttachedImage } from '@renderer/00_App/appStore'
 import type { PickerValues } from './Composer'
-import { LoopStatusBanner } from '@renderer/10_Engine'
 import { resolveLoopStatus } from '@renderer/03_Agent/loopStatus'
 import { decideStopAction } from '@renderer/03_Agent/stopAction'
 import { getProviderBrand } from '@renderer/02_Common/providerBrand'
 import { getTheme } from '@renderer/02_Common/theme'
 import { Composer } from './Composer'
-import { PermissionCard } from '@renderer/10_Engine'
 import { QuestionModal } from '@renderer/03_Agent/prompt'
 import { enginePromptFor } from '@renderer/03_Agent/state/runCore'
 import { IconEye, IconSearch, IconBolt, IconPencil, IconSpark, IconClock } from '@renderer/02_Common/icons'
 import type { IconProps } from '@renderer/02_Common/icons'
-import { HookTimeline } from '@renderer/10_Engine'
 import { useZoom, ZoomBadge } from './zoom'
 import { SelectionToolbar } from './SelectionToolbar'
-import { SubAgentFullscreen } from '@renderer/03_Agent'
+import { SubAgentFullscreen, HookTimeline, LoopStatusBanner, PermissionCard } from '@renderer/03_Agent'
 import { ScrollToBottomButton } from './ScrollToBottomButton'
 import { ThreadView } from './ThreadView'
 import { useQueuedSend } from './hooks/useQueuedSend'
 import { isScrolledUp } from '@renderer/02_Common/scrollHelpers'
 import './Conversation.css'
-
-// 항목 렌더 부품은 공용 스레드 렌더(ThreadView)로 옮겼다 — 기존 소비처를 위해 같은 것을 재수출한다.
-export {
-  ThinkingItem,
-  NoticeItem,
-  informationalTone,
-  informationalDisplayText,
-  decisionReasonTypeLabel,
-  permissionDeniedDisplayText,
-} from './ThreadView'
-export type { ThinkingItemProps, NoticeTone, NoticeItemProps } from './ThreadView'
 
 const SUGGESTIONS: { Icon: (p: IconProps) => JSX.Element; label: string }[] = [
   { Icon: IconEye, label: '이 프로젝트의 구조를 설명해줘' },
@@ -148,7 +134,7 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
   const abortRun = useAppStore((s) => s.abortRun)
   const interruptRun = useAppStore((s) => s.interruptRun)
   const setSelectedModel = useAppStore((s) => s.setSelectedModel)
-  const clearConversation = useAppStore((s) => s.clearConversation)
+  const clearConversationSession = useAppStore((s) => s.clearConversationSession)
   const loadProjectFiles = useAppStore((s) => s.loadProjectFiles)
   const projectFiles = useAppStore(selectProjectFiles)
 
@@ -258,7 +244,7 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
 
   const sendNow = useCallback((text: string, images: AttachedImage[], picker?: PickerValues) => {
     if (text === '/clear' || text.startsWith('/clear ')) {
-      clearConversation()
+      clearConversationSession()
       return
     }
     if (text === '/ask' || text.startsWith('/ask ')) {
@@ -271,7 +257,6 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
     userScrolledUp.current = false
     const imagePaths = images.map((i) => i.path)
     const displayImages = images.map((i) => i.dataUrl)
-    // 엔진 프롬프트 계산은 G9a 코어 하나(E4) — 패널과 같은 규칙이다.
     const promptForEngine = enginePromptFor(text, imagePaths)
     void sendMessage(
       text,
@@ -280,9 +265,9 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
       displayImages.length > 0 ? displayImages : undefined,
       picker?.orchestration,
     )
-  }, [clearConversation, onSlashAsk, setSelectedModel, sendMessage])
+  }, [clearConversationSession, onSlashAsk, setSelectedModel, sendMessage])
 
-  // 실행 중 Enter는 예약, 실행이 끝나면 맨 앞부터 보낸다(C1) — 패널과 같은 공용 훅.
+  // 실행 중 Enter는 예약, 실행이 끝나면 맨 앞부터 보낸다.
   const submit = useQueuedSend({
     isRunning,
     queueLength: queue.length,

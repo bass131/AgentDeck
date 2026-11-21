@@ -4,7 +4,7 @@ import { IconCheck, IconAlert } from '@renderer/02_Common/icons'
 import type { OrchestrationAgentProgress } from '@shared/agentEvents'
 import './OrchestrationCard.css'
 
-export interface OrchestrationCardProps {
+interface OrchestrationCardProps {
   id: string
   name: string
   description?: string

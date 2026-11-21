@@ -3,6 +3,7 @@ import './EngineGate.css'
 import { IconAlert, IconBolt, IconCheck } from '@renderer/02_Common/icons'
 import type { EngineInstallProgress } from '@shared/ipcContract'
 import { ipc } from '@renderer/01_Ipc'
+import { useModalLayer } from '@renderer/02_Common/modalStack'
 
 type Phase = 'prompt' | 'installing' | 'done' | 'error'
 
@@ -24,6 +25,8 @@ export function EngineUpdateNotice({
   const [error, setError] = useState<string | null>(null)
   const logRef = useRef<HTMLDivElement>(null)
   const unsubRef = useRef<(() => void) | null>(null)
+  // 설치 중에 닫히면 안 되는 관문이라 Esc 처리는 두지 않는다 — 층에만 올라 아래 모달과 Shell이 Esc를 받지 않게 한다
+  useModalLayer(open)
 
   useEffect(() => {
     if (!open) {

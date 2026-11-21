@@ -1,7 +1,7 @@
 export const MAX_CELLS = 6
 export const CLOSE_LINGER_MS = 4000
 
-export interface SplitViewCell {
+interface SplitViewCell {
   id: string
   disabled: boolean
   doneAt?: number
@@ -13,7 +13,7 @@ export interface SplitViewState {
   activeId: string | null
 }
 
-export interface SplitViewSubagent {
+interface SplitViewSubagent {
   id: string
   status: 'queued' | 'running' | 'done'
 }

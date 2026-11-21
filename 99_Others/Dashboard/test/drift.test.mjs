@@ -11,7 +11,7 @@ test('judgement regexes are the same literals as .claude/hooks/20_plan-gate.cjs'
   try { ({ repoPath } = await loadConfig()); } catch { t.skip('config.local.json이 없어 건너뛰어요.'); return; }
   const hook = path.join(repoPath, '.claude', 'hooks', '20_plan-gate.cjs');
   if (!existsSync(hook)) { t.skip('plan-gate 훅이 없어 건너뛰어요.'); return; }
-  // M03 Phase 2에서 판정부가 _lib/plan-verdict.cjs로 옮겨졌다. 훅 본체와 판정 모듈을 함께 본다.
+  // 판정부는 _lib/plan-verdict.cjs에 있다. 훅 본체와 판정 모듈을 함께 본다.
   const verdictLib = path.join(repoPath, '.claude', 'hooks', '_lib', 'plan-verdict.cjs');
   const source = readFileSync(hook, 'utf8') + '\n' + (existsSync(verdictLib) ? readFileSync(verdictLib, 'utf8') : '');
   for (const re of [SECTION_RE, PHASE_ANY_RE, PHASE_FULL_RE, RECORD_HEADER, USER_INPUT_RE, FAIL_RE, LEDGER_HEADER, LEDGER_LINE]) {

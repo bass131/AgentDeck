@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { useAppStore } from '@renderer/00_App/appStore'
-import type { ConversationRecord } from '../../../../02_Project/00_Source/shared/ipcContract'
+import type { ConversationRecord } from '@shared/ipcContract'
 import type { ThreadItem } from '@renderer/05_Conversation/state/threadTypes'
 import { adaptFlatApi } from '../00_Helpers/windowApiMock'
 
@@ -38,7 +38,7 @@ const mockApi = {
   conversationDelete: vi.fn(async (_req: { id: string }) => ({ ok: true })),
   conversationRename: vi.fn(async (_req: { id: string; title: string }) => ({ ok: true })),
   agentRun: vi.fn(async () => ({ runId: 'r1' })),
-  agentAbort: vi.fn(async () => ({ accepted: true })),
+  agentAbort: vi.fn(async () => ({ ok: true })),
   onAgentEvent: vi.fn(() => () => {}),
   listFiles: vi.fn(async () => ({ files: [] })),
   pathForFile: vi.fn(() => ''),

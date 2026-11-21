@@ -6,8 +6,10 @@ import { nextMsgId } from '@renderer/00_App/state/ids'
 import { ipc } from '@renderer/01_Ipc'
 import { buildConversationSavePayload, rebuildThreadWithSubagents, freezePersistedSubagents } from './conversationPayload'
 import { getReplModeDefault } from '@renderer/05_Conversation/replModeDefault'
-import { DEFAULT_MODEL } from '@renderer/03_Agent/pickerOptions'
+import { DEFAULT_MODE_CONVERSATION, conversationModeOf } from '@renderer/03_Agent/pickerOptions'
+import { defaultModelOf } from '@shared/03_Agent/models/knownModels'
 import { deleteBackgroundRun } from '@renderer/03_Agent/state/backgroundRuns'
+import { sessionLoopDisplayRegistry, unregisterConversationRunsFor } from '@renderer/03_Agent/state/loopDisplay'
 import type { AppStore } from '@renderer/00_App/state/types'
 
 export interface ConversationState {
@@ -20,6 +22,7 @@ export interface ConversationActions {
   loadConversation: () => Promise<void>
   saveConversation: () => Promise<void>
   clearConversation: () => void
+  clearConversationSession: () => void
 }
 
 export const createConversationSlice: StateCreator<AppStore, [], [], ConversationState & ConversationActions> = (set, get) => ({
@@ -53,14 +56,15 @@ export const createConversationSlice: StateCreator<AppStore, [], [], Conversatio
       restoredSession: Boolean(conv.sessionId) && loadedMessages.length > 0,
       subagents: freezePersistedSubagents(conv.subagents),
       replMode: conv.replMode ?? getReplModeDefault(),
-      selectedModel: conv.model ?? DEFAULT_MODEL,
+      selectedModel: conv.model ?? defaultModelOf(get().modelRows),
+      pickerMode: conversationModeOf(conv.mode),
     })
   },
 
   saveConversation: async () => {
-    const { conversationId, workspaceRoot, sessionId, lastContextWindow, lastUsage, thread, subagents, replMode, selectedModel } = get()
+    const { conversationId, workspaceRoot, sessionId, lastContextWindow, lastUsage, thread, subagents, replMode, selectedModel, pickerMode } = get()
     const convPayload = buildConversationSavePayload(
-      { thread, workspaceRoot, sessionId, lastContextWindow, lastUsage, subagents, replMode, model: selectedModel },
+      { thread, workspaceRoot, sessionId, lastContextWindow, lastUsage, subagents, replMode, model: selectedModel, mode: pickerMode },
       conversationId ?? undefined
     )
     if (!convPayload) return
@@ -87,7 +91,19 @@ export const createConversationSlice: StateCreator<AppStore, [], [], Conversatio
       currentSessionKey: crypto.randomUUID(),
       restoredSession: false,
       replMode: getReplModeDefault(),
+      pickerMode: DEFAULT_MODE_CONVERSATION,
     })
     get().refreshStaleWatchdog()
+  },
+
+  // /clear — 화면을 비우고 이 대화의 REPL 세션(runId는 세션키)도 끝낸다
+  clearConversationSession: () => {
+    const { conversationId, currentSessionKey } = get()
+    void Promise.resolve(ipc.agent.abort({ runId: conversationId ?? currentSessionKey })).catch(() => {})
+    if (conversationId !== null) {
+      unregisterConversationRunsFor(conversationId)
+      sessionLoopDisplayRegistry.clear(conversationId)
+    }
+    get().clearConversation()
   },
 })

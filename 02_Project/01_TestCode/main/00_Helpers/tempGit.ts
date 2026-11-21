@@ -1,4 +1,3 @@
-// M09 G2 시험 도우미 — AgentDeck 저장소 밖(os.tmpdir())에 bare 원격과 작업 저장소를 만든다.
 // 시험의 git은 시스템·전역 설정을 끊고(GIT_CONFIG_NOSYSTEM, 빈 GIT_CONFIG_GLOBAL) 저장소마다 신원·기본 브랜치·줄바꿈을 정해
 // CI(GitHub Actions)와 이 기계가 같게 돈다. GIT_CEILING_DIRECTORIES로 임시 폴더 위의 저장소(혹시 있다면)를 찾지 않는다.
 import { execFileSync } from 'node:child_process'
@@ -52,7 +51,7 @@ export function makeTempRepos(prefix = 'agentdeck-g2-'): TempRepos {
   run(['commit', '--quiet', '-m', 'init'], work)
   run(['remote', 'add', 'origin', remote], work)
   run(['push', '--quiet', 'origin', 'master'], work)
-  // origin의 기본 브랜치(refs/remotes/origin/HEAD) — 실행기는 열 때 이것을 기준 브랜치로 읽는다(M09 G4). 클론이 남기는 것과 같다.
+  // 실행기는 열 때 refs/remotes/origin/HEAD를 기준 브랜치로 읽는다. 클론이 남기는 것과 같다.
   run(['remote', 'set-head', 'origin', 'master'], work)
   return {
     root,

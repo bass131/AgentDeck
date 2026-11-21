@@ -43,15 +43,18 @@ export function maskCredentials(msg: string): string {
   return msg.replace(/([a-z][a-z0-9+.-]*:\/\/)[^/@\s]+@/gi, '$1***@')
 }
 
-const rootCache = new Map<string, string | null>()
+// 저장소가 아님(null)은 담지 않는다 — 열어 둔 폴더에서 git init을 하면 다음 읽기에 잡힌다
+const rootCache = new Map<string, string>()
 
 export async function gitRoot(cwd: string, force = false): Promise<string | null> {
   if (!cwd) return null
   const key = cwd.replace(/[\\/]+/g, '/').toLowerCase()
-  if (!force && rootCache.has(key)) return rootCache.get(key) ?? null
+  const cached = rootCache.get(key)
+  if (!force && cached !== undefined) return cached
   const out = await gitTry(cwd, ['rev-parse', '--show-toplevel'], 10_000)
   const root = out ? path.normalize(out.trim()) : null
-  rootCache.set(key, root)
+  if (root === null) rootCache.delete(key)
+  else rootCache.set(key, root)
   return root
 }
 
@@ -200,7 +203,11 @@ export async function gitLog(root: string, limit = 80): Promise<GitCommit[]> {
   return commits
 }
 
+// renderer가 보낸 커밋 이름 — `-` 머리는 git show의 옵션(`--output=<경로>` 등)으로 읽혀 받지 않는다
+export const isSafeRev = (rev: string): boolean => rev.trim() !== '' && !rev.startsWith('-')
+
 export async function gitCommitDetail(root: string, hash: string): Promise<GitChange[]> {
+  if (!isSafeRev(hash)) return []
   const [names, nums] = await Promise.all([
     gitTry(root, ['show', '--name-status', '--format=', hash]),
     gitTry(root, ['show', '--numstat', '--format=', hash]),
@@ -236,6 +243,7 @@ function looksBinary(s: string): boolean {
 }
 
 export async function gitFileAt(root: string, hash: string, relPath: string): Promise<GitFileAt> {
+  if (!isSafeRev(hash)) return { content: null, diff: null, error: '읽을 수 없는 커밋 이름이에요' }
   const cur = await gitTry(root, ['show', `${hash}:${relPath}`])
   if (cur == null) {
     return {

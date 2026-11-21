@@ -1,4 +1,4 @@
-// M09 G2 작업 노드 세션 포트 — 노드마다 새 세션을 백엔드로 열고, 지시와 그 노드의 생존 문서만 프롬프트로 준다.
+// 노드마다 새 세션을 백엔드로 열고, 지시와 그 노드의 생존 문서만 프롬프트로 준다.
 // 자동 모드·작업 저장소 cwd·자격 없는 환경·루프 잠금을 실행 입력으로 넘기고, 시간 초과·취소·실패는 ok:false다.
 import fs from 'node:fs'
 import os from 'node:os'
@@ -6,7 +6,7 @@ import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 import type { AgentBackend, AgentRun, AgentRunInput, RunResponse } from '@main/03_Agent/AgentBackend'
 import { ClaudeCodeBackend } from '@main/04_Claude/ClaudeCodeBackend'
-import { MAIN_NODE_RULE, buildWorkPrompt, createWorkSessionPort, type WorkSessionOptions } from '@main/05_Loop/workSession'
+import { MAIN_NODE_RULE, buildWorkPrompt, createWorkSessionPort, talksToHuman, type WorkSessionOptions } from '@main/05_Loop/workSession'
 import type { WorkRequest } from '@main/05_Loop/ports'
 import type { GoalState } from '@main/05_Loop/runState'
 import type { WorkNode } from '@main/05_Loop/template'
@@ -56,7 +56,7 @@ function fakeBackend(events: AgentEvent[] | 'hang', opts: { id?: BackendId; thro
       return {
         events: (async function* () {
           if (events === 'hang') { await aborted; return }
-          // 목록 안의 'hang'은 그 자리에서 취소까지 멈춘다(G4 — 카드 뒤에 기다리는 메인 세션)
+          // 목록 안의 'hang'은 그 자리에서 취소까지 멈춘다(카드 뒤에 기다리는 메인 세션)
           for (const e of events as (AgentEvent | 'hang')[]) {
             if (e === 'hang') { await aborted; return }
             await Promise.resolve(); yield e
@@ -79,7 +79,7 @@ const tick = (): Promise<void> => new Promise((r) => setTimeout(r, 0))
 
 describe('작업 노드 프롬프트 (M09 G2)', () => {
   it('지시와 노드가 고른 문서만 담는다 — 마일스톤 id, goal 제목, 고르지 않은 문서는 없다', () => {
-    const p = buildWorkPrompt(request())
+    const p = buildWorkPrompt(request(), false)
     expect(p.startsWith(NODE.instruction)).toBe(true)
     expect(p).toContain('goal 본문')
     expect(p).toContain('.agentdeck/goals/g1.md')
@@ -90,16 +90,20 @@ describe('작업 노드 프롬프트 (M09 G2)', () => {
     expect(p).not.toContain('첫 goal 제목')
   })
 
-  // G5 실주행 — 메인 노드 세션은 한 턴이라 일반 글로 물으면 사람이 답할 길이 없다. 묻는 길을 질문 도구로 못 박는다
-  it('메인 노드(role main)에만 끝에 「질문 도구로만 묻고 스펙을 쓴 뒤 끝낸다」 규칙을 붙인다', () => {
-    const main = buildWorkPrompt(request({ node: { ...NODE, id: 'brainstorm', role: 'main', docs: ['milestoneSpec'] }, goal: null }))
+  // 메인 노드 세션은 한 턴이라 일반 글로 물으면 사람이 답할 길이 없다. 묻는 길을 질문 도구로 못 박는다
+  it('사람과 이야기하는 세션(메인 노드와 화면 응답자)에만 끝에 「질문 도구로만 묻고 스펙을 쓴 뒤 끝낸다」 규칙을 붙인다', () => {
+    const mainReq = request({ node: { ...NODE, id: 'brainstorm', role: 'main', docs: ['milestoneSpec'] }, goal: null })
+    expect(talksToHuman(mainReq, () => ({ kind: 'question', answers: null }))).toBe(true)
+    expect(talksToHuman(mainReq, undefined)).toBe(false)
+    expect(talksToHuman(request(), () => ({ kind: 'question', answers: null }))).toBe(false)
+    const main = buildWorkPrompt(mainReq, true)
     expect(main.endsWith(MAIN_NODE_RULE)).toBe(true)
     expect(main).toContain('AskUserQuestion')
-    // G5 독립 검수 사소 2·4 — 받은 답은 바로 결정 대장에 적고, 끝내기 전에 스펙이나 결정 대장을 갱신한다
+    // 받은 답은 바로 결정 대장에 적고, 끝내기 전에 스펙이나 결정 대장을 갱신한다
     expect(MAIN_NODE_RULE).toContain('결정 대장에 바로')
     expect(MAIN_NODE_RULE).toContain('갱신')
     expect(main).toContain('노드가 고르지 않은 스펙 본문')
-    expect(buildWorkPrompt(request())).not.toContain('AskUserQuestion')
+    expect(buildWorkPrompt(request(), false)).not.toContain('AskUserQuestion')
   })
 
   it('세션 실행 입력: 사용자 메시지 하나(그 프롬프트), 자동 모드, 작업 저장소 cwd, 자격 없는 환경, 루프 잠금', async () => {
@@ -107,7 +111,7 @@ describe('작업 노드 프롬프트 (M09 G2)', () => {
     await createWorkSessionPort(opts(backend)).runWork(request())
     expect(rec.starts).toHaveLength(1)
     const req = rec.starts[0]
-    expect(req.messages).toEqual([{ role: 'user', content: buildWorkPrompt(request()) }])
+    expect(req.messages).toEqual([{ role: 'user', content: buildWorkPrompt(request(), false) }])
     expect(req.mode).toBe('auto')
     expect(req.workspaceRoot).toBe(CWD)
     expect(req.env).toBe(ENV)
@@ -138,7 +142,7 @@ describe('작업 노드 세션 결과 (M09 G2)', () => {
     expect(rec.aborts).toBe(1)
   })
 
-  // G4 검수 사소 5 — 요약(검수에서는 판정)은 마지막 최상위 메시지의 글이다. 최상위 도구 호출 뒤 글 없이 끝나면 앞 메시지의 글을 쓰지 않는다
+  // 요약(검수에서는 판정)은 마지막 최상위 메시지의 글이다. 최상위 도구 호출 뒤 글 없이 끝나면 앞 메시지의 글을 쓰지 않는다
   it('최상위 도구 호출 뒤 글 없이 끝나면 요약에 앞 메시지의 글을 쓰지 않는다', async () => {
     const { backend } = fakeBackend([
       { type: 'text', delta: '다 했다고 말하고', messageId: 'm1' },
@@ -237,7 +241,7 @@ describe('작업 노드 세션의 카드 (M09 G2)', () => {
     expect(seen).toEqual(['permission_request', 'question_request', 'done'])
   })
 
-  // M10 G2 — 세션 사건은 꼬리표(kind work, 앱이 정한 key, 노드·goal, session 사건을 본 뒤의 SDK 세션 id)와 함께 나간다
+  // 세션 사건은 꼬리표(kind work, 앱이 정한 key, 노드·goal, session 사건을 본 뒤의 SDK 세션 id)와 함께 나간다
   it('세션 사건에 꼬리표가 붙는다 — key는 세션마다 다르고, SDK 세션 id는 session 사건부터 실린다', async () => {
     const tags: { type: string; key: string; kind: string; node: string | null; goal: string | null; sessionId: string | null }[] = []
     const onEvent = (e: AgentEvent, t: { key: string; kind: string; node: string | null; goal: string | null; sessionId: string | null }): void => {
@@ -346,7 +350,7 @@ describe('실물 백엔드 배선 (M09 G2)', () => {
       const o = captured.options as Record<string, unknown>
       expect(o['cwd']).toBe(dir)
       expect(o['env']).toEqual({ ...ENV, CLAUDE_CODE_EMIT_SESSION_STATE_EVENTS: '1' })
-      expect(o['permissionMode']).toBe('acceptEdits')
+      expect(o['permissionMode']).toBe('auto')
       type M = { hooks: ((i: unknown, id: string, x: { signal: AbortSignal }) => Promise<{ hookSpecificOutput?: { permissionDecision: string } }>)[] }
       const first = (o['hooks'] as { PreToolUse: M[] }).PreToolUse[0]
       const out = await first.hooks[0](
@@ -355,5 +359,17 @@ describe('실물 백엔드 배선 (M09 G2)', () => {
     } finally {
       fs.rmSync(dir, { recursive: true, force: true })
     }
+  })
+})
+
+describe('「스펙을 쓰는 노드」 술어 (M11 G3)', () => {
+  it('[M11-G3 M09-12] 질문 도구 규칙을 받은 세션의 질문 카드는 자동 거부되지 않는다 — 규칙과 카드 응답자가 같은 술어를 쓴다', async () => {
+    const MAIN: WorkNode = { ...NODE, id: 'brainstorm', role: 'main', docs: ['milestoneSpec'] }
+    const { backend, rec } = fakeBackend([{ type: 'question_request', requestId: 'q1', questions: [] }, { type: 'done' }])
+    await createWorkSessionPort(opts(backend)).runWork(request({ node: MAIN, goal: null }))
+    await tick()
+    const prompt = String(rec.starts[0]?.messages[0]?.content ?? '')
+    const autoDenied = rec.responses.some(([id, r]) => id === 'q1' && r.kind === 'question' && r.answers === null)
+    expect(prompt.includes('AskUserQuestion') && autoDenied).toBe(false)
   })
 })

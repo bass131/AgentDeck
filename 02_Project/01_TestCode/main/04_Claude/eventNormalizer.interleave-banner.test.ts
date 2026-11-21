@@ -1,10 +1,9 @@
-// 작업 ID: bf3-p04 · 옛 이름 bf3-p04-interleave-banner.test.ts
 import { describe, it, expect, beforeEach } from 'vitest'
 import { RunEventNormalizer } from '@main/04_Claude/stream/eventNormalizer'
 import { CronTracker } from '@main/04_Claude/stream/progressTrackers'
 import { ClaudeCodeBackend } from '@main/04_Claude/ClaudeCodeBackend'
 import type { QueryFn } from '@main/04_Claude/ClaudeCodeBackend'
-import type { AgentEvent, AgentEventLoops, AgentEventDone } from '../../../../02_Project/00_Source/shared/agentEvents'
+import type { AgentEvent, AgentEventLoops, AgentEventDone } from '@shared/agentEvents'
 
 describe('CronTracker.onTurnEnd(origin) — 인터리빙 게이팅 (직접 계층)', () => {
   it('[BF3-P04 RED였던 시나리오] origin=user 턴(재예약 없음)은 armed wakeup을 소거하지 않는다', () => {

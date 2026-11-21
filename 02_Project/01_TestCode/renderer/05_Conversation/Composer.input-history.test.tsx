@@ -1,4 +1,3 @@
-// 작업 ID: b9 · 옛 이름 input-history-b9.test.tsx
 // @vitest-environment jsdom
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
 import { render, fireEvent, cleanup, act } from '@testing-library/react'

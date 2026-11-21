@@ -4,6 +4,7 @@ import { mkdtempSync, writeFileSync, mkdirSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { execFileSync } from 'node:child_process'
+import { moveToSecondDisplay } from './helpers/isolatedBoot'
 
 let app: ElectronApplication
 let page: Page
@@ -111,6 +112,7 @@ test.beforeAll(async () => {
   })
   page = await app.firstWindow()
   await page.waitForLoadState('domcontentloaded')
+  await moveToSecondDisplay(app)
 
   await page.waitForSelector('.login-body, .titlebar, .eg-auth-dialog, .boot-splash', { timeout: 15_000 })
   await capture('00-launch')
@@ -451,4 +453,3 @@ test('QA(P5): 설정 5탭 실데이터 — 엔진(Agent SDK)·Skill·MCP·Code·
   await expect(page.locator('.set-layout')).toHaveCount(0)
 })
 
-// M10 G1 — 멀티 에이전트 모드를 지워 QA(P15) 멀티 패널별 cwd 사례를 뺐다.

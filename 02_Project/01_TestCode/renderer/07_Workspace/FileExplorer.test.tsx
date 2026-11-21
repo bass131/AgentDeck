@@ -1,8 +1,7 @@
-// 작업 ID: f15 · 옛 이름 f15-fileexplorer.test.tsx
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, cleanup, act } from '@testing-library/react'
-import type { FileTreeNode } from '../../../../02_Project/00_Source/shared/ipcContract'
+import type { FileTreeNode } from '@shared/ipcContract'
 import { adaptFlatApi } from '../00_Helpers/windowApiMock'
 
 const mockFsListDir = vi.fn().mockImplementation(({ relDir, rootId }: { relDir: string; rootId?: string }) => {
@@ -71,7 +70,7 @@ async function renderExplorerEmpty() {
   return result
 }
 
-async function renderExplorerWithTree(refs?: { id: string; name: string; tree: import('../../../../02_Project/00_Source/shared/ipcContract').FileTreeNode | null }[]) {
+async function renderExplorerWithTree(refs?: { id: string; name: string; tree: import('@shared/ipcContract').FileTreeNode | null }[]) {
   const { useAppStore } = await import('@renderer/00_App/appStore')
   useAppStore.setState({
     fileTree: mainTree,
@@ -250,5 +249,52 @@ describe('F15-01 FileExplorer — 기존 동작 회귀', () => {
     )
     expect(files).toContain('app.ts')
     expect(files).not.toContain('index.ts')
+  })
+})
+
+describe('받은 폴더를 그리는 탐색기 (M11 G4)', () => {
+  it('[M11-G4 M10-16] source가 있으면 그 목록만 읽고, 채팅 모드의 트리·변경 표시·폴더 목록·검색을 쓰지 않는다', async () => {
+    const { container } = await renderExplorerWithTree()
+    cleanup()
+    const list = vi.fn(async (relDir: string) => ({
+      ok: true,
+      entries: relDir === '' ? [{ name: 'app.ts', path: 'app.ts', kind: 'file' as const }, { name: 'work.ts', path: 'work.ts', kind: 'file' as const }] : [],
+    }))
+    const { FileExplorer } = await import('@renderer/07_Workspace/file')
+    mockFsListDir.mockClear()
+    const r = await act(async () => render(<FileExplorer source={{ root: 'C:/work/loop', list, unavailable: '실행기를 열면 보여요' }} />))
+    await act(async () => { await new Promise((res) => setTimeout(res, 30)) })
+    expect(container).toBeTruthy()
+    expect(list).toHaveBeenCalledWith('')
+    expect(mockFsListDir).not.toHaveBeenCalled()
+    expect(r.getByText('work.ts')).toBeTruthy()
+    expect(r.container.querySelector('.exp-chg')).toBeNull()
+    expect(r.container.querySelector('.fe-folders')).toBeNull()
+    expect(r.queryByLabelText('파일 검색')).toBeNull()
+    await act(async () => { fireEvent.click(r.getByText('app.ts')) })
+    expect(mockApi.fsRead).not.toHaveBeenCalled()
+  })
+
+  it('[M11-G4 M10-16] 목록이 ok가 아니면 받은 까닭을 보인다', async () => {
+    const { FileExplorer } = await import('@renderer/07_Workspace/file')
+    const list = vi.fn(async () => ({ ok: false, entries: [] }))
+    const r = await act(async () => render(<FileExplorer source={{ root: 'C:/work/loop', list, unavailable: '실행기를 열면 보여요' }} />))
+    await act(async () => { await new Promise((res) => setTimeout(res, 30)) })
+    expect(r.getByText('실행기를 열면 보여요')).toBeTruthy()
+    expect(r.queryByText('비어 있음')).toBeNull()
+  })
+
+  it('[M11-G4 M10-16] 하위 폴더 목록이 막히면(ok 아님) 빈 폴더와 다르게 「열 수 없는 폴더」로 보인다', async () => {
+    const { FileExplorer } = await import('@renderer/07_Workspace/file')
+    const list = vi.fn(async (relDir: string) => (relDir === ''
+      ? { ok: true, entries: [{ name: 'locked', path: 'locked', kind: 'directory' as const }, { name: 'empty', path: 'empty', kind: 'directory' as const }] }
+      : relDir === 'locked' ? { ok: false, entries: [] } : { ok: true, entries: [] }))
+    const r = await act(async () => render(<FileExplorer source={{ root: 'C:/work/loop', list, unavailable: '실행기를 열면 보여요' }} />))
+    await act(async () => { await new Promise((res) => setTimeout(res, 30)) })
+    await act(async () => { fireEvent.click(r.getByText('locked')) })
+    await act(async () => { fireEvent.click(r.getByText('empty')) })
+    await act(async () => { await new Promise((res) => setTimeout(res, 30)) })
+    expect(r.getAllByText('열 수 없는 폴더예요')).toHaveLength(1)
+    expect(r.getAllByText('비어 있음')).toHaveLength(1)
   })
 })

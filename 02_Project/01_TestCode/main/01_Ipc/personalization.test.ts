@@ -1,6 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
 
-// 실물 핸들러 검사 — ipcMain.handle을 가로채 registerPersonalizationHandlers가 등록한 핸들러를 직접 부른다
 const h = vi.hoisted(() => ({ handlers: new Map<string, (...args: unknown[]) => unknown>() }))
 
 vi.mock('electron', () => ({
@@ -14,7 +13,7 @@ vi.mock('electron', () => ({
 import { registerPersonalizationHandlers } from '@main/01_Ipc/handlers/personalization'
 import type { PrefsStore } from '@main/11_Settings/prefs'
 import type { ProfileStore } from '@main/11_Settings/profile'
-import { IPC_CHANNELS } from '../../../../02_Project/00_Source/shared/ipcContract'
+import { IPC_CHANNELS } from '@shared/ipcContract'
 
 interface FakeProfileStore {
   set(p: { nickname: string; color: string }): Promise<boolean>

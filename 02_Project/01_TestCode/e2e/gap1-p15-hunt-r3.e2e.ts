@@ -3,7 +3,7 @@ import type { ElectronApplication, Page } from '@playwright/test'
 import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
-import { isolatedBoot } from './helpers/isolatedBoot'
+import { isolatedBoot, moveToSecondDisplay } from './helpers/isolatedBoot'
 import { passBootGates, openWorkspace } from './helpers/bootGates'
 import { PERM_CARD } from './helpers/permSelectors'
 
@@ -118,6 +118,7 @@ async function launchApp(
   })
   const page = await app.firstWindow()
   await page.waitForLoadState('domcontentloaded')
+  await moveToSecondDisplay(app)
   await passBootGates(page, { nickname: opts.nickname ?? 'p15r3' })
 
   const input = page.locator(CHAT).getByLabel('메시지 입력')

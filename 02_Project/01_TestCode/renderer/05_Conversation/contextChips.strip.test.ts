@@ -1,4 +1,3 @@
-// 작업 ID: b8 · 옛 이름 b8-context-strip.test.ts
 // @vitest-environment node
 import { describe, it, expect, vi, beforeEach, afterEach, afterAll } from 'vitest'
 import { adaptFlatApi } from '../00_Helpers/windowApiMock'
@@ -57,7 +56,7 @@ describe('(a) resetText — 원본 Chat.tsx L907 미러', () => {
 })
 
 import { buildChips } from '@renderer/05_Conversation/contextChips'
-import type { UsageInfo } from '../../../../02_Project/00_Source/shared/ipcContract'
+import type { UsageInfo } from '@shared/ipcContract'
 
 describe('(b) buildChips — 3칩 데이터 계산', () => {
   const baseGauge = { pct: 10, used: 100_000, window: 1_000_000 }
@@ -128,7 +127,7 @@ describe('(c) usage fetch — store loadUsage 액션', () => {
         api: adaptFlatApi({
           getUsage: mockGetUsage,
           agentRun: vi.fn().mockResolvedValue({ runId: 'r1' }),
-          agentAbort: vi.fn().mockResolvedValue({ accepted: true }),
+          agentAbort: vi.fn().mockResolvedValue({ ok: true }),
           conversationLoad: vi.fn().mockResolvedValue({ conversations: [] }),
           conversationSave: vi.fn().mockResolvedValue({ id: 'cv-1' }),
           onAgentEvent: vi.fn().mockReturnValue(vi.fn()),

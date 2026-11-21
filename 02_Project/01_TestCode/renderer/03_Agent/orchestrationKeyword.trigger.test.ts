@@ -1,4 +1,3 @@
-// 작업 ID: uc1-p04 · 옛 이름 uc1-p04-keyword-trigger.test.ts
 import { describe, it, expect } from 'vitest'
 import { detectOrchestrationKeyword } from '@renderer/03_Agent/orchestrationKeyword'
 

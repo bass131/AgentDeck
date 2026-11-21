@@ -1,4 +1,3 @@
-// 작업 ID: gap1-p15-r1-s5 · 옛 이름 gap1-p15-r1-s5-filechange-containment.test.ts
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { mkdtempSync, writeFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'

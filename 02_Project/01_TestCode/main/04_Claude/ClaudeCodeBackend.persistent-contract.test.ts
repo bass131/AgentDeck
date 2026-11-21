@@ -3,7 +3,7 @@ import { ClaudeCodeBackend } from '@main/04_Claude/ClaudeCodeBackend'
 import type { QueryFn } from '@main/04_Claude/ClaudeCodeBackend'
 import { EchoBackend } from '@main/03_Agent/testing/EchoBackend'
 import type { AgentRunInput } from '@main/03_Agent/AgentBackend'
-import type { AgentEvent, AgentEventDone } from '../../../../02_Project/00_Source/shared/agentEvents'
+import type { AgentEvent, AgentEventDone } from '@shared/agentEvents'
 
 function resultMsg() {
   return {

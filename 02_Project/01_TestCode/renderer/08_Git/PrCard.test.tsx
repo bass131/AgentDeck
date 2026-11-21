@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
-// M07 G8 PR 카드 — main이 읽어 준 값만 보이고, 버튼 활성·확인 단계·병합 호출의 SHA를 고정한다.
+// main이 읽어 준 값만 보이고, 버튼 활성·확인 단계·병합 호출의 SHA를 고정한다.
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
 import { render, screen, fireEvent, cleanup, act } from '@testing-library/react'
-import type { PrView, PrReadResponse, PrMergeResponse } from '../../../../02_Project/00_Source/shared/ipcContract'
+import type { PrView, PrReadResponse, PrMergeResponse } from '@shared/ipcContract'
 import { adaptFlatApi } from '../00_Helpers/windowApiMock'
 
 afterEach(() => cleanup())

@@ -38,7 +38,6 @@ export interface ModeOption {
 
 const NEUTRAL_MODEL_COLOR = 'var(--text-3)'
 
-// 모델 선택기 옵션 (M06 G4) — main이 준 SDK 목록에서 그린다. 옵션 id는 정식 ID라 고르면 그 값이 저장된다.
 // 지금 값이 목록 어느 행과도 맞지 않으면(목록에서 빠진 옛 모델) 그 값 자체를 한 줄 더해 첫 행으로 둔갑하지 않게 한다.
 export function modelOptionsFor(rows: readonly ModelRow[], currentValue?: string): ModelOption[] {
   const options: ModelOption[] = pickerModelRows(rows).map((row) => {
@@ -82,19 +81,19 @@ export const DEFAULT_MODEL: string = DEFAULT_MODEL_ID
 
 export const DEFAULT_EFFORT: EffortLevel = DEFAULT_EFFORT_LEVEL
 
-// 기본 실행 모드(P4) — 대화는 auto, 멀티 패널은 bypass. 제품 기본값이라 G9 내내 값을 바꾸지 않는다.
-// 이름만 단일·멀티에서 세션 종류(대화·패널)로 바꿨다(G9c).
 export const DEFAULT_MODE_CONVERSATION = 'auto'
-export const DEFAULT_MODE_PANEL = 'bypass'
 
-export interface EffortPickerState {
+export function conversationModeOf(saved: string | undefined): string {
+  return MODES.some((m) => m.id === saved) ? (saved as string) : DEFAULT_MODE_CONVERSATION
+}
+
+interface EffortPickerState {
   options: EffortOption[]
   disabled: boolean
   displayValue: string
 }
 
-// effort 메뉴 — 목록 행의 supportedEffortLevels로 그린다. 저장값은 readEffortLevel로 읽는다(옛 「최소」는 low).
-// main의 실행 인자 검사도 같은 규칙이라 보이는 값과 보내는 값이 같다.
+// main의 실행 인자 검사도 같은 규칙이라 보이는 값과 보내는 값이 같다 — 목록에 없는 모델은 main이 effort를 싣지 않으니 메뉴도 끈다.
 export function effortPickerFor(
   modelId: string,
   selectedEffort: string,
@@ -103,11 +102,7 @@ export function effortPickerFor(
   const selected: EffortLevel = readEffortLevel(selectedEffort)
   const allowed = effortLevelsFor(rows, modelId)
 
-  if (allowed === undefined) {
-    return { options: EFFORTS, disabled: false, displayValue: selected }
-  }
-
-  if (allowed.length === 0) {
+  if (allowed === undefined || allowed.length === 0) {
     return { options: EFFORTS, disabled: true, displayValue: selected }
   }
 

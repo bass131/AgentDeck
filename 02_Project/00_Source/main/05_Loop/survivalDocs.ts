@@ -1,4 +1,4 @@
-// M09 G1 — 생존 문서 읽기·쓰기. 작업 저장소의 `.agentdeck/` 폴더를 fs 포트로 다룬다.
+// 작업 저장소의 `.agentdeck/` 폴더를 fs 포트로 다룬다.
 //   milestone-spec.md  마일스톤 스펙(메인 세션이 쓴다)
 //   goals/<id>.md      goal 문서(분해 노드가 쓴다, 첫 「# 제목」 줄이 goal 제목)
 //   decisions.md       결정 대장
@@ -8,8 +8,8 @@
 import { createHash } from 'node:crypto'
 import type { GoalSeed } from './executor'
 import type { FsPort } from './ports'
-import { GOAL_ID, validateRunState, type RunState } from './runState'
-import type { DocKind, SchemaError } from './template'
+import { GOAL_ID, type RunState } from './runState'
+import type { DocKind } from './template'
 
 export const DOCS = {
   dir: '.agentdeck',
@@ -22,27 +22,8 @@ export const DOCS = {
 
 export const goalDocPath = (goalId: string): string => `${DOCS.goalsDir}/${goalId}.md`
 
-export type RunStateRead = { kind: 'missing' } | { kind: 'invalid'; errors: SchemaError[] } | { kind: 'ok'; state: RunState }
-
-export async function readRunState(fs: FsPort): Promise<RunStateRead> {
-  const text = await fs.read(DOCS.runState)
-  if (text === null) return { kind: 'missing' }
-  let raw: unknown
-  try {
-    raw = JSON.parse(text)
-  } catch (e) {
-    return { kind: 'invalid', errors: [{ path: '$', reason: `JSON으로 읽을 수 없다 — ${(e as Error).message}` }] }
-  }
-  const checked = validateRunState(raw)
-  return checked.ok ? { kind: 'ok', state: checked.state } : { kind: 'invalid', errors: checked.errors }
-}
-
-// 상태 파일 본문 — 실행기는 이 글을 앱 영역의 사본(DigestStore.writeCopy, G4 검수 I1)과 상태 파일에 똑같이 쓴다.
+// 상태 파일 본문 — 실행기는 이 글을 앱 영역의 사본(DigestStore.writeCopy)과 상태 파일에 똑같이 쓴다.
 export const runStateText = (state: RunState): string => `${JSON.stringify(state, null, 2)}\n`
-
-export async function writeRunState(fs: FsPort, state: RunState): Promise<void> {
-  await fs.write(DOCS.runState, runStateText(state))
-}
 
 export const sha256Text = (text: string): string => createHash('sha256').update(text, 'utf8').digest('hex')
 
@@ -52,7 +33,7 @@ const SCOPE_TITLE = (state: RunState, scope: string | null): string => {
   return g ? `${g.id} — ${g.title}` : scope
 }
 
-export function renderVerification(state: RunState): string {
+function renderVerification(state: RunState): string {
   const out = [
     `# 검증 기록 — ${state.milestoneId}`,
     '',
@@ -66,6 +47,8 @@ export function renderVerification(state: RunState): string {
     for (const l of lines) out.push(`- ${l.marker} ${l.at} — ${l.node}(${l.judge}): ${l.sentence}`)
   }
   if (state.status === 'needs-user') out.push('', `사람 판단 대기: ${state.haltReason ?? ''}`)
+  // 마커 줄(- PASS·FAIL·USER-INPUT)이 아니다 — 한도 멈춤은 검증이 아니다
+  if (state.status === 'usage-limit') out.push('', `사용량 한도 멈춤: ${state.haltReason ?? ''}`)
   return `${out.join('\n')}\n`
 }
 
@@ -74,7 +57,7 @@ export async function writeVerification(fs: FsPort, state: RunState): Promise<vo
 }
 
 // 분해 노드가 쓴 goal 문서에서 id(파일 이름)와 제목만 읽는다. 문서에 적힌 등급 같은 표시는 읽지 않는다.
-// G4 검수 I7 — 읽은 본문의 sha256을 함께 낸다. 실행기가 상태에 적고 검수 직전·goal PR 직전에 지금 문서와 대조한다.
+// 읽은 본문의 sha256을 함께 낸다. 실행기가 상태에 적고 검수 직전·goal PR 직전에 지금 문서와 대조한다.
 export async function readGoalSeeds(fs: FsPort): Promise<{ ok: true; goals: GoalSeed[] } | { ok: false; reason: string }> {
   const names = (await fs.list(DOCS.goalsDir))
     .filter((n) => n.endsWith('.md'))
@@ -106,23 +89,17 @@ export async function readNodeDocs(
   return docs
 }
 
-// M09 G4 — 스펙 승인 카드가 보이는 것과 사람 판정이 묶이는 것. 같은 읽기·같은 해시 함수라 둘이 어긋나지 않는다.
+// 스펙 승인 카드가 보이는 것과 사람 판정이 묶이는 것. 같은 읽기·같은 해시 함수라 둘이 어긋나지 않는다.
 // 해시는 파일 본문(UTF-8 문자열)의 sha256이다. 파일이 없으면 둘 다 null이다.
 export async function readSpecView(fs: FsPort): Promise<{ text: string | null; sha256: string | null }> {
   const text = await fs.read(DOCS.milestoneSpec)
   return { text, sha256: text === null ? null : createHash('sha256').update(text, 'utf8').digest('hex') }
 }
 
-// M09 G4 — goal PR 본문에 싣는 그 goal의 검증 줄. verification.md와 같은 꼴을 실행 상태의 줄에서 그린다(파일은 출력일 뿐이다).
+// goal PR 본문에 싣는 그 goal의 검증 줄. verification.md와 같은 꼴을 실행 상태의 줄에서 그린다(파일은 출력일 뿐이다).
 // 줄에 명령 출력이 섞일 수 있어(`@scope/pkg` 같은 멘션) 코드 울타리 안에 싣는다.
 export function renderGoalLines(state: RunState, goalId: string): string {
   const lines = state.lines.filter((l) => l.goal === goalId)
   const body = lines.length === 0 ? '- (기록 없음)' : lines.map((l) => `- ${l.marker} ${l.at} — ${l.node}(${l.judge}): ${l.sentence.replace(/`/g, "'")}`).join('\n')
   return ['## 검증 기록', '', '```text', body, '```'].join('\n')
-}
-
-export async function appendDecision(fs: FsPort, entry: string): Promise<void> {
-  const prev = (await fs.read(DOCS.decisions)) ?? '# 결정 대장\n'
-  const sep = prev.endsWith('\n') ? '' : '\n'
-  await fs.write(DOCS.decisions, `${prev}${sep}- ${entry.replace(/\s+/g, ' ').trim()}\n`)
 }

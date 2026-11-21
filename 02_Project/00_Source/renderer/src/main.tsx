@@ -23,7 +23,7 @@ Promise.all([
   .then(([, profile]) => {
     setReplModeDefault(getPref<boolean>('replMode', true))
 
-    // 화면 배치 복원과 배치별 시작 동작(마지막 대화 복원)은 12_Window가 맡는다(G9c).
+    // 화면 배치 복원과 배치별 시작 동작(마지막 대화 복원)은 12_Window가 맡는다.
     restoreSavedWorkspace()
 
     if (profile) {

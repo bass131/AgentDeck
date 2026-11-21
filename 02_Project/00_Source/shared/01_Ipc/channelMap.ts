@@ -1,6 +1,4 @@
-// IPC 채널 타입 맵 (M05 G10) — 채널 이름 → 요청·응답 타입의 단일 원천이다.
-// main 등록(`handle`)·push 송신(`sendPush`)·preload 노출이 모두 이 맵에서 타입을 유도한다.
-// 채널 문자열의 런타임 원천은 여전히 `IPC_CHANNELS`이고, 맵 키와의 일치는 아래 양방향 검사가 지킨다.
+// 채널 문자열의 런타임 원천은 `IPC_CHANNELS`이고, 이 맵의 키와의 일치는 아래 양방향 검사가 지킨다.
 import type { IPC_CHANNELS } from '../ipcContract'
 import type {
   AgentRunRequest,
@@ -15,6 +13,8 @@ import type {
   SetModeResponse,
   SetModelRequest,
   SetModelResponse,
+  SetEffortRequest,
+  SetEffortResponse,
   PermissionResponse,
   QuestionResponse,
   AgentEventPayload,
@@ -113,6 +113,7 @@ import type {
   LoopDecideResponse,
   LoopMainResponse,
   LoopMainSendRequest,
+  LoopTasteOpenRequest,
   LoopOkResponse,
   LoopOpenRequest,
   LoopReleaseLatchRequest,
@@ -125,8 +126,11 @@ import type {
   MainChatView,
   LoopAlertList,
   LoopAlertOpen,
+  LoopListDirRequest,
+  LoopListDirResponse,
 } from '../13_Loop/loop'
 import type { LoopGraphResponse } from '../13_Loop/graph'
+import type { TasteDocsRead, TasteReadRequest } from '../14_Taste/taste'
 import type { Ack } from '../02_Common/common'
 import type {
   WindowMaximizedResponse,
@@ -134,10 +138,8 @@ import type {
   WindowStatePayload,
 } from '../12_Window/window'
 
-// 이름 없던 확인 응답 `{ ok }` 자리는 G10 ack 통일로 공용 Ack { ok, error? }를 쓴다 (02_Common/common.ts).
-
-// renderer → main 요청-응답 채널. `req: void`는 인자 없이 부르는 채널, `| undefined`는 생략 가능한 요청이다.
-export interface IpcInvokeMap {
+// `req: void`는 인자 없이 부르는 채널, `| undefined`는 생략 가능한 요청이다.
+interface IpcInvokeMap {
   'workspace.open': { req: WorkspaceOpenRequest; res: WorkspaceOpenResponse }
   'workspace.tree': { req: WorkspaceTreeRequest; res: WorkspaceTreeResponse }
 
@@ -147,25 +149,26 @@ export interface IpcInvokeMap {
   'agent.taskStop': { req: TaskStopRequest; res: TaskStopResponse }
   'agent.setMode': { req: SetModeRequest; res: SetModeResponse }
   'agent.setModel': { req: SetModelRequest; res: SetModelResponse }
+  'agent.setEffort': { req: SetEffortRequest; res: SetEffortResponse }
   'agent.listModels': { req: void; res: ModelListResponse }
   'agent.permissionRespond': { req: PermissionResponse; res: Ack }
   'agent.questionRespond': { req: QuestionResponse; res: Ack }
 
-  'fs.diff': { req: FsDiffRequest; res: FsDiffResponse }
-  'fs.read': { req: FsReadRequest; res: FsReadResponse }
-  'fs.listFiles': { req: ListFilesRequest; res: ListFilesResponse }
-  'fs.listDir': { req: FsListDirRequest; res: FsListDirResponse }
+  'workspace.diff': { req: FsDiffRequest; res: FsDiffResponse }
+  'workspace.read': { req: FsReadRequest; res: FsReadResponse }
+  'workspace.listFiles': { req: ListFilesRequest; res: ListFilesResponse }
+  'workspace.listDir': { req: FsListDirRequest; res: FsListDirResponse }
   'workspace.saveImage': { req: SaveImageDataRequest; res: SaveImageDataResponse }
   'workspace.pickFolder': { req: void; res: PickFolderResponse }
 
-  'conversation.load': { req: ConversationLoadRequest; res: ConversationLoadResponse }
-  'conversation.save': { req: ConversationSaveRequest; res: ConversationSaveResponse }
-  'conversation.delete': { req: ConversationDeleteRequest; res: ConversationDeleteResponse }
-  'conversation.rename': { req: ConversationRenameRequest; res: ConversationRenameResponse }
+  'sessions.load': { req: ConversationLoadRequest; res: ConversationLoadResponse }
+  'sessions.save': { req: ConversationSaveRequest; res: ConversationSaveResponse }
+  'sessions.delete': { req: ConversationDeleteRequest; res: ConversationDeleteResponse }
+  'sessions.rename': { req: ConversationRenameRequest; res: ConversationRenameResponse }
 
-  'reference.add': { req: ReferenceAddRequest; res: ReferenceAddResponse }
-  'reference.list': { req: ReferenceListRequest; res: ReferenceListResponse }
-  'reference.tree': { req: ReferenceTreeRequest; res: ReferenceTreeResponse }
+  'workspace.referenceAdd': { req: ReferenceAddRequest; res: ReferenceAddResponse }
+  'workspace.referenceList': { req: ReferenceListRequest; res: ReferenceListResponse }
+  'workspace.referenceTree': { req: ReferenceTreeRequest; res: ReferenceTreeResponse }
 
   'git.root': { req: GitRootRequest; res: GitRootResponse }
   'git.status': { req: GitStatusRequest; res: GitStatusResponse }
@@ -215,31 +218,29 @@ export interface IpcInvokeMap {
   'window.resizeStart': { req: WindowResizeStartRequest; res: void }
   'window.resizeEnd': { req: void; res: void }
 
-  // M09 G4 — 앱 안 루프(main/05_Loop/loopDriver.ts)
   'loop.open': { req: LoopOpenRequest; res: LoopStatus }
   'loop.start': { req: LoopStartRequest; res: LoopStatus }
   'loop.status': { req: LoopCwdRequest; res: LoopStatus }
   'loop.decide': { req: LoopDecideRequest; res: LoopDecideResponse }
   'loop.answerCard': { req: LoopAnswerCardRequest; res: LoopOkResponse }
-  // M10 G3 — 취소는 대상(메인 턴 main / 작업 세션 worker)을 싣는다
   'loop.cancelSession': { req: LoopCancelRequest; res: LoopOkResponse }
   'loop.releaseLatch': { req: LoopReleaseLatchRequest; res: LoopReleaseLatchResponse }
   'loop.close': { req: LoopCwdRequest; res: LoopOkResponse }
-  // M10 G2 — 메인 대화(main/05_Loop/mainChat.ts). 카드 답은 loop.answerCard다
   'loop.mainRead': { req: LoopCwdRequest; res: MainChatView }
   'loop.mainSend': { req: LoopMainSendRequest; res: LoopMainResponse }
   'loop.mainNew': { req: LoopCwdRequest; res: LoopMainResponse }
-  // M10 G3 — 사람이 일시 정지 깃발을 내린다(판정 칸 없음)
   'loop.lowerFlag': { req: LoopCwdRequest; res: LoopMainResponse }
   'loop.sessionLog': { req: LoopCwdRequest; res: LoopSessionLog }
   'loop.mainArchives': { req: LoopCwdRequest; res: MainChatArchives }
-  // M10 G5 — 그래프 읽기(보기 전용)와 알림 목록 읽기
   'loop.graph': { req: LoopCwdRequest; res: LoopGraphResponse }
   'loop.alerts': { req: void; res: LoopAlertList }
+  'loop.listDir': { req: LoopListDirRequest; res: LoopListDirResponse }
+  'loop.tasteOpen': { req: LoopTasteOpenRequest; res: LoopMainResponse }
+
+  'taste.read': { req: TasteReadRequest; res: TasteDocsRead }
 }
 
-// main → renderer push 채널. 값은 payload 타입이다.
-export interface IpcPushMap {
+interface IpcPushMap {
   'agent.event': AgentEventPayload
   'engine.installProgress': EngineInstallProgress
   'window.state': WindowStatePayload
@@ -281,7 +282,7 @@ void _mapMatchesChannels
 const _invokePushDisjoint: [Extract<InvokeChannel, PushChannel>] extends [never] ? true : false = true
 void _invokePushDisjoint
 
-// main push 송신 — webContents·event.sender처럼 `send`를 가진 대상이면 된다. 감싸지 않고 그대로 보낸다.
+// webContents·event.sender처럼 `send`를 가진 대상이면 된다.
 export interface PushTarget {
   send(channel: string, ...args: unknown[]): void
 }

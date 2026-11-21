@@ -243,22 +243,3 @@ describe('AgentPanel — FileRow 태그 (F10-02)', () => {
   })
 })
 
-describe('agentSampleData — 구조 검증', () => {
-  it('SAMPLE_TODOS: id/label/status 필드 + 3가지 status 존재', async () => {
-    const { SAMPLE_TODOS } = await import('@renderer/03_Agent/types')
-    expect(Array.isArray(SAMPLE_TODOS)).toBe(true)
-    expect(SAMPLE_TODOS.length).toBeGreaterThan(0)
-    const statuses = new Set(SAMPLE_TODOS.map((t) => t.status))
-    expect(statuses.size).toBeGreaterThanOrEqual(2)
-  })
-
-  it('SAMPLE_SUBAGENTS: id/name/role/status/tools 필드', async () => {
-    const { SAMPLE_SUBAGENTS } = await import('@renderer/03_Agent/types')
-    expect(Array.isArray(SAMPLE_SUBAGENTS)).toBe(true)
-    expect(SAMPLE_SUBAGENTS.length).toBeGreaterThan(0)
-    const first = SAMPLE_SUBAGENTS[0]
-    expect(first.id).toBeTruthy()
-    expect(first.name).toBeTruthy()
-    expect(Array.isArray(first.tools)).toBe(true)
-  })
-})

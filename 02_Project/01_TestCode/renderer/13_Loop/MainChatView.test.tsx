@@ -1,18 +1,10 @@
 // @vitest-environment jsdom
-// M10 G3 메인 대화 보기 — 작업 폴더의 메인 대화(main 소유)를 loop.mainRead와 loop.mainState push로 받아 그린다.
-// 고정하는 것:
-//   - 기록: 사람 글(줄 섬·보냄), 메인 글(마크다운), 사건 줄(종류별 모양), 알림(오류·저장 실패).
-//     메인 깃발 사건(flag-raised·flag-lowered)은 사람의 이어 가기(resumed)와 다른 모양이다.
-//   - 순서: 첫 읽기·보내기·새로 열기의 응답이 그 사이 온 push보다 늦으면 응답의 보기로 되돌아가지 않는다. 다른 폴더의 push는 버린다.
-//   - 입력칸: 열린 실행기가 없으면 막고 까닭을 보인다. 메인이 도는 중·사람을 기다림·줄 선 글 수를 보인다.
-//   - 일시 정지: 깃발이 올라 있으면 표시와 「이어 가기」 — 깃발 내리기(loop.lowerFlag)만 부르고 사람 판정(decide)은 부르지 않는다.
-//   - 취소는 대상을 골라 보낸다(메인 턴 main / 작업 세션 worker). 새 메인 대화는 확인을 한 번 받은 뒤 loop.mainNew다.
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
 import { render, screen, fireEvent, cleanup, act, within } from '@testing-library/react'
-import type { LoopEventKind, LoopStatus, MainChatItem, MainChatView } from '../../../../02_Project/00_Source/shared/ipcContract'
+import type { LoopEventKind, LoopStatus, MainChatItem, MainChatView } from '@shared/ipcContract'
 import { adaptFlatApi } from '../00_Helpers/windowApiMock'
 
-// 독립 검수 중요 2 — 기록의 글을 다시 그렸는지 센다. 진짜 마크다운 보기를 그대로 그리고, 그린 원문만 적는다
+// 기록의 글을 다시 그렸는지 센다. 진짜 마크다운 보기를 그대로 그리고, 그린 원문만 적는다
 const md = vi.hoisted(() => ({ renders: [] as string[] }))
 vi.mock('@renderer/05_Conversation', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@renderer/05_Conversation')>()
@@ -134,11 +126,11 @@ describe('메인 대화 기록 (M10 G3)', () => {
     const { EVENT_LOOK } = await import('@renderer/13_Loop/mainChatModel')
     const kinds: LoopEventKind[] = [
       'node-start', 'node-end', 'fail', 'halt', 'error', 'goal-merged', 'milestone-pr', 'spec-approved', 'spec-rejected',
-      'flag-raised', 'flag-lowered', 'resumed', 'backlog', 'latched', 'done',
+      'flag-raised', 'flag-lowered', 'resumed', 'backlog', 'latched', 'done', 'usage-limit', 'limit-resumed',
     ]
     expect(Object.keys(EVENT_LOOK).sort()).toEqual([...kinds].sort())
     for (const k of kinds) expect(EVENT_LOOK[k].label.trim().length, k).toBeGreaterThan(0)
-    // M10 G5 — 작업 모드의 화면 글은 한글로 맞춘다. 이름표에 영어 낱말(PR 제외)을 두지 않는다
+    // 작업 모드의 화면 글은 한글로 맞춘다. 이름표에 영어 낱말(PR 제외)을 두지 않는다
     expect([EVENT_LOOK['node-start'].label, EVENT_LOOK['node-end'].label, EVENT_LOOK.fail.label, EVENT_LOOK.backlog.label]).toEqual(['시작', '통과', '실패', '미룬 일'])
     for (const k of kinds) expect(EVENT_LOOK[k].label.replace(/\bPR\b/g, ''), k).not.toMatch(/[A-Za-z]/)
   })
@@ -370,7 +362,6 @@ describe('새 메인 대화 (M10 G3)', () => {
   })
 })
 
-// G3 독립 검수 반영 — 모르는 사건 종류, 다시 그리기, 입력칸·멈추기 알림·끝 보이기, 한글 조합 중 Enter
 describe('G3 독립 검수 반영 (M10 G3)', () => {
   const box = (): HTMLTextAreaElement => within(chat()).getByLabelText('메인에게 말하기') as HTMLTextAreaElement
 
@@ -401,6 +392,7 @@ describe('G3 독립 검수 반영 (M10 G3)', () => {
     expect(sameItem(said('a1', '글'), { ...said('a1', '글'), turn: 'event' } as MainChatItem)).toBe(false)
     expect(sameItem(said('a1', '글'), { ...said('a1', '글'), at: '2026-11-19T06:00:00.000Z' } as MainChatItem)).toBe(false)
     expect(sameItem(user('u1', '글', 'queued'), user('u1', '글', 'sent'))).toBe(false)
+    expect(sameItem(user('u1', '글', 'sent'), { ...user('u1', '글', 'sent'), proxy: true } as MainChatItem)).toBe(false)
     expect(sameItem(note('n1', '알림'), note('n1', '알림'))).toBe(true)
     expect(sameItem(note('n1', '글'), said('n1', '글'))).toBe(false)
     const e1 = ev('e1', 'fail', 'FAIL')
@@ -478,6 +470,25 @@ describe('G3 독립 검수 반영 (M10 G3)', () => {
     expect(set).toHaveBeenCalledWith(9000)
   })
 
+  it('[M11-G4 M10-22] 사람이 위로 올려 읽는 중이면 새 글·세션 사건이 와도 바닥으로 끌어내리지 않는다(채팅과 같다)', async () => {
+    install(mv({ items: [note('n1', '글 1')] }))
+    const { container } = await renderChat()
+    const thread = container.querySelector('.mc-thread') as HTMLElement
+    const set = vi.fn()
+    Object.defineProperty(thread, 'scrollHeight', { configurable: true, get: () => 9000 })
+    Object.defineProperty(thread, 'clientHeight', { configurable: true, get: () => 500 })
+    Object.defineProperty(thread, 'scrollTop', { configurable: true, get: () => 0, set })
+    fireEvent.scroll(thread)
+    await pushView(mv({ items: [note('n1', '글 1'), note('n2', '글 2')] }))
+    expect(set).not.toHaveBeenCalled()
+    // 사람이 보내면 제 글을 보도록 다시 바닥에 붙는다
+    fireEvent.change(box(), { target: { value: '보낸다' } })
+    await act(async () => { fireEvent.keyDown(box(), { key: 'Enter' }) })
+    await flush()
+    await pushView(mv({ items: [note('n1', '글 1'), note('n2', '글 2'), note('n3', '글 3')] }))
+    expect(set).toHaveBeenLastCalledWith(9000)
+  })
+
   it('한글 조합 중의 Enter(isComposing)는 보내지 않는다 — 조합이 끝난 Enter는 보낸다', async () => {
     // 이 시험이 헛돌지 않는다는 받침 — 시험 환경의 키 사건이 isComposing을 정말 싣는다(싣지 않으면 막는 줄이 없어도 통과한다)
     expect(new KeyboardEvent('keydown', { key: 'Enter', isComposing: true }).isComposing).toBe(true)
@@ -489,5 +500,59 @@ describe('G3 독립 검수 반영 (M10 G3)', () => {
     await act(async () => { fireEvent.keyDown(box(), { key: 'Enter' }) })
     await flush()
     expect(api.loopMainSend).toHaveBeenCalledWith({ cwd: CWD, text: '한글' })
+  })
+})
+
+describe('메인 세션 사건을 대화 기록에 얹기 (M11 G4)', () => {
+  type Ev = import('@shared/agentEvents').AgentEvent
+  type Rec = import('@shared/ipcContract').LoopSessionRecord
+  const turn = (id: string, answer: string, done = true): Ev[] => [
+    { type: 'session', sessionId: 'S1' },
+    { type: 'tool_call', id: `t-${id}`, name: 'Read', input: {} },
+    ...(answer === '' ? [] : [{ type: 'text', messageId: id, delta: answer } as Ev]),
+    ...(done ? [{ type: 'done' } as Ev] : []),
+  ]
+  const rec = (events: Ev[], truncated = false): Rec => ({ session: { key: 'main', kind: 'main', node: null, goal: null, sessionId: 'S1' }, events, next: events.length, truncated, live: true })
+  const shape = (rows: ReturnType<typeof import('@renderer/13_Loop/mainChatModel').mainChatRows>): string[] =>
+    rows.map((r) => (r.kind === 'item' ? `${r.item.id}${r.turn ? `+${r.turn.key}` : ''}` : `${r.turn.key}${r.live ? '*' : ''}`))
+
+  it('[M11-G4 M10-22] 끝난 턴은 같은 답 글의 메인 답 자리에, 짝 없는 턴은 다음 짝 앞에, 도는 턴은 끝에 둔다', async () => {
+    const { mainChatRows } = await import('@renderer/13_Loop/mainChatModel')
+    const items = [user('u0', '어제', 'sent'), said('a0', '알았다'), user('u1', '하나', 'sent'), said('a1', '알았다'), user('u2', '둘', 'sent')]
+    const events = [...turn('m1', ''), ...turn('m2', '알았다'), ...turn('m3', '쓰는 중', false)]
+    expect(shape(mainChatRows(items, rec(events), true))).toEqual(['u0', 'a0', 'u1', 'turn-0', 'a1+turn-1', 'u2', 'turn-2*'])
+    expect(shape(mainChatRows(items, rec(events), false))).toEqual(['u0', 'a0', 'u1', 'turn-0', 'a1+turn-1', 'u2', 'turn-2'])
+  })
+
+  it('[M11-G4 M10-22] 기록이 없으면 대화 기록 그대로이고, 돌기 시작한 턴은 빈 줄로 끝에 선다. 앞이 잘린 기록의 첫 턴은 버린다', async () => {
+    const { mainChatRows } = await import('@renderer/13_Loop/mainChatModel')
+    const items = [user('u1', '하나', 'sent'), said('a1', '알았다')]
+    expect(shape(mainChatRows(items, undefined, false))).toEqual(['u1', 'a1'])
+    expect(shape(mainChatRows(items, rec(turn('m1', '알았다')), true))).toEqual(['u1', 'a1+turn-0', 'turn-next*'])
+    expect(shape(mainChatRows(items, rec([...turn('m0', '잘린 조각').slice(1), ...turn('m1', '알았다')], true), false))).toEqual(['u1', 'a1+turn-0'])
+  })
+
+  it('[M11-G4 M10-22] 잘린 기록이라도 첫 조각이 턴 시작(session)이면 버리지 않는다 — 4000개를 넘은 도는 턴이 사라지지 않는다', async () => {
+    const { mainChatRows } = await import('@renderer/13_Loop/mainChatModel')
+    const items = [user('u1', '하나', 'sent')]
+    expect(shape(mainChatRows(items, rec(turn('m1', '쓰는 중', false), true), true))).toEqual(['u1', 'turn-0*'])
+  })
+
+  it('[M11-G4 M10-22] 멈춰 done 없이 끝난 턴은 그 답이 기록에 있으면 도는 턴으로 잡지 않는다(답이 두 번 보이지 않는다)', async () => {
+    const { mainChatRows } = await import('@renderer/13_Loop/mainChatModel')
+    const items = [user('u1', '하나', 'sent'), said('a1', '알았다'), user('u2', '둘', 'sent')]
+    expect(shape(mainChatRows(items, rec(turn('m1', '알았다', false)), true))).toEqual(['u1', 'a1+turn-0', 'u2', 'turn-next*'])
+  })
+})
+
+describe('대리 입력 표시 (M11 G4)', () => {
+  it('[M11-G4 M06-29] 대리 입력 표지가 있는 사람 글에만 「대리 입력」이 보인다', async () => {
+    const proxied: MainChatItem = { id: 'u2', at: '2026-11-20T10:00:00.000Z', kind: 'user', text: '합의', state: 'sent', proxy: true }
+    install(mv({ items: [user('u1', '사람이 쓴 글', 'sent'), proxied] }))
+    const { container } = await renderChat()
+    const log = within(screen.getByRole('log', { name: '메인 대화 기록' }))
+    expect(log.getAllByText('대리 입력')).toHaveLength(1)
+    expect(container.querySelector('[data-item="u2"]')?.textContent).toContain('대리 입력')
+    expect(container.querySelector('[data-item="u1"]')?.textContent).not.toContain('대리 입력')
   })
 })

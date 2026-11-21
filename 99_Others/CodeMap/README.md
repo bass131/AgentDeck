@@ -11,7 +11,7 @@ cd 99_Others/CodeMap
 node extract.mjs && node build.mjs
 ```
 
-- **이 폴더 안에서 실행한다.** 소스·TypeScript 경로와 `codemap.json`, 템플릿 읽기는 스크립트 위치 기준이라 어디서 불러도 같지만, `descriptions.json`·`guide.json` 읽기와 `codemap.html` 쓰기는 현재 폴더 기준이다.
+- 입출력은 모두 스크립트 위치 기준이라 어느 폴더에서 불러도 같다(소스·TypeScript 경로, `descriptions.json`·`guide.json` 읽기, `codemap.json`·`codemap.html` 쓰기).
 - 결과물 `codemap.json`·`codemap.html`은 `.gitignore`가 막는다. 커밋하지 않고 필요할 때 다시 만든다.
 
 - `extract.mjs`는 소스를 읽어 `codemap.json`을 만든다.

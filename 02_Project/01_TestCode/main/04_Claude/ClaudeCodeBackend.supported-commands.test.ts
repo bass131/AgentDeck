@@ -3,8 +3,8 @@ import { ClaudeCodeBackend } from '@main/04_Claude/ClaudeCodeBackend'
 import { CodexBackend } from '@main/03_Agent/CodexBackend'
 import { EchoBackend } from '@main/03_Agent/testing/EchoBackend'
 import type { QueryFn } from '@main/04_Claude/ClaudeCodeBackend'
-import type { AgentEvent } from '../../../../02_Project/00_Source/shared/agentEvents'
-import type { SlashCommandInfo } from '../../../../02_Project/00_Source/shared/ipcContract'
+import type { AgentEvent } from '@shared/agentEvents'
+import type { SlashCommandInfo } from '@shared/ipcContract'
 
 function makeMockQueryFnWithSupportedCommands(
   commands: Array<{ name: string; description: string; argumentHint?: string }>

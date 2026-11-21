@@ -14,7 +14,7 @@ import { buildTree } from '@main/07_Workspace/workspace'
 import { pickDirectory } from '@main/07_Workspace/pickFolder'
 import type { RootRegistry } from '@main/07_Workspace/roots'
 
-export interface ReferenceHandlerDeps {
+interface ReferenceHandlerDeps {
   state: { win: BrowserWindow | null }
   roots: RootRegistry
 }

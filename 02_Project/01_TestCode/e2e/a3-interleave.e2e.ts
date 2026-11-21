@@ -4,6 +4,7 @@ import { mkdtempSync, cpSync, existsSync, rmSync, mkdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { PERM_CARD, permChoiceSelector } from './helpers/permSelectors'
+import { moveToSecondDisplay } from './helpers/isolatedBoot'
 
 const LIVE = process.env.LIVE_SDK === '1'
 const SHOT_DIR = join(process.cwd(), 'artifacts', 'screenshots')
@@ -89,6 +90,7 @@ test.describe('Phase A-3: 시간순 인터리브 DOM 검증 (opt-in: LIVE_SDK=1)
     })
     page = await app.firstWindow()
     await page.waitForLoadState('domcontentloaded')
+    await moveToSecondDisplay(app)
 
     const nick = page.locator('.login-body input#nickname')
     if (await nick.count()) {

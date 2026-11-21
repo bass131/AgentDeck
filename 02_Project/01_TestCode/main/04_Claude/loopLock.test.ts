@@ -1,4 +1,4 @@
-// M09 G2 루프 잠금 노드 — 작업 노드 세션의 원격 쓰기·자격 꺼내기·설정 심기·실행기 몫 파일 쓰기를 질문 없이 거부하고,
+// 루프 잠금 노드 — 작업 노드 세션의 원격 쓰기·자격 꺼내기·설정 심기·실행기 몫 파일 쓰기를 질문 없이 거부하고,
 // 로컬 작업(상태 보기·커밋·노드 문서 쓰기·읽기 명령)은 지나가는지 표로 고정한다. 판정은 명령 글자의 겹이다(loopLock.ts 머리 주석).
 import { describe, it, expect } from 'vitest'
 import {
@@ -88,7 +88,7 @@ const DENY_REMOTE = [
   "git submodule foreach 'git push'",
   'gh pr create --title x --body -h',
   'gh pr create --help',
-  // 원격 쓰기 숨김 (G2 검수 중요 8) — 값으로 받은 명령을 다시 판독하고, 명령을 실행하는 -c 키는 거부한다
+  // 원격 쓰기 숨김 —값으로 받은 명령을 다시 판독하고, 명령을 실행하는 -c 키는 거부한다
   'git rebase -x "git push" HEAD~1',
   'git rebase --exec="git push" main',
   'git bisect run git push',
@@ -159,7 +159,7 @@ const DENY_CONFIG = [
   'Set-Content .git\\config x',
   'echo x > .GIT/CONFIG',
   'dd if=x of=.git/config',
-  // .git 안 전체 (G2 검수 중요 7) — 폴더로 복사, -t, PowerShell 이름 인자, >|·>&, 내려받기·풀기
+  // .git 안 전체 —폴더로 복사, -t, PowerShell 이름 인자, >|·>&, 내려받기·풀기
   'echo x > .git/refs/heads/main',
   'cp hook .git/',
   'cp -r hooks .git',
@@ -217,7 +217,7 @@ const DENY_EXECUTOR_FILES = [
   'rm -rf /c/Users/u/AppData/Roaming/agentdeck/loop',
   'echo x > "C:\\work\\repo\\.agentdeck\\run-state.json"',
   "perl -pi -e 's/FAIL/PASS/' .agentdeck/verification.md",
-  // 셸 위치를 모른다 (G2 검수 중요 2) — cd로 보호 폴더에 들어가는 꼴과 맨 이름
+  // 셸 위치를 모른다 —cd로 보호 폴더에 들어가는 꼴과 맨 이름
   'cd .agentdeck && echo {} > run-state.json',
   'pushd .git && echo x >> config',
   'Set-Location .agentdeck; Set-Content run-state.json x',
@@ -226,7 +226,7 @@ const DENY_EXECUTOR_FILES = [
   'echo x >> verification.md',
   'cp x .agentdeck/',
   'git checkout HEAD -- .agentdeck/run-state.json',
-  // 변수 꼴을 펼쳐 앱 영역을 본다 (G2 검수 중요 6)
+  // 변수 꼴을 펼쳐 앱 영역을 본다
   'echo x > $APPDATA/agentdeck/loop/digests/k',
   'echo x > %APPDATA%\\agentdeck\\loop\\k',
   'Set-Content $env:APPDATA\\agentdeck\\loop\\k x',
@@ -278,7 +278,7 @@ const ALLOW = [
   'echo x > $TEMP/x',
   'npm test > /dev/null 2>&1',
   'Write-Output x > $null',
-  // 오탐 풀기 (G2 검수 사소) — dry-run과 gh 설정 읽기
+  // 오탐 풀기 —dry-run과 gh 설정 읽기
   'git clean -n -x',
   'git clean -nfdx',
   'gh config get git_protocol',
@@ -291,7 +291,7 @@ const ALLOW = [
   'git restore src/a.ts',
   'git -c core.quotepath=false status',
   'git rebase -i HEAD~2',
-  // G2 재검수 중요 C — 셸 위치를 명령 안에서 따라간다. 알려진 위치에서 풀어 저장소 안이면 지나가고, 읽기는 막지 않는다
+  // 셸 위치를 명령 안에서 따라간다. 알려진 위치에서 풀어 저장소 안이면 지나가고, 읽기는 막지 않는다
   'cd src && npm test && cd ..',
   'cd .agentdeck/goals && ls',
   'cd x && grep -r y --exclude-dir=.git .',
@@ -338,7 +338,7 @@ const ALLOW = [
   'cd src && tar -xf a.tar',
 ]
 
-// G2 재검수 중요 C — 위치를 따라가도 보호 폴더·저장소 밖·모르는 위치의 상대 쓰기는 막는다
+// 위치를 따라가도 보호 폴더·저장소 밖·모르는 위치의 상대 쓰기는 막는다
 const DENY_CWD = [
   'cd ..',
   'cd src && cd ../..',
@@ -372,7 +372,7 @@ const DENY_CWD = [
   // $PWD는 따라간 위치다
   'cd - && echo x > $PWD/x',
   'cd src && echo x > $PWD/../.git/config',
-  // G2 3차 검수 중요 E — cd 추적기를 피하는 꼴: builtin·command 래퍼, env -C, eval, CDPATH
+  // cd 추적기를 피하는 꼴: builtin·command 래퍼, env -C, eval, CDPATH
   'builtin cd ~/.claude && echo {} > settings.json',
   'builtin cd .git && echo x >> config',
   'builtin builtin cd .git',
@@ -417,7 +417,7 @@ const DENY_CWD = [
   'env --split-string="git push"',
   'env --sp "git push origin x"',
   'env -C src -S "rm -rf .."',
-  // G2 4차 검수 사소 — trap 몸통과 BASH_ENV·ENV(셸이 시작할 때 읽는 파일)
+  // trap 몸통과 BASH_ENV·ENV(셸이 시작할 때 읽는 파일)
   "trap 'builtin cd ~/.claude' DEBUG; echo {} > settings.json",
   "trap 'cd src' DEBUG; echo x > a",
   "trap 'git push' EXIT",
@@ -435,7 +435,7 @@ const DENY_CWD = [
   'declare -x ENV=./go.sh',
 ]
 
-// G2 재검수 차단 A — 교체 객체(refs/replace)는 실행기 병합의 트리를 바꿔치기한다
+// 교체 객체(refs/replace)는 실행기 병합의 트리를 바꿔치기한다
 const DENY_REPLACE = [
   'git replace abc def',
   'git replace -f abc def',
@@ -452,7 +452,7 @@ const DENY_REPLACE = [
   'GIT-REPLACE abc def',
 ]
 
-// G2 재검수 — PATH 가로채기의 싼 구멍. 전역 패키지는 실행기가 PATH에서 찾는 git·gh 이름을 덮을 수 있다
+// PATH 가로채기의 싼 구멍. 전역 패키지는 실행기가 PATH에서 찾는 git·gh 이름을 덮을 수 있다
 const DENY_GLOBAL_PKG = [
   'npm install -g x',
   'npm i -g x',
@@ -520,7 +520,7 @@ describe('loop-lock 셸 위치 (M09 G2 재검수 중요 C)', () => {
     expect(loopCommandReason('f() { cd src; }; rm -rf .', withSrc)).not.toBeNull()
   })
 
-  // G2 3차 검수 중요 E — 래퍼·eval·env -C를 지나도 위치를 따라간다. 따라가서 저장소 안이면 지나간다
+  // 래퍼·eval·env -C를 지나도 위치를 따라간다. 따라가서 저장소 안이면 지나간다
   it('builtin·command·eval·env -C의 cd도 따라가고, 저장소 안이면 지나간다', () => {
     const withSrc: LoopLockScope = { ...SCOPE, isDir: (p) => p.replace(/\\/g, '/').toLowerCase() === 'c:/work/repo/src' }
     expect(loopCommandReason('builtin cd src && npm test', withSrc)).toBeNull()
@@ -554,7 +554,7 @@ describe('loop-lock 셸 위치 (M09 G2 재검수 중요 C)', () => {
     expect(loopCommandReason('nohup cd src && rm -rf .', withSrc)).not.toBeNull()
   })
 
-  // G2 3차 검수 중요 F — 판정 때 폴더가 있어도, 같은 명령 안 앞에서 지우거나 옮기면 cd는 실패할 수 있다
+  // 판정 때 폴더가 있어도, 같은 명령 안 앞에서 지우거나 옮기면 cd는 실패할 수 있다
   it('앞에서 그 폴더를 지우거나 옮기면(또는 무엇이든 바꿀 수 있는 명령이 돌면) 뒤의 cd는 실패할 수 있다고 본다', () => {
     const withSrc: LoopLockScope = { ...SCOPE, isDir: (p) => p.replace(/\\/g, '/').toLowerCase() === 'c:/work/repo/src' }
     expect(loopCommandReason('rm -rf src; cd src; echo x >> ../.gitconfig', withSrc)).not.toBeNull()
@@ -612,7 +612,7 @@ describe('loop-lock 셸 위치 (M09 G2 재검수 중요 C)', () => {
     expect(await call('echo x > config', 'C:\\work\\repo')).toBeNull()
   })
 
-  // G2 3차 검수 중요 E — 호출을 나눠도 builtin cd ..는 따라간다(거부되고 위치는 뿌리에 남는다)
+  // 호출을 나눠도 builtin cd ..는 따라간다(거부되고 위치는 뿌리에 남는다)
   it('builtin cd ..는 거부되고, 다음 호출의 상대 쓰기는 뿌리 기준이다', async () => {
     const call = session()
     expect(await call('builtin cd ..')).not.toBeNull()
@@ -634,6 +634,116 @@ describe('loop-lock 셸 위치 (M09 G2 재검수 중요 C)', () => {
     expect(await call('cd .git && ls')).not.toBeNull()
     expect(await call('echo x > config')).toBeNull()
   })
+
+  it('[M11-G3 M09-6] 커밋 메시지 안의 CDPATH 글자는 CDPATH 설정으로 보지 않는다', () => {
+    expect(loopCommandReason('git commit -m "fix: CDPATH=.git 꼴을 막는다"', SCOPE)).toBeNull()
+    expect(loopCommandReason("git commit -F - <<'EOF'\nexport CDPATH=.git 막기\nEOF", SCOPE)).toBeNull()
+    for (const cmd of [
+      'CDPATH+=:.git; cd hooks', 'declare -x "CDPATH=.git"', 'printf -v CDPATH .git', 'bash -c "export CDPATH=.git"', 'read -r CDPATH',
+      '{ CDPATH=.git; }', 'if true; then CDPATH=.git; fi', 'for i in 1; do CDPATH=.git; done', 'f() { CDPATH=.git; }', '! CDPATH=.git',
+    ]) {
+      expect(loopCommandReason(cmd, SCOPE)).toContain('CDPATH')
+    }
+  })
+
+  it('[M11-G3 M09-6 검수] 작은따옴표 밖의 매개변수 펼치기 ${CDPATH=…}·${CDPATH:=…}도 CDPATH 설정이다', () => {
+    for (const cmd of [
+      ': ${CDPATH=.git}; cd hooks && echo x > pre-commit',
+      ': ${CDPATH=/c/Users/u}; cd .ssh && echo x >> config',
+      ': ${CDPATH:=.git}; cd hooks',
+      'echo "${CDPATH=.git}"; cd hooks',
+    ]) {
+      expect(loopCommandReason(cmd, SCOPE)).toContain('CDPATH')
+    }
+    expect(loopCommandReason("git commit -m 'fix: ${CDPATH=.git} 꼴을 막는다'", SCOPE)).toBeNull()
+    expect(loopCommandReason('echo ${CDPATH:-none}', SCOPE)).toBeNull()
+  })
+
+  it('[M11-G3 M09-6] source 뒤의 「위치 모름」은 다음 호출로 넘어가지 않는다 — 훅이 준 cwd가 저장소 뿌리면 상대 쓰기가 지나간다', async () => {
+    const call = session()
+    expect(await call('source .venv/bin/activate', 'C:\\work\\repo')).toBeNull()
+    expect(await call('echo x > out.txt', 'C:\\work\\repo')).toBeNull()
+    expect(await call('. .venv/bin/activate; echo x > out.txt', 'C:\\work\\repo')).not.toBeNull()
+    expect(await call('source .venv/bin/activate && cd .git', 'C:\\work\\repo')).not.toBeNull()
+    const noHookCwd = session()
+    expect(await noHookCwd('source .venv/bin/activate')).toBeNull()
+    expect(await noHookCwd('echo x > out.txt')).not.toBeNull()
+    const moved = session()
+    expect(await moved('source .venv/bin/activate', 'C:\\work\\repo')).toBeNull()
+    expect(await moved('echo x > config', 'C:\\work\\repo\\.git')).not.toBeNull()
+    expect(await moved('cd src', 'C:\\work\\repo')).toBeNull()
+  })
+})
+
+describe('loop-lock 읽기 전용 꼴의 PowerShell 환경 대입 (M11 G3)', () => {
+  it('[M11-G3 M09-8] $env:GIT_PAGER처럼 git이 명령으로 돌리는 변수를 PowerShell 꼴로 정하는 것도 거부한다', () => {
+    expect(loopCommandReason('$env:GIT_PAGER = "sh -c x"; git log', { ...SCOPE, readOnly: true })).not.toBeNull()
+    expect(loopCommandReason('Set-Item env:GIT_EXTERNAL_DIFF "x"; git diff', { ...SCOPE, readOnly: true })).not.toBeNull()
+    expect(loopCommandReason('ni Env:\\PAGER -Value x; git log', { ...SCOPE, readOnly: true })).not.toBeNull()
+    expect(loopCommandReason('$env:GIT_PAGER = "cat"; git log', SCOPE)).toBeNull()
+  })
+})
+
+describe('loop-lock — 가드와 같은 판독 (M11 G3)', () => {
+  const wrapped = (cmd: string): string[] => [`timeout -vs KILL 5 ${cmd}`, `timeout --sig KILL 5 ${cmd}`, `find . -maxdepth 0 -exec ${cmd} \\;`]
+  const shelled = (cmd: string): string[] => [`bash -ce "${cmd}"`, `bash -c -x "${cmd}"`]
+  it('eval 꼴은 안쪽 글을 다시 판독해 거부한다', () => {
+    expect(loopCommandReason('eval gh pr merge 1', SCOPE)).not.toBeNull()
+    expect(loopCommandReason('eval git push origin x', SCOPE)).not.toBeNull()
+  })
+  const probes = [
+    ...wrapped('gh pr merge 1'),
+    ...wrapped('git push origin x'),
+    ...shelled('gh pr merge 1'),
+    ...shelled('git push origin x'),
+    'gh api -iX DELETE repos/o/r/git/refs/heads/x',
+    'gh api -X=PUT repos/o/r/topics',
+  ]
+  for (const cmd of probes) {
+    it(`[M11-G3 M11-17] 거부: ${JSON.stringify(cmd)}`, () => {
+      expect(loopCommandReason(cmd, SCOPE)).not.toBeNull()
+    })
+  }
+  const passed = [
+    'timeout -vs KILL 5 npm test',
+    'bash -ce "git status"',
+    'bash -c -x "npm test"',
+    'find . -name "*.ts" -exec grep -l push {} \\;',
+    'find . -name "*.tmp" -exec rm {} \\;',
+    'find src -name "*.sh" -exec chmod +x {} +',
+    'find . -name "*.log" -execdir rm -- {} \';\'',
+    'gh api -X=GET repos/o/r',
+    'gh api -iX GET repos/o/r/pulls',
+  ]
+  for (const cmd of passed) {
+    it(`통과: ${JSON.stringify(cmd)}`, () => {
+      expect(loopCommandReason(cmd, SCOPE)).toBeNull()
+    })
+  }
+})
+
+describe('loop-lock — 가드와 같은 판독 (M11 G8)', () => {
+  const probes = [
+    'iex "gh pr merge 1"',
+    'Invoke-Expression "git push origin x"',
+    "Start-Process gh -ArgumentList 'pr merge 1'",
+    'Start-Process -FilePath git -ArgumentList "push","origin","x"',
+    'bash +c "git push origin x"',
+    'bash -login -ce "git push origin x"',
+    'zsh.exe -c "gh pr merge 1"',
+    'zsh -restricted "git push origin x"',
+    'ksh -restricted "gh pr merge 1"',
+  ]
+  for (const cmd of probes) {
+    it(`[M11-G8 M11-28 M03-28] 거부: ${JSON.stringify(cmd)}`, () => {
+      expect(loopCommandReason(cmd, SCOPE)).not.toBeNull()
+    })
+  }
+  for (const cmd of ['iex "npm test"', 'Start-Process notepad', 'bash -login -c "npm test"']) {
+    it(`통과: ${JSON.stringify(cmd)}`, () => {
+      expect(loopCommandReason(cmd, SCOPE)).toBeNull()
+    })
+  }
 })
 
 describe('loop-lock MCP 도구 (M09 G2 검수 중요 5)', () => {

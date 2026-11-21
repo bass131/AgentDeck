@@ -1,4 +1,4 @@
-// M09 G2 검수 차단 1 — 실행기 git 설정 대조. 실행기 git·gh는 자격 있는 환경으로 돈다. 작업 노드 세션이 로컬 설정
+// 실행기 git 설정 대조. 실행기 git·gh는 자격 있는 환경으로 돈다. 작업 노드 세션이 로컬 설정
 // (core.fsmonitor, filter.*.clean + .gitattributes, core.pager 등)이나 전역 ~/.gitconfig(credential.helper 등)를 심으면
 // 실행기의 다음 git 호출이 그 코드를 자격과 함께 돌린다. 그래서:
 //   - 열 때 `git config --list --show-origin --includes -z`(로컬·전역·시스템·include 전부)의 스냅숏과, 전역 설정 파일 후보들의
@@ -8,14 +8,14 @@
 //   - 실행기 hooksPath(앱 영역, 만들지 않는 경로)에 무엇이 생겨도 바뀐 것으로 본다.
 //   - 한 번 바뀌면 메모리에 남는다 — 되돌려도 계속 사유를 돌려준다.
 //   - 열 때 지난 실행이 적은 스냅숏과 다르면 열지 않는다. 사람이 확인하고 그 키를 지운(되돌린) 뒤 다시 연다.
-// G2 재검수 중요 D — 스냅숏 파일을 지우고 다시 열면 심은 설정이 새 기준선이 됐다. 그래서 열 때(스냅숏이 있든 없든) 기준선과
+// 스냅숏 파일을 지우고 다시 열면 심은 설정이 새 기준선이 됐다. 그래서 열 때(스냅숏이 있든 없든) 기준선과
 //   관계없이, 실행기 git이 명령으로 돌릴 수 있는 위험 키(DANGER_KEY)가 로컬 설정(include로 들어온 것 포함)에 있으면 열지 않는다.
 //   전역·시스템 설정은 사용자 자신의 것이라 이 검사에서 뺀다(전역 파일은 열린 뒤의 해시 대조가 본다).
-// G2 재검수 사소 — 다시 읽기의 일시 실패(시간 초과·EBUSY·읽지 못한 파일)는 짧게 다시 읽은 뒤에만 멈춤으로 본다. 바뀐 값은
+// 다시 읽기의 일시 실패(시간 초과·EBUSY·읽지 못한 파일)는 짧게 다시 읽은 뒤에만 멈춤으로 본다. 바뀐 값은
 //   다시 읽지 않고 바로 멈춘다(되돌릴 틈을 주지 않는다).
 // 대조에서 빼는 것: branch.<이름>.remote·merge·rebase·description — 명령을 실행하지 않고, `git checkout -b x origin/y` 같은
 // 평범한 로컬 작업이 쓴다. remote.<이름>.gh-resolved는 빼지 않는다 — gh가 기본 저장소를 고르는 키라 실행기 gh를 다른 저장소로
-// 돌린다(G2 재검수 중요 B 실측: octocat/Hello-World를 넣으면 gh pr list가 그 저장소를 읽었다). 실행기 gh는 -R로도 고정한다(ghPort).
+// 돌린다(실측: octocat/Hello-World를 넣으면 gh pr list가 그 저장소를 읽었다). 실행기 gh는 -R로도 고정한다(ghPort).
 // 한계(겹): 대조와 그 git 호출 사이의 틈(같은 순간 세션이 쓰면), 설정 밖에서 git이 읽는 것(.gitattributes 단독은 설정 없이 명령을
 // 실행하지 않는다), 환경 변수로 들어오는 설정(실행기 환경은 세션이 바꾸지 못한다).
 import { createHash } from 'node:crypto'
@@ -26,7 +26,7 @@ import type { ConfigCheck } from './ports'
 import { writeFileAtomic } from './realPorts/atomicWrite'
 import { runProcess, type ProcessResult } from './realPorts/exec'
 
-export interface ConfigGuardOptions {
+interface ConfigGuardOptions {
   cwd: string
   // 실행기 환경(자격 있음)
   env: NodeJS.ProcessEnv
@@ -38,7 +38,7 @@ export interface ConfigGuardOptions {
   runGit?: (args: string[]) => Promise<ProcessResult>
   // 일시 실패 뒤 다시 읽기까지의 간격(기본 200ms). 다시 읽기는 모두 READ_ATTEMPTS번이다.
   retryDelayMs?: number
-  // M09 G4 — 사람이 화면에서 확인하고 받은 바뀐 키 목록. 지난 스냅숏과의 차이가 이 목록과 정확히 같을 때만 새 기준선으로 연다.
+  // 사람이 화면에서 확인하고 받은 바뀐 키 목록. 지난 스냅숏과의 차이가 이 목록과 정확히 같을 때만 새 기준선으로 연다.
   // 위험 키·http_unix_socket·grafts·hooksPath 검사는 이것과 관계없이 그대로 거부한다(그 검사가 먼저 돈다).
   acceptChanged?: readonly string[]
 }
@@ -51,22 +51,43 @@ export interface ConfigGuard extends ConfigCheck {
 }
 
 // changed: 지난 스냅숏과의 차이로 거부했을 때만 싣는다(받기 목록으로 쓸 수 있는 차이). 다른 거부에는 없다.
-export type ConfigGuardResult = { ok: true; guard: ConfigGuard } | { ok: false; reason: string; changed?: string[] }
+type ConfigGuardResult = { ok: true; guard: ConfigGuard } | { ok: false; reason: string; changed?: string[] }
 
 interface Snapshot { entries: string[]; files: Record<string, string> }
 
-export const CONFIG_CHANGED = '실행기 git 설정이 실행기 밖에서 바뀌었다'
+const CONFIG_CHANGED = '실행기 git 설정이 실행기 밖에서 바뀌었다'
 const IGNORED = /^branch\..+\.(?:remote|merge|rebase|description)$/i
 const READ_ATTEMPTS = 3
 const DEFAULT_RETRY_DELAY_MS = 200
 
 // 실행기 git·gh 환경 — 자격 묻는 창을 띄우지 않는다(무인 루프가 멈추지 않게, 세션이 심은 프롬프트가 뜨지 않게).
-// 교체 객체(refs/replace)도 따르지 않는다 — gh가 부르는 git과 설정 읽기도 같다(G2 재검수 차단 A, gitPort.NO_REPLACE_ENV와 같은 값).
-export function executorGitEnv(base: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
+// 교체 객체(refs/replace)도 따르지 않는다 — gh가 부르는 git과 설정 읽기도 같다(gitPort.NO_REPLACE_ENV와 같은 값).
+export function promptlessGitEnv(base: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
   return { ...base, GIT_TERMINAL_PROMPT: '0', GCM_INTERACTIVE: 'never', GIT_NO_REPLACE_OBJECTS: '1' }
 }
 
-// ── 위험 키 (G2 재검수 중요 D) ──────────────────────────────────────────────
+// 실행기 자신의 환경(자격 있음)만 PATH에서 사용자 프로필 아래 폴더(USERPROFILE·HOME·APPDATA·LOCALAPPDATA, %APPDATA%\npm 등)를
+// 뺀다. 작업 노드 세션이 그곳에 심은 shim이 git이 sh로 부르는 설정 명령(lfs filter 등)을 실행기 자격으로 가로챈다. git·gh가 그 아래 깔렸으면
+// 실행기가 닫혀 실패한다. 작업 노드 세션의 바탕(promptlessGitEnv)은 좁히지 않는다 — 자격이 없고 npm test가 돌아야 한다.
+export function executorGitEnv(base: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
+  const env = promptlessGitEnv(base)
+  const key = Object.keys(env).find((k) => k.toUpperCase() === 'PATH')
+  if (key !== undefined) env[key] = withoutUserDirs(env[key] ?? '', env)
+  return env
+}
+
+function withoutUserDirs(value: string, env: NodeJS.ProcessEnv): string {
+  const sep = process.platform === 'win32' ? ';' : ':'
+  const norm = (p: string): string => path.resolve(p).replace(/[\\/]+$/, '').toLowerCase()
+  const roots = ['USERPROFILE', 'HOME', 'APPDATA', 'LOCALAPPDATA'].map((n) => lookup(env, n)).filter((v): v is string => !!v).map(norm)
+  const userOwned = (dir: string): boolean => {
+    const d = norm(dir)
+    return roots.some((r) => d === r || d.startsWith(r + path.sep) || d.startsWith(r + '/'))
+  }
+  return value.split(sep).filter((d) => d.trim() === '' || !userOwned(d)).join(sep)
+}
+
+// ── 위험 키 ──────────────────────────────────────────────────────────────
 // 로컬 설정에 있으면 열지 않는 키 — 실행기 git(자격 있음)이 명령으로 돌릴 수 있는 것. 근거는 git-config(1)과 실행기가 쓰는 git 명령이다.
 //   core.fsmonitor           status·add·diff가 훅 명령으로 돌린다(hasChanges·commitAll·diffStat). 참·거짓은 내장 데몬이라 뺀다(아래).
 //   filter.<드라이버>.*       add(clean)·checkout(smudge)·process가 돌린다(commitAll·diffStat·checkout). 표준 git-lfs 값만 뺀다(아래).
@@ -81,7 +102,7 @@ export function executorGitEnv(base: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
 //   core.pager·editor, pager.<명령>, sequence.editor, interactive.diffFilter   명령 키다(실행기는 터미널 없이 돌고 --no-edit를 주지만 거부한다).
 //   gpg.program·gpg.<형식>.program·gpg.ssh.defaultKeyCommand, commit·tag·push.gpgSign(참)   서명 때 PATH의 프로그램을 돌린다.
 //   trailer.<이름>.command·cmd, submodule.<이름>.update(!명령)   커밋 트레일러·서브모듈 갱신이 돌린다.
-// G2 3차 검수 사소 — 명령은 아니지만 네트워크로 자격이 새는 키:
+// 명령은 아니지만 네트워크로 자격이 새는 키:
 //   http.proxy·http.<주소>.proxy(빈 값 제외)   push·fetch의 요청(인증 머리 포함)이 그 프록시를 지난다.
 //   http.sslVerify·http.<주소>.sslVerify(거짓)   인증서 검증을 끈다 — 가로채기 쪽에 자격을 넘긴다.
 //   http.sslCAInfo·sslCAPath(·<주소>.)   다른 CA를 믿게 한다. sslCAPath는 sslCAInfo와 같은 부류라 더했다.
@@ -166,7 +187,7 @@ function runnerOf(opts: ConfigGuardOptions): Run {
   return opts.runGit ?? ((args) => runProcess('git', args, { cwd: opts.cwd, env: opts.env, timeoutMs: 30_000 }))
 }
 
-// ── ssh 설정 (G2 3차 검수) ───────────────────────────────────────────────────
+// ── ssh 설정 ─────────────────────────────────────────────────────────────
 // origin이 ssh면 실행기 git의 ssh가 ~/.ssh/config(ProxyCommand·Match exec·LocalCommand)를 자격과 함께 읽는다. 실행기 환경의
 // GIT_SSH_COMMAND로 설정을 끄지 않는다(사용자 IdentityFile·Host 별칭이 깨진다). 대신 그 파일과 Include가 가리키는 파일을 해시로 대조한다.
 // Include는 ~/.ssh 기준 상대 경로·`~`·이름 자리 와일드카드를 따라간다(깊이 4). 폴더 자리 와일드카드는 따라가지 못해 고정 표지만 남긴다(겹).
@@ -240,7 +261,7 @@ async function sshFiles(env: NodeJS.ProcessEnv): Promise<Record<string, string>>
   return out
 }
 
-// ── gh 설정 (G2 4차 검수) ───────────────────────────────────────────────────
+// ── gh 설정 ──────────────────────────────────────────────────────────────
 // 실행기 gh는 사용자 gh 설정 폴더를 그대로 쓴다(자격이 hosts.yml·keyring에 있다). config.yml의 http_unix_socket을 심으면 gh가 인증
 // 머리를 평문으로 그 소켓에 보낸다(검수자 실측). 그래서 후보 폴더 모두의 config.yml·hosts.yml을 해시로 대조하고(없으면 'absent'),
 // 열 때 실행기 gh가 실제로 읽을 폴더(gh 순서: GH_CONFIG_DIR → XDG_CONFIG_HOME/gh → Windows %APPDATA%\GitHub CLI → ~/.config/gh)에
@@ -284,7 +305,7 @@ async function ghSockets(env: NodeJS.ProcessEnv): Promise<string[]> {
   return found
 }
 
-// git 전역 설정 파일(후보와 전역 목록에 나온 출처) — 해시로 대조하는 파일 가운데 풀기로 받을 수 있는 것은 이것뿐이다(G4 검수 B1)
+// git 전역 설정 파일(후보와 전역 목록에 나온 출처) — 해시로 대조하는 파일 가운데 풀기로 받을 수 있는 것은 이것뿐이다
 async function gitConfigFiles(opts: ConfigGuardOptions, run: Run): Promise<string[]> {
   const globalList = await run(['config', '--global', '--list', '--show-origin', '-z'])
   const origins = globalList.code === 0
@@ -303,7 +324,7 @@ async function take(opts: ConfigGuardOptions, run: Run): Promise<Snapshot> {
   return { entries, files }
 }
 
-// ── grafts (G2 3차 검수 사소) ───────────────────────────────────────────────
+// ── grafts ───────────────────────────────────────────────────────────────
 // .git/info/grafts는 커밋의 부모를 바꿔치기하고 GIT_NO_REPLACE_OBJECTS로 꺼지지 않는다(실측). 있으면 열지 않고, 열린 뒤 생기면 멈춘다.
 // 작업 트리의 git 폴더와 공통 폴더(worktree), 실행기 환경의 GIT_GRAFT_FILE을 본다.
 async function graftFiles(run: Run, opts: ConfigGuardOptions): Promise<string[]> {
@@ -369,7 +390,7 @@ const entryOf = (e: string): Entry => {
   return { origin, key, value: rest.join('\t') }
 }
 
-// G4 검수 차단 B1 — 바뀐 것의 사람용 한 줄. 설정 키는 `키: 옛 값 [출처] → 새 값 [출처]`, 파일은 `경로: 옛 해시 → 새 해시`다.
+// 바뀐 것의 사람용 한 줄. 설정 키는 `키: 옛 값 [출처] → 새 값 [출처]`, 파일은 `경로: 옛 해시 → 새 해시`다.
 // 값은 자격을 가리고(maskCredentials), 길거나 가린 값은 앞부분과 전체 값의 sha256을 붙인다 — 받기가 본 값 전체에 묶이게.
 function shownValue(value: string): string {
   const masked = maskCredentials(value)
@@ -409,29 +430,33 @@ function diff(a: Snapshot, b: Snapshot): Diff {
 }
 
 const REMOTE_URL = /^remote\..+\.(?:url|pushurl)$/
-// G4 확인 검수 — 실행기 git의 작업 위치나 원격 요청을 바꾸는 키(값과 관계없이 그 변경). 키는 소문자로 읽힌다(parseList).
+// 실행기 git의 작업 위치나 원격 요청을 바꾸는 키(값과 관계없이 그 변경). 키는 소문자로 읽힌다(parseList).
 //   core.worktree·core.bare   실행기 git이 커밋·diff·병합하는 작업 트리를 다른 곳으로 옮기거나 작업 트리를 없앤다.
 //   http.extraHeader·http.<주소>.extraHeader   push·fetch 요청에 머리(인증 머리 포함)를 더한다.
 //   http.cookieFile·http.<주소>.cookieFile   요청에 쿠키 파일을 싣는다(그 파일이 쓰기 가능하면 받은 쿠키도 적는다).
 //   http.proxy·http.<주소>.proxy   요청이 지나는 프록시다. 빈 값 아닌 값은 위험 키이기도 하다(isDangerous) — 여기서는 빈 값으로 바꾼 것까지 본다.
-const REMOTE_REQUEST = /^(?:core\.(?:worktree|bare)|http\.(?:.+\.)?(?:extraheader|cookiefile|proxy))$/
+//   remote.<이름>.proxy   그 원격의 프록시다 — http.proxy와 같다.
+//   http.curloptResolve·http.<주소>.curloptResolve   호스트를 다른 IP로 돌린다.
+const REMOTE_REQUEST = /^(?:core\.(?:worktree|bare)|http\.(?:.+\.)?(?:extraheader|cookiefile|proxy|curloptresolve)|remote\..+\.proxy)$/
 
-// G4 검수 차단 B1 — 화면의 풀기(받기)로 받지 않는 차이. 사람이 직접 되돌린 뒤 다시 연다.
+// 화면의 풀기(받기)로 받지 않는 차이. 사람이 직접 되돌린 뒤 다시 연다.
 //   - 바뀐 키 가운데 지금 값이 위험 키인 것 — 범위(로컬·전역·시스템·include)와 관계없이. 그대로 있는 전역·시스템의 위험 키
 //     (이 기계의 credential.helper 같은 것)는 바뀐 것이 아니라 보지 않는다.
 //   - remote.<이름>.url·pushurl의 변경 — 실행기 push(자격 있음)가 가는 곳이다.
-//   - 작업 위치나 원격 요청을 바꾸는 키(REMOTE_REQUEST)의 변경 — G4 확인 검수.
+//   - 작업 위치나 원격 요청을 바꾸는 키(REMOTE_REQUEST)의 변경.
 //   - git 전역 설정 파일 밖의 파일(ssh 설정과 Include, gh config.yml·hosts.yml)의 변경.
-function unacceptable(d: Diff, now: Snapshot, gitFiles: ReadonlySet<string>): string | null {
+// 안내에 그 키·파일의 `옛 값 → 새 값`(파일은 해시)과 복구 절차를 싣는다.
+function unacceptable(d: Diff, now: Snapshot, gitFiles: ReadonlySet<string>, snapshotFile: string): string | null {
   const danger: string[] = []
   const remotes: string[] = []
   const requests: string[] = []
+  const refusedKeys = new Set<string>()
   for (const k of d.keys) {
     for (const e of now.entries.map(entryOf).filter((x) => x.key === k)) {
-      if (isDangerous(k, e.value)) danger.push(`${k}(${e.origin.replace(/^file:/, '')})`)
+      if (isDangerous(k, e.value)) { danger.push(`${k}(${e.origin.replace(/^file:/, '')})`); refusedKeys.add(k) }
     }
-    if (REMOTE_URL.test(k)) remotes.push(k)
-    if (REMOTE_REQUEST.test(k)) requests.push(k)
+    if (REMOTE_URL.test(k)) { remotes.push(k); refusedKeys.add(k) }
+    if (REMOTE_REQUEST.test(k)) { requests.push(k); refusedKeys.add(k) }
   }
   const files = d.files.filter((f) => !gitFiles.has(f))
   const parts = [
@@ -440,7 +465,14 @@ function unacceptable(d: Diff, now: Snapshot, gitFiles: ReadonlySet<string>): st
     ...(requests.length > 0 ? [`실행기 git의 작업 위치나 원격 요청을 바꾸는 키가 바뀌었다 — ${list(requests)}`] : []),
     ...(files.length > 0 ? [`ssh·gh 설정 파일이 바뀌었다 — ${list(files)}`] : []),
   ]
-  return parts.length === 0 ? null : `${parts.join('. ')}. 이 차이는 화면의 풀기로 받지 않는다 — 사람이 직접 되돌린 뒤 다시 연다`
+  if (parts.length === 0) return null
+  const names = [...refusedKeys, ...files]
+  const shown = d.details.filter((line) => names.some((n) => line.startsWith(`${n}: `)))
+  return [
+    `${parts.join('. ')}. 바뀐 값: ${list(shown)}.`,
+    '이 차이는 화면의 풀기로 받지 않는다 — 사람이 직접 되돌린 뒤 다시 연다.',
+    `사람이 스스로 바꾼 것(gh auth login 등)이면 스냅숏 파일 ${snapshotFile}을 지운 뒤 다시 연다 — 지금 설정이 새 기준선이 된다`,
+  ].join(' ')
 }
 
 const list = (keys: string[]): string => (keys.length > 6 ? `${keys.slice(0, 6).join(', ')} 외 ${keys.length - 6}개` : keys.join(', '))
@@ -501,7 +533,7 @@ export async function createConfigGuard(opts: ConfigGuardOptions): Promise<Confi
     const d = diff(stored, base)
     if (d.details.length > 0) {
       // 받을 수 없는 차이면 받기 목록(changed)을 주지 않는다 — 화면이 풀기 카드를 보이지 않고, 사람이 직접 되돌린다
-      const refused = unacceptable(d, base, new Set(await gitConfigFiles(opts, run)))
+      const refused = unacceptable(d, base, new Set(await gitConfigFiles(opts, run)), opts.snapshotFile)
       if (refused) return { ok: false, reason: `실행기 git 설정이 지난 실행이 적은 스냅숏(${opts.snapshotFile})과 다르다 — ${refused}` }
       // 받기는 사람이 본 줄(키·값·출처, 파일 해시)과 정확히 같을 때만이다 — 본 뒤 값이 또 바뀌면 받지 않는다
       const accepted = opts.acceptChanged !== undefined && [...opts.acceptChanged].sort().join('\n') === d.details.join('\n')
@@ -530,7 +562,7 @@ export async function createConfigGuard(opts: ConfigGuardOptions): Promise<Confi
     let now: Snapshot
     try { now = await takeSteady(opts, run) } catch (e) { return (tripped = `${CONFIG_CHANGED} — 설정을 다시 읽지 못했다(${(e as Error).message})`) }
     const d = diff(base, now)
-    // 화면의 래치 카드는 키·값·출처를 본다(G4 검수 B1) — 풀기는 이 줄들에 묶인다
+    // 화면의 래치 카드는 키·값·출처를 본다 — 풀기는 이 줄들에 묶인다
     changedNow = d.details
     const names = [...d.keys, ...d.files]
     if (names.length > 0) tripped = `${CONFIG_CHANGED} — 바뀐 키: ${list(names)}`

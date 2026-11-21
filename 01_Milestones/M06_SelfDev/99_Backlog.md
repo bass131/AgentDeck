@@ -3,6 +3,44 @@
 완료조건 밖의 발견을 한 줄씩 남깁니다. 승인을 묻지 않고 기록만 하며, 다음 goal의 후보입니다.
 M05에서 넘어온 항목은 `M05_Structure/99_Backlog.md`가 계속 소유합니다 — 특히 57·78(이 기계의 `npm test` 타임아웃과 TDD 가드 리셋)은 M06에서 앱 소스를 고치기 전에 다룰 후보입니다.
 
+## 닫힘 (M11)
+
+M11 Backlog 정리(`01_Milestones/M11_BacklogSweep/`)가 닫은 항목이다. 아래 항목 줄은 그대로 두고 닫힘은 이 표가 갖는다. 표에 없는 항목은 M11 goal 2~9가 고치면서 더한다.
+
+| 항목 | 닫힘 | 근거 |
+|---|---|---|
+| 1 | 고침(M11 goal 2) | 권한 모드를 대화마다 저장하고 불러온다(`renderer/src/06_Sessions/state/sessions.ts:186`, `main/06_Sessions/store.ts:49`, `d95d7051`). 쉬는 중의 모드 변경도 저장하고(`05_Conversation/state/composer.ts:128`) 대화 폴더 `chats`를 엔진 경로 잠금에 넣었다(`main/04_Claude/permission/enginePathLock.ts:22`, `932c80e9`). 실앱 e2e `m11-g2-app-session-live.e2e.ts` C에서 두 대화가 Bypass·플랜을 따로 기억했다. |
+| 2 | 고침(M11 goal 2) | 계기 usage가 턴 합계가 아니라 마지막 최상위 assistant 호출이다(`main/04_Claude/stream/eventNormalizer.ts:62,128,163`, `57c20790`). 실앱 e2e B에서 네 도구 턴 뒤 「40K / 1M 4%」. |
+| 3 | 고침(M11 goal 2) | 상태 줄 가지 칸이 git의 실제 가지를 읽는다(`renderer/src/12_Window/useStatusBranch.ts:11`, `Shell.tsx:53,273`, `57c20790`, `932c80e9`). 실앱 e2e A에서 `feat/m11-g2-probe`. |
+| 4 | 닫음(실측) | 캐시가 따뜻할 때 다시 열기의 캐시 생성 추가는 작고 훅 재부착은 약 500토큰, 기동 지연은 약 0.4~0.5초(표본 1)라 닫기 유예 3000ms를 둔다(`57c20790` 메시지). |
+| 5 | 고침(M11 goal 7) | `50_stop-gate.cjs`의 두 지시문이 스탬프를 「장전 시각(그 값) 이후의 지금 시각」으로 찍으라고 하고, 세션 시작 시각은 장전보다 이를 수 있다고 적는다(smoke 「block 사유가 스탬프를 장전 시각 이후로…」, `88394dac`). |
+| 6 | M13으로 | M11 스펙 「하지 않을 것」 — 버전 표시는 설치본 패키징과 함께 M13이 맡는다. |
+| 7 | 고침(M11 goal 6) | 두 컴포넌트 파일이 컴포넌트만 내보낸다. `nextInject`는 `renderer/src/12_Window/inject.ts`로 옮겼다. `Conversation.tsx`의 `ThreadView` 재수출은 지웠고, 배럴이 `ThreadView`에서 직접 내보낸다(`05_Conversation/index.ts`). `ThreadView.test.tsx`가 `Conversation.tsx`의 export 목록을 고정한다(`a55db0e9`). |
+| 8 | 해결됨 | 가드가 논리 줄 판독과 이음 지운 원문 읽기로 줄 이음 꼴을 읽고(`dangerous-cmd-guard.mjs:6-8,15`, G5 `a9408c52`) 남은 꼴은 M06-20·21이 맡는다. |
+| 9 | 고침(M11 goal 3) | SDK를 올릴 때 다시 돌릴 블랙박스 실측 절차를 문서로 뒀다 — 공개 `query()`와 돌려받은 값만 쓴다(`00_Documents/00_Architecture/01_SDK-재실측-절차.md` 「다시 잴 것」 첫 줄, 제안 없으면 카드). 판정 코드는 그대로다. |
+| 10 | 낡음 | M07 G4 봉인과 하한 뒤로 번들 이상 버전만 돈다(`main/10_Engine/engineSeal.ts:151`). |
+| 11 | 고침(M11 goal 2) | 숫자 키가 카드 종류와 상관없이 1 허용, 2 거부, 3 항상 허용이다(`renderer/src/03_Agent/PermissionCard.tsx:11`, `d95d7051`). |
+| 12 | 고침(M11 goal 2) | 펼친 긴 명령은 끝까지 스크롤해야 허용되고 두 번째 요청은 줄을 선다(`PermissionCard.tsx:63,262`, `05_Conversation/state/reducer/permission.ts:27`, `d95d7051`). 길게 누른 키와 다음 요청으로 바뀐 직후 300ms의 키는 받지 않는다(`PermissionCard.tsx:90,116`, `932c80e9`). 올라온 비Bash 카드의 입력 전문은 M11 Backlog 13. |
+| 13 | 고침(M11 goal 2) | SDK 목록을 못 받으면 main은 다음 요청에 다시 묻고 renderer는 5·15·60초 뒤 다시 묻는다(`main/04_Claude/modelListProvider.ts:121`, `05_Conversation/state/composer.ts:11`, `57c20790`). |
+| 14 | 해결됨 | `hookTimeout`이 30000이다(`vitest.config.ts:22`, G7). |
+| 15 | 고침(M11 goal 2) | `ContextStrip`이 쓰지 않던 `selectedModel`을 받지 않는다(`05_Conversation/ComposerContext.tsx`, `57c20790`). |
+| 16 | 고침(M11 goal 2) | 최소 목록이 SDK 별칭 행 꼴이고 목록에 없는 모델은 effort 메뉴를 끈다(`shared/03_Agent/models/knownModels.ts:8`, `renderer/src/03_Agent/pickerOptions.ts:111`, `57c20790`). |
+| 17 | 고침(M11 goal 2) | 새 대화 기본 모델이 SDK 목록 `default` 행의 정식 ID다(`knownModels.ts:17` `defaultModelOf`, `57c20790`). |
+| 18 | 고침(M11 goal 2) | 모델을 바꾸면 다음 턴이 창을 새로 잴 때까지 재적재 예산에서 옛 창을 빼고 계기 창은 둔다(`composer.ts:99`, `03_Agent/state/runtime.ts:102`, `0de67e27`). 턴 도중의 변경은 그 턴의 done이 내리지 않는다(`05_Conversation/state/reducer/lifecycle.ts`, `932c80e9`). 행 값에 꼴·길이 제한을 둔다(`shared/03_Agent/models/modelList.ts:37`, `57c20790`). 패널 쪽은 M11 Backlog 14. |
+| 19 | 고침(M11 goal 2) | 폴백 버전을 `package.json` 의존 명세에서 파생하고 접미 벗기기는 한 벌이다(`main/10_Engine/sdkVersion.ts:9`, `main/04_Claude/stream/claudeStream.ts:4`, `57c20790`). PR 검사는 `hard-gates`가 한다. |
+| 20 | v2로 | M11 스펙 결정 대장 [USER] 2회차 — 가드 재설계 「이번엔 안 한다」. |
+| 21 | v2로 | M11 스펙 결정 대장 [USER] 2회차 — 셸 파서 도입도 가드 재설계와 함께 「이번엔 안 한다」. |
+| 22 | 해결됨 | 항목 본문대로 G8 결정 대장이 알려진 동작으로 닫았다. |
+| 23 | 고침(M11 goal 7) | `gate.md` 기준선을 다시 쟀다 — 468파일 통과·6 스킵·실패 0, 9117 시험, 약 204초. `phase18-audit-fix` 메모를 빼고 시간 한도 30초를 적었다(`88394dac`). |
+| 24 | 고침(M11 goal 2) | 지속 세션의 effort를 공개 `Query.applyFlagSettings({ effortLevel })`로 바꾼다 — 재사용 턴과 실행 중 `agent.setEffort`(`main/04_Claude/run/claudeAgentRun.ts:224`, `main/03_Agent/agentRuns.ts:77`, `57c20790`). 실측으로 deny 규칙 유지를 봤다. 패널 쪽은 M11 Backlog 14. |
+| 25 | 해결됨 | 메인 대화 안에 질문·승인 카드가 뜬다(`renderer/src/13_Loop/MainChatView.tsx:6,81`, M10 G3 `547ab01b`). |
+| 26 | 고침(M11 goal 2) | M06-2와 같은 고침이다(`eventNormalizer.ts:163`, `57c20790`). |
+| 27 | 고침(M11 goal 2) | SDK 자동 압축은 이미 켜져 있었다(실측 `getContextUsage` `isAutoCompactEnabled` true, 문턱은 사용자 설정 `autoCompactWindow`를 따른다 — 실앱에서 「자동 압축 217K」). 지속 세션은 턴 뒤, 한 턴짜리는 첫 메시지에서 모델마다 한 번 물어 컨텍스트 칩에 보인다(`claudeAgentRun.ts:210,415,622,642`, `05_Conversation/ComposerContext.tsx:50`, `57c20790`, `932c80e9`). |
+| 28 | 닫음(판단) | 겹침을 유지한다. `gh pr merge`는 M07 G12 뒤 설정 deny라 적힌 겹침은 없어졌고, 남은 겹침은 릴리스·배포 셋(설정 ask와 가드 ask)이다. 공식 permission-modes 문서 「Claude Code doesn't auto-approve the following in any mode, including `bypassPermissions`」의 첫 줄이 「Tools matched by an explicit ask rule」이다 — 설정 ask는 모든 모드에서 창을 보장하는 층이고, 가드 ask는 감싼 꼴을 잡는 층이라 하나를 빼면 보장 하나를 잃는다. 카드 사유 표시는 앱 몫으로 M11 Backlog 78. |
+| 29 | 고침(M11 goal 4) | 메인 대화로 보내는 요청의 선택 칸 `proxy: true`가 대리 입력 표지다 — 기록의 사람 글이 표지를 갖고 화면에 「대리 입력」으로 보이며, 그 턴의 글에 결정 대장에 `[USER·위임]`으로 적으라는 줄이 붙는다(`main/05_Loop/mainChat.ts:65,145`, `main/01_Ipc/handlers/loop.ts:157`, `renderer/src/13_Loop/MainChatView.tsx:55`, `abde4069`). 화면 토글은 만들지 않는다(G4 결정 대장). 실앱 e2e `m11-g4-work-mode-live.e2e.ts` A에서 표지가 보였고 메인이 `[USER·위임]` 기록을 시도했다(브레인스토밍 밖이라 쓰기 창이 막았다). |
+| 30 | 해결됨 | 가드 훅에 `timeout: 30`과 `onFailure: "block"`이 있다(`.claude/settings.json:70`). |
+| 31 | 해결됨 | M07 G1 결정 대장 [USER] 「그대로 두고 닫기」가 닫았다(`M07_Controls/10_Goal-G1-판정-장치-정비.md:72`). |
+
 1. 모드 선택기는 대화마다가 아니라 전역이다. 새 대화에서 Bypass를 고른 뒤 옛 대화를 열어도 Bypass로 보내진다 (G1 실측 4절 직전 화면).
 2. 세션 중 모델을 Haiku 4.5로 바꾸자 컨텍스트 계기가 「429K / 200K 100%」를 보였다. 계기의 합산 방식이나 창 크기 표가 의심된다 (G1 실측, 화면).
 3. 하단 상태줄의 브랜치 칸이 clone의 실제 브랜치 `chore/m06-g1-app-probe` 대신 `main`을 보였다 (G1 실측, 화면).

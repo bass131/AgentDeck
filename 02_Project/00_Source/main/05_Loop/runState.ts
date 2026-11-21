@@ -1,4 +1,4 @@
-// M09 G1 — 실행 상태 스키마. 작업 저장소의 `.agentdeck/run-state.json`에 실린다.
+// 작업 저장소의 `.agentdeck/run-state.json`에 실린다.
 // 템플릿 내용은 싣지 않고 id와 해시만 적는다(해시가 앱의 템플릿과 다르면 실행기가 멈춘다).
 // 검증 줄은 실행기만 쓴다(by: 'executor'). FAIL 계수는 줄 목록에서 다시 셀 수 있는 값이라 불러올 때 다시 센다.
 // 저장된 계수가 다시 센 값과 다르거나, running인데 그 범위의 FAIL이 이미 FAIL_LIMIT 이상이거나,
@@ -15,8 +15,8 @@ import {
 export const FAIL_LIMIT = 3
 
 export type Marker = 'PASS' | 'FAIL' | 'USER-INPUT'
-export type LineJudge = Judge | 'executor'
-export interface VerificationLine {
+type LineJudge = Judge | 'executor'
+interface VerificationLine {
   marker: Marker
   at: string
   sentence: string
@@ -26,7 +26,7 @@ export interface VerificationLine {
   goal: string | null
   judge: LineJudge
 }
-export type GoalStatus = 'pending' | 'active' | 'done'
+type GoalStatus = 'pending' | 'active' | 'done'
 export interface GoalState {
   id: string
   title: string
@@ -39,23 +39,48 @@ export interface GoalState {
   pushedSha: string | null
   ciSha: string | null
   mergedSha: string | null
-  // M09 G4 — 모델 게이트(검수)가 pass를 낸 작업 트리 해시. goal PR 동작이 커밋·push 직전에 지금 트리와 대조한다.
+  // 모델 게이트(검수)가 pass를 낸 작업 트리 해시. goal PR 동작이 커밋·push 직전에 지금 트리와 대조한다.
   // 옛 상태에는 없을 수 있다(없으면 null로 읽는다).
   reviewedTree?: string | null
-  // M09 G4 검수 I7 — 분해 노드가 pass할 때 실행기가 읽은 goal 문서의 sha256. 검수 직전과 goal PR 직전에 지금 문서와 대조한다.
+  // 분해 노드가 pass할 때 실행기가 읽은 goal 문서의 sha256. 검수 직전과 goal PR 직전에 지금 문서와 대조한다.
   // 옛 상태에는 없을 수 있다(없으면 대조하지 않는다).
   docSha256?: string | null
+  // 마지막 검수 pass가 인정한 Taste 충돌(프로젝트 쪽을 따른 짝). 마일스톤 결과 보고의 「영역 재설계 안건」에 싣는다. 옛 상태에는 없다.
+  tasteConflicts?: TasteConflict[]
 }
+export interface TasteConflict { project: string; global: string; note: string }
 // goal은 goal 고리 안이면 goal 목록의 위치, 마일스톤 구획이면 null.
 export interface Cursor { node: string; goal: number | null }
-export type RunStatus = 'running' | 'needs-user' | 'done'
+// usage-limit: 사용량 한도 멈춤. 판정이 아니라 실행 환경의 사건이라 검증 줄을 쓰지 않고, 한도 이어 가기(usageLimit.ts)로만 풀린다.
+type RunStatus = 'running' | 'needs-user' | 'usage-limit' | 'done'
+export type LimitReason = 'warning' | 'rejected' | 'overage' | 'error'
+// 사람이 「지금 이어 가기」로 푼 경고 창 — until(그 창의 resetsAt, 유닉스 초)까지 그 창의 경고로 멈추지 않는다
+export interface LimitAck { window: string; until: number }
+export interface UsageLimitHalt {
+  // 이어 가면 다시 도는 노드(커서)
+  node: string
+  goal: string | null
+  reason: LimitReason
+  window: string | null
+  // 유닉스 초. 시각 없음이면 null
+  resetsAt: number | null
+  // 자동으로 이어 갈 시각. null이면 사람의 이어 가기를 기다린다
+  resumeAt: string | null
+  utilization: number | null
+  at: string
+  // 노드 하나도 끝내지 못한 채 이어진 멈춤이라 사람을 기다린다
+  human: boolean
+  warned: LimitAck[]
+}
+// streak: 노드 하나도 끝내지 못한 채 이어진 한도 멈춤 수
+export interface UsageLimitState { halt: UsageLimitHalt | null; streak: number; acks: LimitAck[] }
 export interface RunState {
   schema: 1
   milestoneId: string
   template: { id: string; hash: string }
-  // M09 G4 — 시작할 때 읽은 기준 브랜치(origin 기본 브랜치). 다시 열 때 읽은 값과 다르면 실행기가 멈춘다. 옛 상태에는 없을 수 있다.
+  // 시작할 때 읽은 기준 브랜치(origin 기본 브랜치). 다시 열 때 읽은 값과 다르면 실행기가 멈춘다. 옛 상태에는 없을 수 있다.
   base?: string | null
-  // M09 G4 검수 I7 — 사람이 스펙 승인에서 본 스펙의 sha256(실행기가 대조한 값). 그 뒤 노드에서 스펙 파일이 다르면 실행기가 멈춘다.
+  // 사람이 스펙 승인에서 본 스펙의 sha256(실행기가 대조한 값). 그 뒤 노드에서 스펙 파일이 다르면 실행기가 멈춘다.
   specSha256?: string | null
   status: RunStatus
   haltReason: string | null
@@ -66,15 +91,18 @@ export interface RunState {
   milestonePr: number | null
   failCount: number
   lines: VerificationLine[]
+  // 옛 상태에는 없다(없으면 한도 멈춤도 셈도 없다)
+  usageLimit?: UsageLimitState
 }
-export type RunStateCheck = { ok: true; state: RunState } | { ok: false; errors: SchemaError[] }
+type RunStateCheck = { ok: true; state: RunState } | { ok: false; errors: SchemaError[] }
 
-export const MILESTONE_ID = /^[A-Za-z0-9][A-Za-z0-9._-]*$/
+const MILESTONE_ID = /^[A-Za-z0-9][A-Za-z0-9._-]*$/
 export const GOAL_ID = /^[A-Za-z0-9][A-Za-z0-9._-]*$/
 const HASH = /^[0-9a-f]{64}$/
 const MARKERS: readonly Marker[] = ['PASS', 'FAIL', 'USER-INPUT']
 const LINE_JUDGES: readonly LineJudge[] = ['rule', 'model', 'human', 'executor']
-const STATUSES: readonly RunStatus[] = ['running', 'needs-user', 'done']
+const STATUSES: readonly RunStatus[] = ['running', 'needs-user', 'usage-limit', 'done']
+const LIMIT_REASONS: readonly LimitReason[] = ['warning', 'rejected', 'overage', 'error']
 const GOAL_STATUSES: readonly GoalStatus[] = ['pending', 'active', 'done']
 
 export function createRunState(
@@ -124,9 +152,18 @@ const isPr = (v: unknown): v is number => typeof v === 'number' && Number.isInte
 const nullOr = <T>(v: unknown, test: (x: unknown) => x is T): boolean => v === null || test(v)
 const oneOf = <T>(list: readonly T[], v: unknown): v is T => (list as readonly unknown[]).includes(v)
 
+export function isTasteConflict(c: unknown): c is TasteConflict {
+  if (!isObject(c) || Object.keys(c).length !== 3) return false
+  return typeof c.project === 'string' && /^P-T\d+$/.test(c.project)
+    && typeof c.global === 'string' && /^G-T\d+$/.test(c.global) && isNonEmptyString(c.note)
+}
+
 function checkGoal(g: unknown, p: string, err: ErrSink): void {
   if (!isObject(g)) { err(p, 'goal은 객체여야 한다'); return }
-  rejectUnknownKeys(g, p, ['id', 'title', 'grade', 'status', 'baseSha', 'pr', 'pushedSha', 'ciSha', 'mergedSha', 'reviewedTree', 'docSha256'], err)
+  rejectUnknownKeys(g, p, ['id', 'title', 'grade', 'status', 'baseSha', 'pr', 'pushedSha', 'ciSha', 'mergedSha', 'reviewedTree', 'docSha256', 'tasteConflicts'], err)
+  if (g.tasteConflicts !== undefined && !(Array.isArray(g.tasteConflicts) && g.tasteConflicts.every(isTasteConflict))) {
+    err(`${p}.tasteConflicts`, '{ project: P-T<숫자>, global: G-T<숫자>, note } 배열')
+  }
   if (g.reviewedTree !== undefined && !nullOr(g.reviewedTree, isNonEmptyString)) err(`${p}.reviewedTree`, '문자열이나 null')
   if (g.docSha256 !== undefined && !nullOr(g.docSha256, (x: unknown): x is string => typeof x === 'string' && HASH.test(x))) err(`${p}.docSha256`, 'sha256 16진수나 null')
   if (!isNonEmptyString(g.id) || !GOAL_ID.test(g.id)) err(`${p}.id`, 'goal id 꼴이 아니다')
@@ -151,13 +188,48 @@ function checkLine(l: unknown, p: string, err: ErrSink): void {
   if (!oneOf(LINE_JUDGES, l.judge)) err(`${p}.judge`, 'rule·model·human·executor 중 하나')
 }
 
+const isSeconds = (v: unknown): v is number => typeof v === 'number' && Number.isInteger(v) && v > 0
+
+function checkAcks(v: unknown, p: string, err: ErrSink): void {
+  if (!Array.isArray(v)) { err(p, '배열이어야 한다'); return }
+  v.forEach((a: unknown, i) => {
+    if (!isObject(a)) { err(`${p}[${i}]`, '{ window, until } 객체여야 한다'); return }
+    rejectUnknownKeys(a, `${p}[${i}]`, ['window', 'until'], err)
+    if (!isNonEmptyString(a.window)) err(`${p}[${i}].window`, '창 이름이 있어야 한다')
+    if (!isSeconds(a.until)) err(`${p}[${i}].until`, '유닉스 초여야 한다')
+  })
+}
+
+function checkUsageLimit(u: unknown, p: string, err: ErrSink): void {
+  if (!isObject(u)) { err(p, '{ halt, streak, acks } 객체여야 한다'); return }
+  rejectUnknownKeys(u, p, ['halt', 'streak', 'acks'], err)
+  if (!isIndex(u.streak)) err(`${p}.streak`, '0 이상의 정수여야 한다')
+  checkAcks(u.acks, `${p}.acks`, err)
+  const h = u.halt
+  if (h === null) return
+  if (!isObject(h)) { err(`${p}.halt`, '객체나 null'); return }
+  const hp = `${p}.halt`
+  rejectUnknownKeys(h, hp, ['node', 'goal', 'reason', 'window', 'resetsAt', 'resumeAt', 'utilization', 'at', 'human', 'warned'], err)
+  if (!isNonEmptyString(h.node)) err(`${hp}.node`, '노드 id가 있어야 한다')
+  if (!nullOr(h.goal, isNonEmptyString)) err(`${hp}.goal`, 'goal id나 null')
+  if (!oneOf(LIMIT_REASONS, h.reason)) err(`${hp}.reason`, 'warning·rejected·overage·error 중 하나')
+  if (!nullOr(h.window, isNonEmptyString)) err(`${hp}.window`, '창 이름이나 null')
+  if (!nullOr(h.resetsAt, isSeconds)) err(`${hp}.resetsAt`, '유닉스 초나 null')
+  if (!nullOr(h.resumeAt, (x: unknown): x is string => typeof x === 'string' && Number.isFinite(Date.parse(x)))) err(`${hp}.resumeAt`, '시각이나 null')
+  if (!nullOr(h.utilization, (x: unknown): x is number => typeof x === 'number' && Number.isFinite(x))) err(`${hp}.utilization`, '수나 null')
+  if (!isNonEmptyString(h.at)) err(`${hp}.at`, '시각이 있어야 한다')
+  if (typeof h.human !== 'boolean') err(`${hp}.human`, '참·거짓')
+  checkAcks(h.warned, `${hp}.warned`, err)
+}
+
 export function validateRunState(raw: unknown): RunStateCheck {
   const errors: SchemaError[] = []
   const err: ErrSink = (path, reason) => { errors.push({ path, reason }) }
   if (!isObject(raw)) return { ok: false, errors: [{ path: '$', reason: '실행 상태는 객체여야 한다' }] }
   rejectUnknownKeys(raw, '$', [
-    'schema', 'milestoneId', 'template', 'base', 'specSha256', 'status', 'haltReason', 'cursor', 'milestoneBase', 'goals', 'milestonePr', 'failCount', 'lines',
+    'schema', 'milestoneId', 'template', 'base', 'specSha256', 'status', 'haltReason', 'cursor', 'milestoneBase', 'goals', 'milestonePr', 'failCount', 'lines', 'usageLimit',
   ], err)
+  if (raw.usageLimit !== undefined) checkUsageLimit(raw.usageLimit, '$.usageLimit', err)
   if (raw.schema !== 1) err('$.schema', '지원하는 상태 판은 1뿐이다')
   if (raw.base !== undefined && !nullOr(raw.base, isNonEmptyString)) err('$.base', '기준 브랜치 이름이나 null')
   if (raw.specSha256 !== undefined && !nullOr(raw.specSha256, (x: unknown): x is string => typeof x === 'string' && HASH.test(x))) {
@@ -171,7 +243,7 @@ export function validateRunState(raw: unknown): RunStateCheck {
     if (!isNonEmptyString(t.id)) err('$.template.id', '템플릿 id가 있어야 한다')
     if (typeof t.hash !== 'string' || !HASH.test(t.hash)) err('$.template.hash', 'sha256 16진수여야 한다')
   }
-  if (!oneOf(STATUSES, raw.status)) err('$.status', 'running·needs-user·done 중 하나')
+  if (!oneOf(STATUSES, raw.status)) err('$.status', `${STATUSES.join('·')} 중 하나`)
   if (!nullOr(raw.haltReason, isNonEmptyString)) err('$.haltReason', '문자열이나 null')
   const c = raw.cursor
   if (!isObject(c)) err('$.cursor', '{ node, goal } 객체여야 한다')
@@ -195,14 +267,17 @@ export function validateRunState(raw: unknown): RunStateCheck {
     if (ids.has(g.id)) err(`$.goals[${i}].id`, `중복 goal id ${g.id}`)
     ids.add(g.id)
   })
-  if (state.status === 'needs-user' && state.haltReason === null) err('$.haltReason', '멈춘 상태에는 멈춘 사유가 있어야 한다')
+  if ((state.status === 'needs-user' || state.status === 'usage-limit') && state.haltReason === null) err('$.haltReason', '멈춘 상태에는 멈춘 사유가 있어야 한다')
+  const halt = state.usageLimit?.halt ?? null
+  if ((state.status === 'usage-limit') !== (halt !== null)) err('$.usageLimit.halt', '한도 멈춤 상태와 한도 멈춤 기록은 함께 있어야 한다')
   if (state.cursor.goal !== null && state.cursor.goal >= state.goals.length) err('$.cursor.goal', 'goal 목록 밖을 가리킨다')
   else {
     const derived = failsSinceUserInput(state.lines, scopeOf(state))
     if (state.failCount !== derived) err('$.failCount', `줄 목록에서 센 값 ${derived}과 다르다`)
-    if (state.status === 'running' && derived >= FAIL_LIMIT) {
-      err('$.status', `마지막 USER-INPUT 뒤 FAIL이 ${derived}번인데 running이다 — 사람의 이어 가기 없이 멈춤을 풀 수 없다`)
+    if ((state.status === 'running' || state.status === 'usage-limit') && derived >= FAIL_LIMIT) {
+      err('$.status', `마지막 USER-INPUT 뒤 FAIL이 ${derived}번인데 ${state.status}이다 — 사람의 이어 가기 없이 멈춤을 풀 수 없다`)
     }
+    if (halt !== null && (halt.node !== state.cursor.node || halt.goal !== scopeOf(state))) err('$.usageLimit.halt.node', '한도 멈춤의 노드가 커서와 다르다')
   }
   return errors.length > 0 ? { ok: false, errors } : { ok: true, state }
 }

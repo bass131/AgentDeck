@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import type { QueryFn } from '@main/04_Claude/ClaudeCodeBackend'
-import type { AgentEvent } from '../../../../02_Project/00_Source/shared/agentEvents'
+import type { AgentEvent } from '@shared/agentEvents'
 
 function mkResultSuccess() {
   return {
@@ -150,7 +150,7 @@ describe('A. getDefaultQueryFn() — 활성 설치 버전 우선 → 번들 폴�
   })
 })
 
-describe('B. version() — getVersionState active 우선 → _resolvePackageVersion → SDK_VERSION', () => {
+describe('B. version() — getVersionState active 우선 → _resolvePackageVersion → SDK_VERSION_FALLBACK', () => {
 
   it('B1. getVersionState().active = "0.4.0" → version() = "0.4.0"', async () => {
     vi.doMock('@main/10_Engine/engineVersions', () => ({
@@ -160,9 +160,11 @@ describe('B. version() — getVersionState active 우선 → _resolvePackageVers
         bundled: '0.3.0',
         active: '0.4.0',
         installed: ['0.4.0'],
-        // M07 G4: 봉인이 맞을 때만 활성 버전을 보인다 (봉인이 다르면 번들이 돈다 — engineSeal.test.ts)
+        // 봉인이 맞을 때만 활성 버전을 보인다 (봉인이 다르면 번들이 돈다 — engineSeal.test.ts)
         seal: 'ok',
       }),
+      // 보이는 버전은 실행이 실제로 쓰는 엔진(activeInUse)이다 — major·불러오기 판정은 engineSeal.test.ts
+      activeInUse: vi.fn().mockReturnValue('0.4.0'),
     }))
 
     const { ClaudeCodeBackend } = await import('@main/04_Claude/ClaudeCodeBackend')
@@ -194,7 +196,7 @@ describe('B. version() — getVersionState active 우선 → _resolvePackageVers
     expect(ver).toBe('0.3.100')
   })
 
-  it('B3. getVersionState() throw → graceful 폴백(_resolvePackageVersion 또는 SDK_VERSION)', async () => {
+  it('B3. getVersionState() throw → graceful 폴백(_resolvePackageVersion 또는 SDK_VERSION_FALLBACK)', async () => {
     vi.doMock('@main/10_Engine/engineVersions', () => ({
       loadActiveQuery: vi.fn().mockResolvedValue(null),
       getVersionState: vi.fn().mockImplementation(() => {

@@ -1,17 +1,17 @@
 const BOUNDARY_SLASH_RE = /(^|\s)\//g
 const SLASH_BODY_RE = /^[A-Za-z0-9_-]+(?::[A-Za-z0-9_-]+)*/
 
-export interface SlashTokenSegment {
+interface SlashTokenSegment {
   text: string
   highlight: boolean
 }
 
-export interface SlashTokenSpan {
+interface SlashTokenSpan {
   start: number
   end: number
 }
 
-export function collectSlashCommandSpans(text: string): SlashTokenSpan[] {
+function collectSlashCommandSpans(text: string): SlashTokenSpan[] {
   if (!text) return []
   const boundaryRe = new RegExp(BOUNDARY_SLASH_RE.source, BOUNDARY_SLASH_RE.flags)
   const spans: SlashTokenSpan[] = []

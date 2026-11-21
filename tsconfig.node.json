@@ -24,7 +24,6 @@
     "02_Project/00_Source/preload/**/*.ts",
     "02_Project/00_Source/shared/**/*.ts",
     "02_Project/01_TestCode/main/**/*.ts",
-    "02_Project/01_TestCode/agents/**/*.ts",
     "02_Project/01_TestCode/shared/**/*.ts",
     "02_Project/01_TestCode/hooks/**/*.ts",
     "02_Project/01_TestCode/_lib/**/*.ts",

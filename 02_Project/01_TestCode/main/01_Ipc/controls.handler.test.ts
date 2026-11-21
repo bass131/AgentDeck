@@ -1,5 +1,3 @@
-// M07 G5 — 컨트롤 패널의 IPC 핸들러. ipcMain.handle을 가로채 등록된 핸들러를 직접 부른다.
-// 상태는 노드 목록·controls.json 봉인 상태에 엔진 봉인 상태를 함께 싣는다(패널의 바뀜 경고 두 갈래).
 import { describe, it, expect, vi, beforeEach, afterAll } from 'vitest'
 import fs from 'node:fs'
 import os from 'node:os'
@@ -28,8 +26,8 @@ vi.mock('@main/10_Engine/engineVersions', () => ({
 }))
 
 import { registerControlsHandlers } from '@main/01_Ipc/handlers/controls'
-import { IPC_CHANNELS } from '../../../../02_Project/00_Source/shared/ipcContract'
-import type { ControlsState } from '../../../../02_Project/00_Source/shared/ipcContract'
+import { IPC_CHANNELS } from '@shared/ipcContract'
+import type { ControlsState } from '@shared/ipcContract'
 
 const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agentdeck-controls-ipc-'))
 
@@ -82,6 +80,20 @@ describe('컨트롤 IPC (M07 G5)', () => {
     expect(s.status).toBe('none')
     expect(s.nodes.map((n) => n.id)).toContain('mode-auto-bypass-allow')
     expect(s.engine).toEqual({ seal: 'mismatch', active: '0.3.326' })
+  })
+
+  it('[M11-G3 M07-13] 노드마다 메모리에 남은 최근 판정 수를 싣는다', async () => {
+    const { recordVerdict, clearVerdicts } = await import('@main/04_Claude/permission/verdictLog')
+    clearVerdicts()
+    recordVerdict('readonly-allow', 'Read', {}, 'allow')
+    recordVerdict('readonly-allow', 'Glob', {}, 'allow')
+    const s = call<ControlsState>(IPC_CHANNELS.CONTROLS_STATE)
+    expect(s.nodes.find((n) => n.id === 'readonly-allow')?.recentVerdicts).toBe(2)
+    expect(s.nodes.find((n) => n.id === 'merge-deny')?.recentVerdicts).toBe(0)
+    // SDK의 인라인 거부 규칙(permissionRules) 노드는 앱이 판정을 보지 못한다 — 수 대신 null(기록 없음)이다
+    expect(s.nodes.find((n) => n.id === 'engine-path-file-deny')?.recentVerdicts).toBeNull()
+    expect(s.nodes.filter((n) => n.point !== 'permissionRules').every((n) => typeof n.recentVerdicts === 'number')).toBe(true)
+    clearVerdicts()
   })
 
   it('토글은 풀린 노드만 받고 잘못된 요청은 거절한다', () => {

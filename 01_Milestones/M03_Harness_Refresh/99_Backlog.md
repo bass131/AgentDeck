@@ -5,6 +5,48 @@
 M02에서 이월된 항목의 정본은 `01_Milestones/M02_Hardening/99_Backlog.md`이고, 이 파일은 M03에서 새로 나온 것만 담습니다.
 항목을 실제로 고칠지, 언제 고칠지는 사용자가 정합니다.
 
+## 닫힘 (M11)
+
+M11 Backlog 정리(`01_Milestones/M11_BacklogSweep/`)가 닫은 항목이다. 아래 항목 줄은 그대로 두고 닫힘은 이 표가 갖는다. 표에 없는 항목은 M11 goal 2~9가 고치면서 더한다.
+
+| 항목 | 닫힘 | 근거 |
+|---|---|---|
+| 1 | 고침(M11 goal 7) | PR-06이 `gate-config.json`의 `planPath`를 읽어 지금 계획을 대상으로 삼고, 규격 판정(검증-미통과·계획-문서-부재·충돌 표지)에 걸리지 않는지만 본다 — 실패 카운터·종결은 진행 상태라 하드 게이트를 빨갛게 하지 않는다(`plan-record-header.test.mjs` PR-06, `303876ee`). |
+| 2 | 해결됨 | `master` PR의 필수 검사 `hard-gates`가 하드 게이트 다섯 종을 돌린다(`.github/workflows/hard-gates.yml`, 헌법 6조). |
+| 3 | 고침(M11 goal 7) | 출력이 `persistedOutputPath` 파일로 넘어가면 그 파일 전문에서 요약 줄과 실패 표기를 읽는다(`33_tdd-guard.cjs` `responseText`, GE-09~09c, `3aa38815`). 파이프 판정 불능은 M02-6대로 두고 차단 문구가 단독 꼴을 알려 준다. |
+| 4 | 닫음(판단) | G1 결정 대장 [USER·위임] — STREAK_LIMIT 휴리스틱과 `_lib` 미인정을 그대로 둔다. |
+| 5 | 고침(M11 goal 6) | G1 결정 대장 [USER·위임]대로 M02 `02_동등성-기준표.md` 머리가 기계 표 `cmd-guard-equivalence.test.mjs`를 정본으로 가리키고, 그 뒤에 오른 행은 담지 않는다고 적는다(`cf6359ba`). |
+| 6 | 낡음 | 스폰 자리 배선이 내려가 판정 ② 문구 「전진 차단」은 편집 자리에만 나간다(`_lib/plan-verdict.cjs:178`). |
+| 7 | 고침(M11 goal 6) | G1 결정 대장 [USER·위임]대로 라우팅 정책의 옛 서술 줄에 「역사」 표시를 달고 지금 ID(감독·검수 `claude-fable-5-2`, 실행 `claude-opus-5-5`, 조회 `claude-haiku-5-5`)를 적었다(`cf6359ba`). |
+| 8 | 해결됨 | 앱 최소 모델 목록이 `claude-opus-5-5`를 안다(`shared/03_Agent/models/knownModels.ts:8`, M06 G4). |
+| 9 | 고침(M11 goal 6) | G1 결정 대장 [USER·위임]대로 라우팅 정책 제목의 판을 v3로 올리고 개정 줄을 달았다(`cf6359ba`). |
+| 10 | 고침(M11 goal 6) | G1 결정 대장 [USER·위임]대로 라우팅 정책이 승인된 effort 값(워커·리뷰어 모두 `high`)과 그 값이 든 에이전트 정의 파일을 적는다(`cf6359ba`). |
+| 11 | 해결됨 | M03 P4가 실행 워커 행 칸에서 「코드를 조사하고」를 지웠다(`02_모델-라우팅-정책.md:25`). |
+| 12 | 고침(M11 goal 6) | G1 결정 대장 [USER·위임]대로 라우팅 정책 머리에 「M03」이 이식 전 원본 저장소(Moodie)의 M03과 이 저장소의 M03 둘을 가리킨다고 적고, 옛 줄에 「역사」 표시를 달았다(`cf6359ba`). |
+| 13 | 고침(M11 goal 7) | `10_start-brief.cjs` 머리 주석이 「재개의 정본은 문서다 — resume은 금지가 아니다(헌법 2조)」를 말한다(`88394dac`). |
+| 14 | 고침(M11 goal 6) | G1 결정 대장 [USER·위임]대로 설계 노트 `00_쟁점-목록.md`·`08_Clear-게이트.md` 머리에 역사 기록 표시를 달았다(`cf6359ba`). |
+| 15 | 고침(M11 goal 7, 앞절) | ① `31_edit-plan-gate.cjs` 머리 주석에서 `MOODIE_SESSION_ROLE`을 지웠다(`303876ee`). ② 앱 시험 `tdd-guard-hook-test-recognition.test.ts:55`의 줄은 goal 7 「건드릴 곳」 밖이라 M11 Backlog 61로 옮겼다. |
+| 16 | 해결됨 | `20_plan-gate.cjs`는 판정부를 공유하고 훅 시험이 직접 구동해 배선 없이 둔다(M07 G1 결정 대장 [USER], `10_Goal-G1-판정-장치-정비.md:72`). |
+| 17 | 해결됨 | `shellScriptsOf`가 세 갈래를 읽고(`dangerous-cmd-guard.mjs:669`, `cmd-guard-equivalence.test.mjs:92-97` WR-04~09) 남은 꼴은 M03-28이 맡는다. |
+| 18 | 해결됨 | 래퍼의 값 옵션과 맨 앞 할당을 건너뛴다(`dangerous-cmd-guard.mjs:135` `WRAPPER_SPECS`, `:237`, M07 G12). |
+| 19 | 고침(M11 goal 7) | 경로 판정을 `_lib/repo-path.cjs`로 모았다 — `\\?\`·`/c/` 접두를 벗기고 실존 조상을 실경로로 펴 8.3 짧은 이름을 원래 이름으로 읽고, `..`으로 시작하는 파일 이름은 저장소 안이다. 편집 게이트와 tdd-guard가 함께 쓴다(EP-37~42, `303876ee`). 독립 검수 반영으로 상대 경로는 훅 입력의 `cwd` 기준이 되고, 포인터의 planPath와 PASS 추기 대상 문서도 같은 정규화로 읽는다(EP-38b·c, PS-12~14, CW-01, VG-01). UNC 꼴은 M11 Backlog 70. |
+| 20 | 해결됨 | 포인터 결손·형식 오류를 거부하고(`_lib/plan-verdict.cjs:22-38`) 대상 없는 편집도 거부한다(`31_edit-plan-gate.cjs:78`). |
+| 21 | 고침(M11 goal 7) | EP-06은 미러에 만든 유효한 파일 구획을 쓰고(실계획 M03은 종결), EP-10b는 판정 줄 자체와 evidence 양쪽의 역할 키를 본다. Write·상대 경로·`\\?\`·`/c/`·8.3 경우를 더했고(PS-02·04, EP-37~42), `cmd-guard-equivalence.test.mjs` 머리 주석의 flag 뜻을 바로잡았다(`303876ee`). |
+| 22 | 고침(M11 goal 7) | 편집 거부 문구 「계획 없는 스폰은 반려」를 「읽을 수 없는 계획으로는 열지 않는다」로(EP-05d), Phase-Steps 템플릿의 스폰 게이트·「Phase별 새 세션」 서술을 편집 계획 게이트·헌법 2조로 고쳤다(`303876ee`). 유지 대장 AD-02와 `04_Phase_4.md:38`은 M03 역사 기록이라 두었다. |
+| 23 | 낡음 | 워커별 기록 규율을 낳은 코디네이터·워커 운영이 폐지됐다(헌법 2조 현행). |
+| 24 | v2로 | G1 결정 대장 [USER·위임] — 가드 판독 재설계 묶음이라 v2로 보낸다. |
+| 25 | 닫음(판단) | G1 결정 대장 [USER·위임] — catch의 fail-open을 그대로 둔다. |
+| 26 | 닫음(판단) | G1 결정 대장 [USER·위임] — 포인터 결손은 사용자가 복구한다. |
+| 27 | 닫음(판단) | G1 결정 대장 [USER·위임] — 해가 없는 상위 집합이라 MultiEdit 매처를 둔다. |
+| 28 | 고침(M11 goal 8) | `375c1e37` — 가드와 앱 `mergeDeny.ts`의 `shellScriptsOf`가 `+c`를 -c 모드로, 묶음의 `o`·`O`마다 값 하나를, 대시 하나짜리 긴 옵션(`-login`·`-posix`·`-noprofile` 등)을 값 없는 옵션으로 읽고(bash만이다 — zsh·ksh·dash·ash에서 `-restricted`는 `c`가 든 묶음이고 sh는 두 판독의 합집합, 독립 검수 반영), 셸 목록에 `dash.exe`·`zsh.exe`·`ksh.exe`·`ash.exe`를 더했다(`loopLock`은 물려받는다). 시험: `dangerous-cmd-guard.test.mjs` 「셸 -c 옵션 구간」, `mergeDeny.test.ts`·`loopLock.test.ts` 「가드와 같은 판독 (M11 G8)」. 깊이 상한 3은 설계값 그대로. |
+| 29 | 고침(M11 goal 7) | 포인터와 계획 문서의 BOM을 벗기고 읽는다(`_lib/plan-verdict.cjs` `stripBom`, EP-34, `303876ee`). |
+| 30 | 고침(M11 goal 7) | `40_pass-watcher.cjs`가 포인터 없을 때 M01 기본값을 두지 않고 계획 감시를 하지 않는다 — 옛 「plan-gate와 동일」 주석도 지웠다(smoke 「포인터 부재 — M01 계획 PASS 추기에 장전하지 않는다」, `88394dac`). |
+| 31 | v2로 | G1 결정 대장 [USER·위임] — 줄 이음은 M06 G5가 고쳤고(`dangerous-cmd-guard.mjs:7-8`), `\ ` 이스케이프 공백은 가드 판독 재설계와 함께 다룬다. |
+| 32 | 고침(M11 goal 8) | `375c1e37` — `hasOutputRedirect`가 `isEscape`로 세그먼트 분할과 같게 이스케이프를 읽는다. 탐침 `cat -\" -->run.sh <<'EOF'⏎rm -rf dist⏎EOF`가 수리 전 통과(빨강)였고 지금 차단이다(`dangerous-cmd-guard.test.mjs` 「heredoc 면제 판독의 이스케이프」). `heredocDelims`·`stripHeredocMarkers`는 약화 탐침이 없어 그대로다. |
+| 33 | 해결됨 | 대상 시험 파일이 M10 G1 `95125a05`에서 지워졌고 `testTimeout`은 30000이다(`vitest.config.ts:20`). |
+| 34 | 고침(M11 goal 6) | G1 결정 대장 [USER·위임]대로 사람용 기준표(M02 `02_동등성-기준표.md`) 머리가 기계 표를 정본으로 가리킨다(`cf6359ba`). |
+| 35 | 닫음(판단) | G1 결정 대장 [USER·위임] — 이미 있는 [USER] 「마감」 한계 인정을 다시 열지 않는다. |
+
 ## 대기 항목
 
 1. **`plan-record-header.test.mjs`의 실계획 회귀 불변식이 M02 계획을 고정한다** (Phase 1 Step 5 관찰, 2026-11-11) — `.claude/hooks/plan-record-header.test.mjs` 69줄의 PR-06은 「실계획 파일 구획은 통과한다」를 검사하면서 경로를 `01_Milestones/M02_Hardening/_MilestonePreview.md`로 못박습니다. 포인터가 M03으로 옮겨진 뒤에도 이 케이스는 종결된 M02 계획만 보므로, 현재 계획이 규격을 깨도 이 테스트는 green입니다. 지금 green이고 M02 폴더는 역사 표면으로 보존되므로 이 Phase에서는 고치지 않았습니다. 고친다면 `gate-config.json`의 `planPath`를 읽어 현재 계획을 대상으로 삼는 쪽입니다.

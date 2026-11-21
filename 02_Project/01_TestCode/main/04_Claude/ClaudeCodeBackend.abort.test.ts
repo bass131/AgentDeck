@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { getBackend } from '@main/00_App/registry'
-import type { AgentEvent } from '../../../../02_Project/00_Source/shared/agentEvents'
+import type { AgentEvent } from '@shared/agentEvents'
 
 describe('ClaudeCodeBackend — abort() 결정론 테스트', () => {
   it('abort() 호출 후 events iterable이 종료된다', async () => {

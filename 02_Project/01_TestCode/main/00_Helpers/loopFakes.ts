@@ -1,4 +1,4 @@
-// M09 G1 시험 도우미 — 실제 템플릿 파일 읽기와 변형본 가공, 실행기 포트의 가짜(fs·git·gh·명령·세션·검수·시계).
+// 실제 템플릿 파일 읽기와 변형본 가공, 실행기 포트의 가짜(fs·git·gh·명령·세션·검수·시계).
 // 가짜는 상태만 흉내 내고 판정은 하지 않는다. 판정은 언제나 프로덕션 함수(executor·grade·loopRunner)가 한다.
 import fs from 'node:fs'
 import { fileURLToPath } from 'node:url'
@@ -69,7 +69,7 @@ function factsFor(next: NextStep, goals: GoalSeed[], grades: Record<string, Grad
   if (next.kind === 'work' && next.node.produces === 'goals') return { goals }
   if (next.kind === 'gate' && next.node.rule?.type === 'grade') return next.goal && grades[next.goal.id] ? { grade: grades[next.goal.id] } : {}
   if (next.kind === 'gate' && next.node.rule?.type === 'ci') return { ciSha: 'c1' }
-  // 검수 pass는 검수한 트리 해시에 묶인다(G4)
+  // 검수 pass는 검수한 트리 해시에 묶인다
   if (next.kind === 'gate' && next.node.judge === 'model') return { reviewedTree: 't0' }
   if (next.kind !== 'action') return undefined
   switch (next.node.action) {
@@ -108,7 +108,7 @@ export class FakeFs implements FsPort {
     const prefix = `${relDir}/`
     return [...this.files.keys()].filter((k) => k.startsWith(prefix) && !k.slice(prefix.length).includes('/')).map((k) => k.slice(prefix.length))
   }
-  // M10 G6 — 이름 바꾸기 흉내. 대상이 있으면 덮어쓰지 않는다. failMove가 참이면 그 옮기기가 실패한다(보관 되돌리기 시험).
+  // 이름 바꾸기 흉내. 대상이 있으면 덮어쓰지 않는다. failMove가 참이면 그 옮기기가 실패한다(보관 되돌리기 시험).
   failMove: ((from: string, to: string) => boolean) | null = null
   readonly moves: string[] = []
   async exists(rel: string): Promise<boolean> {
@@ -147,6 +147,9 @@ export class FakeGit implements GitPort {
     if (!this.local.has(name)) throw new Error(`없는 브랜치 ${name}`)
     this.current = name
   }
+  // null이면 분리된 HEAD를 흉내 낸다
+  detached = false
+  async currentBranch(): Promise<string | null> { return this.detached ? null : this.current }
   async headSha(ref: string): Promise<string | null> { return last(this.local.get(ref)) }
   async hasChanges(): Promise<boolean> { return this.dirty }
   async commitAll(message: string): Promise<string> {
@@ -157,7 +160,7 @@ export class FakeGit implements GitPort {
     this.dirty = false
     return sha
   }
-  // sha를 주면 그 커밋까지만 올린다(G4 검수 I8 — `<sha>:refs/heads/<b>`). 로컬 역사에 없는 sha면 던진다.
+  // sha를 주면 그 커밋까지만 올린다(`<sha>:refs/heads/<b>`). 로컬 역사에 없는 sha면 던진다.
   async push(branch: string, sha?: string): Promise<void> {
     this.calls.push(`push ${branch}`)
     const hist = this.local.get(branch) ?? []
@@ -217,7 +220,7 @@ export class FakeGit implements GitPort {
     this.calls.push(`diffStat ${base}`)
     return this.diff
   }
-  // M09 G4 — 작업 트리 해시 흉내. 시험이 바꿔 「검수 뒤 트리가 바뀜」을 흉내 낸다. 커밋은 그때의 트리를 적는다.
+  // 작업 트리 해시 흉내. 시험이 바꿔 「검수 뒤 트리가 바뀜」을 흉내 낸다. 커밋은 그때의 트리를 적는다.
   tree = 't0'
   reviewDiff = 'diff --git a/src/index.ts b/src/index.ts\n+export const x = 1\n'
   readonly commitTrees = new Map<string, string>()
@@ -225,9 +228,9 @@ export class FakeGit implements GitPort {
     this.calls.push('worktreeTree')
     return this.tree
   }
-  // 시험이 diff 길이를 정하면 상한을 넘은 스냅숏을 흉내 낸다(G4 검수 I9)
+  // 시험이 diff 길이를 정하면 상한을 넘은 스냅숏을 흉내 낸다
   reviewTooLarge: number | null = null
-  // 시험이 켜면 diff 스냅숏을 만들지 못한 것을 흉내 낸다(G5 검수 4)
+  // 시험이 켜면 diff 스냅숏을 만들지 못한 것을 흉내 낸다
   reviewMissing = false
   async reviewSnapshot(base: string): Promise<{ tree: string; diff: string; tooLarge?: boolean; chars?: number } | null> {
     this.calls.push(`reviewSnapshot ${base}`)
@@ -238,6 +241,23 @@ export class FakeGit implements GitPort {
   async treeOf(ref: string): Promise<string | null> {
     const sha = last(this.local.get(ref)) ?? ref
     return this.commitTrees.get(sha) ?? this.tree
+  }
+  // 두 커밋 사이에 바뀐 경로. 시험이 정하고, 끝 커밋이 어느 브랜치의 원격 머리일 때만 답한다. pathsBetweenError를 정하면 읽기 오류를 흉내 낸다
+  pathsChanged: string[] = []
+  pathsBetweenError: string | null = null
+  async pathsBetween(from: string, to: string): Promise<string[]> {
+    this.calls.push(`pathsBetween ${from} ${to}`)
+    if (this.pathsBetweenError !== null) throw new Error(this.pathsBetweenError)
+    if (![...this.remote.values()].some((h) => last(h) === to)) throw new Error(`${to}는 원격 머리가 아니다`)
+    return [...this.pathsChanged]
+  }
+  // 커밋 안의 파일 — `<sha>:<경로>`, `*:<경로>`는 모든 커밋. fileAtError를 정하면 읽기 오류를 흉내 낸다
+  readonly committed = new Map<string, string>()
+  fileAtError: string | null = null
+  async fileAt(sha: string, rel: string): Promise<string | null> {
+    this.calls.push(`fileAt ${sha} ${rel}`)
+    if (this.fileAtError !== null) throw new Error(this.fileAtError)
+    return this.committed.get(`${sha}:${rel}`) ?? this.committed.get(`*:${rel}`) ?? null
   }
 }
 
@@ -272,7 +292,7 @@ export class FakeGh implements GhPort {
     const pr = this.prs.find((p) => p.number === number)
     return pr ? this.view(pr) : null
   }
-  // PR 머리 브랜치 → 본문(G4 — goal PR 본문의 검증 줄을 본다)
+  // PR 머리 브랜치 → 본문(goal PR 본문의 검증 줄을 본다)
   readonly bodies = new Map<string, string>()
   async createPr(req: { head: string; base: string; title: string; body: string }): Promise<PrInfo> {
     this.calls.push(`createPr ${req.head} ${req.base}`)
@@ -319,13 +339,13 @@ export class FakeSession implements SessionPort {
   readonly calls: string[] = []
   goals: { id: string; title: string; extra?: string }[] = GOALS.map((g) => ({ ...g }))
   onWork: ((req: WorkRequest) => Promise<void>) | null = null
-  // 다음 결과를 바꾼다(취소 흉내, M10 G2 메인 대화의 waiting·baseline 등). 한 번 쓰고 비운다.
+  // 다음 결과를 바꾼다(취소 흉내, 메인 대화의 waiting·baseline 등). 한 번 쓰고 비운다.
   nextResult: WorkResult | null = null
   constructor(private readonly files: FakeFs, private readonly git: FakeGit) {}
   async runWork(req: WorkRequest): Promise<WorkResult> {
     this.calls.push(req.goal ? `${req.goal.id}/${req.node.id}` : req.node.id)
     if (this.nextResult) { const r = this.nextResult; this.nextResult = null; return r }
-    // 브레인스토밍은 스펙을 쓰고 받은 답을 결정 대장에 한 줄 남긴다(G5 — 실행기는 이번 세션에서 둘 중 하나라도 바뀌어야 끝난 것으로 본다)
+    // 브레인스토밍은 스펙을 쓰고 받은 답을 결정 대장에 한 줄 남긴다(실행기는 이번 세션에서 둘 중 하나라도 바뀌어야 끝난 것으로 본다)
     if (req.node.id === 'brainstorm') {
       await this.files.write(DOCS.milestoneSpec, SPEC_TEXT)
       const n = this.calls.filter((c) => c === 'brainstorm').length
@@ -359,7 +379,7 @@ export class FakeReview implements ReviewPort {
 export class FakeDigestStore implements DigestStore {
   readonly digests = new Map<string, string>()
   readonly latches = new Map<string, string>()
-  // G4 검수 I1 — 실행기가 쓴 상태 본문의 사본
+  // 실행기가 쓴 상태 본문의 사본
   readonly copies = new Map<string, string>()
   async writeCopy(repoKey: string, text: string): Promise<void> { this.copies.set(repoKey, text) }
   async readCopy(repoKey: string): Promise<string | null> { return this.copies.get(repoKey) ?? null }
@@ -426,7 +446,7 @@ export async function runLoop(
         rig.gh.mergeByHuman(state.milestonePr)
         continue
       }
-      // 스펙 승인은 사람이 본 스펙 해시와 함께 넣는다(G4)
+      // 스펙 승인은 사람이 본 스펙 해시와 함께 넣는다
       const seen = await runner.specView()
       const sub = await runner.submit(
         { node: next.kind === 'gate' ? next.node.id : '', judge: 'human', verdict: 'pass', evidence: '사람이 승인했다' },

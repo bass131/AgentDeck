@@ -1,4 +1,4 @@
-// M10 G5 — 그래프 읽기. 같은 템플릿을 넣으면 노드·선·되돌아가는 길·목표 반복 틀을 빠짐없이 내고, 위치 칸이 모든 노드에 있다.
+// 같은 템플릿을 넣으면 노드·선·되돌아가는 길·목표 반복 틀을 빠짐없이 내고, 위치 칸이 모든 노드에 있다.
 // 최대 횟수는 실행기의 FAIL_LIMIT에서 온다(글자로 박지 않는다).
 import { describe, expect, it } from 'vitest'
 import { loadTemplate, type Template } from '@main/05_Loop/template'
@@ -25,7 +25,7 @@ describe('templateGraph — 템플릿을 화면용 그래프로 (M10 G5)', () =>
     ])
     const n = (id: string) => g.nodes.find((x) => x.id === id)
     expect(n('brainstorm')).toMatchObject({ kind: 'work', scope: 'milestone', role: 'main', next: 'spec-approval', onFail: null })
-    // 사람의 반려는 USER-INPUT이라 실패로 세지 않는다 — 횟수 상한이 없다(G5 검수 2)
+    // 사람의 반려는 USER-INPUT이라 실패로 세지 않는다 — 횟수 상한이 없다
     expect(n('spec-approval')).toMatchObject({ kind: 'human', onFail: { goto: 'brainstorm', limit: null } })
     expect(n('milestone-branch')).toMatchObject({ kind: 'action', role: null })
     expect(n('decompose')).toMatchObject({ kind: 'work', role: 'worker', next: 'goal-branch' })
@@ -54,7 +54,7 @@ describe('templateGraph — 템플릿을 화면용 그래프로 (M10 G5)', () =>
       id: 'goals', title: '목표마다',
       nodes: ['goal-branch', 'implement', 'checks', 'grade', 'review', 'goal-pr', 'ci', 'merge'],
     })
-    // M10 G5 — 화면에 보이는 노드 제목은 한글이다(PR·CI는 그대로)
+    // 화면에 보이는 노드 제목은 한글이다(PR·CI는 그대로)
     expect(g.nodes.find((x) => x.id === 'decompose')?.title).toBe('목표 분해')
     expect(g.nodes.find((x) => x.id === 'goal-branch')?.title).toBe('목표 브랜치 가르기')
     for (const n of [...g.nodes, g.goalLoop]) expect(n?.title, n?.id).not.toMatch(/goal|FAIL|PASS|Backlog/i)

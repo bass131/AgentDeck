@@ -5,6 +5,7 @@ import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { PERM_CARD, permChoiceSelector } from './helpers/permSelectors'
 import { passBootGates, openWorkspace, settleTurn } from './helpers/bootGates'
+import { moveToSecondDisplay } from './helpers/isolatedBoot'
 
 const LIVE = process.env.LIVE_SDK === '1'
 
@@ -26,6 +27,7 @@ test.describe('UltraCode 서브에이전트 오케스트레이션 라이브 (opt
     })
     page = await app.firstWindow()
     await page.waitForLoadState('domcontentloaded')
+    await moveToSecondDisplay(app)
 
     await passBootGates(page, { nickname: 'tester' })
     await openWorkspace(page, { waitForTree: false })

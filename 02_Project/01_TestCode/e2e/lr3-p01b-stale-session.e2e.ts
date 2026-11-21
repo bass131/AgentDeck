@@ -3,12 +3,7 @@ import { isolatedBoot } from './helpers/isolatedBoot'
 
 const RUN = process.env.LIVE_SDK === '1' && process.env.P01B === '1'
 
-declare global {
-  interface Window {
-    // api는 renderer env.d.ts의 전역 선언(Api)을 그대로 쓴다 — 재선언하면 TS2717로 충돌한다
-    __p01b?: Record<string, { total: number; types: Record<string, number>; lastAt: number }>
-  }
-}
+type ProbeWindow = Window & { __p01b?: Record<string, { total: number; types: Record<string, number>; lastAt: number }> }
 
 test.describe('LR3 P01-(b): 잔존 held-open·크론 백그라운드 소모 (LIVE_SDK=1 P01B=1)', () => {
   test.skip(!RUN, '라이브 probe — LIVE_SDK=1 P01B=1로 명시 실행')
@@ -21,9 +16,10 @@ test.describe('LR3 P01-(b): 잔존 held-open·크론 백그라운드 소모 (LIV
       await page.waitForTimeout(500)
 
       await page.evaluate(() => {
-        window.__p01b = {}
+        const w = window as ProbeWindow
+        w.__p01b = {}
         window.api.agent.onEvent((p) => {
-          const rec = (window.__p01b![p.runId] ??= { total: 0, types: {}, lastAt: 0 })
+          const rec = (w.__p01b![p.runId] ??= { total: 0, types: {}, lastAt: 0 })
           rec.total++
           rec.types[p.event.type] = (rec.types[p.event.type] ?? 0) + 1
           rec.lastAt = Date.now()
@@ -38,7 +34,7 @@ test.describe('LR3 P01-(b): 잔존 held-open·크론 백그라운드 소모 (LIV
       await input.press('Enter')
       await expect(page.locator('.loop-indicator.loop-sdk')).toBeVisible({ timeout: 180_000 })
 
-      const loopRunIds = await page.evaluate(() => Object.keys(window.__p01b!))
+      const loopRunIds = await page.evaluate(() => Object.keys((window as ProbeWindow).__p01b!))
       console.log('[P01-b] 루프 세션 runId:', loopRunIds)
 
       await replToggle.click()
@@ -48,17 +44,17 @@ test.describe('LR3 P01-(b): 잔존 held-open·크론 백그라운드 소모 (LIV
       await input.press('Enter')
       await page.waitForTimeout(15_000)
 
-      const midCounts = await page.evaluate(() => JSON.parse(JSON.stringify(window.__p01b)))
+      const midCounts = await page.evaluate(() => JSON.parse(JSON.stringify((window as ProbeWindow).__p01b)))
       console.log('[P01-b] OFF 토글+새 메시지 직후 카운트:', JSON.stringify(midCounts))
 
       await page.getByRole('button', { name: /새 대화/ }).click()
 
       const before = await page.evaluate(
-        (ids) => Object.fromEntries(ids.map((id) => [id, window.__p01b![id]?.total ?? 0])),
+        (ids) => Object.fromEntries(ids.map((id) => [id, (window as ProbeWindow).__p01b![id]?.total ?? 0])),
         loopRunIds
       )
       await page.waitForTimeout(150_000)
-      const after = await page.evaluate(() => JSON.parse(JSON.stringify(window.__p01b)))
+      const after = await page.evaluate(() => JSON.parse(JSON.stringify((window as ProbeWindow).__p01b)))
       console.log('[P01-b] 150s 대기 후 전체 카운트:', JSON.stringify(after))
 
       let staleActive = false

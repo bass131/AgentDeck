@@ -1,7 +1,7 @@
 import { segmentOrchestrationKeywords } from '@renderer/03_Agent/orchestrationKeyword'
 import { segmentSlashTokens } from './slashTokenHighlight'
 
-export type ComposerHighlightKind = 'none' | 'orchestration' | 'slash'
+type ComposerHighlightKind = 'none' | 'orchestration' | 'slash'
 
 export interface ComposerHighlightSegment {
   text: string

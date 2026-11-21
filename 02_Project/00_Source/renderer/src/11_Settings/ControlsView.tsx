@@ -1,6 +1,5 @@
-// 컨트롤 패널 (M07 G5) — G8 설계 `01_Milestones/M06_SelfDev/81_G8-컨트롤-설계/30_노드-구조.md` 「공통 GUI」.
 // 노드를 지점별로 묶어 보이고, 잠금이 풀린 노드만 켜고 끈다. 토글은 다음 실행부터 반영된다.
-// 맨 위의 바뀜 경고는 둘이다 — controls.json 봉인(확인 버튼)과 엔진 봉인(G4, 그 엔진 다시 고르기).
+// 맨 위의 바뀜 경고는 둘이다 — controls.json 봉인(확인 버튼)과 엔진 봉인(그 엔진 다시 고르기).
 import { useState, useEffect, useCallback, type JSX } from 'react'
 import { IconAlert } from '@renderer/02_Common/icons'
 import type { ControlsState, ControlNodeView } from '@shared/ipcContract'
@@ -52,6 +51,8 @@ function NodeRow({ node, frozen, onToggle }: NodeRowProps): JSX.Element {
         <div className="ext-desc">
           결과: {node.results.map((r) => RESULT[r] ?? r).join(' · ')}
           {node.timeoutMs !== null && ` · 시간 상한 ${node.timeoutMs / 1000}초`}
+          {node.recentVerdicts === null && ' · 최근 판정 기록 없음'}
+          {typeof node.recentVerdicts === 'number' && ` · 최근 판정 ${node.recentVerdicts}`}
           {' · '}
           <code>{node.id}</code>
         </div>
@@ -71,7 +72,7 @@ function NodeRow({ node, frozen, onToggle }: NodeRowProps): JSX.Element {
   )
 }
 
-// 바뀜 경고의 문장 — 상태와 파일을 읽을 수 있는지로 갈린다(G5 검수 중요 2·사소 4)
+// 바뀜 경고의 문장 — 상태와 파일을 읽을 수 있는지로 갈린다
 function controlsWarning(state: ControlsState): { main: string; sub: string; confirm: boolean } | null {
   if (state.status === 'error') {
     return {
@@ -93,7 +94,7 @@ function controlsWarning(state: ControlsState): { main: string; sub: string; con
 export function ControlsView(): JSX.Element {
   const [state, setState] = useState<ControlsState | null>(null)
   const [error, setError] = useState<string | null>(null)
-  // 요청 중인 토글 — 응답 전 두 번 누르면 묵은 켜짐으로 같은 요청이 두 번 나간다(G5 검수 사소 7)
+  // 요청 중인 토글 — 응답 전 두 번 누르면 묵은 켜짐으로 같은 요청이 두 번 나간다
   const [pending, setPending] = useState<string | null>(null)
 
   const load = useCallback(async (): Promise<void> => {
@@ -153,7 +154,8 @@ export function ControlsView(): JSX.Element {
       <div className="set-h1">컨트롤</div>
       <div className="set-h1-sub">
         에이전트의 도구 호출을 판정하는 노드들입니다. 잠금이 풀린 노드는 끌 수 있고, 끄면 그 노드가 허용하던 호출이 카드로 옵니다.
-        다만 SDK가 먼저 승인하는 호출(Bypass 모드, 설정 파일의 허용 규칙, SDK가 스스로 안전하다고 보는 명령)은 노드까지 오지 않습니다.
+        다만 SDK가 먼저 승인하는 호출(Bypass 모드의 모든 호출, 자동 모드에서 SDK 분류기가 승인한 호출, 설정 파일의 허용 규칙,
+        SDK가 스스로 안전하다고 보는 명령)은 노드까지 오지 않습니다.
       </div>
 
       {state && warn && (

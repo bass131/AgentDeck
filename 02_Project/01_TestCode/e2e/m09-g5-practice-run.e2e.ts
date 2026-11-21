@@ -1,5 +1,5 @@
-// M09 G5 — 연습 저장소 실주행 구동기(opt-in: M09_G5_RUN=1, G5_CTL=<제어 폴더>, G5_REPO=<연습 저장소>).
-// 사용자 위임(결정 대장 [USER·위임] 2026-11-19)으로 메인이 사람 몫(브레인스토밍 답·스펙 승인·병합 버튼)을 앱 화면에서 누른다.
+// 연습 저장소 실주행 구동기(opt-in: M09_G5_RUN=1, G5_CTL=<제어 폴더>, G5_REPO=<연습 저장소>).
+// 사용자 위임으로 메인이 사람 몫(브레인스토밍 답·스펙 승인·병합 버튼)을 앱 화면에서 누른다.
 // 대화형이다: 화면 글자를 <ctl>/state.txt로 내보내고, 메인이 쓴 <ctl>/cmd.json(seq가 오른 것)을 읽어 동작을 돌린 뒤
 // 결과를 <ctl>/res.txt와 <ctl>/shot.png에 쓴다. 'restart'는 같은 userData로 앱을 껐다 켜 재개를 실측한다. 'quit'로 끝난다.
 // 창은 2번 모니터(주 모니터가 아닌 디스플레이)에 둔다 — 하나뿐이면 그대로 둔다.
@@ -8,20 +8,26 @@
 // 일시 정지 깃발 내리기 — 메인 대화)에 있으니 click에 scope를 준다. 메인에게 말하기는 'say', 이름 붙인 캡처는 'shot',
 // 메인 대화에 글이 뜨기를 기다리기는 'waitMain'이다. state.txt에 [main] 절을 싣는다.
 // G5_TOKEN_FILE(연습 저장소 전용 fine-grained 토큰 파일)을 주면 앱 프로세스에만 GH_TOKEN을 넣는다(전역 로그인은 그대로).
-// G5_UDD를 주면 그 앱 데이터 폴더를 쓴다(실행 상태 다이제스트를 마일스톤 사이에 이어 쓰기).
+// 앱 데이터 폴더는 연습 저장소의 실행 상태 다이제스트를 마일스톤 사이에 이어 쓰는 고정 자리가 기본이고, G5_UDD로 바꾼다.
+// G5_RATE_LIMIT=1이면 앱에 한도 주입을 켜고(AGENTDECK_E2E_RATE_LIMIT), 'injectLimit'이 거부 사건 하나를 넣는다(M12 G5).
 import { test, _electron as electron } from '@playwright/test'
 import type { ElectronApplication, Page } from '@playwright/test'
 import { execFileSync } from 'node:child_process'
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs'
+import { homedir } from 'node:os'
 import { join, resolve, sep } from 'node:path'
+import { moveToSecondDisplay } from './helpers/isolatedBoot'
+
+const PRACTICE_UDD = join(homedir(), '.agentdeck-practice', 'udd')
 
 const RUN = process.env.M09_G5_RUN === '1'
 const CTL = process.env.G5_CTL ?? ''
 const REPO = process.env.G5_REPO ?? ''
-// M10 G6 [USER] 보관 방식: 연습 저장소 전용 토큰 파일(저장소 밖). 있으면 앱 프로세스에만 GH_TOKEN으로 넣는다.
+// 보관 방식(사용자 결정): 연습 저장소 전용 토큰 파일(저장소 밖). 있으면 앱 프로세스에만 GH_TOKEN으로 넣는다.
 // git은 전역 설정의 github.com 도우미(`gh auth git-credential`, gh auth setup-git)가 GH_TOKEN을 쓴다. git 설정을 env로 더하면
 // 실행기의 설정 스냅숏 대조(configGuard)가 credential.helper 변경으로 열기를 거부한다(실측 2026-11-20).
 const TOKEN_FILE = process.env.G5_TOKEN_FILE ?? ''
+const LIMIT = process.env.G5_RATE_LIMIT === '1'
 
 // GH_TOKEN은 github.com 도우미가 `gh auth git-credential`일 때만 git에 닿는다. 아니면 git이 다른 자격으로 push하니 시작하지 않는다.
 // 도우미 값 원문은 메시지에 싣지 않는다(인라인 자격이 들어 있을 수 있다).
@@ -63,7 +69,52 @@ type Action =
   | { op: 'wait'; ms: number }
   | { op: 'restart' }
   | { op: 'notify' }
+  | { op: 'injectLimit'; inSec: number; session?: 'work' | 'review'; promptIncludes?: string; window?: string }
+  | { op: 'clearLimit' }
   | { op: 'quit' }
+
+const injectFileOf = (userDataDir: string): string => join(userDataDir, 'loop', 'inject', 'rate-limit.json')
+
+// 남은 주입 파일은 다음 기동의 아무 세션이 가져가 실제 한도와 구분되지 않으니 지운다
+function clearLimit(userDataDir: string): string {
+  const file = injectFileOf(userDataDir)
+  if (!existsSync(file)) return 'clearLimit 없음'
+  rmSync(file)
+  return 'clearLimit 지움'
+}
+
+// 한도 주입(G5_RATE_LIMIT=1일 때 앱이 읽는다) — 앱 영역의 주입 파일에 거부 사건 하나를 쓴다. 맞는 노드 세션이 가져가면 앱이 지운다.
+// resetsAt은 쓸 때 정해지므로, 그 시각 전에 맞는 세션이 시작하지 않으면 앱이 「시각 없음」으로 받는다 — 노드 직전에 쓴다
+function injectLimit(userDataDir: string, a: Extract<Action, { op: 'injectLimit' }>): string {
+  if (!LIMIT) throw new Error('G5_RATE_LIMIT=1로 띄운 앱이 아니다')
+  if (!Number.isInteger(a.inSec) || a.inSec < 60 || a.inSec > 3600) throw new Error(`inSec은 60–3600초 정수다 — ${a.inSec}`)
+  if (a.session !== undefined && a.session !== 'work' && a.session !== 'review') throw new Error(`session은 work·review다 — ${String(a.session)}`)
+  const window = a.window ?? 'five_hour'
+  if (!/^[a-z_]+$/.test(window)) throw new Error(`window가 틀렸다 — ${window}`)
+  const resetsAt = Math.floor(Date.now() / 1000) + a.inSec
+  const file = injectFileOf(userDataDir)
+  mkdirSync(join(userDataDir, 'loop', 'inject'), { recursive: true })
+  const spec = {
+    ...(a.session ? { session: a.session } : {}),
+    ...(a.promptIncludes ? { promptIncludes: a.promptIncludes } : {}),
+    messages: [{ type: 'rate_limit_event', rate_limit_info: { status: 'rejected', rateLimitType: window, resetsAt } }],
+  }
+  // 앱이 쓰다 만 파일을 읽지 않게 옆에 쓰고 옮긴다
+  writeFileSync(`${file}.tmp`, JSON.stringify(spec))
+  renameSync(`${file}.tmp`, file)
+  return `injectLimit resetsAt=${resetsAt} (${new Date(resetsAt * 1000).toISOString()})`
+}
+
+// 위임 범위는 연습 저장소뿐이다 — 경로만이 아니라 origin 원격이 연습 저장소인지 본다
+function checkPracticeRemote(): void {
+  let url = ''
+  try {
+    url = execFileSync('git', ['remote', 'get-url', 'origin'], { encoding: 'utf8', cwd: REPO }).trim()
+  } catch {
+    throw new Error(`G5_REPO의 origin 원격을 읽지 못했다 — ${REPO}`)
+  }
+  if (!/[/:]bass131\/AgentDeck_Test(\.git)?$/i.test(url)) throw new Error(`G5_REPO의 origin이 연습 저장소가 아니다 — ${url}`)
+}
 
 const stamp = (): string => new Date().toISOString()
 
@@ -72,6 +123,8 @@ async function launch(userDataDir: string): Promise<{ app: ElectronApplication; 
     ...process.env,
     AGENTDECK_E2E_NO_ENGINE_UPDATE: '1',
     AGENTDECK_E2E_PICK_FOLDER: REPO,
+    // 채팅 모드의 「폴더 선택」 — 문서 확정 PR을 앱 Git 창의 PR 카드로 병합할 때 쓴다
+    AGENTDECK_E2E_WORKSPACE: REPO,
   }
   const token = readPracticeToken()
   if (token) {
@@ -80,12 +133,15 @@ async function launch(userDataDir: string): Promise<{ app: ElectronApplication; 
   }
   delete env.AGENTDECK_E2E
   delete env.ELECTRON_RUN_AS_NODE
+  if (LIMIT) env.AGENTDECK_E2E_RATE_LIMIT = '1'
+  else delete env.AGENTDECK_E2E_RATE_LIMIT
   const app = await electron.launch({
     args: [`--user-data-dir=${userDataDir}`, join(process.cwd(), 'out', 'main', 'index.js')],
     env: env as Record<string, string>,
   })
   const page = await app.firstWindow()
   await page.waitForLoadState('domcontentloaded')
+  await moveToSecondDisplay(app)
   // 2번 모니터로 옮긴다
   await app.evaluate(({ BrowserWindow, screen }) => {
     const primary = screen.getPrimaryDisplay().id
@@ -164,7 +220,7 @@ async function runAction(page: Page, a: Action): Promise<void> {
     case 'click': {
       const found = page.locator(a.scope ?? 'body').getByRole('button', { name: a.name, exact: a.exact ?? true })
       // nth도 scope도 없으면 하나만 맞아야 한다 — 같은 이름의 버튼 둘(「이어 가기」: 루프 화면의 사람 판정 / 메인 대화의 깃발 내리기)을
-      // 첫째로 골라 누르지 않는다(G3 독립 검수 사소 7). 늦게 뜨는 버튼은 엄격 모드의 click이 여럿이면 던진다
+      // 첫째로 골라 누르지 않는다. 늦게 뜨는 버튼은 엄격 모드의 click이 여럿이면 던진다
       if (a.nth === undefined && a.scope === undefined) {
         const n = await found.count()
         if (n > 1) throw new Error(`버튼 「${a.name}」이 ${n}개다 — scope나 nth를 준다`)
@@ -210,14 +266,14 @@ async function runAction(page: Page, a: Action): Promise<void> {
       await page.screenshot({ path: join(CTL, `${a.name}.png`) })
       return
     case 'waitMain':
-      // 메인의 글만 본다 — 사람 글·사건 줄·알림에 같은 글자가 있어도 기다림이 끝나지 않는다(G3 독립 검수 사소 7)
+      // 메인의 글만 본다 — 사람 글·사건 줄·알림에 같은 글자가 있어도 기다림이 끝나지 않는다
       await page.locator('.main-chat .mc-thread .mc-msg.assistant', { hasText: a.text }).first().waitFor({ state: 'visible', timeout: a.ms ?? 180_000 })
       return
     case 'wait':
       await page.waitForTimeout(a.ms)
       return
     default:
-      // 모르는 동작은 「ok」로 적히지 않게 던진다(독립 검수 사소 6)
+      // 모르는 동작은 「ok」로 적히지 않게 던진다
       throw new Error(`모르는 동작 ${JSON.stringify(a)}`)
   }
 }
@@ -227,22 +283,23 @@ test.describe('M09 G5 연습 저장소 실주행 구동기 (opt-in: M09_G5_RUN=1
 
   test('실주행', async () => {
     test.setTimeout(8 * 60 * 60_000)
-    // 위임 범위는 연습 저장소뿐이다 — 이 저장소(또는 그 안쪽)를 작업 저장소로 주면 시작하지 않는다(독립 검수 사소 5)
+    // 위임 범위는 연습 저장소뿐이다 — 이 저장소(또는 그 안쪽)를 작업 저장소로 주면 시작하지 않는다
     const repoAbs = resolve(REPO).toLowerCase()
     const here = resolve(process.cwd()).toLowerCase()
     if (repoAbs === here || repoAbs.startsWith(here + sep)) throw new Error(`G5_REPO가 이 저장소 안이다 — ${REPO}`)
+    checkPracticeRemote()
     mkdirSync(CTL, { recursive: true })
-    // G5_UDD — 앱 데이터 폴더(실행 상태 다이제스트가 있는 곳). 같은 연습 저장소를 마일스톤마다 이어 쓰려면 같은 폴더를 준다
-    const userDataDir = process.env.G5_UDD ? resolve(process.env.G5_UDD) : join(CTL, 'udd')
-    // 마지막으로 돌린 명령 번호 — 파일이 있는데 읽지 못하면 옛 명령을 다시 돌리지 않게 시작하지 않는다(독립 검수 사소 6)
+    const userDataDir = process.env.G5_UDD ? resolve(process.env.G5_UDD) : PRACTICE_UDD
+    // 마지막으로 돌린 명령 번호 — 파일이 있는데 읽지 못하면 옛 명령을 다시 돌리지 않게 시작하지 않는다
     const seqFile = join(CTL, 'last-seq')
     let lastSeq = 0
     if (existsSync(seqFile)) {
       const raw = readFileSync(seqFile, 'utf8').trim()
       lastSeq = Number(raw)
-      // 빈 파일(쓰다 죽은 경우)은 Number('')가 0이라 따로 막는다(확인 검수 사소)
+      // 빈 파일(쓰다 죽은 경우)은 Number('')가 0이라 따로 막는다
       if (raw === '' || !Number.isInteger(lastSeq) || lastSeq < 0) throw new Error(`last-seq를 읽지 못했다 — ${seqFile}`)
     }
+    clearLimit(userDataDir)
     let { app, page } = await launch(userDataDir)
     await openLoop(page).catch(() => {})
     const cmdFile = join(CTL, 'cmd.json')
@@ -278,6 +335,14 @@ test.describe('M09 G5 연습 저장소 실주행 구동기 (opt-in: M09_G5_RUN=1
             }
             if (a.op === 'notify') {
               log.push(`notify ${await probeNotification(app)}`)
+              continue
+            }
+            if (a.op === 'injectLimit') {
+              log.push(injectLimit(userDataDir, a))
+              continue
+            }
+            if (a.op === 'clearLimit') {
+              log.push(clearLimit(userDataDir))
               continue
             }
             await runAction(page, a)

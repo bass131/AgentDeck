@@ -1,4 +1,3 @@
-// 작업 ID: p7 · 옛 이름 p7-shift-tab-mode-cycle.test.tsx
 // @vitest-environment jsdom
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
 import { render, screen, fireEvent, cleanup } from '@testing-library/react'
@@ -203,17 +202,17 @@ describe('Shell 단축키 — Shift+Tab → cyclePickerMode', () => {
     document.body.removeChild(inp)
   })
 
-  it('모달 열림(.modal-overlay) 시 Shift+Tab → cyclePickerMode 미호출', async () => {
+  // 모달 판정은 클래스 목록이 아니라 모달 층이다
+  it('모달 층이 있으면 Shift+Tab → cyclePickerMode 미호출', async () => {
     const { useGlobalShortcuts } = await import('@renderer/12_Window/useGlobalShortcuts')
+    const { pushModalLayer } = await import('@renderer/02_Common/modalStack')
     const cyclePickerMode = vi.fn()
 
     renderHook(() => useGlobalShortcuts({
       onModeSwitch: cyclePickerMode,
     }))
 
-    const overlay = document.createElement('div')
-    overlay.className = 'modal-overlay'
-    document.body.appendChild(overlay)
+    const closeLayer = pushModalLayer()
 
     await act(async () => {
       const e = new KeyboardEvent('keydown', { key: 'Tab', shiftKey: true, cancelable: true, bubbles: true })
@@ -221,20 +220,20 @@ describe('Shell 단축키 — Shift+Tab → cyclePickerMode', () => {
     })
 
     expect(cyclePickerMode).not.toHaveBeenCalled()
-    document.body.removeChild(overlay)
+    closeLayer()
   })
 
-  it('모달 열림(.q-overlay) 시 textarea 포커스 + Shift+Tab → cyclePickerMode 미호출', async () => {
+  it('모달 층이 있으면 textarea 포커스 + Shift+Tab → cyclePickerMode 미호출', async () => {
     const { useGlobalShortcuts } = await import('@renderer/12_Window/useGlobalShortcuts')
+    const { pushModalLayer } = await import('@renderer/02_Common/modalStack')
     const cyclePickerMode = vi.fn()
 
     renderHook(() => useGlobalShortcuts({
       onModeSwitch: cyclePickerMode,
     }))
 
-    const overlay = document.createElement('div')
-    overlay.className = 'q-overlay'
-    document.body.appendChild(overlay)
+    const closeLayer = pushModalLayer()
+    const overlay = { remove: closeLayer }
 
     const ta = document.createElement('textarea')
     document.body.appendChild(ta)
@@ -246,7 +245,7 @@ describe('Shell 단축키 — Shift+Tab → cyclePickerMode', () => {
     })
 
     expect(cyclePickerMode).not.toHaveBeenCalled()
-    document.body.removeChild(overlay)
+    overlay.remove()
     document.body.removeChild(ta)
   })
 })

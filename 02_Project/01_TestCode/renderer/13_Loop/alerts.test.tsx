@@ -1,10 +1,7 @@
 // @vitest-environment jsdom
-// M10 G5 — 앱 안 알림 표시. main이 정한 알림 목록(loop.alerts 읽기 + loop.alertsState push)을 받아
-// 현황판 「기다리는 결정」 칸 위 알림 띠, 사이드바 프로젝트 꼬리표 옆 점, 채팅 모드의 「작업」 모드 버튼 옆 점으로 보인다.
-// 풀리면(빈 목록 push) 표시가 사라진다. Windows 알림을 누르면(loop.alertOpen push) 그 작업 폴더의 작업 모드를 연다.
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
 import { render, screen, cleanup, act, within } from '@testing-library/react'
-import type { LoopAlert, LoopAlertList, LoopAlertOpen, LoopStatus } from '../../../../02_Project/00_Source/shared/ipcContract'
+import type { LoopAlert, LoopAlertList, LoopAlertOpen, LoopStatus } from '@shared/ipcContract'
 import { installWindowApi, type InstalledWindowApi } from '../00_Helpers/windowApiMock'
 
 const A = 'C:\\work\\practice'
@@ -126,7 +123,7 @@ describe('앱 안 알림 표시 (M10 G5)', () => {
     expect(opened).toEqual([B])
   })
 
-  // G5 검수 6 — 끄면 두 push 구독을 모두 푼다. 푼 뒤의 push는 표시도 열기도 바꾸지 않는다
+  // 끄면 두 push 구독을 모두 푼다. 푼 뒤의 push는 표시도 열기도 바꾸지 않는다
   it('구독을 끄면 알림 목록·알림 열기 push를 더 받지 않는다', async () => {
     const opened: string[] = []
     await start((cwd) => opened.push(cwd))

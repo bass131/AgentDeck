@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { useAppStore } from '@renderer/00_App/appStore'
-import type { ConversationRecord, AgentEventPayload } from '../../../../02_Project/00_Source/shared/ipcContract'
+import type { ConversationRecord, AgentEventPayload } from '@shared/ipcContract'
 import type { ThreadItem } from '@renderer/05_Conversation/state/threadTypes'
 import { adaptFlatApi } from '../00_Helpers/windowApiMock'
 

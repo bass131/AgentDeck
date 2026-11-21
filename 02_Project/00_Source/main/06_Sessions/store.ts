@@ -3,9 +3,11 @@ import path from 'node:path'
 import { randomUUID } from 'node:crypto'
 import type { ConversationRecord, PersistedSubAgent } from '../../shared/ipcContract'
 import { SUBAGENT_PERSIST_LIMITS } from '../../shared/ipcContract'
+import { PERMISSION_MODE_TABLE } from '@main/04_Claude/permissionModes'
+import { writeFileAtomicSync } from '@main/05_Loop/realPorts/atomicWrite'
 import type { TokenUsage, SubAgentTool, SubAgentTranscriptItem } from '../../shared/agentEvents'
 
-export type ConversationSaveInput = Omit<ConversationRecord, 'createdAt' | 'updatedAt'> & {
+type ConversationSaveInput = Omit<ConversationRecord, 'createdAt' | 'updatedAt'> & {
   id?: string
 }
 
@@ -32,9 +34,11 @@ interface IndexFile {
   ids: string[]
 }
 
+// `index`는 색인 파일 이름이다 — 대화 파일이 색인을 덮지 않게 받지 않는다(Windows는 대소문자를 가리지 않는다)
 const safeId = (id: unknown): id is string =>
   typeof id === 'string' &&
   id !== '..' &&
+  id.toLowerCase() !== 'index' &&
   /^[A-Za-z0-9._-]+$/.test(id)
 
 function sanitizeContextWindow(v: unknown): number | undefined {
@@ -43,6 +47,10 @@ function sanitizeContextWindow(v: unknown): number | undefined {
 
 function sanitizeModel(v: unknown): string | undefined {
   return typeof v === 'string' && v.length > 0 ? v : undefined
+}
+
+function sanitizeMode(v: unknown): string | undefined {
+  return typeof v === 'string' && Object.hasOwn(PERMISSION_MODE_TABLE, v) ? v : undefined
 }
 
 function sanitizeUsage(v: unknown): TokenUsage | undefined {
@@ -140,23 +148,46 @@ export function createConversationStore(dir: string): ConversationStore {
 
   const cache = new Map<string, string>()
 
+  // 색인을 못 읽으면 빈 목록으로 두지 않는다 — 다음 저장이 한 건으로 덮는다.
+  // 대화 파일들로 다시 짓고, 깨졌으면 `.broken-<시각>`으로 옆에 둔 뒤 다시 짓는다.
   function readIndex(): IndexFile {
+    let raw: string | null = null
     try {
-      const raw = fs.readFileSync(indexPath, 'utf8')
-      const parsed = JSON.parse(raw) as IndexFile
-      if (!Array.isArray(parsed.ids)) {
-        return { version: 1, ids: [] }
-      }
-      return parsed
+      raw = fs.readFileSync(indexPath, 'utf8')
     } catch {
-      return { version: 1, ids: [] }
     }
+    if (raw !== null) {
+      try {
+        const parsed = JSON.parse(raw) as IndexFile
+        if (parsed && Array.isArray(parsed.ids)) return { ...parsed, ids: parsed.ids.filter(safeId) }
+      } catch {
+      }
+      try { fs.renameSync(indexPath, `${indexPath}.broken-${Date.now()}`) } catch { /* 옆에 두지 못해도 다시 짓는다 */ }
+    }
+    cache.delete('__index__')
+    const ids = rebuildIds()
+    const rebuilt = { version: 1, ids }
+    if (ids.length > 0 || raw !== null) writeIndex(rebuilt)
+    return rebuilt
+  }
+
+  function rebuildIds(): string[] {
+    const found: Array<{ id: string; createdAt: string }> = []
+    for (const name of fs.readdirSync(dir)) {
+      if (!name.endsWith('.json')) continue
+      const id = name.slice(0, -'.json'.length)
+      if (!safeId(id)) continue
+      const chat = readChatFile(id)
+      if (chat && chat.id === id) found.push({ id, createdAt: String(chat.createdAt ?? '') })
+    }
+    found.sort((a, b) => a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id))
+    return found.map((f) => f.id)
   }
 
   function writeIndex(index: IndexFile): void {
     const json = JSON.stringify(index)
     if (cache.get('__index__') === json) return
-    fs.writeFileSync(indexPath, json)
+    writeFileAtomicSync(indexPath, json)
     cache.set('__index__', json)
   }
 
@@ -179,6 +210,7 @@ export function createConversationStore(dir: string): ConversationStore {
     const subagents = sanitizeSubagents(chat.subagents)
     const replMode = typeof chat.replMode === 'boolean' ? chat.replMode : undefined
     const model = sanitizeModel(chat.model)
+    const mode = sanitizeMode(chat.mode)
     return {
       id: chat.id,
       title: chat.title,
@@ -192,7 +224,8 @@ export function createConversationStore(dir: string): ConversationStore {
       ...(lastUsage !== undefined ? { lastUsage } : {}),
       ...(subagents !== undefined ? { subagents } : {}),
       ...(replMode !== undefined ? { replMode } : {}),
-      ...(model !== undefined ? { model } : {})
+      ...(model !== undefined ? { model } : {}),
+      ...(mode !== undefined ? { mode } : {})
     }
   }
 
@@ -222,8 +255,9 @@ export function createConversationStore(dir: string): ConversationStore {
       const lastUsage = sanitizeUsage(record.lastUsage)
       const subagents = sanitizeSubagents(record.subagents)
       const replMode = typeof record.replMode === 'boolean' ? record.replMode : undefined
-      // model이 없는 저장(배경 run의 done/session 저장)은 기존 선택을 지우지 않는다 (M06 G4).
+      // model이 없는 저장(배경 run의 done/session 저장)은 기존 선택을 지우지 않는다
       const model = sanitizeModel(record.model) ?? sanitizeModel(existing?.model)
+      const mode = sanitizeMode(record.mode) ?? sanitizeMode(existing?.mode)
 
       const chatData: ChatFile = {
         id,
@@ -239,12 +273,13 @@ export function createConversationStore(dir: string): ConversationStore {
         ...(lastUsage !== undefined ? { lastUsage } : {}),
         ...(subagents !== undefined ? { subagents } : {}),
         ...(replMode !== undefined ? { replMode } : {}),
-        ...(model !== undefined ? { model } : {})
+        ...(model !== undefined ? { model } : {}),
+        ...(mode !== undefined ? { mode } : {})
       }
 
       const json = JSON.stringify(chatData)
       if (cache.get(id) !== json) {
-        fs.writeFileSync(chatFile(id), json)
+        writeFileAtomicSync(chatFile(id), json)
         cache.set(id, json)
       }
 
@@ -328,7 +363,7 @@ export function createConversationStore(dir: string): ConversationStore {
 
       const json = JSON.stringify(chatData)
       cache.delete(id)
-      fs.writeFileSync(chatFile(id), json)
+      writeFileAtomicSync(chatFile(id), json)
       cache.set(id, json)
 
       return true

@@ -1,5 +1,6 @@
 import { type JSX } from 'react'
 import { IconBolt, IconInfo } from '@renderer/02_Common/icons'
+import { useModalLayer } from '@renderer/02_Common/modalStack'
 import './EngineGate.css'
 
 export interface EngineGateProps {
@@ -19,6 +20,7 @@ export function EngineGate({
   onRetry,
   onSkip,
 }: EngineGateProps): JSX.Element | null {
+  useModalLayer(open)
   if (!open) return null
 
   const isUnavailable = !available

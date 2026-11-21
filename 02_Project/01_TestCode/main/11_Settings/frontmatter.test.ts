@@ -3,8 +3,7 @@ import { createSkillsStore } from '@main/11_Settings/skills'
 import { createCommandsStore } from '@main/11_Settings/commands'
 import { parseFrontmatter } from '@main/11_Settings/frontmatter'
 
-// M05 G11: skills와 commands가 각자 갖던 frontmatter 파서(본문 동일, 반환 투영만 다름)를 한 곳으로 모은다.
-// 같은 원문을 두 스토어에 실제로 흘려 지금 동작을 고정한다. 투영(skills: name·description, commands: description·argument-hint)은 각자 둔다.
+// 같은 원문을 두 스토어에 실제로 흘린다. 투영(skills: name·description, commands: description·argument-hint)은 각자 둔다.
 const norm = (p: string): string => p.replace(/\\/g, '/')
 
 function viaSkills(text: string): { name: string; description: string } {

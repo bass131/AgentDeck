@@ -1,6 +1,6 @@
 import { IMAGE_EXTENSIONS } from './viewer'
 
-export interface FileType {
+interface FileType {
   label: string
   color: string
 }

@@ -4,8 +4,8 @@ import { join, sep } from 'node:path'
 import { writeFileSync, mkdirSync, rmSync } from 'node:fs'
 import { ClaudeCodeBackend } from '@main/04_Claude/ClaudeCodeBackend'
 import type { QueryFn } from '@main/04_Claude/ClaudeCodeBackend'
-import type { AgentEvent } from '../../../../02_Project/00_Source/shared/agentEvents'
-import type { AgentEventFileChanged } from '../../../../02_Project/00_Source/shared/agentEvents'
+import type { AgentEvent } from '@shared/agentEvents'
+import type { AgentEventFileChanged } from '@shared/agentEvents'
 import type { DiffLine } from '@shared/02_Common/diffTypes'
 
 function mkResultSuccess() {

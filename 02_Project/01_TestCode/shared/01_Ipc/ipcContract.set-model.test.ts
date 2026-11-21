@@ -1,7 +1,6 @@
-// 작업 ID: lm1 · 옛 이름 lm1-set-model-contract.test.ts
 import { describe, it, expect, vi, beforeAll, beforeEach } from 'vitest'
 import { AGENT_CHANNELS } from '@shared/03_Agent/agent'
-import { IPC_CHANNELS } from '../../../../02_Project/00_Source/shared/ipcContract'
+import { IPC_CHANNELS } from '@shared/ipcContract'
 
 const PINNED_CHANNEL = 'agent.setModel'
 
@@ -35,7 +34,7 @@ vi.mock('electron', () => ({
 }))
 
 beforeAll(async () => {
-  await import('../../../../02_Project/00_Source/preload/index')
+  await import('@preload/index')
 })
 
 beforeEach(() => {
@@ -63,7 +62,6 @@ describe('LM1 P01 — AGENT_SET_MODEL 채널 계약 (RED)', () => {
 })
 
 describe('LM1 P01 — preload agentSetModel 노출 (RED)', () => {
-  // M05 G10: preload가 api.<묶음>.<동작>으로 묶였다 — agentSetModel → agent.setModel
   it('window.api.agent.setModel이 함수로 노출된다', () => {
     const api = (h.exposed.api as { agent: Record<string, unknown> }).agent
     expect(typeof api['setModel']).toBe('function')

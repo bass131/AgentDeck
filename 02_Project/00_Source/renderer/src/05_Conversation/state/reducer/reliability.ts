@@ -37,6 +37,17 @@ export function handleCompact(state: AppState, event: CompactEvent, time?: strin
     }
   }
 
+  if (event.kind === 'settings') {
+    if (typeof event.autoCompactEnabled !== 'boolean') return state
+    return {
+      ...state,
+      autoCompact: {
+        enabled: event.autoCompactEnabled,
+        ...(event.thresholdTokens !== undefined ? { thresholdTokens: event.thresholdTokens } : {}),
+      },
+    }
+  }
+
   return {
     ...state,
     compacting: event.status ?? null,

@@ -1,12 +1,11 @@
-// M10 G5 「노드 설정」 탭 — 고른 노드의 설정을 보기 전용 칸으로, 그 노드의 최근 검증 기록과 세션 여는 단추를 보인다.
-// 입력칸은 두지 않는다. 편집은 그래프 편집(뒤 마일스톤)이 같은 그래프 칸을 고친다.
+// 보기 전용이라 입력칸을 두지 않는다. 편집은 그래프 편집이 같은 그래프 칸을 고친다.
 import type { JSX, ReactNode } from 'react'
 import type { LoopGraph, LoopGraphNode, LoopStatus } from '@shared/ipcContract'
 import { KIND_LABEL, placeOf } from './graphModel'
 import { MARKER_LABEL } from './loopModel'
 import { clockOf } from './mainChatModel'
 
-export interface NodeSettingsProps {
+interface NodeSettingsProps {
   graph: LoopGraph | null
   status: LoopStatus | null
   nodeId: string | null

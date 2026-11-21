@@ -1,5 +1,4 @@
 export const PERSONALIZATION_CHANNELS = {
-  // M05 G10 재분류: profile.*·ui.* → settings.* (usage.get은 engine.usage로 10_Engine/engine.ts에 옮겼다)
   PROFILE_GET: 'settings.getProfile',
   PROFILE_SET: 'settings.setProfile',
   UI_PREFS_GET: 'settings.getUiPrefs',

@@ -1,4 +1,3 @@
-// 작업 ID: lm1 · 옛 이름 lm1-setmodel-live-probe.test.ts
 import { describe, it, expect } from 'vitest'
 import { mkdtempSync, rmSync } from 'node:fs'
 import { join } from 'node:path'

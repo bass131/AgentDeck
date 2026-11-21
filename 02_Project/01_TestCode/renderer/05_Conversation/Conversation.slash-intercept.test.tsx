@@ -10,7 +10,7 @@ const mockApi = {
   conversationLoad: vi.fn().mockResolvedValue({ conversations: [] }),
   conversationSave: vi.fn().mockResolvedValue({ id: 'cv-1' }),
   agentRun: vi.fn().mockResolvedValue({ runId: 'r1' }),
-  agentAbort: vi.fn().mockResolvedValue({ accepted: true }),
+  agentAbort: vi.fn().mockResolvedValue({ ok: true }),
   onAgentEvent: vi.fn().mockReturnValue(mockUnsub),
   listSlashCommands: vi.fn().mockResolvedValue([]),
   listSkills: vi.fn().mockResolvedValue([]),
@@ -74,6 +74,8 @@ describe('slash-intercept 22a — /clear → clearConversation, sendMessage 미�
     await typeAndSend(container, '/clear')
     expect(mockClearConversation).toHaveBeenCalledTimes(1)
     expect(mockSendMessage).not.toHaveBeenCalled()
+    // /clear는 main의 REPL 세션도 끝낸다(새 대화 버튼은 끝내지 않는다)
+    expect(mockApi.agentAbort).toHaveBeenCalledTimes(1)
   })
 
   it('/clear (trailing space) → clearConversation 호출', async () => {
@@ -83,6 +85,7 @@ describe('slash-intercept 22a — /clear → clearConversation, sendMessage 미�
     await typeAndSend(container, '/clear ')
     expect(mockClearConversation).toHaveBeenCalledTimes(1)
     expect(mockSendMessage).not.toHaveBeenCalled()
+    expect(mockApi.agentAbort).toHaveBeenCalledTimes(1)
   })
 
   it('/clear → input이 비워짐', async () => {

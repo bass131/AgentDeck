@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, type JSX, type CSSProperties } from 'react
 import { createPortal } from 'react-dom'
 import type { EditorView } from '@codemirror/view'
 import { IconCopy, IconCheck, IconBot } from '@renderer/02_Common/icons'
+import { useModalLayer } from '@renderer/02_Common/modalStack'
 
 export interface AskSelectionArgs {
   path: string
@@ -47,6 +48,7 @@ export function SelectionAskBar({
   } | null>(null)
   const [copied, setCopied] = useState(false)
   const barRef = useRef<HTMLDivElement>(null)
+  useModalLayer(selInfo !== null, undefined, 'aside')
 
   useEffect(() => {
     if (_testSelection !== undefined) {

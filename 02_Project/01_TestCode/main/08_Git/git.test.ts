@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest'
-import { mkdtempSync, writeFileSync, rmSync, readFileSync } from 'node:fs'
+import { mkdtempSync, writeFileSync, rmSync, readFileSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { execFileSync } from 'node:child_process'
@@ -73,6 +73,17 @@ describe('gitRoot', () => {
       expect(r).toBeNull()
     } finally {
       rmSync(isolated, { recursive: true, force: true })
+    }
+  })
+
+  it('저장소가 아니던 폴더에서 git init을 하면 force 없이도 다음 읽기에 뿌리가 잡힌다', async () => {
+    const later = mkdtempSync(join(tmpdir(), 'agentdeck-lateinit-'))
+    try {
+      expect(await gitRoot(later)).toBeNull()
+      sh('git', ['init', '--quiet'], later)
+      expect(await gitRoot(later)).not.toBeNull()
+    } finally {
+      rmSync(later, { recursive: true, force: true })
     }
   })
 
@@ -351,6 +362,19 @@ describe('gitFileAt', () => {
     const root = await gitRoot(repoDir)
     const result = await gitFileAt(root!, secondHash, 'nonexistent.ts')
     expect(result.content).toBeNull()
+  })
+})
+
+// renderer가 보낸 hash가 `-`로 시작하면 git show의 옵션(`--output=<경로>`)이 된다
+describe('git show의 hash 옵션 주입 (M11 G3)', () => {
+  it('[M11-G3 M11-19] `-` 머리 hash는 git을 부르지 않는다 — --output 경로에 파일이 생기지 않는다', async () => {
+    const root = await gitRoot(repoDir)
+    const out = join(repoDir, 'planted.txt')
+    expect(await gitCommitDetail(root!, `--output=${out}`)).toEqual([])
+    const at = await gitFileAt(root!, `--output=${out}`, TEST_FILE)
+    expect(at.content).toBeNull()
+    expect(existsSync(out)).toBe(false)
+    expect(existsSync(`${out}:${TEST_FILE}`)).toBe(false)
   })
 })
 

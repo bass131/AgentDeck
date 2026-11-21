@@ -3,19 +3,19 @@ import claudeSparkClay from './brand/claude-spark-clay.svg'
 import openaiBlossomBlack from './brand/openai-blossom-black.svg'
 import openaiBlossomWhite from './brand/openai-blossom-white.svg'
 
-export interface ProviderBrandLogo {
+interface ProviderBrandLogo {
   kind: 'logo'
   src: string
   alt: string
   displayName: string
 }
 
-export interface ProviderBrandFallback {
+interface ProviderBrandFallback {
   kind: 'fallback'
   displayName: string
 }
 
-export type ProviderBrandDescriptor = ProviderBrandLogo | ProviderBrandFallback
+type ProviderBrandDescriptor = ProviderBrandLogo | ProviderBrandFallback
 
 export function getProviderBrand(providerId: string, theme: Theme): ProviderBrandDescriptor {
   if (providerId === 'claude-code') {

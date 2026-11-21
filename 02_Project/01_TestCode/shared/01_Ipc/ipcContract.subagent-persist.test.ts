@@ -1,11 +1,10 @@
-// 작업 ID: cp1-p05 · 옛 이름 cp1-p05-subagent-persist-contract.test.ts
 import { describe, it, expect } from 'vitest'
-import { SUBAGENT_PERSIST_LIMITS } from '../../../../02_Project/00_Source/shared/ipcContract'
+import { SUBAGENT_PERSIST_LIMITS } from '@shared/ipcContract'
 import type {
   PersistedSubAgent,
   ConversationRecord,
-} from '../../../../02_Project/00_Source/shared/ipcContract'
-import type { SubAgentInfo } from '../../../../02_Project/00_Source/shared/agentEvents'
+} from '@shared/ipcContract'
+import type { SubAgentInfo } from '@shared/agentEvents'
 
 describe('SUBAGENT_PERSIST_LIMITS 상한 상수 (CP1 P05, 설계노트 확정값)', () => {
   it('4개 필드가 설계노트 확정값과 정확히 일치한다', () => {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { LoopStatus } from '../../../../02_Project/00_Source/shared/ipcContract'
+import type { LoopStatus } from '@shared/ipcContract'
 import { addProject, decisionsOf, folderName, goalProgress, projectTag } from '@renderer/13_Loop/workModel'
 
 const CWD = 'C:\\work\\practice'
@@ -28,7 +28,7 @@ describe('프로젝트 진행 꼬리표 (M10 G4)', () => {
     expect(projectTag(st({ phase: 'done' }))).toEqual({ label: 'M02 · 끝', tone: 'idle' })
   })
 
-  // G4 검수 9 — 일시 정지 깃발이 오르면 단계가 running이어도 다음 노드로 가지 않는다. 끝난 실행과 닫힌 루프는 그대로다
+  // 일시 정지 깃발이 오르면 단계가 running이어도 다음 노드로 가지 않는다. 끝난 실행과 닫힌 루프는 그대로다
   it('일시 정지 깃발이 오르면 「멈춤」이다 — 끝·닫힘이 앞선다', () => {
     expect(projectTag(st({ paused: true }))).toEqual({ label: 'M02 · 멈춤', tone: 'stop' })
     expect(projectTag(st({ paused: true, mainNode: true }))).toEqual({ label: 'M02 · 멈춤', tone: 'stop' })
@@ -48,6 +48,11 @@ describe('기다리는 결정 (M10 G4)', () => {
       { kind: 'chat', title: '질문 1개 — 메인 대화에 있어', text: 'M02에서 무엇을 더할까?' },
       { kind: 'chat', title: '스펙 승인 — 메인 대화에 있어', text: '스펙 승인' },
     ])
+    const taste = {
+      kind: 'taste' as const, requestId: 'taste-1', node: 'main', goal: null, text: '전역 Taste 초안', inChat: true,
+      draft: { doc: 'global-taste' as const, items: [] }, preview: '# 전역 Taste\n',
+    }
+    expect(decisionsOf(st({ cards: [taste] }))).toEqual([{ kind: 'chat', title: '문서 확정 — 메인 대화에 있어', text: '전역 Taste 초안' }])
     expect(decisionsOf(st({ phase: 'waiting-human', milestonePr: 6 }))).toEqual([
       { kind: 'merge', title: '마일스톤 PR #6 병합 — 아래 PR 칸에서', text: '병합은 사람이 버튼으로 한다' },
     ])

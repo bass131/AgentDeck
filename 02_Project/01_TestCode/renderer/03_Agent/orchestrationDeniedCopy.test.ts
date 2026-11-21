@@ -1,4 +1,3 @@
-// 작업 ID: uc1-p10 · 옛 이름 uc1-p10-orchestration-denied.test.ts
 import { describe, it, expect } from 'vitest'
 import {
   applyAgentEvent,
@@ -6,7 +5,7 @@ import {
 } from '@renderer/05_Conversation/state/reducer'
 import type { AppState } from '@renderer/05_Conversation/state/reducer'
 import type { ThreadItem } from '@renderer/05_Conversation/state/threadTypes'
-import type { AgentEventPayload } from '../../../../02_Project/00_Source/shared/ipcContract'
+import type { AgentEventPayload } from '@shared/ipcContract'
 import {
   copyForOrchestrationDenied,
   ORCHESTRATION_DENIED_COPY,

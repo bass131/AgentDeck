@@ -1,9 +1,7 @@
-// 작업 ID: lr4-p06 · 옛 이름 lr4-p06-ultracode-toggle-persist.test.tsx
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, fireEvent, act, cleanup, type RenderResult } from '@testing-library/react'
 import { type JSX } from 'react'
-import { __resetPanelSessionManagerForTests } from '@renderer/03_Agent/state/panelSession'
 import { __resetUltracodeToggleForTests } from '@renderer/03_Agent/state/ultracodeToggle'
 import { adaptFlatApi } from '../00_Helpers/windowApiMock'
 
@@ -12,8 +10,6 @@ const mockApi = {
   windowMaximizeToggle: vi.fn().mockResolvedValue({ maximized: false }),
   windowClose: vi.fn(),
   windowIsMaximized: vi.fn().mockResolvedValue({ maximized: false }),
-  windowGetBounds: vi.fn().mockResolvedValue({ x: 0, y: 0, width: 1200, height: 800 }),
-  windowSetBounds: vi.fn(),
   windowDragStart: vi.fn(),
   windowDragEnd: vi.fn(),
   windowResizeStart: vi.fn(),
@@ -23,7 +19,7 @@ const mockApi = {
   conversationSave: vi.fn().mockResolvedValue({ id: 'cv-1' }),
   onAgentEvent: vi.fn().mockReturnValue(() => {}),
   agentRun: vi.fn().mockResolvedValue({ runId: 'run-1' }),
-  agentAbort: vi.fn().mockResolvedValue({ accepted: true }),
+  agentAbort: vi.fn().mockResolvedValue({ ok: true }),
   agentInterrupt: vi.fn().mockResolvedValue({}),
   pickFolder: vi.fn().mockResolvedValue({ path: null }),
   listFiles: vi.fn().mockResolvedValue({ files: [] }),
@@ -38,7 +34,6 @@ beforeEach(() => {
   mockApi.agentRun.mockResolvedValue({ runId: 'run-1' })
   mockApi.listFiles.mockResolvedValue({ files: [] })
   mockApi.getUsage.mockResolvedValue({ pct: null, resetsAt: null })
-  __resetPanelSessionManagerForTests()
   __resetUltracodeToggleForTests()
 })
 
@@ -66,7 +61,7 @@ async function store() {
   return mod.useAppStore
 }
 
-// M10 G1 — 멀티 에이전트 모드를 지워 대화가 화면에서 빠지는 배치는 「작업」 모드다. 왕복은 채팅→작업→채팅으로 본다.
+// 대화가 화면에서 빠지는 배치는 「작업」 모드다. 왕복은 채팅→작업→채팅으로 본다.
 describe('lr4-p06-A: 단일챗 왕복 보존 (single→work→single OFF 유지)', () => {
   async function renderSingleShellHarness(): Promise<RenderResult> {
     const useAppStore = await store()
@@ -165,67 +160,6 @@ describe('lr4-p06-B: 단일챗 대화별 독립 (conversation A/B 격리)', () =
     const tA2 = ultraToggles(container)[0]
     expect(badgeOf(tA2)).toBe('OFF')
     expect(tA2.classList.contains('orch-on')).toBe(false)
-  })
-})
-
-// M10 G1 — 멀티 화면을 지웠다. 패널 카드·패널 세션 기계는 남겼으므로 패널 하네스를 빼고 다시 그려 재마운트를 본다.
-describe('lr4-p06-C: 패널별 독립 + 리마운트 유지', () => {
-  async function renderPanelShellHarness(): Promise<RenderResult> {
-    const useAppStore = await store()
-    const { selectWorkspaceMode } = await import('@renderer/00_App/appStore')
-    const { PanelHarness } = await import('../00_Helpers/panelHarness')
-    function PanelShellHarness(): JSX.Element {
-      const mode = useAppStore(selectWorkspaceMode)
-      return mode === 'work' ? <PanelHarness sessionId="m-roundtrip" /> : <div data-testid="single-stub" />
-    }
-    let r!: RenderResult
-    await act(async () => {
-      r = render(<PanelShellHarness />)
-      await new Promise((res) => setTimeout(res, 30))
-    })
-    return r
-  }
-
-  function panels(container: ParentNode): HTMLElement[] {
-    return Array.from(container.querySelectorAll('.ma-panel')) as HTMLElement[]
-  }
-
-  it('패널1 OFF → 패널 화면↔단일 왕복(재마운트) 후에도 패널1 OFF 유지, 패널2 ON 유지', async () => {
-    const useAppStore = await store()
-    useAppStore.setState({
-      workspaceRoot: '/test/workspace',
-      workspaceMode: 'work',
-    } as Parameters<typeof useAppStore.setState>[0])
-
-    const { container } = await renderPanelShellHarness()
-
-    const p0 = panels(container)
-    expect(p0.length).toBeGreaterThanOrEqual(2)
-    const p1Toggle = ultraToggles(p0[0])[0]
-    const p2Toggle = ultraToggles(p0[1])[0]
-    expect(p1Toggle.classList.contains('orch-on')).toBe(true)
-    expect(p2Toggle.classList.contains('orch-on')).toBe(true)
-
-    await act(async () => { fireEvent.click(p1Toggle) })
-    expect(badgeOf(ultraToggles(panels(container)[0])[0])).toBe('OFF')
-    expect(badgeOf(ultraToggles(panels(container)[1])[0])).toBe('ON')
-
-    await act(async () => {
-      useAppStore.getState().setWorkspaceMode('single')
-      await new Promise((res) => setTimeout(res, 10))
-    })
-    expect(container.querySelector('[data-testid="single-stub"]')).toBeTruthy()
-
-    await act(async () => {
-      useAppStore.getState().setWorkspaceMode('work')
-      await new Promise((res) => setTimeout(res, 30))
-    })
-
-    const pBack = panels(container)
-    expect(pBack.length).toBeGreaterThanOrEqual(2)
-    expect(badgeOf(ultraToggles(pBack[0])[0])).toBe('OFF')
-    expect(ultraToggles(pBack[0])[0].classList.contains('orch-on')).toBe(false)
-    expect(badgeOf(ultraToggles(pBack[1])[0])).toBe('ON')
   })
 })
 

@@ -1,4 +1,4 @@
-// M09 G2 실물 gh 포트 — 실행 층(gh 인자)과 순수 JSON 해석 층을 나눠 본다. 해석은 녹취 JSON 픽스처로 시험한다.
+// 실행 층(gh 인자)과 순수 JSON 해석 층을 나눠 본다. 해석은 녹취 JSON 픽스처로 시험한다.
 // findPr는 열림·병합·닫힘 중 가장 최근 것, ciStatus는 머리 SHA와 검사 묶음을 한 호출로 받고, 새 머리의 검사가 시작 전이거나
 // rollup이 비면 pending이다. 모르는 값은 pending이고(통과로 떨어지지 않는다), PR 상태가 모르는 값이면 던진다.
 import { describe, expect, it } from 'vitest'
@@ -56,6 +56,15 @@ describe('해석 층 — 녹취 픽스처', () => {
     expect(() => parseCiStatus({ statusCheckRollup: [] })).toThrow()
   })
 
+  // 실측: 같은 머리에 같은 이름 검사가 둘(push·pull_request) 돌면 하나가 끝나도 다른 하나를 기다린다.
+  it('[M11-G3 M09-11] 같은 이름 검사가 둘이면 모두 성공해야 success다 — 하나가 도는 중이면 pending, 하나가 실패면 failure', () => {
+    const run = (status: string, conclusion: string | null) => ({ __typename: 'CheckRun', name: 'hard-gates', status, conclusion })
+    const two = (a: unknown, b: unknown) => ({ headRefOid: 'f'.repeat(40), statusCheckRollup: [a, b] })
+    expect(parseCiStatus(two(run('COMPLETED', 'SUCCESS'), run('IN_PROGRESS', null)), ['hard-gates']).state).toBe('pending')
+    expect(parseCiStatus(two(run('COMPLETED', 'SUCCESS'), run('COMPLETED', 'FAILURE')), ['hard-gates']).state).toBe('failure')
+    expect(parseCiStatus(two(run('COMPLETED', 'SUCCESS'), run('COMPLETED', 'SUCCESS')), ['hard-gates']).state).toBe('success')
+  })
+
   it('gh pr create 출력에서 PR 번호를 읽는다', () => {
     expect(prNumberFromUrl(fx.CREATE_STDOUT)).toBe(101)
     expect(prNumberFromUrl('Warning: 1 uncommitted change\nhttps://github.com/a/b/pull/7\n')).toBe(7)
@@ -63,7 +72,7 @@ describe('해석 층 — 녹취 픽스처', () => {
   })
 })
 
-// G2 검수 차단 1 — gh도 실행기 환경(자격 있음)에서 git을 부를 수 있어, 호출 직전에 git 설정을 대조한다
+// gh도 실행기 환경(자격 있음)에서 git을 부를 수 있어, 호출 직전에 git 설정을 대조한다
 describe('실행 층 — 설정 대조', () => {
   it('대조가 던지면 gh를 부르지 않는다', async () => {
     let asked = 0
@@ -78,7 +87,7 @@ describe('실행 층 — 설정 대조', () => {
   })
 })
 
-// G2 재검수 중요 B — gh는 git 설정(remote.*.gh-resolved)으로 기본 저장소를 고른다. 실행기 gh는 열 때 origin 주소에서 정한
+// gh는 git 설정(remote.*.gh-resolved)으로 기본 저장소를 고른다. 실행기 gh는 열 때 origin 주소에서 정한
 // HOST/OWNER/REPO를 모든 호출에 -R로 준다.
 describe('실행 층 — 저장소 고정(-R)', () => {
   it('모든 gh 호출에 -R HOST/OWNER/REPO를 하위 명령 바로 뒤에 넣고, 업데이트 알림·질의를 끈다', async () => {
@@ -163,6 +172,20 @@ describe('실행 층 — gh 인자와 오류', () => {
     expect(a[a.indexOf('--base') + 1]).toBe('milestone/M1')
     expect(a[a.indexOf('--state') + 1]).toBe('all')
     expect(a[a.indexOf('--json') + 1].split(',')).toEqual(expect.arrayContaining(['number', 'state', 'headRefOid', 'mergeCommit', 'createdAt']))
+  })
+
+  it('openPrHeads는 base로 가는 열린 PR의 번호와 머리 브랜치를 읽고, 꼴이 틀리거나 오류면 던진다', async () => {
+    const { exec, calls } = fakeExec(() => ok('[{"number":7,"headRefName":"agentdeck/charter-20261121T010000"},{"number":9,"headRefName":"feat/x"}]'))
+    expect(await createGhPort(exec).openPrHeads?.('master')).toEqual([
+      { number: 7, head: 'agentdeck/charter-20261121T010000' }, { number: 9, head: 'feat/x' },
+    ])
+    const a = calls[0].args
+    expect(a.slice(0, 2)).toEqual(['pr', 'list'])
+    expect(a[a.indexOf('--base') + 1]).toBe('master')
+    expect(a[a.indexOf('--state') + 1]).toBe('open')
+    expect(a[a.indexOf('--json') + 1]).toBe('number,headRefName')
+    await expect(createGhPort(fakeExec(() => ok('[{"number":"7"}]')).exec).openPrHeads?.('master')).rejects.toThrow()
+    await expect(createGhPort(fakeExec(() => ({ code: 1, stdout: '', stderr: 'HTTP 502' })).exec).openPrHeads?.('master')).rejects.toThrow(/502/)
   })
 
   it('ciStatus는 머리와 검사 묶음을 한 번의 pr view로 받는다', async () => {

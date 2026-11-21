@@ -1,16 +1,7 @@
 #!/usr/bin/env node
-// 상태 파일 동시 쓰기 재실측·수리 (M02 Phase 3 Step 8·9 · 완료선 셋째 조항).
-//
-// M01 Phase 5는 동시 쓰기 무손실을 「7분 간격 순차 기록 관찰 + spawnSync 직렬 러너」로만 증거를 댔고,
-// 사용자가 그 증거 한계를 명시 채택했다 (M01 05_Phase_5 USER-INPUT 13:38). 여기서는 seam 장벽으로
-// 두 프로세스를 임계구간 문턱에 세워 함께 들여보내, 겹침 자체를 만들어 놓고 판정한다.
-//
-// 산출물은 Red와 Green을 상충 없이 나눠 담는다 —
-//   Red  (post-read): 보호 없는 read→write 임계구간이 겹치고, 마지막-쓰기-승으로 상대 세션 엔트리가
-//                     사라진다. 생존 구간 겹침만으로는 증거로 인정하지 않는다.
-//   Green(pre-lock) : 생존 구간(잠금 대기 포함)은 여전히 겹치되 보호 임계구간은 겹치지 않고(직렬화),
-//                     상태 파일 전 스코프가 무손실이다.
-// 여기에 잠금 자체의 두 절차 — 획득 timeout과 stale-lock 회수 — 를 단위로 실측한다.
+// seam 장벽으로 두 프로세스를 임계구간 문턱에 세워 함께 들여보내, 겹침 자체를 만들어 놓고 판정한다.
+// Red(post-read)는 보호 없는 임계구간이 겹쳐 상대 엔트리가 사라지는 것, Green(pre-lock)은 생존 구간은 겹쳐도 임계구간이 직렬화돼 무손실인 것이다.
+// 생존 구간 겹침만으로는 Red 증거로 인정하지 않는다.
 import { spawnSync } from 'node:child_process'
 import { createRequire } from 'node:module'
 import { existsSync, mkdtempSync, readFileSync, rmSync, utimesSync, writeFileSync } from 'node:fs'
@@ -34,14 +25,13 @@ function race(mode) {
       + ` · 생존 ${JSON.stringify(summary.survivors)} · 손실 ${JSON.stringify(summary.lost)} · global ${summary.globalSurvived}`
       + (summary.renameRefused ? ` · 동시 rename 거부 ${summary.renameRefused}건` : '')
       + (summary.otherWriteErrors?.length ? ` · 다른 쓰기 실패 ${JSON.stringify(summary.otherWriteErrors)}` : ''))
-    // 판정불능이면 원인(어느 timeline에 무엇이 빠졌고 어떤 오류였는지)을 숨기지 않는다 (Backlog 58)
+    // 판정불능이면 원인(어느 timeline에 무엇이 빠졌고 어떤 오류였는지)을 숨기지 않는다
     if (summary.criticalOverlapMs === null) console.log(`  [${mode}] 판정불능 원인 timeline ${JSON.stringify(summary.timelines)}`)
   }
   return { code: p.status, summary, stdout: p.stdout ?? '', stderr: p.stderr ?? '' }
 }
 
 try {
-  // ---- Step 8 Red — 보호 없는 경로에서 겹침과 손실이 함께 관측된다 --------
   {
     const c = race('post-read')
     const s = c.summary || {}
@@ -55,7 +45,6 @@ try {
       `실측 exit ${c.code} · pass ${s.pass}`)
   }
 
-  // ---- Step 9 Green — 잠금 아래에서 직렬화되고 아무것도 잃지 않는다 -------
   {
     const c = race('pre-lock')
     const s = c.summary || {}
@@ -69,7 +58,6 @@ try {
       `실측 생존 ${JSON.stringify(s.survivors)} · 손실 ${JSON.stringify(s.lost)} · global ${s.globalSurvived}`)
   }
 
-  // ---- Step 9 배선 — 33·40·50이 공통 헬퍼로만 상태를 쓴다 ----------------
   // 한 훅이라도 자체 tmp+rename 경로를 남겨 두면 그 훅의 쓰기는 잠금 밖이라 무손실이 깨진다.
   for (const hook of ['33_tdd-guard.cjs', '40_pass-watcher.cjs', '50_stop-gate.cjs']) {
     const src = readFileSync(join(H.mirror, '.claude', 'hooks', hook), 'utf8')
@@ -79,7 +67,6 @@ try {
       '실측 renameSync 잔존 — 잠금 밖 쓰기 경로다')
   }
 
-  // ---- Step 9 잠금 절차 — 획득 timeout과 stale-lock 회수 -----------------
   {
     const require_ = createRequire(import.meta.url)
     const store = require_(join(H.mirror, '.claude', 'hooks', '_lib', 'state-store.cjs'))

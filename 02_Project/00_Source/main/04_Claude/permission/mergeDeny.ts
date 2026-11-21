@@ -1,23 +1,19 @@
-// 병합 명령 거부 (M07 G8, 안내 M08 G2) — PR 병합은 사람이 앱의 PR 카드에서 누르는 「병합」 버튼으로 한다. 저장소 규칙이 정한 로컬 병합은 이 노드 밖이다.
-// 앱 세션의 에이전트가 셸로 부르는 병합 길 셋을 질문 없이 거부한다.
+// PR 병합은 사람이 앱의 PR 카드에서 누르는 「병합」 버튼으로 한다. 앱 세션의 에이전트가 셸로 부르는 병합 길 셋을 질문 없이 거부한다.
 //   ① `gh pr merge` — 옵션 위치 변형(`gh -R o/r pr merge`, `gh pr -b x merge`)과 `--auto` 포함.
 //   ② `gh api`의 `pulls/<n>/merge`·`pulls/<n>/merge-async` 경로 — 메서드와 관계없이(병합 여부 GET도 막힌다).
 //   ③ `gh api graphql`의 `mergePullRequest`·`enablePullRequestAutoMerge`.
 // 판독은 저장소 가드(.claude/hooks/dangerous-cmd-guard.mjs)의 낱말 규칙을 TS로 다시 쓴 것이다(gh 2.x 하위 명령 규칙).
-// 명령 글자를 바꾸면 피해 가므로 L3다 — 실수만 막는다. 같은 토큰이라 서버는 받는다(goal 「하지 않을 것」 단계 B·C).
-// 소스 제약(M09 G3 검수 중요 4): 하네스 같음 시험(.claude/hooks/cmd-guard-equivalence.test.mjs)이 이 파일을 Node의 타입 지우기로
+// 명령 글자를 바꾸면 피해 가므로 L3다 — 실수만 막는다. 같은 토큰이라 서버는 받는다.
+// 소스 제약: 하네스 같음 시험(.claude/hooks/cmd-guard-equivalence.test.mjs)이 이 파일을 Node의 타입 지우기로
 // 직접 import해 가드와 판정을 맞춘다. 그래서 import는 `import type`만 쓰고(값 import는 확장자 없는 상대 경로라 Node가 못 찾는다),
 // enum·namespace·parameter property처럼 지울 수 없는 TS 문법을 쓰지 않는다. mergeDeny.test.ts의 「merge-deny 소스」 시험이 지킨다.
 import type { ControlNodeInfo } from './controlNodes'
 
-// M08 G2(헌법 10조 효력 날 뒤): 이 노드는 작업 폴더와 관계없이 모든 앱 세션에 붙으므로 안내는 작업 폴더 중립이다.
-// 호출 거부는 대상 브랜치와 관계없다. 로컬 `git merge`는 이 노드가 막지 않으며, 저장소 규칙이 정해 둔 경우에만 그 조건으로 쓴다
-// (AgentDeck은 헌법 10조 — goal을 마일스톤 브랜치에 `git merge --no-ff`, 조건은 `hard-gates`·마지막 `PASS`·강 등급 독립 검수).
+// 이 노드는 작업 폴더와 관계없이 모든 앱 세션에 붙으므로 안내는 작업 폴더 중립이다. 로컬 `git merge`는 막지 않는다.
 const REASON =
   'gh pr merge와 병합 API는 에이전트가 쓰지 않습니다(대상 브랜치와 관계없음). PR 병합은 사용자가 앱의 PR 카드에서 「병합」 버튼으로 합니다. 작업 폴더의 저장소 규칙이 에이전트의 로컬 병합(예: AgentDeck 헌법 10조의 마일스톤 브랜치 `git merge --no-ff`)을 정해 두었으면 그 규칙과 병합 조건을 따르고, 아니면 PR 생성까지만 하세요.'
 
-// ── 셸 판독 ──────────────────────────────────────────────────────────────
-// M09 G2: 루프 잠금 노드(loopLock.ts)가 같은 판독을 쓰도록 낱말 단위 함수를 내보낸다. 판정과 동작은 그대로다.
+// 루프 잠금 노드(loopLock.ts)가 같은 판독을 쓰도록 낱말 단위 함수를 내보낸다.
 // 큰따옴표 안에서는 `\"`·`\\`·`\$`·`` \` ``만, 따옴표 밖에서는 `\"`·`\'`·`\\`만 이스케이프로 읽는다(가드와 같다).
 const DQ_ESCAPABLE = new Set(['"', '\\', '$', '`'])
 const BARE_ESCAPABLE = new Set(['"', "'", '\\'])
@@ -25,14 +21,14 @@ type Quote = '"' | "'" | null
 const isEscape = (quote: Quote, ch: string, next: string | undefined): boolean =>
   ch === '\\' && next !== undefined && (quote === '"' ? DQ_ESCAPABLE.has(next) : quote === null && BARE_ESCAPABLE.has(next))
 
-const SHELLS = new Set(['sh', 'bash', 'dash', 'zsh', 'ksh', 'ash', 'sh.exe', 'bash.exe'])
+const SHELLS = new Set(['sh', 'bash', 'dash', 'zsh', 'ksh', 'ash', 'sh.exe', 'bash.exe', 'dash.exe', 'zsh.exe', 'ksh.exe', 'ash.exe'])
 // heredoc 앞이 셸 실행(`bash <<EOF`, `sh -s <<EOF`)이면 본문이 명령이다.
 const SHELL_TAIL = /(?:^|[\s;&|(])(?:\S*[\\/])?(?:ba|da|z|k|a)?sh(?:\.exe)?(?:\s+-\S+)*\s*$/i
 
 // heredoc 본문을 지운다 — `--body "$(cat <<'EOF' … EOF)"`의 본문은 명령이 아니다.
 // 셸에 먹이는 heredoc은 본문이 명령이라 지우지 않는다.
 // 끝말에 따옴표가 없으면(`<<EOF`, `<<-EOF`) bash가 본문의 `$( … )`·`` ` … ` ``를 실행하므로, 그 안쪽 글을 명령 줄로 남긴다
-// (독립 검수 사소 7). 따옴표 친 끝말(`<<'EOF'`, `<<"EOF"`)의 본문은 치환하지 않아 통째로 지운다.
+// 따옴표 친 끝말(`<<'EOF'`, `<<"EOF"`)의 본문은 치환하지 않아 통째로 지운다.
 function stripHeredocBodies(text: string): string {
   const lines = text.split('\n')
   const out: string[] = []
@@ -149,8 +145,8 @@ function tokenize(segment: string): string[] {
 }
 
 // 래퍼 — 뒤의 낱말을 명령으로 실행한다. 값을 다음 낱말로 받는 옵션과, 명령 앞의 위치 인자 수(`timeout <시간>`)를 적는다.
-// 값이 붙은 꼴(`-o0`, `--signal=KILL`)은 한 낱말이라 따로 적지 않는다 (독립 검수 중요 3).
-// split(M09 G3)은 `env -S` 문자열 판독 칸이다 — 그 글자와 값을 받는 짧은 옵션 글자, 긴 옵션의 종류(splitScriptOf가 읽는다).
+// 값이 붙은 꼴(`-o0`, `--signal=KILL`)은 한 낱말이라 따로 적지 않는다.
+// split은 `env -S` 문자열 판독 칸이다 — 그 글자와 값을 받는 짧은 옵션 글자, 긴 옵션의 종류(splitScriptOf가 읽는다).
 interface SplitSpec {
   short: string
   valueShort: string
@@ -182,6 +178,47 @@ const wrapperOf = (token: string): WrapperSpec | undefined => WRAPPERS.get(baseN
 const RE_ASSIGN = /^[A-Za-z_][A-Za-z0-9_]*=/
 const RE_SHELL_C = /^-[A-Za-z]*c$/
 
+// 옵션 낱말이 다음 낱말을 값으로 먹는가(가드 takesValue와 같다) — 붙여 쓴 값(`-oL`·`--signal=KILL`)은 먹지 않는다.
+// 짧은 묶음(`-vs`)은 끝 글자가 값 옵션이면 먹고, `=` 없는 긴 옵션은 값 옵션의 접두(`--sig`)면 먹는다(getopt_long 줄임).
+function takesValue(spec: WrapperSpec, t: string): boolean {
+  if (spec.valueOpts.includes(t)) return true
+  if (t.startsWith('--')) return !t.includes('=') && t.length > 3 && spec.valueOpts.some((o) => o.startsWith('--') && o.startsWith(t))
+  return /^-[A-Za-z]{2,}$/.test(t) && spec.valueOpts.includes('-' + t.slice(-1))
+}
+
+// `sh [옵션…] -c [옵션…] [--] 스크립트`의 스크립트(가드 shellScriptsOf와 같다). 짧은 묶음 어디의 `c`든 -c 모드이고
+// (`-ce`·`-lc`), 스크립트는 옵션 구간 뒤 첫 낱말이다(`bash -c -x "…"`). `-o`·`-O` 묶음과 `--rcfile`·`--init-file`은 값을 먹는다.
+// `-c` 꼴 낱말 바로 뒤의 낱말도 합집합으로 본다. -c 모드가 아니면(`bash -x run.sh`) 파일 이름이라 없다.
+// `+c`도 -c 모드이고, 묶음의 `o`·`O`마다 값을 하나씩 먹으며, 대시 하나짜리 긴 옵션(`-login`)은 값을 먹지 않는다.
+const SHELL_VALUE_LONG = new Set(['--rcfile', '--init-file'])
+const SHELL_LONG_WORDS = new Set(['login', 'noprofile', 'norc', 'posix', 'restricted', 'verbose', 'version', 'help', 'debugger', 'noediting', 'dump-strings', 'dump-po-strings', 'pretty-print'])
+// 대시 하나 긴 옵션은 bash만 읽는다 — zsh·ksh·dash·ash에서 `-restricted`는 `c`가 든 짧은 묶음이다.
+// sh는 bash일 수도 dash일 수도 있어 두 판독의 합집합이다. 셸을 모르면 합집합이다.
+const LONG_WORD_SHELLS = new Set(['bash', 'bash.exe'])
+const EITHER_SHELLS = new Set(['sh', 'sh.exe'])
+function shellScriptStart(args: string[], longWords: boolean): number {
+  let cMode = false
+  let i = 0
+  while (i < args.length) {
+    const t = args[i]
+    if (t === '--' || t === '-') { i++; break }
+    if (t.startsWith('--')) { i += SHELL_VALUE_LONG.has(t) ? 2 : 1; continue }
+    if (longWords && t[0] === '-' && SHELL_LONG_WORDS.has(t.slice(1))) { i++; continue }
+    if (!/^[-+][A-Za-z]+$/.test(t)) break
+    if (t.includes('c')) cMode = true
+    i += 1 + (t.match(/[oO]/g)?.length ?? 0)
+  }
+  return cMode && i < args.length ? i : -1
+}
+function shellScriptsOf(args: string[], shell?: string): string[] {
+  const readings = shell !== undefined && LONG_WORD_SHELLS.has(shell) ? [true]
+    : shell === undefined || EITHER_SHELLS.has(shell) ? [true, false] : [false]
+  const at = new Set<number>(readings.map((lw) => shellScriptStart(args, lw)).filter((j) => j >= 0))
+  const k = args.findIndex((t) => RE_SHELL_C.test(t))
+  if (k >= 0 && k + 1 < args.length) at.add(k + 1)
+  return [...at].map((j) => args[j])
+}
+
 function baseName(token: string): string {
   const i = Math.max(token.lastIndexOf('/'), token.lastIndexOf('\\'))
   return (i < 0 ? token : token.slice(i + 1)).toLowerCase()
@@ -192,9 +229,11 @@ interface Cmd {
   args: string[]
 }
 
-// 명령 위치 — 머리의 `VAR=값` 할당과 셸 문법 낱말(`{`·`!`·`then`·`do` …)을 건너뛰고, 래퍼(`sudo`·`env`·`xargs` …) 뒤의 명령도 본다.
+// 명령 위치 — 머리의 `VAR=값` 할당과 셸 문법 낱말(`{`·`!`·`then`·`do` …)을 건너뛰고, 래퍼(`sudo`·`env`·`xargs` …) 뒤의 명령과
+// 머리가 find일 때 `-exec`류 뒤의 명령도 본다(가드와 같다).
 // 중괄호는 구분자로 두지 않는다 — `gh api repos/{owner}/{repo}/…` 자리표시가 쪼개진다.
 const SHELL_WORDS = new Set(['{', '}', '!', 'then', 'do', 'else', 'elif', 'if', 'while', 'until'])
+const FIND_EXEC = new Set(['-exec', '-execdir', '-ok', '-okdir'])
 function commandsOf(tokens: string[]): Cmd[] {
   let head = 0
   while (head < tokens.length - 1 && (RE_ASSIGN.test(tokens[head]) || SHELL_WORDS.has(tokens[head]))) head++
@@ -204,18 +243,26 @@ function commandsOf(tokens: string[]): Cmd[] {
   for (let spec = wrapperOf(tokens[i]); spec && i < tokens.length - 1; spec = wrapperOf(tokens[i])) {
     let j = i + 1
     // 옵션(값을 받는 옵션은 그 값까지)과 `VAR=값`을 건너뛰고, 위치 인자(`timeout`의 시간)를 건너뛴다
-    while (j < tokens.length && (tokens[j].startsWith('-') || RE_ASSIGN.test(tokens[j]))) {
-      j += spec.valueOpts.includes(tokens[j]) ? 2 : 1
-    }
+    while (j < tokens.length && (tokens[j].startsWith('-') || RE_ASSIGN.test(tokens[j]))) j += takesValue(spec, tokens[j]) ? 2 : 1
     j += spec.positional
     if (j >= tokens.length) break
     cmds.push({ base: baseName(tokens[j]), args: tokens.slice(j + 1) })
     i = j
   }
+  if (baseName(tokens[head]).replace(/\.exe$/, '') === 'find') {
+    for (let j = head + 1; j < tokens.length - 1; j++) {
+      if (!FIND_EXEC.has(tokens[j].toLowerCase())) continue
+      // 명령 인자는 끝맺음(`;`·`\;`, `{} +`) 앞까지다 — 따옴표 밖 `\;`는 구분자에서 잘려 `\`만 남는다
+      let end = j + 2
+      while (end < tokens.length && !findExecEnd(tokens, end)) end++
+      cmds.push({ base: baseName(tokens[j + 1]), args: tokens.slice(j + 2, end) })
+    }
+  }
   return cmds
 }
+const findExecEnd = (tokens: string[], k: number): boolean =>
+  tokens[k] === ';' || tokens[k] === '\\;' || tokens[k] === '\\' || (tokens[k] === '+' && tokens[k - 1] === '{}')
 
-// ── gh 판정 ──────────────────────────────────────────────────────────────
 const isGh = (c: Cmd): boolean => c.base === 'gh' || c.base === 'gh.exe'
 
 // gh의 하위 명령 낱말 둘 — `=` 없는 `--긴옵션`과 두 글자 `-x`는 다음 낱말을 값으로 먹는다(가드 ghWords, gh 2.92 실측).
@@ -256,8 +303,46 @@ const POWERSHELLS = new Set(['powershell', 'powershell.exe', 'pwsh', 'pwsh.exe']
 const PS_COMMAND = /^[-/](?:c|co|com|comm|comma|comman|command)$/i
 const PS_FILE = /^[-/](?:f|fi|fil|file)$/i
 
+// PowerShell이 인자를 스크립트로 돌리는 명령 —`iex`·`Invoke-Expression`, `Start-Process`.
+// 가드(dangerous-cmd-guard.mjs)의 evaluatedScriptOf와 같은 판독이다.
+const PS_EVAL = new Set(['iex', 'invoke-expression'])
+const PS_START = new Set(['start-process', 'saps'])
+const PS_START_SWITCH = new Set(['nonewwindow', 'passthru', 'wait', 'loaduserprofile', 'usenewenvironment'])
+const PS_EVAL_COMMAND = /^-c(?:o(?:m(?:m(?:a(?:n(?:d)?)?)?)?)?)?(?::(.*))?$/i
+function startProcessScript(args: string[]): string | null {
+  let file: string | undefined
+  const list: string[] = []
+  const positional: string[] = []
+  for (let i = 0; i < args.length; i++) {
+    const t = args[i]
+    if (!t.startsWith('-')) { positional.push(t); continue }
+    const [rawName, ...attached] = t.slice(1).split(':')
+    const name = rawName.toLowerCase()
+    const value = (): string | undefined => (attached.length ? attached.join(':') : args[++i])
+    if (name === 'args' || (name.length > 0 && 'argumentlist'.startsWith(name))) {
+      // 배열 꼴 — `"pr", "merge"`는 쉼표로 끝난 낱말이 이어지고, `@(…)`는 괄호로 감싼다
+      let v = value()
+      while (v !== undefined && v.endsWith(',') && i + 1 < args.length) v += args[++i]
+      if (v !== undefined) list.push(v)
+    }
+    else if (name === 'path' || name === 'pspath' || (name.length > 0 && 'filepath'.startsWith(name))) file = value()
+    else if (!PS_START_SWITCH.has(name)) value()
+  }
+  file ??= positional.shift()
+  if (!list.length && positional.length) list.push(positional.shift() as string)
+  if (!file) return null
+  return [file, ...list.flatMap((v) => v.replace(/^@\(/, '').replace(/\)$/, '').split(','))].join(' ')
+}
+
 // Windows 셸이면 안쪽에서 실행될 스크립트 후보를, 아니면 null을 돌려준다.
 function windowsShellScripts(c: Cmd): string[] | null {
+  if (PS_EVAL.has(c.base)) {
+    return [c.args.flatMap((t) => { const m = PS_EVAL_COMMAND.exec(t); return !m ? [t] : m[1] ? [m[1]] : [] }).join(' ')]
+  }
+  if (PS_START.has(c.base)) {
+    const s = startProcessScript(c.args)
+    return s === null ? [] : [s]
+  }
   if (CMD_SHELLS.has(c.base)) {
     const k = c.args.findIndex((t) => /^\/[ck]$/i.test(t))
     return k >= 0 ? [c.args.slice(k + 1).join(' ')] : []
@@ -272,13 +357,13 @@ function windowsShellScripts(c: Cmd): string[] | null {
   return out
 }
 
-// `env -S`·`--split-string` (M09 G3) — GNU env는 문자열을 낱말로 나눠 그 자리에 끼우고 옵션 읽기를 잇는다. 그래서 다시 읽을 글은
+// `env -S`·`--split-string` — GNU env는 문자열을 낱말로 나눠 그 자리에 끼우고 옵션 읽기를 잇는다. 그래서 다시 읽을 글은
 // `env <문자열> <뒤 낱말>`이다(`env -S "-i gh …"`의 `-i`도 옵션으로 읽힌다). 뒤 낱말은 작은따옴표로 감싸 낱말 하나로 남긴다.
 // 옵션은 getopt처럼 읽는다(loopLock.ts의 wrapperOpts와 같다) — 묶은 짧은 옵션은 값 옵션 글자에서 끝나고(`-vS`는 -S,
 // `-uS`의 S는 -u의 값), 값은 붙여 쓰거나(`-S"…"`·`--split-string=…`) 다음 낱말이며, 긴 옵션은 표에서 유일한 접두면 줄여 쓴다(`--sp`).
 // 가드(dangerous-cmd-guard.mjs)의 splitScriptOf와 같은 판독이다. 없으면 null.
 const shQuote = (t: string): string => `'${t.replace(/'/g, "'\\''")}'`
-// 값 안의 주석 (G3 검수 중요 1) — env는 따옴표 밖 낱말 머리의 `#`부터 **값 끝까지만** 버리고 뒤 낱말은 그대로 돈다.
+// 값 안의 주석 — env는 따옴표 밖 낱말 머리의 `#`부터 **값 끝까지만** 버리고 뒤 낱말은 그대로 돈다.
 // 다시 읽을 글에서는 그 `#`가 뒤 낱말을 삼킬 수 있으므로, 잇기 전에 값에서 잘라 낸다. 따옴표 안의 `#`는 글자다(가드와 같다).
 function dropSplitComment(v: string): string {
   let quote: Quote = null
@@ -329,14 +414,16 @@ function splitScriptOf(c: Cmd): string | null {
 
 function scriptReason(script: string, rawText: string, depth: number): string | null {
   if (depth > 4) return null
-  const text = stripHeredocBodies(script.replace(/\\\r?\n/g, ' '))
+  let text = stripHeredocBodies(script.replace(/\\\r?\n/g, ' '))
+  // `Start-Process … -ArgumentList @(…)` — 세그먼트 분할이 괄호를 하위 셸로 끊어 인자가 떨어지지 않게 배열 괄호를 벗긴다
+  if (/\b(?:start-process|saps)\b/i.test(text)) text = text.replace(/@\(([^()]*)\)/g, ' $1 ')
   for (const sub of substitutions(text)) {
     const r = scriptReason(sub, rawText, depth + 1)
     if (r) return r
   }
   for (const seg of splitSegments(text)) {
     for (const c of commandsOf(tokenize(seg))) {
-      // `env -S` 문자열은 셸 `-c` 스크립트처럼 다시 판독한다 (M09 G3)
+      // `env -S` 문자열은 셸 `-c` 스크립트처럼 다시 판독한다
       const split = splitScriptOf(c)
       if (split !== null) {
         const r = scriptReason(split, rawText, depth + 1)
@@ -344,14 +431,19 @@ function scriptReason(script: string, rawText: string, depth: number): string | 
         continue
       }
       if (SHELLS.has(c.base)) {
-        const k = c.args.findIndex((t) => RE_SHELL_C.test(t))
-        if (k >= 0 && k + 1 < c.args.length) {
-          const r = scriptReason(c.args[k + 1], rawText, depth + 1)
+        for (const s of shellScriptsOf(c.args, c.base)) {
+          const r = scriptReason(s, rawText, depth + 1)
           if (r) return r
         }
         continue
       }
-      // Windows 셸 — `cmd /c …`, `powershell -Command …`, `pwsh -c …`. 뒤의 낱말을 이어 한 스크립트로 다시 읽는다(독립 검수 중요 3).
+      // eval은 인자를 이어 스크립트로 돌린다(가드는 eval 뒤를 명령 위치로 본다)
+      if (c.base === 'eval') {
+        const r = scriptReason(c.args.join(' '), rawText, depth + 1)
+        if (r) return r
+        continue
+      }
+      // Windows 셸 — `cmd /c …`, `powershell -Command …`, `pwsh -c …`. 뒤의 낱말을 이어 한 스크립트로 다시 읽는다.
       // powershell(.exe)은 옵션 없는 첫 낱말부터가 명령이다. pwsh는 그 자리가 파일이지만, 막는 쪽으로 같게 본다(-File이 있으면 뺀다).
       const inner = windowsShellScripts(c)
       if (inner) {
@@ -380,8 +472,8 @@ export function mergeDenyReason(command: string): string | null {
   return scriptReason(command, command, 0)
 }
 
-// 루프 잠금 노드(M09 G2, loopLock.ts)가 쓰는 판독 함수. 이 노드의 판정 경로와 같은 함수다.
-export { SHELLS, RE_SHELL_C, stripHeredocBodies, substitutions, splitSegments, tokenize, commandsOf, windowsShellScripts, ghWords, baseName }
+// 루프 잠금 노드(loopLock.ts)가 쓰는 판독 함수. 이 노드의 판정 경로와 같은 함수다.
+export { SHELLS, shellScriptsOf, stripHeredocBodies, substitutions, splitSegments, tokenize, commandsOf, windowsShellScripts, ghWords, baseName }
 export type { Cmd }
 
 // ── 훅과 노드 정보 ─────────────────────────────────────────────────────────
@@ -396,7 +488,7 @@ interface HookOutput {
   hookSpecificOutput?: { hookEventName: 'PreToolUse'; permissionDecision: 'deny'; permissionDecisionReason: string }
 }
 
-export interface MergeDenyMatcher {
+interface MergeDenyMatcher {
   matcher?: string
   hooks: ((input: PreToolUseInput, toolUseID: string | undefined, opts: { signal: AbortSignal }) => Promise<HookOutput>)[]
   timeout: number

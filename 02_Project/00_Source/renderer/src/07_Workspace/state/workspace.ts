@@ -1,9 +1,9 @@
 import type { StateCreator } from 'zustand'
-import type { FileTreeNode } from '../../../../shared/ipcContract'
+import type { FileTreeNode } from '@shared/ipcContract'
 import type { AppStore } from '@renderer/00_App/state/types'
 import { ipc } from '@renderer/01_Ipc'
 
-// 화면 배치(대화 하나 / 멀티 패널) 상태는 12_Window/windowMode 슬라이스로 옮겼다(G9c).
+// 화면 모드 상태는 12_Window/windowMode 슬라이스에 있다.
 export interface WorkspaceState {
   workspaceRoot: string | null
   fileTree: FileTreeNode | null

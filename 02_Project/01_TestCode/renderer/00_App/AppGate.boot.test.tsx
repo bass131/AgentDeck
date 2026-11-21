@@ -14,14 +14,12 @@ const baseApi = {
   conversationLoad: vi.fn().mockResolvedValue({ conversations: [] }),
   conversationSave: vi.fn().mockResolvedValue({ id: 'cv-1' }),
   agentRun: vi.fn().mockResolvedValue({ runId: 'r1' }),
-  agentAbort: vi.fn().mockResolvedValue({ accepted: true }),
+  agentAbort: vi.fn().mockResolvedValue({ ok: true }),
   onAgentEvent: vi.fn().mockReturnValue(() => {}),
   windowMinimize: vi.fn(),
   windowMaximizeToggle: vi.fn().mockResolvedValue({ maximized: false }),
   windowClose: vi.fn(),
   windowIsMaximized: vi.fn().mockResolvedValue({ maximized: false }),
-  windowGetBounds: vi.fn().mockResolvedValue({ x: 0, y: 0, width: 1200, height: 800 }),
-  windowSetBounds: vi.fn(),
   windowDragStart: vi.fn(),
   windowDragEnd: vi.fn(),
   windowResizeStart: vi.fn(),
@@ -292,7 +290,7 @@ describe('기존 회귀 — Shell 마운트 정상', () => {
   })
 })
 
-// M06 G4: 앱 시작 때 main에 모델 목록을 한 번 묻는다 — 선택기는 그 SDK 목록으로 그린다.
+// 앱 시작 때 main에 모델 목록을 한 번 묻는다 — 선택기는 그 SDK 목록으로 그린다.
 describe('부트 — 모델 목록 받기', () => {
   it('AppGate가 뜨면 agent.listModels를 한 번 부르고 store 목록을 바꾼다', async () => {
     const rows = [{ value: 'claude-nova-1', displayName: 'Nova 1', description: '', supportedEffortLevels: [] }]

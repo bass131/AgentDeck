@@ -1,12 +1,10 @@
 import { isEmptyLoopDisplaySnapshot } from './loopDisplayRegistry'
 import type { LoopDisplayRegistry, LoopDisplaySnapshot } from './loopDisplayRegistry'
-import type { AgentEvent } from '../../../../shared/agentEvents'
+import type { AgentEvent } from '@shared/agentEvents'
 import { convKey, conversationIdOfKey, keyKind } from './sessionKeys'
 import { sessionRegistry } from './sessionRegistry'
 
-// 대화 종류의 루프 표시·runId 라우팅 보기 — 거처는 세션 레지스트리 한 벌이고(G9c), 여기 함수들은 대화 id를
-// 레지스트리 키 convKey(id)로 바꿔 넘기는 얇은 포장이다. 대화 쪽 정책(떠날 때 sync, 비면 라우팅 제거,
-// 대체 처리)은 이 파일과 runtime·sessions가 그대로 갖는다.
+// 대화 id를 레지스트리 키 convKey(id)로 바꿔 넘기는 얇은 포장이다. 대화 쪽 정책은 이 파일과 runtime·sessions가 갖는다.
 
 const isConvKey = (k: string): boolean => keyKind(k) === 'conv'
 

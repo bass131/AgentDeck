@@ -1,4 +1,3 @@
-// 작업 ID: gap1-p07 · 옛 이름 gap1-p07-plan-approval-card.test.tsx
 // @vitest-environment jsdom
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, cleanup, fireEvent } from '@testing-library/react'
@@ -28,7 +27,7 @@ const PLAN_PENDING_EMPTY: PendingPermission = {
   planReview: { plan: '', planFilePath: undefined },
 }
 
-const CARD_PATH = '@renderer/10_Engine'
+const CARD_PATH = '@renderer/03_Agent'
 
 describe('GAP1 P07 — PermissionCard plan 전용 모드 렌더 (RED)', () => {
   it('planReview != null → .perm-card 에 data-plan-mode 판별자 부여', async () => {
@@ -81,6 +80,18 @@ describe('GAP1 P07 — PermissionCard plan 액션 세트 (RED)', () => {
     const denyBtn = container.querySelector('[data-perm-choice="deny"]') as HTMLElement
     expect(denyBtn.textContent).toContain('계속 계획')
     fireEvent.click(denyBtn)
+    expect(onRespond).toHaveBeenCalledWith('deny')
+  })
+
+  // 숫자 키 2는 어느 카드에서나 거부 쪽이다(계획 카드는 계속 계획), 3은 이 카드에 없다.
+  it('숫자 키 2 → 계속 계획(deny), 3 → 아무것도 하지 않는다', async () => {
+    const { PermissionCard } = await import(CARD_PATH)
+    const onRespond = vi.fn()
+    const { container } = render(<PermissionCard pending={PLAN_PENDING} onRespond={onRespond} />)
+    const card = container.querySelector('.perm-card') as HTMLElement
+    fireEvent.keyDown(card, { key: '3' })
+    expect(onRespond).not.toHaveBeenCalled()
+    fireEvent.keyDown(card, { key: '2' })
     expect(onRespond).toHaveBeenCalledWith('deny')
   })
 })

@@ -1,8 +1,8 @@
 import type { LoopPhase, LoopStatus } from '@shared/ipcContract'
 import { cwdKey } from './loopModel'
 
-export type TagTone = 'brain' | 'run' | 'stop' | 'merge' | 'idle'
-export interface ProjectTag { label: string; tone: TagTone }
+type TagTone = 'brain' | 'run' | 'stop' | 'merge' | 'idle'
+interface ProjectTag {label: string; tone: TagTone }
 
 const STOP_PHASES: ReadonlySet<LoopPhase> = new Set<LoopPhase>(['halted', 'latched', 'blocked', 'open-failed'])
 
@@ -10,6 +10,7 @@ export function projectTag(s: LoopStatus | null): ProjectTag | null {
   if (s === null || s.phase === 'closed') return null
   const pre = s.milestoneId !== null ? `${s.milestoneId} · ` : ''
   if (STOP_PHASES.has(s.phase)) return { label: `${pre}멈춤`, tone: 'stop' }
+  if (s.phase === 'limit') return { label: `${pre}한도 멈춤`, tone: 'stop' }
   if (s.phase === 'done') return { label: `${pre}끝`, tone: 'idle' }
   if (s.paused) return { label: `${pre}멈춤`, tone: 'stop' }
   if (s.phase === 'not-started') return { label: `${pre}시작 전`, tone: 'idle' }
@@ -20,12 +21,13 @@ export function projectTag(s: LoopStatus | null): ProjectTag | null {
 }
 
 // 현황판이 직접 답하는 결정(이어 가기·래치 풀기·구동자 카드)은 빠진다. 여기는 다른 곳에서 답하는 결정을 가리키기만 한다
-export interface Decision { kind: 'chat' | 'merge'; title: string; text: string }
+interface Decision {kind: 'chat' | 'merge'; title: string; text: string }
 export function decisionsOf(s: LoopStatus): Decision[] {
   const out: Decision[] = []
   for (const c of s.cards) {
     if (c.inChat !== true) continue
     if (c.kind === 'question') out.push({ kind: 'chat', title: `질문 ${c.questions.length}개 — 메인 대화에 있어`, text: c.questions[0]?.question ?? c.text })
+    else if (c.kind === 'taste') out.push({ kind: 'chat', title: '문서 확정 — 메인 대화에 있어', text: c.text })
     else out.push({ kind: 'chat', title: '권한 요청 — 메인 대화에 있어', text: `${c.toolName} ${c.summary}` })
   }
   if (s.approval !== null) out.push({ kind: 'chat', title: `${s.approval.title} — 메인 대화에 있어`, text: s.approval.title })

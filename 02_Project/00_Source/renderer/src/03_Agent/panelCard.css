@@ -1,4 +1,4 @@
-/* 패널 카드(.ma-*) — 서브에이전트 보기(SubAgentCell·SubAgentChatStream·SubAgentFullscreen)와 PanelView가 쓴다.
+/* 패널 카드(.ma-*) — 서브에이전트 보기(SubAgentCell·SubAgentChatStream·SubAgentFullscreen)가 쓴다.
    M10 G1에서 멀티 화면(12_Window/MultiWorkspace)을 지우며 그 CSS에서 카드 규칙만 옮겼다.
    멀티 화면 전용 배치(.multi·머리·일괄 폴더·사용량 알약·패널 수·격자·자리표시·펼침 오버레이)는 옮기지 않았다.
    클래스 이름(.ma-*)은 시험·e2e가 읽으므로 그대로 둔다. */

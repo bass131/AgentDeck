@@ -1,5 +1,5 @@
 import type { StateCreator } from 'zustand'
-import type { Profile, UsageInfo, BackendStatus } from '../../../../shared/ipcContract'
+import type { Profile, UsageInfo, BackendStatus } from '@shared/ipcContract'
 import type { AppStore } from './types'
 import { getReplModeDefault } from '@renderer/05_Conversation/replModeDefault'
 import { ipc } from '@renderer/01_Ipc'

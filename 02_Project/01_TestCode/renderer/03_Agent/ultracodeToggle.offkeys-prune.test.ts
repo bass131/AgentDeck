@@ -1,13 +1,11 @@
-// 작업 ID: bl1-p01 · 옛 이름 bl1-p01-ultracode-offkeys-prune.test.ts
 // @vitest-environment jsdom
-// M10 G1 — 멀티 에이전트 모드(멀티 세션 삭제와 그 범위 정리)를 지워 B·D 묶음을 뺐다. 대화 삭제의 정리만 남는다.
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
 import { useAppStore } from '@renderer/00_App/appStore'
 import { useUltracodeToggle, __resetUltracodeToggleForTests } from '@renderer/03_Agent/state/ultracodeToggle'
-// 대화의 UltraCode 범위 키는 세션 레지스트리 키 convKey(id)다(G9c, 옛 키는 대화 id 그대로).
+// 대화의 UltraCode 범위 키는 세션 레지스트리 키 convKey(id)다(대화 id 그대로가 아니다).
 import { convKey } from '@renderer/03_Agent/state/sessionKeys'
-import type { ConversationRecord } from '../../../../02_Project/00_Source/shared/ipcContract'
+import type { ConversationRecord } from '@shared/ipcContract'
 import { adaptFlatApi } from '../00_Helpers/windowApiMock'
 
 const SAMPLE_CONVS: ConversationRecord[] = [
@@ -29,7 +27,7 @@ const mockApi = {
   conversationDelete: (req: { id: string }) => conversationDeleteImpl(req),
   conversationRename: vi.fn().mockResolvedValue({ ok: true }),
   agentRun: vi.fn().mockResolvedValue({ runId: 'r1' }),
-  agentAbort: vi.fn().mockResolvedValue({ accepted: true }),
+  agentAbort: vi.fn().mockResolvedValue({ ok: true }),
   onAgentEvent: vi.fn().mockReturnValue(() => {}),
   setUiPref: vi.fn().mockResolvedValue({ ok: true }),
 }

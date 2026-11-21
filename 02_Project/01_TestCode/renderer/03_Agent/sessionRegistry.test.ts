@@ -1,4 +1,3 @@
-// 작업 ID: g9c · 옛 이름 g9c-session-registry.test.ts
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import type { AgentEventPayload } from '@shared/ipcContract'
@@ -6,7 +5,6 @@ import { sessionRegistry } from '@renderer/03_Agent/state/sessionRegistry'
 import { convKey, panelKey } from '@renderer/03_Agent/state/sessionKeys'
 import { adaptFlatApi } from '../00_Helpers/windowApiMock'
 
-// G9c — 세션 레지스트리 한 벌: 키별 상태 Map, runId 라우팅, 루프 표시, stale 타이머, 이벤트 구독.
 
 const entry = (isRunning: boolean, currentRunId: string | null = null) => ({ isRunning, currentRunId })
 
@@ -61,7 +59,7 @@ describe('G9c 레지스트리 — 키별 상태 Map', () => {
     expect(sessionRegistry.runningKeys()).toBe(snap1)
     sessionRegistry.delete(k)
     expect(listener).toHaveBeenCalledTimes(2)
-    expect(sessionRegistry.isRunning(k)).toBe(false)
+    expect(sessionRegistry.runningKeys().has(k)).toBe(false)
     off()
   })
 })
@@ -113,44 +111,6 @@ describe('G9c 레지스트리 — runId 라우팅 한 벌', () => {
   })
 })
 
-describe('G9c 레지스트리 — 패널 어댑터는 레지스트리의 얇은 보기다', () => {
-  it('패널 상태·라우팅·루프 표시가 레지스트리에 산다', async () => {
-    const api = installApi()
-    const runApi = window.api as unknown as Record<string, unknown>
-    runApi.agentRun = vi.fn().mockResolvedValue({ runId: 'run-p' })
-    const { renderHook, act } = await import('@testing-library/react')
-    const panel = await import('@renderer/03_Agent/state/panelSession')
-    panel.__resetPanelSessionManagerForTests()
-    const { result } = renderHook(() => panel.usePanelSlot('s', 0))
-    await act(async () => { await result.current.send('hi') })
-    const key = panelKey('s', 0)
-    expect(sessionRegistry.get(key)?.currentRunId).toBe('run-p')
-    expect(sessionRegistry.lookup('run-p')).toBe(key)
-    expect(panel.__getPanelManagerSizesForTests().runIds).toBe(1)
-    act(() => {
-      api.emit({ runId: 'run-p', event: { type: 'loops', loops: [{ id: 'l', kind: 'loop', prompt: 'p', intervalSec: 60 }] } } as unknown as AgentEventPayload)
-    })
-    expect(sessionRegistry.loopDisplay.read(key)?.activeLoops).toHaveLength(1)
-    panel.__resetPanelSessionManagerForTests()
-    expect(sessionRegistry.has(key)).toBe(false)
-    expect(sessionRegistry.__holdersForTests('panel')).toBe(0)
-  })
-
-  it('패널 몫이 이미 있어도 window.api가 바뀌면 새 api에 다시 붙는다(테스트 mock 교체 위험)', async () => {
-    const a = installApi()
-    const { renderHook } = await import('@testing-library/react')
-    const panel = await import('@renderer/03_Agent/state/panelSession')
-    panel.__resetPanelSessionManagerForTests()
-    renderHook(() => panel.usePanelSlot('s', 0))
-    expect(a.onAgentEvent).toHaveBeenCalledTimes(1)
-    const b = installApi()
-    renderHook(() => panel.usePanelSlot('s', 1))
-    expect(b.onAgentEvent).toHaveBeenCalledTimes(1)
-    expect(sessionRegistry.__holdersForTests('panel')).toBe(1)
-    panel.__resetPanelSessionManagerForTests()
-  })
-})
-
 describe('G9c 레지스트리 — 대화 어댑터(loopDisplay·runtime)도 같은 한 벌을 쓴다', () => {
   it('대화 라우팅과 루프 표시는 레지스트리 키 convKey(id)로 산다', async () => {
     const ld = await import('@renderer/03_Agent/state/loopDisplay')
@@ -174,13 +134,15 @@ describe('G9c 레지스트리 — 대화 어댑터(loopDisplay·runtime)도 같�
     expect(sessionRegistry.lookup('rp')).toBe(panelKey('s', 0))
   })
 
-  it('활성 대화 키의 실행 여부는 전경 저장 칸(store 평탄화 필드)에서 읽는다(안 A)', async () => {
-    const { useAppStore } = await import('@renderer/00_App/appStore')
-    useAppStore.setState({ conversationId: 'act', isRunning: true })
-    expect(sessionRegistry.isRunning(convKey('act'))).toBe(true)
-    expect(sessionRegistry.isRunning(convKey('other'))).toBe(false)
-    useAppStore.setState({ conversationId: null, isRunning: false })
-    expect(sessionRegistry.isRunning(convKey('act'))).toBe(false)
+  it('레지스트리에 죽은 실행 판정 isRunning과 active 포트가 없다', async () => {
+    expect('isRunning' in sessionRegistry).toBe(false)
+    const fs = await import('node:fs')
+    const path = await import('node:path')
+    const dir = path.resolve(__dirname, '../../../00_Source/renderer/src/03_Agent/state')
+    const src = fs.readFileSync(path.join(dir, 'sessionRegistry.ts'), 'utf8')
+    expect(src).not.toMatch(/\bactive\?:/)
+    const runtime = fs.readFileSync(path.join(dir, 'runtime.ts'), 'utf8')
+    expect(runtime).not.toMatch(/\bactive:\s*\{/)
   })
 
   it('전경 대화의 stale 타이머는 레지스트리의 대화 정책으로 만료되어 store 배너를 stale로 만든다', async () => {

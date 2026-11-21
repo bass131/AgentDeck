@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { buildModelContextPrompt, contextFallbackBudget } from '@main/04_Claude/buildPrompt'
 
-// M06 G4: 모델별 창 손 표를 지운 뒤, 다시 싣는 대화 기록의 예산은 대화가 마지막으로 잰 창을 따른다.
+// 다시 싣는 대화 기록의 예산은 대화가 마지막으로 잰 창을 따른다.
 // 모르면 가장 작은 창(200K) 기준으로 보수적으로 잡는다 — 200K 모델에 1M 예산을 주면 요청이 창을 넘는다.
 describe('contextFallbackBudget', () => {
   it('잰 창 200K → 예약분을 뺀 180K', () => {

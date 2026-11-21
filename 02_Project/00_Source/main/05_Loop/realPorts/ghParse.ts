@@ -1,4 +1,4 @@
-// M09 G2 — gh CLI JSON 해석 층(순수 함수). 실행 층(ghPort.ts)과 나눠 녹취 픽스처로 시험한다.
+// gh CLI JSON 해석 층(순수 함수). 실행 층(ghPort.ts)과 나눠 녹취 픽스처로 시험한다.
 // fail-closed: PR 상태가 모르는 값이거나 칸이 빠지면 던지고, 검사 결과가 모르는 값이면 pending으로 본다(통과로 떨어지지 않는다).
 // 검사 묶음(statusCheckRollup)은 PR 머리 커밋의 것이다. 머리 SHA와 묶음을 한 응답에서 읽어야 push 사이에 걸치지 않는다.
 // rollup 항목은 두 꼴이다 — CheckRun { name, status, conclusion }, StatusContext { context, state }.
@@ -34,6 +34,18 @@ export function pickLatestPr(raw: unknown): PrInfo | null {
     if (!best || key > best.at || (key === best.at && pr.number > best.pr.number)) best = { at: key, pr }
   }
   return best?.pr ?? null
+}
+
+export function parsePrHeads(raw: unknown): { number: number; head: string }[] {
+  if (!Array.isArray(raw)) throw new Error('gh PR 목록이 배열이 아니다')
+  return raw.map((item) => {
+    const number = isObj(item) ? item.number : undefined
+    const head = isObj(item) ? item.headRefName : undefined
+    if (typeof number !== 'number' || !Number.isInteger(number) || number <= 0 || typeof head !== 'string' || head === '') {
+      throw new Error('gh PR 목록의 항목에 번호나 머리 브랜치가 없다')
+    }
+    return { number, head }
+  })
 }
 
 type CheckResult = 'success' | 'failure' | 'pending'
@@ -89,7 +101,7 @@ export function prNumberFromUrl(text: string): number | null {
 // gh -R 값의 꼴(HOST/OWNER/REPO). 낱말 하나이고 옵션처럼 보이지 않는다.
 export const REPO_SLUG = /^[a-z0-9.-]+\/[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/
 
-// G2 재검수 중요 B — origin 주소 → gh -R 값(HOST/OWNER/REPO). https·ssh·scp 꼴만 읽고, 자격 부분·포트·끝 .git·끝 /는 뗀다.
+// origin 주소 → gh -R 값(HOST/OWNER/REPO). https·ssh·scp 꼴만 읽고, 자격 부분·포트·끝 .git·끝 /는 뗀다.
 // 로컬 경로·file://·ext:: 같은 꼴이나 OWNER/REPO가 아닌 경로는 null이다(실행기 gh를 열지 않는다).
 export function repoSlugOf(url: string): string | null {
   const u = url.trim()

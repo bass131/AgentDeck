@@ -165,7 +165,7 @@ describe('Conversation — SmoothMarkdown 통합 회귀', () => {
     conversationLoad: vi.fn().mockResolvedValue({ conversations: [] }),
     conversationSave: vi.fn().mockResolvedValue({ id: 'cv-1' }),
     agentRun: vi.fn().mockResolvedValue({ runId: 'r1' }),
-    agentAbort: vi.fn().mockResolvedValue({ accepted: true }),
+    agentAbort: vi.fn().mockResolvedValue({ ok: true }),
     onAgentEvent: vi.fn().mockReturnValue(mockUnsub),
     listFiles: vi.fn().mockResolvedValue({ files: [] }),
   }

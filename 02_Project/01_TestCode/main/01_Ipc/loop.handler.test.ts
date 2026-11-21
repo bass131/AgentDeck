@@ -1,6 +1,3 @@
-// M09 G4 — loop IPC 핸들러. ipcMain.handle을 가로채 registerLoopHandlers가 등록한 채널을 직접 부른다.
-// 고정하는 것: 여덟 채널이 등록되고 구동자로 그대로 넘어간다, 입력 꼴이 틀리면 구동자를 부르지 않는다(cwd·verdict·카드 응답·token),
-// 카드 응답에 「항상 허용」은 받지 않는다, 구동자가 내는 상태 변화는 창이 있을 때만 loop.state로 push한다.
 import { describe, expect, it, vi } from 'vitest'
 import type { LoopStatus } from '@shared/ipcContract'
 import type { LoopAlert, LoopSessionEventPayload, MainChatView } from '@shared/13_Loop/loop'
@@ -49,6 +46,8 @@ function fakeDriver(): { driver: LoopDriverApi; calls: unknown[][] } {
       sessionLog: rec('sessionLog', { cwd: CWD, sessions: [] }),
       mainArchives: rec('mainArchives', Promise.resolve({ cwd: CWD, archives: [] })),
       graph: rec('graph', { ok: false, reason: '없음' }),
+      listDir: rec('listDir', Promise.resolve({ ok: true, entries: [] })),
+      tasteOpen: rec('tasteOpen', Promise.resolve({ ok: true, view: view() })),
     },
   }
 }
@@ -77,12 +76,12 @@ describe('loop IPC 핸들러 (M09 G4)', () => {
     expect(await bare(IPC_CHANNELS.LOOP_ALERTS, undefined)).toEqual({ alerts: [] })
   })
 
-  it('열여섯 채널을 등록하고 구동자로 넘긴다(M10 G2 — 메인 대화 읽기·보내기·새로 열기, M10 G3 — 깃발 내리기, M10 G4 — 세션 기록·지난 메인 대화 읽기, M10 G5 — 그래프·알림 읽기)', async () => {
+  it('열일곱 채널을 등록하고 구동자로 넘긴다(M10 G2 — 메인 대화 읽기·보내기·새로 열기, M10 G3 — 깃발 내리기, M10 G4 — 세션 기록·지난 메인 대화 읽기, M10 G5 — 그래프·알림 읽기, M11 G4 — 작업 폴더 목록)', async () => {
     const { driver, calls } = fakeDriver()
     const call = register(driver)
     expect([...h.handlers.keys()].sort()).toEqual([
-      'loop.alerts', 'loop.answerCard', 'loop.cancelSession', 'loop.close', 'loop.decide', 'loop.graph', 'loop.lowerFlag', 'loop.mainArchives', 'loop.mainNew', 'loop.mainRead', 'loop.mainSend',
-      'loop.open', 'loop.releaseLatch', 'loop.sessionLog', 'loop.start', 'loop.status',
+      'loop.alerts', 'loop.answerCard', 'loop.cancelSession', 'loop.close', 'loop.decide', 'loop.graph', 'loop.listDir', 'loop.lowerFlag', 'loop.mainArchives', 'loop.mainNew', 'loop.mainRead', 'loop.mainSend',
+      'loop.open', 'loop.releaseLatch', 'loop.sessionLog', 'loop.start', 'loop.status', 'loop.tasteOpen',
     ])
     expect(await call(IPC_CHANNELS.LOOP_SESSION_LOG, { cwd: CWD, verdict: 'pass' })).toEqual({ cwd: CWD, sessions: [] })
     expect(await call(IPC_CHANNELS.LOOP_MAIN_ARCHIVES, { cwd: CWD })).toEqual({ cwd: CWD, archives: [] })
@@ -109,7 +108,6 @@ describe('loop IPC 핸들러 (M09 G4)', () => {
     expect(calls[5]).toEqual(['cancelSession', CWD, 'worker'])
   })
 
-  // M10 G3 — 사람이 깃발을 내리는 길과 대상을 고른 취소. 둘 다 판정 칸을 읽지 않는다 — 구동자는 cwd(취소는 대상)만 받는다
   it('깃발 내리기는 cwd만 구동자로 넘긴다 — 판정 칸(verdict·evidence·specSha256·expectNode)을 실어도 읽지 않는다', async () => {
     const { driver, calls } = fakeDriver()
     const call = register(driver)
@@ -138,7 +136,7 @@ describe('loop IPC 핸들러 (M09 G4)', () => {
     const call = register(driver)
     await expect(call(IPC_CHANNELS.LOOP_OPEN, { cwd: '' })).rejects.toThrow()
     await expect(call(IPC_CHANNELS.LOOP_OPEN, { cwd: 'relative/path' })).rejects.toThrow()
-    // G4 검수 중요 I5 — CI 정책(필수 검사 이름)은 화면 입력으로 바꾸지 못한다. 그 칸이 오면 거부한다(빈 목록으로 아무 검사 통과를 여는 길)
+    // 화면이 필수 검사를 빈 목록으로 보내면 아무 검사나 통과하게 된다
     await expect(call(IPC_CHANNELS.LOOP_OPEN, { cwd: CWD, requiredChecks: [] })).rejects.toThrow(/requiredChecks/)
     await expect(call(IPC_CHANNELS.LOOP_OPEN, { cwd: CWD, requiredChecks: ['hard-gates'] })).rejects.toThrow(/requiredChecks/)
     await expect(call(IPC_CHANNELS.LOOP_START, { cwd: CWD })).rejects.toThrow()
@@ -148,7 +146,6 @@ describe('loop IPC 핸들러 (M09 G4)', () => {
     await expect(call(IPC_CHANNELS.LOOP_STATUS, null)).rejects.toThrow()
     // 스펙 해시는 sha256 16진수 꼴만 — 화면이 본 해시가 아닌 값은 구동자에 닿지 않는다
     await expect(call(IPC_CHANNELS.LOOP_DECIDE, { cwd: CWD, verdict: 'pass', evidence: 'x', specSha256: 'abc' })).rejects.toThrow()
-    // M10 G2 — 메인 대화에 보내는 글은 비지 않은 문자열, 상한 이하. 판정 칸을 실어도 구동자는 글만 받는다
     await expect(call(IPC_CHANNELS.LOOP_MAIN_SEND, { cwd: CWD, text: '   ' })).rejects.toThrow()
     await expect(call(IPC_CHANNELS.LOOP_MAIN_SEND, { cwd: CWD, text: 'x'.repeat(20_001) })).rejects.toThrow()
     await expect(call(IPC_CHANNELS.LOOP_MAIN_SEND, { cwd: CWD })).rejects.toThrow()
@@ -164,6 +161,29 @@ describe('loop IPC 핸들러 (M09 G4)', () => {
     expect(calls).toEqual([['mainSend', CWD, '승인한다']])
   })
 
+  it('[M11-G4 M10-16] 작업 폴더 목록은 cwd와 상대 경로 글자만 구동자로 넘긴다', async () => {
+    const { driver, calls } = fakeDriver()
+    const call = register(driver)
+    expect(await call(IPC_CHANNELS.LOOP_LIST_DIR, { cwd: CWD, relDir: 'src', rootId: 'ref-1' })).toEqual({ ok: true, entries: [] })
+    await expect(call(IPC_CHANNELS.LOOP_LIST_DIR, { cwd: 'rel', relDir: '' })).rejects.toThrow(/loop\.listDir/)
+    await expect(call(IPC_CHANNELS.LOOP_LIST_DIR, { cwd: CWD, relDir: 3 })).rejects.toThrow(/loop\.listDir/)
+    expect(calls).toEqual([['listDir', CWD, 'src']])
+  })
+
+  it('[M11-G4 M10-16] 구동자가 막힘(ok 거짓)으로 답하면 그대로 화면에 넘긴다(빈 목록으로 바꾸지 않는다)', async () => {
+    const { driver } = fakeDriver()
+    const call = register({ ...driver, listDir: async () => ({ ok: false, entries: [] }) })
+    expect(await call(IPC_CHANNELS.LOOP_LIST_DIR, { cwd: CWD, relDir: '..' })).toEqual({ ok: false, entries: [] })
+  })
+
+  it('[M11-G4 M06-29] 대리 입력 표지는 proxy가 참일 때만 구동자로 간다', async () => {
+    const { driver, calls } = fakeDriver()
+    const call = register(driver)
+    await call(IPC_CHANNELS.LOOP_MAIN_SEND, { cwd: CWD, text: '합의', proxy: true })
+    await call(IPC_CHANNELS.LOOP_MAIN_SEND, { cwd: CWD, text: '합의', proxy: 'yes' })
+    expect(calls).toEqual([['mainSend', CWD, '합의', { proxy: true }], ['mainSend', CWD, '합의']])
+  })
+
   it('카드 응답은 허용·거부와 질문 답만 받는다 — 「항상 허용」과 꼴이 틀린 답은 ok:false로 넘기지 않는다', async () => {
     const { driver, calls } = fakeDriver()
     const call = register(driver)
@@ -174,6 +194,32 @@ describe('loop IPC 핸들러 (M09 G4)', () => {
     expect(await call(IPC_CHANNELS.LOOP_ANSWER_CARD, { cwd: CWD, requestId: '', response: { kind: 'permission', behavior: 'deny' } })).toEqual({ ok: false })
     expect(calls).toEqual([])
     expect(await call(IPC_CHANNELS.LOOP_ANSWER_CARD, { cwd: CWD, requestId: 'p1', response: { kind: 'question', answers: null } })).toEqual({ ok: true })
+  })
+
+  it('문서 초안 카드는 확정과 이유 한 줄의 반려만 받는다', async () => {
+    const { driver, calls } = fakeDriver()
+    const call = register(driver)
+    for (const response of [
+      { kind: 'taste', decision: 'approve' }, { kind: 'taste', decision: 'reject' }, { kind: 'taste', decision: 'reject', reason: '  ' },
+      { kind: 'taste', decision: 'reject', reason: '두\n줄' }, { kind: 'taste', decision: 'reject', reason: 'x'.repeat(501) },
+    ]) expect(await call(IPC_CHANNELS.LOOP_ANSWER_CARD, { cwd: CWD, requestId: 'taste-1', response })).toEqual({ ok: false })
+    expect(calls).toEqual([])
+    await call(IPC_CHANNELS.LOOP_ANSWER_CARD, { cwd: CWD, requestId: 'taste-1', response: { kind: 'taste', decision: 'confirm', draft: { doc: 'charter' } } })
+    await call(IPC_CHANNELS.LOOP_ANSWER_CARD, { cwd: CWD, requestId: 'taste-1', response: { kind: 'taste', decision: 'reject', reason: '금지 칸이 없다' } })
+    expect(calls).toEqual([
+      ['answerCard', CWD, 'taste-1', { kind: 'taste', decision: 'confirm' }],
+      ['answerCard', CWD, 'taste-1', { kind: 'taste', decision: 'reject', reason: '금지 칸이 없다' }],
+    ])
+  })
+
+  it('문답 열기는 cwd와 범위(global·project)만 구동자로 넘긴다', async () => {
+    const { driver, calls } = fakeDriver()
+    const call = register(driver)
+    expect(await call(IPC_CHANNELS.LOOP_TASTE_OPEN, { cwd: CWD, scope: 'project', text: '몰래 보낼 글' })).toMatchObject({ ok: true })
+    for (const bad of [{ cwd: CWD }, { cwd: CWD, scope: 'charter' }, { cwd: 'rel', scope: 'global' }]) {
+      await expect(call(IPC_CHANNELS.LOOP_TASTE_OPEN, bad)).rejects.toThrow(/loop\.tasteOpen/)
+    }
+    expect(calls).toEqual([['tasteOpen', CWD, 'project']])
   })
 })
 

@@ -1,4 +1,4 @@
-// M07 G8 실제 경로 프로브 (opt-in: G8MERGECARD=1, 출력 폴더 G8_OUT).
+// PR 병합 카드 실제 경로 프로브 (opt-in: G8MERGECARD=1, 출력 폴더 G8_OUT).
 // 실제 엔진과 실제 GitHub를 쓴다. 병합 버튼은 누르지 않는다 — 카드 읽기와 에이전트 거부만 본다.
 //   A) Git 창에서 PR 번호(G8_PR)를 불러오면 카드의 머리 SHA·필수 검사가 GitHub 값과 같다.
 //   B) 앱 세션의 에이전트가 `gh pr merge`를 부르면 잠금 노드 merge-deny가 거부한다.
@@ -11,6 +11,7 @@ import { execFileSync } from 'node:child_process'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { passBootGates, openWorkspace } from './helpers/bootGates'
+import { moveToSecondDisplay } from './helpers/isolatedBoot'
 
 const RUN = process.env.G8MERGECARD === '1'
 const PR = process.env.G8_PR ?? '74'
@@ -39,6 +40,7 @@ test.describe('M07 G8 병합 카드 실제 경로 (opt-in: G8MERGECARD=1)', () =
     })
     page = await app.firstWindow()
     await page.waitForLoadState('domcontentloaded')
+    await moveToSecondDisplay(app)
     // 창은 2번 모니터로 옮긴다(사용자 작업 화면을 가리지 않게). 디스플레이가 하나면 그대로 둔다.
     await app.evaluate(({ BrowserWindow, screen }) => {
       const primary = screen.getPrimaryDisplay()

@@ -34,16 +34,23 @@ describe('SDK package.json 실 읽기 (exports 제약 우회) — 회귀 가드'
     expect(SDK_VERSION_FALLBACK).toMatch(/^\d+\.\d+\.\d+$/)
   })
 
-  // Backlog 4: 폴백이 0.3.186에 묶여 설치본(0.3.201)보다 낡아 있었다. M06 G4에서 0.3.325로 올렸다. 의존 명세가 바뀌면 이 테스트가 폴백 갱신을 요구한다.
+  // 의존 명세가 바뀌면 이 시험이 폴백 갱신을 요구한다
   test('폴백 상수 = package.json 의존 명세에서 접두 기호를 뗀 값(드리프트 고정)', () => {
     const rootPkg = JSON.parse(readFileSync(join(process.cwd(), 'package.json'), 'utf8'))
     const spec: unknown = rootPkg.dependencies?.['@anthropic-ai/claude-agent-sdk']
     expect(typeof spec).toBe('string')
     expect(SDK_VERSION_FALLBACK).toBe(String(spec).replace(/^[\^~]/, ''))
   })
+
+  // Dependabot은 package.json만 올린다 — 폴백을 손으로 같이 올리지 않게 의존 명세에서 읽는다
+  test('폴백 상수를 소스에 손으로 적지 않는다(의존 명세에서 파생)', () => {
+    const src = readFileSync(join(process.cwd(), '02_Project/00_Source/main/10_Engine/sdkVersion.ts'), 'utf8')
+    expect(src).not.toMatch(/SDK_VERSION_FALLBACK\s*=\s*'\d/)
+    expect(src).toMatch(/package\.json/)
+  })
 })
 
-// M05 G11: 두 벌이던 리더를 10_Engine/sdkVersion 하나로 모았다. 두 소비처가 같은 리더를 쓰는지 소비처 쪽에서 고정한다.
+// 두 소비처가 같은 리더를 쓰는지 소비처 쪽에서 본다
 describe('두 소비처가 같은 리더를 거친다 (M05 G11)', () => {
   const real = realInstalledVersion()
 

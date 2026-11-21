@@ -1,4 +1,4 @@
-// M09 G1 실행기 상태 기계 — 순수 함수(nextStep·applyVerdict)만 부른다.
+// 순수 함수(nextStep·applyVerdict)만 부른다.
 // 고정하는 것: 실행 순서가 템플릿(실제 파일과 변형본)을 그대로 따른다, 규칙·모델·사람 게이트의 불통과에서 다음 노드로 가지 않는다,
 // 마지막 USER-INPUT 뒤 FAIL 셋이면 멈추고 USER-INPUT 뒤엔 0부터 센다, 판정 하나의 꼴 말고는 나아가는 길이 없다.
 import { describe, it, expect } from 'vitest'
@@ -140,7 +140,7 @@ describe('FAIL 계수 — 마지막 USER-INPUT 뒤 셋이면 멈춘다', () => {
     s = fail(s)
     expect(s.status).toBe('needs-user')
     expect(s.failCount).toBe(3)
-    // M10 G5 — 새로 만드는 멈춤 사유는 한글이다. 줄의 마커(FAIL)는 그대로다
+    // 새로 만드는 멈춤 사유는 한글이다. 줄의 마커(FAIL)는 그대로다
     expect(s.haltReason).toMatch(/^마지막 사람 입력 뒤 실패 3번 — /)
     expect(s.lines.at(-1)?.marker).toBe('FAIL')
     expect(nextStep(template, s).kind).toBe('needs-user')
@@ -245,7 +245,7 @@ describe('분해와 등급', () => {
     expect(labelOf(nextStep(template, s))).toBe('spec-approval')
   })
 
-  // G4 검수 중요 I7 — 실행기가 읽은 goal 문서 해시와 승인한 스펙 해시를 상태 사실로 싣는다. 꼴이 틀린 해시는 null(대조하지 않음)이다
+  // 실행기가 읽은 goal 문서 해시와 승인한 스펙 해시를 상태 사실로 싣는다. 꼴이 틀린 해시는 null(대조하지 않음)이다
   it('분해 pass의 goal 문서 해시와 스펙 승인 pass의 스펙 해시를 상태에 싣는다 — 스키마가 받는다', () => {
     let s = drive(template, fresh(template, hash), { until: 'spec-approval' }).state
     s = apply(template, s, { ...verdict('spec-approval', 'human', 'pass'), facts: { specSha256: 'a'.repeat(64) } })
@@ -332,7 +332,7 @@ describe('실행 상태 스키마와 재개 조건', () => {
     expect(checkResumable(without.template, s.template.hash, s).ok).toBe(false)
   })
 
-  // M09 G4 — 기준 브랜치는 시작할 때 상태에 적고, 검수 pass는 검수한 트리 해시를 goal에 남긴다
+  // 기준 브랜치는 시작할 때 상태에 적고, 검수 pass는 검수한 트리 해시를 goal에 남긴다
   it('기준 브랜치와 검수 트리 해시를 상태에 싣고 다시 읽는다 — 옛 상태(칸 없음)도 받는다', () => {
     const made = createRunState(template, hash, 'M1', 'main')
     if (!made.ok) throw new Error(made.reason)
@@ -358,6 +358,22 @@ describe('실행 상태 스키마와 재개 조건', () => {
     s.goals[0].reviewedTree = 'old-tree'
     s = apply(template, s, verdict('review', 'model', 'fail', '경계 시험이 빠졌다'))
     expect(s.goals[0].reviewedTree).toBeNull()
+  })
+
+  it('검수 pass의 Taste 충돌은 꼴이 맞을 때만 받고, 충돌 없는 다음 pass는 남아 있던 충돌을 지운다', () => {
+    const at = drive(template, fresh(template, hash), { goals: GOALS, grades: GRADES, until: 'G1/review' }).state
+    const pass = (tasteConflicts: unknown): Verdict => ({ ...verdict('review', 'model', 'pass', '검수 통과'), facts: { reviewedTree: 'tree-1', tasteConflicts } as Verdict['facts'] })
+    for (const bad of [[{ project: 'G-T1', global: 'G-T2', note: 'x' }], [{ project: 'P-T1', global: 'G-T2', note: '' }], [{ project: 'P-T1', global: 'G-T2' }], 'x']) {
+      const r = applyVerdict(template, at, pass(bad), AT)
+      expect(r.ok, JSON.stringify(bad)).toBe(false)
+      expect(!r.ok && r.reason, JSON.stringify(bad)).toContain('Taste 충돌')
+    }
+    const kept = apply(template, at, pass([{ project: 'P-T1', global: 'G-T2', note: '프로젝트 쪽' }]))
+    expect(kept.goals[0].tasteConflicts).toEqual([{ project: 'P-T1', global: 'G-T2', note: '프로젝트 쪽' }])
+    const stale = structuredClone(at)
+    stale.goals[0].tasteConflicts = [{ project: 'P-T1', global: 'G-T2', note: '옛 충돌' }]
+    expect('tasteConflicts' in apply(template, stale, pass(undefined)).goals[0]).toBe(false)
+    expect('tasteConflicts' in apply(template, stale, pass([])).goals[0]).toBe(false)
   })
 
   it('변형본 시험의 실패 참조 가공이 실제 노드를 고친다', () => {

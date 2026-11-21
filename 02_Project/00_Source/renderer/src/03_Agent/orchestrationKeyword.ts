@@ -7,7 +7,7 @@ export function detectOrchestrationKeyword(text: string): boolean {
   return ULTRACODE_RE.test(text) || WORKFLOWS_RE.test(text)
 }
 
-export interface OrchestrationSegment {
+interface OrchestrationSegment {
   text: string
   highlight: boolean
 }

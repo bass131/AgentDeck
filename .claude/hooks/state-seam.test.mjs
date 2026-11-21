@@ -1,23 +1,7 @@
 #!/usr/bin/env node
-// 상태 파일 쓰기 경로의 테스트 전용 seam (M02 Phase 3 Step 6·7).
-//
-// 왜 필요한가: 33·40·50이 공유하는 상태 파일의 동시 쓰기 무손실은 M01 Phase 5에서 「7분 간격 순차
-// 기록 관찰 + spawnSync 직렬 러너」로만 증거를 댔고, 사용자가 그 한계를 명시 채택했다 (M01 05_Phase_5
-// 검증 기록 USER-INPUT 13:38). 진짜 동시 실행을 결정론적으로 만들려면 두 프로세스를 임계구간 문턱에서
-// 만나게 하는 장벽이 필요하다 — 그 장벽이 seam이다.
-//
-// 계약:
-//   AGENTDECK_STATE_SEAM=<mode>:<장벽 디렉터리>   mode ∈ post-read | pre-lock
-//   AGENTDECK_STATE_SEAM_TIMEOUT=<ms>            기본 10000
-//   미설정이면 코드 경로가 무동작이다 (장벽 파일도 타임라인도 만들지 않는다).
-//   프로세스는 장벽 지점에서 `ready.<pid>`를 만들고 `go`가 생길 때까지 멈춘다.
-//   `go`가 timeout 안에 오지 않으면 `timeout.<pid>`를 남기고 비정상 종료(exit 97)한다.
-//   장벽 디렉터리에 `timeline.<pid>.json`을 남긴다 — read·lock·write·rename 시각을 단조 고해상도로 담는다.
-//
-// 두 모드로 나누는 이유는 교착 회피다: 배타 잠금 아래에서 post-read 장벽을 쓰면 첫 프로세스가 잠금을
-// 쥔 채 go를 기다리고 둘째는 잠금에 막혀 ready를 못 낸다 — 러너가 영원히 대기한다. 그래서 post-read는
-// 보호 없는 read→write 경로(수리 전 의미론 그대로)를 재현하는 모드이고, pre-lock은 잠금 획득 시도
-// 전에서 만나는 모드다.
+// 상태 쓰기 seam — 진짜 동시 실행을 결정론적으로 만들려고 두 프로세스를 임계구간 문턱에서 만나게 하는 장벽이다.
+// 계약: AGENTDECK_STATE_SEAM=<post-read|pre-lock>:<장벽 디렉터리>, AGENTDECK_STATE_SEAM_TIMEOUT=<ms>(기본 10000). 미설정이면 무동작이다.
+//   장벽에서 `ready.<pid>`를 만들고 `go`를 기다린다. 오지 않으면 `timeout.<pid>`를 남기고 exit 97. `timeline.<pid>.json`에 시각을 남긴다.
 import { spawn } from 'node:child_process'
 import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -72,7 +56,6 @@ function hasSession(sid) {
 }
 
 try {
-  // ---- SM-01 post-read 장벽: read 직후에 서고, go 전에는 쓰지 않는다 -------
   {
     const b = barrier()
     resetState()
@@ -95,7 +78,6 @@ try {
     b.cleanup()
   }
 
-  // ---- SM-02 pre-lock 장벽: 잠금 획득 시도 전에 선다 ----------------------
   {
     const b = barrier()
     resetState()
@@ -118,7 +100,6 @@ try {
     b.cleanup()
   }
 
-  // ---- SM-03 timeout: go가 오지 않으면 비정상 종료한다 --------------------
   {
     const b = barrier()
     resetState()
@@ -130,8 +111,6 @@ try {
     b.cleanup()
   }
 
-  // ---- SM-04 회귀 불변식: 환경변수 미설정이면 무동작 ----------------------
-  // Red이 아니다 — seam 없는 현행 코드에서도 참이고, seam 도입 뒤에도 참이어야 한다.
   {
     const b = barrier()
     resetState()

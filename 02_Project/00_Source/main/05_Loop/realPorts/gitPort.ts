@@ -1,4 +1,4 @@
-// M09 G2 — 실물 git 포트(git CLI). ports.ts의 GitPort 계약을 그대로 구현한다.
+// ports.ts의 GitPort 계약을 그대로 구현한다.
 // 실행기 자신의 git이라 일반 환경(자격 있음)으로 돈다. 다만 작업 저장소의 훅은 돌리지 않는다 — hooksPath를 빈 폴더로 준다.
 // 훅은 작업 세션이 쓸 수 있는 코드라, 자격 있는 실행기 환경에서 돌면 안 된다. hooksPath는 만들지 않는 앱 영역 경로다.
 // 설정도 같다 — guard(configGuard.ts)를 주면 모든 git 호출 직전에 설정 스냅숏을 대조하고, 다르면 그 호출을 돌리지 않고 던진다.
@@ -16,7 +16,7 @@ import type { FileChange } from '../grade'
 import type { GitPort } from '../ports'
 import { runProcess, type ProcessResult } from './exec'
 
-export interface GitPortOptions {
+interface GitPortOptions {
   cwd: string
   env?: NodeJS.ProcessEnv
   remote?: string
@@ -27,12 +27,12 @@ export interface GitPortOptions {
   guard?: { assert(): Promise<void> }
 }
 
-export const AGENTDECK_EXCLUDE = '.agentdeck/'
+const AGENTDECK_EXCLUDE = '.agentdeck/'
 
 type Git = (args: string[], extraEnv?: NodeJS.ProcessEnv) => Promise<ProcessResult>
 
 // 교체 객체(refs/replace/*)를 따르지 않는다 — 작업 노드가 `git replace <PR 머리> <악성 커밋>`을 심으면, 따르는 git의 병합은 부모를
-// 원래 SHA로 적고 트리는 악성 것으로 만든다(G2 재검수 차단 A). 환경 변수와 명령줄 설정 둘 다 건다(자식 git·gh가 부르는 git도 환경을 받는다).
+// 원래 SHA로 적고 트리는 악성 것으로 만든다. 환경 변수와 명령줄 설정 둘 다 건다(자식 git·gh가 부르는 git도 환경을 받는다).
 export const NO_REPLACE_ENV = { GIT_NO_REPLACE_OBJECTS: '1' } as const
 
 function makeGit(cwd: string, env: NodeJS.ProcessEnv, timeoutMs: number, hooksPath?: string, guard?: GitPortOptions['guard']): Git {
@@ -58,13 +58,25 @@ async function must(git: Git, args: string[], extraEnv?: NodeJS.ProcessEnv): Pro
   return r.stdout
 }
 
+// 저장소 뿌리 기준의 평범한 상대 경로만 — 옵션·pathspec 마법·뿌리 밖은 받지 않는다
+function pathArgs(paths: string[]): string[] {
+  if (paths.length === 0) throw new Error('경로가 없다')
+  for (const p of paths) {
+    const parts = p.split('/')
+    if (p === '' || p.startsWith('-') || p.startsWith(':') || p.startsWith('/') || /^[A-Za-z]:/.test(p) || p.includes('\\') || parts.some((s) => s === '' || s === '.' || s === '..')) {
+      throw new Error(`경로 ${JSON.stringify(p)}는 저장소 안의 상대 경로가 아니다`)
+    }
+  }
+  return paths
+}
+
 function safeName(name: string): string {
   if (!name || name.startsWith('-')) throw new Error(`브랜치 이름 ${JSON.stringify(name)}을 쓸 수 없다`)
   return name
 }
 
 const SHA_HEX = /^(?:[0-9a-f]{40}|[0-9a-f]{64})$/
-// G4 검수 I6 — 브랜치 이름은 `refs/heads/<이름>`으로 읽는다. 짧은 이름은 같은 이름의 태그(refs/tags)가 먼저 잡혀 가릴 수 있다.
+// 브랜치 이름은 `refs/heads/<이름>`으로 읽는다. 짧은 이름은 같은 이름의 태그(refs/tags)가 먼저 잡혀 가릴 수 있다.
 // 전체 SHA·`refs/` 경로·HEAD는 그대로 둔다.
 export function qualifyRef(ref: string): string {
   const r = safeName(ref)
@@ -72,7 +84,7 @@ export function qualifyRef(ref: string): string {
   return `refs/heads/${r}`
 }
 
-export function parseNumstatZ(out: string): FileChange[] {
+function parseNumstatZ(out: string): FileChange[] {
   const changes: FileChange[] = []
   for (const rec of out.split('\0')) {
     if (rec === '') continue
@@ -91,6 +103,17 @@ export function createGitPort(opts: GitPortOptions): GitPort {
   const resolve = async (ref: string): Promise<string | null> => {
     const r = await git(['rev-parse', '--verify', '--quiet', `${qualifyRef(ref)}^{commit}`])
     return r.code === 0 ? r.stdout.trim() || null : null
+  }
+  // 마디마다 맞는 이름을 모두 따라간다 — 대소문자만 다른 폴더가 둘이면 둘 다 본다
+  const findIgnoringCase = async (tree: string, parts: string[], prefix: string): Promise<{ mode: string; type: string; sha: string; path: string }[]> => {
+    const want = parts[0].toLowerCase()
+    const hits = (await must(git, ['ls-tree', '-z', tree])).split('\0').flatMap((rec) => {
+      const m = /^(\d+) (\w+) ([0-9a-f]+)\t([\s\S]+)$/.exec(rec)
+      return m && m[4].toLowerCase() === want ? [{ mode: m[1], type: m[2], sha: m[3], path: `${prefix}${m[4]}` }] : []
+    })
+    if (parts.length === 1) return hits
+    const deeper = await Promise.all(hits.filter((h) => h.type === 'tree').map((h) => findIgnoringCase(h.sha, parts.slice(1), `${h.path}/`)))
+    return deeper.flat()
   }
   const isAncestor = async (sha: string, ref: string): Promise<boolean> => {
     const a = await resolve(sha)
@@ -119,6 +142,10 @@ export function createGitPort(opts: GitPortOptions): GitPort {
     async checkout(name) {
       await must(git, ['checkout', '--quiet', safeName(name), '--'])
     },
+    async currentBranch() {
+      const ref = await currentBranch()
+      return ref?.startsWith('refs/heads/') ? ref.slice('refs/heads/'.length) : null
+    },
     headSha: (ref) => resolve(ref),
     async hasChanges() {
       const out = await must(git, ['status', '--porcelain=v1', '-z', '--untracked-files=all'])
@@ -129,7 +156,55 @@ export function createGitPort(opts: GitPortOptions): GitPort {
       await must(git, ['commit', '--quiet', '--no-verify', '-m', message])
       return (await must(git, ['rev-parse', 'HEAD'])).trim()
     },
-    // G4 검수 I8 — sha를 주면 그 커밋만 push한다(트리를 대조한 바로 그 커밋. 사이에 로컬 브랜치가 옮겨져도 따라가지 않는다).
+    async changedPaths() {
+      const out = await must(git, ['status', '--porcelain=v1', '-z', '--untracked-files=all'])
+      const parts = out.split('\0')
+      const paths: string[] = []
+      for (let i = 0; i < parts.length; i++) {
+        const e = parts[i]
+        if (e.length < 4) continue
+        paths.push(e.slice(3))
+        // 이름 바꿈·복사는 다음 칸이 옛 경로다
+        if (e[0] === 'R' || e[0] === 'C') i++
+      }
+      return paths
+    },
+    async commitPaths(paths, message) {
+      const ps = pathArgs(paths)
+      await must(git, ['add', '--', ...ps])
+      await must(git, ['commit', '--quiet', '--no-verify', '-m', message, '--', ...ps])
+      return (await must(git, ['rev-parse', 'HEAD'])).trim()
+    },
+    async discardPaths(paths) {
+      const ps = pathArgs(paths)
+      await must(git, ['reset', '--quiet', '--', ...ps])
+      const tracked = (await must(git, ['ls-tree', '-z', '--name-only', 'HEAD', '--', ...ps])).split('\0').filter((p) => p !== '')
+      if (tracked.length > 0) await must(git, ['checkout', '--quiet', 'HEAD', '--', ...tracked])
+      await must(git, ['clean', '--quiet', '--force', '-x', '--', ...ps])
+    },
+    async ignoredPaths(paths) {
+      const hit: string[] = []
+      for (const p of pathArgs(paths)) {
+        const r = await git(['check-ignore', '--quiet', '--', p])
+        if (r.code === 0) hit.push(p)
+        else if (r.code !== 1) throw failure(['check-ignore'], r)
+      }
+      return hit
+    },
+    // 무시된 폴더는 한 줄(끝 /)로 받는다 — node_modules를 파일마다 나열하지 않게. 그 아래 추적 파일은 디스크에 있는지로 본다
+    async ignoredTrackedIn(ref) {
+      const listed = (await must(git, ['ls-files', '-z', '--others', '--ignored', '--exclude-standard', '--directory'])).split('\0').filter((p) => p !== '')
+      const files = new Set(listed.filter((p) => !p.endsWith('/')))
+      const dirs = listed.filter((p) => p.endsWith('/'))
+      const tracked = (await must(git, ['ls-tree', '-r', '-z', '--name-only', qualifyRef(ref), '--'])).split('\0').filter((p) => p !== '')
+      const hit: string[] = []
+      for (const f of tracked) {
+        if (files.has(f)) hit.push(f)
+        else if (dirs.some((d) => f.startsWith(d)) && (await fsp.lstat(path.join(opts.cwd, f)).then(() => true, () => false))) hit.push(f)
+      }
+      return hit.sort()
+    },
+    // sha를 주면 그 커밋만 push한다(트리를 대조한 바로 그 커밋. 사이에 로컬 브랜치가 옮겨져도 따라가지 않는다).
     async push(branch, sha) {
       const b = safeName(branch)
       if (sha !== undefined && !SHA_HEX.test(sha)) throw new Error(`push할 커밋 ${JSON.stringify(sha)}이 SHA 꼴이 아니다`)
@@ -187,7 +262,7 @@ export function createGitPort(opts: GitPortOptions): GitPort {
       const expected = r.stdout.split(/\r?\n/)[0].trim()
       return tree === expected ? null : `병합 커밋 ${c.slice(0, 8)}의 트리 ${tree.slice(0, 8)}가 두 부모를 병합한 트리 ${expected.slice(0, 8)}가 아니다`
     },
-    // base는 해석한 커밋 SHA로 diff에 넘긴다(이름을 다시 읽지 않는다 — G4 검수 I6)
+    // base는 해석한 커밋 SHA로 diff에 넘긴다(이름을 다시 읽지 않는다)
     async diffStat(base) {
       try {
         const b = await resolve(base)
@@ -197,11 +272,11 @@ export function createGitPort(opts: GitPortOptions): GitPort {
         return null
       }
     },
-    // M09 G4 — 검수에 묶는 트리. 같은 임시 인덱스 방식이라 untracked가 들어가고 `.agentdeck/`(exclude)는 빠진다.
+    // 검수에 묶는 트리. 같은 임시 인덱스 방식이라 untracked가 들어가고 `.agentdeck/`(exclude)는 빠진다.
     async worktreeTree() {
       return withTempIndex(async (extra) => (await must(git, ['write-tree'], extra)).trim())
     },
-    // G4 검수 I9 — 상한을 넘으면 잘린 diff를 주지 않는다(tooLarge, 전체 길이). 실행기가 검수를 열지 않고 멈춘다.
+    // 상한을 넘으면 잘린 diff를 주지 않는다(tooLarge, 전체 길이). 실행기가 검수를 열지 않고 멈춘다.
     async reviewSnapshot(base) {
       try {
         const b = await resolve(base)
@@ -219,6 +294,24 @@ export function createGitPort(opts: GitPortOptions): GitPort {
     async treeOf(ref) {
       const r = await git(['rev-parse', '--verify', '--quiet', `${qualifyRef(ref)}^{tree}`])
       return r.code === 0 ? r.stdout.trim() || null : null
+    },
+    // 링크(120000)·폴더는 파일이 아니다
+    async fileAt(sha, rel) {
+      const [p] = pathArgs([rel])
+      const commit = await resolve(sha)
+      if (!commit) throw new Error(`커밋 ${sha.slice(0, 12)}을 찾지 못했다`)
+      const hits = await findIgnoringCase(commit, p.split('/'), '')
+      if (hits.length === 0) return null
+      if (hits.length > 1) throw new Error(`대소문자만 다른 ${p}가 커밋 ${commit.slice(0, 8)}에 ${hits.length}개 있다(${hits.map((h) => h.path).join(', ')})`)
+      const [hit] = hits
+      if (hit.type !== 'blob' || !['100644', '100755'].includes(hit.mode)) throw new Error(`${hit.path}이 커밋 ${commit.slice(0, 8)}에서 파일이 아니다`)
+      return must(git, ['cat-file', 'blob', hit.sha])
+    },
+    async pathsBetween(from, to) {
+      const [a, b] = [await resolve(from), await resolve(to)]
+      if (!a || !b) throw new Error(`커밋 ${(a ? to : from).slice(0, 12)}을 찾지 못했다`)
+      const out = await must(git, ['diff', '--name-only', '-z', '--no-renames', '--no-ext-diff', a, b, '--'])
+      return out.split('\0').filter((p) => p !== '')
     },
   }
 
@@ -238,10 +331,10 @@ export function createGitPort(opts: GitPortOptions): GitPort {
   }
 }
 
-// M09 G4 — 검수 세션에 주는 diff의 상한(문자). 넘으면 자르고 잘렸다고 적는다.
+// 검수 세션에 주는 diff의 상한(문자). 넘으면 자르고 잘렸다고 적는다.
 export const REVIEW_DIFF_LIMIT = 400_000
 
-// M09 G4 — origin의 기본 브랜치(refs/remotes/origin/HEAD가 가리키는 이름). 없거나 읽지 못하면 null이다(부르는 쪽이 gh로 다시 본다).
+// origin의 기본 브랜치(refs/remotes/origin/HEAD가 가리키는 이름). 없거나 읽지 못하면 null이다(부르는 쪽이 gh로 다시 본다).
 export async function readOriginDefaultBranch(cwd: string, env: NodeJS.ProcessEnv = process.env, remote = 'origin'): Promise<string | null> {
   const git = makeGit(cwd, env, 30_000)
   const r = await git(['symbolic-ref', '--quiet', `refs/remotes/${remote}/HEAD`])

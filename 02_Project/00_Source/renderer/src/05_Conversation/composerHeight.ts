@@ -1,4 +1,4 @@
-export interface ComposerHeightResult {
+interface ComposerHeightResult {
   height: number
   overflow: 'hidden' | 'auto'
 }

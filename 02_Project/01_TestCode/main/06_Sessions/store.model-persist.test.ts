@@ -1,10 +1,9 @@
-// 작업 ID: gap1-p02 · 옛 이름 gap1-p02-model-persist.test.ts
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { createConversationStore, type ConversationStore } from '@main/06_Sessions/store'
-import type { ConversationRecord } from '../../../../02_Project/00_Source/shared/ipcContract'
+import type { ConversationRecord } from '@shared/ipcContract'
 
 function makeRecord(overrides: Partial<ConversationRecord> = {}): Omit<ConversationRecord, 'createdAt' | 'updatedAt'> {
   return {
@@ -72,7 +71,7 @@ describe('GAP1 P02 — ConversationStore model 라운드트립', () => {
     expect(store.load('conv-model-overwrite')?.model).toBe('opus')
   })
 
-  // M06 G4: 배경 run의 저장 payload에는 model이 없다 — 그 저장이 전경에서 고른 모델을 지우면 안 된다.
+  // 배경 run의 저장 payload에는 model이 없다 — 그 저장이 전경에서 고른 모델을 지우면 안 된다
   it('model 없이 다시 저장하면 기존 model을 유지한다 (배경 저장 경로)', () => {
     const rec = makeRecord({ id: 'conv-model-keep', model: 'claude-fable-5-2' })
     store.save(rec)
@@ -83,13 +82,31 @@ describe('GAP1 P02 — ConversationStore model 라운드트립', () => {
     expect(loaded?.messages).toHaveLength(3)
   })
 
+  // 권한 모드의 규칙은 model과 같다 — 없이 저장하면 지우지 않는다
+  it('권한 모드(mode)를 왕복 보존하고, 없이 다시 저장하면 유지하고, 모르는 값은 버린다', () => {
+    const rec = makeRecord({ id: 'conv-mode', mode: 'bypass' })
+    store.save(rec)
+    expect(store.load('conv-mode')?.mode).toBe('bypass')
+    const { mode: _drop, ...withoutMode } = rec
+    store.save(withoutMode)
+    expect(store.load('conv-mode')?.mode).toBe('bypass')
+    store.save({ ...rec, mode: 'plan' })
+    expect(store.load('conv-mode')?.mode).toBe('plan')
+    store.save(makeRecord({ id: 'conv-mode-bad', mode: 'bypassPermissions' }))
+    expect(store.load('conv-mode-bad')?.mode).toBeUndefined()
+    store.save(makeRecord({ id: 'conv-mode-proto', mode: 'constructor' }))
+    expect(store.load('conv-mode-proto')?.mode).toBeUndefined()
+  })
+
   it('재기동 영속: save(model)→close→새 store→load model (디스크 왕복)', () => {
-    const rec = makeRecord({ id: 'conv-model-restart', model: 'haiku' })
+    const rec = makeRecord({ id: 'conv-model-restart', model: 'haiku', mode: 'normal' })
     store.save(rec)
     store.close()
     const store2 = createConversationStore(tmpDir)
     try {
       expect(store2.load('conv-model-restart')?.model).toBe('haiku')
+      expect(store2.load('conv-model-restart')?.mode).toBe('normal')
+      expect(store2.listRecent(10).find((c) => c.id === 'conv-model-restart')?.mode).toBe('normal')
     } finally {
       store2.close()
     }

@@ -1,8 +1,7 @@
-// 작업 ID: gap1-p15-r1-s4 · 옛 이름 gap1-p15-r1-s4-goal-stop-affordance.test.tsx
 // @vitest-environment jsdom
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, cleanup, fireEvent } from '@testing-library/react'
-import { LoopStatusBanner } from '@renderer/10_Engine'
+import { LoopStatusBanner } from '@renderer/03_Agent'
 
 afterEach(() => cleanup())
 

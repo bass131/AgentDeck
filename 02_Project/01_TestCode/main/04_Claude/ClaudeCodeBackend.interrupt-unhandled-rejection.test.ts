@@ -1,8 +1,7 @@
-// 작업 ID: gap1-p15-r1-s1 · 옛 이름 gap1-p15-r1-s1-interrupt-unhandled-rejection.test.ts
 import { describe, it, expect } from 'vitest'
 import { ClaudeCodeBackend } from '@main/04_Claude/ClaudeCodeBackend'
 import type { QueryFn } from '@main/04_Claude/queryFn'
-import type { AgentEvent } from '../../../../02_Project/00_Source/shared/agentEvents'
+import type { AgentEvent } from '@shared/agentEvents'
 
 const REJECT_MARKER = 'S1-interrupt-reject-p15r1'
 

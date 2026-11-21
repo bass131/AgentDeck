@@ -24,9 +24,8 @@ vi.mock('electron', () => ({
   },
 }))
 
-// M05 G10: 창 채널 등록은 01_Ipc/handlers/window.ts로 옮겼다(동작 함수는 12_Window/controls.ts에 남음).
 import { registerWindowHandlers as registerWindowControls } from '@main/01_Ipc/handlers/window'
-import { IPC_CHANNELS } from '../../../../02_Project/00_Source/shared/ipcContract'
+import { IPC_CHANNELS } from '@shared/ipcContract'
 
 const ev = { sender: {} } as never
 const call = (ch: string, ...args: unknown[]): unknown => h.handlers.get(ch)!(ev, ...args)
@@ -133,8 +132,7 @@ describe('fractional DPI snowball 가드 (의도 크기 steering)', () => {
     return { last: () => ({ width: lastSet.width, height: lastSet.height }) }
   }
 
-  // 의도 크기(1200x800)를 부풀림 전에 잡아 둔다 — G10 전에는 window.setBounds로 잡았고,
-  // 그 채널을 지운 뒤에는 부풀림 없는 getBounds로 maximize↔restore 한 번을 돌려 잡는다.
+  // 의도 크기(1200x800)를 부풀림 전에 잡으려고 maximize↔restore 한 번을 돌린다(부풀림 없는 getBounds)
   function seedIntendedSize(): void {
     call(IPC_CHANNELS.WINDOW_MAXIMIZE_TOGGLE)
     call(IPC_CHANNELS.WINDOW_MAXIMIZE_TOGGLE)

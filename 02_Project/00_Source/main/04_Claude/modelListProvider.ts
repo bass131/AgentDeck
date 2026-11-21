@@ -1,6 +1,5 @@
-// 모델 목록 공급자 (M06 G4) — 앱에 든 Agent SDK의 `supportedModels()`로 모델 목록을 받는다.
 // 받으면 사용자 데이터 폴더에 캐시하고, 실패하면 마지막 캐시, 캐시도 없으면 코드의 최소 목록을 쓴다.
-// 목록은 프롬프트를 보내지 않는 짧은 세션으로 묻는다 — 모델 턴을 쓰지 않는다(4단계 실측: 약 1초, 응답 메시지 없음).
+// 목록은 프롬프트를 보내지 않는 짧은 세션으로 묻는다 — 모델 턴을 쓰지 않는다(실측: 약 1초, 응답 메시지 없음).
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname } from 'node:path'
 import { FALLBACK_MODELS } from '@shared/03_Agent/models/knownModels'
@@ -19,7 +18,7 @@ export function setCurrentModelRows(rows: readonly ModelRow[]): void {
 
 type ListingQueryFn = (params: { prompt: AsyncIterable<unknown>; options?: unknown }) => unknown
 
-export interface NoTurnListingOptions {
+interface NoTurnListingOptions {
   cwd: string
   timeoutMs: number
   env?: Record<string, string | undefined>
@@ -94,7 +93,7 @@ interface CacheFile {
   models: ModelRow[]
 }
 
-export interface ModelListProviderOptions {
+interface ModelListProviderOptions {
   fetchRows: () => Promise<unknown>
   cacheFile: string | null
   now?: () => Date
@@ -113,9 +112,14 @@ export class ModelListProvider {
     return this._rows
   }
 
-  // 첫 호출만 SDK에 묻고, 이어진 호출은 같은 결과를 나눈다.
+  // SDK 목록을 받을 때까지는 호출마다 다시 묻고, 받은 뒤와 묻는 중에는 같은 결과를 나눈다.
   load(): Promise<ModelListResponse> {
-    if (!this._loading) this._loading = this._resolve()
+    if (!this._loading) {
+      this._loading = this._resolve()
+      void this._loading.then((res) => {
+        if (res.source !== 'sdk') this._loading = null
+      })
+    }
     return this._loading
   }
 

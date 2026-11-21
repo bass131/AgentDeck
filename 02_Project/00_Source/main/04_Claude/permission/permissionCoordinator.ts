@@ -2,11 +2,10 @@ import type { AgentEvent, AgentQuestion } from '@shared/agentEvents'
 import type { RunResponse } from '@main/03_Agent/AgentBackend'
 import { PERMISSION_NODES, runPermissionNodes, type CanUseToolOptions, type ControlNode, type Escalation } from './controlNodes'
 
-// 판별 규칙과 도구 묶음은 노드 등록부(controlNodes.ts, M07 G2)로 옮겼다. 바깥 import 자리는 그대로 둔다.
 export { ORCHESTRATION_TOOLS, escalationOf } from './controlNodes'
 export type { CanUseToolOptions, Escalation } from './controlNodes'
 
-export type PermissionResult =
+type PermissionResult =
   | { behavior: 'allow'; updatedInput: Record<string, unknown>; updatedPermissions?: unknown[] }
   | { behavior: 'deny'; message: string }
 
@@ -58,7 +57,7 @@ function oneLine(s: string, max: number): string {
   return t.length > max ? t.slice(0, max - 1) + '…' : t
 }
 
-// fullCommand: 가드가 물은 Bash 카드는 명령을 자르지도 줄바꿈을 지우지도 않는다 (M06 G3 — 80자 자르기가 push·master를 가렸다).
+// fullCommand: 가드가 물은 Bash 카드는 명령을 자르지도 줄바꿈을 지우지도 않는다 — 80자 자르기가 push·master를 가렸다.
 export function permissionSummary(
   toolName: string,
   input: Record<string, unknown>,
@@ -105,7 +104,7 @@ export class PermissionCoordinator {
     this._waiters.clear()
   }
 
-  // nodes는 이 실행에 고정한 등록부다(M07 G5 — 실행을 열 때 controls.json에서 꺼진 노드를 뺀다). 없으면 기본 등록부.
+  // nodes는 이 실행에 고정한 등록부다(실행을 열 때 controls.json에서 꺼진 노드를 뺀다). 없으면 기본 등록부.
   makeCanUseTool(
     mode: string | undefined | (() => string | undefined),
     getOrchestration: () => boolean,
@@ -117,10 +116,8 @@ export class PermissionCoordinator {
       input: Record<string, unknown>,
       options?: CanUseToolOptions
     ): Promise<PermissionResult> => {
-      // 판정은 노드 등록부가 한다 (M07 G2). 규칙 제안 없는 호출은 모드 노드보다 앞의 노드가 카드로 올린다
-      // (M06 G3 — auto·bypass 조기 허용이 가드 ask를 삼켰다).
-      // 오케스트레이션 여부는 getter로 넘긴다 — 옮기기 전처럼 Workflow 노드가 읽을 때만 읽는다.
-      // getter가 던지면 그 노드의 실패 정책(거부)으로 간다.
+      // 규칙 제안 없는 호출은 모드 노드보다 앞의 노드가 카드로 올린다 — auto·bypass 조기 허용이 가드 ask를 삼켰다.
+      // 오케스트레이션 여부는 Workflow 노드가 읽을 때만 읽도록 getter로 넘긴다. getter가 던지면 그 노드의 실패 정책(거부)이다.
       const verdict = runPermissionNodes(
         {
           toolName,

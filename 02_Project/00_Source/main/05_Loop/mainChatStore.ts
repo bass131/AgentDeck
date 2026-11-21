@@ -1,4 +1,4 @@
-// M10 G2 — 메인 대화 저장. 작업 폴더마다 앱 영역(userData/loop)의 `<repoKey>.main.json` 한 장이다(작업 저장소와 채팅 저장소 밖).
+// 메인 대화 저장. 작업 폴더마다 앱 영역(userData/loop)의 `<repoKey>.main.json` 한 장이다(작업 저장소와 채팅 저장소 밖).
 // 담는 것: SDK 세션 id(재개), 대화 기록(사용자 글·메인 답·실행기 사건·알림, 상한 MAX_ITEMS), 꺼질 때 남은 질문 카드(다시 묻는다),
 // 줄 서 있던 턴(사용자 글·사건·다시 물은 카드의 답), 브레인스토밍 방문(키·방문 처음의 스펙 해시·여는 턴의 상태·반려 사유·끝남),
 // 구동자의 일시 정지 깃발. 실행 상태(run-state)·검증 기록과는 무관하다 — 메인이 이 파일로 실행기를 움직이지 못한다.
@@ -8,6 +8,7 @@ import fs from 'node:fs'
 import { promises as fsp } from 'node:fs'
 import path from 'node:path'
 import type { LoopCard, LoopEventItem, LoopEventKind, MainChatArchive, MainChatItem, MainTurnKind } from '@shared/13_Loop/loop'
+import type { TastePrNote } from '@shared/14_Taste/taste'
 import { writeFileAtomic } from './realPorts/atomicWrite'
 
 export const MAX_ITEMS = 500
@@ -18,10 +19,11 @@ export interface StoredTurn {
   kind: Extract<MainTurnKind, 'user' | 'event' | 'card-answer'>
   text: string
   itemId: string | null
+  proxy?: boolean
   events?: LoopEventItem[]
 }
 // open: 그 방문의 여는 턴 — queued(아직 세션이 받지 못함), sent(세션이 받았다)
-export interface StoredVisit {
+interface StoredVisit {
   key: string
   node: string
   baselineSpecSha: string | null
@@ -40,6 +42,7 @@ export interface MainChatRecord {
   queue: StoredTurn[]
   visit: StoredVisit | null
   paused: boolean
+  tastePr?: TastePrNote
 }
 
 export const mainChatPath = (appDataDir: string, repoKey: string): string => path.join(appDataDir, `${repoKey}.main.json`)
@@ -62,35 +65,75 @@ const TURN_KINDS: readonly unknown[] = ['user', 'start', 'rejected', 'event', 'c
 const EVENT_KIND_TABLE: Record<LoopEventKind, true> = {
   'node-start': true, 'node-end': true, fail: true, halt: true, error: true, 'goal-merged': true, 'milestone-pr': true,
   'spec-approved': true, 'spec-rejected': true, 'flag-raised': true, 'flag-lowered': true, resumed: true, backlog: true,
-  latched: true, done: true,
+  latched: true, done: true, 'usage-limit': true, 'limit-resumed': true,
 }
 const EVENT_KINDS: readonly unknown[] = Object.keys(EVENT_KIND_TABLE)
 
-// 항목 하나 — 종류마다 그 종류가 쓰는 칸을 본다(G2 독립 검수). 칸이 빠진 항목은 생존 문서의 최근 대화(tailLine)를 깨뜨리고,
+// 항목 하나 — 종류마다 그 종류가 쓰는 칸을 본다. 칸이 빠진 항목은 생존 문서의 최근 대화(tailLine)를 깨뜨리고,
 // 그 뒤 새 세션의 턴이 모두 실패한다. 사건은 아는 종류만 받는다 — 이름이 바뀌기 전 빌드의 사건(paused 꼴)이나 모르는 종류는
-// 화면이 그 모양을 찾지 못하므로 버린다(G3 독립 검수 중요 1 — G2 검수 때 옛 사건을 기록으로 남기던 선택을 뒤집었다).
+// 화면이 그 모양을 찾지 못하므로 버린다(옛 사건을 기록으로 남기던 선택을 뒤집었다).
+const validEvent = (e: unknown): boolean => isObj(e) && EVENT_KINDS.includes(e['kind']) && str(e['text'])
+
 function validItem(i: unknown): boolean {
   if (!isObj(i) || !str(i['id']) || !str(i['at'])) return false
   switch (i['kind']) {
-    case 'user': return str(i['text']) && (i['state'] === 'queued' || i['state'] === 'sent')
+    case 'user': return str(i['text']) && (i['state'] === 'queued' || i['state'] === 'sent') && (i['proxy'] === undefined || typeof i['proxy'] === 'boolean')
     case 'assistant': return str(i['text']) && TURN_KINDS.includes(i['turn'])
-    case 'event': { const e = i['event']; return isObj(e) && EVENT_KINDS.includes(e['kind']) && str(e['text']) }
+    case 'event': return validEvent(i['event'])
     case 'notice': return str(i['text'])
     default: return false
   }
 }
 
-// 모양이 맞는 것만 받는다. 항목은 종류에 맞는 칸이 있는 것만 받고 나머지는 버린다.
+// 다시 묻는 질문 창이 읽는 칸 — 질문 글과 고를 것의 이름표
+const validQuestion = (q: unknown): boolean =>
+  isObj(q) && str(q['question']) && Array.isArray(q['options']) && (q['options'] as unknown[]).every((o) => isObj(o) && str(o['label']))
+const strs = (v: unknown): boolean => Array.isArray(v) && v.every(str)
+const validTasteItem = (i: unknown): boolean =>
+  isObj(i) && str(i['id']) && str(i['title']) && Array.isArray(i['fields'])
+  && (i['fields'] as unknown[]).every((f) => isObj(f) && str(f['name']) && str(f['text']))
+function validDraft(d: unknown): boolean {
+  if (!isObj(d)) return false
+  if (d['doc'] === 'global-taste' || d['doc'] === 'project-taste') return Array.isArray(d['items']) && (d['items'] as unknown[]).every(validTasteItem)
+  const c = d['charter']
+  return d['doc'] === 'charter' && isObj(c) && strs(c['goal']) && (c['nonGoals'] === null || strs(c['nonGoals']))
+}
+// 문서 초안 카드는 확정에 쓰는 구조(draft)와 사람이 본 원문(preview)이 함께 있어야 받는다
+const validCut = (v: unknown): boolean => isObj(v) && str(v['original']) && str(v['branch'])
+const validPrNote = (v: unknown): v is TastePrNote =>
+  isObj(v) && Number.isInteger(v['pr']) && str(v['branch'])
+  && (v['doc'] === undefined || v['doc'] === 'charter' || v['doc'] === 'project-taste') && (v['text'] === undefined || str(v['text']))
+const validTasteCard = (c: Record<string, unknown>): boolean =>
+  str(c['preview']) && validDraft(c['draft'])
+  && (c['confirming'] === undefined || typeof c['confirming'] === 'boolean') && (c['refused'] === undefined || str(c['refused']))
+  && (c['cut'] === undefined || validCut(c['cut']))
+const validCard = (c: unknown): boolean =>
+  isObj(c) && str(c['requestId']) && str(c['text']) && (
+    (c['kind'] === 'question' && Array.isArray(c['questions']) && (c['questions'] as unknown[]).every(validQuestion))
+    || (c['kind'] === 'taste' && validTasteCard(c))
+  )
+
+// 줄 선 턴 — 사건 턴은 사건 칸이 아는 사건의 배열이어야 프롬프트를 만든다. 다른 턴의 사건 칸은 버린다
+function storedTurn(t: unknown): StoredTurn | null {
+  if (!isObj(t) || !str(t['text'])) return null
+  const kind = t['kind']
+  if (kind !== 'user' && kind !== 'event' && kind !== 'card-answer') return null
+  const base: StoredTurn = { kind, text: t['text'], itemId: str(t['itemId']) ? t['itemId'] : null, ...(t['proxy'] === true ? { proxy: true } : {}) }
+  if (kind !== 'event') return base
+  const events = t['events']
+  if (!Array.isArray(events) || events.length === 0 || !events.every(validEvent)) return null
+  return { ...base, events: events as LoopEventItem[] }
+}
+
+// 모양이 맞는 것만 받는다. 항목·카드·줄 선 턴은 종류에 맞는 칸이 있는 것만 받고 나머지는 버린다.
 function parseRecord(text: string, root: string): MainChatRecord | null {
   let raw: unknown
   try { raw = JSON.parse(text) } catch { return null }
   if (!isObj(raw) || raw['version'] !== 1) return null
   const items = Array.isArray(raw['items']) ? (raw['items'] as unknown[]).filter(validItem) as MainChatItem[] : []
-  const cards = Array.isArray(raw['cards'])
-    ? (raw['cards'] as unknown[]).filter((c) => isObj(c) && c['kind'] === 'question' && str(c['requestId']) && Array.isArray(c['questions'])) as LoopCard[]
-    : []
+  const cards = Array.isArray(raw['cards']) ? (raw['cards'] as unknown[]).filter(validCard) as LoopCard[] : []
   const queue = Array.isArray(raw['queue'])
-    ? (raw['queue'] as unknown[]).filter((t) => isObj(t) && (t['kind'] === 'user' || t['kind'] === 'event' || t['kind'] === 'card-answer') && str(t['text'])) as StoredTurn[]
+    ? (raw['queue'] as unknown[]).map(storedTurn).filter((t): t is StoredTurn => t !== null)
     : []
   return {
     version: 1,
@@ -99,9 +142,10 @@ function parseRecord(text: string, root: string): MainChatRecord | null {
     everSession: raw['everSession'] === true,
     items: items.slice(-MAX_ITEMS),
     cards,
-    queue: queue.map((t) => ({ ...t, itemId: str(t.itemId) ? t.itemId : null })),
+    queue,
     visit: validVisit(raw['visit']) ? raw['visit'] : null,
     paused: raw['paused'] === true,
+    ...(validPrNote(raw['tastePr']) ? { tastePr: raw['tastePr'] } : {}),
   }
 }
 
@@ -126,7 +170,7 @@ export async function saveRecord(file: string, rec: MainChatRecord): Promise<voi
   await writeFileAtomic(file, `${JSON.stringify(rec, null, 2)}\n`)
 }
 
-export const ARCHIVE_LIST_MAX = 20
+const ARCHIVE_LIST_MAX = 20
 export async function listArchives(appDataDir: string, repoKey: string, limit = ARCHIVE_LIST_MAX): Promise<MainChatArchive[]> {
   const dir = path.join(appDataDir, ARCHIVE_DIR)
   let names: string[]

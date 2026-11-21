@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type JSX } from 'react'
 import { IconCheck, IconChevDown, IconClose, IconExpand, IconPencil, IconSend } from '@renderer/02_Common/icons'
+import { useModalLayer } from '@renderer/02_Common/modalStack'
 import type { AgentQuestion } from './types'
 import './QuestionModal.css'
 
@@ -36,11 +37,9 @@ export interface QuestionModalProps {
   layer?: number
 }
 
-// 질문 창의 화면 층 — CSS z-index와 같은 값이다(시험이 CSS 파일과 대조한다).
-//   app: 대화(Conversation)·패널(PanelView)·루프 화면(LoopScreen)의 질문 창 — QuestionModal.css의 .q-overlay(80)
-// M10 G1 — 루프 화면이 모달을 벗어나 작업 모드의 가운데 칸에 그려지며 겹침 맥락(옛 .loop-overlay, 60)이 없어졌다.
-// 그래서 루프 질문 창도 app 층에 그려지고 loop 층을 뺐다. 층 prop은 다른 겹침 맥락이 생길 때를 위해 남긴다.
-export const DIALOG_LAYER = { app: 80 } as const
+// CSS z-index와 같은 값이다(시험이 QuestionModal.css의 .q-overlay와 대조한다).
+// 층 prop은 다른 겹침 맥락이 생길 때를 위해 남긴다.
+export const DIALOG_LAYER = { app: 320 } as const
 
 export function QuestionModal({ open, questions, onAnswer, onDismiss, source, layer = DIALOG_LAYER.app }: QuestionModalProps): JSX.Element | null {
   if (!open) return null
@@ -58,8 +57,8 @@ export function QuestionModal({ open, questions, onAnswer, onDismiss, source, la
 
 export default QuestionModal
 
-// G4 검수 차단 B2 — 열린 질문 창의 쌓임 순서. 창마다 window keydown을 듣지만 키(숫자·Enter·Esc·화살표)는 맨 위 창 하나만 받는다.
-// G4 확인 검수 — 맨 위는 화면 겹침으로 정한다. 순서는 ① 펼친 창이 내려둔 창(알약)보다 위 ② 층(layer)이 높은 창이 위
+// 창마다 window keydown을 듣지만 키(숫자·Enter·Esc·화살표)는 맨 위 창 하나만 받는다.
+// 맨 위는 화면 겹침으로 정한다. 순서는 ① 펼친 창이 내려둔 창(알약)보다 위 ② 층(layer)이 높은 창이 위
 // ③ 같은 층에서는 나중에 열거나 펼친 창이 위다. 내려둔 창끼리는 나중에 내려둔 창이 아래다. 그래서 맨 위가 내려둔 창이면 모두 내려둔 것이다.
 // ①이 ②보다 먼저인 까닭: 높은 층의 창을 내려두면 화면에 펼쳐진 것은 낮은 층의 창이다 — 키와 Esc가 보이는 창에 가야 한다.
 interface StackEntry { layer: number; order: number; minimized: boolean }
@@ -77,6 +76,15 @@ const isTopDialog = (t: symbol): boolean => {
   if (!me) return false
   for (const [other, e] of dialogStack) if (other !== t && above(e, me)) return false
   return true
+}
+// 펼친 질문 창은 모달 층에 오른다. 그 층이 Esc를 받으면 질문 창끼리의 맨 위(위 순서)를 내려둔다
+const minimizers = new Map<symbol, () => void>()
+const minimizeTopQuestion = (): void => {
+  for (const [t, minimize] of minimizers) if (isTopDialog(t)) { minimize(); return }
+}
+const dismissers = new Map<symbol, () => void>()
+const dismissTopQuestion = (): void => {
+  for (const [t, dismiss] of dismissers) if (isTopDialog(t)) { dismiss(); return }
 }
 
 function QuestionDialog({
@@ -189,19 +197,24 @@ function QuestionDialog({
     if (other[step]) customRef.current?.focus()
   }, [other, step])
 
+  const onDismissRef = useRef(onDismiss)
+  onDismissRef.current = onDismiss
+  useEffect(() => {
+    minimizers.set(token, () => setMinimized(true))
+    return () => { minimizers.delete(token) }
+  }, [token])
+  useEffect(() => {
+    if (!minimized) return
+    dismissers.set(token, () => onDismissRef.current())
+    return () => { dismissers.delete(token) }
+  }, [token, minimized])
+  // 펼친 창은 모달 층, 내려둔 알약은 곁 층이다. 알약은 모달이나 나중에 내려간 알약이 있으면 Esc를 양보한다
+  useModalLayer(!minimized, minimizeTopQuestion)
+  useModalLayer(minimized, dismissTopQuestion, 'aside')
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent): void => {
-      if (!isTopDialog(token)) return
-      if (minimized) {
-        if (e.key === 'Escape') {
-          onDismiss()
-        }
-        return
-      }
-      if (e.key === 'Escape') {
-        setMinimized(true)
-        return
-      }
+      if (!isTopDialog(token) || minimized || e.key === 'Escape') return
       const ae = document.activeElement as HTMLElement | null
       if (ae && (ae.tagName === 'TEXTAREA' || ae.tagName === 'INPUT' || ae.isContentEditable)) return
 
@@ -216,7 +229,7 @@ function QuestionDialog({
         return
       }
       // 답 키(Enter·숫자)는 반복 입력을 받지 않는다 — 답하자마자 다음 질문 창이 같은 자리에 뜰 수 있어서
-      // 길게 누른 키가 다음 질문에 들어가면 안 된다(G9b 재검수 경미 3). 사람의 한 번 누름 의미는 그대로다.
+      // 길게 누른 키가 다음 질문에 들어가면 안 된다.
       if (e.repeat) return
       if (e.key === 'Enter') {
         e.preventDefault()

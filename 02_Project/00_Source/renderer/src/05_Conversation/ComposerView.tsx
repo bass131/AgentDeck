@@ -3,7 +3,7 @@ import { computeComposerHeight } from './composerHeight'
 import type { TokenUsage } from '@shared/agentEvents'
 import type { UsageInfo } from '@shared/ipcContract'
 
-import { ContextStrip } from './ComposerContext'
+import { ContextStrip, type AutoCompactInfo } from './ComposerContext'
 import { SlashPalette } from './SlashPalette'
 import { MentionPalette } from './MentionPalette'
 import { ImageTray } from './ImageTray'
@@ -20,8 +20,7 @@ import { useComposerKeywordMirror } from './hooks/useComposerKeywordMirror'
 
 import './Composer.css'
 
-// 입력창 본체 하나(M05 G9b) — store를 모른다. 선택기 값과 setter는 호출부(단일 store 어댑터 Composer,
-// 멀티 PanelView)가 넘긴다.
+// 입력창 본체 — store를 모른다. 선택기 값과 setter는 호출부(store 어댑터 Composer)가 넘긴다.
 
 export interface QueuedMessageView {
   id: string
@@ -50,6 +49,7 @@ export interface ComposerInputProps {
   lastUsage?: TokenUsage
   lastContextWindow?: number
   usage?: UsageInfo
+  autoCompact?: AutoCompactInfo | null
   mentionFiles?: string[]
   workspaceRoot?: string | null
   history?: string[]
@@ -59,7 +59,7 @@ export interface ComposerInputProps {
   onRemoveImage?: (index: number) => void
 }
 
-export interface ComposerPickerBinding {
+interface ComposerPickerBinding {
   model: string
   setModel: (id: string) => void
   effort: string
@@ -73,20 +73,20 @@ export interface ComposerPickerBinding {
   replLit: boolean
 }
 
-// 밀도(C3 사용자 결정) — compact는 멀티 패널 외형이다. 크기·색은 Composer.css의 .composer--compact 규칙이
+// 밀도 — compact는 멀티 패널 외형이다. 크기·색은 Composer.css의 .composer--compact 규칙이
 // 맡고, 사용량 띠(ContextStrip)는 그리지 않는다(패널은 자기 컨텍스트 링을 둔다). 문구·아이콘은 같다.
-export type ComposerDensity = 'default' | 'compact'
+type ComposerDensity = 'default' | 'compact'
 
 // compact 줄 높이 — Composer.css .composer--compact의 --composer-line-height(20px)와 같다.
 const LINE_HEIGHT: Record<ComposerDensity, number> = { default: 22, compact: 20 }
 
-export interface ComposerLayoutProps {
+interface ComposerLayoutProps {
   density?: ComposerDensity
-  // Shift+Tab을 입력창이 처리한다(P5) — 있으면 이 입력창의 모드만 돌리고 전역 단축키로 올리지 않는다.
+  // Shift+Tab을 입력창이 처리한다 — 있으면 이 입력창의 모드만 돌리고 전역 단축키로 올리지 않는다.
   onCycleMode?: () => void
 }
 
-export type ComposerViewProps = ComposerInputProps & ComposerPickerBinding & ComposerLayoutProps
+type ComposerViewProps = ComposerInputProps & ComposerPickerBinding & ComposerLayoutProps
 
 function ComposerViewInner({
   value,
@@ -102,6 +102,7 @@ function ComposerViewInner({
   lastUsage,
   lastContextWindow,
   usage,
+  autoCompact,
   mentionFiles = [],
   attachedImages = [],
   onAttachFiles,
@@ -181,9 +182,9 @@ function ComposerViewInner({
         {density !== 'compact' && (
           <ContextStrip
             lastUsage={lastUsage}
-            selectedModel={model}
             lastContextWindow={lastContextWindow}
             usage={usage}
+            autoCompact={autoCompact}
           />
         )}
 

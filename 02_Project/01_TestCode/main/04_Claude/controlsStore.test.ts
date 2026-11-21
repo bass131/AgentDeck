@@ -1,4 +1,3 @@
-// M07 G5 컨트롤 설정 — 노드 켜짐을 controls.json에 봉인과 함께 저장하고, 앱 밖에서 바뀌면 실행을 열지 않는다.
 // 임시 userData를 함수 인자로 넘겨 프로덕션 경로(setControlEnabled·confirmControls·readControls·controlsForRun)로만 본다.
 // 상태 넷의 뜻은 shared/11_Settings/settings.ts의 ControlsSealStatus 주석이 소유한다.
 import { describe, it, expect, beforeEach, afterAll } from 'vitest'
@@ -11,11 +10,12 @@ import {
   confirmControls,
   controlsState,
   controlsForRun,
+  controlsForAppRun,
   activePermissionNodes,
 } from '@main/04_Claude/permission/controlsStore'
 import { PERMISSION_NODES, runPermissionNodes, type PermissionContext } from '@main/04_Claude/permission/controlNodes'
 import { PermissionCoordinator } from '@main/04_Claude/permission/permissionCoordinator'
-import type { AgentEvent } from '../../../../02_Project/00_Source/shared/agentEvents'
+import type { AgentEvent } from '@shared/agentEvents'
 
 const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agentdeck-controls-'))
 let ud = ''
@@ -30,7 +30,7 @@ afterAll(() => {
 
 const file = (): string => path.join(ud, 'controls.json')
 const seal = (): string => path.join(ud, 'controls-seal.json')
-// 「처음 설정함」 표시는 앱 데이터 폴더의 이웃 폴더 `<이름>-guard/`에 있다 (M07 G7)
+// 「처음 설정함」 표시는 앱 데이터 폴더의 이웃 폴더 `<이름>-guard/`에 있다
 const marker = (): string => path.join(`${ud}-guard`, 'first-setup.json')
 const oldMarker = (): string => path.join(ud, 'first-setup.json')
 
@@ -242,7 +242,7 @@ describe('패널 상태 (M07 G5)', () => {
     expect(byId.get('mode-auto-bypass-allow')).toMatchObject({ enabled: false, locked: false, point: 'canUseTool' })
     expect(byId.get('no-suggestion-card')).toMatchObject({ enabled: true, locked: true })
     expect(byId.get('engine-path-bash-lock')).toMatchObject({ enabled: true, locked: true, point: 'preToolUse', protection: 'L3' })
-    // 병합 거부 노드(M07 G8)도 잠긴 채 늘 켬으로 보인다
+    // 병합 거부 노드도 잠긴 채 늘 켬으로 보인다
     expect(byId.get('merge-deny')).toMatchObject({ enabled: true, locked: true, point: 'preToolUse', protection: 'L3' })
     expect(s.nodes).toHaveLength(9)
   })
@@ -306,5 +306,18 @@ describe('실행에 넘기는 노드 (M07 G5)', () => {
     expect(events.some((e) => e.type === 'permission_request')).toBe(true)
     coord.cancelAll()
     expect(await pending).toMatchObject({ behavior: 'deny' })
+  })
+})
+
+// 앱 실행의 컨트롤 검사 — userData 경로를 얻는 함수가 던지면 닫힌 실패다.
+describe('controlsForAppRun — userData 경로를 못 얻으면 열지 않는다', () => {
+  it('경로 함수가 던지면 ok:false·status error', () => {
+    const r = controlsForAppRun(() => { throw new Error('app 없음') })
+    expect(r).toMatchObject({ ok: false, status: 'error' })
+    expect(!r.ok && r.message).toContain('app 없음')
+  })
+
+  it('경로를 얻으면 controlsForRun과 같다', () => {
+    expect(controlsForAppRun(() => ud)).toEqual(controlsForRun(ud))
   })
 })

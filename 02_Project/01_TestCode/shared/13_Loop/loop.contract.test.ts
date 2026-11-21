@@ -1,7 +1,5 @@
-// M09 G4 — 앱 안 루프 IPC 묶음(loop)의 계약. invoke 여덟(열기·시작·상태·사람 판정·카드 답·세션 취소·래치 풀기·닫기)과
-// push 하나(상태). 상태 응답과 push는 같은 LoopStatus 한 장이다. 2차분 화면은 이 계약만 보고 만든다.
 import { describe, expect, it } from 'vitest'
-import { API_ROUTES } from '../../../../02_Project/00_Source/shared/01_Ipc/apiRoutes'
+import { API_ROUTES } from '@shared/01_Ipc/apiRoutes'
 import {
   IPC_CHANNELS,
   LOOP_CHANNELS,
@@ -12,7 +10,7 @@ import {
   type PayloadOf,
   type ReqOf,
   type ResOf,
-} from '../../../../02_Project/00_Source/shared/ipcContract'
+} from '@shared/ipcContract'
 
 const STATUS: LoopStatus = {
   cwd: 'C:/work/practice', root: 'C:/work/practice', phase: 'waiting-human', milestoneId: 'M1', node: 'spec-approval',
@@ -23,18 +21,17 @@ const STATUS: LoopStatus = {
 }
 
 describe('loop IPC 묶음 (M09 G4)', () => {
-  it('채널 이름 — invoke 열여섯과 push 다섯(M10 G2: 메인 대화 읽기·보내기·새로 열기, 메인 대화 push, 세션 사건 push. M10 G3: 깃발 내리기. M10 G4: 세션 기록 읽기·지난 메인 대화 읽기. M10 G5: 그래프 읽기·알림 읽기, 알림 push·알림 열기 push)', () => {
+  it('채널 이름 — invoke 열일곱과 push 다섯(M10 G2: 메인 대화 읽기·보내기·새로 열기, 메인 대화 push, 세션 사건 push. M10 G3: 깃발 내리기. M10 G4: 세션 기록 읽기·지난 메인 대화 읽기. M10 G5: 그래프 읽기·알림 읽기, 알림 push·알림 열기 push. M11 G4: 작업 폴더 목록)', () => {
     expect(Object.values(LOOP_CHANNELS).sort()).toEqual([
       'loop.alertOpen', 'loop.alerts', 'loop.alertsState',
-      'loop.answerCard', 'loop.cancelSession', 'loop.close', 'loop.decide', 'loop.graph', 'loop.lowerFlag', 'loop.mainArchives', 'loop.mainNew', 'loop.mainRead', 'loop.mainSend', 'loop.mainState',
-      'loop.open', 'loop.releaseLatch', 'loop.sessionEvent', 'loop.sessionLog', 'loop.start', 'loop.state', 'loop.status',
+      'loop.answerCard', 'loop.cancelSession', 'loop.close', 'loop.decide', 'loop.graph', 'loop.listDir', 'loop.lowerFlag', 'loop.mainArchives', 'loop.mainNew', 'loop.mainRead', 'loop.mainSend', 'loop.mainState',
+      'loop.open', 'loop.releaseLatch', 'loop.sessionEvent', 'loop.sessionLog', 'loop.start', 'loop.state', 'loop.status', 'loop.tasteOpen',
     ])
     for (const v of Object.values(LOOP_CHANNELS)) expect(Object.values(IPC_CHANNELS)).toContain(v)
-    // push는 상태 한 장 하나뿐이다 — 카드·승인·래치도 그 안에 실린다
     expect(LOOP_CHANNELS.LOOP_STATE).toBe('loop.state')
   })
 
-  it('라우트 — loop 묶음에 요청 하나를 받는 invoke 여덟과 상태 구독 하나', () => {
+  it('라우트 — loop 묶음에 invoke 열일곱(요청 없는 알림 읽기 하나 포함)과 push 구독 다섯', () => {
     expect(API_ROUTES.loop).toEqual({
       open: { kind: 'call', channel: 'loop.open' },
       start: { kind: 'call', channel: 'loop.start' },
@@ -57,7 +54,37 @@ describe('loop IPC 묶음 (M09 G4)', () => {
       alerts: { kind: 'call0', channel: 'loop.alerts' },
       onAlerts: { kind: 'push', channel: 'loop.alertsState' },
       onAlertOpen: { kind: 'push', channel: 'loop.alertOpen' },
+      listDir: { kind: 'call', channel: 'loop.listDir' },
+      tasteOpen: { kind: 'call', channel: 'loop.tasteOpen' },
     })
+  })
+
+  it('문답 열기는 cwd와 범위만 싣고 메인 대화 응답을 받는다. 문서 초안 카드의 답은 확정과 이유 있는 반려다', () => {
+    const req: ReqOf<'loop.tasteOpen'> = { cwd: 'C:/w', scope: 'project' }
+    const res: ResOf<'loop.tasteOpen'> = { ok: true, view: { cwd: 'C:/w', root: null, chapter: '', sessionId: null, items: [], cards: [], busy: false, waitingUser: false, brainstorming: false, paused: false, queued: 0 } }
+    expect(Object.keys(req).sort()).toEqual(['cwd', 'scope'])
+    expect(res.ok).toBe(true)
+    const card: LoopCard = {
+      kind: 'taste', requestId: 'taste-1', node: 'main', goal: null, text: '프로젝트 헌장 초안',
+      draft: { doc: 'charter', charter: { goal: ['끝까지 맡는다.'], nonGoals: null } }, preview: '# 프로젝트 헌장\n',
+    }
+    const answers: ReqOf<'loop.answerCard'>['response'][] = [{ kind: 'taste', decision: 'confirm' }, { kind: 'taste', decision: 'reject', reason: '목표가 흐리다' }]
+    expect(card.kind).toBe('taste')
+    expect(answers).toHaveLength(2)
+  })
+
+  it('[M11-G4 M10-16] 작업 폴더 목록은 요청 하나를 받는 invoke이고, 요청은 cwd와 상대 경로만 싣는다', () => {
+    expect(LOOP_CHANNELS.LOOP_LIST_DIR).toBe(IPC_CHANNELS.LOOP_LIST_DIR)
+    expect(API_ROUTES.loop.listDir).toEqual({ kind: 'call', channel: LOOP_CHANNELS.LOOP_LIST_DIR })
+    // @ts-expect-error 상대 경로 없이는 물을 수 없다
+    const bare: ReqOf<'loop.listDir'> = { cwd: 'C:/work/practice' }
+    // @ts-expect-error 화면은 읽을 뿌리를 정하지 못한다(main이 열린 실행기의 뿌리를 쓴다)
+    const rooted: ReqOf<'loop.listDir'> = { cwd: 'C:/work/practice', relDir: '', root: 'C:/' }
+    // @ts-expect-error 응답은 ok를 싣는다(막힘과 빈 폴더를 가른다)
+    const noOk: ResOf<'loop.listDir'> = { entries: [] }
+    void bare
+    void rooted
+    void noOk
   })
 
   it('그래프 읽기와 알림 (M10 G5) — 그래프는 cwd만 받고, 알림 목록은 읽기 응답과 push가 같은 꼴이다', () => {
@@ -109,7 +136,6 @@ describe('loop IPC 묶음 (M09 G4)', () => {
     void mainRow
   })
 
-  // M10 G3 — 사람이 일시 정지 깃발을 내리는 길(판정 칸 없음)과 대상을 고른 취소(메인 턴 / 작업 세션)
   it('깃발 내리기는 cwd만, 취소는 cwd와 대상만 싣는다', () => {
     const lower: ReqOf<'loop.lowerFlag'> = { cwd: 'C:/work/practice' }
     const res: ResOf<'loop.lowerFlag'> = {
@@ -155,13 +181,12 @@ describe('loop IPC 묶음 (M09 G4)', () => {
     void forged
   })
 
-  // G2 독립 검수 — 메인의 일시 정지 깃발 사건(flag-raised·flag-lowered)은 사람이 멈춘 실행을 이어 간 사건(resumed)과 이름이 다르다.
   // 표가 종류 전부를 키로 가져야 컴파일된다 — 종류가 늘거나 줄면 이 표도 바뀐다
   it('실행기 사건의 종류 (M10 G2)', () => {
     const KINDS: Record<LoopEventKind, true> = {
       'node-start': true, 'node-end': true, fail: true, halt: true, error: true, 'goal-merged': true, 'milestone-pr': true,
       'spec-approved': true, 'spec-rejected': true, 'flag-raised': true, 'flag-lowered': true, resumed: true, backlog: true,
-      latched: true, done: true,
+      latched: true, done: true, 'usage-limit': true, 'limit-resumed': true,
     }
     expect(Object.keys(KINDS)).not.toContain('paused')
     // @ts-expect-error 「paused」는 사건 종류가 아니다(깃발은 flag-raised)
@@ -171,8 +196,7 @@ describe('loop IPC 묶음 (M09 G4)', () => {
 
   it('요청·응답·push 모양이 계약 표에 있다', () => {
     const open: ReqOf<'loop.open'> = { cwd: 'C:/work/practice' }
-    // G4 검수 중요 I5 — 화면은 CI 정책(필수 검사 이름)을 보내지 못한다
-    // @ts-expect-error requiredChecks는 계약에 없다
+    // @ts-expect-error 화면은 CI 정책(필수 검사 이름)을 보내지 못한다
     const withChecks: ReqOf<'loop.open'> = { cwd: 'C:/work/practice', requiredChecks: ['hard-gates'] }
     void withChecks
     const start: ReqOf<'loop.start'> = { cwd: open.cwd, milestoneId: 'M1' }
@@ -185,7 +209,6 @@ describe('loop IPC 묶음 (M09 G4)', () => {
     const r: ResOf<'loop.releaseLatch'> = { ok: true, status: STATUS }
     const pushed: PayloadOf<'loop.state'> = STATUS
     const card: LoopCard = { kind: 'question', requestId: 'q1', node: 'brainstorm', goal: null, text: '무엇을 만들까?', questions: [] }
-    // M10 G3 — 메인 대화의 카드는 상태에도 실리되 inChat 표시가 붙는다(답하는 곳은 메인 대화 화면 한 곳)
     const chatCard: LoopCard = { ...card, requestId: 'q2', inChat: true, restored: true }
     expect([chatCard.inChat, card.inChat]).toEqual([true, undefined])
     // @ts-expect-error inChat은 참·거짓이다

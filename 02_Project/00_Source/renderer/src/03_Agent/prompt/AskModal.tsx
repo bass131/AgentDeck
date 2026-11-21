@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type JSX } from 'react'
 import { IconChevDown, IconClose, IconSend } from '@renderer/02_Common/icons'
+import { useModalLayer } from '@renderer/02_Common/modalStack'
 import './AskModal.css'
 
 export function AskModal({
@@ -18,20 +19,9 @@ export function AskModal({
     if (!minimized) requestAnimationFrame(() => taRef.current?.focus())
   }, [minimized])
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent): void => {
-      if (e.key === 'Escape') {
-        e.preventDefault()
-        if (minimized) {
-          onClose()
-        } else {
-          onMinimizedChange(true)
-        }
-      }
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [minimized, onClose, onMinimizedChange])
+  // 펼친 창은 모달이라 맨 위일 때 Esc로 내린다. 내린 알약은 곁 층이라 모달이나 나중에 내려간 알약이 있으면 Esc를 양보한다
+  useModalLayer(!minimized, () => onMinimizedChange(true))
+  useModalLayer(minimized, onClose, 'aside')
 
   const grow = (el: HTMLTextAreaElement | null): void => {
     if (!el) return

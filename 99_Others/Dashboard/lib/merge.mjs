@@ -1,16 +1,16 @@
-// 현황판 병합 모듈 (M07 G9) — PR을 GitHub에서 직접 읽고, 사람 확인 창의 「병합」 뒤에만 비동기 병합 API를 부른다.
-// 앱 쪽 같은 로직(02_Project/00_Source/main/08_Git/prMerge.ts, G8 검수 반영)을 빌드 없는 .mjs로 옮겼다. 두 구현은 모듈을 나눠 쓰지 않고,
+// 현황판 병합 모듈 — PR을 GitHub에서 직접 읽고, 사람 확인 창의 「병합」 뒤에만 비동기 병합 API를 부른다.
+// 앱 쪽 같은 로직(02_Project/00_Source/main/08_Git/prMerge.ts)을 빌드 없는 .mjs로 옮겼다. 두 구현은 모듈을 나눠 쓰지 않고,
 // 같은 응답 꼴을 지키는지는 test/merge.test.mjs의 사례 표(prMerge.test.ts에서 옮김)로 맞춘다.
 //
 // gh는 셸 없이 인자 배열로 부른다(주입 가능). 저장소는 설정 repoPath의 `git remote get-url origin`이다(고정 인자 하나, lib/git.mjs의 읽기 전용 목록과 별개).
 // 실측(2026-11-18, 읽기 전용 gh api):
 //   `gh api` 실패 — exit 1, stdout에 오류 본문 JSON({message, documentation_url, status:"404"}), stderr `gh: Not Found (HTTP 404)`.
 //   `gh api -i` — 첫 줄 `HTTP/2.0 404 Not Found`, 머리글 뒤 빈 줄 다음이 본문.
-//   PR 파일 목록 — [{filename, status, previous_filename?, patch?, blob_url, changes}]. 이름만 바뀐 파일과 큰 diff는 patch 칸이 없다(PR 46 실측).
+//   PR 파일 목록 — [{filename, status, previous_filename?, patch?, blob_url, changes}]. 이름만 바뀐 파일과 큰 diff는 patch 칸이 없다.
 //   contents — {type:"file", encoding:"base64", content: 60자마다 줄바꿈}. 1MB를 넘으면 encoding "none".
 //   필수 검사 — 보호 API `checks:[{context:"hard-gates", app_id:15368}]`, check run `app.id: 15368`.
 // 병합 길: readPr(마지막으로 보인 SHA 기억) → prepareMerge(SHA 소비·다시 읽기·대조) → 사람 확인(정확히 {answer:'yes'}) → sendMerge(다시 읽기·PUT·결과 조회).
-// 열린 PR 목록 listPrs(M07 G11)는 이 길 밖의 읽기다. 고른 PR은 다시 readPr로 읽어야 병합 길에 들어간다.
+// 열린 PR 목록 listPrs는 이 길 밖의 읽기다. 고른 PR은 다시 readPr로 읽어야 병합 길에 들어간다.
 import { execFile } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { isDeepStrictEqual } from 'node:util';
@@ -48,7 +48,7 @@ function parseIncluded(r) {
   return { status: Number(head[1]), body, message: messageOf(body) };
 }
 
-// ── 「꼭 볼 것」 경로 ── 대소문자를 가리지 않는다(작업 사본이 Windows라 `.Claude/`도 `.claude/`에 풀린다). 헌법 파일은 어느 깊이든 본다.
+// 「꼭 볼 것」 경로 — 대소문자를 가리지 않는다(작업 사본이 Windows라 `.Claude/`도 `.claude/`에 풀린다). 헌법 파일은 어느 깊이든 본다.
 const MUST_SEE = [
   [p => p === '.claude' || p.startsWith('.claude/'), '하네스 설정·훅(.claude/)'],
   [p => p.split('/').pop() === 'claude.md', '헌법(CLAUDE.md)'],
@@ -68,7 +68,7 @@ const contentsPath = path => path.split('/').map(encodeURIComponent).join('/');
 // scripts 비교는 키 순서를 무시한다(순서만 바뀐 것은 같은 동작이다)
 const sortKeys = v => (v && typeof v === 'object' && !Array.isArray(v) ? Object.fromEntries(Object.keys(v).sort().map(k => [k, sortKeys(v[k])])) : Array.isArray(v) ? v.map(sortKeys) : v);
 
-// ── 버튼 활성 판정 ── 「꼭 볼 것」 펼침 게이트는 화면 쪽이라 여기서 막지 않는다. 파일 목록을 다 읽지 못한 것(filesError)은 막는다.
+// 버튼 활성 판정 — 「꼭 볼 것」 펼침 게이트는 화면 쪽이라 여기서 막지 않는다. 파일 목록을 다 읽지 못한 것(filesError)은 막는다.
 const CHECK_TEXT = { success: '성공', pending: '대기 중', failure: '실패', missing: '결과 없음' };
 export function mergeEligibility(pr) {
   const reasons = [], notes = [];
@@ -320,7 +320,7 @@ export function createPrService({ gh, originUrl, sleep = ms => new Promise(r => 
     } finally { issued.delete(prep.ticket); }
   }
 
-  // 열린 PR 목록(M07 G11) — 읽기만 한다. 보인 SHA(shown)·세대(generation)·보내기 표(issued)를 건드리지 않는다.
+  // 열린 PR 목록 — 읽기만 한다. 보인 SHA(shown)·세대(generation)·보내기 표(issued)를 건드리지 않는다.
   // 목록의 SHA는 화면 표시용이다. 병합에 쓰는 SHA는 언제나 readPr가 다시 읽은 값이다.
   async function listPrs(cwd) {
     const repo = await originRepo(cwd);
@@ -341,10 +341,10 @@ export function createPrService({ gh, originUrl, sleep = ms => new Promise(r => 
   return { readPr, prepareMerge, sendMerge, mergePr, listPrs };
 }
 
-// ── 열린 PR 목록 (M07 G11) ── gh pr list를 셸 없이 부른다. 저장소는 origin으로 고정한다(cwd·GH_REPO·기본 저장소 설정에 기대지 않는다).
+// 열린 PR 목록 — gh pr list를 셸 없이 부른다. 저장소는 origin으로 고정한다(cwd·GH_REPO·기본 저장소 설정에 기대지 않는다).
 // 실측(2026-11-18, 읽기 전용): 성공은 exit 0과 JSON 배열(없으면 `[]`), 항목은 {author:{id,is_bot,login,name}, baseRefName, headRefName, headRefOid, isDraft, number, title, updatedAt}.
 //   봇 작성자는 {is_bot:true, login:"app/dependabot"}. 실패는 exit 1과 stderr 평문(`GraphQL: Could not resolve to a Repository …`)이라 parsePlain을 쓰지 않는다.
-// REST(`gh api …/pulls`) 대신 이 명령을 쓴 까닭: 칸 이름을 --json으로 좁혀 한 번에 받고, G10 감시(lib/waitMerge.mjs)와 같은 gh pr 꼴이다.
+// REST(`gh api …/pulls`) 대신 이 명령을 쓴 까닭: 칸 이름을 --json으로 좁혀 한 번에 받고, 병합 감시(lib/waitMerge.mjs)와 같은 gh pr 꼴이다.
 export const LIST_CAP = 50;
 export const LIST_FIELDS = 'number,title,baseRefName,headRefName,headRefOid,isDraft,author,updatedAt';
 // 하나 더(51개) 받아 「더 있음」을 안다
@@ -361,7 +361,7 @@ function listItem(v) {
     draft: p.isDraft === true, author: isLogin(login) ? login : '', updatedAt: isIso(p.updatedAt) ? p.updatedAt : '' };
 }
 
-// ── 실행 배선 ── 셸 없이 인자 배열로, 대화형 질문 없이.
+// 실행 배선 — 셸 없이 인자 배열로, 대화형 질문 없이.
 function run(cmd, args, cwd, timeout) {
   return new Promise(resolve => {
     execFile(cmd, args, { cwd, timeout, maxBuffer: 16 * 1024 * 1024, windowsHide: true, shell: false, env: { ...process.env, GH_PROMPT_DISABLED: '1', NO_COLOR: '1', GIT_TERMINAL_PROMPT: '0' } },

@@ -12,17 +12,14 @@ export interface AgentRunInput {
   resumeSessionId?: string
   persistent?: boolean
   sessionKey?: string
-  // 대화가 마지막으로 잰 컨텍스트 창 — 기록을 다시 실을 때의 예산에 쓴다 (M06 G4)
+  // 기록을 다시 실을 때의 예산
   contextWindow?: number
-  // M09 G2 — 앱 안 루프의 작업 노드 세션 전용 두 칸. IPC 요청(01_Ipc/handlers/agent.ts)은 이 칸을 옮기지 않는다 — 화면이 고를 수 없다.
-  // env: 세션 프로세스의 환경(자격 없는 자식 환경). 없으면 이 프로세스의 환경이다.
+  // 아래 세 칸은 루프 세션 전용이다. IPC 요청은 이 칸을 옮기지 않아 화면이 고를 수 없다.
+  // 없으면 이 프로세스의 환경이다
   env?: NodeJS.ProcessEnv
-  // loopLock: 있으면 루프 잠금 노드(04_Claude/permission/loopLock.ts)를 PreToolUse 맨 앞에 붙이고, 사용자 MCP 서버를 읽지 않는다(G4).
-  // readOnly: 검수 세션의 읽기 전용 꼴(G4)
-  // mainChat: 메인 대화의 꼴(M10 G2 — 허용 목록, 셸 거부, 스펙·결정 대장 두 경로의 쓰기 창). loopLock.ts의 LoopLockScope.mainChat이다
+  // 있으면 루프 잠금 노드를 PreToolUse 맨 앞에 붙이고 사용자 MCP 서버를 읽지 않는다
   loopLock?: { repoRoot: string; appLoopDir: string; readOnly?: boolean; mainChat?: { toolServer: string; canWrite: () => boolean | Promise<boolean> } }
-  // M10 G2 — 메인 대화의 앱 안 도구 서버(createSdkMcpServer의 결과, 이름 → 설정). loopLock이 있을 때만 SDK 옵션 mcpServers로 실린다.
-  // IPC 요청은 이 칸을 옮기지 않는다(loopLock과 같다).
+  // 메인 대화의 앱 안 도구 서버. loopLock이 있을 때만 SDK 옵션 mcpServers로 실린다
   loopMcpServers?: Record<string, unknown>
 }
 
@@ -40,6 +37,7 @@ export interface AgentRun {
   stopTask?(taskId: string): void
   setPermissionMode?(modeId: string): void
   setModel?(modelId: string): void
+  setEffort?(effort: string): void
   respond(requestId: string, response: RunResponse): void
 }
 

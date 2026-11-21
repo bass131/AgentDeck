@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { ClaudeCodeBackend } from '@main/04_Claude/ClaudeCodeBackend'
 import type { QueryFn } from '@main/04_Claude/ClaudeCodeBackend'
-import type { AgentEvent } from '../../../../02_Project/00_Source/shared/agentEvents'
+import type { AgentEvent } from '@shared/agentEvents'
 import { makeCaptureQuery, makeMockQueryFn } from '../00_Helpers/fakeQuery'
 import {
   FIXTURE_MODEL_ID,
@@ -136,7 +136,7 @@ type CanUseToolFn = (
   opts: { signal: AbortSignal; toolUseID: string; suggestions?: unknown[] }
 ) => Promise<{ behavior: string; updatedInput: unknown }>
 
-// M06 G3 — 일반 질의의 실측 꼴: SDK는 규칙 제안을 한 개 이상 붙여 보낸다. 제안 없는 호출은 모드와 관계없이 카드로 간다.
+// 일반 질의의 실측 꼴: SDK는 규칙 제안을 한 개 이상 붙여 보낸다. 제안 없는 호출은 모드와 관계없이 카드로 간다.
 const SUGG: unknown[] = [{ type: 'addRules', rules: [{ toolName: 'Bash' }], behavior: 'allow', destination: 'session' }]
 
 describe('ClaudeCodeBackend — SDK query 전환 (Phase 21b)', () => {
@@ -189,7 +189,8 @@ describe('ClaudeCodeBackend — SDK query 전환 (Phase 21b)', () => {
       expect(doneEvents).toHaveLength(1)
       const done = doneEvents[0] as { type: 'done'; contextWindow?: number; usage?: { inputTokens: number } }
       expect(done.contextWindow).toBe(200000)
-      expect(done.usage?.inputTokens).toBe(100)
+      // 계기용 usage는 결과 합계가 아니라 마지막 최상위 assistant 호출이다
+      expect(done.usage?.inputTokens).toBe(10)
 
       expect(events[events.length - 1].type).toBe('done')
 

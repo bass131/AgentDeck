@@ -19,6 +19,18 @@ export interface IsolatedBootResult {
   teardown: () => Promise<void>
 }
 
+// 앱 창을 2번 모니터로 옮긴다(사용자 요청). 앱 소스 없이 main 프로세스에서 옮기고 크기는 두며, 디스플레이가 하나면 그대로 둔다
+export async function moveToSecondDisplay(app: ElectronApplication): Promise<boolean> {
+  return app.evaluate(({ BrowserWindow, screen }) => {
+    const primary = screen.getPrimaryDisplay()
+    const other = screen.getAllDisplays().find((d) => d.id !== primary.id)
+    const win = BrowserWindow.getAllWindows()[0]
+    if (!other || !win) return false
+    win.setPosition(other.workArea.x + 40, other.workArea.y + 40)
+    return true
+  })
+}
+
 export async function isolatedBoot(options: IsolatedBootOptions = {}): Promise<IsolatedBootResult> {
   const slug = options.slug ?? 'agentdeck-e2e'
   const userDataDir = mkdtempSync(join(tmpdir(), `${slug}-udd-`))
@@ -40,6 +52,7 @@ export async function isolatedBoot(options: IsolatedBootOptions = {}): Promise<I
 
   const page = await app.firstWindow()
   await page.waitForLoadState('domcontentloaded')
+  await moveToSecondDisplay(app)
 
   await Promise.race([
     page.waitForSelector('#nickname', { timeout: 25_000 }).catch(() => null),
@@ -64,7 +77,7 @@ export async function isolatedBoot(options: IsolatedBootOptions = {}): Promise<I
   }
   await page.keyboard.press('Escape').catch(() => {})
 
-  // M10 G1 — 모드 탭은 「채팅 · 작업」이다(옛 「단일 에이전트」).
+  // 모드 탭은 「채팅 · 작업」이다.
   const singleTab = page.getByRole('tab', { name: '채팅', exact: true })
   if (await singleTab.isVisible().catch(() => false)) await singleTab.click().catch(() => {})
   await page.locator('.pane.chat').waitFor({ state: 'visible', timeout: 15_000 })

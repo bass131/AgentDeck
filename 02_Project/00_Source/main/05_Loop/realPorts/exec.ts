@@ -1,4 +1,4 @@
-// M09 G2 — 자식 프로세스 한 번 돌리기. 실물 포트(명령·git·gh)가 같이 쓴다. Node 내장 spawn만 쓴다.
+// 자식 프로세스 한 번 돌리기. 실물 포트(명령·git·gh)가 같이 쓴다. Node 내장 spawn만 쓴다.
 // 던지지 않는다 — 실행 파일이 없거나(ENOENT) 시간 제한을 넘어도 0이 아닌 code로 돌려준다(부르는 쪽이 판정한다).
 // 시간 제한을 넘으면 프로세스 트리째 죽이고(Windows는 taskkill /T /F, 그 밖은 프로세스 그룹) 그 자리에서 끝낸다 —
 // 셸만 죽이면 손자 프로세스가 파이프를 붙들어 close가 오지 않는다.
@@ -6,7 +6,7 @@
 import { spawn } from 'node:child_process'
 
 export interface ProcessResult { code: number; stdout: string; stderr: string; timedOut: boolean }
-export interface RunProcessOptions {
+interface RunProcessOptions {
   cwd: string
   env?: NodeJS.ProcessEnv
   timeoutMs?: number
@@ -14,7 +14,7 @@ export interface RunProcessOptions {
   shell?: boolean
 }
 
-export const TIMEOUT_EXIT = 124
+const TIMEOUT_EXIT = 124
 const MAX_OUTPUT = 16 * 1024 * 1024
 const IS_WINDOWS = process.platform === 'win32'
 

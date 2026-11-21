@@ -5,7 +5,7 @@ import { ToolCallCard } from './ToolCallCard'
 import { IconClaude } from '@renderer/02_Common/icons'
 import './ToolGroup.css'
 
-export interface ToolGroupProps {
+interface ToolGroupProps {
   group: Extract<ThreadItem, { kind: 'toolgroup' }>
   lead?: boolean
   fileDiffs: Record<string, FileDiffEntry>

@@ -2,7 +2,6 @@ import { describe, it, expect, vi } from 'vitest'
 import type { RunResponse } from '@main/03_Agent/AgentBackend'
 import type { RunManager } from '@main/03_Agent/agentRuns'
 
-// 실물 핸들러 검사 — ipcMain.handle을 가로채 registerAgentHandlers가 등록한 PERMISSION_RESPOND를 직접 부른다
 const h = vi.hoisted(() => ({ handlers: new Map<string, (...args: unknown[]) => unknown>() }))
 
 vi.mock('electron', () => ({
@@ -18,7 +17,7 @@ vi.mock('@main/00_App/registry', () => ({
 }))
 
 import { registerAgentHandlers } from '@main/01_Ipc/handlers/agent'
-import { IPC_CHANNELS } from '../../../../02_Project/00_Source/shared/ipcContract'
+import { IPC_CHANNELS } from '@shared/ipcContract'
 
 interface PermissionResponseInput {
   runId?: unknown
@@ -116,6 +115,18 @@ describe('PERMISSION_RESPOND 핸들러 입력 검증', () => {
       expect(result).toEqual({ ok: false })
       expect(calls).toHaveLength(0)
     })
+
+    it('requestId가 공백만 있으면 ok:false를 반환한다', () => {
+      const { manager, calls } = makeFakeRunManager(true)
+      expect(handlePermissionRespond({ runId: 'run-1', requestId: '  \t', behavior: 'allow' }, manager)).toEqual({ ok: false })
+      expect(calls).toHaveLength(0)
+    })
+  })
+
+  it('요청 본문이 null이면 위임 없이 ok:false를 반환한다', () => {
+    const { manager, calls } = makeFakeRunManager(true)
+    expect(handlePermissionRespond(null as unknown as PermissionResponseInput, manager)).toEqual({ ok: false })
+    expect(calls).toHaveLength(0)
   })
 
   describe('behavior allowlist 검증', () => {
@@ -219,7 +230,6 @@ describe('PERMISSION_RESPOND 핸들러 입력 검증', () => {
   })
 })
 
-// M05 G10 ack 통일 — 옛 { accepted }를 돌려주던 agent 5채널이 permissionRespond와 같은 { ok }를 돌려준다.
 describe('agent ack 5채널 실물 응답 모양 (M05 G10)', () => {
   const ackChannels = [
     IPC_CHANNELS.AGENT_ABORT,

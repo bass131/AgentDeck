@@ -3,7 +3,6 @@ export const WINDOW_CHANNELS = {
   WINDOW_MAXIMIZE_TOGGLE: 'window.maximizeToggle',
   WINDOW_CLOSE: 'window.close',
   WINDOW_IS_MAXIMIZED: 'window.isMaximized',
-  // M05 G10: renderer가 부르지 않던 window.getBounds·window.setBounds는 지웠다
   WINDOW_DRAG_START: 'window.dragStart',
   WINDOW_DRAG_END: 'window.dragEnd',
   WINDOW_RESIZE_START: 'window.resizeStart',

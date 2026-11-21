@@ -2,6 +2,26 @@ import { describe, it, expect } from 'vitest'
 
 const { cmpVer, checkEngineUpdate } = await import('@main/10_Engine/engineCheckUpdate')
 
+describe('cmpVer() — pre-release와 비교 함수 한 벌', () => {
+  it('pre-release는 같은 번호의 정식보다 작고, 더 낮은 정식보다는 크다', () => {
+    expect(cmpVer('0.3.201-rc.1', '0.3.201')).toBeLessThan(0)
+    expect(cmpVer('0.3.201', '0.3.201-rc.1')).toBeGreaterThan(0)
+    expect(cmpVer('0.3.201-rc.1', '0.3.200')).toBeGreaterThan(0)
+    expect(cmpVer('0.3.201-rc.1', '0.3.201-rc.2')).toBeLessThan(0)
+    expect(cmpVer('0.3.201-rc.1', '0.3.201-rc.1')).toBe(0)
+    expect(cmpVer('0.3.201-rc.2', '0.3.201-rc.10')).toBeLessThan(0)
+    expect(cmpVer('0.3.201-alpha', '0.3.201-alpha.1')).toBeLessThan(0)
+    expect(cmpVer('0.3.201+build.5', '0.3.201')).toBe(0)
+  })
+
+  it('engineVersions는 자기 비교 함수를 두지 않고 cmpVer를 쓴다', async () => {
+    const fs = await import('node:fs')
+    const src = fs.readFileSync(new URL('../../../00_Source/main/10_Engine/engineVersions.ts', import.meta.url), 'utf8')
+    expect(src).not.toMatch(/function compareDesc/)
+    expect(src).toMatch(/\.sort\(\(a, b\) => cmpVer\(b, a\)\)/)
+  })
+})
+
 describe('cmpVer()', () => {
   it('current < latest → 음수 반환 (예: 0.3.186 < 0.3.187)', () => {
     expect(cmpVer('0.3.186', '0.3.187')).toBeLessThan(0)

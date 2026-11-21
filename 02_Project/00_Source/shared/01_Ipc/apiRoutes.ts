@@ -1,33 +1,29 @@
-// preload API의 묶음 라우트 표 (M05 G10) — `api.<묶음>.<동작>`이 어느 채널로 가는지의 단일 원천이다.
-// preload는 이 표를 순회해 invoke·구독 함수를 만들고, 노출 타입(IpcApi)도 이 표에서 유도한다.
+// `api.<묶음>.<동작>` → 채널의 단일 원천. preload가 이 표를 순회해 함수를 만들고 IpcApi 타입도 여기서 유도한다.
 import { IPC_CHANNELS } from '../ipcContract'
 import type { ArgsOf, InvokeChannel, PayloadOf, PushChannel, ResOf, VoidReqChannel } from './channelMap'
 
-export type ReqChannel = Exclude<InvokeChannel, VoidReqChannel>
+type ReqChannel = Exclude<InvokeChannel, VoidReqChannel>
 
-export interface CallRoute<C extends ReqChannel = ReqChannel> {
+interface CallRoute<C extends ReqChannel = ReqChannel> {
   readonly kind: 'call'
   readonly channel: C
 }
-export interface Call0Route<C extends VoidReqChannel = VoidReqChannel> {
+interface Call0Route<C extends VoidReqChannel = VoidReqChannel> {
   readonly kind: 'call0'
   readonly channel: C
 }
-export interface PushRoute<C extends PushChannel = PushChannel> {
+interface PushRoute<C extends PushChannel = PushChannel> {
   readonly kind: 'push'
   readonly channel: C
 }
 export type ApiRoute = CallRoute | Call0Route | PushRoute
 
-// 요청 하나를 받는 채널 — invoke(ch, req). 인자 없는 채널에 쓰면 타입 오류다.
 export function call<C extends ReqChannel>(channel: C): CallRoute<C> {
   return { kind: 'call', channel }
 }
-// 인자 없는 채널 — invoke(ch). 요청이 필요한 채널에 쓰면 타입 오류다.
 export function call0<C extends VoidReqChannel>(channel: C): Call0Route<C> {
   return { kind: 'call0', channel }
 }
-// main → renderer push 구독.
 export function push<C extends PushChannel>(channel: C): PushRoute<C> {
   return { kind: 'push', channel }
 }
@@ -40,6 +36,7 @@ export const API_ROUTES = {
     taskStop: call(IPC_CHANNELS.AGENT_TASK_STOP),
     setMode: call(IPC_CHANNELS.AGENT_SET_MODE),
     setModel: call(IPC_CHANNELS.AGENT_SET_MODEL),
+    setEffort: call(IPC_CHANNELS.AGENT_SET_EFFORT),
     listModels: call0(IPC_CHANNELS.AGENT_LIST_MODELS),
     permissionRespond: call(IPC_CHANNELS.PERMISSION_RESPOND),
     questionRespond: call(IPC_CHANNELS.QUESTION_RESPOND),
@@ -119,7 +116,6 @@ export const API_ROUTES = {
     resizeEnd: call0(IPC_CHANNELS.WINDOW_RESIZE_END),
     onState: push(IPC_CHANNELS.WINDOW_STATE),
   },
-  // M09 G4 — 앱 안 마일스톤 루프. 화면(2차분)은 이 묶음만 부른다.
   loop: {
     open: call(IPC_CHANNELS.LOOP_OPEN),
     start: call(IPC_CHANNELS.LOOP_START),
@@ -130,28 +126,29 @@ export const API_ROUTES = {
     releaseLatch: call(IPC_CHANNELS.LOOP_RELEASE_LATCH),
     close: call(IPC_CHANNELS.LOOP_CLOSE),
     onState: push(IPC_CHANNELS.LOOP_STATE),
-    // M10 G2 — 메인 대화(읽기·사용자 턴·새 메인 대화)와 그 push, 루프 세션 사건 push
     mainRead: call(IPC_CHANNELS.LOOP_MAIN_READ),
     mainSend: call(IPC_CHANNELS.LOOP_MAIN_SEND),
     mainNew: call(IPC_CHANNELS.LOOP_MAIN_NEW),
     onMainState: push(IPC_CHANNELS.LOOP_MAIN_STATE),
     onSessionEvent: push(IPC_CHANNELS.LOOP_SESSION_EVENT),
-    // M10 G3 — 사람이 일시 정지 깃발을 내린다(판정 칸 없음)
     lowerFlag: call(IPC_CHANNELS.LOOP_LOWER_FLAG),
     sessionLog: call(IPC_CHANNELS.LOOP_SESSION_LOG),
     mainArchives: call(IPC_CHANNELS.LOOP_MAIN_ARCHIVES),
-    // M10 G5 — 그래프 읽기(보기 전용), 알림 목록 읽기와 그 push, 알림을 눌렀을 때 여는 push
     graph: call(IPC_CHANNELS.LOOP_GRAPH),
     alerts: call0(IPC_CHANNELS.LOOP_ALERTS),
     onAlerts: push(IPC_CHANNELS.LOOP_ALERTS_STATE),
     onAlertOpen: push(IPC_CHANNELS.LOOP_ALERT_OPEN),
+    listDir: call(IPC_CHANNELS.LOOP_LIST_DIR),
+    tasteOpen: call(IPC_CHANNELS.LOOP_TASTE_OPEN),
+  },
+  taste: {
+    read: call(IPC_CHANNELS.TASTE_READ),
   },
 } as const
 
-export type ApiRoutes = typeof API_ROUTES
+type ApiRoutes = typeof API_ROUTES
 
-// 라우트 하나 → 노출 함수 타입.
-export type RouteFn<R> = R extends CallRoute<infer C>
+type RouteFn<R> = R extends CallRoute<infer C>
   ? (...args: ArgsOf<C>) => Promise<ResOf<C>>
   : R extends Call0Route<infer C>
     ? () => Promise<ResOf<C>>
@@ -163,8 +160,8 @@ export type RoutedApi<T extends Record<string, Record<string, ApiRoute>> = ApiRo
   [G in keyof T]: { [A in keyof T[G]]: RouteFn<T[G][A]> }
 }
 
-// IPC가 아닌 preload 노출 — 파일 경로(webUtils)와 화면 배율(webFrame). 손으로 붙인다.
-export interface BridgeExtras {
+// IPC가 아닌 preload 노출(webUtils·webFrame)이라 표 밖에서 손으로 붙인다.
+interface BridgeExtras {
   workspace: { pathForFile: (file: File) => string }
   window: { getZoomFactor: () => number; setZoomFactor: (factor: number) => void }
 }

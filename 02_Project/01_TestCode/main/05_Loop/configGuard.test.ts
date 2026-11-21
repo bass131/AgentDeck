@@ -1,4 +1,4 @@
-// M09 G2 검수 차단 1 — 실행기 git(자격 있음)이 세션이 심은 설정 코드를 돌리지 않는다.
+// 실행기 git(자격 있음)이 세션이 심은 설정 코드를 돌리지 않는다.
 // 열 때 git 설정 스냅숏과 전역 설정 파일 해시를 앱 영역에 적고, 실행기의 모든 git 호출 직전에 대조해 다르면 멈춘다.
 // 비교군: 대조가 없는 실물 git 포트는 심은 filter.clean을 실제로 돌린다(표지 파일이 생긴다).
 import fs from 'node:fs'
@@ -109,7 +109,7 @@ describe('실행기 git 설정 대조', () => {
     expect(await guard.check()).toContain('remote.origin.pushurl')
   })
 
-  // G2 재검수 중요 B — gh는 remote.<이름>.gh-resolved로 기본 저장소를 고른다(실측: octocat/Hello-World를 넣으면 gh pr list가 그 저장소를
+  // gh는 remote.<이름>.gh-resolved로 기본 저장소를 고른다(실측: octocat/Hello-World를 넣으면 gh pr list가 그 저장소를
   // 읽는다). 실행기 gh는 -R로 저장소를 고정하지만, 키 자체도 대조한다.
   it('remote.*.gh-resolved도 대조한다 — 실행기 gh를 다른 저장소로 돌리는 키다', async () => {
     const guard = await open()
@@ -117,7 +117,7 @@ describe('실행기 git 설정 대조', () => {
     expect(await guard.check()).toContain('remote.origin.gh-resolved')
   })
 
-  // G2 재검수 중요 D — 스냅숏을 지우고 다시 열면 심은 설정이 새 기준선이 됐다. 이제 위험 키는 기준선과 관계없이 열기를 거부한다.
+  // 스냅숏을 지우고 다시 열면 심은 설정이 새 기준선이 됐다. 이제 위험 키는 기준선과 관계없이 열기를 거부한다.
   it('지난 스냅숏과 다르면 열지 않고 안내는 「그 키를 지운 뒤 다시 연다」다 — 되돌리면 다시 열린다', async () => {
     await open()
     repos.git(['config', 'user.name', 'Someone Else'])
@@ -129,13 +129,13 @@ describe('실행기 git 설정 대조', () => {
     expect((await createConfigGuard({ cwd: repos.work, env: repos.env, snapshotFile, hooksPath })).ok).toBe(true)
   })
 
-  // M09 G4 — 사람의 「확인하고 풀기」. 열기 거부는 바뀐 키 목록을 구조로 돌려주고, 그 목록과 정확히 같은 차이만 새 기준선으로 받는다.
+  // 사람의 「확인하고 풀기」. 열기 거부는 바뀐 키 목록을 구조로 돌려주고, 그 목록과 정확히 같은 차이만 새 기준선으로 받는다.
   it('지난 스냅숏과의 차이를 목록으로 돌려주고, 사람이 그 목록을 받으면 새 기준선으로 연다 — 목록이 다르면 여전히 거부한다', async () => {
     await open()
     repos.git(['config', 'user.name', 'Someone Else'])
     const refused = await createConfigGuard({ cwd: repos.work, env: repos.env, snapshotFile, hooksPath })
     const seen = !refused.ok ? refused.changed ?? [] : []
-    // G4 검수 차단 B1 — 목록은 키 이름에 값(옛 값 → 새 값)과 출처 파일을 함께 보인다
+    // 목록은 키 이름에 값(옛 값 → 새 값)과 출처 파일을 함께 보인다
     expect(seen).toHaveLength(1)
     expect(seen[0]).toMatch(/^user\.name: "Loop Test" .*→ "Someone Else"/)
     expect(seen[0]).toContain(path.join('.git', 'config').replace(/\\/g, '/'))
@@ -147,7 +147,7 @@ describe('실행기 git 설정 대조', () => {
     expect((await createConfigGuard({ cwd: repos.work, env: repos.env, snapshotFile, hooksPath })).ok).toBe(true)
   })
 
-  // G4 검수 차단 B1 — 받기는 사람이 본 값에 묶인다. 본 뒤 값이 또 바뀌면 같은 키라도 받지 않는다
+  // 받기는 사람이 본 값에 묶인다. 본 뒤 값이 또 바뀌면 같은 키라도 받지 않는다
   it('사람이 본 뒤 값이 바뀌면 받지 않는다 — 새로 본 목록으로만 받는다', async () => {
     await open()
     repos.git(['config', 'user.name', 'Someone Else'])
@@ -161,7 +161,7 @@ describe('실행기 git 설정 대조', () => {
     expect((await createConfigGuard({ cwd: repos.work, env: repos.env, snapshotFile, hooksPath, acceptChanged: now })).ok).toBe(true)
   })
 
-  // G4 검수 차단 B1 — 프로브 guard.ts의 꼴. 전역 설정에 심은 위험 키는 풀기로 받지 않는다(무해한 전역 키는 받는다, 전역 파일 경로를 보인다)
+  // 프로브 guard.ts의 꼴. 전역 설정에 심은 위험 키는 풀기로 받지 않는다(무해한 전역 키는 받는다, 전역 파일 경로를 보인다)
   it('전역 설정 파일에 credential.helper·core.sshCommand를 심으면 풀기가 거부된다 — 무해한 전역 키 변경은 파일 경로와 함께 받는다', async () => {
     const globalCfg = repos.env.GIT_CONFIG_GLOBAL as string
     const guard = await open()
@@ -207,7 +207,7 @@ describe('실행기 git 설정 대조', () => {
     expect(!p.ok && p.changed).toBeUndefined()
   })
 
-  // G4 확인 검수 — 프로브 guard2.ts의 꼴. 실행기 git의 작업 위치(core.worktree·bare)나 원격 요청(http.extraHeader·cookieFile·proxy)을
+  // 프로브 guard2.ts의 꼴. 실행기 git의 작업 위치(core.worktree·bare)나 원격 요청(http.extraHeader·cookieFile·proxy)을
   // 바꾸는 키는 remote url처럼 풀기로 받지 않는다 — 받기 목록을 주지 않고, 열린 실행기가 본 목록으로 받으려 해도 거부한다
   describe('작업 위치·원격 요청을 바꾸는 키는 풀기로 받지 않는다', () => {
     const toSlash = (p: string): string => p.replace(/\\/g, '/')
@@ -304,7 +304,7 @@ describe('실행기 git 설정 대조', () => {
     ['core.alternateRefsCommand', 'x'],
     ['include.path', 'nothing.cfg'],
     ['includeIf.onbranch:main.path', 'nothing.cfg'],
-    // G2 3차 검수 사소 — 네트워크로 자격이 새는 키(프록시·인증서 검증 끄기·다른 CA·다른 push 주소)
+    // 네트워크로 자격이 새는 키(프록시·인증서 검증 끄기·다른 CA·다른 push 주소)
     ['http.proxy', 'http://evil.invalid:8080'],
     ['http.sslVerify', 'false'],
     ['http.sslCAInfo', 'evil.pem'],
@@ -346,7 +346,7 @@ describe('실행기 git 설정 대조', () => {
     expect((await createConfigGuard({ cwd: repos.work, env: repos.env, snapshotFile, hooksPath })).ok).toBe(true)
   })
 
-  // G2 3차 검수 — origin이 ssh면 실행기 git의 ssh가 ~/.ssh/config(ProxyCommand·Match exec)를 자격과 함께 읽는다.
+  // origin이 ssh면 실행기 git의 ssh가 ~/.ssh/config(ProxyCommand·Match exec)를 자격과 함께 읽는다.
   // 실행기 환경의 GIT_SSH_COMMAND는 고정하지 않는다(사용자 IdentityFile 등이 깨진다). 대신 그 파일과 Include를 해시로 대조한다.
   describe('ssh 설정 대조', () => {
     let home: string
@@ -401,7 +401,7 @@ describe('실행기 git 설정 대조', () => {
       expect(await guard.check()).toContain('x.conf')
     })
 
-    // G4 검수 차단 B1 — ssh 설정 파일의 변경은 풀기로 받지 않는다. 사람이 직접 되돌린다
+    // ssh 설정 파일의 변경은 풀기로 받지 않는다. 사람이 직접 되돌린다
     it('ssh 설정 파일이 바뀌었으면 풀기로 받지 않고 직접 되돌리라고 한다', async () => {
       const guard = await openWith()
       fs.writeFileSync(path.join(home, '.ssh', 'config'), 'Host *\n  ProxyCommand sh -c "cat >> leak"\n')
@@ -414,7 +414,7 @@ describe('실행기 git 설정 대조', () => {
     })
   })
 
-  // G2 4차 검수 — 실행기 gh는 사용자 gh 설정 폴더를 그대로 쓴다. config.yml의 http_unix_socket이면 gh가 인증 머리를 평문으로
+  // 실행기 gh는 사용자 gh 설정 폴더를 그대로 쓴다. config.yml의 http_unix_socket이면 gh가 인증 머리를 평문으로
   // 그 소켓에 보낸다(검수자 실측). 그 폴더의 config.yml·hosts.yml을 해시로 대조하고, 열 때 소켓이 정해져 있으면 거부한다.
   describe('gh 설정 대조', () => {
     let ghDir: string
@@ -469,7 +469,7 @@ describe('실행기 git 설정 대조', () => {
       if (process.platform === 'win32') expect(Object.keys(snap.files)).toContain(path.resolve(repos.root, 'appdata', 'GitHub CLI', 'config.yml'))
     })
 
-    // G4 검수 차단 B1 — gh config.yml·hosts.yml의 변경은 풀기로 받지 않는다. 사람이 직접 되돌린다
+    // gh config.yml·hosts.yml의 변경은 풀기로 받지 않는다. 사람이 직접 되돌린다
     it('gh hosts.yml이 바뀌었으면 풀기로 받지 않고 직접 되돌리라고 한다', async () => {
       const r = await createConfigGuard({ cwd: repos.work, env, snapshotFile, hooksPath })
       if (!r.ok) throw new Error(r.reason)
@@ -482,7 +482,7 @@ describe('실행기 git 설정 대조', () => {
     })
   })
 
-  // G2 3차 검수 사소 — .git/info/grafts는 GIT_NO_REPLACE_OBJECTS로 꺼지지 않는다(실측). 있으면 열지 않고, 열린 뒤 생기면 멈춘다.
+  // .git/info/grafts는 GIT_NO_REPLACE_OBJECTS로 꺼지지 않는다(실측). 있으면 열지 않고, 열린 뒤 생기면 멈춘다.
   it('grafts 파일이 있으면 열지 않고, 열린 뒤 생기면 실행기 git을 돌리지 않는다', async () => {
     const grafts = path.join(repos.work, '.git', 'info', 'grafts')
     fs.mkdirSync(path.dirname(grafts), { recursive: true })
@@ -509,7 +509,7 @@ describe('실행기 git 설정 대조', () => {
   })
 })
 
-// G2 재검수 사소 — 설정 읽기 한 번의 일시 실패(시간 초과·EBUSY)로 곧바로 래치하지 않는다. 바뀐 값은 다시 읽지 않고 바로 멈춘다.
+// 설정 읽기 한 번의 일시 실패(시간 초과·EBUSY)로 곧바로 래치하지 않는다. 바뀐 값은 다시 읽지 않고 바로 멈춘다.
 describe('설정 다시 읽기의 일시 실패', () => {
   // 열 때는 그대로 읽고, arm() 뒤의 git 호출부터 failures번 시간 초과로 실패한다
   function flaky(failures: number): { run: (args: string[]) => Promise<ProcessResult>; arm: () => void; failed: () => number } {
@@ -586,4 +586,51 @@ describe('git 포트는 모든 호출 직전에 대조한다', () => {
     await expect(git.headSha('master')).rejects.toThrow('바뀌었다')
     expect(repos.git(['branch', '--list', 'x'])).toBe('')
   })
+})
+
+describe('실행기 환경과 설정 대조의 남은 틈 (M11 G3)', () => {
+  it('[M11-G3 M09-4] 실행기 환경의 PATH에서 사용자가 쓸 수 있는 폴더(%APPDATA%\\npm 등)를 뺀다', () => {
+    const user = 'C:\\Users\\u'
+    const npm = `${user}\\AppData\\Roaming\\npm`
+    const env = executorGitEnv({ PATH: ['C:\\Windows\\system32', 'C:\\Program Files\\Git\\cmd', npm].join(';'), APPDATA: `${user}\\AppData\\Roaming`, USERPROFILE: user })
+    const parts = (env.PATH ?? '').split(';')
+    expect(parts).toContain('C:\\Windows\\system32')
+    expect(parts).not.toContain(npm)
+    // Windows 환경은 키가 Path일 수 있다 — 그 키를 고치고 PATH를 따로 만들지 않는다. 대소문자·끝 역슬래시·LOCALAPPDATA·HOME도 본다
+    const win = executorGitEnv({
+      Path: ['C:\\Program Files\\GitHub CLI', 'c:\\users\\U\\appdata\\local\\Microsoft\\WindowsApps\\', 'D:\\home\\bin', 'C:\\Users\\uu\\bin'].join(';'),
+      LOCALAPPDATA: `${user}\\AppData\\Local`, USERPROFILE: user, HOME: 'D:\\home',
+    })
+    expect(win.PATH).toBeUndefined()
+    expect(win.Path).toBe('C:\\Program Files\\GitHub CLI;C:\\Users\\uu\\bin')
+  })
+
+  it('[M11-G3 M09-5] 풀기로 받지 않는 차이의 거부 안내는 바뀐 파일의 옛 값 → 새 값과 복구 절차(자기 변경이면 스냅숏 파일을 지운 뒤 다시 연다)를 적는다', async () => {
+    const ghDir = path.join(repos.root, 'gh-config')
+    fs.mkdirSync(ghDir, { recursive: true })
+    const env = { ...repos.env, GH_CONFIG_DIR: ghDir }
+    const r = await createConfigGuard({ cwd: repos.work, env, snapshotFile, hooksPath })
+    if (!r.ok) throw new Error(r.reason)
+    const hosts = path.join(ghDir, 'hosts.yml')
+    fs.writeFileSync(hosts, 'github.com:\n  user: x\n')
+    const again = await createConfigGuard({ cwd: repos.work, env, snapshotFile, hooksPath })
+    if (again.ok) throw new Error('열렸다')
+    expect(again.reason).toContain(`${hosts}: `)
+    expect(again.reason).toContain(snapshotFile)
+    expect(again.reason).toMatch(/지우|지운|삭제/)
+  })
+
+  const requestKeys: [string, string, () => void][] = [
+    ['로컬 remote.origin.proxy 빈 값', 'remote.origin.proxy', () => { repos.git(['config', 'remote.origin.proxy', '']) }],
+    ['로컬 http.curloptResolve', 'http.curloptresolve', () => { repos.git(['config', 'http.curloptResolve', 'github.com:443:127.0.0.1']) }],
+  ]
+  for (const [name, key, plant] of requestKeys) {
+    it(`[M11-G3 M09-9] ${name} — 원격 요청을 바꾸는 키라 열린 뒤 본 목록으로도 풀기로 받지 않는다`, async () => {
+      const guard = await open()
+      plant()
+      expect(await guard.check()).toContain(key)
+      const accepted = await createConfigGuard({ cwd: repos.work, env: repos.env, snapshotFile, hooksPath, acceptChanged: guard.changes() })
+      expect(accepted.ok).toBe(false)
+    })
+  }
 })

@@ -34,7 +34,7 @@ export interface ConversationRecord {
   subagents?: PersistedSubAgent[]
   replMode?: boolean
   model?: string
-  // 권한 모드 picker id(normal·plan·acceptEdits·auto·bypass) — 대화마다 기억한다(M06 Backlog 1)
+  // 권한 모드 picker id(normal·plan·acceptEdits·auto·bypass) — 대화마다 기억한다
   mode?: string
 }
 

@@ -15,7 +15,7 @@ export const AGENT_CHANNELS = {
   QUESTION_RESPOND: 'agent.questionRespond',
 } as const
 
-type MessageRole ='user' | 'assistant'
+type MessageRole = 'user' | 'assistant'
 
 export interface ConversationMessage {
   role: MessageRole
@@ -34,15 +34,13 @@ export interface AgentRunRequest {
   resumeSessionId?: string
   persistent?: boolean
   sessionKey?: string
-  // 대화가 마지막으로 잰 컨텍스트 창 — main이 기록 재적재 예산을 정한다 (M06 G4)
+  // 대화가 마지막으로 잰 컨텍스트 창 — main이 기록 재적재 예산을 정한다
   contextWindow?: number
 }
 
-// 첫 턴 전의 컨텍스트 창 기본값 하나 (M06 G4) — 턴이 끝나면 결과의 modelUsage.contextWindow가 대신한다.
-// 모델별 손 표는 두지 않는다.
+// 첫 턴 전의 기본값 — 턴이 끝나면 결과의 modelUsage.contextWindow가 대신하므로 모델별 표는 두지 않는다.
 export const DEFAULT_CONTEXT_WINDOW = 1_000_000
 
-// agent.listModels 응답 — main 공급자가 SDK 목록·캐시·최소 목록 가운데 하나를 준다.
 export type { ModelRow, ModelListResponse, ModelListSource } from './models/modelList'
 
 export interface AgentRunResponse {
@@ -53,7 +51,6 @@ export interface AgentAbortRequest {
   runId: string
 }
 
-// M05 G10 ack 통일: 아래 5개 응답은 옛 { accepted }에서 공용 Ack { ok }로 바뀌었다. 이름은 별칭으로 남긴다.
 export type AgentAbortResponse = Ack
 
 export interface AgentInterruptRequest {

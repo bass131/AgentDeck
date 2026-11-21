@@ -6,7 +6,6 @@ export const FS_CHANNELS = {
   FS_READ: 'workspace.read',
   LIST_FILES: 'workspace.listFiles',
   FS_LIST_DIR: 'workspace.listDir',
-  // M05 G10 재분류: image.saveData·dialog.pickFolder → workspace.* (구현과 preload 묶음이 workspace다)
   SAVE_IMAGE_DATA: 'workspace.saveImage',
   DIALOG_PICK_FOLDER: 'workspace.pickFolder',
 } as const

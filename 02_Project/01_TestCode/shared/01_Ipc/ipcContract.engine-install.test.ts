@@ -252,7 +252,7 @@ describe('EngineVersionState 타입 구조', () => {
       seal: 'ok',
     }
     const keys = Object.keys(state)
-    // M07 G4: 봉인 상태 칸(seal)이 더해졌다 — 해시 값은 싣지 않는다
+    // 봉인 상태는 seal 칸 하나로만 싣고 해시 값은 싣지 않는다
     expect(keys).toHaveLength(5)
     expect(keys).toContain('seal')
     expect(keys).toContain('package')

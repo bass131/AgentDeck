@@ -36,7 +36,7 @@ export interface AgentEventApiRetry {
 
 export interface AgentEventCompact {
   type: 'compact'
-  // settings — SDK 자동 압축의 켜짐과 문턱(getContextUsage, M06 Backlog 27)
+  // settings — SDK 자동 압축의 켜짐과 문턱(getContextUsage)
   kind: 'boundary' | 'status' | 'settings'
   trigger?: 'manual' | 'auto'
   preTokens?: number

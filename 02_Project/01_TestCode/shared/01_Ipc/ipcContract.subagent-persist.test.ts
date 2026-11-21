@@ -1,4 +1,3 @@
-// 작업 ID: cp1-p05 · 옛 이름 cp1-p05-subagent-persist-contract.test.ts
 import { describe, it, expect } from 'vitest'
 import { SUBAGENT_PERSIST_LIMITS } from '@shared/ipcContract'
 import type {

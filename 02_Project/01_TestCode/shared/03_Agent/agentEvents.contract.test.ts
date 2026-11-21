@@ -1,4 +1,3 @@
-// 작업 ID: gap1-p03 · 옛 이름 gap1-p03-agent-event-contract.test.ts
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import path from 'node:path'

@@ -12,7 +12,7 @@ electron-builder로 Windows NSIS 설치 파일 하나를 만들고, 그 설치 �
 - **만들 것**
   - electron-builder 설정 — NSIS 대상 하나, `productName` `AgentDeck`, 앱 ID, 아이콘이 있으면 그것, 게시 설정 없음(게시는 사람 몫). SDK의 네이티브 실행 파일처럼 asar 밖에 있어야 할 것은 풀어 둔다.
   - `package.json` — 의존성 `electron-builder`(dev)·`zod`(M10 Backlog 10), 설치본 빌드 명령 `scripts`의 `dist:win` 하나(판정 장치, 스펙 「건드릴 곳」).
-  - 앱 데이터 폴더 고정 — 설치본과 개발 실행본 모두 `%APPDATA%\agentdeck`을 쓴다. `productName`으로 폴더가 바뀌지 않게 코드에서 정한다(M07 Backlog 2).
+  - 앱 데이터 폴더 — 설치본이 `%APPDATA%\agentdeck`을 쓴다. 표시 이름 `AgentDeck`은 electron-builder 설정에만 두어 앱 이름이 `package.json` `name`으로 남게 한다(M07 Backlog 2, 결정 대장 정정 줄).
   - 버전 표시 — 빌드본이 Electron 버전(`42.4.1`) 대신 앱 버전을 보인다(M06 Backlog 6).
   - 실측 — 설치 파일을 빌드하고, 이 PC에 조용히 설치(NSIS `/S`)하고, 설치 폴더의 실행 파일을 띄워 창·버전·앱 데이터 폴더를 확인하고, 제거한다. 창은 2번 모니터.
   - 시험 — 버전 표시와 앱 데이터 폴더 고정의 단위 시험.
@@ -24,7 +24,7 @@ electron-builder로 Windows NSIS 설치 파일 하나를 만들고, 그 설치 �
 - **완료조건**
   - `npm run dist:win`이 NSIS 설치 파일(`.exe`) 하나를 만든다(실측).
   - 그 설치 파일로 이 PC에 깐 앱이 개발 서버 없이 창을 띄우고, 실행 경로가 저장소 작업 트리 밖이며, 화면의 버전 표시가 `package.json` 버전이고, 앱 데이터 폴더가 `%APPDATA%\agentdeck`이다(실측, 캡처). 제거도 된다.
-  - 시험이 버전 표시와 앱 데이터 폴더 고정을 묶는다.
+  - 시험이 버전 표시와 앱 데이터 폴더 이름의 조건(`productName` 없음, 표시 이름은 빌드 설정에만)을 묶는다.
   - 하드 게이트 다섯 종 통과, `npm test` 실패 0.
 
 ## Phase 1 — 패키징과 설치 · 태그: `release` · 의존: 없음
@@ -55,5 +55,7 @@ DoD
 ## 결정 대장
 
 - [USER·위임] `productName`은 electron-builder 설정에만 두고, 앱 데이터 폴더는 코드에서 `agentdeck`으로 고정한다 — `package.json` 최상위에 두면 판정 장치 시험 `settings-matcher.test.mjs`가 `Roaming/AgentDeck` 거부 규칙을 요구해 `.claude/settings.json`을 고쳐야 하는데, 그 파일은 스펙 「건드릴 곳」에 없다(헌법 3조·11조). 폴더를 고정하면 개발 실행본과 설치본이 같은 앱 데이터를 쓰고 거부 규칙도 실제 폴더와 맞는다. 근거: 성향 37(범위는 절차로 바꾼다), 성향 25. (2026-11-21)
+
+- [AI] 정정 — 코드 고정은 판정 장치 시험 `settings-matcher.test.mjs`(172–174행)가 main 소스의 `setPath('userData'`·`app.setName(`를 금지해 쓸 수 없다(작업 하위 에이전트가 빨강으로 발견, 커밋 0에서 멈춤). 패키징된 `app.asar`의 `package.json`에 `productName`이 없고 `name`이 `agentdeck`이라(실측), 설치본의 앱 이름과 앱 데이터 폴더는 코드 없이 `agentdeck`이다. 그래서 고정 코드를 빼고, 시험은 「`package.json`에 `productName` 없음, 표시 이름은 electron-builder 설정에만」을 묶는다. 실제 폴더는 설치 실측으로 확인한다. 정규식만 피하는 꼴은 판정 장치를 속이는 것이라 쓰지 않는다. (2026-11-21)
 
 출처 태그는 네 가지다 — `[USER]`·`[USER·위임]`·`[AI]`·`[AI·비가역]`.

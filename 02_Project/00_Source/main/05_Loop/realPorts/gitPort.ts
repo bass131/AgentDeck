@@ -58,6 +58,18 @@ async function must(git: Git, args: string[], extraEnv?: NodeJS.ProcessEnv): Pro
   return r.stdout
 }
 
+// 저장소 뿌리 기준의 평범한 상대 경로만 — 옵션·pathspec 마법·뿌리 밖은 받지 않는다
+function pathArgs(paths: string[]): string[] {
+  if (paths.length === 0) throw new Error('경로가 없다')
+  for (const p of paths) {
+    const parts = p.split('/')
+    if (p === '' || p.startsWith('-') || p.startsWith(':') || p.startsWith('/') || /^[A-Za-z]:/.test(p) || p.includes('\\') || parts.some((s) => s === '' || s === '.' || s === '..')) {
+      throw new Error(`경로 ${JSON.stringify(p)}는 저장소 안의 상대 경로가 아니다`)
+    }
+  }
+  return paths
+}
+
 function safeName(name: string): string {
   if (!name || name.startsWith('-')) throw new Error(`브랜치 이름 ${JSON.stringify(name)}을 쓸 수 없다`)
   return name
@@ -132,6 +144,32 @@ export function createGitPort(opts: GitPortOptions): GitPort {
       await must(git, ['add', '-A'])
       await must(git, ['commit', '--quiet', '--no-verify', '-m', message])
       return (await must(git, ['rev-parse', 'HEAD'])).trim()
+    },
+    async changedPaths() {
+      const out = await must(git, ['status', '--porcelain=v1', '-z', '--untracked-files=all'])
+      const parts = out.split('\0')
+      const paths: string[] = []
+      for (let i = 0; i < parts.length; i++) {
+        const e = parts[i]
+        if (e.length < 4) continue
+        paths.push(e.slice(3))
+        // 이름 바꿈·복사는 다음 칸이 옛 경로다
+        if (e[0] === 'R' || e[0] === 'C') i++
+      }
+      return paths
+    },
+    async commitPaths(paths, message) {
+      const ps = pathArgs(paths)
+      await must(git, ['add', '--', ...ps])
+      await must(git, ['commit', '--quiet', '--no-verify', '-m', message, '--', ...ps])
+      return (await must(git, ['rev-parse', 'HEAD'])).trim()
+    },
+    async discardPaths(paths) {
+      const ps = pathArgs(paths)
+      await must(git, ['reset', '--quiet', '--', ...ps])
+      const tracked = (await must(git, ['ls-tree', '-z', '--name-only', 'HEAD', '--', ...ps])).split('\0').filter((p) => p !== '')
+      if (tracked.length > 0) await must(git, ['checkout', '--quiet', 'HEAD', '--', ...tracked])
+      await must(git, ['clean', '--quiet', '--force', '--', ...ps])
     },
     // sha를 주면 그 커밋만 push한다(트리를 대조한 바로 그 커밋. 사이에 로컬 브랜치가 옮겨져도 따라가지 않는다).
     async push(branch, sha) {

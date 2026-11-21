@@ -43,6 +43,10 @@ export interface GitPort {
   hasChanges(): Promise<boolean>
   // 지금 브랜치에 변경 전부를 커밋하고 새 머리 SHA를 돌려준다.
   commitAll(message: string): Promise<string>
+  // 실행기 밖의 문서 확정 길만 쓴다 — 바뀐 경로(untracked 포함), 준 경로만의 커밋, 준 경로만 머리 상태로 되돌리기
+  changedPaths?(): Promise<string[]>
+  commitPaths?(paths: string[], message: string): Promise<string>
+  discardPaths?(paths: string[]): Promise<void>
   // sha를 주면 그 커밋을 원격 branch로 push한다(`<sha>:refs/heads/<branch>` — 트리를 본 그 커밋만 나간다).
   push(branch: string, sha?: string): Promise<void>
   // 원격의 그 브랜치 머리(ls-remote). 원격에 없으면 null.

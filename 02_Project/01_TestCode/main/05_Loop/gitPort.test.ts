@@ -63,6 +63,27 @@ describe('브랜치·머리·커밋·push', () => {
     expect(await git.currentBranch?.()).toBeNull()
   })
 
+  it('바뀐 경로를 untracked까지 읽고, 준 경로만 커밋하며, 준 경로만 머리 상태로 되돌린다', async () => {
+    expect(await git.changedPaths?.()).toEqual([])
+    write('docs/agentdeck/헌장.md', '# 프로젝트 헌장\n')
+    write('.env', 'SECRET=1\n')
+    write('README.md', '# 바뀜\n')
+    expect([...(await git.changedPaths?.() ?? [])].sort()).toEqual(['.env', 'README.md', 'docs/agentdeck/헌장.md'])
+    const sha = await git.commitPaths?.(['docs/agentdeck/헌장.md'], 'docs: 헌장')
+    expect(repos.git(['show', '-z', '--name-only', '--format=', sha as string]).split('\0').filter((x) => x.trim() !== '')).toEqual(['docs/agentdeck/헌장.md'])
+    expect([...(await git.changedPaths?.() ?? [])].sort()).toEqual(['.env', 'README.md'])
+    write('docs/agentdeck/헌장.md', '# 고침\n')
+    write('docs/agentdeck/Taste.md', '# 프로젝트 Taste\n')
+    repos.git(['add', '--', 'docs/agentdeck/Taste.md'])
+    await git.discardPaths?.(['docs/agentdeck/헌장.md', 'docs/agentdeck/Taste.md'])
+    expect(fs.readFileSync(path.join(repos.work, 'docs', 'agentdeck', '헌장.md'), 'utf8')).toBe('# 프로젝트 헌장\n')
+    expect(fs.existsSync(path.join(repos.work, 'docs', 'agentdeck', 'Taste.md'))).toBe(false)
+    expect([...(await git.changedPaths?.() ?? [])].sort()).toEqual(['.env', 'README.md'])
+    for (const bad of [[], ['../x.md'], ['/abs.md'], ['-n'], [':(glob)*'], ['']]) {
+      await expect(git.commitPaths?.(bad, 'x')).rejects.toThrow(/경로/)
+    }
+  })
+
   it('브랜치를 만들고 옮겨 가며, 머리와 계보를 읽는다', async () => {
     const m0 = await git.headSha('master')
     expect(m0).toMatch(/^[0-9a-f]{40}$/)

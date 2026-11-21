@@ -2,6 +2,7 @@ import { RunEventNormalizer, nextRunTag } from '../stream/eventNormalizer'
 import { PermissionCoordinator } from '../permission/permissionCoordinator'
 import { buildClaudeSdkOptions, makeRefusalFallbackHandler } from '../sdkOptions'
 import { getUserDataDir } from '@main/02_Common/userData'
+import { loadLoopDocsAppend } from '@main/13_Taste/tasteStore'
 import { PERMISSION_NODES } from '../permission/controlNodes'
 import { controlsForRun, type ControlsForRun } from '../permission/controlsStore'
 import { getDefaultQueryFn, captureSupportedCommands } from '../queryFn'
@@ -356,6 +357,8 @@ export class ClaudeAgentRun implements AgentRun {
       return null
     }
 
+    const loopDocs = this._req.loopLock ? await loadLoopDocsAppend(userDataDir, this._req.loopLock.repoRoot) : undefined
+
     let resolvedQueryFn: QueryFn
     try {
       resolvedQueryFn = this._queryFn !== null ? this._queryFn : await getDefaultQueryFn()
@@ -381,6 +384,7 @@ export class ClaudeAgentRun implements AgentRun {
       mcpDenied: this._mcpDeniedProvider(),
       onUserDialog: makeRefusalFallbackHandler(this._normalizer, (e) => this._push(e)),
       ...(userDataDir ? { userDataDir } : {}),
+      ...(loopDocs ? { loopDocs } : {}),
     })
     return { resolvedQueryFn, sdkOptions }
   }

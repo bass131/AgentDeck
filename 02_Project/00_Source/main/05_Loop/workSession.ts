@@ -1,6 +1,6 @@
 // 작업 노드 세션 포트(ports.SessionPort)의 실물. 노드마다 새 세션을 기존 03_Agent 백엔드로 연다.
 //   - 프롬프트: 템플릿 노드의 지시와 그 노드가 고른 생존 문서(경로 머리 + 본문)만. 마일스톤 id·goal 제목 같은 다른 맥락은 없다.
-//     단, 세션은 앱 세션과 같은 설정 출처(user·project·local)를 읽는다 — 작업 저장소와 사용자의 CLAUDE.md는 그쪽 몫이다.
+//     설정 출처는 작업 저장소 쪽(project·local)만 읽고, 사용자 전역 설정(user) 대신 Taste·헌장 원문을 싣는다(sdkOptions).
 //     사용자 MCP 서버는 루프 잠금이 붙은 세션에서 읽지 않는다(sdkOptions의 strictMcpConfig).
 //   - 실행 입력: 앱 「자동」 모드(picker id auto), cwd는 작업 저장소, 환경은 자격 없는 자식 환경, 루프 잠금 노드(loopLock.ts).
 //     잠금은 claude-code 백엔드의 SDK 옵션에서만 붙으므로 다른 백엔드는 열지 않는다(fail-closed).

@@ -114,6 +114,8 @@ export const FLAT_ROUTES = {
   onLoopAlerts: { group: 'loop', action: 'onAlerts' },
   onLoopAlertOpen: { group: 'loop', action: 'onAlertOpen' },
   loopListDir: { group: 'loop', action: 'listDir' },
+
+  tasteRead: { group: 'taste', action: 'read' },
 } as const satisfies Record<string, FlatRoute>
 
 export type FlatKey = keyof typeof FLAT_ROUTES
@@ -228,6 +230,11 @@ const DEFAULT_RESULTS: { [C in InvokeChannel]?: ResOf<C> } = {
   'loop.graph': { ok: false, reason: '시험 기본값 — 그래프 없음' },
   'loop.alerts': { alerts: [] },
   'loop.listDir': { ok: false, entries: [] },
+  'taste.read': {
+    global: { absent: true, path: '' },
+    charter: { absent: true, path: '' },
+    project: { absent: true, path: '' },
+  },
 }
 
 const SYNC_RESULTS: Partial<Record<FlatKey, unknown>> = {

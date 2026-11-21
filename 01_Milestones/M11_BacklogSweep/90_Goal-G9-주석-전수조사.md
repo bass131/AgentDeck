@@ -1,6 +1,6 @@
 # M11 G9 — 주석 전수조사
 
-- 마일스톤: M11 (마일스톤 스펙 `01_Milestones/M11_BacklogSweep/00_마일스톤-스펙.md`) · 작성: 2026-11-21 · 상태: 실행 중 · 검증 강도: 강(앱 소스 50줄 이상, 판정 장치의 주석)
+- 마일스톤: M11 (마일스톤 스펙 `01_Milestones/M11_BacklogSweep/00_마일스톤-스펙.md`) · 작성: 2026-11-21 · 상태: 종결(goal PR 116, 로컬 병합 `e0c98c9d`, 2026-11-21) · 검증 강도: 강(앱 소스 50줄 이상, 판정 장치의 주석)
 - 작업 브랜치: `chore/m11-g9-comments` · 기준 브랜치: `milestone/m11-backlog-sweep`(`9a507a7c`, G8 병합 머리)
 
 ## 목표
@@ -31,7 +31,7 @@ M10 Backlog 15(사용자 요청 「주석으로 설명해야할정도로 복잡�
 - [x] 3. renderer·shared 소스와 나머지 시험, Backlog 60의 renderer·shared 줄
 - [x] 4. 훅과 현황판
 - [x] 5. 꼬리표 grep, 주석 줄 수, 닫힘 표, 하드 게이트 다섯 종, `npm test`·현황판 시험
-- [>] 6. 독립 검수와 반영, goal PR, `hard-gates`, 로컬 goal 병합
+- [x] 6. 독립 검수와 반영, goal PR, `hard-gates`, 로컬 goal 병합
 
 실행 단계 일괄 승인 대상 (스펙에서 옮김)
 
@@ -45,6 +45,7 @@ DoD
 
 검증 기록
 
+- PASS 2026-11-21T11:43:46+09:00 — goal 병합: PR 116 `hard-gates` 통과(머리 `36b9519b`) 뒤 정형 절차로 `milestone/m11-backlog-sweep`에 합쳤다(`e0c98c9d`, 둘째 부모가 CI 머리와 같음). GitHub가 PR을 병합됨으로 닫았다.
 - PASS 2026-11-21T11:35:23+09:00 — 독립 검수(구현 문맥 없는 검수자, `0e5c64c2..c3dab1a6`): 막는 결함 0. 바뀐 JS·TS 560파일을 TypeScript 컴파일러로 주석 없이 다시 찍어 559개가 같고 하나는 e2e 템플릿 문자열 안 주석의 꼬리표뿐임을 보였다. 지시문 개수 같음, 시험이 소스 글을 읽는 60파일 1341건 통과, 범위 밖 0. 반영 — 새로 생긴 `=` 띄어쓰기 빠짐 `.claude/hooks/smoke.test.mjs:67`(기존 `merge-view.test.mjs:106`도 함께), 뜻이 뒤집힌 `controlNodes.ts:76`의 `locked` 설명, 검증 줄의 현황판 실행 폴더와 `styles.css` 서술.
 - PASS 2026-11-21T11:16:54+09:00 — 구현과 동작 무변경: 세 워커가 커밋 열넷(main `74f240eb`·`bcf8a672`·`09e65124`, renderer·shared·나머지 시험 `2d86bf75`·`98b1ff4a`·`bd7a285a`·`045a5430`·`3f60c14f`·`6b8cacde`·`6d8a9228`, 훅·현황판 `cc71396c`·`e49e2d21`·`05fe3833`·`540edd1a`)을 자기 경로만 지정해 커밋했다. 메인이 `git diff --name-only 0e5c64c2..HEAD`로 대상 네 곳 밖 변경 0을 확인했다. `6d8a9228`에서 `npm test` Test Files 468 passed·6 skipped(474), Tests 9154 passed·10 skipped(9164) — 기준선과 같다. 현황판(`99_Others/Dashboard`에서 `node --test`) tests 292·pass 291·skipped 1, `test:hooks` 15묶음 `ok` 1979 — 기준선과 같다. 훅·현황판은 주석을 걷은 코드가 기준 커밋과 같음을 비교 스크립트로 확인했고, 소스 쪽 diff의 비주석 변경은 Backlog 60의 띄어쓰기와 빈 줄뿐이다. 하드 게이트 다섯 종 통과.
 - PASS 2026-11-21T11:16:54+09:00 — 주석과 꼬리표: 주석 줄 5,776 → 4,460(소스 2,041→1,767, 시험 1,817→1,359, 훅 1,272→703, 현황판 646→631). 주석 안 이력 꼬리표 987 → 2 — 남은 둘(`99_Others/Dashboard/lib/collector.mjs:263`, `lib/progress.mjs:42`의 「M05 G9c — …」)은 파서가 읽는 goal 제목 형식의 예시라 이력이 아니다. 시험 이름·파일명 등 문자열 안의 꼬리표와 앱 CSS 주석은 범위 밖이라 Backlog 85·87(현황판 `styles.css`는 구획 머리 표지를 남긴 채 꼬리표만 걷었다).

@@ -86,6 +86,9 @@ export interface OpenLoopOptions {
   limitInjectFile?: string
   // 앱 토큰(14_GitHub/appToken). 실행기 gh·git 포트만 호출마다 읽는다 — executorEnv와 자식 환경에는 넣지 않는다
   githubToken?: () => string | null
+  // 시험 이음매 — 앱 토큰을 거는 git 원격 주소(기본 https://github.com)와 실물 gh를 띄우는 함수(기본 runProcess)
+  githubGitUrl?: string
+  ghRun?: typeof runProcess
 }
 
 const GITHUB_GIT_URL = 'https://github.com'
@@ -180,7 +183,7 @@ export async function openLoop(opts: OpenLoopOptions): Promise<OpenLoopResult> {
     if (!guarded.ok) throw new OpenRefused(guarded.reason, guarded.changed)
     const guard = guarded.guard
     const gh = opts.gh ?? createGhPort(
-      createGhExec({ cwd: root, repo: ghRepo as string, env: executorEnv, guard, ...(opts.githubToken ? { token: opts.githubToken } : {}) }),
+      createGhExec({ cwd: root, repo: ghRepo as string, env: executorEnv, guard, ...(opts.githubToken ? { token: opts.githubToken } : {}), ...(opts.ghRun ? { run: opts.ghRun } : {}) }),
       { requiredChecks: opts.requiredChecks },
     )
     // 기준 브랜치 — 설정 대조가 위험 키를 거른 뒤에 읽는다
@@ -222,7 +225,7 @@ export async function openLoop(opts: OpenLoopOptions): Promise<OpenLoopResult> {
     const digest = createFileDigestStore(path.join(opts.appDataDir, 'digests'))
     const git = createGitPort({
       cwd: root, env: executorEnv, hooksPath: hooksDir, guard,
-      ...(opts.githubToken ? { credential: { url: GITHUB_GIT_URL, token: opts.githubToken } } : {}),
+      ...(opts.githubToken ? { credential: { url: opts.githubGitUrl ?? GITHUB_GIT_URL, token: opts.githubToken } } : {}),
     })
     const runner = createLoopRunner({
       template: template.template,

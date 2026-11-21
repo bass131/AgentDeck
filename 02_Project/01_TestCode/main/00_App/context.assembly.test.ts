@@ -10,6 +10,9 @@ const h = vi.hoisted(() => ({
   handlers: new Map<string, (...args: unknown[]) => unknown>(),
   handleCalls: 0,
   powerEvents: [] as string[],
+  encryption: false,
+  loopDriverOpts: [] as { openExtras?: { githubToken?: () => string | null } }[],
+  tokenStores: [] as { file: string; store: { write(a: { token: string; login: string }): Promise<unknown>; clear(): Promise<void> } }[],
 }))
 
 vi.mock('electron', () => ({
@@ -17,7 +20,11 @@ vi.mock('electron', () => ({
   ipcMain: { handle: (ch: string, fn: (...a: unknown[]) => unknown): void => { h.handleCalls++; h.handlers.set(ch, fn) } },
   dialog: {},
   powerMonitor: { on: (ev: string): void => { h.powerEvents.push(ev) } },
-  safeStorage: { isEncryptionAvailable: () => false, encryptString: () => Buffer.alloc(0), decryptString: () => '' },
+  safeStorage: {
+    isEncryptionAvailable: () => h.encryption,
+    encryptString: (s: string) => Buffer.from(`enc:${s}`),
+    decryptString: (b: Buffer) => b.toString().slice(4),
+  },
   shell: { openExternal: async (): Promise<void> => {} },
 }))
 
@@ -58,6 +65,29 @@ vi.mock('@main/11_Settings/mcp', async (importOriginal) => {
       v.spyOn(s, 'deniedMcpServers')
       return s
     }),
+  }
+})
+
+vi.mock('@main/05_Loop/loopDriver', async (importOriginal) => {
+  const orig = await importOriginal<typeof import('@main/05_Loop/loopDriver')>()
+  return {
+    ...orig,
+    createLoopDriver: (...a: Parameters<typeof orig.createLoopDriver>) => {
+      h.loopDriverOpts.push(a[0])
+      return orig.createLoopDriver(...a)
+    },
+  }
+})
+
+vi.mock('@main/14_GitHub/tokenStore', async (importOriginal) => {
+  const orig = await importOriginal<typeof import('@main/14_GitHub/tokenStore')>()
+  return {
+    ...orig,
+    createTokenStore: (...a: Parameters<typeof orig.createTokenStore>) => {
+      const store = orig.createTokenStore(...a)
+      h.tokenStores.push({ file: a[0].file, store })
+      return store
+    },
   }
 })
 
@@ -274,6 +304,25 @@ describe('기동·종료 배선 — 00_App/bootstrap 한 곳 (M05 G11 4단계)',
     expect(closeAll).toHaveBeenCalledTimes(1)
     expect(disposeAll).toHaveBeenCalledTimes(1)
     expect(s.close).toHaveBeenCalledTimes(1)
+  })
+
+  it('루프 구동자의 openExtras.githubToken은 조립 지점이 만든 토큰 저장소를 읽는다(M13 G2)', async () => {
+    assembled()
+    const read = h.loopDriverOpts.at(-1)?.openExtras?.githubToken
+    const { file, store } = h.tokenStores.at(-1)!
+    expect(path.basename(file)).toBe('github-auth.bin')
+    expect(read?.()).toBeNull()
+    fs.mkdirSync(path.dirname(file), { recursive: true })
+    h.encryption = true
+    try {
+      await store.write({ token: 'gho_assemblyWiring55', login: 'octo' })
+      expect(read?.()).toBe('gho_assemblyWiring55')
+      await store.clear()
+      expect(read?.()).toBeNull()
+    } finally {
+      h.encryption = false
+      await store.clear()
+    }
   })
 
   it('loop.status는 조립된 구동자를 읽는다 — 열린 실행기가 없으면 closed', async () => {
